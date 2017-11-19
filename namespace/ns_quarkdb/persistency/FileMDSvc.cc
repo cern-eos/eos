@@ -22,6 +22,7 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <numeric>
 
@@ -34,15 +35,16 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
-  : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
-    pFlusher(nullptr), pQcl(nullptr), mMetaMap(), mDirtyFidBackend(),
-    mFlushFidSet(), mFileCache(10e8) {}
+  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
+    mMetaMap(), mDirtyFidBackend(), mFileCache(10e8) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 FileMDSvc::~FileMDSvc()
 {
+  // @todo (esindril): this should be droppped and the flusher should
+  // synchronize in his destructor
   if (pFlusher) {
     pFlusher->synchronize();
   }
@@ -78,7 +80,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setClient(*pQcl);
     mDirtyFidBackend.setKey(constants::sSetCheckFiles);
     mDirtyFidBackend.setClient(*pQcl);
-    inodeProvider.configure(mMetaMap, constants::sLastUsedFid);
+    mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
@@ -110,13 +112,46 @@ FileMDSvc::initialize()
 }
 
 //------------------------------------------------------------------------------
-// Get the file metadata information for the given file ID
+// Safety check to make sure there are no file entries in the backend with
+// ids bigger than the max file id.
+//------------------------------------------------------------------------------
+void
+FileMDSvc::SafetyCheck()
+{
+  std::string blob;
+  id_t free_id = getFirstFreeId();
+  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
+                                  100000, 150199, 200001, 1000002, 2000123
+                                 };
+
+  for (auto incr : offsets) {
+    id_t check_id = free_id + incr;
+
+    try {
+      std::string sid = stringify(check_id);
+      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
+      blob = bucket_map.hget(sid);
+    } catch (std::runtime_error& qdb_err) {
+      // Fine, we didn't find the file
+      continue;
+    }
+
+    if (!blob.empty()) {
+      MDException e(EEXIST);
+      e.getMessage() << "FATAL: Risk of data loss, found file with id bigger"
+                     << " than max file id";
+      throw e;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get the file metadata information for the given file id
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
-  // Check first in cache
-  std::shared_ptr<IFileMD> file = mFileCache.get(id);
+  auto file = mFileCache.get(id);
 
   if (file != nullptr) {
     if (file->isDeleted()) {
@@ -169,16 +204,12 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 std::shared_ptr<IFileMD>
 FileMDSvc::createFile()
 {
-  try {
-    uint64_t free_id = inodeProvider.reserve();
-    std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
-    file = mFileCache.put(free_id, file);
-    IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
-    notifyListeners(&e);
-    return file;
-  } catch (std::runtime_error& e) {
-    return nullptr;
-  }
+  uint64_t free_id = mInodeProvider.reserve();
+  std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
+  file = mFileCache.put(free_id, file);
+  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
+  notifyListeners(&e);
+  return file;
 }
 
 //------------------------------------------------------------------------------
@@ -190,18 +221,10 @@ FileMDSvc::updateStore(IFileMD* obj)
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-
-  try {
-    std::string sid = stringify(obj->getId());
-    pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
-    throw e;
-  }
-
-  // Flush fids in bunches to avoid too many round trips to the backend
-  flushDirtySet(obj->getId());
+  std::string sid = stringify(obj->getId());
+  pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
+  // Remove id from dirty set
+  pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -210,20 +233,13 @@ FileMDSvc::updateStore(IFileMD* obj)
 void
 FileMDSvc::removeFile(IFileMD* obj)
 {
-  try {
-    std::string sid = stringify(obj->getId());
-    pFlusher->hdel(getBucketKey(obj->getId()), sid);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << obj->getId() << " not found. ";
-    e.getMessage() << "The object was not created in this store!";
-    throw e;
-  }
-
+  std::string sid = stringify(obj->getId());
+  pFlusher->hdel(getBucketKey(obj->getId()), sid);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   obj->setDeleted();
-  flushDirtySet(obj->getId(), true);
+  // Remove id from dirty set
+  pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -246,7 +262,7 @@ FileMDSvc::getNumFiles()
   // Wait for all responses and sum up the results
   (void) ah.Wait();
   std::list<long long int> resp = ah.GetResponses();
-  num_files = std::accumulate(resp.begin(), resp.end(), (long long int)0);
+  num_files = std::accumulate(resp.begin(), resp.end(), 0ull);
   return num_files;
 }
 
@@ -287,9 +303,9 @@ void
 FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
   // Mark file as inconsistent so we can recover it in case of a crash
-  addToDirtySet(event->file);
+  pFlusher->sadd(constants::sSetCheckFiles, stringify(event->file->getId()));
 
-  for (auto && elem : pListeners) {
+  for (const auto& elem : pListeners) {
     elem->fileMDChanged(event);
   }
 }
@@ -309,15 +325,6 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
   }
 
   pContSvc = impl_cont_svc;
-}
-
-//------------------------------------------------------------------------------
-// Set the QuotaStats object for the follower
-//------------------------------------------------------------------------------
-void
-FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
-{
-  pQuotaStats = quota_stats;
 }
 
 //------------------------------------------------------------------------------
@@ -386,62 +393,10 @@ FileMDSvc::checkFile(std::uint64_t fid)
 std::string
 FileMDSvc::getBucketKey(IContainerMD::id_t id)
 {
-  if (id >= sNumFileBuckets) {
-    id = id & (sNumFileBuckets - 1);
-  }
-
+  id = id & (sNumFileBuckets - 1);
   std::string bucket_key = stringify(id);
   bucket_key += constants::sFileKeySuffix;
   return bucket_key;
-}
-
-//------------------------------------------------------------------------------
-// Add file object to consistency check list
-//------------------------------------------------------------------------------
-void
-FileMDSvc::addToDirtySet(IFileMD* file)
-{
-  // Remove from the set of fid to be flushed and update the backend only if
-  // wasn't in the set - optimize the number of RTT to backend.
-  IFileMD::id_t fid = file->getId();
-
-  if (mFlushFidSet.erase(stringify(fid)) == 0) {
-    try {
-      pFlusher->sadd(constants::sSetCheckFiles, std::to_string(fid));
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ENOENT);
-      e.getMessage() << "File #" << fid
-                     << " failed to insert into the set of files to be checked "
-                     << "- got an exception";
-      throw e;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Remove all accumulated file ids from the local "dirty" set and mark them in
-// the backend set accordingly.
-//------------------------------------------------------------------------------
-void
-FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
-{
-  (void) mFlushFidSet.insert(stringify(id));
-  std::time_t now = std::time(nullptr);
-  std::chrono::seconds duration(now - mFlushTimestamp);
-
-  if (force || (duration >= sFlushInterval)) {
-    mFlushTimestamp = now;
-    std::list<std::string> to_del(mFlushFidSet.begin(), mFlushFidSet.end());
-    mFlushFidSet.clear();
-
-    try {
-      pFlusher->srem(constants::sSetCheckFiles, to_del);
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ENOENT);
-      e.getMessage() << "Failed to clear set of dirty files - backend error";
-      throw e;
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -450,42 +405,7 @@ FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
 IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
-  return inodeProvider.getFirstFreeId();
-}
-
-//------------------------------------------------------------------------------
-// Safety check to make sure there are nofile entries in the backend with
-// ids bigger than the max file id. If there is any problem this will throw
-// an eos::MDException.
-//------------------------------------------------------------------------------
-void
-FileMDSvc::SafetyCheck()
-{
-  std::string blob;
-  id_t free_id = getFirstFreeId();
-  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
-                                  100000, 150199, 200001, 1000002, 2000123
-                                 };
-
-  for (auto incr : offsets) {
-    id_t check_id = free_id + incr;
-
-    try {
-      std::string sid = stringify(check_id);
-      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
-      blob = bucket_map.hget(sid);
-    } catch (std::runtime_error& qdb_err) {
-      // Fine, we didn't find the file
-      continue;
-    }
-
-    if (!blob.empty()) {
-      MDException e(EEXIST);
-      e.getMessage() << "FATAL: Risk of data loss, found file with id bigger"
-                     << " than max file id";
-      throw e;
-    }
-  }
+  return mInodeProvider.getFirstFreeId();
 }
 
 EOSNSNAMESPACE_END

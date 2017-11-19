@@ -27,12 +27,11 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 class IQuotaStats;
+class MetadataFlusher;
 
 //------------------------------------------------------------------------------
 //! FileMDSvc based on Redis
@@ -41,8 +40,8 @@ class FileMDSvc : public IFileMDSvc
 {
 public:
   //----------------------------------------------------------------------------
-  //! Get file bucket which is computed as the id of the container  modulo the
-  //! number of file buckets.
+  //! Get file bucket which is computed as the id of the container modulo the
+  //! number of file buckets (1M).
   //!
   //! @param id file id
   //!
@@ -139,7 +138,10 @@ public:
   //!
   //! @param quota_stats object implementing the IQuotaStats interface
   //----------------------------------------------------------------------------
-  void setQuotaStats(IQuotaStats* quota_stats) override;
+  void setQuotaStats(IQuotaStats* quota_stats) override
+  {
+    pQuotaStats = quota_stats;
+  }
 
   //----------------------------------------------------------------------------
   //! Visit all the files
@@ -180,22 +182,6 @@ private:
   void attachBroken(const std::string& parent, IFileMD* file);
 
   //----------------------------------------------------------------------------
-  //! Add file to consistency check list to recover it in case of a crash
-  //!
-  //! @param file IFileMD object
-  //----------------------------------------------------------------------------
-  void addToDirtySet(IFileMD* file);
-
-  //----------------------------------------------------------------------------
-  //! Remove all accumulated objects from the local "dirty" set and mark them
-  //! in the backend set accordingly.
-  //!
-  //! @param id file id
-  //! @param force if true then force flush
-  //----------------------------------------------------------------------------
-  void flushDirtySet(IFileMD::id_t id, bool force = false);
-
-  //----------------------------------------------------------------------------
   //! Safety check to make sure there are nofile entries in the backend with
   //! ids bigger than the max file id. If there is any problem this will throw
   //! an eos::MDException.
@@ -205,13 +191,11 @@ private:
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
-  std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
-  NextInodeProvider inodeProvider; ///< Provides next free inode
+  NextInodeProvider mInodeProvider; ///< Provides next free inode
   qclient::QSet mDirtyFidBackend; ///< Set of "dirty" files
-  std::set<std::string> mFlushFidSet; ///< Modified fids which are consistent
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
 };
 
