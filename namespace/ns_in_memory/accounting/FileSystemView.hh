@@ -78,6 +78,57 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Class FileIterator that can iteratoe through a list of files from the
+//! FileSystem class. Used to iterate through the files / unlinked files on a
+//! filesystem.
+//------------------------------------------------------------------------------
+class FileIterator:
+  public ICollectionIterator<IFileMD::id_t>
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileIterator(const IFsView::FileList& list) :
+    mList(list), mIt(mList.begin()) {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~FileIterator()  = default;
+
+  //----------------------------------------------------------------------------
+  //! Get current file id
+  //----------------------------------------------------------------------------
+  IFileMD::id_t getElement() override
+  {
+    return *mIt;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if iterator is valid
+  //----------------------------------------------------------------------------
+  bool valid() override
+  {
+    return (mIt != mList.end());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Retrieve next file id
+  //----------------------------------------------------------------------------
+  void next() override
+  {
+    if (valid()) {
+      ++mIt;
+    }
+  }
+
+private:
+  const IFsView::FileList& mList; ///< Reference to list
+  IFsView::FileList::const_iterator mIt; ///< List iterator
+};
+
+//------------------------------------------------------------------------------
 // File System view implementation of a in-memory namespace
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
@@ -93,7 +144,6 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FileSystemView() {}
-
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -122,7 +172,8 @@ public:
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList getFileList(IFileMD::location_t location) override;
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system
@@ -177,6 +228,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Check if file system has file id
+  //!
+  //! @param fid file id
+  //! @param fs_id file system id
+  //!
+  //! @return true if file is on the provided file system, otherwise false
+  //----------------------------------------------------------------------------
+  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const override;
+
+  //----------------------------------------------------------------------------
   //! Configure
   //!
   //! @param config map of configuration parameters
@@ -204,9 +265,9 @@ public:
   void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
 
 private:
-  std::vector<FileList> pFiles;
-  std::vector<FileList> pUnlinkedFiles;
-  FileList              pNoReplicas;
+  std::vector<IFsView::FileList> pFiles;
+  std::vector<IFsView::FileList> pUnlinkedFiles;
+  IFsView::FileList              pNoReplicas;
 };
 
 EOSNSNAMESPACE_END

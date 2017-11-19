@@ -83,6 +83,66 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Class FileIterator that can iteratoe through a list of files from the
+//! FileSystem class. Used to iterate through the files / unlinked files on a
+//! filesystem.
+//------------------------------------------------------------------------------
+class FileIterator:
+  public ICollectionIterator<IFileMD::id_t>
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileIterator(qclient::QClient& qcl, const std::string& key) :
+    mSet(qcl, key), mCursor("0")
+  {
+    mReply = mSet.sscan(mCursor, mCount);
+    mCursor = mReply.first;
+    mIt = mReply.second.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if iterator is valid
+  //----------------------------------------------------------------------------
+  bool valid() override
+  {
+    return (mIt != mReply.second.end());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current file id
+  //----------------------------------------------------------------------------
+  IFileMD::id_t getElement() override
+  {
+    return std::stoull(*mIt);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Retrieve next file id
+  //----------------------------------------------------------------------------
+  void next() override
+  {
+    if (valid()) {
+      ++mIt;
+
+      if ((mIt == mReply.second.end()) && (mCursor != "0")) {
+        mReply = mSet.sscan(mCursor, mCount);
+        mCursor = mReply.first;
+        mIt = mReply.second.begin();
+      }
+    }
+  }
+
+private:
+  qclient::QSet mSet; ///< Set to iterate through
+  std::string mCursor; ///< Cursor used while scanning the set
+  int64_t mCount = 10000; ///< Max number of elements returned at once
+  std::pair<std::string, std::vector<std::string>> mReply;
+  std::vector<std::string>::iterator mIt; ///< Iterator to element to return
+};
+
+//------------------------------------------------------------------------------
 //! FileSystemView implementation on top of quarkdb
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
@@ -139,7 +199,8 @@ public:
   //!
   //! @return set of files on filesystem
   //----------------------------------------------------------------------------
-  IFsView::FileList getFileList(IFileMD::location_t location) override;
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system
@@ -190,6 +251,16 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
       getFileSystemIterator() override;
+
+  //----------------------------------------------------------------------------
+  //! Check if file system has file id
+  //!
+  //! @param fid file id
+  //! @param fs_id file system id
+  //!
+  //! @return true if file is on the provided file system, otherwise false
+  //----------------------------------------------------------------------------
+  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const override;
 
   //----------------------------------------------------------------------------
   //! Configure

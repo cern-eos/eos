@@ -165,8 +165,8 @@ void FileSystemView::fileMDRead(IFileMD* obj)
 //----------------------------------------------------------------------------
 // Return reference to a list of files
 //----------------------------------------------------------------------------
-FileSystemView::FileList FileSystemView::getFileList(
-  IFileMD::location_t location)
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getFileList(IFileMD::location_t location)
 {
   if (pFiles.size() <= location) {
     MDException e(ENOENT);
@@ -174,7 +174,8 @@ FileSystemView::FileList FileSystemView::getFileList(
     throw (e);
   }
 
-  return pFiles[location];
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(pFiles[location]));
 }
 
 //----------------------------------------------------------------------------
@@ -251,6 +252,19 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
   }
 
   return pUnlinkedFiles[fs_id].size();
+}
+
+//------------------------------------------------------------------------------
+// Check if file system has file id
+//------------------------------------------------------------------------------
+bool
+FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
+{
+  if (pFiles.size() <= fs_id) {
+    return false;
+  }
+
+  return (pFiles[fs_id].find(fid) != pFiles[fs_id].end());
 }
 
 EOSNSNAMESPACE_END

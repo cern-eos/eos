@@ -34,6 +34,7 @@ add_library(
 
   # Namespace interface
   interface/IView.hh
+  interface/IFsView.hh
   interface/IFileMDSvc.hh
   interface/IContainerMDSvc.hh
   interface/IFileMD.hh

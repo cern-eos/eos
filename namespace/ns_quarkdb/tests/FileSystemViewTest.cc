@@ -50,7 +50,7 @@ countReplicas(eos::IFsView* fs)
   size_t replicas = 0;
 
   for (auto it = fs->getFileSystemIterator(); it->valid(); it->next()) {
-    replicas += fs->getFileList(it->getElement()).size();
+    replicas += fs->getNumFilesOnFs(it->getElement());
   }
 
   return replicas;
@@ -65,7 +65,7 @@ countUnlinked(eos::IFsView* fs)
   size_t unlinked = 0;
 
   for (auto it = fs->getFileSystemIterator(); it->valid(); it->next()) {
-    unlinked += fs->getUnlinkedFileList(it->getElement()).size();
+    unlinked += fs->getNumUnlinkedFilesOnFs(it->getElement());
   }
 
   return unlinked;

@@ -80,16 +80,18 @@ public:
   // memory consuming. We changed to dense hash set since it is much faster
   // and the memory overhead is not visible in a million file namespace.
   //------------------------------------------------------------------------
-  // typedef std::set<IFileMD::id_t> FileList;
-  typedef google::dense_hash_set <
-  IFileMD::id_t,
+  typedef google::dense_hash_set <IFileMD::id_t,
           Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > FileList;
-  typedef FileList::iterator FileIterator;
+
+  //----------------------------------------------------------------------------
+  //! Contructor
+  //----------------------------------------------------------------------------
+  IFsView() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IFsView() {};
+  virtual ~IFsView() = default;
 
   //----------------------------------------------------------------------------
   //! Configure
@@ -114,7 +116,8 @@ public:
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  virtual FileList getFileList(IFileMD::location_t location) = 0;
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system
@@ -160,6 +163,16 @@ public:
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
       getFileSystemIterator() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Check if file system has file id
+  //!
+  //! @param fid file id
+  //! @param fs_id file system id
+  //!
+  //! @return true if file is on the provided file system, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const = 0;
 
   //----------------------------------------------------------------------------
   //! Finalize

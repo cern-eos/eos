@@ -216,29 +216,13 @@ FileSystemView::fileMDCheck(IFileMD* file)
 //------------------------------------------------------------------------------
 // Get set of files on filesystem
 //------------------------------------------------------------------------------
-IFsView::FileList
-FileSystemView::getFileList(IFileMD::location_t location)
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getFileList(IFileMD::location_t location)
 {
   pFlusher->synchronize();
   std::string key = keyFilesystemFiles(location);
-  // @todo (esindril): this should be allocated on the heap
-  IFsView::FileList set_files;
-  set_files.set_empty_key(-1);
-  std::pair<std::string, std::vector<std::string>> reply;
-  std::string cursor {"0"};
-  long long count = 10000;
-  qclient::QSet fs_set(*pQcl, key);
-
-  do {
-    reply = fs_set.sscan(cursor, count);
-    cursor = reply.first;
-
-    for (const auto& elem : reply.second) {
-      set_files.insert(std::stoul(elem));
-    }
-  } while (cursor != "0");
-
-  return set_files;
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new FileIterator(*pQcl, key));
 }
 
 //------------------------------------------------------------------------------
@@ -391,13 +375,30 @@ uint64_t
 FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
   pFlusher->synchronize();
-  std::string key = keyFilesystemUnlinked(fs_id);
+  const std::string key = keyFilesystemUnlinked(fs_id);
 
   try {
     qclient::QSet files_set(*pQcl, key);
     return files_set.scard();
   } catch (const std::runtime_error& qdb_err) {
     return 0ull;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Check if file system has file id
+//------------------------------------------------------------------------------
+bool
+FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
+{
+  const std::string key = keyFilesystemFiles(fs_id);
+
+  try {
+    qclient::QSet files_set(*pQcl, key);
+    return files_set.sismember(fid);
+  } catch (const std::runtime_error& qdb_err) {
+    return false;
   }
 }
 
