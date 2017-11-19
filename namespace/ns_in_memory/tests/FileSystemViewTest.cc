@@ -43,9 +43,11 @@ class FileSystemViewTest: public CppUnit::TestCase
 public:
   CPPUNIT_TEST_SUITE(FileSystemViewTest);
   CPPUNIT_TEST(fileSystemViewTest);
+  CPPUNIT_TEST(fileIteratorTest);
   CPPUNIT_TEST_SUITE_END();
 
   void fileSystemViewTest();
+  void fileIteratorTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemViewTest);
@@ -226,5 +228,35 @@ void FileSystemViewTest::fileSystemViewTest()
     delete view;
   } catch (eos::MDException& e) {
     CPPUNIT_ASSERT_MESSAGE(e.getMessage().str(), false);
+  }
+}
+
+//------------------------------------------------------------------------------
+// FileIterator class test
+//------------------------------------------------------------------------------
+void FileSystemViewTest::fileIteratorTest()
+{
+  eos::IFsView::FileList input_set;
+  input_set.set_deleted_key(0);
+  input_set.set_empty_key(0xffffffffffffffffll);
+
+  for (int64_t i = 1; i < 10000; ++i) {
+    if (i % 2 == 0) {
+      input_set.insert(i);
+    }
+  }
+
+  std::unordered_set<eos::IFileMD::id_t> result_set;
+  auto iter = std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>>
+              (new eos::FileIterator(input_set));
+
+  for (; (iter && iter->valid()); iter->next()) {
+    result_set.insert(iter->getElement());
+  }
+
+  CPPUNIT_ASSERT(input_set.size() == result_set.size());
+
+  for (auto elem : result_set) {
+    CPPUNIT_ASSERT(input_set.find(elem) != input_set.end());
   }
 }
