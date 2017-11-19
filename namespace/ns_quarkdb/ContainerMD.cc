@@ -95,15 +95,15 @@ ContainerMD::findContainer(const std::string& name)
   auto iter = mSubcontainers.find(name);
 
   if (iter == mSubcontainers.end()) {
-    return std::shared_ptr<IContainerMD>(nullptr);
+    return nullptr;
   }
 
-  std::shared_ptr<IContainerMD> cont(nullptr);
+  std::shared_ptr<IContainerMD> cont;
 
   try {
     cont = pContSvc->getContainerMD(iter->second);
   } catch (MDException& ex) {
-    cont.reset();
+    cont = nullptr;
   }
 
   // Curate the list of subcontainers in case entry is not found
@@ -138,15 +138,8 @@ ContainerMD::removeContainer(const std::string& name)
 
   mSubcontainers.erase(it);
   mSubcontainers.resize(0);
-
-  // Do async call to KV backend
-  try {
-    (void) pDirsMap.hdel(name);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-    throw e;
-  }
+  // Delete container also from KV backend
+  pFlusher->hdel(pDirsKey, name);
 }
 
 //------------------------------------------------------------------------------
@@ -156,8 +149,8 @@ void
 ContainerMD::addContainer(IContainerMD* container)
 {
   container->setParentId(mCont.id());
-  auto ret = mSubcontainers.insert(std::pair<std::string, IContainerMD::id_t>(
-                                     container->getName(), container->getId()));
+  auto ret = mSubcontainers.insert(std::make_pair(container->getName(),
+                                   container->getId()));
 
   if (!ret.second) {
     MDException e(EINVAL);
@@ -166,17 +159,7 @@ ContainerMD::addContainer(IContainerMD* container)
   }
 
   // Add to new container to KV backend
-  try {
-    if (!pDirsMap.hset(container->getName(), container->getId())) {
-      MDException e(EINVAL);
-      e.getMessage() << "Failed to add subcontainer #" << container->getId();
-      throw e;
-    }
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ECOMM);
-    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-    throw e;
-  }
+  pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -188,10 +171,10 @@ ContainerMD::findFile(const std::string& name)
   auto iter = mFiles.find(name);
 
   if (iter == mFiles.end()) {
-    return std::shared_ptr<IFileMD>(nullptr);
+    return nullptr;
   }
 
-  std::shared_ptr<IFileMD> file(nullptr);
+  std::shared_ptr<IFileMD> file;
 
   try {
     file = pFileSvc->getFileMD(iter->second);
@@ -202,14 +185,7 @@ ContainerMD::findFile(const std::string& name)
   // Curate the list of files in case file entry is not found
   if (file == nullptr) {
     mFiles.erase(iter);
-
-    try {
-      (void) pFilesMap.hdel(stringify(iter->second));
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ECOMM);
-      e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-      throw e;
-    }
+    pFlusher->hdel(pFilesKey, stringify(iter->second));
   }
 
   return file;
@@ -222,8 +198,7 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(mCont.id());
-  auto ret = mFiles.insert(
-               std::pair<std::string, IFileMD::id_t>(file->getName(), file->getId()));
+  auto ret = mFiles.insert(std::make_pair(file->getName(), file->getId()));
 
   if (!ret.second) {
     MDException e(EINVAL);
@@ -231,18 +206,7 @@ ContainerMD::addFile(IFileMD* file)
     throw e;
   }
 
-  try {
-    pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
-    // if (!pFilesMap.hset(file->getName(), file->getId())) {
-    //   MDException e(EINVAL);
-    //   e.getMessage() << "File #" << file->getId() << " already exists";
-    //   throw e;
-    // }
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(EINVAL);
-    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-    throw e;
-  }
+  pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
 
   if (file->getSize() != 0u) {
     IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange, 0,
@@ -271,13 +235,7 @@ ContainerMD::removeFile(const std::string& name)
   }
 
   // Do async call to KV backend
-  try {
-    (void) pFilesMap.hdel(name);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-    throw e;
-  }
+  pFlusher->hdel(pFilesKey, name);
 
   try {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
@@ -313,47 +271,29 @@ ContainerMD::getNumContainers()
 
 //------------------------------------------------------------------------
 // Clean up the entire contents for the container. Delete files and
-// containers recurssively
+// containers recursively
 //------------------------------------------------------------------------
 void
 ContainerMD::cleanUp()
 {
-  std::shared_ptr<IFileMD> file;
-
   for (const auto& elem : mFiles) {
-    file = pFileSvc->getFileMD(elem.second);
+    auto file = pFileSvc->getFileMD(elem.second);
     pFileSvc->removeFile(file.get());
   }
 
-  file.reset();
   mFiles.clear();
-  qclient::AsyncHandler ah;
-  ah.Register(pQcl->del_async(pFilesKey), pQcl);
 
   // Remove all subcontainers
   for (const auto& elem : mSubcontainers) {
-    std::shared_ptr<IContainerMD> cont = pContSvc->getContainerMD(elem.second);
+    auto cont = pContSvc->getContainerMD(elem.second);
     cont->cleanUp();
     pContSvc->removeContainer(cont.get());
   }
 
   mSubcontainers.clear();
-  ah.Register(pQcl->del_async(pDirsKey), pQcl);
-
-  if (!ah.Wait()) {
-    auto resp = ah.GetResponses();
-    int err_conn = std::count_if(resp.begin(), resp.end(),
-    [](long long int elem) {
-      return (elem == -ECOMM);
-    });
-
-    if (err_conn) {
-      MDException e(ECOMM);
-      e.getMessage() << __FUNCTION__ << "Container " << mCont.name()
-                     << " error contacting KV-store";
-      throw e;
-    }
-  }
+  // Delete files and subcontainers map from the KV backend
+  pFlusher->del(pFilesKey);
+  pFlusher->del(pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -491,8 +431,7 @@ ContainerMD::setName(const std::string& name)
 {
   // Check that there is no clash with other subcontainers having the same name
   if (mCont.parent_id() != 0u) {
-    std::shared_ptr<eos::IContainerMD> parent =
-      pContSvc->getContainerMD(mCont.parent_id());
+    auto parent = pContSvc->getContainerMD(mCont.parent_id());
 
     if (parent->findContainer(name)) {
       eos::MDException e(EINVAL);
@@ -641,6 +580,7 @@ ContainerMD::updateTreeSize(int64_t delta)
 {
   uint64_t sz = mCont.tree_size();
 
+  // Avoid usigned underflow
   if ((delta < 0) && (std::llabs(delta) > sz)) {
     sz = 0;
   } else {
@@ -687,12 +627,6 @@ ContainerMD::removeAttribute(const std::string& name)
 void
 ContainerMD::serialize(Buffer& buffer)
 {
-  // Wait for any ongoing async requests and throw error if smth failed
-  // if (!waitAsyncReplies()) {
-  //   MDException e(EFAULT);
-  //   e.getMessage() << "Container #" << mCont.id() << " has failed async replies";
-  //   throw e;
-  // }
   // Align the buffer to 4 bytes to efficiently compute the checksum
   ++mClock;
   size_t obj_size = mCont.ByteSizeLong();

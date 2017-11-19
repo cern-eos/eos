@@ -29,7 +29,6 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "ContainerMd.pb.h"
-#include <string>
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -49,7 +48,7 @@ public:
   ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
-  //! Constructor used for testing and dump
+  //! Constructor used for testing and dump command
   //----------------------------------------------------------------------------
   ContainerMD(): pContSvc(nullptr), pFileSvc(nullptr), pFlusher(nullptr),
     pQcl(nullptr), mClock(0) {}
