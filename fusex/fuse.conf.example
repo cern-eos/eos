@@ -23,7 +23,7 @@
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
-    "location" : "/var/eos/fusex/"
+    "location" : "/var/eos/fusex/",
     "journal"  : "/var/tmp/fusex/"  
   }
 }
