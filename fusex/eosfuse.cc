@@ -698,8 +698,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     for (int i = 1; i < argc; ++i) {
       std::string opt = argv[i];
+      std::string opt0 = argv[i-1];
 
-      if (opt[0] != '-') {
+      if ( (opt[0] != '-') &&  (opt0 != "-o") ) {
         mountpoint = opt;
       }
 
@@ -717,17 +718,31 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (mountpoint.length())
     {
       DIR* d=0;
+      struct stat d_stat;
       // sanity check of the mount directory
       if ( !(d = ::opendir(mountpoint.c_str())))
       {
 	// check for a broken mount
-	if ( errno == ENOTCONN )
+	if ( (errno == ENOTCONN ) || (errno == ENOENT) )
 	{
 	  // force an 'umount -l '
 	  std::string systemline="umount -l ";
 	  systemline += mountpoint;
 	  fprintf(stderr,"# dead mount detected - forcing '%s'\n", systemline.c_str());
 	  system(systemline.c_str());
+	}
+	if (stat(mountpoint.c_str(), &d_stat))
+	{
+	  if (errno == ENOENT)
+	  {
+	    fprintf(stderr,"error: mountpoint '%s' does not exist\n", mountpoint.c_str());
+	    exit(-1);
+	  }
+	  else
+	  {
+	    fprintf(stderr,"error: failed to stat '%s' - errno = %d\n", mountpoint.c_str(), errno);
+	    exit(-1);
+	  }
 	}
       }
       else
