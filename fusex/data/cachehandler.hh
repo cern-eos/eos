@@ -66,6 +66,8 @@ public:
     return (config.journal.length());
   }
 
+  cacheconfig& get_config() {return config;}
+
 private:
   std::map<fuse_ino_t, shared_io> contents;
   std::mutex mtx;

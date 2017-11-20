@@ -371,9 +371,19 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
         mFile->xrdioro(freq)->attach();
         mFile->xrdioro(freq)->set_id(id(), req());
 
-        if ( ! (flags & O_SYNC))
-        {
-          mFile->xrdioro(freq)->set_readahead_strategy(XrdCl::Proxy::DYNAMIC, 4096, 1 * 1024 * 1024, 8 * 1024 * 1024);
+        if (!(flags & O_SYNC)) {
+	  if (EOS_LOGS_DEBUG)
+	    eos_debug("readhead: strategy=%s nom:%lu max:%lu",
+		      cachehandler::instance().get_config().read_ahead_strategy.c_str(),
+		      cachehandler::instance().get_config().default_read_ahead_size,
+		      cachehandler::instance().get_config().max_read_ahead_size);
+	  
+	  mFile->xrdioro(freq)->set_readahead_strategy(
+						       XrdCl::Proxy::readahead_strategy_from_string(cachehandler::instance().get_config().read_ahead_strategy),
+						       4096,
+						       cachehandler::instance().get_config().default_read_ahead_size,
+						       cachehandler::instance().get_config().max_read_ahead_size
+						       );
         }
       }
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
