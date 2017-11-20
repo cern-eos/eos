@@ -147,12 +147,7 @@ public:
     return flags;
   }
 
-<<<<<<< HEAD
-  std::string getExecPath() const
-  {
-=======
   std::string getExecPath() const {
->>>>>>> beryl_aquamarine
     return executablePath;
   }
 

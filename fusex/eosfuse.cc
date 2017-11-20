@@ -3939,17 +3939,3 @@ EosFuse::isRecursiveRm(fuse_req_t req)
   return false;
 }
 
-/* -------------------------------------------------------------------------- */
-bool
-EosFuse::isRecursiveRm(fuse_req_t req)
-/* -------------------------------------------------------------------------- */
-{
-  const struct fuse_ctx* ctx = fuse_req_ctx(req);
-  ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid, ctx->uid, ctx->gid, false);
-  if(snapshot->getProcessInfo().getRmInfo().isRm() &&
-     snapshot->getProcessInfo().getRmInfo().isRecursive()) {
-    return true;
-  }
-
-  return false;
-}
