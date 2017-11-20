@@ -1410,8 +1410,8 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
     return true;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                     e.getMessage().str().c_str());
+    eos_static_err("caught exception %d %s\n", e.getErrno(),
+                   e.getMessage().str().c_str());
     file.set_err(errno);
     return false;
   }
@@ -2084,6 +2084,7 @@ FuseServer::HandleMD(const std::string& id,
           }
         }
 
+        cmd->setName(md.name());
         cmd->setCUid(md.uid());
         cmd->setCGid(md.gid());
         // @todo (apeters): is sgid_mode still needed?
