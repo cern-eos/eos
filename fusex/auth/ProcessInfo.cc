@@ -27,17 +27,10 @@
 #include "ProcessInfo.hh"
 #include "common/Logging.hh"
 
-bool ProcessInfoProvider::fromString(const std::string& procstat,
-                                     const std::string& cmdline, ProcessInfo& ret)
-{
-  if (!ret.isEmpty()) {
-    THROW("The ProcessInfo object must be empty for this function to fill!");
-  }
+bool ProcessInfoProvider::fromString(const std::string &procstat, const std::string &cmdline, ProcessInfo &ret) {
+  if(!ret.isEmpty()) THROW("The ProcessInfo object must be empty for this function to fill!");
 
-  if (!parseStat(procstat, ret)) {
-    return false;
-  }
-
+  if(!parseStat(procstat, ret)) return false;
   parseCmdline(cmdline, ret);
   return true;
 }
@@ -67,7 +60,7 @@ bool ProcessInfoProvider::fromString(const std::string& procstat,
 //   priority      priority level
 //   nice          nice level
 //   num_threads   number of threads
-//   it_real_value  (obsolete, always 0)
+//   it_real_value	(obsolete, always 0)
 //   start_time    time the process started after system boot
 //   vsize         virtual memory size
 //   rss           resident set memory size
@@ -81,7 +74,7 @@ bool ProcessInfoProvider::fromString(const std::string& procstat,
 //   blocked       bitmap of blocked signals
 //   sigign        bitmap of ignored signals
 //   sigcatch      bitmap of caught signals
-//   0             (place holder, used to be the wchan address, use /proc/PID/wchan instead)
+//   0		         (place holder, used to be the wchan address, use /proc/PID/wchan instead)
 //   0             (place holder)
 //   0             (place holder)
 //   exit_signal   signal to send to parent thread on exit
@@ -101,17 +94,14 @@ bool ProcessInfoProvider::fromString(const std::string& procstat,
 //   exit_code     the thread's exit_code in the form reported by the waitpid system call
 // ..............................................................................
 
-bool ProcessInfoProvider::parseStat(const std::string& procstat,
-                                    ProcessInfo& ret)
-{
-  if (!ret.isEmpty()) {
-    THROW("The ProcessInfo object must be empty for this function to fill!");
-  }
+bool ProcessInfoProvider::parseStat(const std::string &procstat, ProcessInfo &ret) {
+  if(!ret.isEmpty()) THROW("The ProcessInfo object must be empty for this function to fill!");
 
   // variables to assist with parsing
   bool inParenth = false;
   size_t tokenCount = 0;
   bool success = false;
+
   // variables in which to store results
   pid_t pid;
   pid_t ppid;
@@ -121,113 +111,75 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
   unsigned flags;
 
   // let's parse
-  for (size_t i = 0; i < procstat.size(); i++) {
-    if (procstat[i] == '(') {
-      if (inParenth) {
-        return false;  // parse error
-      }
+  for(size_t i = 0; i < procstat.size(); i++) {
+    if(procstat[i] == '(') {
+      if(inParenth) return false; // parse error
 
       inParenth = true;
       continue;
     }
 
-    if (procstat[i] == ')') {
-      if (!inParenth) {
-        return false;  // parse error
-      }
-
+    if(procstat[i] == ')') {
+      if(!inParenth) return false; // parse error
       inParenth = false;
     }
 
     // start of a token, use scanf if we're interested in it
-    if (!inParenth && (procstat[i] == ' ' || i == 0)) {
-      switch (tokenCount) {
-      case 0: {
-        if (!sscanf(procstat.c_str() + i, "%u", &pid)) {
-          return false;
+    if(!inParenth && (procstat[i] == ' ' || i == 0)) {
+      switch(tokenCount) {
+        case 0: {
+          if(!sscanf(procstat.c_str() + i, "%u", &pid)) return false;
+          break;
         }
-
-        break;
-      }
-
-      case 3: {
-        if (!sscanf(procstat.c_str() + i, "%u", &ppid)) {
-          return false;
+        case 3: {
+          if(!sscanf(procstat.c_str() + i, "%u", &ppid)) return false;
+          break;
         }
-
-        break;
-      }
-
-      case 4: {
-        if (!sscanf(procstat.c_str() + i, "%u", &pgrp)) {
-          return false;
+        case 4: {
+          if(!sscanf(procstat.c_str() + i, "%u", &pgrp)) return false;
+          break;
         }
-
-        break;
-      }
-
-      case 5: {
-        if (!sscanf(procstat.c_str() + i, "%u", &sid)) {
-          return false;
+        case 5: {
+          if(!sscanf(procstat.c_str() + i, "%u", &sid)) return false;
+          break;
         }
-
-        break;
-      }
-
-      case 8: {
-        if (!sscanf(procstat.c_str() + i, "%u", &flags)) {
-          return false;
+        case 8: {
+          if(!sscanf(procstat.c_str() + i, "%u", &flags)) return false;
+          break;
         }
-
-        break;
-      }
-
-      case 21: {
-        if (!sscanf(procstat.c_str() + i, "%" PRId64, &startTime)) {
-          return false;
+        case 21: {
+          if(!sscanf(procstat.c_str() + i, "%" PRId64, &startTime)) return false;
+          success = true;
+          break;
         }
-
-        success = true;
-        break;
       }
-      }
-
       tokenCount++;
     }
   }
 
-  if (!success) {
-    return false;
-  }
-
+  if(!success) return false;
   ret.fillStat(pid, ppid, pgrp, sid, startTime, flags);
   return true;
 }
 
-void ProcessInfoProvider::parseCmdline(const std::string& cmdline,
-                                       ProcessInfo& ret)
-{
-  if (cmdline.empty()) {
-    return;
-  }
-
+void ProcessInfoProvider::parseCmdline(const std::string &cmdline, ProcessInfo &ret) {
+  if(cmdline.empty()) return;
   ret.fillCmdline(split_on_nullbyte(cmdline));
 }
 
-void ProcessInfoProvider::inject(pid_t pid, const ProcessInfo& info)
-{
+void ProcessInfoProvider::inject(pid_t pid, const ProcessInfo &info) {
   std::lock_guard<std::mutex> lock(mtx);
+
   useInjectedData = true;
   injections[pid] = info;
 }
 
-bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo& ret)
-{
-  if (useInjectedData) {
+bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo &ret) {
+  if(useInjectedData) {
     std::lock_guard<std::mutex> lock(mtx);
     auto it = injections.find(pid);
 
-    if (it == injections.end()) {
+    if(it == injections.end()) {
       return false;
     }
 
@@ -239,31 +191,28 @@ bool ProcessInfoProvider::retrieveBasic(pid_t pid, ProcessInfo& ret)
   }
 
   std::string procstat;
-
-  if (!readFile(SSTR("/proc/" << pid << "/stat"), procstat)) {
+  if(!readFile(SSTR("/proc/" << pid << "/stat"), procstat)) {
     return false;
   }
 
-  if (!parseStat(procstat, ret)) {
+  if(!parseStat(procstat, ret)) {
     return false;
   }
 
-  if (pid != ret.getPid()) {
-    eos_static_crit("Hell has frozen over, /proc/%d/stat contained information for a different pid: %d",
-                    pid, ret.getPid());
+  if(pid != ret.getPid()) {
+    eos_static_crit("Hell has frozen over, /proc/%d/stat contained information for a different pid: %d", pid, ret.getPid());
     return false;
   }
 
   return true;
 }
 
-bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
-{
-  if (useInjectedData) {
+bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo &ret) {
+  if(useInjectedData) {
     std::lock_guard<std::mutex> lock(mtx);
     auto it = injections.find(pid);
 
-    if (it == injections.end()) {
+    if(it == injections.end()) {
       return false;
     }
 
@@ -272,7 +221,7 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
     return true;
   }
 
-  if (!retrieveBasic(pid, ret)) {
+  if(!retrieveBasic(pid, ret)) {
     return false;
   }
 
