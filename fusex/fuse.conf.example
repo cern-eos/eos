@@ -1,4 +1,4 @@
-[{
+{
   "name" : "",
   "hostport" : "localhost:1094",
   "remotemountdir" : "/eos/",
@@ -7,12 +7,12 @@
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
   "options" : {
-    "debug" : "1",
-    "lowleveldebug" : "0",
-    "debuglevel" : "5",
-    "libfusethreads" : "0",
-    "md-kernelcache" : "1",
-    "data-kernelcache" : "1",
+    "debug" : 1,
+    "lowleveldebug" : 0,
+    "debuglevel" : 5,
+    "libfusethreads" : 0,
+    "md-kernelcache" : 1,
+    "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
     "global-flush" : 1,
@@ -26,4 +26,4 @@
     "location" : "/var/eos/fusex/"
     "journal"  : "/var/tmp/fusex/"  
   }
-}]
+}
