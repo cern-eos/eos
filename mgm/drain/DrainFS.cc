@@ -200,7 +200,7 @@ DrainFS::Drain()
       for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);
            (it_fid && it_fid->valid()); it_fid->next()) {
         mJobsPending.push_back(std::shared_ptr<DrainTransferJob>
-                               (new DrainTransferJob(it_fid->getElement(), mFsId)));
+                               (new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)));
       }
     }
     // set the shared object counter
@@ -248,17 +248,18 @@ DrainFS::Drain()
       last_filesleft = filesleft;
 
       while ((mJobsRunning.size() <= maxParallelJobs) && (job != mJobsPending.end())) {
-        if ((fsIdTarget = SelectTargetFS(&(*job->get()))) != 0) {
-          (*job)->SetTargetFS(fsIdTarget);
-          (*job)->SetStatus(DrainTransferJob::Ready);
-          (*job)->Start();
-          mJobsRunning.push_back(*job);
-        } else {
-          std::string error = "Failed to find a suitable Target filesystem for draining";
-          (*job)->ReportError(error);
-          mJobsFailed.push_back(*job);
+        if (!(*job)->GetTargetFS()) {
+          if ((fsIdTarget = SelectTargetFS(&(*job->get()))) != 0) {
+            (*job)->SetTargetFS(fsIdTarget);
+          } else {
+            std::string error = "Failed to find a suitable Target filesystem for draining";
+            (*job)->ReportError(error);
+            mJobsFailed.push_back(*job);
+          }
         }
-
+        (*job)->SetStatus(DrainTransferJob::Ready);
+        (*job)->Start();
+        mJobsRunning.push_back(*job);
         job = mJobsPending.erase(job);
       }
 
@@ -274,7 +275,6 @@ DrainFS::Drain()
       }
       XrdSysTimer sleep;
       sleep.Wait(1000);
-
 
       filesleft = mJobsPending.size() + mJobsFailed.size();
 

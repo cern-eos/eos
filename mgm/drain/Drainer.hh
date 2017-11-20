@@ -41,7 +41,7 @@ class Drainer: public eos::common::LogId
 public:
 
   //! Map node to vector of draining file systems
-  typedef std::map<std::string, std::vector<std::shared_ptr<eos::mgm::DrainFS>>> DrainMap;
+  typedef std::map<std::string, std::set<std::shared_ptr<eos::mgm::DrainFS>>> DrainMap;
 
   //----------------------------------------------------------------------------
   // Service thread static startup function
@@ -66,7 +66,7 @@ public:
   //----------------------------------------------------------------------------
   //! Start  of a given file system
   //----------------------------------------------------------------------------
-  bool StartFSDrain(unsigned int fsId, XrdOucString&);
+  bool StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
