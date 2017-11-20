@@ -2507,9 +2507,21 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   EXEC_TIMING_BEGIN(__func__);
 
-  Track::Monitor monp (__func__, Instance().Tracker(), parent);
-  Track::Monitor monn (__func__, Instance().Tracker(), newparent);
+  // Need to pay attention to lock order here. This is the only (?) function where
+  // we have to lock more than two inodes at the same time.
+  //
+  // Two racing requests with inverted source/target directories,
+  // eg "mv dir1/file1 dir2/file2" and "mv dir2/file3 dir1/file4" can deadlock
+  // us if we simply lock in order of source -> target.
+  //
+  // Instead, lock in order of increasing inode - both racing requests will
+  // use the same locking order, and no deadlock can occur.
 
+  fuse_ino_t first = std::min(parent, newparent);
+  fuse_ino_t second = std::max(parent, newparent);
+
+  Track::Monitor monp (__func__, Instance().Tracker(), first);
+  Track::Monitor monn (__func__, Instance().Tracker(), second);
 
   int rc = 0;
 
