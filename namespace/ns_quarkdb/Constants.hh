@@ -33,27 +33,23 @@ EOSNSNAMESPACE_BEGIN
 namespace constants
 {
 //! Suffix for container metadata in Redis
-static const std::string sContKeySuffix{":bucket_conts"};
+static const std::string sContKeySuffix{":c_bucket"};
 //! Sufix for file metadata in Redis
-static const std::string sFileKeySuffix{":bucket_files"};
+static const std::string sFileKeySuffix{":f_bucket"};
 //! Suffix for set of subcontainers in a container
-static const std::string sMapDirsSuffix{":cont_hmap_conts"};
+static const std::string sMapDirsSuffix{":map_conts"};
 //! Suffix for set of files in a container
-static const std::string sMapFilesSuffix{":cont_hmap_files"};
-//! Key for set of orphan containers
-static const std::string sSetOrphanCont{"cont_set_orphans"};
-//! Key for set of name conflicts
-static const std::string sSetConflicts{"cont_set_conflicts"};
+static const std::string sMapFilesSuffix{":map_files"};
 //! Key for map containing meta info
-static const std::string sMapMetaInfoKey{"meta_hmap"};
+static const std::string sMapMetaInfoKey{"meta_map"};
 //! Field last used file id in meta info map
 static const std::string sLastUsedFid{"last_used_fid"};
 //! Field last used container id in meta info map
 static const std::string sLastUsedCid{"last_used_cid"};
 //! Set of files that need to be rechecked
-static const std::string sSetCheckFiles{"files_set_check"};
+static const std::string sSetCheckFiles{"files_check_set"};
 //! Set of containers that need to be rechecked
-static const std::string sSetCheckConts{"conts_set_check"};
+static const std::string sSetCheckConts{"conts_check_set"};
 }
 
 //! Variable associated with the QuotaView
