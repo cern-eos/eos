@@ -292,6 +292,7 @@ DrainTransferJob::DoIt()
       properties.Set("sourceLimit", (uint16_t) 1);
       properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
       properties.Set("parallelChunks", (uint8_t) 1);
+      properties.Set("tpcTimeout",  900);
       //create the process job
       XrdCl::CopyProcess lCopyProcess;
       lCopyProcess.AddJob(properties, &result);
