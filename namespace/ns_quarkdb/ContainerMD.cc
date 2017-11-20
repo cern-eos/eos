@@ -108,15 +108,8 @@ ContainerMD::findContainer(const std::string& name)
 
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
+    pFlusher->hdel(pDirsKey, name);
     mSubcontainers.erase(iter);
-
-    try {
-      (void) pDirsMap.hdel(name);
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ECOMM);
-      e.getMessage() << __FUNCTION__ << " " << qdb_err.what();
-      throw e;
-    }
   }
 
   return cont;
@@ -185,8 +178,8 @@ ContainerMD::findFile(const std::string& name)
 
   // Curate the list of files in case file entry is not found
   if (file == nullptr) {
+    pFlusher->hdel(pFilesKey, name);
     mFiles.erase(iter);
-    pFlusher->hdel(pFilesKey, stringify(iter->second));
   }
 
   return file;
@@ -200,13 +193,11 @@ ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(mCont.id());
   auto ret = mFiles.insert(std::make_pair(file->getName(), file->getId()));
-
-  if (!ret.second) {
-    MDException e(EINVAL);
-    e.getMessage() << "Error, file #" << file->getId() << " already exists";
-    throw e;
-  }
-
+  // if (!ret.second) {
+  //   MDException e(EINVAL);
+  //   e.getMessage() << "Error, file #" << file->getId() << " already exists";
+  //   throw e;
+  // }
   pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
 
   if (file->getSize() != 0u) {
@@ -430,6 +421,15 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 void
 ContainerMD::setName(const std::string& name)
 {
+  // // Check that there is no clash with other subcontainers having the same name
+  // if (mCont.parent_id() != 0u) {
+  //   auto parent = pContSvc->getContainerMD(mCont.parent_id());
+  //   if (parent->findContainer(name)) {
+  //     eos::MDException e(EINVAL);
+  //     e.getMessage() << "Container with name \"" << name << "\" already exists";
+  //     throw e;
+  //   }
+  // }
   mCont.set_name(name);
 }
 
