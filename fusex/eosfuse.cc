@@ -1280,7 +1280,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
   md->Locker().Lock();
 
-  if (!md->id() || (md->deleted() && !md->lookup_is()))
+  if(op == 0)
+  {
+    rc = EINVAL;
+  }
+  else if (!md->id() || (md->deleted() && !md->lookup_is()))
   {
     rc = md->deleted()? ENOENT : md->err();
   }
@@ -1288,7 +1292,6 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
   {
 
     fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
-
 
     if (op & FUSE_SET_ATTR_MODE)
     {
