@@ -173,7 +173,6 @@ private:
   std::mutex mtx;
   std::map<pid_t, ProcessInfo> injections;
   std::atomic<bool> useInjectedData {false};
-
   static bool parseStat(const std::string &stat, ProcessInfo &ret);
   static void parseCmdline(const std::string &cmdline, ProcessInfo &ret);
   static bool parseExec(pid_t pid, ProcessInfo &ret);
