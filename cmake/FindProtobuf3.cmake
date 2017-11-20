@@ -22,7 +22,7 @@ message(STATUS "PROTOBUF_INCLUDE_DIRS=${PROTOBUF_INCLUDE_DIRS}")
 
 find_library(PROTOBUF_LIBRARY
   NAME protobuf
-  PATHS /usr/lib64/protobuf3 /usr/lib/protobuf3 /usr/lib/x86_64-linux-gnu
+  PATHS /usr/lib64/protobuf3 /usr/lib/protobuf3 /usr/lib64 /usr/lib/x86_64-linux-gnu
   HINTS ${PROTOBUF_DIR}
   NO_DEFAULT_PATH)
 set(PROTOBUF_LIBRARIES ${PROTOBUF_LIBRARY})

@@ -56,7 +56,11 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
+%if %{?fedora}%{!?fedora:0} >= 27
+BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
+%else
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
+%endif
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
