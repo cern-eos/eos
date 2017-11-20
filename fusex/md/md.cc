@@ -238,8 +238,9 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // try to get the meta data record
     // --------------------------------------------------
-    mLock.UnLock();
+    pmd->Locker().UnLock();
     md = get(req, inode, "", false, pmd, name);
+    pmd->Locker().Lock();
   }
   else
   {
