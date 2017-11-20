@@ -1457,13 +1457,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       }
     }
 
-<<<<<<< HEAD
-    if (!ino)
-    {
-      uint64_t new_ino = insert(req, md, md->authid());
-      ino = new_ino;
-      is_new = true;
-=======
     if (is_new) {
       if (!ino)
       {
@@ -1472,7 +1465,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	ino = new_ino;
 	is_new = true;
       }
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
     }
 
     uint64_t p_ino = inomap.forward(md->md_pino());
@@ -1536,26 +1528,11 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 
       eos_static_debug("remote-ino=%016lx local-ino=%016lx", (long) map->first, ino);
 
-<<<<<<< HEAD
-      if (ino)
-=======
       if (mdmap.retrieveTS(ino, md))
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
       {
         // this is an already known inode
         eos_static_debug("lock mdmap");
 
-<<<<<<< HEAD
-        if (!mdmap.retrieveTS(ino, md))
-        {
-          md = std::make_shared<mdx>();
-          mdmap[ino] = md;
-          stat.inodes_inc();
-          stat.inodes_ever_inc();
-        }
-
-=======
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
         {
           bool child=false;
           if (map->first != cont.ref_inode_())
@@ -1711,10 +1688,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
           pmd = md;
         }
 
-<<<<<<< HEAD
-        uint64_t new_ino = insert(req, md, md->authid());
-=======
-
         uint64_t new_ino = 0;
 	if (! (new_ino = inomap.forward(md->md_ino())) )
 	{
@@ -1723,7 +1696,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	}
 
         md->set_id(new_ino);
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
 
         md->set_id(new_ino);
         if (!listing)
@@ -2121,15 +2093,9 @@ metad::mdcommunicate(ThreadAssistant &assistant)
               uint64_t ino = inomap.forward(md_ino);
               eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
                               md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
-<<<<<<< HEAD
-              if (ino)
-              {
-=======
-
 
 	      shared_md check_md;
 	      if (ino && mdmap.retrieveTS(ino, check_md)) {
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
                 std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
 
                 // wait that the inode is flushed out of the mdqueue
@@ -2312,34 +2278,13 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                   mdmap[new_ino] = md;
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
-<<<<<<< HEAD
-                  if (pino)
-=======
+
 		  shared_md pmd;
 
                   if (pino && mdmap.retrieveTS(pino,pmd))
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
                   {
 		    if (md->pt_mtime())
                     {
-<<<<<<< HEAD
-                      if (md->pt_mtime())
-                      {
-                        pmd->set_mtime(md->pt_mtime());
-                        pmd->set_mtime_ns(md->pt_mtime_ns());
-                      }
-                      md->clear_pt_mtime();
-                      md->clear_pt_mtime_ns();
-                      add (0, pmd, md, authid, true);
-                      update(req, pmd, authid, true);
-                    }
-                    else
-                    {
-                      eos_static_err("missing parent meta-data pino=%16x for ino%16x",
-                                     md_pino,
-                                     md_ino);
-                    }
-=======
 		      pmd->set_mtime(md->pt_mtime());
 		      pmd->set_mtime_ns(md->pt_mtime_ns());
 		    }
@@ -2349,7 +2294,6 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 		    add(0, pmd, md, authid, true);
 		    update(req, pmd, authid, true);
 
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
                     // adjust local quota
                     cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
                     if (cap->id())
@@ -2536,12 +2480,8 @@ metad::vmap::forward(fuse_ino_t lookup)
     uint64_t b64;
     if (EosFuse::Instance().getKV()->get(a64, b64, "l"))
 
-<<<<<<< HEAD
-    {
-=======
     if (EosFuse::Instance().getKV()->get(a64, b64, "l")) {
       bwd_map[b64] = a64;
->>>>>>> 7a4ea32... FUSEX: adjust MD discovery logic to work with a persisted MD translation table
       return ino;
     }
     else
