@@ -169,9 +169,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
 {
   if (pFiles.size() <= location) {
-    MDException e(ENOENT);
-    e.getMessage() << "Location does not exist" << std::endl;
-    throw (e);
+    return nullptr;
   }
 
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
@@ -185,9 +183,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   if (pUnlinkedFiles.size() <= location) {
-    MDException e(ENOENT);
-    e.getMessage() << "Location does not exist" << std::endl;
-    throw (e);
+    return nullptr;
   }
 
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
