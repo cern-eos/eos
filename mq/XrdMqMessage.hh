@@ -24,6 +24,7 @@
 #ifndef __XMQMESSAGE_H__
 #define __XMQMESSAGE_H__
 
+#include <memory>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucEnv.hh>
@@ -48,6 +49,38 @@
 #define XMQCADVISORYQUERY        "xmqclient.advisory.query"
 #define XMQCADVISORYFLUSHBACKLOG "xmqclient.advisory.flushbacklog"
 #define XMQCIPHER EVP_des_cbc
+
+//------------------------------------------------------------------------------
+//! Class KeyWrapper
+//------------------------------------------------------------------------------
+class KeyWrapper {
+public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! By constructing this object, you give up ownership of the pointer!
+  //----------------------------------------------------------------------------
+  KeyWrapper(EVP_PKEY *key) : pkey(key) { }
+  KeyWrapper() {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~KeyWrapper() {
+    if(pkey) {
+      EVP_PKEY_free(pkey);
+      pkey = nullptr;
+    }
+  }
+
+  EVP_PKEY* get() {
+    return pkey;
+  }
+
+private:
+  EVP_PKEY *pkey = nullptr;
+};
 
 //------------------------------------------------------------------------------
 //! Class XrdMqMessageHeader
@@ -349,7 +382,6 @@ public:
   static const char* Seal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace("&", seal)) {};
-
     return s.c_str();
   }
 
@@ -365,7 +397,6 @@ public:
   static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace(seal, "&")) {};
-
     return s.c_str();
   }
 
@@ -410,7 +441,7 @@ public:
   static XrdOucString PrivateKeyFile;      ///< name of private key file
   static XrdOucString
   PublicKeyFileHash;   ///< hash value of corresponding public key
-  static XrdOucHash<EVP_PKEY> PublicKeyHash; ///< hash with public keys
+  static XrdOucHash<KeyWrapper> PublicKeyHash; ///< hash with public keys
   static XrdSysLogger* Logger; ///< logger object for error/debug info
   static XrdSysError Eroute; ///< error object for error/debug info
   XrdMqMessageHeader kMessageHeader; ///< message header

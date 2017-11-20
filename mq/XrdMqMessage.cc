@@ -39,7 +39,7 @@ EVP_PKEY*    XrdMqMessage::PrivateKey = 0;
 XrdOucString XrdMqMessage::PublicKeyDirectory = "";
 XrdOucString XrdMqMessage::PrivateKeyFile = "";
 XrdOucString XrdMqMessage::PublicKeyFileHash = "";
-XrdOucHash<EVP_PKEY> XrdMqMessage::PublicKeyHash;
+XrdOucHash<KeyWrapper> XrdMqMessage::PublicKeyHash;
 bool         XrdMqMessage::kCanSign = false;
 bool         XrdMqMessage::kCanVerify = false;
 XrdSysLogger* XrdMqMessage::Logger = 0;
@@ -463,7 +463,7 @@ XrdMqMessage::Configure(const char* ConfigFN)
 
         // add to the public key hash
         try {
-          PublicKeyHash.Add(ep->d_name, pkey);
+          PublicKeyHash.Add(ep->d_name, new KeyWrapper(pkey));
         } catch (int& excp) {
           return Eroute.Emsg("Config", EINVAL, "insert public key in map");
         }
@@ -819,7 +819,9 @@ bool
 XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
                          char*& data, ssize_t& data_length, XrdOucString& key_hash)
 {
-  EVP_PKEY* pkey = PublicKeyHash.Find(key_hash.c_str());
+  KeyWrapper* wrapper = PublicKeyHash.Find(key_hash.c_str());
+  EVP_PKEY* pkey = nullptr;
+  if(wrapper) pkey = wrapper->get();
 
   if (!pkey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
@@ -1076,7 +1078,9 @@ bool XrdMqMessage::Verify()
     return false;
   }
 
-  EVP_PKEY* PublicKey = PublicKeyHash.Find(PublicKeyName.c_str());
+  KeyWrapper* wrapper = PublicKeyHash.Find(PublicKeyName.c_str());
+  EVP_PKEY* PublicKey = nullptr;
+  if(wrapper) PublicKey = wrapper->get();
 
   if (!PublicKey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
