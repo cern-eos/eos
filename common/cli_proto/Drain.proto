@@ -11,4 +11,5 @@ message DrainProto {
 
   OpType op      = 1;
   string fsid    = 2;
+  string targetfsid = 3;
 }

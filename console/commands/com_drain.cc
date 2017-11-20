@@ -79,7 +79,8 @@ DrainHelper::ParseCommand(const char* arg)
   if (subcommand == "status") {
       drain->set_op(DrainProto::STATUS);
   }
-  const char* fsid = subtokenizer.GetToken();
+  const char* fsid = subtokenizer.GetToken(); 
+  const char* targetFsId = subtokenizer.GetToken();
 
   if (fsid) {
       int ifsid = atoi(fsid);
@@ -92,7 +93,23 @@ DrainHelper::ParseCommand(const char* arg)
   } else {
     fsid="0";
   }
+
+  if (subcommand == "start") {
+    if (targetFsId) {
+      int ifsid = atoi(targetFsId);
+
+      if (ifsid == 0 ) {
+        return false;
+      }
+    } else {
+      targetFsId="0";
+    }
+  } else {
+    targetFsId="0";
+  }
+  
   drain->set_fsid(fsid);
+  drain->set_targetfsid(targetFsId);
   return true; 
 }
 
@@ -106,9 +123,9 @@ void com_drain_help()
   fprintf(stdout,
           "Usage: drain start|stop|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "drain start <fsid>: \n");
+  fprintf(stdout, "drain start <fsid> [<targetFsId>]: \n");
   fprintf(stdout,
-          "                                                  start the draining of the given fsid.\n\n");
+          "                                                  start the draining of the given fsid. If a targetFsId is specified, the drain process will move the replica to that fs\n\n");
   fprintf(stdout, "drain stop <fsid> : \n");
   fprintf(stdout,
           "                                                  stop the draining of the given fsid.\n\n");

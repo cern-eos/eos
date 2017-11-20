@@ -43,7 +43,7 @@ DrainCmd::ProcessRequest()
     reply.set_retc(EPERM);
   } else if (drain.op() == DrainProto::START) {
     eos_notice("ID to drain %s", drain.fsid().c_str());
-    if (!gOFS->DrainerEngine->StartFSDrain(atoi(drain.fsid().c_str()), stdErr)) {
+    if (!gOFS->DrainerEngine->StartFSDrain(atoi(drain.fsid().c_str()), atoi(drain.targetfsid().c_str()), stdErr)) {
       reply.set_std_err(stdErr.c_str());
       reply.set_retc(EINVAL);
     } else {
