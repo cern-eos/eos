@@ -153,8 +153,9 @@ ContainerMD::addContainer(IContainerMD* container)
                                    container->getId()));
 
   if (!ret.second) {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to add subcontainer #" << container->getId();
+    eos::MDException e(EINVAL);
+    e.getMessage() << "Container with name \"" << container->getName()
+                   << "\" already exists";
     throw e;
   }
 
@@ -429,17 +430,6 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 void
 ContainerMD::setName(const std::string& name)
 {
-  // Check that there is no clash with other subcontainers having the same name
-  if (mCont.parent_id() != 0u) {
-    auto parent = pContSvc->getContainerMD(mCont.parent_id());
-
-    if (parent->findContainer(name)) {
-      eos::MDException e(EINVAL);
-      e.getMessage() << "Container with name \"" << name << "\" already exists";
-      throw e;
-    }
-  }
-
   mCont.set_name(name);
 }
 
