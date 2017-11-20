@@ -164,7 +164,7 @@ TEST(XrdMqMessage, RSATest)
   ASSERT_TRUE(bio != nullptr);
   EVP_PKEY* pub_key = PEM_read_bio_PUBKEY(bio, 0, 0, 0);
   ASSERT_TRUE(pub_key != NULL);
-  XrdMqMessage::PublicKeyHash.Add(rsa_hash.c_str(), pub_key);
+  XrdMqMessage::PublicKeyHash.Add(rsa_hash.c_str(), new KeyWrapper(pub_key));
   ssize_t data_length = SHA_DIGEST_LENGTH;
   std::unique_ptr<char[]> data {new char[data_length]};
   GenerateRandomData(data.get(), (ssize_t)data_length);
