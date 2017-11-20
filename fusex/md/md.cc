@@ -213,9 +213,7 @@ metad::lookup(fuse_req_t req,
     pmd->Locker().UnLock();
     md = get(req, inode, "", false, pmd, name);
     pmd->Locker().Lock();
-  }
-  else
-  {
+  } else {
     // --------------------------------------------------
     // no md available
     // --------------------------------------------------
@@ -303,8 +301,8 @@ metad::mdx::convert(struct fuse_entry_param& e)
     e.attr_timeout = 0;
     e.entry_timeout = 0;
   }
-  if (EosFuse::Instance().Config().options.overlay_mode)
-  {
+
+  if (EosFuse::Instance().Config().options.overlay_mode) {
     e.attr.st_mode |= EosFuse::Instance().Config().options.overlay_mode;
   }
 
@@ -395,10 +393,6 @@ metad::map_children_to_local(shared_md pmd)
       mdmap.insertTS(local_ino, md);
     }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> beryl_aquamarine
     eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino,
                      local_ino);
     (*pmd->mutable_children())[*it] = local_ino;
@@ -1049,31 +1043,22 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
-<<<<<<< HEAD
   if (p1md->id() != p2md->id()) {
-    // move between directories
-    XrdSysMutexHelper m1Lock(p1md->Locker());
-    XrdSysMutexHelper m2Lock(p2md->Locker());
-=======
-  if (p1md->id() != p2md->id())
-  {
     // move between directories.
     // Similarly to EosFuse::rename, we lock in order of increasing inode.
-    XrdSysMutex *first = nullptr;
-    XrdSysMutex *second = nullptr;
+    XrdSysMutex* first = nullptr;
+    XrdSysMutex* second = nullptr;
 
-    if(p1md->id() < p2md->id()) {
+    if (p1md->id() < p2md->id()) {
       first = &p1md->Locker();
       second = &p2md->Locker();
-    }
-    else {
+    } else {
       first = &p2md->Locker();
       second = &p1md->Locker();
     }
 
     XrdSysMutexHelper m1Lock(first);
     XrdSysMutexHelper m2Lock(second);
->>>>>>> beryl_aquamarine
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->set_nchildren(p1md->nchildren() - 1);
@@ -1375,22 +1360,23 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       is_new = mdmap.retrieveOrCreateTS(ino, md);
       md->Locker().Lock();
 
-      if (EOS_LOGS_DEBUG)
-        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(), md->deleted());
-      if (md->deleted())
-      {
-	md->Locker().UnLock();
+      if (EOS_LOGS_DEBUG) {
+        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(),
+                         md->deleted());
+      }
+
+      if (md->deleted()) {
+        md->Locker().UnLock();
         return 0;
       }
     }
 
     if (is_new) {
-      if (!ino)
-      {
-	// in this case we need to create a new one
-	uint64_t new_ino = insert(req, md, md->authid());
-	ino = new_ino;
-	is_new = true;
+      if (!ino) {
+        // in this case we need to create a new one
+        uint64_t new_ino = insert(req, md, md->authid());
+        ino = new_ino;
+        is_new = true;
       }
     }
 
@@ -1450,21 +1436,13 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       cap_received.set_id(0);
       eos_static_debug("remote-ino=%016lx local-ino=%016lx", (long) map->first, ino);
 
-      if (mdmap.retrieveTS(ino, md))
-      {
+      if (mdmap.retrieveTS(ino, md)) {
         // this is an already known inode
         eos_static_debug("lock mdmap");
-
         {
-<<<<<<< HEAD
           bool child = false;
 
           if (map->first != cont.ref_inode_()) {
-=======
-          bool child=false;
-          if (map->first != cont.ref_inode_())
-          {
->>>>>>> beryl_aquamarine
             child = true;
 
             if (!S_ISDIR(map->second.mode())) {
@@ -1609,21 +1587,12 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           pmd = md;
         }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> beryl_aquamarine
         uint64_t new_ino = 0;
-	if (! (new_ino = inomap.forward(md->md_ino())) )
-	{
-	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
-	  new_ino = insert(req, md, md->authid());
-	}
-<<<<<<< HEAD
-=======
 
-        md->set_id(new_ino);
->>>>>>> beryl_aquamarine
+        if (!(new_ino = inomap.forward(md->md_ino()))) {
+          // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
+          new_ino = insert(req, md, md->authid());
+        }
 
         md->set_id(new_ino);
 
@@ -1719,11 +1688,11 @@ metad::mdcflush(ThreadAssistant& assistant)
         // accept callbacks for when termination is requested, so we can wake up
         // any condvar.
         mdflush.Wait(1);
-        if (assistant.terminationRequested())
-	{
-	  mdflush.UnLock();
-	  return;
-	}
+
+        if (assistant.terminationRequested()) {
+          mdflush.UnLock();
+          return;
+        }
       }
 
       // TODO: add an optimzation to merge requests in the queue
@@ -1877,18 +1846,21 @@ int
 metad::calculateDepth(shared_md md)
 /* -------------------------------------------------------------------------- */
 {
-  if(md->id() == 1 || md->id() == 0) {
+  if (md->id() == 1 || md->id() == 0) {
     return 1;
   }
 
   fuse_ino_t pino = md->pid();
-  if(pino == 1 || pino == 0) {
+
+  if (pino == 1 || pino == 0) {
     return 2;
   }
 
   shared_md pmd;
-  if(!mdmap.retrieveTS(pino, pmd)) {
-    eos_static_warning("could not lookup parent ino=%d of %d when calculating depth..", pino, md->id());
+
+  if (!mdmap.retrieveTS(pino, pmd)) {
+    eos_static_warning("could not lookup parent ino=%d of %d when calculating depth..",
+                       pino, md->id());
     return -1;
   }
 
@@ -1959,37 +1931,29 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               pause();
             }
 
-	    if (rsp.type() == rsp.DROPCAPS)
-	    {
-	      eos_static_notice("MGM asked us to drop all known caps");
-	      // a newly started MGM requests this as a response to the first heartbeat
-	      EosFuse::Instance().caps.reset();
-	    }
+            if (rsp.type() == rsp.DROPCAPS) {
+              eos_static_notice("MGM asked us to drop all known caps");
+              // a newly started MGM requests this as a response to the first heartbeat
+              EosFuse::Instance().caps.reset();
+            }
 
-	    if (rsp.type() == rsp.CONFIG)
-	    {
-	      if (rsp.config_().hbrate())
-	      {
-		eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds", rsp.config_().hbrate());
-		interval = (int) rsp.config_().hbrate();
-	      }
-	    }
+            if (rsp.type() == rsp.CONFIG) {
+              if (rsp.config_().hbrate()) {
+                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds",
+                                  rsp.config_().hbrate());
+                interval = (int) rsp.config_().hbrate();
+              }
+            }
 
-
-            if (rsp.type() == rsp.LEASE)
-            {
+            if (rsp.type() == rsp.LEASE) {
               uint64_t md_ino = rsp.lease_().md_ino();
               std::string authid = rsp.lease_().authid();
               uint64_t ino = inomap.forward(md_ino);
               eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
                               md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
+              shared_md check_md;
 
-<<<<<<< HEAD
-
-=======
->>>>>>> beryl_aquamarine
-	      shared_md check_md;
-	      if (ino && mdmap.retrieveTS(ino, check_md)) {
+              if (ino && mdmap.retrieveTS(ino, check_md)) {
                 std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
 
                 // wait that the inode is flushed out of the mdqueue
@@ -2159,29 +2123,18 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   mdmap[new_ino] = md;
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
-<<<<<<< HEAD
-=======
+                  shared_md pmd;
 
->>>>>>> beryl_aquamarine
-		  shared_md pmd;
+                  if (pino && mdmap.retrieveTS(pino, pmd)) {
+                    if (md->pt_mtime()) {
+                      pmd->set_mtime(md->pt_mtime());
+                      pmd->set_mtime_ns(md->pt_mtime_ns());
+                    }
 
-                  if (pino && mdmap.retrieveTS(pino,pmd))
-                  {
-		    if (md->pt_mtime())
-                    {
-		      pmd->set_mtime(md->pt_mtime());
-		      pmd->set_mtime_ns(md->pt_mtime_ns());
-		    }
-<<<<<<< HEAD
-		    
-=======
-
->>>>>>> beryl_aquamarine
-		    md->clear_pt_mtime();
-		    md->clear_pt_mtime_ns();
-		    add(0, pmd, md, authid, true);
-		    update(req, pmd, authid, true);
-
+                    md->clear_pt_mtime();
+                    md->clear_pt_mtime_ns();
+                    add(0, pmd, md, authid, true);
+                    update(req, pmd, authid, true);
                     // adjust local quota
                     cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
