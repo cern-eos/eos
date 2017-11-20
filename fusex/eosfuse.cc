@@ -611,9 +611,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
       if (!cconfig.journal.length())
       {
-	cconfig.location = "/var/tmp/eos/fusex/cache/";
-	cconfig.location += getenv("USER");
-	cconfig.location += "/";
+	cconfig.journal = "/var/tmp/eos/fusex/cache/";
+	cconfig.journal += getenv("USER");
+	cconfig.journal += "/";
       }
       // default cache size 8 GB
       if (!root["cache"]["size-mb"].asString().length())
@@ -626,6 +626,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!cconfig.location.length())
       {
 	cconfig.location = "/var/eos/fusex/cache/";
+      }
+
+      if (!cconfig.journal.length())
+      {
+	cconfig.journal = "/var/eos/fusex/cache/";
       }
 
       // default cache size 32 GB
