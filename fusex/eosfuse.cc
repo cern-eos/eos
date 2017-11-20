@@ -570,9 +570,35 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     }
 
+    if (!root["cache"].isMember("read-ahead-bytes-nominal"))
+    {
+      root["cache"]["read-ahead-bytes-nominal"] = 1 * 1024 * 1024;
+    }
+
+    if (!root["cache"].isMember("read-ahead-bytes-max"))
+    {
+      root["cache"]["read-ahead-bytes-max"] = 8 * 1024 * 1024;
+    }
+  
+    if (!root["cache"].isMember("read-ahead-strategy"))
+    {
+      root["cache"]["read-ahead-strategy"] = "dynamic";
+    }
 
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
+    cconfig.default_read_ahead_size = root["cache"]["read-ahead-bytes-nominal"].asInt();
+    cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
+    cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
+
+
+    if ( (cconfig.read_ahead_strategy != "none") &&
+	 (cconfig.read_ahead_strategy != "static") &&
+	 (cconfig.read_ahead_strategy != "dynamic") )
+    {
+      fprintf(stderr,"error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
+      exit(EINVAL);
+    }
 
     // set defaults for journal and file-start cache
     if (geteuid())
@@ -1005,6 +1031,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       no_fsync_list.c_str(),
 		       config.options.overlay_mode
 		       );
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
+		       cconfig.read_ahead_strategy.c_str(),
+		       cconfig.default_read_ahead_size,
+		       cconfig.max_read_ahead_size,
+		       cconfig.total_file_cache_size,
+		       cconfig.location.c_str(),
+		       cconfig.journal.c_str());
 
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),

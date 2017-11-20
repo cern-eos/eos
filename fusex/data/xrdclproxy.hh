@@ -176,6 +176,16 @@ namespace XrdCl
       DYNAMIC = 2
     } ;
 
+
+    static READAHEAD_STRATEGY readahead_strategy_from_string(const std::string& strategy)
+    {
+      if (strategy == "dynamic")
+	return DYNAMIC;
+      if (strategy == "static")
+	return STATIC;
+      return NONE;
+    }
+
     void set_readahead_strategy(READAHEAD_STRATEGY rhs,
                                 size_t min, size_t nom, size_t max)
     {
