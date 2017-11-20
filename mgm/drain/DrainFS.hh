@@ -131,7 +131,7 @@ private:
   std::vector<shared_ptr<DrainTransferJob>> mJobsRunning;
   bool mDrainStop = false; ///< Flag to cancel an ongoing draining
   int mMaxRetries = 1; ///< Max number of retries
-  int maxParallelJobs = 5; ///< Max number of parallel drain jobs
+  unsigned int maxParallelJobs = 10; ///< Max number of parallel drain jobs
 };
 
 EOSMGMNAMESPACE_END

@@ -244,11 +244,10 @@ DrainFS::Drain()
       XrdSysThread::CancelPoint();
       bool stalled = ((time(NULL) - last_filesleft_change) > 600);
       auto job = mJobsPending.begin();
-      int i = 0;
       eos::common::FileSystem::fsid_t fsIdTarget;
       last_filesleft = filesleft;
 
-      while (i < maxParallelJobs && job != mJobsPending.end()) {
+      while ((mJobsRunning.size() <= maxParallelJobs) && (job != mJobsPending.end())) {
         if ((fsIdTarget = SelectTargetFS(&(*job->get()))) != 0) {
           (*job)->SetTargetFS(fsIdTarget);
           (*job)->SetStatus(DrainTransferJob::Ready);
@@ -261,13 +260,9 @@ DrainFS::Drain()
         }
 
         job = mJobsPending.erase(job);
-        i++;
       }
 
-      eos_static_debug("Check running jobs size: %u", mJobsRunning.size());
-      auto it_jobs = mJobsRunning.begin();
-
-      while (mJobsRunning.size() != 0) {
+      for (auto it_jobs = mJobsRunning.begin() ; it_jobs !=  mJobsRunning.end();) {
         if ((*it_jobs)->GetStatus() == DrainTransferJob::OK) {
           it_jobs = mJobsRunning.erase(it_jobs);
         } else if ((*it_jobs)->GetStatus() == DrainTransferJob::Failed) {
@@ -276,18 +271,10 @@ DrainFS::Drain()
         } else {
           it_jobs++;
         }
-
-        if (it_jobs == mJobsRunning.end()) {
-          if (mJobsRunning.size() == 0) {
-            break;
-          } else {
-            it_jobs = mJobsRunning.begin();
-          }
-
-          XrdSysTimer sleep;
-          sleep.Wait(1000);
-        }
       }
+      XrdSysTimer sleep;
+      sleep.Wait(1000);
+
 
       filesleft = mJobsPending.size() + mJobsFailed.size();
 
