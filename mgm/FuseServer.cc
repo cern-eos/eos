@@ -630,7 +630,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
-  implied_cap->set_vtime(ts.tv_sec + 300);
+  implied_cap->set_vtime(ts.tv_sec + 360);
   implied_cap->set_vtime_ns(ts.tv_nsec);
 
   // fill the three views on caps
@@ -1525,7 +1525,7 @@ FuseServer::FillContainerCAP(uint64_t id,
 
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
-  dir.mutable_capability()->set_vtime(ts.tv_sec + 300);
+  dir.mutable_capability()->set_vtime(ts.tv_sec + 360);
   dir.mutable_capability()->set_vtime_ns(ts.tv_nsec);
 
   mode_t mode = S_IFDIR;
