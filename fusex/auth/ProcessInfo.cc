@@ -268,6 +268,7 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
     }
 
     ret = it->second;
+    ret.fillRmInfo();
     return true;
   }
 
@@ -283,5 +284,20 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   }
 
   parseCmdline(cmdline, ret);
+  parseExec(pid, ret);
+  ret.fillRmInfo();
+  return true;
+}
+
+bool ProcessInfoProvider::parseExec(pid_t pid, ProcessInfo &ret) {
+  const size_t BUFF_SIZE = 8096;
+  char buffer[BUFF_SIZE];
+
+  ssize_t len = readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer, BUFF_SIZE - 2);
+  if(len == -1) {
+    return false;
+  }
+
+  ret.fillExecutablePath(std::string(buffer, len));
   return true;
 }

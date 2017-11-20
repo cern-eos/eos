@@ -237,6 +237,9 @@ public:
   BoundIdentity(const std::shared_ptr<const BoundIdentity> &identity)
   : login(identity->getLogin()), creds(identity->getCreds()) {}
 
+  BoundIdentity(const std::shared_ptr<const BoundIdentity> &identity)
+  : login(identity->getLogin()), creds(identity->getCreds()) {}
+
   LoginIdentifier& getLogin() { return login; }
   const LoginIdentifier& getLogin() const { return login; }
 

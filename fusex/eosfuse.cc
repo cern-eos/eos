@@ -1289,12 +1289,21 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
   md = Instance().mds.get(req, ino);
   md->Locker().Lock();
 
-  if (!md->id() || (md->deleted() && !md->lookup_is())) {
-    rc = md->deleted() ? ENOENT : md->err();
-  } else {
+  if(op == 0)
+  {
+    rc = EINVAL;
+  }
+  else if (!md->id() || (md->deleted() && !md->lookup_is()))
+  {
+    rc = md->deleted()? ENOENT : md->err();
+  }
+  else
+  {
+
     fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
 
-    if (op & FUSE_SET_ATTR_MODE) {
+    if (op & FUSE_SET_ATTR_MODE)
+    {
       // retrieve cap for mode setting
       pcap = Instance().caps.acquire(req, cap_ino,
                                      M_OK);
@@ -2318,8 +2327,22 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor monp(__func__, Instance().Tracker(), parent);
-  Track::Monitor monn(__func__, Instance().Tracker(), newparent);
+  // Need to pay attention to lock order here. This is the only (?) function where
+  // we have to lock more than two inodes at the same time.
+  //
+  // Two racing requests with inverted source/target directories,
+  // eg "mv dir1/file1 dir2/file2" and "mv dir2/file3 dir1/file4" can deadlock
+  // us if we simply lock in order of source -> target.
+  //
+  // Instead, lock in order of increasing inode - both racing requests will
+  // use the same locking order, and no deadlock can occur.
+
+  fuse_ino_t first = std::min(parent, newparent);
+  fuse_ino_t second = std::max(parent, newparent);
+
+  Track::Monitor monp (__func__, Instance().Tracker(), first, true);
+  Track::Monitor monn (__func__, Instance().Tracker(), second, true, first == second);
+
   int rc = 0;
   fuse_id id(req);
   // do a parent check
@@ -3899,6 +3922,21 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_threads(osstat.threads);
   hbs.set_vsize_mb(osstat.vsize / 1024.0 / 1024.0);
   hbs.set_rss_mb(osstat.rss / 1024.0 / 1024.0);
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+EosFuse::isRecursiveRm(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  const struct fuse_ctx* ctx = fuse_req_ctx(req);
+  ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid, ctx->uid, ctx->gid, false);
+  if(snapshot->getProcessInfo().getRmInfo().isRm() &&
+     snapshot->getProcessInfo().getRmInfo().isRecursive()) {
+    return true;
+  }
+
+  return false;
 }
 
 /* -------------------------------------------------------------------------- */

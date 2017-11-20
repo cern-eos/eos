@@ -95,18 +95,15 @@ public:
     cmdStr = join(cmd, " ");
   }
 
-  void fillExecutablePath(const std::string& path)
-  {
+  void fillExecutablePath(const std::string &path) {
     executablePath = path;
   }
 
-  void fillRmInfo()
-  {
+  void fillRmInfo() {
     rmInfo = RmInfo(executablePath, cmd);
   }
 
-  bool isEmpty() const
-  {
+  bool isEmpty() const {
     return empty;
   }
 
@@ -150,8 +147,12 @@ public:
     return flags;
   }
 
+<<<<<<< HEAD
   std::string getExecPath() const
   {
+=======
+  std::string getExecPath() const {
+>>>>>>> beryl_aquamarine
     return executablePath;
   }
 

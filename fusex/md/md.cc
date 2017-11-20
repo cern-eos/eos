@@ -210,9 +210,12 @@ metad::lookup(fuse_req_t req,
     // --------------------------------------------------
     // try to get the meta data record
     // --------------------------------------------------
-    mLock.UnLock();
+    pmd->Locker().UnLock();
     md = get(req, inode, "", false, pmd, name);
-  } else {
+    pmd->Locker().Lock();
+  }
+  else
+  {
     // --------------------------------------------------
     // no md available
     // --------------------------------------------------
@@ -392,7 +395,10 @@ metad::map_children_to_local(shared_md pmd)
       mdmap.insertTS(local_ino, md);
     }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> beryl_aquamarine
     eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino,
                      local_ino);
     (*pmd->mutable_children())[*it] = local_ino;
@@ -1043,10 +1049,31 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
+<<<<<<< HEAD
   if (p1md->id() != p2md->id()) {
     // move between directories
     XrdSysMutexHelper m1Lock(p1md->Locker());
     XrdSysMutexHelper m2Lock(p2md->Locker());
+=======
+  if (p1md->id() != p2md->id())
+  {
+    // move between directories.
+    // Similarly to EosFuse::rename, we lock in order of increasing inode.
+    XrdSysMutex *first = nullptr;
+    XrdSysMutex *second = nullptr;
+
+    if(p1md->id() < p2md->id()) {
+      first = &p1md->Locker();
+      second = &p2md->Locker();
+    }
+    else {
+      first = &p2md->Locker();
+      second = &p1md->Locker();
+    }
+
+    XrdSysMutexHelper m1Lock(first);
+    XrdSysMutexHelper m2Lock(second);
+>>>>>>> beryl_aquamarine
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->set_nchildren(p1md->nchildren() - 1);
@@ -1429,9 +1456,15 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         eos_static_debug("lock mdmap");
 
         {
+<<<<<<< HEAD
           bool child = false;
 
           if (map->first != cont.ref_inode_()) {
+=======
+          bool child=false;
+          if (map->first != cont.ref_inode_())
+          {
+>>>>>>> beryl_aquamarine
             child = true;
 
             if (!S_ISDIR(map->second.mode())) {
@@ -1576,13 +1609,21 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           pmd = md;
         }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> beryl_aquamarine
         uint64_t new_ino = 0;
 	if (! (new_ino = inomap.forward(md->md_ino())) )
 	{
 	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
 	  new_ino = insert(req, md, md->authid());
 	}
+<<<<<<< HEAD
+=======
+
+        md->set_id(new_ino);
+>>>>>>> beryl_aquamarine
 
         md->set_id(new_ino);
 
@@ -1943,7 +1984,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
                               md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> beryl_aquamarine
 	      shared_md check_md;
 	      if (ino && mdmap.retrieveTS(ino, check_md)) {
                 std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
@@ -2115,6 +2159,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   mdmap[new_ino] = md;
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
+<<<<<<< HEAD
+=======
+
+>>>>>>> beryl_aquamarine
 		  shared_md pmd;
 
                   if (pino && mdmap.retrieveTS(pino,pmd))
@@ -2124,7 +2172,11 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		      pmd->set_mtime(md->pt_mtime());
 		      pmd->set_mtime_ns(md->pt_mtime_ns());
 		    }
+<<<<<<< HEAD
 		    
+=======
+
+>>>>>>> beryl_aquamarine
 		    md->clear_pt_mtime();
 		    md->clear_pt_mtime_ns();
 		    add(0, pmd, md, authid, true);
