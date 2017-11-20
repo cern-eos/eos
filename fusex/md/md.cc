@@ -1138,9 +1138,22 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::str
 
   if (p1md->id() != p2md->id())
   {
-    // move between directories
-    XrdSysMutexHelper m1Lock(p1md->Locker());
-    XrdSysMutexHelper m2Lock(p2md->Locker());
+    // move between directories.
+    // Similarly to EosFuse::rename, we lock in order of increasing inode.
+    XrdSysMutex *first = nullptr;
+    XrdSysMutex *second = nullptr;
+
+    if(p1md->id() < p2md->id()) {
+      first = &p1md->Locker();
+      second = &p2md->Locker();
+    }
+    else {
+      first = &p2md->Locker();
+      second = &p1md->Locker();
+    }
+
+    XrdSysMutexHelper m1Lock(first);
+    XrdSysMutexHelper m2Lock(second);
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->set_nchildren(p1md->nchildren() - 1);
@@ -2288,7 +2301,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 		      pmd->set_mtime(md->pt_mtime());
 		      pmd->set_mtime_ns(md->pt_mtime_ns());
 		    }
-		    
+
 		    md->clear_pt_mtime();
 		    md->clear_pt_mtime_ns();
 		    add(0, pmd, md, authid, true);

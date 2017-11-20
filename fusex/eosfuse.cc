@@ -2520,8 +2520,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char *name,
   fuse_ino_t first = std::min(parent, newparent);
   fuse_ino_t second = std::max(parent, newparent);
 
-  Track::Monitor monp (__func__, Instance().Tracker(), first);
-  Track::Monitor monn (__func__, Instance().Tracker(), second);
+  Track::Monitor monp (__func__, Instance().Tracker(), first, true);
+  Track::Monitor monn (__func__, Instance().Tracker(), second, true, first == second);
 
   int rc = 0;
 
