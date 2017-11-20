@@ -78,8 +78,6 @@ private:
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
-  CredentialState
-  tryCredentialFile(const std::string& path, CredInfo& creds, uid_t uid);
 
   CredentialState tryCredentialFile(const std::string &path, CredInfo &creds, uid_t uid);
   CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);

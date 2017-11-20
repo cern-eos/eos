@@ -184,22 +184,6 @@ BoundIdentityProvider::useDefaultPaths(uid_t uid, gid_t gid, bool reconnect,
 }
 
 CredentialState
-BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid, pid_t pid,
-    bool reconnect,
-    std::shared_ptr<const BoundIdentity>& result)
-{
-  if (reconnect) {
-    connectionCounter++;
-  }
-
-  LoginIdentifier login(uid, gid, pid, connectionCounter);
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
-  result = std::shared_ptr<const BoundIdentity>(new BoundIdentity(login,
-           trustedCreds));
-  return CredentialState::kOk;
-}
-
-CredentialState
 BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
                                 std::shared_ptr<const BoundIdentity>& result)
 {

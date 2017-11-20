@@ -234,22 +234,11 @@ public:
                 const std::shared_ptr<TrustedCredentials>& creds_)
     : login(login_), creds(creds_) { }
 
-<<<<<<< HEAD
-  LoginIdentifier& getLogin()
-  {
-    return login;
-  }
-  const LoginIdentifier& getLogin() const
-  {
-    return login;
-  }
-=======
   BoundIdentity(const std::shared_ptr<const BoundIdentity> &identity)
   : login(identity->getLogin()), creds(identity->getCreds()) {}
 
   LoginIdentifier& getLogin() { return login; }
   const LoginIdentifier& getLogin() const { return login; }
->>>>>>> FUSEX: Fix unix authentication fallback when unable to use kerberos creds
 
   std::shared_ptr<TrustedCredentials>& getCreds()
   {
