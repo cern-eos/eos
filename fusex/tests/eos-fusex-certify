@@ -81,16 +81,16 @@ git clone https://gitlab.cern.ch/dss/eosclient-tests.git >& /tmp/005-eos-clientt
 cd eosclient-tests/
 cd microtests
 echo "005a... micro-tests"
-python run-testing.py
+python run-testing.py >& /tmp/005-eos-clienttests.og 2>&1 || exit 5
 cd ../functional/
 echo "005b... zlib-compile"
-./zlib-compile-selftest.sh $PWD >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+./zlib-compile-selftest.sh $PWD >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
 echo "005c... git-clone"
-./git-clone.sh $PWD  >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+./git-clone.sh $PWD  >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
 echo "005d... rsync"
-./rsync.sh $PWD  >& /tmp/005-eos-clientests.log 2>&1 || exit 5
+./rsync.sh $PWD  >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
 echo "005d... sqlite"
-./test_sqlite.py  >& /tmp/005-eos-clientests.log 2>&1|| exit 5
+./test_sqlite.py $PWD >& /tmp/005-eos-clienttests.log 2>&1|| exit 5
 ) || exit 5
 
 echo "===================================================================="
