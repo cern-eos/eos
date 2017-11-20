@@ -1163,7 +1163,7 @@ XrdMgmOfsFile::open(const char* inpath,
   bool isRecreation = false;
 
   // Place a new file
-  if (isCreation | (!fmd->getNumLocation()) || isInjection) {
+  if (isCreation || (!fmd->getNumLocation()) || isInjection) {
     const char* containertag = 0;
 
     if (attrmap.count("user.tag")) {
