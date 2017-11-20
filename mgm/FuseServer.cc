@@ -2084,7 +2084,6 @@ FuseServer::HandleMD(const std::string& id,
           }
         }
 
-        cmd->setName(md.name());
         cmd->setCUid(md.uid());
         cmd->setCGid(md.gid());
         // @todo (apeters): is sgid_mode still needed?
@@ -2141,9 +2140,8 @@ FuseServer::HandleMD(const std::string& id,
           break;
         }
       } catch (eos::MDException& e) {
-        eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
-                        e.getErrno(),
-                        e.getMessage().str().c_str());
+        eos_static_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                       e.getErrno(), e.getMessage().str().c_str());
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -2309,9 +2307,9 @@ FuseServer::HandleMD(const std::string& id,
           break;
         }
       } catch (eos::MDException& e) {
-        eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
-                        e.getErrno(),
-                        e.getMessage().str().c_str());
+        eos_static_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                       e.getErrno(),
+                       e.getMessage().str().c_str());
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -2382,9 +2380,9 @@ FuseServer::HandleMD(const std::string& id,
         Cap().BroadcastMD(md, md_ino, md_pino, pt_mtime);
         //Cap().BroadcastRelease(md);
       } catch (eos::MDException& e) {
-        eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
-                        e.getErrno(),
-                        e.getMessage().str().c_str());
+        eos_static_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                       e.getErrno(),
+                       e.getMessage().str().c_str());
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -2511,9 +2509,9 @@ FuseServer::HandleMD(const std::string& id,
       resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.SerializeToString(response);
-      eos_static_info("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
-                      e.getErrno(),
-                      e.getMessage().str().c_str());
+      eos_static_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
+                     e.getErrno(),
+                     e.getMessage().str().c_str());
       return 0;
     }
   }
