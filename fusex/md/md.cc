@@ -386,11 +386,12 @@ metad::map_children_to_local(shared_md pmd)
     if (!local_ino) {
       local_ino = next_ino.inc();
       inomap.insert(remote_ino, local_ino);
-      shared_md md = std::make_shared<mdx>();
-      mdmap.insertTS(local_ino, md);
       stat.inodes_inc();
       stat.inodes_ever_inc();
+      shared_md md = std::make_shared<mdx>();
+      mdmap.insertTS(local_ino, md);
     }
+
 
     eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino,
                      local_ino);
@@ -1344,7 +1345,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     bool is_new = false;
     {
       // Create a new md object, if none is found in the cache
-      mdmap.retrieveOrCreateTS(ino, md);
+      is_new = mdmap.retrieveOrCreateTS(ino, md);
       md->Locker().Lock();
 
       if (EOS_LOGS_DEBUG)
@@ -1356,10 +1357,14 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       }
     }
 
-    if (!ino) {
-      uint64_t new_ino = insert(req, md, md->authid());
-      ino = new_ino;
-      is_new = true;
+    if (is_new) {
+      if (!ino)
+      {
+	// in this case we need to create a new one
+	uint64_t new_ino = insert(req, md, md->authid());
+	ino = new_ino;
+	is_new = true;
+      }
     }
 
     uint64_t p_ino = inomap.forward(md->md_pino());
@@ -1418,16 +1423,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       cap_received.set_id(0);
       eos_static_debug("remote-ino=%016lx local-ino=%016lx", (long) map->first, ino);
 
-      if (ino) {
+      if (mdmap.retrieveTS(ino, md))
+      {
         // this is an already known inode
         eos_static_debug("lock mdmap");
-
-        if (!mdmap.retrieveTS(ino, md)) {
-          md = std::make_shared<mdx>();
-          mdmap[ino] = md;
-          stat.inodes_inc();
-          stat.inodes_ever_inc();
-        }
 
         {
           bool child = false;
@@ -1577,7 +1576,14 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           pmd = md;
         }
 
-        uint64_t new_ino = insert(req, md, md->authid());
+
+        uint64_t new_ino = 0;
+	if (! (new_ino = inomap.forward(md->md_ino())) )
+	{
+	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
+	  new_ino = insert(req, md, md->authid());
+	}
+
         md->set_id(new_ino);
 
         if (!listing) {
@@ -1937,7 +1943,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
                               md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
 
-              if (ino) {
+
+	      shared_md check_md;
+	      if (ino && mdmap.retrieveTS(ino, check_md)) {
                 std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
 
                 // wait that the inode is flushed out of the mdqueue
@@ -2107,27 +2115,20 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   mdmap[new_ino] = md;
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
+		  shared_md pmd;
 
-                  if (pino)
+                  if (pino && mdmap.retrieveTS(pino,pmd))
                   {
-                    shared_md pmd;
-                    if(mdmap.retrieveTS(pino, pmd))
+		    if (md->pt_mtime())
                     {
-                      if (md->pt_mtime())
-                      {
-                        pmd->set_mtime(md->pt_mtime());
-                        pmd->set_mtime_ns(md->pt_mtime_ns());
-                      }
-
-                      md->clear_pt_mtime();
-                      md->clear_pt_mtime_ns();
-                      add(0, pmd, md, authid, true);
-                      update(req, pmd, authid, true);
-                    } else {
-                      eos_static_err("missing parent meta-data pino=%16x for ino%16x",
-                                     md_pino,
-                                     md_ino);
-                    }
+		      pmd->set_mtime(md->pt_mtime());
+		      pmd->set_mtime_ns(md->pt_mtime_ns());
+		    }
+		    
+		    md->clear_pt_mtime();
+		    md->clear_pt_mtime_ns();
+		    add(0, pmd, md, authid, true);
+		    update(req, pmd, authid, true);
 
                     // adjust local quota
                     cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
@@ -2297,6 +2298,7 @@ metad::vmap::forward(fuse_ino_t lookup)
     uint64_t b64;
 
     if (EosFuse::Instance().getKV()->get(a64, b64, "l")) {
+      bwd_map[b64] = a64;
       return ino;
     } else {
       fwd_map[a64] = b64;
