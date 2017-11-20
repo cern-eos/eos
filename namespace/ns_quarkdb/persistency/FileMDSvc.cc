@@ -97,14 +97,14 @@ FileMDSvc::initialize()
 {
   if (pContSvc == nullptr) {
     MDException e(EINVAL);
-    e.getMessage() << "FileMDSvc: container service not set";
+    e.getMessage()  << __FUNCTION__ << "FileMDSvc: container service not set";
     throw e;
   }
 
   if ((pQcl == nullptr) || (pFlusher == nullptr)) {
     MDException e(EINVAL);
-    e.getMessage() << "No qclient/flusher initialized for the container "
-                   << "metadata service";
+    e.getMessage()  << __FUNCTION__ << "No qclient/flusher initialized for "
+                    << "the container metadata service";
     throw e;
   }
 
@@ -138,8 +138,8 @@ FileMDSvc::SafetyCheck()
 
     if (!blob.empty()) {
       MDException e(EEXIST);
-      e.getMessage() << "FATAL: Risk of data loss, found file with id bigger"
-                     << " than max file id";
+      e.getMessage() << __FUNCTION__ << "FATAL: Risk of data loss, found "
+                     << "file with id bigger max file id";
       throw e;
     }
   }
@@ -156,7 +156,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   if (file != nullptr) {
     if (file->isDeleted()) {
       MDException e(ENOENT);
-      e.getMessage() << "File #" << id << " not found";
+      e.getMessage() << __FUNCTION__ << "File #" << id << " not found";
       throw e;
     } else {
       if (clock) {
@@ -176,13 +176,13 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
     blob = bucket_map.hget(sid);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " not found";
+    e.getMessage() << __FUNCTION__ << "File #" << id << " not found";
     throw e;
   }
 
   if (blob.empty()) {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " not found";
+    e.getMessage() << __FUNCTION__ << "File #" << id << " not found";
     throw e;
   }
 
@@ -320,7 +320,7 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
-    e.getMessage() << "ContainerMDSvc dynamic cast failed";
+    e.getMessage() << __FUNCTION__ << "ContainerMDSvc dynamic cast failed";
     throw e;
   }
 

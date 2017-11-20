@@ -106,15 +106,15 @@ ContainerMDSvc::initialize()
 {
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
-    e.getMessage() << "No file metadata service set for the container "
-                   << "metadata service";
+    e.getMessage()  << __FUNCTION__  << "No file metadata service set for "
+                    << "the container metadata service";
     throw e;
   }
 
   if ((pQcl == nullptr) || (pFlusher == nullptr)) {
     MDException e(EINVAL);
-    e.getMessage() << "No qclient/flusher initialized for the container "
-                   << "metadata service";
+    e.getMessage()  << __FUNCTION__ << "No qclient/flusher initialized for "
+                    << "the container metadata service";
     throw e;
   }
 
@@ -148,8 +148,8 @@ ContainerMDSvc::SafetyCheck()
 
     if (!blob.empty()) {
       MDException e(EEXIST);
-      e.getMessage() << "FATAL: Risk of data loss, found container with id bigger"
-                     << " than max container id";
+      e.getMessage()  << __FUNCTION__ << "FATAL: Risk of data loss, found "
+                      << "container with id bigger than max container id";
       throw e;
     }
   }
@@ -167,7 +167,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   if (cont != nullptr) {
     if (cont->isDeleted()) {
       MDException e(ENOENT);
-      e.getMessage() << "Container #" << id << " not found";
+      e.getMessage()  << __FUNCTION__ << "Container #" << id << " not found";
       throw e;
     } else {
       if (clock) {
@@ -193,7 +193,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 
   if (blob.empty()) {
     MDException e(ENOENT);
-    e.getMessage() << "Container #" << id << " not found";
+    e.getMessage()  << __FUNCTION__ << "Container #" << id << " not found";
     throw e;
   }
 
@@ -245,8 +245,8 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   // Protection in case the container is not empty
   if ((obj->getNumFiles() != 0) || (obj->getNumContainers() != 0)) {
     MDException e(EINVAL);
-    e.getMessage() << "Failed to remove container #" << obj->getId()
-                   << " since it's not empty";
+    e.getMessage()  << __FUNCTION__ << "Failed to remove container #"
+                    << obj->getId() << " since it's not empty";
     throw e;
   }
 

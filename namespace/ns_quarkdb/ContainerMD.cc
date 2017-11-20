@@ -44,7 +44,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
-    e.getMessage() << "ContainerMDSvc dynamic cast failed";
+    e.getMessage() << __FUNCTION__ << "ContainerMDSvc dynamic cast failed";
     throw e;
   }
 
@@ -125,7 +125,7 @@ ContainerMD::removeContainer(const std::string& name)
 
   if (it == mSubcontainers.end()) {
     MDException e(ENOENT);
-    e.getMessage() << "Container " << name << " not found";
+    e.getMessage()  << __FUNCTION__ << "Container " << name << " not found";
     throw e;
   }
 
@@ -147,8 +147,8 @@ ContainerMD::addContainer(IContainerMD* container)
 
   if (!ret.second) {
     eos::MDException e(EINVAL);
-    e.getMessage() << "Container with name \"" << container->getName()
-                   << "\" already exists";
+    e.getMessage()  << __FUNCTION__ << "Container with name \""
+                    << container->getName() << "\" already exists";
     throw e;
   }
 
@@ -218,7 +218,8 @@ ContainerMD::removeFile(const std::string& name)
 
   if (iter == mFiles.end()) {
     MDException e(ENOENT);
-    e.getMessage() << "Unknown file " << name << " in container " << mCont.name();
+    e.getMessage() << __FUNCTION__  << "Unknown file " << name
+                   << " in container " << mCont.name();
     throw e;
   } else {
     id = iter->second;
@@ -591,7 +592,7 @@ ContainerMD::getAttribute(const std::string& name) const
 
   if (it == mCont.xattrs().end()) {
     MDException e(ENOENT);
-    e.getMessage() << "Attribute: " << name << " not found";
+    e.getMessage()  << __FUNCTION__  << "Attribute: " << name << " not found";
     throw e;
   }
 
@@ -712,7 +713,8 @@ ContainerMD::deserialize(Buffer& buffer)
       } while (cursor != "0");
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
-      e.getMessage() << "Container #" << mCont.id() << "failed to get subentries";
+      e.getMessage()  << __FUNCTION__  << "Container #" << mCont.id()
+                      << " failed to get subentries";
       throw e;
     }
   }
