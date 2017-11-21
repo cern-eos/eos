@@ -1125,8 +1125,9 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   id_pair* id  = 0;
   memset(&passwdinfo, 0, sizeof(passwdinfo));
   eos_static_debug("find in uid cache %s", name);
-  gPhysicalIdMutex.Lock();
 
+  XrdSysMutexHelper gLock(gPhysicalIdMutex);
+  
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name))) {
     eos_static_debug("not found in uid cache");
@@ -1202,10 +1203,10 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
         }
       }
 
-      if (known_tident) {
-        if (gRootSquash && (!id->uid || !id->gid)) {
-          gPhysicalIdMutex.UnLock();
-          delete id;
+      if (known_tident)
+      {
+        if (gRootSquash && (!id->uid || !id->gid))
+        {
           return;
         }
 
@@ -1228,7 +1229,9 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
       gPhysicalIdMutex.UnLock();
       struct passwd* pwbufp = 0;
       {
-        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+        {
+	  gPhysicalIdMutex.Lock();
           return;
         }
       }
@@ -1252,7 +1255,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     vid.uid = id->uid;
     vid.gid = id->gid;
     eos_static_debug("returning uid=%u gid=%u", id->uid, id->gid);
-    gPhysicalIdMutex.UnLock();
     return;
   }
 
@@ -1292,7 +1294,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   gid_vector* vec = new uid_vector;
   *vec = vid.gid_list;
   gPhysicalGidCache.Add(name, vec, 3600);
-  gPhysicalIdMutex.UnLock();
+
   return;
 }
 

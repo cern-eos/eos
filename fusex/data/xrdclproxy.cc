@@ -280,14 +280,18 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   SetProperty("WriteRecovery", "false");
 #endif
 
-  set_state(OPENING);
-
   XrdCl::XRootDStatus status = Open(url.c_str(),
                                     flags,
                                     mode,
                                     &XOpenAsyncHandler,
                                     timeout);
 
+  if(status.IsOK()) {
+    set_state(OPENING);
+  }
+  else {
+    set_state(FAILED);
+  }
 
   return XOpenState;
 }

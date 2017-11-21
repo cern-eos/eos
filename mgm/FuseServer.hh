@@ -265,7 +265,8 @@ public:
         uint64_t now = (uint64_t) time(NULL);
 
         // leave some margin for revoking
-        if (cap->vtime() <= (now + 10)) {
+        if (cap->vtime() <= (now + 60))
+        {
           mCaps.erase(id);
           mInodeCaps[cap->id()].erase(id);
 

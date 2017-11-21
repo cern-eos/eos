@@ -104,6 +104,12 @@ public:
   Acl(std::string sysacl, std::string useracl,
       eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl = false);
 
+  /*---------------------------------------------------------------------------*/
+  //! Constructor from XAttrMap
+  /*---------------------------------------------------------------------------*/
+  Acl (eos::IContainerMD::XAttrMap& xattrmap,
+       eos::common::Mapping::VirtualIdentity &vid);
+
   //----------------------------------------------------------------------------
   //! Constructor by path
   //!
