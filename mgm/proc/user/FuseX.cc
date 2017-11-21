@@ -149,7 +149,7 @@ ProcCommand::FuseX()
               errno, emsg.c_str());
       return gOFS->Emsg("FuseX", *mError, errno, "get-if-clock",
                         emsg.c_str());
-    };
+    }
   }
 
   uint64_t md_clock = 0;
