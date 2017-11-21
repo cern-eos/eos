@@ -1176,6 +1176,14 @@ RWMutexReadLock::Grab(RWMutex& mutex)
   mRdMutex->LockRead();
 }
 
+void
+RWMutexReadLock::Release() {
+  if (mRdMutex) {
+    mRdMutex->UnLockRead();
+    mRdMutex = nullptr;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------

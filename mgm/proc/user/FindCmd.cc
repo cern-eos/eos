@@ -99,7 +99,7 @@ eos::mgm::FindCmd::ProcessRequest() {
     try {
       max_version = std::stoul(purgeversion);
     } catch (std::logic_error& err) {
-
+      // this error is handled at client side, should not receive bad input from client
     }
   }
 
@@ -204,9 +204,9 @@ eos::mgm::FindCmd::ProcessRequest() {
   unsigned long long filecounter = 0;
   unsigned long long dircounter = 0;
 
-  if (findRequest.files() || nodirs || !findRequest.directories()) {
+  if (findRequest.files() || !findRequest.directories()) {
     for (auto& foundit : *found) {
-      if (!findRequest.directories() && !findRequest.files()) {
+      if (!findRequest.directories() && !findRequest.files() && !nodirs) {
         if (!printcounter) {
           if (printxurl) {
             ofstdoutStream << url;
@@ -224,192 +224,164 @@ eos::mgm::FindCmd::ProcessRequest() {
         fspath += fileit;
 
         if (!calcbalance) {
-          if (findgroupmix || findzero || printsize || printfid || printuid ||
-              printgid || printfileinfo || printchecksum || printctime ||
-              printmtime || printrep || printunlink || printhosts ||
-              printpartition || selectrepdiff || selectonehour ||
-              selectoldertime > 0 || selectyoungertime > 0 || purge_atomic) {
+          //-------------------------------------------
+          eos::common::RWMutexReadLock eosViewMutexGuard;
+          eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
+          std::shared_ptr<eos::IFileMD> fmd;
+
+          try {
+            bool selected = true;
+            fmd = gOFS->eosView->getFile(fspath);
+            eosViewMutexGuard.Release();
             //-------------------------------------------
-            gOFS->eosViewRWMutex.LockRead();
-            std::shared_ptr<eos::IFileMD> fmd;
 
-            try {
-              bool selected = true;
-              unsigned long long filesize = 0;
-              fmd = gOFS->eosView->getFile(fspath);
-              gOFS->eosViewRWMutex.UnLockRead();
-              //-------------------------------------------
+            if (selectonehour) {
+              eos::IFileMD::ctime_t mtime;
+              fmd->getMTime(mtime);
 
-              if (selectonehour) {
-                eos::IFileMD::ctime_t mtime;
-                fmd->getMTime(mtime);
+              if (mtime.tv_sec > (time(nullptr) - 3600)) {
+                selected = false;
+              }
+            }
 
-                if (mtime.tv_sec > (time(nullptr) - 3600)) {
-                  selected = false;
+            if (selectoldertime > 0) {
+              eos::IFileMD::ctime_t mtime;
+              fmd->getMTime(mtime);
+
+              if (mtime.tv_sec > selectoldertime) {
+                selected = false;
+              }
+            }
+
+            if (selectyoungertime > 0) {
+              eos::IFileMD::ctime_t mtime;
+              fmd->getMTime(mtime);
+
+              if (mtime.tv_sec < selectyoungertime) {
+                selected = false;
+              }
+            }
+
+            if (!attributekey.empty() && !attributevalue.empty()) {
+              XrdOucString attr;
+              errInfo.clear();
+              gOFS->_attr_get(fspath.c_str(), errInfo, mVid, (const char*) nullptr,
+                              attributekey.c_str(), attr);
+              if (attributevalue != std::string(attr.c_str())) {
+                selected = false;
+              }
+            }
+
+            if (findzero && fmd->getSize() != 0) {
+              selected = false;
+            }
+
+            if (findgroupmix) {
+              // find files which have replicas on mixed scheduling groups
+              std::string sGroupRef = "";
+              std::string sGroup = "";
+              bool mixed = false;
+
+              for (auto lociter : fmd->getLocations()) {
+                // ignore filesystem id 0
+                if (!lociter) {
+                  eos_err("fsid 0 found fid=%lld", fmd->getId());
+                  continue;
+                }
+
+                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                eos::common::FileSystem* filesystem = nullptr;
+
+                if (FsView::gFsView.mIdView.count(lociter)) {
+                  filesystem = FsView::gFsView.mIdView[lociter];
+                }
+
+                if (filesystem != nullptr) {
+                  sGroup = filesystem->GetString("schedgroup");
+                } else {
+                  sGroup = "none";
+                }
+
+                if (!sGroupRef.empty()) {
+                  if (sGroup != sGroupRef) {
+                    mixed = true;
+                    break;
+                  }
+                } else {
+                  sGroupRef = sGroup;
                 }
               }
 
-              if (selectoldertime > 0) {
-                eos::IFileMD::ctime_t mtime;
-                fmd->getMTime(mtime);
+              if(!mixed) {
+                selected = false;
+              }
+            }
 
-                if (mtime.tv_sec > selectoldertime) {
-                  selected = false;
+            if (selectrepdiff &&
+                fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId() + 1)) {
+              selected = false;
+            }
+
+            // How to print, count, etc. when file is selected...
+            if (selected) {
+              bool printSimple = !(printsize || printfid || printuid || printgid ||
+                                   printchecksum || printfileinfo || printfs || printctime ||
+                                   printmtime || printrep || printunlink || printhosts ||
+                                   printpartition || selectrepdiff || purge_atomic);
+
+              if (printSimple) {
+                if (!printcounter) {
+                  if (printxurl) {
+                    ofstdoutStream << url;
+                  }
+
+                  ofstdoutStream << fspath << std::endl;
                 }
               }
-
-              if (selectyoungertime > 0) {
-                eos::IFileMD::ctime_t mtime;
-                fmd->getMTime(mtime);
-
-                if (mtime.tv_sec < selectyoungertime) {
-                  selected = false;
-                }
-              }
-
-              if (!attributekey.empty() && !attributevalue.empty()) {
-                XrdOucString attr;
-                errInfo.clear();
-                gOFS->_attr_get(fspath.c_str(), errInfo, mVid, (const char*) nullptr,
-                                attributekey.c_str(), attr);
-                if (attributevalue != std::string(attr.c_str())) {
-                  selected = false;
-                }
-              }
-
-              if (selected && (findzero || findgroupmix)) {
-                if (findzero) {
-                  filesize = fmd->getSize();
-                  if (filesize == 0) {
+              else {
+                if (!purge_atomic) {
+                  if (!printfileinfo) {
                     if (!printcounter) {
+                      ofstdoutStream << "path=";
+
                       if (printxurl) {
                         ofstdoutStream << url;
                       }
 
-                      ofstdoutStream << fspath << std::endl;
-                    }
-                  }
-                }
-
-                if (selected && findgroupmix) {
-                  // find files which have replicas on mixed scheduling groups
-                  XrdOucString sGroupRef = "";
-                  XrdOucString sGroup = "";
-                  bool mixed = false;
-
-                  for (auto lociter : fmd->getLocations()) {
-                    // ignore filesystem id 0
-                    if (!lociter) {
-                      eos_err("fsid 0 found fid=%lld", fmd->getId());
-                      continue;
-                    }
-
-                    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                    eos::common::FileSystem* filesystem = nullptr;
-
-                    if (FsView::gFsView.mIdView.count(lociter)) {
-                      filesystem = FsView::gFsView.mIdView[lociter];
-                    }
-
-                    if (filesystem != nullptr) {
-                      sGroup = filesystem->GetString("schedgroup").c_str();
-                    } else {
-                      sGroup = "none";
-                    }
-
-                    if (sGroupRef.length()) {
-                      if (sGroup != sGroupRef) {
-                        mixed = true;
-                        break;
-                      }
-                    } else {
-                      sGroupRef = sGroup;
-                    }
-                  }
-
-                  if (mixed) {
-                    if (!printcounter) {
-                      if (printxurl) {
-                        ofstdoutStream << url;
-                      }
-
-                      ofstdoutStream << fspath << endl;
-                    }
-                  }
-                }
-              } else {
-                if (selected &&
-                    (selectonehour || selectoldertime > 0 || selectyoungertime > 0 ||
-                     printsize || printfid || printuid || printgid ||
-                     printchecksum || printfileinfo || printfs || printctime ||
-                     printmtime || printrep || printunlink || printhosts ||
-                     printpartition || selectrepdiff || purge_atomic)) {
-                  XrdOucString sizestring;
-                  bool printed = selectrepdiff &&
-                    fmd->getNumLocation() != eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId() + 1);
-
-                  if (purge_atomic) {
-                    printed = false;
-                  }
-
-                  if (printed) {
-                    if (!printfileinfo) {
-                      if (!printcounter) {
-                        ofstdoutStream << "path=";
-
-                        if (printxurl) {
-                          ofstdoutStream << url;
-                        }
-
-                        ofstdoutStream << fspath;
-                      }
+                      ofstdoutStream << fspath;
 
                       if (printsize) {
-                        if (!printcounter) {
-                          ofstdoutStream << fmd->getSize();
-                        }
+                        ofstdoutStream << fmd->getSize();
                       }
 
                       if (printfid) {
-                        if (!printcounter) {
-                          ofstdoutStream << fmd->getId();
-                        }
+                        ofstdoutStream << fmd->getId();
                       }
 
                       if (printuid) {
-                        if (!printcounter) {
-                          ofstdoutStream << fmd->getCUid();
-                        }
+                        ofstdoutStream << fmd->getCUid();
                       }
 
                       if (printgid) {
-                        if (!printcounter) {
-                          ofstdoutStream << fmd->getCGid();
-                        }
+                        ofstdoutStream << fmd->getCGid();
                       }
 
                       if (printfs) {
-                        if (!printcounter) {
-                          ofstdoutStream << " fsid=";
-                        }
+                        ofstdoutStream << " fsid=";
 
                         eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
                         eos::IFileMD::LocationVector::const_iterator lociter;
 
                         for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
                           if (lociter != loc_vect.begin()) {
-                            if (!printcounter) {
-                              ofstdoutStream << ',';
-                            }
+                            ofstdoutStream << ',';
                           }
 
-                          if (!printcounter) {
-                            ofstdoutStream << *lociter;
-                          }
+                          ofstdoutStream << *lociter;
                         }
                       }
 
-                      if ((printpartition) && (!printcounter)) {
+                      if (printpartition) {
                         ofstdoutStream << " partition=";
                         std::set<std::string> fsPartition;
 
@@ -448,7 +420,7 @@ eos::mgm::FindCmd::ProcessRequest() {
                         }
                       }
 
-                      if ((printhosts) && (!printcounter)) {
+                      if (printhosts) {
                         ofstdoutStream << " hosts=";
                         std::set<std::string> fsHosts;
 
@@ -480,15 +452,12 @@ eos::mgm::FindCmd::ProcessRequest() {
                       }
 
                       if (printchecksum) {
-                        if (!printcounter) {
-                          ofstdoutStream << " checksum=";
-                        }
+                        ofstdoutStream << " checksum=";
 
                         for (unsigned int i = 0;
                              i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-                          if (!printcounter) {
-                            ofstdoutStream << std::right << setfill('0') << std::setw(2) << (unsigned char)(fmd->getChecksum().getDataPadded(i));
-                          }
+                          ofstdoutStream << std::right << setfill('0') << std::setw(2)
+                                         << (unsigned char) (fmd->getChecksum().getDataPadded(i));
                         }
                       }
 
@@ -496,7 +465,6 @@ eos::mgm::FindCmd::ProcessRequest() {
                         eos::IFileMD::ctime_t ctime;
                         fmd->getCTime(ctime);
 
-                        if (!printcounter)
                         ofstdoutStream << " ctime=" << (unsigned long long) ctime.tv_sec;
                         ofstdoutStream << '.' << (unsigned long long) ctime.tv_nsec;
                       }
@@ -505,94 +473,77 @@ eos::mgm::FindCmd::ProcessRequest() {
                         eos::IFileMD::ctime_t mtime;
                         fmd->getMTime(mtime);
 
-                        if (!printcounter)
                         ofstdoutStream << " mtime=" << (unsigned long long) mtime.tv_sec;
                         ofstdoutStream << '.' << (unsigned long long) mtime.tv_nsec;
                       }
 
                       if (printrep) {
-                        if (!printcounter) {
-                          ofstdoutStream << " nrep=" << fmd->getNumLocation();
-                        }
+                        ofstdoutStream << " nrep=" << fmd->getNumLocation();
                       }
 
                       if (printunlink) {
-                        if (!printcounter) {
-                          ofstdoutStream << " nunlink=" << fmd->getNumUnlinkedLocation();
-                        }
+                        ofstdoutStream << " nunlink=" << fmd->getNumUnlinkedLocation();
                       }
-                    } else {
-                      // print fileinfo -m
-                      ProcCommand Cmd;
-                      XrdOucString lStdOut = "";
-                      XrdOucString lStdErr = "";
-                      XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
-                      info += fspath.c_str();
-                      info += "&mgm.file.info.option=-m";
-                      Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
-                      Cmd.AddOutput(lStdOut, lStdErr);
-
-                      if (lStdOut.length()) {
-                        ofstdoutStream << lStdOut;
-                      }
-
-                      if (lStdErr.length()) {
-                        ofstdoutStream << lStdErr;
-                      }
-
-                      Cmd.close();
-                    }
-
-                    if (!printcounter) {
-                      ofstdoutStream << std::endl;
                     }
                   }
+                  else {
+                    // print fileinfo -m
+                    ProcCommand Cmd;
+                    XrdOucString lStdOut = "";
+                    XrdOucString lStdErr = "";
+                    XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
+                    info += fspath.c_str();
+                    info += "&mgm.file.info.option=-m";
+                    Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
+                    Cmd.AddOutput(lStdOut, lStdErr);
 
-                  if (purge_atomic &&
-                      (fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos)) {
-                    ofstdoutStream << "# found atomic " << fspath << std::endl;
-                    struct stat buf;
+                    if (lStdOut.length()) {
+                      ofstdoutStream << lStdOut;
+                    }
 
-                    if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr, nullptr)) &&
-                        ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
-                      time_t now = time(nullptr);
+                    if (lStdErr.length()) {
+                      ofstdoutStream << lStdErr;
+                    }
 
-                      if ((now - buf.st_ctime) > 86400) {
-                        if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
-                          ofstdoutStream << "# purging atomic " << fspath;
-                        }
-                      } else {
-                        ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
+                    Cmd.close();
+                  }
+
+                  if (!printcounter) {
+                    ofstdoutStream << std::endl;
+                  }
+                }
+                else if (fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
+                  ofstdoutStream << "# found atomic " << fspath << std::endl;
+                  struct stat buf;
+
+                  if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr, nullptr)) &&
+                      ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
+                    time_t now = time(nullptr);
+
+                    if ((now - buf.st_ctime) > 86400) {
+                      if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
+                        ofstdoutStream << "# purging atomic " << fspath;
                       }
+                    } else {
+                      ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
                     }
                   }
                 }
               }
 
-              if (selected) {
-                filecounter++;
-              }
-            } catch (eos::MDException& e) {
-              eos_debug("caught exception %d %s\n", e.getErrno(),
-                        e.getMessage().str().c_str());
-              gOFS->eosViewRWMutex.UnLockRead();
-              //-------------------------------------------
+              filecounter++;
             }
-          } else {
-            if ((!printcounter) && (!purge_atomic)) {
-              if (printxurl) {
-                ofstdoutStream << url;
-              }
-
-              ofstdoutStream << fspath << std::endl;
-            }
-
-            filecounter++;
+          } catch (eos::MDException& e) {
+            eos_debug("caught exception %d %s\n", e.getErrno(),
+                      e.getMessage().str().c_str());
+            eosViewMutexGuard.Release();
+            //-------------------------------------------
           }
         } else {
           // get location
           //-------------------------------------------
-          gOFS->eosViewRWMutex.LockRead();
+          eos::common::RWMutexReadLock eosViewMutexGuard;
+          eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
           std::shared_ptr<eos::IFileMD> fmd;
 
           try {
@@ -603,7 +554,7 @@ eos::mgm::FindCmd::ProcessRequest() {
           }
 
           if (fmd) {
-            gOFS->eosViewRWMutex.UnLockRead();
+            eosViewMutexGuard.Release();
             //-------------------------------------------
 
             for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
@@ -640,7 +591,7 @@ eos::mgm::FindCmd::ProcessRequest() {
               }
             }
           } else {
-            gOFS->eosViewRWMutex.UnLockRead();
+            eosViewMutexGuard.Release();
             //-------------------------------------------
           }
         }
@@ -652,7 +603,7 @@ eos::mgm::FindCmd::ProcessRequest() {
 
   eos_debug("Listing directories");
 
-  if (!nodirs && findRequest.directories()) {
+  if (findRequest.directories()) {
     for (auto& foundit : *found) {
       // eventually call the version purge function if we own this version dir or we are root
       if (purge &&

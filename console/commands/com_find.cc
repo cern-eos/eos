@@ -967,6 +967,13 @@ FindHelper::ParseCommand(const char* arg)
       std::string versions = subtokenizer.GetToken();
 
       if (versions.length() > 0) {
+        try {
+          std::stoul(versions);
+        } catch (std::logic_error& err) {
+          if (versions != "atomic") {
+            return false;
+          }
+        }
         find->set_purge(versions);
       }
       else {
