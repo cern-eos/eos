@@ -1139,22 +1139,12 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::str
 
   if (p1md->id() != p2md->id())
   {
-    // move between directories.
-    // Similarly to EosFuse::rename, we lock in order of increasing inode.
-    XrdSysMutex *first = nullptr;
-    XrdSysMutex *second = nullptr;
+    // move between directories. We need to run an expensive algorithm to
+    // determine the correct lock order, but a rename should be rather uncommon,
+    // anyway.
 
-    if(p1md->id() < p2md->id()) {
-      first = &p1md->Locker();
-      second = &p2md->Locker();
-    }
-    else {
-      first = &p2md->Locker();
-      second = &p1md->Locker();
-    }
+    MdLocker locker(p1md, p2md, determineLockOrder(p1md, p2md));
 
-    XrdSysMutexHelper m1Lock(first);
-    XrdSysMutexHelper m2Lock(second);
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->set_nchildren(p1md->nchildren() - 1);
@@ -1977,6 +1967,71 @@ metad::mdcflush(ThreadAssistant &assistant)
       }
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+metad::determineLockOrder(shared_md md1, shared_md md2)
+/* -------------------------------------------------------------------------- */
+{
+  // Determine lock order of _two_ md objects, which is not as trivial as it
+  // might seem:
+  //
+  // Children are _always_ locked before their parents!
+  // If and only if two md's are not related as in parent and child, we decide the
+  // order based on increasing inodes.
+  //
+  // Example 1: /a/b/c and /a/ -> /a/b/c locked first, as it's a child of /a/
+  // Example 2: /a/b/c and /a/b/d -> Decision based on increasing inode.
+  //
+  // This procedure is very expensive.. we should simplify if possible..
+
+  md1->Locker().Lock();
+  fuse_ino_t inode1 = md1->id();
+  md1->Locker().UnLock();
+
+  md2->Locker().Lock();
+  fuse_ino_t inode2 = md2->id();
+  md2->Locker().UnLock();
+
+  if(isChild(md1, inode2)) {
+    return true;
+  }
+
+  if(isChild(md2, inode1)) {
+    return false;
+  }
+
+  // Determine based on increasing inode.
+  return inode1 < inode2;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+metad::isChild(shared_md potentialChild, fuse_ino_t parentId)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper helper(potentialChild->Locker());
+
+  if(potentialChild->id() == 1 || potentialChild->id() == 0) {
+    return false;
+  }
+
+  if(potentialChild->id() == parentId) {
+    return true;
+  }
+
+  shared_md pmd;
+  if(!mdmap.retrieveTS(potentialChild->pid(), pmd)) {
+    eos_static_warning("could not lookup parent ino=%d of %d when determining lock order..",
+      potentialChild->pid(), potentialChild->id());
+    return false;
+  }
+
+  helper.UnLock();
+  return isChild(pmd, parentId);
 }
 
 /* -------------------------------------------------------------------------- */

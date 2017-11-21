@@ -628,6 +628,43 @@ public:
   typedef std::deque<flushentry> flushentry_set_t;
 
 private:
+
+  // Lock _two_ md objects in the given order.
+  class MdLocker {
+  public:
+    MdLocker(shared_md &m1, shared_md &m2, bool ordr)
+    : md1(m1), md2(m2), order(ordr) {
+
+      if(order) {
+        md1->Locker().Lock();
+        md2->Locker().Lock();
+      }
+      else {
+        md2->Locker().Lock();
+        md1->Locker().Lock();
+      }
+    }
+
+    ~MdLocker() {
+      if(order) {
+        md2->Locker().UnLock();
+        md1->Locker().UnLock();
+      }
+      else {
+        md1->Locker().UnLock();
+        md2->Locker().UnLock();
+      }
+    }
+
+  private:
+    shared_md md1;
+    shared_md md2;
+    bool order; // true if lock order is md1 -> md2, false if md2 -> md1
+  };
+
+  bool determineLockOrder(shared_md md1, shared_md md2);
+  bool isChild(shared_md potentialChild, fuse_ino_t parentId);
+
   pmap mdmap;
   vmap inomap;
   mdstat stat;
@@ -652,4 +689,5 @@ private:
 
   backend* mdbackend;
 } ;
+
 #endif /* FUSE_MD_HH_ */
