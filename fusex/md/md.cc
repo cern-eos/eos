@@ -440,7 +440,7 @@ metad::get(fuse_req_t req,
       md = std::make_shared<mdx>();
     }
     
-    if ( EOS_LOGS_DEBUG )
+    if ( EOS_LOGS_DEBUG ) {
       eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
     }
   } else {
