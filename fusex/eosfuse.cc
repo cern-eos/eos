@@ -1675,11 +1675,17 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   cap::shared_cap pcap = Instance().caps.acquire(req, ino,
                          S_IFDIR | X_OK | R_OK, true);
 
-  if (pcap->errc()) {
+
+  XrdSysMutexHelper cLock (pcap->Locker());
+  if (pcap->errc())
+  {
     rc = pcap->errc();
   } else {
     // retrieve md
-    metad::shared_md md = Instance().mds.get(req, ino, pcap->authid(), true);
+    std::string authid = pcap->authid();
+    cLock.UnLock();
+    metad::shared_md md = Instance().mds.get(req, ino, authid, true);
+
     XrdSysMutexHelper mLock(md->Locker());
 
     if (!md->id() || md->deleted()) {

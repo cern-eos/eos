@@ -433,15 +433,14 @@ metad::get(fuse_req_t req,
   eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino,
                   pmd ? pmd->id() : 0, name, listing);
   shared_md md;
-
-  if (ino) {
+  if (ino)
+  {
+    if (!mdmap.retrieveTS(ino, md))
     {
-      XrdSysMutexHelper mLock(mdmap);
-      // the inode is known, we try to get that one
-      mdmap.retrieve(ino, md);
+      md = std::make_shared<mdx>();
     }
-
-    if (EOS_LOGS_DEBUG) {
+    
+    if ( EOS_LOGS_DEBUG )
       eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
     }
   } else {
