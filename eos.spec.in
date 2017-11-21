@@ -154,9 +154,9 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 %if %{?fedora}%{!?fedora:0} >= 27
-Requires: protobuf
+Requires: protobuf >= 3.3
 %else
-Requires: protobuf3
+Requires: protobuf3 >= 3.3
 %endif
 %if %{use_systemd}
 Requires: systemd
@@ -302,9 +302,9 @@ Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
 %if %{?fedora}%{!?fedora:0} >= 27
-Requires: protobuf
+Requires: protobuf >= 3.3
 %else
-Requires: protobuf3
+Requires: protobuf3 >= 3.3
 %endif
 %if %{use_systemd}
 Requires: systemd
