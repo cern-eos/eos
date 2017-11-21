@@ -1911,7 +1911,7 @@ FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, eos
     eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s", 
 		   md.md_pino(), 
 		   mode.c_str(),
-		   accperm.c_str());
+		   accperm.c_str()
 		   );
     return true;
   }
@@ -1920,7 +1920,7 @@ FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, eos
     eos_static_err("reject access to ino=%16x request-mode=%s granted-mode=%s", 
 		   md.md_pino(), 
 		   mode.c_str(),
-		   accperm.c_str());
+		   accperm.c_str()
 		   );
     return false;
   }
