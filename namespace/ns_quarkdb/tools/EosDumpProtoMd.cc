@@ -191,11 +191,12 @@ void PrettyPrint(const std::string& senv)
   using eos::common::StringTokenizer;
   auto tokens = StringTokenizer::split<std::list<std::string>>(senv, '&');
 
-  for (const auto& elem : tokens) {
+  for (auto& elem : tokens) {
     auto kv_pair = StringTokenizer::split<std::vector<std::string>>(elem, '=');
 
     if (kv_pair.size() != 2) {
-      std::cerr << "error: unexpected format " << elem << std::endl;
+      elem.pop_back();
+      oss << elem << " : " << std::endl;
       continue;
     }
 
