@@ -249,7 +249,7 @@ NsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
-    stat->set_monitor(false);
+    stat->set_summary(true);
   } else {
     return false;
   }

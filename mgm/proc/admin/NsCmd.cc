@@ -291,11 +291,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     oss << "uid=all gid=all ns.uptime="
         << (int)(time(NULL) - gOFS->StartTime)
         << std::endl;
-    XrdOucString stats_out;
-    gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), stat.monitor(),
-                                 stat.numericids());
-    oss << stats_out.c_str();
-    return oss.str();
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";
@@ -367,8 +362,16 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->StartTime) << std::endl
         << line << std::endl;
-    return oss.str();
   }
+
+  if (!stat.summary()) {
+    XrdOucString stats_out;
+    gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), stat.monitor(),
+                                 stat.numericids());
+    oss << stats_out.c_str();
+  }
+
+  return oss.str();
 }
 
 //------------------------------------------------------------------------------

@@ -639,18 +639,16 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   Mutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
-  google::sparse_hash_map <
-  std::string,
-      google::sparse_hash_map<uid_t, unsigned long long> >::iterator tit;
-  google::sparse_hash_map <
-  std::string,
-      google::sparse_hash_map<uid_t, StatExt > >::iterator tit_ext;
+  google::sparse_hash_map < std::string,
+         google::sparse_hash_map<uid_t, unsigned long long> >::iterator tit;
+  google::sparse_hash_map < std::string,
+         google::sparse_hash_map<uid_t, StatExt > >::iterator tit_ext;
 
-  for (tit = StatsUid.begin(); tit != StatsUid.end(); tit++) {
+  for (tit = StatsUid.begin(); tit != StatsUid.end(); ++tit) {
     tags.push_back(tit->first);
   }
 
-  for (tit_ext = StatExtUid.begin(); tit_ext != StatExtUid.end(); tit_ext++) {
+  for (tit_ext = StatExtUid.begin(); tit_ext != StatExtUid.end(); ++tit_ext) {
     tags_ext.push_back(tit_ext->first);
   }
 
@@ -676,7 +674,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   std::string format_l = !monitoring ? "+l" : "ol";
   std::string format_f = !monitoring ? "f" : "of";
   std::string format_ff = !monitoring ? "±f" : "of";
-  //! Specification for all users and groups
+  // Specification for all users and groups
   TableFormatterBase table_all;
 
   if (!monitoring) {
@@ -840,9 +838,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
     tgit_ext;
     Mutex.UnLock();
-    // -------------------------------------------------------------------------
-    // don't translate names with a mutex lock
-    // -------------------------------------------------------------------------
+    // Don't translate names with a mutex lock
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
 
@@ -932,8 +928,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                          (unsigned long long)it->first);
         }
 
-        table_data.push_back(std::make_tuple(0, username,
-                                             tuit->first.c_str(), StatsUid[tuit->first.c_str()][it->first],
+        table_data.push_back(std::make_tuple(0, username, tuit->first.c_str(),
+                                             StatsUid[tuit->first.c_str()][it->first],
                                              it->second.GetAvg5(), it->second.GetAvg60(),
                                              it->second.GetAvg300(), it->second.GetAvg3600()));
       }
@@ -962,8 +958,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                                    it->second.GetN300(), it->second.GetAvg300(),
                                    it->second.GetMin300(), it->second.GetMax300(),
                                    it->second.GetN3600(), it->second.GetAvg3600(),
-                                   it->second.GetMin3600(), it->second.GetMax3600()
-                                 ));
+                                   it->second.GetMin3600(), it->second.GetMax3600()));
       }
     }
 
@@ -1006,8 +1001,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                           (unsigned long long)it->first);
         }
 
-        table_data.push_back(std::make_tuple(1, groupname,
-                                             tgit->first.c_str(), StatsGid[tgit->first.c_str()][it->first],
+        table_data.push_back(std::make_tuple(1, groupname, tgit->first.c_str(),
+                                             StatsGid[tgit->first.c_str()][it->first],
                                              it->second.GetAvg5(), it->second.GetAvg60(),
                                              it->second.GetAvg300(), it->second.GetAvg3600()));
       }
@@ -1036,8 +1031,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                                    it->second.GetN300(), it->second.GetAvg300(),
                                    it->second.GetMin300(), it->second.GetMax300(),
                                    it->second.GetN3600(), it->second.GetAvg3600(),
-                                   it->second.GetMin3600(), it->second.GetMax3600()
-                                 ));
+                                   it->second.GetMin3600(), it->second.GetMax3600()));
       }
     }
 

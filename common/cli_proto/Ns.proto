@@ -7,6 +7,7 @@ message NsProto {
     bool Monitor    = 2;
     bool NumericIds = 3;
     bool Reset      = 4;
+    bool Summary    = 5;
   }
 
   message MutexProto {
