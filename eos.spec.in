@@ -153,7 +153,11 @@ Requires: jemalloc
 Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
+%if %{?fedora}%{!?fedora:0} >= 27
+Requires: protobuf
+%else
 Requires: protobuf3
+%endif
 %if %{use_systemd}
 Requires: systemd
 %else
@@ -297,7 +301,11 @@ Summary: The EOS shell client
 Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
-Requires: protobuf3 >= 3.3
+%if %{?fedora}%{!?fedora:0} >= 27
+Requires: protobuf
+%else
+Requires: protobuf3
+%endif
 %if %{use_systemd}
 Requires: systemd
 %else
