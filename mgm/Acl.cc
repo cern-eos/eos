@@ -48,7 +48,7 @@ Acl::Acl(std::string sysacl, std::string useracl,
 //!
 //------------------------------------------------------------------------------
 
-Acl::Acl (eos::ContainerMD::XAttrMap& attrmap,
+Acl::Acl (eos::IContainerMD::XAttrMap& attrmap,
      eos::common::Mapping::VirtualIdentity &vid)
 {
   // define the acl rules from the attributes
