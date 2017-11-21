@@ -7,10 +7,10 @@ package eos.ns;
 message ContainerMdProto {
   uint64 id = 1;
   uint64 parent_id = 2;
-  int64 uid = 3;
-  int64 gid = 4;
+  uint64 uid = 3;
+  uint64 gid = 4;
   int64 tree_size = 6;
-  int32 mode = 5;
+  uint32 mode = 5;
   uint32 flags = 7;
   string name = 8;
   bytes ctime = 9; // change time
