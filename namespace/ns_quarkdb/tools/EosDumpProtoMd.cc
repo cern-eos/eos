@@ -110,9 +110,12 @@ int main(int argc, char* argv[])
         std::cerr << "error: port must be a numeric value" << std::endl;
         return usage_help();
       }
+
+      break;
     }
 
     default:
+      std::cerr << "Unkown option: " << (char) c << std::endl;
       return usage_help();
     }
   }
