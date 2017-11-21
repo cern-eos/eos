@@ -106,14 +106,14 @@ ContainerMDSvc::initialize()
 {
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__  << "No file metadata service set for "
+    e.getMessage()  << __FUNCTION__  << " No file metadata service set for "
                     << "the container metadata service";
     throw e;
   }
 
   if ((pQcl == nullptr) || (pFlusher == nullptr)) {
     MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__ << "No qclient/flusher initialized for "
+    e.getMessage()  << __FUNCTION__ << " No qclient/flusher initialized for "
                     << "the container metadata service";
     throw e;
   }
@@ -148,7 +148,7 @@ ContainerMDSvc::SafetyCheck()
 
     if (!blob.empty()) {
       MDException e(EEXIST);
-      e.getMessage()  << __FUNCTION__ << "FATAL: Risk of data loss, found "
+      e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
                       << "container with id bigger than max container id";
       throw e;
     }
@@ -167,7 +167,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   if (cont != nullptr) {
     if (cont->isDeleted()) {
       MDException e(ENOENT);
-      e.getMessage()  << __FUNCTION__ << "Container #" << id << " not found";
+      e.getMessage()  << __FUNCTION__ << " Container #" << id << " not found";
       throw e;
     } else {
       if (clock) {
@@ -193,12 +193,11 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 
   if (blob.empty()) {
     MDException e(ENOENT);
-    e.getMessage()  << __FUNCTION__ << "Container #" << id << " not found";
+    e.getMessage()  << __FUNCTION__ << " Container #" << id << " not found";
     throw e;
   }
 
-  cont = std::make_shared<ContainerMD>(0, pFileSvc,
-                                       static_cast<IContainerMDSvc*>(this));
+  cont.reset(new ContainerMD(0, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
   cont->deserialize(ebuff);
@@ -218,8 +217,7 @@ ContainerMDSvc::createContainer()
 {
   uint64_t free_id = mInodeProvider.reserve();
   std::shared_ptr<IContainerMD> cont
-  (new ContainerMD(free_id, pFileSvc,
-                   static_cast<IContainerMDSvc*>(this)));
+  (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   return mContainerCache.put(cont->getId(), cont);
 }
 
@@ -245,7 +243,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   // Protection in case the container is not empty
   if ((obj->getNumFiles() != 0) || (obj->getNumContainers() != 0)) {
     MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__ << "Failed to remove container #"
+    e.getMessage()  << __FUNCTION__ << " Failed to remove container #"
                     << obj->getId() << " since it's not empty";
     throw e;
   }

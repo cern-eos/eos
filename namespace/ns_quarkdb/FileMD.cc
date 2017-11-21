@@ -199,7 +199,8 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
       << "&mtime=" << mtime.tv_sec << "&mtime_ns=" << mtime.tv_nsec
       << "&size=" << mFile.size() << "&cid=" << mFile.cont_id()
       << "&uid=" << mFile.uid() << "&gid=" << mFile.gid()
-      << "&lid=" << mFile.layout_id();
+      << "&lid=" << mFile.layout_id() << "&flags=" << mFile.flags()
+      << "&link=" << mFile.link_name();
   env += oss.str();
   env += "&location=";
   char locs[16];

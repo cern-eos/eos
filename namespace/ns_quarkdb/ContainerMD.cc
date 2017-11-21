@@ -44,7 +44,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
-    e.getMessage() << __FUNCTION__ << "ContainerMDSvc dynamic cast failed";
+    e.getMessage() << __FUNCTION__ << " ContainerMDSvc dynamic cast failed";
     throw e;
   }
 
@@ -82,7 +82,10 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pQcl     = other.pQcl;
   mClock   = other.mClock;
   pFlusher = other.pFlusher;
-  // Note: pFiles and pSubContainers are not copied here
+  pDirsKey = other.pDirsKey;
+  pFilesKey = other.pFilesKey;
+  pFilesMap = qclient::QHash(*pQcl, pFilesKey);
+  pDirsMap = qclient::QHash(*pQcl, pDirsKey);
   return *this;
 }
 
@@ -102,7 +105,7 @@ ContainerMD::findContainer(const std::string& name)
 
   try {
     cont = pContSvc->getContainerMD(iter->second);
-  } catch (MDException& ex) {
+  } catch (const MDException& ex) {
     cont = nullptr;
   }
 
@@ -125,7 +128,7 @@ ContainerMD::removeContainer(const std::string& name)
 
   if (it == mSubcontainers.end()) {
     MDException e(ENOENT);
-    e.getMessage()  << __FUNCTION__ << "Container " << name << " not found";
+    e.getMessage()  << __FUNCTION__ << " Container " << name << " not found";
     throw e;
   }
 
@@ -145,9 +148,13 @@ ContainerMD::addContainer(IContainerMD* container)
   auto ret = mSubcontainers.insert(std::make_pair(container->getName(),
                                    container->getId()));
 
+  // @todo (esindril): Here we (should ?!) follow the behaviour of the namespace
+  // in memory and don't do any extra checks but this can lead to multiple
+  // accounting of this file in the quota view since the listeners are notified
+  // every time we call this ....
   if (!ret.second) {
     eos::MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__ << "Container with name \""
+    e.getMessage()  << __FUNCTION__ << " Container with name \""
                     << container->getName() << "\" already exists";
     throw e;
   }
@@ -192,7 +199,11 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(mCont.id());
-  auto ret = mFiles.insert(std::make_pair(file->getName(), file->getId()));
+  (void)mFiles.insert(std::make_pair(file->getName(), file->getId()));
+  // @todo (esindril): Here we follow the behaviour of the namespace in memory
+  // and don't do any extra checks but this can lead to multiple accounting
+  // of this file in the quota view since the listeners are notified every
+  // time we call this ....
   // if (!ret.second) {
   //   MDException e(EINVAL);
   //   e.getMessage() << "Error, file #" << file->getId() << " already exists";
@@ -213,34 +224,27 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  IFileMD::id_t id;
   auto iter = mFiles.find(name);
 
-  if (iter == mFiles.end()) {
-    MDException e(ENOENT);
-    e.getMessage() << __FUNCTION__  << "Unknown file " << name
-                   << " in container " << mCont.name();
-    throw e;
-  } else {
-    id = iter->second;
+  if (iter != mFiles.end()) {
+    IFileMD::id_t id = iter->second;
     mFiles.erase(iter);
     mFiles.resize(0);
-  }
+    // Do async call to KV backend
+    pFlusher->hdel(pFilesKey, name);
 
-  // Do async call to KV backend
-  pFlusher->hdel(pFilesKey, name);
-
-  try {
-    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-    // NOTE: This is an ugly hack. The file object has not reference to the
-    // container id, therefore we hijack the "location" member of the Event
-    // class to pass in the container id.
-    IFileMDChangeListener::Event
-    e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
-      0, -file->getSize());
-    pFileSvc->notifyListeners(&e);
-  } catch (MDException& e) {
-    // File already removed
+    try {
+      std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
+      // NOTE: This is an ugly hack. The file object has not reference to the
+      // container id, therefore we hijack the "location" member of the Event
+      // class to pass in the container id.
+      IFileMDChangeListener::Event
+      e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
+        0, -file->getSize());
+      pFileSvc->notifyListeners(&e);
+    } catch (MDException& e) {
+      // File already removed
+    }
   }
 }
 
@@ -592,7 +596,7 @@ ContainerMD::getAttribute(const std::string& name) const
 
   if (it == mCont.xattrs().end()) {
     MDException e(ENOENT);
-    e.getMessage()  << __FUNCTION__  << "Attribute: " << name << " not found";
+    e.getMessage()  << __FUNCTION__  << " Attribute: " << name << " not found";
     throw e;
   }
 
@@ -680,10 +684,10 @@ ContainerMD::deserialize(Buffer& buffer)
   }
 
   // Rebuild the file and subcontainer keys
-  std::string files_key = stringify(mCont.id()) + constants::sMapFilesSuffix;
-  pFilesMap.setKey(files_key);
-  std::string dirs_key = stringify(mCont.id()) + constants::sMapDirsSuffix;
-  pDirsMap.setKey(dirs_key);
+  pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
+  pFilesMap.setKey(pFilesKey);
+  pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
+  pDirsMap.setKey(pDirsKey);
 
   // Grab the files and subcontainers
   if (pQcl) {
@@ -713,7 +717,7 @@ ContainerMD::deserialize(Buffer& buffer)
       } while (cursor != "0");
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
-      e.getMessage()  << __FUNCTION__  << "Container #" << mCont.id()
+      e.getMessage()  << __FUNCTION__  << " Container #" << mCont.id()
                       << " failed to get subentries";
       throw e;
     }
