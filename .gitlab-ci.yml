@@ -424,6 +424,40 @@ eos_stress_test:
   allow_failure: true
   retry: 1
   
+eos_publish_koji_cc7:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client
+    - yum install -y koji --disablerepo=extras
+    - mkdir ~/.koji
+    - echo -e '[koji]\nserver = http://koji.cern.ch/kojihub\nweburl = http://koji.cern.ch/koji\ntopurl = http://koji.cern.ch/kojifiles\ncert   = /not/existing/file\n' >> ~/.koji/config
+    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+    - koji build eos7 cc7_artifacts/SRPMS/*.src.rpm
+  tags:
+    - docker-cc7
+  dependencies:
+    - eos_rpm_cc7
+  only:
+    - tags
+    
+eos_publish_koji_slc6:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sssd-client
+    - yum install -y koji --disablerepo=extras
+    - mkdir ~/.koji
+    - echo -e '[koji]\nserver = http://koji.cern.ch/kojihub\nweburl = http://koji.cern.ch/koji\ntopurl = http://koji.cern.ch/kojifiles\ncert   = /not/existing/file\n' >> ~/.koji/config
+    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+    - koji build eos6 slc6_artifacts/SRPMS/*.src.rpm
+  tags:
+    - docker-slc6
+  dependencies:
+    - eos_rpm_slc6
+  only:
+    - tags
+  
 eos_publish_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
