@@ -100,8 +100,8 @@ ProcCommand::FuseX()
     }
 
     if (errno) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                errno, emsg.c_str());
+      eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+              errno, emsg.c_str());
       return gOFS->Emsg("FuseX", *mError, errno, "get-if-clock",
                         emsg.c_str());
     }
@@ -136,7 +136,8 @@ ProcCommand::FuseX()
 
       if (!inode) {
         errno = ENOENT;
-        emsg = "no such file or directory";
+        emsg = schild.c_str();
+        emsg += " - no such file or directory";
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -144,8 +145,8 @@ ProcCommand::FuseX()
     }
 
     if (errno) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                errno, emsg.c_str());
+      eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+              errno, emsg.c_str());
       return gOFS->Emsg("FuseX", *mError, errno, "get-if-clock",
                         emsg.c_str());
     };

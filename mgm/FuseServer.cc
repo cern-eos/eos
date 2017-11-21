@@ -1341,8 +1341,8 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     return true;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                     e.getMessage().str().c_str());
+    eos_static_err("caught exception %d %s\n", e.getErrno(),
+                   e.getMessage().str().c_str());
     dir.set_err(errno);
     return false;
   }
