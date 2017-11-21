@@ -959,6 +959,9 @@ data::datax::truncate(fuse_req_t req, off_t offset)
     }
   }
 
+  if (! (dt | jt) )
+    mSize = offset;
+
   return dt | jt;
 }
 

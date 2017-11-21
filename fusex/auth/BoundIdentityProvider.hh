@@ -59,7 +59,7 @@ public:
     // For some reason, doing this in the constructor results in crazy behavior,
     // like threads not waking up from the condition variable.
     // (or even std::this_thread::sleep_for !! ) Investigate?
-    environmentReader.launchWorkers(20);
+    environmentReader.launchWorkers(3);
   }
 
   bool isStillValid(const BoundIdentity &identity);

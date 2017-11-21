@@ -81,7 +81,7 @@ git clone https://gitlab.cern.ch/dss/eosclient-tests.git >& /tmp/005-eos-clientt
 cd eosclient-tests/
 cd microtests
 echo "005a... micro-tests"
-python run-testing.py >& /tmp/005-eos-clienttests.og 2>&1 || exit 5
+python run-testing.py >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
 cd ../functional/
 echo "005b... zlib-compile"
 ./zlib-compile-selftest.sh $PWD >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
