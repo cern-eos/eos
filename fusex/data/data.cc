@@ -1053,6 +1053,10 @@ data::datax::truncate(fuse_req_t req, off_t offset)
       return -1;
     }
   }
+
+  if (! (dt | jt) )
+    mSize = offset;
+
   return dt | jt;
 }
 
