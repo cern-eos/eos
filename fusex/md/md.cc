@@ -297,6 +297,9 @@ metad::mdx::convert(struct fuse_entry_param& e)
       // show 4kb directory size
       e.attr.st_size=4096;
     }
+    // we mask this bits for the moment
+    e.attr.st_mode &= (~S_ISGID);
+    e.attr.st_mode &= (~S_ISUID);
   }
 
   e.generation = 1;
