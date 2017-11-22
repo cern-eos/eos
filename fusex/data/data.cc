@@ -377,7 +377,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 		      cachehandler::instance().get_config().read_ahead_strategy.c_str(),
 		      cachehandler::instance().get_config().default_read_ahead_size,
 		      cachehandler::instance().get_config().max_read_ahead_size);
-	  
+
 	  mFile->xrdioro(freq)->set_readahead_strategy(
 						       XrdCl::Proxy::readahead_strategy_from_string(cachehandler::instance().get_config().read_ahead_strategy),
 						       4096,
@@ -1217,9 +1217,9 @@ data::dmap::ioflush(ThreadAssistant &assistant)
         }
       }
 
-      for (auto it = this->begin(); it != this->end(); ++it)
+      for (auto it = data.begin(); it != data.end(); ++it)
       {
-        eos_static_info("dbmap-in %08lx => %lx", it->first, &(*(it->second)));
+        eos_static_info("dbmap-in %08lx => %lx", (*it)->id(), &(*it));
       }
 
       for (auto it = data.begin(); it != data.end(); ++it)
