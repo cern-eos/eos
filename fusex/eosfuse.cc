@@ -2682,12 +2682,15 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
       if (md->id() && !md->deleted()) {
         rc = EEXIST;
-      } else {
-        if (md->deleted()) {
-          // we need to wait that this entry is really gone
-          Instance().mds.wait_flush(req, md);
-        }
-
+      }
+      else
+      {
+	if (md->deleted())
+	{
+	  // we need to wait that this entry is really gone
+	  Instance().mds.wait_flush(req, md);
+	}
+	md->set_err(0);
         md->set_mode(mode | S_IFREG);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
