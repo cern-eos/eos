@@ -41,7 +41,6 @@
 /* -------------------------------------------------------------------------- */
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
   z_ctx(0), z_socket(0)
-  /* -------------------------------------------------------------------------- */
 {
   // make a mapping for inode 1, it is re-loaded afterwards in init '/'
   {
@@ -60,7 +59,6 @@ metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
 
 /* -------------------------------------------------------------------------- */
 metad::~metad()
-/* -------------------------------------------------------------------------- */
 {
   if (z_socket) {
     delete z_socket;
@@ -73,9 +71,7 @@ metad::~metad()
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::init(backend* _mdbackend)
-/* -------------------------------------------------------------------------- */
 {
   mdbackend = _mdbackend;
   std::string mdstream;
@@ -88,10 +84,9 @@ metad::init(backend* _mdbackend)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::connect(std::string zmqtarget, std::string zmqidentity,
-               std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid)
-/* -------------------------------------------------------------------------- */
+               std::string zmqname, std::string zmqclienthost,
+               std::string zmqclientuuid)
 {
   if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
     // TODO:
@@ -145,11 +140,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 
 /* -------------------------------------------------------------------------- */
 metad::shared_md
-/* -------------------------------------------------------------------------- */
-metad::lookup(fuse_req_t req,
-              fuse_ino_t parent,
-              const char* name)
-/* -------------------------------------------------------------------------- */
+metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 {
   eos_static_info("ino=%08llx name=%s", parent, name);
   // --------------------------------------------------
@@ -226,11 +217,7 @@ metad::lookup(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
-metad::forget(fuse_req_t req,
-              fuse_ino_t ino,
-              int nlookup)
-/* -------------------------------------------------------------------------- */
+metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 {
   shared_md md;
 
@@ -269,9 +256,7 @@ metad::forget(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::mdx::convert(struct fuse_entry_param& e)
-/* -------------------------------------------------------------------------- */
 {
   e.ino = id();
   e.attr.st_dev = 0;
@@ -311,9 +296,7 @@ metad::mdx::convert(struct fuse_entry_param& e)
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::mdx::dump()
-/* -------------------------------------------------------------------------- */
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
@@ -326,16 +309,13 @@ metad::mdx::dump()
            (unsigned long) atime(), (unsigned long) atime_ns(),
            (unsigned long) mtime(), (unsigned long) mtime_ns(),
            (unsigned long) ctime(),
-           (unsigned long) ctime_ns()
-          );
+           (unsigned long) ctime_ns());
   return sout;
 }
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::mdx::dump(struct fuse_entry_param& e)
-/* -------------------------------------------------------------------------- */
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
@@ -353,8 +333,8 @@ metad::mdx::dump(struct fuse_entry_param& e)
            (unsigned long) e.attr.MTIMESPEC.tv_nsec,
            (unsigned long) e.attr.CTIMESPEC.tv_sec,
            (unsigned long) e.attr.CTIMESPEC.tv_nsec,
-           (unsigned long long) e.attr_timeout, (unsigned long long) e.entry_timeout
-          );
+           (unsigned long long) e.attr_timeout,
+           (unsigned long long) e.entry_timeout);
   return sout;
 }
 
@@ -419,28 +399,24 @@ metad::map_children_to_local(shared_md pmd)
 
 /* -------------------------------------------------------------------------- */
 metad::shared_md
-/* -------------------------------------------------------------------------- */
 metad::get(fuse_req_t req,
            fuse_ino_t ino,
            std::string authid,
            bool listing,
            shared_md pmd,
            const char* name,
-           bool readdir
-          )
-/* -------------------------------------------------------------------------- */
+           bool readdir)
 {
   eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino,
                   pmd ? pmd->id() : 0, name, listing);
   shared_md md;
-  if (ino)
-  {
-    if (!mdmap.retrieveTS(ino, md))
-    {
+
+  if (ino) {
+    if (!mdmap.retrieveTS(ino, md)) {
       md = std::make_shared<mdx>();
     }
-    
-    if ( EOS_LOGS_DEBUG ) {
+
+    if (EOS_LOGS_DEBUG) {
       eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
     }
   } else {
@@ -703,11 +679,7 @@ metad::get(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 uint64_t
-/* -------------------------------------------------------------------------- */
-metad::insert(fuse_req_t req,
-              metad::shared_md md,
-              std::string authid)
-/* -------------------------------------------------------------------------- */
+metad::insert(fuse_req_t req, metad::shared_md md, std::string authid)
 {
   uint64_t newinode = 0;
   {
@@ -725,10 +697,7 @@ metad::insert(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
-metad::wait_flush(fuse_req_t req,
-                  metad::shared_md md)
-/* -------------------------------------------------------------------------- */
+metad::wait_flush(fuse_req_t req, metad::shared_md md)
 {
   // logic to wait for a completion of request
   md->Locker().UnLock();
@@ -757,12 +726,8 @@ metad::wait_flush(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
-metad::update(fuse_req_t req,
-              shared_md md,
-              std::string authid,
+metad::update(fuse_req_t req, shared_md md, std::string authid,
               bool localstore)
-/* -------------------------------------------------------------------------- */
 {
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
@@ -786,11 +751,8 @@ metad::update(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
-           std::string authid,
-           bool localstore)
-/* -------------------------------------------------------------------------- */
+           std::string authid, bool localstore)
 {
   // this is called with a lock on the md object
   stat.inodes_inc();
@@ -837,9 +799,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
-/* -------------------------------------------------------------------------- */
 {
   // this is called with a lock on the md object
   int rc = 0;
@@ -922,9 +882,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
-/* -------------------------------------------------------------------------- */
 {
   shared_md md = std::make_shared<mdx>();
   md->set_operation(md->BEGINFLUSH);
@@ -945,9 +903,7 @@ metad::begin_flush(fuse_req_t req, shared_md emd, std::string authid)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
-/* -------------------------------------------------------------------------- */
 {
   shared_md md = std::make_shared<mdx>();
   md->set_operation(md->ENDFLUSH);
@@ -968,11 +924,9 @@ metad::end_flush(fuse_req_t req, shared_md emd, std::string authid)
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
               std::string authid,
               bool upstream)
-/* -------------------------------------------------------------------------- */
 {
   // this is called with the md object locked
   auto map = pmd->mutable_children();
@@ -1026,11 +980,8 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
-          std::string newname,
-          std::string authid1, std::string authid2)
-/* -------------------------------------------------------------------------- */
+          std::string newname, std::string authid1, std::string authid2)
 {
   auto map1 = p1md->mutable_children();
   auto map2 = p2md->mutable_children();
@@ -1042,14 +993,11 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
 
-  if (p1md->id() != p2md->id())
-  {
+  if (p1md->id() != p2md->id()) {
     // move between directories. We need to run an expensive algorithm to
     // determine the correct lock order, but a rename should be rather uncommon,
     // anyway.
-
     MdLocker locker(p1md, p2md, determineLockOrder(p1md, p2md));
-
     (*map2)[newname] = md->id();
     (*map1).erase(md->name());
     p1md->set_nchildren(p1md->nchildren() - 1);
@@ -1111,9 +1059,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::dump_md(shared_md md, bool lock)
-/* -------------------------------------------------------------------------- */
 {
   if (!(md)) {
     return "";
@@ -1144,9 +1090,7 @@ metad::dump_md(shared_md md, bool lock)
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::dump_md(eos::fusex::md& md)
-/* -------------------------------------------------------------------------- */
 {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
@@ -1158,9 +1102,7 @@ metad::dump_md(eos::fusex::md& md)
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::dump_container(eos::fusex::container& cont)
-/* -------------------------------------------------------------------------- */
 {
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = true;
@@ -1172,9 +1114,7 @@ metad::dump_container(eos::fusex::container& cont)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
-/* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper locker(md->Locker());
   // fill lock request structure
@@ -1238,9 +1178,7 @@ metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
-/* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper locker(md->Locker());
   // fill lock request structure
@@ -1323,18 +1261,14 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::statvfs(fuse_req_t req, struct statvfs* svfs)
-/* -------------------------------------------------------------------------- */
 {
   return mdbackend->statvfs(req, svfs);
 }
 
 /* -------------------------------------------------------------------------- */
 uint64_t
-/* -------------------------------------------------------------------------- */
 metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
-/* -------------------------------------------------------------------------- */
 {
   // apply receives either a single MD record or a parent MD + all children MD
   // we have to make sure that the modification of children is atomic in the parent object
@@ -1655,9 +1589,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::mdcflush(ThreadAssistant& assistant)
-/* -------------------------------------------------------------------------- */
 {
   uint64_t lastflushid = 0;
 
@@ -1833,9 +1765,7 @@ metad::mdcflush(ThreadAssistant& assistant)
 
 /* -------------------------------------------------------------------------- */
 bool
-/* -------------------------------------------------------------------------- */
 metad::determineLockOrder(shared_md md1, shared_md md2)
-/* -------------------------------------------------------------------------- */
 {
   // Determine lock order of _two_ md objects, which is not as trivial as it
   // might seem:
@@ -1848,20 +1778,18 @@ metad::determineLockOrder(shared_md md1, shared_md md2)
   // Example 2: /a/b/c and /a/b/d -> Decision based on increasing inode.
   //
   // This procedure is very expensive.. we should simplify if possible..
-
   md1->Locker().Lock();
   fuse_ino_t inode1 = md1->id();
   md1->Locker().UnLock();
-
   md2->Locker().Lock();
   fuse_ino_t inode2 = md2->id();
   md2->Locker().UnLock();
 
-  if(isChild(md1, inode2)) {
+  if (isChild(md1, inode2)) {
     return true;
   }
 
-  if(isChild(md2, inode1)) {
+  if (isChild(md2, inode1)) {
     return false;
   }
 
@@ -1871,24 +1799,23 @@ metad::determineLockOrder(shared_md md1, shared_md md2)
 
 /* -------------------------------------------------------------------------- */
 bool
-/* -------------------------------------------------------------------------- */
 metad::isChild(shared_md potentialChild, fuse_ino_t parentId)
-/* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper helper(potentialChild->Locker());
 
-  if(potentialChild->id() == 1 || potentialChild->id() == 0) {
+  if (potentialChild->id() == 1 || potentialChild->id() == 0) {
     return false;
   }
 
-  if(potentialChild->id() == parentId) {
+  if (potentialChild->id() == parentId) {
     return true;
   }
 
   shared_md pmd;
-  if(!mdmap.retrieveTS(potentialChild->pid(), pmd)) {
+
+  if (!mdmap.retrieveTS(potentialChild->pid(), pmd)) {
     eos_static_warning("could not lookup parent ino=%d of %d when determining lock order..",
-      potentialChild->pid(), potentialChild->id());
+                       potentialChild->pid(), potentialChild->id());
     return false;
   }
 
@@ -1898,9 +1825,7 @@ metad::isChild(shared_md potentialChild, fuse_ino_t parentId)
 
 /* -------------------------------------------------------------------------- */
 int
-/* -------------------------------------------------------------------------- */
 metad::calculateDepth(shared_md md)
-/* -------------------------------------------------------------------------- */
 {
   if (md->id() == 1 || md->id() == 0) {
     return 1;
@@ -1926,9 +1851,7 @@ metad::calculateDepth(shared_md md)
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::mdcommunicate(ThreadAssistant& assistant)
-/* -------------------------------------------------------------------------- */
 {
   eos::fusex::container hb;
   hb.mutable_heartbeat_()->set_name(zmq_name);
@@ -2261,9 +2184,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
-/* -------------------------------------------------------------------------- */
 {
   eos_static_info("inserting %llx <=> %llx", a, b);
   //fprintf(stderr, "inserting %llx => %llx\n", a, b);
@@ -2289,9 +2210,7 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 
 /* -------------------------------------------------------------------------- */
 std::string
-/* -------------------------------------------------------------------------- */
 metad::vmap::dump()
-/* -------------------------------------------------------------------------- */
 {
   //XrdSysMutexHelper mLock(this);
   std::string sout;
@@ -2319,9 +2238,7 @@ metad::vmap::dump()
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::vmap::erase_fwd(fuse_ino_t lookup)
-/* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(mMutex);
 
@@ -2334,7 +2251,6 @@ metad::vmap::erase_fwd(fuse_ino_t lookup)
 
 /* -------------------------------------------------------------------------- */
 void
-/* -------------------------------------------------------------------------- */
 metad::vmap::erase_bwd(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
@@ -2348,7 +2264,6 @@ metad::vmap::erase_bwd(fuse_ino_t lookup)
 
 /* -------------------------------------------------------------------------- */
 fuse_ino_t
-/* -------------------------------------------------------------------------- */
 metad::vmap::forward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
@@ -2373,7 +2288,6 @@ metad::vmap::forward(fuse_ino_t lookup)
 
 /* -------------------------------------------------------------------------- */
 fuse_ino_t
-/* -------------------------------------------------------------------------- */
 metad::vmap::backward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
