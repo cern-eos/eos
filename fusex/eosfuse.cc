@@ -1661,6 +1661,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       rc = md->err();
     }
   }
+
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f name=%s %s", timing.RealTime(), name,
@@ -2810,6 +2811,10 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
     if ( (res = io->ioctx()->peek_pread(req, buf, size, off)) == -1)
     {
       rc = errno?errno:EIO;
+    }
+    else
+    {
+      fuse_reply_buf (req, buf, res);
     }
 
     io->ioctx()->release_pread();

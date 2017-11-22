@@ -751,6 +751,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       XrdCl::XRootDStatus status =
         mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
 
+
       if (!status.IsOK())
       {
 	errno = XrdCl::Proxy::status2errno (status);
@@ -896,7 +897,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
         }
       }
       return (br + jr + bytesRead);
-    } else {
+    }
+    else
+    {
+      errno = XrdCl::Proxy::status2errno (status);
+
       eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
       return -1;
     }

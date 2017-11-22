@@ -301,6 +301,17 @@ metad::mdx::convert(struct fuse_entry_param& e)
     e.attr.st_mode &= (~S_ISGID);
     e.attr.st_mode &= (~S_ISUID);
   }
+  if (S_ISDIR(e.attr.st_mode))
+  {
+    if (!EosFuse::Instance().Config().options.show_tree_size)
+    {
+      // show 4kb directory size
+      e.attr.st_size=4096;
+    }
+    // we mask this bits for the moment
+    e.attr.st_mode &= (~S_ISGID);
+    e.attr.st_mode &= (~S_ISUID);
+  }
 
   e.generation = 1;
 }
@@ -1530,6 +1541,12 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         }
 
         uint64_t new_ino = 0;
+
+	if (! (new_ino = inomap.forward(md->md_ino())) )
+	{
+	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
+	  new_ino = insert(req, md, md->authid());
+	}
 
         md->set_id(new_ino);
         if (!listing)
