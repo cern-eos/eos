@@ -1293,7 +1293,12 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     bool is_new = false;
     {
       // Create a new md object, if none is found in the cache
-      is_new = mdmap.retrieveOrCreateTS(ino, md);
+      if (!mdmap.retrieveTS(ino, md))
+      {
+	is_new = true;
+	md = std::make_shared<mdx>();
+      }
+
       md->Locker().Lock();
 
       if (EOS_LOGS_DEBUG) {
@@ -1308,11 +1313,11 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     }
 
     if (is_new) {
-      if (!ino) {
-        // in this case we need to create a new one
-        uint64_t new_ino = insert(req, md, md->authid());
-        ino = new_ino;
-        is_new = true;
+      if (!ino)
+      {
+	// in this case we need to create a new one
+	uint64_t new_ino = insert(req, md, md->authid());
+	ino = new_ino;
       }
     }
 
@@ -1347,9 +1352,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     md->set_pid(p_ino);
     md->set_id(ino);
-    inomap.insert(md_ino, ino);
+
     //md->get_todelete().clear();
     eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
+    inomap.insert(md_ino, ino);
     update(req, md, "", true);
     md->Locker().UnLock();
 
@@ -1525,14 +1531,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
         uint64_t new_ino = 0;
 
-        if (!(new_ino = inomap.forward(md->md_ino()))) {
-          // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
-          new_ino = insert(req, md, md->authid());
-        }
-
         md->set_id(new_ino);
-
-        if (!listing) {
+        if (!listing)
+        {
           p_ino = inomap.forward(md->md_pino());
         }
 
@@ -2280,12 +2281,12 @@ metad::vmap::forward(fuse_ino_t lookup)
   XrdSysMutexHelper mLock(mMutex);
   fuse_ino_t ino = fwd_map[lookup];
 
-  if (!ino) {
-    uint64_t a64 = lookup;
-    uint64_t b64;
+  if (!ino)
+  {
+    uint64_t a64=lookup;
+    uint64_t b64=0;
 
     if (EosFuse::Instance().getKV()->get(a64, b64, "l")) {
-      fwd_map.erase(lookup);
       return ino;
     }
     else
@@ -2304,5 +2305,6 @@ fuse_ino_t
 metad::vmap::backward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
-  return bwd_map[lookup];
+  auto it = bwd_map.find(lookup);
+  return (it == bwd_map.end())? 0 : it->second;
 }
