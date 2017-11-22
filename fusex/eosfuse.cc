@@ -1561,7 +1561,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                 rc |= io->ioctx()->truncate(req, attr->st_size);
                 rc |= io->ioctx()->flush(req);
-              } else {
+		rc = rc?(errno?errno:rc):0;
+              }
+              else
+              {
                 rc = EIO;
               }
             } else {
@@ -1574,6 +1577,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               rc |= io->truncate(req, attr->st_size);
               rc |= io->flush(req);
               rc |= io->detach(req, cookie, true);
+	      rc = rc?(errno?errno:rc):0;
               Instance().datas.release(req, md->id());
             }
 
@@ -1650,6 +1654,11 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       } else {
         rc = md->deleted() ? ENOENT : md->err();
       }
+    }
+
+    if (md->err())
+    {
+      rc = md->err();
     }
   }
   EXEC_TIMING_END(__func__);
@@ -2792,13 +2801,12 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
   ssize_t res = 0;
   int rc = 0;
 
-  if (io) {
-    char* buf = 0;
-
-    if ((res = io->ioctx()->peek_pread(req, buf, size, off)) == -1) {
-      rc = EIO;
-    } else {
-      fuse_reply_buf(req, buf, res);
+  if (io)
+  {
+    char* buf=0;
+    if ( (res = io->ioctx()->peek_pread(req, buf, size, off)) == -1)
+    {
+      rc = errno?errno:EIO;
     }
 
     io->ioctx()->release_pread();
@@ -2842,12 +2850,16 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       eos_static_err("io-error: maximum file size exceeded inode=%lld size=%lld off=%lld buf=%lld max-size=%llu",
                      ino, size, off, buf, io->maxfilesize());
       rc = EFBIG;
-    } else {
-      if (io->ioctx()->pwrite(req, buf, size, off) == -1) {
-        eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
-                       off, buf);
-        rc = EIO;
-      } else {
+    }
+    else
+    {
+      if (io->ioctx()->pwrite(req, buf, size, off) == -1)
+      {
+        eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size, off, buf);
+	rc = errno?errno:EIO;
+      }
+      else
+      {
         {
           XrdSysMutexHelper mLock(io->mdctx()->Locker());
           io->mdctx()->set_size(io->ioctx()->size());
@@ -2944,34 +2956,20 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 
         io->md->set_mtime(tsnow.tv_sec);
 
-        io->md->set_mtime_ns(tsnow.tv_nsec);
-
-        Instance().mds.update(req, io->md, io->authid());
-
-        // step 1 call flush
-        rc = io->ioctx()->flush(req); // actually do the flush
-
-        std::string cookie = io->md->Cookie();
-
-        io->ioctx()->store_cookie(cookie);
-
-        if (!rc) {
-          // step 2 call sync - this currently flushed all open filedescriptors - should be ok
-          rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
-
-          if (rc) {
-            rc = errno;
-          }
-        } else {
-          rc = errno;
-        }
-
-        if (Instance().Config().options.global_flush) {
-          //XrdSysTimer sleeper;
-          //sleeper.Wait(5000);
-          Instance().mds.end_flush(req, io->md,
-                                   io->authid()); // unflag an ongoing flush centrally
-        }
+	if (!rc)
+	{
+	  // step 2 call sync - this currently flushed all open filedescriptors - should be ok
+	  rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
+	  rc = rc?(errno?errno:EIO):0;
+	}
+	else
+	{
+	  rc = rc?(errno?errno:EIO):0;
+	}
+	if (Instance().Config().options.global_flush)
+	{
+	  Instance().mds.end_flush(req, io->md, io->authid()); // unflag an ongoing flush centrally
+	}
       }
     }
   }

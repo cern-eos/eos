@@ -290,10 +290,11 @@ backend::fetchResponse(std::string& requestURL,
       }
 
       // all the other errors are reported back
-      if (status.errNo) {
-        errno = status.errNo;
-        eos_static_err("error=status is not ok : errno=%d", errno);
-        return errno;
+      if (status.errNo)
+      {
+	errno = XrdCl::Proxy::status2errno(status);
+	eos_static_err ("error=status is not ok : errno=%d", errno);
+	return errno;
       }
 
       if (status.code) {

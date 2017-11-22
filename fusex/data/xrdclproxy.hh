@@ -115,6 +115,21 @@ namespace XrdCl
 
     // ---------------------------------------------------------------------- //
 
+    static int status2errno(const XRootDStatus& status)
+    {
+      if (!status.errNo)
+	return 0;
+
+      if (status.errNo < kXR_ArgInvalid)
+      {
+	return status.errNo;
+      }
+      else
+      {
+	return XProtocol::toErrno(status.errNo);
+      }
+    }
+
     enum OPEN_STATE
     {
       CLOSED = 0,
