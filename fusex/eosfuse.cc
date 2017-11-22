@@ -2979,7 +2979,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 	  // we need to wait that this entry is really gone
 	  Instance().mds.wait_flush(req, md);
 	}
-
+	md->set_err(0);
         md->set_mode(mode | S_IFREG);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
