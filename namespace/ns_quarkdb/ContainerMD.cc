@@ -40,6 +40,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
   mCont.set_id(id);
+  mCont.set_mode(040755);
   ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {
@@ -180,7 +181,7 @@ ContainerMD::findFile(const std::string& name)
   try {
     file = pFileSvc->getFileMD(iter->second);
   } catch (MDException& e) {
-    file.reset();
+    file = nullptr;
   }
 
   // Curate the list of files in case file entry is not found
