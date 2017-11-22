@@ -367,20 +367,13 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   MAYSTALL;
   MAYREDIRECT;
 
-  // simply reply OK if it's not a workflow
-  if (info.empty()) {
-    return SFS_OK;
-  }
-
   std::string cmd = "mgm.pcmd=event";
-
-  if (!(pargs.opts & Prep_STAGE)) {
-    return Emsg(epname, error, EOPNOTSUPP, "prepare");
-  }
 
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   int retc = SFS_OK;
+
+  std::list<std::pair<char**, char**>> pathsWithPrepare;
 
   // check that all files exist
   while (pptr) {
@@ -397,6 +390,39 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
       }
 
       return SFS_ERROR;
+    }
+
+    eos::IContainerMD::XAttrMap map;
+
+    if (_attr_ls(prep_path.c_str(), error, vid, nullptr, map) == 0) {
+      bool foundPrepareTag = false;
+      for (auto& attrEntry : map) {
+        foundPrepareTag |= attrEntry.first.find("sys.link.workflow.sync::prepare") == 0;
+      }
+
+      if (foundPrepareTag) {
+        pathsWithPrepare.emplace_back(&(pptr->text), optr != nullptr ? &(optr->text) : nullptr);
+      }
+      else {
+        // don't do workflow if no such tag
+        pptr = pptr->next;
+
+        if (optr) {
+          optr = optr->next;
+        }
+
+        continue;
+      }
+    }
+    else {
+      // don't do workflow if we can't check attributes
+      pptr = pptr->next;
+
+      if (optr) {
+        optr = optr->next;
+      }
+
+      continue;
     }
 
     // check that we have write permission on path
@@ -416,10 +442,10 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   pptr = pargs.paths;
   optr = pargs.oinfo;
 
-  while (pptr) {
-    XrdOucString prep_path = (pptr->text ? pptr->text : "");
+  for (auto& pathPair : pathsWithPrepare) {
+    XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
     eos_info("path=\"%s\"", prep_path.c_str());
-    XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
+    XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ? *pathPair.second : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
     prep_info += "&";
@@ -460,14 +486,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
                          error,
                          &lClient) != SFS_DATA) {
       retc = SFS_ERROR;
-    }
-
-    if (pptr) {
-      pptr = pptr->next;
-    }
-
-    if (optr) {
-      optr = optr->next;
     }
   }
 
