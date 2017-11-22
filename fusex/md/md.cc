@@ -290,6 +290,14 @@ metad::mdx::convert(struct fuse_entry_param& e)
   if (EosFuse::Instance().Config().options.overlay_mode) {
     e.attr.st_mode |= EosFuse::Instance().Config().options.overlay_mode;
   }
+  if (S_ISDIR(e.attr.st_mode))
+  {
+    if (!EosFuse::Instance().Config().options.show_tree_size)
+    {
+      // show 4kb directory size
+      e.attr.st_size=4096;
+    }
+  }
 
   e.generation = 1;
 }
