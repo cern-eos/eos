@@ -255,6 +255,8 @@ DrainFS::Drain()
             std::string error = "Failed to find a suitable Target filesystem for draining";
             (*job)->ReportError(error);
             mJobsFailed.push_back(*job);
+            job = mJobsPending.erase(job);
+            continue;     
           }
         }
         (*job)->SetStatus(DrainTransferJob::Ready);
@@ -273,8 +275,6 @@ DrainFS::Drain()
           it_jobs++;
         }
       }
-      XrdSysTimer sleep;
-      sleep.Wait(1000);
 
       filesleft = mJobsPending.size() + mJobsFailed.size();
 
