@@ -719,13 +719,14 @@ data::datax::pread(fuse_req_t req, void *buf, size_t count, off_t offset)
     }
     else
     {
-
       mLock.UnLock();
+      errno = EREMOTEIO;
       // IO error
       return -1;
     }
   }
   mLock.UnLock();
+  errno = EFAULT;
   return -1;
 }
 
@@ -815,11 +816,11 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
       XrdCl::XRootDStatus status =
               mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
 
+
       if (!status.IsOK())
       {
+	errno = XrdCl::Proxy::status2errno (status);
         eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
-        // TODO: we can recover this later
-        errno = EREMOTEIO;
         return -1;
       }
       if (mFlags & O_SYNC)
@@ -827,9 +828,9 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
         XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitWrite();
         if (!status.IsOK())
         {
+	  errno = XrdCl::Proxy::status2errno (status);
           eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
-          // TODO: we can recover this later
-          errno = EREMOTEIO;
+	  // TODO: we can recover this later
           return -1;
         }
       }
@@ -979,9 +980,9 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
     }
     else
     {
+      errno = XrdCl::Proxy::status2errno (status);
 
       eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
-      // IO error
       return -1;
     }
   }
@@ -1041,15 +1042,18 @@ data::datax::truncate(fuse_req_t req, off_t offset)
       }
 
       // the journal keeps track of truncation, otherwise we do it here
-      XrdCl::XRootDStatus st = mFile->xrdiorw(req)->Truncate( offset );
-      if ( !st.IsOK() )
+      XrdCl::XRootDStatus status = mFile->xrdiorw(req)->Truncate( offset );
+
+      errno = XrdCl::Proxy::status2errno (status);
+
+      if ( !status.IsOK() )
       {
         return -1;
       }
     }
     else
     {
-
+      errno = EFAULT;
       return -1;
     }
   }
@@ -1094,6 +1098,7 @@ data::datax::sync()
     XrdCl::XRootDStatus status = it->second->WaitWrite();
     if (!status.IsOK())
     {
+      errno = XrdCl::Proxy::status2errno (status);
       journal_recovery = true;
     }
     else
@@ -1101,6 +1106,7 @@ data::datax::sync()
       status = it->second->Sync();
       if (!status.IsOK())
       {
+	errno = XrdCl::Proxy::status2errno (status);
         journal_recovery = true;
       }
     }
@@ -1110,7 +1116,6 @@ data::datax::sync()
   {
 
     eos_err("syncing failed");
-    errno = EREMOTEIO ;
     return -1;
   }
   return ds | js;

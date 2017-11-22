@@ -1629,6 +1629,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
                 eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                 rc |= io->ioctx()->truncate(req, attr->st_size);
                 rc |= io->ioctx()->flush(req);
+
+		rc = rc?(errno?errno:rc):0;
               }
               else
               {
@@ -1647,6 +1649,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
               rc |= io->truncate(req, attr->st_size);
               rc |= io->flush(req);
               rc |= io->detach(req, cookie, true);
+	      rc = rc?(errno?errno:rc):0;
               Instance().datas.release(req, md->id());
             }
             if (!rc)
@@ -1733,6 +1736,11 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
         rc = 0;
       else
         rc = md->deleted()? ENOENT : md->err();
+    }
+
+    if (md->err())
+    {
+      rc = md->err();
     }
   }
 
@@ -3108,7 +3116,7 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
     char* buf=0;
     if ( (res = io->ioctx()->peek_pread(req, buf, size, off)) == -1)
     {
-      rc = EIO;
+      rc = errno?errno:EIO;
     }
     else
     {
@@ -3174,7 +3182,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
       if (io->ioctx()->pwrite(req, buf, size, off) == -1)
       {
         eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size, off, buf);
-        rc = EIO;
+	rc = errno?errno:EIO;
       }
       else
       {
@@ -3309,17 +3317,14 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 	{
 	  // step 2 call sync - this currently flushed all open filedescriptors - should be ok
 	  rc = io->ioctx()->sync(); // actually wait for writes to be acknowledged
-	  if (rc)
-	    rc = errno;
+	  rc = rc?(errno?errno:EIO):0;
 	}
 	else
 	{
-	  rc = errno;
+	  rc = rc?(errno?errno:EIO):0;
 	}
 	if (Instance().Config().options.global_flush)
 	{
-	  //XrdSysTimer sleeper;
-	  //sleeper.Wait(5000);
 	  Instance().mds.end_flush(req, io->md, io->authid()); // unflag an ongoing flush centrally
 	}
       }
