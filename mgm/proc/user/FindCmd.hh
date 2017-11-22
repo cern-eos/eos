@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #pragma once
-
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/Namespace.hh"
 #include "common/ConsoleRequest.pb.h"
@@ -31,7 +29,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class FindCmd : public IProcCommand {
+class FindCmd : public IProcCommand
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -41,15 +40,11 @@ public:
   //----------------------------------------------------------------------------
   explicit FindCmd(eos::console::RequestProto&& req,
                    eos::common::Mapping::VirtualIdentity& vid):
-  IProcCommand(vid, true), mReqProto(std::move(req))
-  {}
+    IProcCommand(std::move(req), vid, true) {}
 
-  ~FindCmd() override = default;
+  virtual ~FindCmd() = default;
 
   eos::console::ReplyProto ProcessRequest() override;
-
-private:
-  eos::console::RequestProto mReqProto; ///< Client request protobuf object
 };
 
 EOSMGMNAMESPACE_END

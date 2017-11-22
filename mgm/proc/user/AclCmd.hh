@@ -24,7 +24,6 @@
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "common/Acl.pb.h"
-#include "common/ConsoleRequest.pb.h"
 #include <unordered_map>
 
 EOSMGMNAMESPACE_BEGIN
@@ -46,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   explicit AclCmd(eos::console::RequestProto&& req,
                   eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid, true), mReqProto(std::move(req)), mId(), mAddRule(0),
+    IProcCommand(std::move(req), vid, true), mId(), mAddRule(0),
     mRmRule(0), mSet(false)
   {}
 
@@ -89,7 +88,6 @@ private:
     C  = 1 << 10   // 1024 -  c
   };
 
-  eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::string mId; ///< Rule identifier extracted from command line
   ///< ACL rule bitmasks for adding and removing
   unsigned short mAddRule, mRmRule;

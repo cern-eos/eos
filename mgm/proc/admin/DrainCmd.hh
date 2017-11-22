@@ -23,7 +23,6 @@
 #pragma once
 #include "mgm/proc/ProcCommand.hh"
 #include "common/Drain.pb.h"
-#include "common/ConsoleRequest.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,9 +40,8 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit DrainCmd(eos::console::RequestProto&& req,
-                  eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid, false), mReqProto(std::move(req))
-  {}
+                    eos::common::Mapping::VirtualIdentity& vid):
+    IProcCommand(std::move(req), vid, false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -55,11 +53,6 @@ public:
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() override;
-
-
-private:
-
-  eos::console::RequestProto mReqProto; ///< Client request protobuf object
 };
 
 EOSMGMNAMESPACE_END

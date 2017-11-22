@@ -25,7 +25,6 @@
 #include "common/Ns.pb.h"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "common/ConsoleRequest.pb.h"
 #include <list>
 
 EOSMGMNAMESPACE_BEGIN
@@ -44,7 +43,7 @@ public:
   //----------------------------------------------------------------------------
   explicit NsCmd(eos::console::RequestProto&& req,
                  eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(vid, false), mReqProto(std::move(req))
+    IProcCommand(std::move(req), vid, false)
   {}
 
   //----------------------------------------------------------------------------
@@ -59,8 +58,6 @@ public:
   eos::console::ReplyProto ProcessRequest() override;
 
 private:
-  eos::console::RequestProto mReqProto; ///< Client request protobuf object
-
   //----------------------------------------------------------------------------
   //! Execute mutex subcommand
   //!

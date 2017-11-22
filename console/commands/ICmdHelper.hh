@@ -36,7 +36,12 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ICmdHelper():
-    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false) {}
+    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false)
+  {
+    if (json) {
+      mReq.set_format(eos::console::RequestProto::JSON);
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor

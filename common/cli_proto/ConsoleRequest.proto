@@ -18,11 +18,14 @@ message RequestProto {
     HTTP    = 3;
   }
 
+  FormatType format = 1;
+
   // Actual request data object
   oneof command {
-    AclProto acl = 3;
-    NsProto  ns  = 4;
-    DrainProto drain = 5;
-    FindProto find = 6;
+    AclProto acl     = 2;
+    NsProto  ns      = 3;
+    DrainProto drain = 4;
+    FindProto find   = 5;
   }
+
 }

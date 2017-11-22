@@ -21,11 +21,11 @@
  ************************************************************************/
 
 #pragma once
-
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/ConsoleReply.pb.h"
+#include "common/ConsoleRequest.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include <future>
 
@@ -45,20 +45,19 @@ public:
   //! Costructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mExecRequest(false), mDoAsync(false), mForceKill(false), stdOut(), stdErr(),
-    stdJson(), retc(0), mTmpResp() {}
+    mExecRequest(false), mReqProto(), mDoAsync(false), mForceKill(false),
+    stdOut(), stdErr(), stdJson(), retc(0), mTmpResp() {}
 
   //----------------------------------------------------------------------------
   //! Costructor
   //!
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  IProcCommand(eos::common::Mapping::VirtualIdentity& vid, bool async):
-    IProcCommand()
-  {
-    mVid = vid;
-    mDoAsync = async;
-  }
+  IProcCommand(eos::console::RequestProto&& req,
+               eos::common::Mapping::VirtualIdentity& vid, bool async):
+    mExecRequest(false), mReqProto(std::move(req)), mDoAsync(async),
+    mForceKill(false), mVid(vid), stdOut(), stdErr(), stdJson(), retc(0),
+    mTmpResp() {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -70,11 +69,13 @@ public:
     if (ofstdoutStream.is_open()) {
       ofstdoutStream.close();
     }
+
     unlink(ofstdoutStreamFilename.c_str());
 
     if (ofstderrStream.is_open()) {
       ofstderrStream.close();
     }
+
     unlink(ofstderrStreamFilename.c_str());
   }
 
@@ -127,7 +128,6 @@ public:
   virtual int close()
   {
     //@todo (esindril): to implement for proto commands
-
     if (ifstdoutStream.is_open()) {
       ifstdoutStream.close();
     }
@@ -162,7 +162,17 @@ protected:
   virtual bool OpenTemporaryOutputFiles();
   virtual bool CloseTemporaryOutputFiles();
 
+  //----------------------------------------------------------------------------
+  //! Format console reply as json output
+  //!
+  //! @param reply console command reply object
+  //! @param oss outputs string stream
+  //----------------------------------------------------------------------------
+  static void ConvertToJsonFormat(eos::console::ReplyProto& reply,
+                                  std::ostringstream& oss);
+
   bool mExecRequest; ///< Indicate if request is launched asynchronously
+  eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::mutex mMutexAsync; ///< Mutex locked during async execution
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   bool mDoAsync; ///< If true use thread pool to do the work
@@ -173,7 +183,6 @@ protected:
   XrdOucString stdJson; ///< JSON output returned by proc command
   int retc; ///< return code from the proc command
   std::string mTmpResp; ///< String used for streaming the response
-
   std::ofstream ofstdoutStream;
   std::ofstream ofstderrStream;
   std::string ofstdoutStreamFilename;
@@ -181,11 +190,9 @@ protected:
   std::ifstream ifstdoutStream;
   std::ifstream ifstderrStream;
   std::istringstream iretcStream;
-
   bool readStdOutStream {false};
   bool readStdErrStream {false};
   bool readRetcStream {false};
-
   static std::atomic_uint_least64_t uuid;
 };
 
