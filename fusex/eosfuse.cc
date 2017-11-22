@@ -363,6 +363,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       {
 	root["options"]["global-locking"] = 1;
       }
+      if (!root["options"].isMember("show-tree-size"))
+      {
+	root["options"]["show-tree-size"] = 0;
+      }
+      
       if (!root["auth"].isMember("krb5"))
       {
 	root["auth"]["krb5"] = 1;
@@ -428,6 +433,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.options.rm_rf_protect_levels = root["options"]["rm-rf-protect-levels"].asInt();
+    config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -1010,7 +1016,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1021,7 +1027,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
                        config.options.global_flush,
                        config.options.global_locking,
 		       no_fsync_list.c_str(),
-		       config.options.overlay_mode
+		       config.options.overlay_mode,
+		       config.options.show_tree_size
 		       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
 		       cconfig.read_ahead_strategy.c_str(),

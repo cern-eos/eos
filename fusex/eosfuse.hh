@@ -213,6 +213,7 @@ public:
       int global_locking;
       int fdlimit;
       int rm_rf_protect_levels;
+      int show_tree_size;
       mode_t overlay_mode;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
