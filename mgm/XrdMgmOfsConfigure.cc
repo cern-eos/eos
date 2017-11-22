@@ -1560,14 +1560,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcDelegationPath += "/delegation";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
-  //  eos_emerg("%s",(char*)"test emerg");
-  //  eos_alert("%s",(char*)"test alert");
-  //  eos_crit("%s", (char*)"test crit");
-  //  eos_err("%s",  (char*)"test err");
-  //  eos_warning("%s",(char*)"test warning");
-  //  eos_notice("%s",(char*)"test notice");
-  //  eos_info("%s",(char*)"test info");
-  //  eos_debug("%s",(char*)"test debug");
   // Initialize user mapping
   eos::common::Mapping::Init();
 
@@ -1588,7 +1580,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   try {
     rootmd = eosView->getContainer("/");
-  } catch (eos::MDException& e) {
+  } catch (const eos::MDException& e) {
     Eroute.Emsg("Config", "cannot get the / directory meta data");
     eos_crit("eos view cannot retrieve the / directory");
     return 1;
@@ -1601,7 +1593,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       try {
         rootmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                         S_IWGRP | S_IXGRP);
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the / directory mode to inital mode");
         eos_crit("cannot set the / directory mode to 755");
         return 1;
@@ -1616,56 +1608,72 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_info("/ permissions are %o", rootmd->getMode());
 
   if (MgmMaster.IsMaster()) {
-    // create /eos
+    // Create /eos/ and /eos/<instance>/ directories
     std::shared_ptr<eos::IContainerMD> eosmd;
 
     try {
       eosmd = eosView->getContainer("/eos/");
-    } catch (eos::MDException& e) {}
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
+    }
 
     if (!eosmd) {
       try {
         eosmd = eosView->createContainer("/eos/", true);
-        // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                        S_IWGRP | S_IXGRP);
-        // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
         eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
         eosmd = eosView->createContainer(instancepath.c_str(), true);
-        // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                        S_IWGRP | S_IXGRP);
-        // set default checksum 'adler'
         eosmd->setAttribute("sys.forced.checksum", "adler");
         eosView->updateContainerStore(eosmd.get());
         eos_info("%s permissions are %o checksum is set <adler>", instancepath.c_str(),
                  eosmd->getMode());
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/ directory mode to inital mode");
         eos_crit("cannot set the /eos/ directory mode to 755");
         return 1;
       }
     }
 
-    // check recycle directory
+    // Create /eos/<instance>/proc/ directory
+    try {
+      eosmd = eosView->getContainer(MgmProcPath.c_str());
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer(MgmProcPath.c_str(), true);
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
+        eosView->updateContainerStore(eosmd.get());
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/<instance>/proc/ "
+                    "directory mode to inital mode");
+        eos_crit("cannot set the /eos/proc directory mode to 755");
+        return 1;
+      }
+    }
+
+    // Create recycle directory
     try {
       eosmd = eosView->getContainer(Recycle::gRecyclingPrefix.c_str());
-    } catch (eos::MDException& e) {
-      // nothing in this case
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
         eosmd = eosView->createContainer(Recycle::gRecyclingPrefix.c_str(), true);
-        // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU);
         eosView->updateContainerStore(eosmd.get());
         eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
                  eosmd->getMode());
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the recycle directory mode to inital mode");
         eos_crit("cannot set the %s directory mode to 700",
                  Recycle::gRecyclingPrefix.c_str());
@@ -1674,34 +1682,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    try {
-      eosmd = eosView->getContainer(MgmProcPath.c_str());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
-    }
-
-    if (!eosmd) {
-      try {
-        eosmd = eosView->createContainer(MgmProcPath.c_str(), true);
-        // set attribute inheritance
-        eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
-        eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/proc directory mode to inital mode");
-        eos_crit("cannot set the /eos/proc directory mode to 755");
-        return 1;
-      }
-    }
-
     // Create output directory layout conversions
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-      eosmd->setCUid(2); // conversion directory is owned by daemon
-      eosmd->setCGid(2);
-      gOFS->eosView->updateContainerStore(eosmd.get());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
@@ -1711,7 +1696,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosmd->setCUid(2); // conversion directory is owned by daemon
         eosmd->setCGid(2);
         gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
                     " mode to inital mode");
         eos_crit("cannot set the /eos/../proc/conversion directory mode to 770");
@@ -1722,12 +1707,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Create directory for fast find functionality of archived dirs
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcArchivePath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-      eosmd->setCUid(2); // archive directory is owned by daemon
-      eosmd->setCGid(2);
-      gOFS->eosView->updateContainerStore(eosmd.get());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
@@ -1737,7 +1718,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosmd->setCUid(2); // archive directory is owned by daemon
         eosmd->setCGid(2);
         gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory "
                     "mode to inital mode");
         eos_crit("cannot set the /eos/../proc/archive directory mode to 770");
@@ -1748,20 +1729,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Create workflow directory
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
-      eosmd->setCUid(2); // workflow directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd.get());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
         eosmd = gOFS->eosView->createContainer(MgmProcWorkflowPath.c_str(), true);
-        // set attribute inheritance
-        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosmd->setCUid(2); // workflow directory is owned by daemon
         gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
         Eroute.Emsg("Config",
                     "cannot set the /eos/../proc/workflow directory mode to inital mode");
         eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
@@ -1772,22 +1750,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Create lock directory
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
-      eosmd->setCUid(2); // lock directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd.get());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
         eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
-        // set attribute inheritance
-        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosmd->setCUid(2); // lock directory is owned by daemon
         gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
-        Eroute.Emsg("Config",
-                    "cannot set the /eos/../proc/lock directory mode to inital mode");
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/lock directory mode "
+                    "to inital mode");
         eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
         return 1;
       }
@@ -1796,22 +1771,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Create delegation directory
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU);
-      eosmd->setCUid(2); // delegation directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd.get());
-    } catch (eos::MDException& e) {
-      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
         eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
-        // set attribute inheritance
-        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosmd->setCUid(2); // delegation directory is owned by daemon
         gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (eos::MDException& e) {
-        Eroute.Emsg("Config",
-                    "cannot set the /eos/../proc/delegation directory mode to inital mode");
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/delegation directory"
+                    " mode to inital mode");
         eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
         return 1;
       }
