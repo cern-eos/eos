@@ -185,7 +185,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     eos_static_debug("handling drain command");
     cmd.reset(new DrainCmd(std::move(req), vid));
     break;
-      
+
   case RequestProto::kFind:
     cmd.reset(new FindCmd(std::move(req), vid));
     break;

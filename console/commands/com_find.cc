@@ -898,10 +898,10 @@ FindHelper::ParseCommand(const char* arg)
       find->set_nunlink(true);
     }
     else if (s1 == "--uid") {
-      find->set_uid(true);
+      find->set_printuid(true);
     }
     else if (s1 == "--gid") {
-      find->set_gid(true);
+      find->set_printgid(true);
     }
     else if (s1 == "--stripediff") {
       find->set_stripediff(true);
@@ -932,6 +932,42 @@ FindHelper::ParseCommand(const char* arg)
     }
     else if (s1 == "-g") {
       find->set_mixedgroups(true);
+    }
+    else if (s1 == "-uid") {
+      find->set_searchuid(true);
+      std::string uid = subtokenizer.GetToken();
+      try {
+        find->set_uid(std::stoul(uid));
+      } catch (std::invalid_argument& error) {
+        return false;
+      }
+    }
+    else if (s1 == "-nuid") {
+      find->set_searchnotuid(true);
+      std::string uid = subtokenizer.GetToken();
+      try {
+        find->set_uid(std::stoul(uid));
+      } catch (std::invalid_argument& error) {
+        return false;
+      }
+    }
+    else if (s1 == "-gid") {
+      find->set_searchgid(true);
+      std::string gid = subtokenizer.GetToken();
+      try {
+        find->set_gid(std::stoul(gid));
+      } catch (std::invalid_argument& error) {
+        return false;
+      }
+    }
+    else if (s1 == "-ngid") {
+      find->set_searchnotgid(true);
+      std::string gid = subtokenizer.GetToken();
+      try {
+        find->set_gid(std::stoul(gid));
+      } catch (std::invalid_argument& error) {
+        return false;
+      }
     }
     else if (s1 == "-x") {
       std::string attribute = subtokenizer.GetToken();
@@ -1091,7 +1127,7 @@ void com_find_help()
 {
   std::ostringstream oss;
 
-  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>" << std::endl;
+  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>" << std::endl;
   oss << "                -f -d :  find files(-f) or directories (-d) in <path>" << std::endl;
   oss << "     --name <pattern> :  find by name or wildcard match" << std::endl;
   oss << "       -x <key>=<val> :  find entries with <key>=<val>" << std::endl;
@@ -1100,6 +1136,10 @@ void com_find_help()
   oss << "             -p <key> :  additionally print the value of <key> for each entry" << std::endl;
   oss << "                   -b :  query the server balance of the files found" << std::endl;
   oss << "                   -s :  run as a subcommand (in silent mode)" << std::endl;
+  oss << "             -uid <n> :  entries owned by given user id number" << std::endl;
+  oss << "            -nuid <n> :  entries not owned by given user id number" << std::endl;
+  oss << "             -gid <n> :  entries owned by given group id number" << std::endl;
+  oss << "            -ngid <n> :  entries not owned by given group id number" << std::endl;
   oss << "          -ctime +<n> :  find files older than <n> days" << std::endl;
   oss << "          -ctime -<n> :  find files younger than <n> days" << std::endl;
   oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found" << std::endl;
@@ -1126,7 +1166,8 @@ void com_find_help()
   std::cerr << oss.str() << std::endl;
 }
 
-int com_find_new(char* arg)
+int
+com_find_new(char* arg)
 {
   if (wants_help(arg)) {
     com_find_help();

@@ -24,21 +24,27 @@ message FindProto {
     bool Online = 20;
     bool Fileinfo = 21;
     bool Nunlink = 22;
-    bool Uid = 23;
-    bool Gid = 24;
-    bool Hosts = 25;
-    bool Partition= 26;
-    bool DoLayoutstripes = 27;
+    bool PrintUid = 23;
+    bool PrintGid = 24;
+    bool SearchUid = 25;
+    bool SearchNotUid = 26;
+    bool SearchGid = 27;
+    bool SearchNotGid = 28;
+    bool Hosts = 29;
+    bool Partition= 30;
+    bool DoLayoutstripes = 31;
 
-    uint64 Layoutstripes = 28;
-    uint64 Maxdepth = 29;
-    uint64 Youngerthan = 30;
-    uint64 Olderthan = 31;
+    uint64 Layoutstripes = 32;
+    uint64 Maxdepth = 33;
+    uint64 Youngerthan = 34;
+    uint64 Olderthan = 35;
+    uint64 Uid = 36;
+    uint64 Gid = 37;
 
-    string Purge = 32;
-    string Path = 33;
-    string Name = 34;
-    string AttributeKey = 35;
-    string AttributeValue = 36;
-    string Printkey = 37;
+    string Purge = 38;
+    string Path = 39;
+    string Name = 40;
+    string AttributeKey = 41;
+    string AttributeValue = 42;
+    string Printkey = 43;
 }

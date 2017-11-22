@@ -33,6 +33,15 @@ eos::console::ReplyProto
 eos::mgm::FindCmd::ProcessRequest() {
   eos::console::ReplyProto reply;
 
+  if (!OpenTemporaryOutputFiles()) {
+    std::ostringstream error;
+    error << "error: cannot write find result files on MGM" << std::endl;
+
+    reply.set_retc(EIO);
+    reply.set_std_err(error.str());
+    return reply;
+  }
+
   auto& findRequest = mReqProto.find();
   auto& spath = findRequest.path();
   auto& filematch = findRequest.name();
@@ -43,35 +52,20 @@ eos::mgm::FindCmd::ProcessRequest() {
   auto olderthan = findRequest.olderthan();
   auto youngerthan = findRequest.youngerthan();
   auto& purgeversion = findRequest.purge();
-
-  if (!OpenTemporaryOutputFiles()) {
-    std::ostringstream error;
-    error << "error: cannot write find result files on MGM" << std::endl;
-
-    reply.set_retc(EIO);
-    reply.set_std_err(error.str());
-    return reply;
-  }
-
-  // this hash is used to calculate the balance of the found files over the filesystems involved
-  google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
-  google::dense_hash_map<std::string, unsigned long long> spacebalance;
-  google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
-  google::dense_hash_map<int, unsigned long long> sizedistribution;
-  google::dense_hash_map<int, unsigned long long> sizedistributionn;
-  filesystembalance.set_empty_key(0);
-  spacebalance.set_empty_key("");
-  schedulinggroupbalance.set_empty_key("");
-  sizedistribution.set_empty_key(-1);
-  sizedistributionn.set_empty_key(-1);
+  auto uid = findRequest.uid();
+  auto gid = findRequest.gid();
 
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
   bool findgroupmix = findRequest.mixedgroups();
+  bool searchuid = findRequest.searchuid();
+  bool searchnotuid = findRequest.searchnotuid();
+  bool searchgid = findRequest.searchgid();
+  bool searchnotgid = findRequest.searchnotgid();
   bool printsize = findRequest.size();
   bool printfid = findRequest.fid();
-  bool printuid = findRequest.uid();
-  bool printgid = findRequest.gid();
+  bool printuid = findRequest.printuid();
+  bool printgid = findRequest.printgid();
   bool printfs = findRequest.fs();
   bool printchecksum = findRequest.checksum();
   bool printctime = findRequest.ctime();
@@ -106,6 +100,18 @@ eos::mgm::FindCmd::ProcessRequest() {
   XrdOucString url = "root://";
   url += gOFS->MgmOfsAlias;
   url += "/";
+
+  // this hash is used to calculate the balance of the found files over the filesystems involved
+  google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
+  google::dense_hash_map<std::string, unsigned long long> spacebalance;
+  google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
+  google::dense_hash_map<int, unsigned long long> sizedistribution;
+  google::dense_hash_map<int, unsigned long long> sizedistributionn;
+  filesystembalance.set_empty_key(0);
+  spacebalance.set_empty_key("");
+  schedulinggroupbalance.set_empty_key("");
+  sizedistribution.set_empty_key(-1);
+  sizedistributionn.set_empty_key(-1);
 
   eos::common::Path cPath(spath.c_str());
   bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() || findRequest.files());
@@ -200,6 +206,15 @@ eos::mgm::FindCmd::ProcessRequest() {
     }
   }
 
+  cerr << finddepth << endl;
+  for (auto& foundit : *found) {
+    cerr << foundit.first << endl;
+    for(auto& sec : foundit.second) {
+      cerr << sec << endl;
+    }
+  }
+
+
   unsigned int cnt = 0;
   unsigned long long filecounter = 0;
   unsigned long long dircounter = 0;
@@ -262,6 +277,23 @@ eos::mgm::FindCmd::ProcessRequest() {
               }
             }
 
+            if (searchuid && fmd->getCUid() != uid) {
+              selected = false;
+            }
+
+            if (searchnotuid && fmd->getCUid() == uid) {
+              selected = false;
+            }
+
+            if (searchgid && fmd->getCGid() != gid) {
+              selected = false;
+            }
+
+            if (searchnotgid && fmd->getCGid() == gid) {
+              selected = false;
+            }
+
+            // Check attribute key-value filter
             if (!attributekey.empty() && !attributevalue.empty()) {
               XrdOucString attr;
               errInfo.clear();
@@ -351,19 +383,19 @@ eos::mgm::FindCmd::ProcessRequest() {
                       ofstdoutStream << fspath;
 
                       if (printsize) {
-                        ofstdoutStream << fmd->getSize();
+                        ofstdoutStream << " size=" << fmd->getSize();
                       }
 
                       if (printfid) {
-                        ofstdoutStream << fmd->getId();
+                        ofstdoutStream << " fid=" << fmd->getId();
                       }
 
                       if (printuid) {
-                        ofstdoutStream << fmd->getCUid();
+                        ofstdoutStream << " uid=" << fmd->getCUid();
                       }
 
                       if (printgid) {
-                        ofstdoutStream << fmd->getCGid();
+                        ofstdoutStream << " gid=" << fmd->getCGid();
                       }
 
                       if (printfs) {
@@ -610,8 +642,7 @@ eos::mgm::FindCmd::ProcessRequest() {
           (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
         struct stat buf;
 
-        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, (const char*) nullptr,
-                          0)) &&
+        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, (const char*) nullptr, nullptr)) &&
             ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
           ofstdoutStream << "# purging " << foundit.first;
           gOFS->PurgeVersion(foundit.first.c_str(), errInfo, max_version);
@@ -701,7 +732,7 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
 
                 if (printgid) {
-                  ofstdoutStream << " uid=" << mCmd->getCGid();
+                  ofstdoutStream << " gid=" << mCmd->getCGid();
                 }
               } catch (eos::MDException& e) {
                 eos_debug("caught exception %d %s\n", e.getErrno(),
