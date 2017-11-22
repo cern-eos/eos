@@ -2557,15 +2557,13 @@ metad::vmap::forward(fuse_ino_t lookup)
   {
     uint64_t a64=lookup;
     uint64_t b64;
-    if (EosFuse::Instance().getKV()->get(a64, b64, "l"))
 
     if (EosFuse::Instance().getKV()->get(a64, b64, "l")) {
-      bwd_map[b64] = a64;
+      fwd_map.erase(lookup);
       return ino;
     }
     else
     {
-
       fwd_map[a64]=b64;
       bwd_map[b64]=a64;
       ino = b64;
