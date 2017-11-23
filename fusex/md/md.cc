@@ -1455,6 +1455,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
   if (cont.type() == cont.MD)
   {
     uint64_t md_ino = cont.md_().md_ino();
+    uint64_t md_pino = cont.md_().md_pino();
     uint64_t ino = inomap.forward(md_ino);
 
     bool is_new = false;
@@ -1477,6 +1478,16 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       }
     }
 
+    uint64_t p_ino = inomap.forward(md_pino);
+    if (!p_ino)
+    {
+      p_ino = next_ino.inc();
+      // it might happen that we don't know yet anything about this parent
+      inomap.insert(md_pino, p_ino);
+      eos_static_crit("msg=\"creating lookup entry for parent inode\" md-pino=%016lx pino=%016lx md-ino=%016lx ino=%016lx",
+		      md_pino, p_ino, md_ino, ino);
+    }
+
     if (is_new) {
       if (!ino)
       {
@@ -1485,13 +1496,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	ino = new_ino;
       }
     }
-
-    uint64_t p_ino = inomap.forward(md->md_pino());
-    if (!p_ino)
-    {
-      eos_static_crit("msg=\"missing lookup entry for inode\" ino=%016lx", ino);
-    }
-    assert(p_ino != 0);
 
     if (!S_ISDIR(md->mode()))
     {
@@ -1972,7 +1976,7 @@ metad::mdcflush(ThreadAssistant &assistant)
               {
 
                 XrdSysMutexHelper mmLock(pmd->Locker());
-                //		pmd->get_todelete().erase(md->name());
+		pmd->get_todelete().erase(md->name());
                 pmd->Signal();
               }
             }

@@ -2198,6 +2198,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 	  Instance().mds.wait_flush(req, md);
 	}
 
+	md->set_err(0);
         md->set_mode(mode | S_IFDIR);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
@@ -4334,7 +4335,7 @@ EosFuse::symlink(fuse_req_t req, const char *link, fuse_ino_t parent,
 
       md->set_mode( S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK );
       md->set_target(link);
-
+      md->set_err(0);
       struct timespec ts;
       eos::common::Timing::GetTimeSpec(ts);
       md->set_name(name);
