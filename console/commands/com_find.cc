@@ -946,7 +946,7 @@ FindHelper::ParseCommand(const char* arg)
       find->set_searchnotuid(true);
       std::string uid = subtokenizer.GetToken();
       try {
-        find->set_uid(std::stoul(uid));
+        find->set_notuid(std::stoul(uid));
       } catch (std::invalid_argument& error) {
         return false;
       }
@@ -964,10 +964,26 @@ FindHelper::ParseCommand(const char* arg)
       find->set_searchnotgid(true);
       std::string gid = subtokenizer.GetToken();
       try {
-        find->set_gid(std::stoul(gid));
+        find->set_notgid(std::stoul(gid));
       } catch (std::invalid_argument& error) {
         return false;
       }
+    }
+    else if (s1 == "-flag") {
+      find->set_searchpermission(true);
+      std::string permission = subtokenizer.GetToken();
+      if (permission.length() != 3 || permission.find_first_not_of("01234567") != std::string::npos) {
+        return false;
+      }
+      find->set_permission(permission);
+    }
+    else if (s1 == "-nflag") {
+      find->set_searchnotpermission(true);
+      std::string permission = subtokenizer.GetToken();
+      if (permission.length() != 3 || permission.find_first_not_of("01234567") != std::string::npos) {
+        return false;
+      }
+      find->set_notpermission(permission);
     }
     else if (s1 == "-x") {
       std::string attribute = subtokenizer.GetToken();
@@ -1127,7 +1143,7 @@ void com_find_help()
 {
   std::ostringstream oss;
 
-  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>" << std::endl;
+  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>" << std::endl;
   oss << "                -f -d :  find files(-f) or directories (-d) in <path>" << std::endl;
   oss << "     --name <pattern> :  find by name or wildcard match" << std::endl;
   oss << "       -x <key>=<val> :  find entries with <key>=<val>" << std::endl;
@@ -1140,6 +1156,8 @@ void com_find_help()
   oss << "            -nuid <n> :  entries not owned by given user id number" << std::endl;
   oss << "             -gid <n> :  entries owned by given group id number" << std::endl;
   oss << "            -ngid <n> :  entries not owned by given group id number" << std::endl;
+  oss << "            -flag <n> :  directories with specified UNIX access flag, e.g. 755" << std::endl;
+  oss << "           -nflag <n> :  directories not with specified UNIX access flag, e.g. 755" << std::endl;
   oss << "          -ctime +<n> :  find files older than <n> days" << std::endl;
   oss << "          -ctime -<n> :  find files younger than <n> days" << std::endl;
   oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found" << std::endl;

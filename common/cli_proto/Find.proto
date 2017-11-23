@@ -30,21 +30,27 @@ message FindProto {
     bool SearchNotUid = 26;
     bool SearchGid = 27;
     bool SearchNotGid = 28;
-    bool Hosts = 29;
-    bool Partition= 30;
-    bool DoLayoutstripes = 31;
+    bool SearchPermission = 29;
+    bool SearchNotPermission = 30;
+    bool Hosts = 31;
+    bool Partition= 32;
+    bool DoLayoutstripes = 33;
 
-    uint64 Layoutstripes = 32;
-    uint64 Maxdepth = 33;
-    uint64 Youngerthan = 34;
-    uint64 Olderthan = 35;
-    uint64 Uid = 36;
-    uint64 Gid = 37;
+    uint64 Layoutstripes = 34;
+    uint64 Maxdepth = 35;
+    uint64 Youngerthan = 36;
+    uint64 Olderthan = 37;
+    uint64 Uid = 38;
+    uint64 Gid = 39;
+    uint64 NotUid = 40;
+    uint64 NotGid = 41;
 
-    string Purge = 38;
-    string Path = 39;
-    string Name = 40;
-    string AttributeKey = 41;
-    string AttributeValue = 42;
-    string Printkey = 43;
+    string Purge = 42;
+    string Path = 43;
+    string Name = 44;
+    string AttributeKey = 45;
+    string AttributeValue = 46;
+    string Printkey = 47;
+    string Permission = 48;
+    string NotPermission = 49;
 }

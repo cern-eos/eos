@@ -54,6 +54,10 @@ eos::mgm::FindCmd::ProcessRequest() {
   auto& purgeversion = findRequest.purge();
   auto uid = findRequest.uid();
   auto gid = findRequest.gid();
+  auto notuid = findRequest.notuid();
+  auto notgid = findRequest.notgid();
+  auto& permission = findRequest.permission();
+  auto& notpermission = findRequest.notpermission();
 
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
@@ -62,6 +66,8 @@ eos::mgm::FindCmd::ProcessRequest() {
   bool searchnotuid = findRequest.searchnotuid();
   bool searchgid = findRequest.searchgid();
   bool searchnotgid = findRequest.searchnotgid();
+  bool searchpermission = findRequest.searchpermission();
+  bool searchnotpermission = findRequest.searchnotpermission();
   bool printsize = findRequest.size();
   bool printfid = findRequest.fid();
   bool printuid = findRequest.printuid();
@@ -185,7 +191,9 @@ eos::mgm::FindCmd::ProcessRequest() {
 
   errInfo.clear();
   if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, (*found),
-                  attributekey.c_str(), attributevalue.c_str(), nofiles, 0, true, finddepth,
+                  attributekey.length() ? attributekey.c_str() : nullptr,
+                  attributevalue.length() ? attributevalue.c_str() : nullptr,
+                  nofiles, 0, true, finddepth,
                   filematch.length() ? filematch.c_str() : nullptr)) {
     std::ostringstream error;
     error << stdErr;
@@ -205,15 +213,6 @@ eos::mgm::FindCmd::ProcessRequest() {
       reply.set_retc(E2BIG);
     }
   }
-
-  cerr << finddepth << endl;
-  for (auto& foundit : *found) {
-    cerr << foundit.first << endl;
-    for(auto& sec : foundit.second) {
-      cerr << sec << endl;
-    }
-  }
-
 
   unsigned int cnt = 0;
   unsigned long long filecounter = 0;
@@ -281,7 +280,7 @@ eos::mgm::FindCmd::ProcessRequest() {
               selected = false;
             }
 
-            if (searchnotuid && fmd->getCUid() == uid) {
+            if (searchnotuid && fmd->getCUid() == notuid) {
               selected = false;
             }
 
@@ -289,7 +288,7 @@ eos::mgm::FindCmd::ProcessRequest() {
               selected = false;
             }
 
-            if (searchnotgid && fmd->getCGid() == gid) {
+            if (searchnotgid && fmd->getCGid() == notgid) {
               selected = false;
             }
 
@@ -637,15 +636,56 @@ eos::mgm::FindCmd::ProcessRequest() {
 
   if (findRequest.directories()) {
     for (auto& foundit : *found) {
-      // eventually call the version purge function if we own this version dir or we are root
-      if (purge &&
-          (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
-        struct stat buf;
+      // Filtering the directories
+      bool selected = true;
 
-        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, (const char*) nullptr, nullptr)) &&
-            ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
-          ofstdoutStream << "# purging " << foundit.first;
-          gOFS->PurgeVersion(foundit.first.c_str(), errInfo, max_version);
+      eos::common::RWMutexReadLock eosViewMutexGuard;
+      eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
+      std::shared_ptr<eos::IContainerMD> mCmd;
+
+      try {
+        mCmd = gOFS->eosView->getContainer(foundit.first);
+        eosViewMutexGuard.Release();
+      } catch (eos::MDException& e) {
+        eos_debug("caught exception %d %s\n", e.getErrno(),
+                  e.getMessage().str().c_str());
+        eosViewMutexGuard.Release();
+      }
+
+      if (searchuid && mCmd->getCUid() != uid) {
+        selected = false;
+      }
+
+      if (searchnotuid && mCmd->getCUid() == notuid) {
+        selected = false;
+      }
+
+      if (searchgid && mCmd->getCGid() != gid) {
+        selected = false;
+      }
+
+      if (searchnotgid && mCmd->getCGid() == notgid) {
+        selected = false;
+      }
+
+      if (searchpermission || searchnotpermission) {
+        struct stat buf;
+        if (gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr, nullptr) == 0) {
+          std::ostringstream flagOstr;
+          flagOstr << std::oct << buf.st_mode;
+          auto flagStr = flagOstr.str();
+          auto permString = flagStr.substr(flagStr.length() - 3);
+
+          if (searchpermission && permString != permission) {
+            selected = false;
+          }
+
+          if (searchnotpermission && permString == notpermission) {
+            selected = false;
+          }
+        }
+        else {
+          selected = false;
         }
       }
 
@@ -653,49 +693,39 @@ eos::mgm::FindCmd::ProcessRequest() {
         // get the attributes and call the verify function
         eos::IContainerMD::XAttrMap map;
 
-        if (!gOFS->_attr_ls(foundit.first.c_str(),
-                            errInfo,
-                            mVid,
-                            (const char*) nullptr,
-                            map)
-          ) {
+        if (!gOFS->_attr_ls(foundit.first.c_str(), errInfo,
+                            mVid, nullptr, map)) {
           if ((map.count("sys.acl") || map.count("user.acl"))) {
             if (map.count("sys.acl")) {
               if (Acl::IsValid(map["sys.acl"].c_str(), errInfo)) {
-                continue;
+                selected = false;
               }
             }
 
             if (map.count("user.acl")) {
               if (Acl::IsValid(map["user.acl"].c_str(), errInfo)) {
-                continue;
+                selected = false;
               }
             }
           } else {
-            continue;
+            selected = false;
           }
         }
       }
 
-      // print directories
-      XrdOucString attr = "";
+      // eventually call the version purge function if we own this version dir or we are root
+      if (selected && purge &&
+          (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
+        struct stat buf;
 
-      if (!printkey.empty()) {
-        gOFS->_attr_get(foundit.first.c_str(), errInfo, mVid, (const char*) nullptr,
-                        printkey.c_str(), attr);
-
-        if (!printkey.empty()) {
-          if (!attr.length()) {
-            attr = "undef";
-          }
-
-          if (!printcounter) {
-            ofstdoutStream << printkey << "=" << std::left << std::setw(32) << attr << " path=";
-          }
+        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr, nullptr)) &&
+            ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
+          ofstdoutStream << "# purging " << foundit.first;
+          gOFS->PurgeVersion(foundit.first.c_str(), errInfo, max_version);
         }
       }
 
-      if (!purge && !printcounter) {
+      if (selected && !purge && !printcounter) {
         if (printchildcount) {
           //-------------------------------------------
           eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
@@ -714,6 +744,24 @@ eos::mgm::FindCmd::ProcessRequest() {
           }
         } else {
           if (!printfileinfo) {
+            // print directories
+            XrdOucString attr = "";
+
+            if (!printkey.empty()) {
+              gOFS->_attr_get(foundit.first.c_str(), errInfo, mVid, nullptr,
+                              printkey.c_str(), attr);
+
+              if (!printkey.empty()) {
+                if (!attr.length()) {
+                  attr = "undef";
+                }
+
+                if (!printcounter) {
+                  ofstdoutStream << printkey << "=" << std::left << std::setw(32) << attr << " path=";
+                }
+              }
+            }
+
             if (printxurl) {
               ofstdoutStream << url;
             }
@@ -764,9 +812,11 @@ eos::mgm::FindCmd::ProcessRequest() {
           ofstdoutStream << std::endl;
         }
       }
-    }
 
-    dircounter++;
+      if (selected) {
+        dircounter++;
+      }
+    }
   }
 
   if (deepquery) {
