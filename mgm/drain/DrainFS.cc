@@ -259,6 +259,8 @@ DrainFS::Drain()
             continue;     
           }
         }
+        XrdSysTimer sleep;
+        sleep.Wait(200);
         (*job)->SetStatus(DrainTransferJob::Ready);
         (*job)->Start();
         mJobsRunning.push_back(*job);
