@@ -295,6 +295,7 @@ metad::forget(fuse_req_t req,
 
   mdmap.eraseTS(ino);
   stat.inodes_dec();
+  inomap.erase_bwd(ino);
   return 0;
 }
 
@@ -1963,6 +1964,7 @@ metad::mdcflush(ThreadAssistant &assistant)
               XrdSysMutexHelper mmLock(mdmap);
               mdmap.retrieve(md->pid(), pmd);
               mdmap.erase(removeentry);
+	      inomap.erase_bwd(removeentry);
               stat.inodes_dec();
             }
             {
