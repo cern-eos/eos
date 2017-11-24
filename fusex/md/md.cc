@@ -1506,7 +1506,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       if (md->deleted())
       {
 	md->Locker().UnLock();
-        return 0;
+        return ino;
       }
     }
 

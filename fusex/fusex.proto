@@ -24,8 +24,8 @@ message md {
   sfixed32 gid = 17    ; //< group id
   sfixed32 mode = 18   ; //< mode
   sfixed32 nlink = 19  ; //< nlink
-  string name = 20     ; //< name
-  string target = 21   ; //< symlink target
+  bytes name = 20     ; //< name
+  bytes target = 21   ; //< symlink target
   string authid = 22   ; //< strong security auth id
   string clientid = 23 ; //< string identifying a client
   string clientuuid = 24; //< optional string of a temporary client id
@@ -36,7 +36,7 @@ message md {
   OP operation = 29    ; //< indicates operations to execute
   TYPE type = 30       ; //< indicates the content of this recored, just MD or MD+children
   sfixed32 err = 31  ; //< errno concerning md record
-  map<string, string> attr = 32; //< xattribute map
+  map<string, bytes> attr = 32; //< xattribute map
   map<string, fixed64> children = 33; //< children's name and id 
   // children id is a virtual inode on when stored FUSE client side
   // children id is the physical inode when created on server side 
@@ -44,7 +44,7 @@ message md {
   string implied_authid = 35; //< implied auth id from a create call
   lock flock = 36; //< file lock information
   sfixed32 nchildren = 37; //< number of children
-  string fullpath = 38; //< current path to file/dir
+  bytes fullpath = 38; //< current path to file/dir
   fixed64 pt_mtime = 39 ; //< modification time for the parent directory
   fixed64 pt_mtime_ns= 40 ; //< ns of modification time for the parent directory
   bool creator = 41; //< indicates we are the creator of this md record
@@ -96,7 +96,7 @@ message cap_map {
 };
 
 message heartbeat {
-  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; }
+  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; PROTOCOLV3 = 2; }
 
   string name = 1; //< client chosen ID	
   string host = 2; //< client host
