@@ -1658,6 +1658,8 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
     if (md->err())
     {
+      if (EOS_LOGS_DEBUG)
+	eos_static_debug("returning errc=%d for ino=%016lx name=%s md-name=%s\n", md->err(), parent, name, md->name().c_str());
       rc = md->err();
     }
   }
@@ -1768,7 +1770,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       XrdSysMutexHelper mLock(pmd->Locker());
       pmd_mode = pmd->mode();
       pmd_id = pmd->id();
-      auto pmap = pmd->children();
+      auto pmap = pmd->local_children();
       auto it = pmap.begin();
 
       for (; it != pmap.end(); ++it) {
@@ -2040,6 +2042,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           Instance().mds.wait_flush(req, md);
         }
 
+	md->set_err(0);
         md->set_mode(mode | S_IFDIR);
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
@@ -2310,7 +2313,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       eos_static_info("link=%d", md->nlink());
 
-      if ((!rc) && (md->children().size() || md->nchildren())) {
+      if ((!rc) && (md->local_children().size() || md->nchildren()))
+      {
         rc = ENOTEMPTY;
       }
 
@@ -3777,6 +3781,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
 
       md->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK);
       md->set_target(link);
+      md->set_err(0);
       struct timespec ts;
       eos::common::Timing::GetTimeSpec(ts);
       md->set_name(name);

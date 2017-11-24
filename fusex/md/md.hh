@@ -233,9 +233,9 @@ public:
       return todelete;
     }
 
-    std::map<std::string, uint64_t>& get_childrentomap()
+    std::map<std::string, uint64_t>& local_children()
     {
-      return childrentomap;
+      return _local_children;
     }
 
   private:
@@ -248,7 +248,7 @@ public:
     bool refresh;
     std::vector<struct flock> locktable;
     std::set<std::string> todelete;
-    std::map<std::string, uint64_t> childrentomap;
+    std::map<std::string, uint64_t> _local_children;
   } ;
 
   typedef std::shared_ptr<mdx> shared_md;
