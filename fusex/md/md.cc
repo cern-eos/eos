@@ -1374,7 +1374,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
       if (md->deleted()) {
         md->Locker().UnLock();
-        return 0;
+        return ino;
       }
     }
 
@@ -1558,7 +1558,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             eos_static_info("%016lx to-delete=%s", md->id(), it->c_str());
           }
           // push only into the local KV cache - md was retrieved from upstream
-          if (map->first != cont.ref_inode_())
+          if (map->first != cont.ref_inode_()) {
             update(req, md, "", true);
           }
 
@@ -1600,28 +1600,26 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           // extract any new capability
           cap_received = map->second.capability();
         }
-
+	
         *md = map->second;
         md->clear_capability();
-
+	
         if (!pmd) {
           pmd = md;
         }
-
+	
         uint64_t new_ino = 0;
-
-	if (! (new_ino = inomap.forward(md->md_ino())) )
-	{
+	
+	if (! (new_ino = inomap.forward(md->md_ino())) ) {
 	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
 	  new_ino = insert(req, md, md->authid());
 	}
-
+	
         md->set_id(new_ino);
-        if (!listing)
-        {
+        if (!listing) {
           p_ino = inomap.forward(md->md_pino());
         }
-
+	
         md->set_pid(p_ino);
         eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
         inomap.insert(map->first, new_ino);
@@ -1631,35 +1629,33 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           stat.inodes_ever_inc();
         }
         update(req, md, md->authid(), true);
-
+	
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("cap count %d\n", pmd->cap_count());
-
-	if (!pmd->cap_count())
-	{
+	
+	if (!pmd->cap_count()) {
 	  if (EOS_LOGS_DEBUG)
 	    eos_static_crit("clearing out %0016lx", pmd->id());
-
+	  
 	  pmd->local_children().clear();
 	  pmd->get_todelete().clear();
 	}
-
-        if (cap_received.id())
-        {
+	
+        if (cap_received.id()) {
           // store cap
           EosFuse::Instance().getCap().store(req, cap_received);
           md->cap_inc();
         }
-
+	
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx type=%d -", (long) new_ino, (long) map->first, md->type());
-
+	
         if (EOS_LOGS_DEBUG)
           eos_static_debug("%s", md->dump().c_str());
-        }
       }
     }
-
+  
+    
     if (pmd) {
       pmd->Locker().Lock();
     }
@@ -1678,19 +1674,18 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 	  eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
 	}
     }
-
+    
     if (pmd) {
       // store the parent now, after all children are inserted
       update(req, pmd, "", true);
     }
-
+    
     if (pmd) {
       pmd->Locker().UnLock();
     }
-  } else {
     return 0;
   }
-
+  
   if (pmd) {
     return pmd->id();
   } else {
