@@ -45,7 +45,7 @@
 #define kXR_DecryptErr (kXR_inProgress+3)
 #define kXR_Overloaded (kXR_inProgress+4)
 
-static int XProtocol::toErrno( int xerr )
+static int XtoErrno( int xerr )
 {
   switch(xerr)
     {case kXR_ArgInvalid:    return EINVAL;
@@ -169,7 +169,11 @@ namespace XrdCl
       }
       else
       {
+#ifndef EOSCITRINE
+	return XtoErrno(status.errNo);
+#else
 	return XProtocol::toErrno(status.errNo);
+#endif
       }
     }
 
