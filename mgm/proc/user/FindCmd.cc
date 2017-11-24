@@ -58,7 +58,9 @@ eos::mgm::FindCmd::ProcessRequest() {
   auto notgid = findRequest.notgid();
   auto& permission = findRequest.permission();
   auto& notpermission = findRequest.notpermission();
+  auto stripes = findRequest.layoutstripes();
 
+  bool silent = findRequest.silent();
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
   bool findgroupmix = findRequest.mixedgroups();
@@ -90,6 +92,7 @@ eos::mgm::FindCmd::ProcessRequest() {
   bool purge = false;
   bool purge_atomic = purgeversion == "atomic";
   bool printxurl = findRequest.xurl();
+  bool layoutstripes = findRequest.dolayoutstripes();
 
   auto max_version = 999999ul;
   time_t selectoldertime = (time_t) olderthan;
@@ -296,7 +299,7 @@ eos::mgm::FindCmd::ProcessRequest() {
             if (!attributekey.empty() && !attributevalue.empty()) {
               XrdOucString attr;
               errInfo.clear();
-              gOFS->_attr_get(fspath.c_str(), errInfo, mVid, (const char*) nullptr,
+              gOFS->_attr_get(fspath.c_str(), errInfo, mVid, nullptr,
                               attributekey.c_str(), attr);
               if (attributevalue != std::string(attr.c_str())) {
                 selected = false;
@@ -358,7 +361,7 @@ eos::mgm::FindCmd::ProcessRequest() {
               bool printSimple = !(printsize || printfid || printuid || printgid ||
                                    printchecksum || printfileinfo || printfs || printctime ||
                                    printmtime || printrep || printunlink || printhosts ||
-                                   printpartition || selectrepdiff || purge_atomic);
+                                   printpartition || selectrepdiff || purge_atomic || layoutstripes);
 
               if (printSimple) {
                 if (!printcounter) {
@@ -370,7 +373,7 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
               }
               else {
-                if (!purge_atomic) {
+                if (!purge_atomic && !layoutstripes) {
                   if (!printfileinfo) {
                     if (!printcounter) {
                       ofstdoutStream << "path=";
@@ -543,7 +546,9 @@ eos::mgm::FindCmd::ProcessRequest() {
                     ofstdoutStream << std::endl;
                   }
                 }
-                else if (fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
+
+                // Do the purge if needed
+                if (purge_atomic && fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
                   ofstdoutStream << "# found atomic " << fspath << std::endl;
                   struct stat buf;
 
@@ -557,6 +562,42 @@ eos::mgm::FindCmd::ProcessRequest() {
                       }
                     } else {
                       ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
+                    }
+                  }
+                }
+
+                // Add layout stripes if needed
+                if (layoutstripes) {
+                  ProcCommand fileCmd;
+                  std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
+                  info += fspath;
+                  info += "&mgm.file.layout.stripes=";
+                  info += std::to_string(stripes);
+
+                  if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
+                    std::ostringstream outputStream;
+                    XrdSfsFileOffset offset = 0;
+                    constexpr uint32_t size = 512;
+                    auto bytesRead = 0ul;
+                    char buffer[size];
+                    do {
+                      bytesRead = fileCmd.read(offset, buffer, size);
+                      for(auto i = 0u; i < bytesRead; i++) {
+                        outputStream << buffer[i];
+                      }
+                      offset += bytesRead;
+                    } while (bytesRead == size);
+
+                    fileCmd.close();
+
+                    XrdOucEnv env(outputStream.str().c_str());
+                    if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
+                      if (!silent) {
+                        ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
+                      }
+                    }
+                    else {
+                      ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
                     }
                   }
                 }
