@@ -137,8 +137,8 @@ public:
       return;
     }
 
-    paramsMap["xrd.secuid"] = std::to_string(uid);
-    paramsMap["xrd.secgid"] = std::to_string(gid);
+    paramsMap["xrdcl.secuid"] = std::to_string(uid);
+    paramsMap["xrdcl.secgid"] = std::to_string(gid);
 
     if(type == CredInfo::krb5 || type == CredInfo::krk5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
