@@ -243,6 +243,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                       url.c_str(), etag.c_str(), request->GetHeaders()["if-not-match"].c_str());
       response = HttpServer::HttpError("ETag is not modified",
                                        response->NOT_MODIFIED);
+      return response;
     }
 
     // find out if it is a file or directory
@@ -909,9 +910,14 @@ HttpHandler::Delete(eos::common::HttpRequest* request)
   struct stat buf;
   ProcCommand cmd;
   std::string url = request->GetUrl();
-  eos_static_info("method=DELETE path=%s",
-                  url.c_str());
-  gOFS->_stat(request->GetUrl().c_str(), &buf, error, *mVirtualIdentity, "");
+  eos_static_info("method=DELETE path=%s", url.c_str());
+
+  if (gOFS->_stat(request->GetUrl().c_str(), &buf, error,
+                  *mVirtualIdentity, "")) {
+    response = HttpServer::HttpError(error.getErrText(), response->NOT_FOUND);
+    return response;
+  }
+
   XrdOucString info = "mgm.cmd=rm&mgm.path=";
   info += request->GetUrl().c_str();
 
