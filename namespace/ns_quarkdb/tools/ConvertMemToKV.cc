@@ -673,7 +673,7 @@ ConvertFileMDSvc::initialize()
 
       try {
         cont = pContSvc->getContainerMD(file->getContainerId());
-      } catch (MDException& e) {
+      } catch (const MDException& e) {
         cont = nullptr;
       }
 
@@ -804,8 +804,14 @@ void
 ConvertQuotaView::addQuotaInfo(IFileMD* file)
 {
   // Search for a quota node
-  std::shared_ptr<IContainerMD> current =
-    mContSvc->getContainerMD(file->getContainerId());
+  std::shared_ptr<IContainerMD> current;
+
+  try {
+    current = mContSvc->getContainerMD(file->getContainerId());
+  } catch (const eos::MDException& e) {
+    std::cerr << __FUNCTION__ << e.what() << std::endl;
+    return;
+  }
 
   while ((current->getId() != 1) &&
          ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {

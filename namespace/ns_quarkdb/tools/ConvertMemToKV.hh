@@ -200,6 +200,7 @@ public:
   //----------------------------------------------------------------------------
   void addFile(IFileMD* file) override
   {
+    file->setContainerId(pId);
     mFiles[file->getName()] = file->getId();
   }
 
