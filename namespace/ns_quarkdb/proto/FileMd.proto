@@ -7,17 +7,17 @@ package eos.ns;
 message FileMdProto {
   uint64 id = 1;
   uint64 cont_id = 2;
-  int64 uid = 3;
-  int64 gid = 4;
+  uint64 uid = 3;
+  uint64 gid = 4;
   uint64 size = 5;
   uint32 layout_id = 6;
   uint32 flags = 7;
-  string name = 8;
-  string link_name = 9;
+  bytes name = 8;
+  bytes link_name = 9;
   bytes ctime = 10; // change time
   bytes mtime = 11; // modification time
   bytes checksum = 12;
   repeated uint32 locations = 13;
   repeated uint32 unlink_locations = 14;
-  map<string, string> xattrs = 15;
+  map<string, bytes> xattrs = 15;
 }
