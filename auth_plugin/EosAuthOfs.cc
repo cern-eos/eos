@@ -1222,9 +1222,14 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
   int msg_size = message->ByteSize();
   zmq::message_t request(msg_size);
   google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size);
+
   // Use google::protobuf::io::ArrayOutputStream which is way faster than
   // StringOutputStream as it avoids copying data
-  message->SerializeToZeroCopyStream(&aos);
+  if (!message->SerializeToZeroCopyStream(&aos)) {
+    eos_err("failed to serialize message");
+    return sent;
+  }
+
   sent = socket->send(request, ZMQ_NOBLOCK);
 
   if (!sent) {
