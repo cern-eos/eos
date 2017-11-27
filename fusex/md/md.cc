@@ -1367,13 +1367,11 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
       md->Locker().Lock();
 
-      if (EOS_LOGS_DEBUG) {
-        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(),
-                         md->deleted());
-      }
-
-      if (md->deleted()) {
-        md->Locker().UnLock();
+      if (EOS_LOGS_DEBUG)
+        eos_static_debug("%s op=%d deleted=%d", md->dump().c_str(), md->getop(), md->deleted());
+      if (md->deleted())
+      {
+	md->Locker().UnLock();
         return ino;
       }
     }
@@ -2149,9 +2147,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 {
                   // MD update logic
                   {
-                    if (ino) {
+		    if (ino) 
+		    {
 		      mdmap.retrieveOrCreateTS(ino, md);
-
                       // updated file MD
                       if (EOS_LOGS_DEBUG) {
                         eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
@@ -2194,9 +2192,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     }
 
                     // possibly invalidate kernel cache
-
-                    if (EosFuse::Instance().Config().options.md_kernelcache ||
-			EosFuse::Instance().Config().options.data_kernelcache ) {
+		    if (EosFuse::Instance().Config().options.md_kernelcache ||
+			EosFuse::Instance().Config().options.data_kernelcache ) 
+                    {
                       eos_static_info("invalidate data cache for ino=%016lx", ino);
                       kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
                     }
@@ -2221,19 +2219,22 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   mdmap[new_ino] = md;
                   // add to parent
                   uint64_t pino = inomap.forward(md_pino);
-                  shared_md pmd;
+		  shared_md pmd;
 
-                  if (pino && mdmap.retrieveTS(pino, pmd)) {
-                    if (md->pt_mtime()) {
-                      pmd->set_mtime(md->pt_mtime());
-                      pmd->set_mtime_ns(md->pt_mtime_ns());
-                    }
+                  if (pino && mdmap.retrieveTS(pino,pmd))
+                  {
+		    if (md->pt_mtime())
+                    {
+		      pmd->set_mtime(md->pt_mtime());
+		      pmd->set_mtime_ns(md->pt_mtime_ns());
+		    }
 
-                    md->clear_pt_mtime();
-                    md->clear_pt_mtime_ns();
-                    add(0, pmd, md, authid, true);
-                    update(req, pmd, authid, true);
+		    md->clear_pt_mtime();
+		    md->clear_pt_mtime_ns();
+		    add(0, pmd, md, authid, true);
+		    update(req, pmd, authid, true);
 		    inomap.insert(md->md_ino(), md->id());
+
                     // adjust local quota
                     cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
@@ -2389,7 +2390,6 @@ metad::vmap::forward(fuse_ino_t lookup)
   XrdSysMutexHelper mLock(mMutex);
 
   auto it = fwd_map.find(lookup);
-
   fuse_ino_t ino = (it == fwd_map.end())? 0 : it->second;
 
   if (!ino)

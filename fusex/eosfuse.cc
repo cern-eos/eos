@@ -363,7 +363,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       {
 	root["options"]["show-tree-size"] = 0;
       }
-      
+
       if (!root["auth"].isMember("krb5"))
       {
 	root["auth"]["krb5"] = 1;
@@ -585,7 +585,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     {
       root["cache"]["read-ahead-bytes-max"] = 8 * 1024 * 1024;
     }
-  
+
     if (!root["cache"].isMember("read-ahead-strategy"))
     {
       root["cache"]["read-ahead-strategy"] = "dynamic";
@@ -2438,11 +2438,14 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   int rc = 0;
   fuse_id id(req);
   metad::shared_md md = Instance().mds.get(req, ino);
+  if(md) md->Locker().Lock();
 
-  if (!md->id()) {
-    rc = md->deleted() ? ENOENT : md->err();
+  if (!md->id())
+  {
+    rc = md->deleted()? ENOENT : md->err();
   }
 
+  if(md) md->Locker().UnLock();
   fuse_reply_err(req, rc);
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
