@@ -204,6 +204,8 @@ diskcache::detach(std::string & cookie)
     }
     sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size, 0);
     int rc = close(fd);
+    
+    fd = -1;
 
     if (rc)
       return errno;
