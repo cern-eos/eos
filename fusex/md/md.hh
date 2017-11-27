@@ -624,7 +624,7 @@ public:
     {
       std::string out;
       char line[1024];
-      snprintf(line, sizeof(line), "authid=%1023s op=%d id=%lu uid=%u gid=%u pid=%u",
+      snprintf(line, sizeof(line), "authid=%s op=%d id=%lu uid=%u gid=%u pid=%u",
                e.authid().c_str(), (int) e.op(), e.id(), e.get_fuse_id().uid,
                e.get_fuse_id().gid, e.get_fuse_id().pid);
       out += line;
