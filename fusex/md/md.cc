@@ -2144,13 +2144,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 bool create = true;
                 int64_t bookingsize = 0;
                 uint64_t pino = 0;
-                uint64_t ino = 0;
                 mode_t mode = 0;
                 std::string md_clientid;
                 {
                   // MD update logic
                   {
-                    if (ino && mdmap.retrieveTS(ino, md)) {
+                    if (ino) {
+		      mdmap.retrieveOrCreateTS(ino, md);
+
                       // updated file MD
                       if (EOS_LOGS_DEBUG) {
                         eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
@@ -2161,8 +2162,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                       md_clientid = rsp.md_().clientid();
                       *md = rsp.md_();
                       md->clear_clientid();
-                      pino = md->pid();
-                      ino = md->id();
+		      pino = inomap.forward(md->md_pino());
                       mode = md->mode();
 
                       if (EOS_LOGS_DEBUG) {
@@ -2194,7 +2194,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     }
 
                     // possibly invalidate kernel cache
-                    if (EosFuse::Instance().Config().options.data_kernelcache) {
+
+                    if (EosFuse::Instance().Config().options.md_kernelcache ||
+			EosFuse::Instance().Config().options.data_kernelcache ) {
                       eos_static_info("invalidate data cache for ino=%016lx", ino);
                       kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
                     }
@@ -2231,6 +2233,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     md->clear_pt_mtime_ns();
                     add(0, pmd, md, authid, true);
                     update(req, pmd, authid, true);
+		    inomap.insert(md->md_ino(), md->id());
                     // adjust local quota
                     cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
@@ -2285,7 +2288,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         }
 
         extmap.clear();
-        eos_static_info("cap-extension: map-size=%u", extmap.size());
+        eos_static_debug("cap-extension: map-size=%u", extmap.size());
       }
 
       std::string hbstream;
@@ -2384,7 +2387,10 @@ fuse_ino_t
 metad::vmap::forward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
-  fuse_ino_t ino = fwd_map[lookup];
+
+  auto it = fwd_map.find(lookup);
+
+  fuse_ino_t ino = (it == fwd_map.end())? 0 : it->second;
 
   if (!ino)
   {
