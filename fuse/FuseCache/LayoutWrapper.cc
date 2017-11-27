@@ -280,14 +280,14 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       user_url += env.Get("xrd.k5ccname");
     }
 
-    if (env.Get("xrd.secuid")) {
-      user_url += "&xrd.secuid=";
-      user_url += env.Get("xrd.secuid");
+    if (env.Get("xrdcl.secuid")) {
+      user_url += "&xrdcl.secuid=";
+      user_url += env.Get("xrdcl.secuid");
     }
 
-    if (env.Get("xrd.secgid")) {
-      user_url += "&xrd.secgid=";
-      user_url += env.Get("xrd.secgid");
+    if (env.Get("xrdcl.secgid")) {
+      user_url += "&xrdcl.secgid=";
+      user_url += env.Get("xrdcl.secgid");
     }
   }
 
@@ -352,7 +352,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   m.erase("xrd.wantprot");
   m.erase("xrd.k5ccname");
   m.erase("xrd.gsiusrpxy");
-  m.erase("xrd.secuid");
+  m.erase("xrdcl.secuid");
   m.erase("xrd.secgid");
   // Let the lazy open use an open by inode
   std::string fxid = m["mgm.id"];

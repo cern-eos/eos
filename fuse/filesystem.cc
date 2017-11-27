@@ -4084,9 +4084,9 @@ filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
 
 static void addSecUidGid(uid_t uid, gid_t gid, XrdOucString& str)
 {
-  str += "&xrd.secuid=";
+  str += "&xrdcl.secuid=";
   str += std::to_string(uid).c_str();
-  str += "&xrd.secgid=";
+  str += "&xrdcl.secgid=";
   str += std::to_string(gid).c_str();
 }
 
