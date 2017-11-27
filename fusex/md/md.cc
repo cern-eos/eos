@@ -2348,129 +2348,116 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                               md_ino, ino, authid.c_str());
               // we get this when a file update/flush appeared
               shared_md md;
-              {
-                bool create = true;
-                int64_t bookingsize=0;
-                uint64_t pino = 0;
-                mode_t mode = 0;
-                std::string md_clientid;
 
-                {
-                  // MD update logic
-                  {
-		    if (ino) 
-		    {
-		      mdmap.retrieveOrCreateTS(ino, md);
-                      // updated file MD
-                      if (EOS_LOGS_DEBUG)
-                        eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
-                      md->Locker().Lock();
-                      bookingsize = rsp.md_().size() - md->size();
-                      md_clientid = rsp.md_().clientid();
-                      *md = rsp.md_();
-                      md->clear_clientid();
-		      pino = inomap.forward(md->md_pino());
-                      mode = md->mode();
-                      if (EOS_LOGS_DEBUG)
-                        eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+	      int64_t bookingsize = 0;
+	      uint64_t pino = 0;
+	      mode_t mode = 0;
+	      std::string md_clientid;
 
-                      // update the local store
-                      update(req, md, authid, true);
-                      create = false;
+	      // MD update logic                                                                                             
+	      if (ino) {
+		
+		mdmap.retrieveOrCreateTS(ino, md);
+		// updated file MD                                                                                           
+		if (EOS_LOGS_DEBUG) {
+		  eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+		}
+		
+		md->Locker().Lock();
+		bookingsize = rsp.md_().size() - md->size();
+		md_clientid = rsp.md_().clientid();
+		*md = rsp.md_();
+		md->clear_clientid();
+		pino = inomap.forward(md->md_pino());
+		
+		md->set_id(ino);
+		md->set_pid(pino);
+		
+		mode = md->mode();
+		
+		if (EOS_LOGS_DEBUG) {
+		  eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
+		}
+		
+		// update the local store                                                                                    
+		update(req, md, authid, true);
+		md->Locker().UnLock();
+		
+		// adjust local quota                                                                                        
+		cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
+		
+		if (cap->id()) {
+		  if (bookingsize >= 0) {
+		    EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
+		  } else {
+		    EosFuse::Instance().caps.free_volume(cap, (uint64_t) - bookingsize);
+		  }
+		  
+		  EosFuse::instance().caps.book_inode(cap);
+		} else {
+		  eos_static_err("missing quota node for pino=%16x and clientid=%s",
+				 pino, md->clientid().c_str());
+		}
+		
+		// possibly invalidate kernel cache                                                                          
+		if (EosFuse::Instance().Config().options.md_kernelcache ||
+		    EosFuse::Instance().Config().options.data_kernelcache )
+		  {
+		    eos_static_info("invalidate data cache for ino=%016lx", ino);
+		    kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
+		  }
+		
+		if (S_ISREG(mode)) {
+		  // invalidate local disk cache                                                                             
+		  EosFuse::Instance().datas.invalidate_cache(ino);
+		  eos_static_info("invalidate local disk cache for ino=%016lx", ino);
+		}
+	      } else {
+		// new file
+		md = md = std::make_shared<mdx>();
+		*md = rsp.md_();
+		uint64_t new_ino = insert(req, md , authid);
+		uint64_t md_pino = md->md_pino();
+		std::string md_clientid = md->clientid();
+		uint64_t md_size = md->size();
+		md->Locker().Lock();
+		// add to mdmap                                                                                              
+		mdmap.insertTS(new_ino, md);
+		// add to parent                                                                                             
+		uint64_t pino = inomap.forward(md_pino);
+		shared_md pmd;
 
-                      md->Locker().UnLock();
-                    }
-                  }
-                  if (!create)
-                  {
-                    // adjust local quota
-                    cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
-                    if (cap->id())
-                    {
-                      if (bookingsize >= 0)
-                      {
-                        EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
-                      }
-                      else
-                      {
-                        EosFuse::Instance().caps.free_volume(cap, (uint64_t) - bookingsize);
-                      }
-                      EosFuse::instance().caps.book_inode(cap);
-                    }
-                    else
-                    {
-                      eos_static_err("missing quota node for pino=%16x and clientid=%s",
-                                     pino, md->clientid().c_str());
-                    }
-                    // possibly invalidate kernel cache
-		    if (EosFuse::Instance().Config().options.md_kernelcache ||
-			EosFuse::Instance().Config().options.data_kernelcache ) 
-                    {
-                      eos_static_info("invalidate data cache for ino=%016lx", ino);
-                      kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
-                    }
-                    if (S_ISREG(mode))
-                    {
-                      // invalidate local disk cache
-                      EosFuse::Instance().datas.invalidate_cache(ino);
-                      eos_static_info("invalidate local disk cache for ino=%016lx", ino);
-                    }
-                  }
-                }
-
-                if (create)
-                {
-                  // new file
-                  md = md = std::make_shared<mdx>();
-                  *md = rsp.md_();
-                  uint64_t new_ino = insert(req, md , authid);
-                  uint64_t md_pino = md->md_pino();
-                  std::string md_clientid= md->clientid();
-                  uint64_t md_size = md->size();
-
-                  // add to mdmap
-                  mdmap[new_ino] = md;
-                  // add to parent
-                  uint64_t pino = inomap.forward(md_pino);
-
-		  shared_md pmd;
-
-                  if (pino && mdmap.retrieveTS(pino,pmd))
-                  {
-		    if (md->pt_mtime())
-                    {
-		      pmd->set_mtime(md->pt_mtime());
-		      pmd->set_mtime_ns(md->pt_mtime_ns());
-		    }
-
-		    md->clear_pt_mtime();
-		    md->clear_pt_mtime_ns();
-		    add(0, pmd, md, authid, true);
-		    update(req, pmd, authid, true);
-		    inomap.insert(md->md_ino(), md->id());
-
-                    // adjust local quota
-                    cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
-                    if (cap->id())
-                    {
-                      EosFuse::Instance().caps.book_volume(cap, md_size);
-                      EosFuse::instance().caps.book_inode(cap);
-                    }
-                    else
-                    {
-                      eos_static_err("missing quota node for pino=%16x and clientid=%s",
-                                     pino, md->clientid().c_str());
-                    }
-                  }
-                  else
-                  {
-                    eos_static_err("missing parent mapping pino=%16x for ino%16x",
-                                   md_pino,
-                                   md_ino);
-                  }
-                }
-              }
-            }
+		if (pino && mdmap.retrieveTS(pino,pmd)) {
+		  if (md->pt_mtime()) {
+		    pmd->set_mtime(md->pt_mtime());
+		    pmd->set_mtime_ns(md->pt_mtime_ns());
+		  }
+		  
+		  md->clear_pt_mtime();
+		  md->clear_pt_mtime_ns();
+		  inomap.insert(md->md_ino(), md->id());
+		  add(0, pmd, md, authid, true);
+		  update(req, pmd, authid, true);
+		  
+		  // adjust local quota                                                                                      
+		  cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
+		  
+		  if (cap->id()) {
+		    EosFuse::Instance().caps.book_volume(cap, md_size);
+		    EosFuse::instance().caps.book_inode(cap);
+		  } else {
+		    eos_static_err("missing quota node for pino=%16x and clientid=%s",
+				   pino, md->clientid().c_str());
+		  }
+		} else {
+		  eos_static_err("missing parent mapping pino=%16x for ino%16x",
+				 md_pino,
+				 md_ino);
+		}
+		
+		md->Locker().UnLock();
+	      }
+	    }
           }
           else
           {
