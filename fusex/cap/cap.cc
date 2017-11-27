@@ -307,17 +307,14 @@ cap::imply(shared_cap cap,
 /* -------------------------------------------------------------------------- */
 {
   shared_cap implied_cap = std::make_shared<capx>();
-
-  cap->Locker().Lock();
   *implied_cap = *cap;
   implied_cap->set_authid(imply_authid);
   implied_cap->set_id(ino);
   implied_cap->set_vtime(cap->vtime() + 300);
   std::string clientid = cap->clientid();
   std::string cid = capx::capid(ino, clientid);
-  cap->Locker().UnLock();
-
   XrdSysMutexHelper mLock(capmap);
+
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
   return cid;
