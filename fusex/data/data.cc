@@ -788,7 +788,7 @@ ssize_t
 data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  eos_info("offset=%llu count=%lu", offset, count);
+  eos_crit("offset=%llu count=%lu", offset, count);
   mLock.Lock();
 
   if (mFile->journal()) {
@@ -806,7 +806,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       }
     }
   }
-
+  eos_crit("offset=%llu count=%lu m-size=%lu", offset, count, mFile->file()->size());
   buffer = sBufferManager.get_buffer();
 
   if (count > buffer->capacity()) {
@@ -862,9 +862,27 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                           req) : mFile->xrdiorw(req);
   XrdCl::XRootDStatus status;
-  eos_info("offset=%llu count=%lu br=%lu jr=%lu", offset, count, br, jr);
+  eos_crit("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
 
   if (proxy) {
+    if (proxy->IsOpening())
+    {
+      proxy->WaitOpen();
+    }
+
+    if (proxy->OutstandingWrites())
+    {
+      status = proxy->WaitWrite();
+    }
+
+    if (!status.IsOK())
+    {
+      errno = XrdCl::Proxy::status2errno (status);
+
+      eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+      return -1;
+    }
+
     uint32_t bytesRead = 0;
     status = proxy->Read(offset + br + jr,
                          count - br - jr,
