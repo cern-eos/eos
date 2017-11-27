@@ -353,7 +353,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   m.erase("xrd.k5ccname");
   m.erase("xrd.gsiusrpxy");
   m.erase("xrdcl.secuid");
-  m.erase("xrd.secgid");
+  m.erase("xrdcl.secgid");
   // Let the lazy open use an open by inode
   std::string fxid = m["mgm.id"];
   mOpaque += "&eos.lfn=fxid:";
