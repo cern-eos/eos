@@ -101,6 +101,7 @@ eos::mgm::FindCmd::ProcessRequest() {
   if(!purge_atomic) {
     try {
       max_version = std::stoul(purgeversion);
+      purge = true;
     } catch (std::logic_error& err) {
       // this error is handled at client side, should not receive bad input from client
     }
