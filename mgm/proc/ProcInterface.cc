@@ -38,8 +38,8 @@ std::list<std::unique_ptr<IProcCommand>> ProcInterface::mCmdToDel;
 std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
     ProcInterface::mMapCmds;
 eos::common::ThreadPool ProcInterface::sProcThreads(
-  std::max(std::thread::hardware_concurrency() / 10, 1),
-  std::max(std::thread::hardware_concurrency() / 4, 3)
+  std::max(std::thread::hardware_concurrency() / 10, 1u),
+  std::max(std::thread::hardware_concurrency() / 4, 3u)
 );
 
 //------------------------------------------------------------------------------
