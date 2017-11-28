@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.4 Citrine``
+===================
+
+2017-11-28
+
+Bug
+++++
+
+* [EOS-2123] - eosxd renice's to lowest possible priority
+* [EOS-2130] - segv while compiling eos
+* [EOS-2137] - JSON output doesn't work anymore
+
+Improvements
+++++++++++++
+
+* Many improvements and fixes for eosxd
+* Many improvements and fixes for the namespace on QuarkDB
+
+
 ``v4.2.3 Citrine``
 ===================
 
