@@ -105,7 +105,7 @@ FileMD::removeLocation(location_t location)
   for (auto it = mFile.mutable_unlink_locations()->cbegin();
        it != mFile.mutable_unlink_locations()->cend(); ++it) {
     if (*it == location) {
-      mFile.mutable_unlink_locations()->erase(it);
+      it = mFile.mutable_unlink_locations()->erase(it);
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationRemoved, location);
       pFileMDSvc->notifyListeners(&e);
@@ -123,13 +123,12 @@ FileMD::removeAllLocations()
   // @note: This needs to be done like this since the FileSystemView checks at
   // each steps if there are any locations or unlinked locations and then adds
   // the file to the set of files without replicas.
-  auto end = mFile.mutable_unlink_locations()->cend();
   auto it = mFile.mutable_unlink_locations()->cbegin();
 
-  while (it != end) {
+  while (it != mFile.mutable_unlink_locations()->cend()) {
     IFileMDChangeListener::Event
     e(this, IFileMDChangeListener::LocationRemoved, *it);
-    mFile.mutable_unlink_locations()->erase(it++);
+    it = mFile.mutable_unlink_locations()->erase(it);
     pFileMDSvc->notifyListeners(&e);
   }
 }
@@ -144,7 +143,7 @@ FileMD::unlinkLocation(location_t location)
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
       mFile.add_unlink_locations(*it);
-      mFile.mutable_locations()->erase(it);
+      it = mFile.mutable_locations()->erase(it);
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationUnlinked, location);
       pFileMDSvc->notifyListeners(&e);
