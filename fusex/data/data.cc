@@ -409,10 +409,12 @@ bool
 data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
+  size_t file_size = mMd->sizeTS();
+
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
-           mMd->size());
+           file_size);
 
 
   if (mFile && mFile->has_xrdiorw(req))
@@ -421,19 +423,23 @@ data::datax::prefetch(fuse_req_t req, bool lock)
     return true;
   }
 
+
   if (lock)
     mLock.Lock();
 
-  if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && mMd->size())
+  if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && file_size)
   {
     XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
 
     if (proxy)
     {
       XrdCl::XRootDStatus status;
+
+      size_t prefetch_size = std::min((size_t)file_size, (size_t)mFile->file()->prefetch_size());
+
       // send an async read request
-      mPrefetchHandler = proxy->ReadAsyncPrepare(0, mFile->file()->prefetch_size());
-      status = proxy->PreReadAsync(0, mFile->file()->prefetch_size(), mPrefetchHandler, 0);
+      mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size);
+      status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
       if (!status.IsOK())
       {
 
@@ -458,6 +464,8 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   if (lock)
     mLock.Lock();
 
+  size_t file_size = mMd->sizeTS();
+
   if (mPrefetchHandler && mFile->file())
   {
     XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
@@ -467,8 +475,8 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
       XrdCl::XRootDStatus status = proxy->WaitRead(mPrefetchHandler);
       if (status.IsOK())
       {
-        eos_info("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), mMd->size());
-        if ((mPrefetchHandler->vbuffer().size() == mMd->size()) && mFile->file())
+        eos_info("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), file_size);
+        if ((mPrefetchHandler->vbuffer().size() == file_size) && mFile->file())
         {
           ssize_t nwrite = mFile->file()->pwrite(mPrefetchHandler->buffer(), mPrefetchHandler->vbuffer().size(), 0);
           eos_debug("nwb=%lu to local cache", nwrite);
@@ -856,7 +864,7 @@ ssize_t
 data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  eos_info("offset=%llu count=%lu", offset, count);
+  eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->sizeTS());
 
   mLock.Lock();
 
@@ -900,7 +908,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
       return br;
     }
 
-    if ( (br == (ssize_t) count) || (br == (ssize_t) mMd->size()) )
+    if ( (br == (ssize_t) count) || (br == (ssize_t) mMd->sizeTS()) )
     {
       return br;
     }
@@ -1146,8 +1154,16 @@ data::datax::cache_invalidate()
   XrdSysMutexHelper lLock(mLock);
   // truncate the block cache
   int dt = mFile->file()->truncate(0);
-  int jt = mFile->journal() ? mFile->journal()->truncate(0) : 0;
-  mSize = 0;
+  int jt = mFile->journal() ? mFile->journal()->truncate(0, true) : 0;
+
+  for (auto fit = mFile->get_xrdioro().begin();
+       fit != mFile->get_xrdioro().end(); ++fit)
+  {
+    if (fit->second->IsOpen())
+    {
+      fit->second->DropReadAhead();
+    }
+  }
 
   return dt | jt;
 }

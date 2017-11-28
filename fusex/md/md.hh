@@ -234,6 +234,13 @@ public:
       return todelete;
     }
 
+
+    size_t sizeTS() 
+    {
+      XrdSysMutexHelper lLock(mLock);
+      return size();
+    }
+    
     std::map<std::string, uint64_t>& local_children()
     {
       return _local_children;

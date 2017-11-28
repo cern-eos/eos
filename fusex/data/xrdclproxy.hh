@@ -322,6 +322,20 @@ namespace XrdCl
       }
     }
 
+    void DropReadAhead()
+    {
+      WaitWrite();
+      XrdSysCondVarHelper lLock(ReadCondVar());
+      for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
+      {
+        XrdSysCondVarHelper llLock(it->second->ReadCondVar());
+        while ( !it->second->done() )
+          it->second->ReadCondVar().WaitMS(25);
+      }
+      ChunkRMap().clear();
+    }
+
+    
     // ---------------------------------------------------------------------- //
 
     virtual ~Proxy()
