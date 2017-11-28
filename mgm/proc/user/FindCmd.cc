@@ -94,6 +94,10 @@ eos::mgm::FindCmd::ProcessRequest() {
   bool printxurl = findRequest.xurl();
   bool layoutstripes = findRequest.dolayoutstripes();
 
+  bool nofiles = findRequest.directories() && !findRequest.files();
+  bool nodirs = findRequest.files();
+  bool dirs = findRequest.directories();
+
   auto max_version = 999999ul;
   time_t selectoldertime = (time_t) olderthan;
   time_t selectyoungertime = (time_t) youngerthan;
@@ -102,6 +106,7 @@ eos::mgm::FindCmd::ProcessRequest() {
     try {
       max_version = std::stoul(purgeversion);
       purge = true;
+      dirs = true;
     } catch (std::logic_error& err) {
       // this error is handled at client side, should not receive bad input from client
     }
@@ -153,9 +158,6 @@ eos::mgm::FindCmd::ProcessRequest() {
          delete ptr;
        });
   }
-
-  bool nofiles = findRequest.directories() && !findRequest.files();
-  bool nodirs = findRequest.files();
 
   // check what <path> actually is ...
   XrdSfsFileExistence file_exists;
@@ -222,9 +224,9 @@ eos::mgm::FindCmd::ProcessRequest() {
   unsigned long long filecounter = 0;
   unsigned long long dircounter = 0;
 
-  if (findRequest.files() || !findRequest.directories()) {
+  if (findRequest.files() || !dirs) {
     for (auto& foundit : *found) {
-      if (!findRequest.directories() && !findRequest.files() && !nodirs) {
+      if (!findRequest.files() && !nodirs) {
         if (!printcounter) {
           if (printxurl) {
             ofstdoutStream << url;
@@ -676,7 +678,8 @@ eos::mgm::FindCmd::ProcessRequest() {
 
   eos_debug("Listing directories");
 
-  if (findRequest.directories()) {
+  if (dirs) {
+    cerr << "directories" << endl;
     for (auto& foundit : *found) {
       // Filtering the directories
       bool selected = true;

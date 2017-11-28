@@ -1384,7 +1384,10 @@ FindHelper::FindAs3(std::string path) {
 
   if (WEXITSTATUS(rc)) {
     std::cerr << "error: failed to run " << cmd << std::endl;
+    return rc;
   }
+
+  return 0;
 }
 
 void com_find_help()
