@@ -2406,7 +2406,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 		}
 	      } else {
 		// new file
-		md = md = std::make_shared<mdx>();
+		md = std::make_shared<mdx>();
 		*md = rsp.md_();
 		uint64_t new_ino = insert(req, md , authid);
 		uint64_t md_pino = md->md_pino();
