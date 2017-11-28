@@ -149,7 +149,6 @@ ConvertContainerMD::updateInternal()
   pMode ^= S_ISGID;
   mCont.set_mode(pMode);
   mCont.set_flags(pFlags);
-  mCont.set_acl_id(pACLId);
   mCont.set_name(pName);
   mCont.set_ctime(&pCTime, sizeof(pCTime));
   mCont.set_mtime(&pCTime, sizeof(pCTime));
