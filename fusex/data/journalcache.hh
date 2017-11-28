@@ -74,7 +74,7 @@ public:
   ssize_t pread( void *buf, size_t count, off_t offset );
   ssize_t pwrite( const void *buf, size_t count, off_t offset );
 
-  int truncate( off_t );
+  int truncate( off_t, bool invalidate=false );
   int sync();
 
   size_t size();

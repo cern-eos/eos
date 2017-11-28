@@ -349,15 +349,21 @@ ssize_t journalcache::pwrite(const void* buf, size_t count, off_t offset)
   return count;
 }
 
-int journalcache::truncate(off_t offset)
+int journalcache::truncate(off_t offset, bool invalidate)
 {
   int rc = 0;
   write_lock lck(clck);
 
   if (offset) {
     truncatesize = offset;
-  } else {
-    truncatesize = 0;
+  }
+  else
+  {
+    // distinguish cache invalidation from 0 truncation
+    if (invalidate)
+      truncatesize = -1;
+    else
+      truncatesize = 0;
     journal.clear();
     cachesize = 0;
     ::ftruncate(fd, 0);

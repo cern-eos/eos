@@ -267,6 +267,7 @@ public:
 private:
 
   cmap capmap;
+  cmap capextionsmap;
   qmap quotamap;
 
   backend* mdbackend;

@@ -233,6 +233,13 @@ public:
       return todelete;
     }
 
+
+    size_t sizeTS() 
+    {
+      XrdSysMutexHelper lLock(mLock);
+      return size();
+    }
+    
     std::map<std::string, uint64_t>& local_children()
     {
       return _local_children;
@@ -348,6 +355,37 @@ public:
     {
       XrdSysMutexHelper mLock(this);
       this->erase(ino);
+    }
+
+    void retrieveWithParentTS(fuse_ino_t ino, shared_md &md, shared_md &pmd) {
+      // Atomically retrieve md objects for an inode, and its parent.
+
+      while(true) {
+        // In this particular case, we need to first lock mdmap, and then
+        // md.. The following algorithm is meant to avoid deadlocks with code
+        // which locks md first, and then mdmap.
+
+        md.reset();
+        pmd.reset();
+
+        XrdSysMutexHelper mLock(this);
+        if(!retrieve(ino, md)) {
+          return; // ino not there, nothing to do
+        }
+
+        // md has been found. Can we lock it?
+        if(md->Locker().CondLock()) {
+          // Success!
+          retrieve(md->pid(), pmd);
+          md->Locker().UnLock();
+          return;
+        }
+
+        // Nope, unlock mdmap and try again.
+        mLock.UnLock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+
     }
 
   } ;
