@@ -1977,6 +1977,10 @@ Master::BootNamespace()
     MasterLog(eos_crit("initialization returned ec=%d %s", e.getErrno(),
                        e.getMessage().str().c_str()));
     return false;
+  } catch (const std::runtime_error& qdb_err) {
+    MasterLog(eos_crit("eos view initialization failed, unable to connect to "
+                       "QuarkDB cluster, reason: %s", qdb_err.what()));
+    return false;
   }
 }
 
