@@ -1,12 +1,11 @@
 #ifdef __MACH__
 #include <mach/mach_time.h>
 #ifndef CLOCK_REALTIME
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define CLOCK_REALTIME 0
-#endif
-
-#ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC 0
-#endif
+#define CLOCK_REALTIME_COARSE 0
+
 int clock_gettime(int clk_id, struct timespec *t){
   mach_timebase_info_data_t timebase;
   mach_timebase_info(&timebase);
@@ -18,6 +17,8 @@ int clock_gettime(int clk_id, struct timespec *t){
   t->tv_nsec = nseconds;
   return 0;
 }
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#endif
 #else
 #include <time.h>
 #endif
