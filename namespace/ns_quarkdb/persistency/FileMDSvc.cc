@@ -109,6 +109,13 @@ FileMDSvc::initialize()
   }
 
   SafetyCheck();
+  std::ostringstream oss;
+
+  if (!checkFiles(oss)) {
+    MDException e(EINVAL);
+    e.getMessage()  << __FUNCTION__ << oss.str();
+    throw e;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -331,22 +338,24 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 // Check file object consistency
 //------------------------------------------------------------------------------
 bool
-FileMDSvc::checkFiles()
+FileMDSvc::checkFiles(std::ostringstream& oss)
 {
   bool is_ok = true;
   std::string cursor {"0"};
   std::pair<std::string, std::vector<std::string>> reply;
   std::list<std::string> to_drop;
+  oss << "Inconsistent file ids: ";
 
   do {
     reply = mDirtyFidBackend.sscan(cursor);
     cursor = reply.first;
 
-    for (auto && elem : reply.second) {
+    for (const auto& elem : reply.second) {
       if (checkFile(std::stoull(elem))) {
         to_drop.emplace_back(elem);
       } else {
         is_ok = false;
+        oss << elem << " ";
       }
     }
   } while (cursor != "0");
@@ -356,9 +365,14 @@ FileMDSvc::checkFiles()
       if (mDirtyFidBackend.srem(to_drop) != (long long int) to_drop.size()) {
         fprintf(stderr, "Failed to drop files that have been fixed\n");
       }
-    } catch (std::runtime_error& e) {
+    } catch (const std::runtime_error& e) {
       fprintf(stderr, "Failed to drop files that have been fixed\n");
     }
+  }
+
+  if (is_ok) {
+    oss.str("");
+    oss.clear();
   }
 
   return is_ok;
@@ -374,14 +388,13 @@ FileMDSvc::checkFile(std::uint64_t fid)
   try {
     std::shared_ptr<IFileMD> file = getFileMD(fid);
 
-    for (auto && elem : pListeners) {
+    for (const auto& elem : pListeners) {
       if (!elem->fileMDCheck(file.get())) {
         return false;
       }
     }
-  } catch (MDException& e) {
-    fprintf(stderr, "[%s] Fid: %lu not found.\n", __FUNCTION__, fid);
-    return false;
+  } catch (const MDException& e) {
+    // File id not found
   }
 
   return true;
