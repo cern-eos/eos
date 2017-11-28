@@ -149,7 +149,6 @@ ConvertContainerMD::updateInternal()
   pMode ^= S_ISGID;
   mCont.set_mode(pMode);
   mCont.set_flags(pFlags);
-  mCont.set_acl_id(pACLId);
   mCont.set_name(pName);
   mCont.set_ctime(&pCTime, sizeof(pCTime));
   mCont.set_mtime(&pCTime, sizeof(pCTime));
@@ -359,9 +358,9 @@ ConvertContainerMD::convertAclToNumeric(std::string& acl_val)
       if (errc) {
         oss.str("");
         oss << "failed to convert id: \"" << sid << "\" to numeric format";
-        // Print error message but still return the original value that we have
+        // Print error message and fall-back to uid daemon (2)
         eos_static_err(oss.str().c_str());
-        string_id = sid;
+        string_id = "2";
       }
 
       oss << tokens[0] << ':' << string_id << ':' << tokens[2] << ',';

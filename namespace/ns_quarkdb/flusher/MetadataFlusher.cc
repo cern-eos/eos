@@ -55,6 +55,14 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+MetadataFlusher::~MetadataFlusher()
+{
+  synchronize();
+}
+
+//------------------------------------------------------------------------------
 // Regularly print queue statistics
 //------------------------------------------------------------------------------
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)

@@ -102,10 +102,10 @@ FileMD::replaceLocation(unsigned int index, location_t newlocation)
 void
 FileMD::removeLocation(location_t location)
 {
-  for (auto it = mFile.unlink_locations().cbegin();
-       it != mFile.unlink_locations().cend(); ++it) {
+  for (auto it = mFile.mutable_unlink_locations()->cbegin();
+       it != mFile.mutable_unlink_locations()->cend(); ++it) {
     if (*it == location) {
-      mFile.mutable_unlink_locations()->erase(it);
+      it = mFile.mutable_unlink_locations()->erase(it);
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationRemoved, location);
       pFileMDSvc->notifyListeners(&e);
@@ -120,14 +120,17 @@ FileMD::removeLocation(location_t location)
 void
 FileMD::removeAllLocations()
 {
-  for (auto it = mFile.unlink_locations().cbegin();
-       it != mFile.unlink_locations().cend(); ++it) {
+  // @note: This needs to be done like this since the FileSystemView checks at
+  // each steps if there are any locations or unlinked locations and then adds
+  // the file to the set of files without replicas.
+  auto it = mFile.mutable_unlink_locations()->cbegin();
+
+  while (it != mFile.mutable_unlink_locations()->cend()) {
     IFileMDChangeListener::Event
     e(this, IFileMDChangeListener::LocationRemoved, *it);
+    it = mFile.mutable_unlink_locations()->erase(it);
     pFileMDSvc->notifyListeners(&e);
   }
-
-  mFile.clear_unlink_locations();
 }
 
 //------------------------------------------------------------------------------
@@ -136,11 +139,11 @@ FileMD::removeAllLocations()
 void
 FileMD::unlinkLocation(location_t location)
 {
-  for (auto it = mFile.locations().cbegin();
-       it != mFile.locations().cend(); ++it) {
+  for (auto it = mFile.mutable_locations()->cbegin();
+       it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
       mFile.add_unlink_locations(*it);
-      mFile.mutable_locations()->erase(it);
+      it = mFile.mutable_locations()->erase(it);
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationUnlinked, location);
       pFileMDSvc->notifyListeners(&e);

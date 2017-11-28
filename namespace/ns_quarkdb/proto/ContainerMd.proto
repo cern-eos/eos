@@ -17,6 +17,4 @@ message ContainerMdProto {
   bytes mtime = 10; // modification time
   bytes stime = 11; // sync time
   map<string, bytes> xattrs = 12;
-  // @todo (esindril): This is not actually used, we should drop it
-  uint32 acl_id = 13;
 }

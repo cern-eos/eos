@@ -157,6 +157,7 @@ TEST(FileMDSvc, CheckFileTest)
   file->unlinkLocation(4);
   view->updateFileStore(file.get());
   // Corrupt the backend KV store
+  std::ostringstream oss;
   std::string key;
   qclient::QClient* qcl = eos::BackendClient::getInstance(
                             qclient::Members::fromString(config["qdb_cluster"]));
@@ -176,7 +177,7 @@ TEST(FileMDSvc, CheckFileTest)
   // Introduce file in the set to be checked and trigger a check
   fs_set.setKey(eos::constants::sSetCheckFiles);
   ASSERT_NO_THROW(fs_set.sadd(sfid));
-  ASSERT_TRUE(fileSvc->checkFiles());
+  ASSERT_TRUE(fileSvc->checkFiles(oss));
   // Check that the back-end KV store is consistent
   flusher->synchronize();
   key = eos::keyFilesystemFiles(1);

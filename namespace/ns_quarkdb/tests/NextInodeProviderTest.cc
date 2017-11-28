@@ -58,6 +58,7 @@ TEST(NextInodeProvider, BasicSanity)
       ASSERT_EQ(inodeProvider.reserve(), i);
     }
   }
+  qcl.del("ns-tests-next-inode-provider");
 }
 
 EOSNSTESTING_END

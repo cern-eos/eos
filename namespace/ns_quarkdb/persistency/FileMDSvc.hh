@@ -152,9 +152,11 @@ public:
   //! Check files that had errors - these are stored in a separate set in the
   //! KV store.
   //!
+  //! @param oss output string stream
+  //!
   //! @return true if all files are consistent, otherwise false
   //----------------------------------------------------------------------------
-  bool checkFiles();
+  bool checkFiles(std::ostringstream& oss);
 
   //----------------------------------------------------------------------------
   //! Get first free file id

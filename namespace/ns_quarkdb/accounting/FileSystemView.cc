@@ -151,7 +151,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 //------------------------------------------------------------------------------
 // Recheck the current file object and make any modifications necessary so
 // that the information is consistent in the back-end KV store.
-// @todo (esindril): review this
 //------------------------------------------------------------------------------
 bool
 FileSystemView::fileMDCheck(IFileMD* file)
@@ -163,7 +162,6 @@ FileSystemView::fileMDCheck(IFileMD* file)
   bool has_no_replicas = replica_locs.empty() && unlink_locs.empty();
   std::string cursor {"0"};
   std::pair<std::string, std::vector<std::string>> reply;
-  std::atomic<bool> has_error{false};
   qclient::AsyncHandler ah;
 
   // If file has no replicas make sure it's accounted for
@@ -175,7 +173,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
                 pNoReplicasSet.getClient());
   }
 
-  // Make sure all active locations are accounted for.
+  // Make sure all active locations are accounted for
   qclient::QSet replica_set(*pQcl, "");
 
   for (IFileMD::location_t location : replica_locs) {
@@ -192,9 +190,6 @@ FileSystemView::fileMDCheck(IFileMD* file)
   }
 
   // Make sure there's no other filesystems that erroneously contain this file.
-  // This will generate a gazillion writes towards QuarkDB, one for each
-  // filesystem not containing the file.. which is almost all of them!
-  // Maybe rethink if there's a better way?
   for (auto it = this->getFileSystemIterator(); it->valid(); it->next()) {
     IFileMD::location_t fsid = it->getElement();
 
@@ -212,8 +207,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
   }
 
   // Wait for all async responses
-  (void) ah.Wait();
-  return !has_error;
+  return ah.Wait();
 }
 
 //------------------------------------------------------------------------------

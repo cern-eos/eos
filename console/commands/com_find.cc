@@ -33,6 +33,8 @@ extern int com_file(char*);
 int
 com_find(char* arg1)
 {
+  XrdPosixXrootd Xroot;
+
   // split subcommands
   XrdOucString oarg = arg1;
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -382,7 +384,6 @@ com_find(char* arg1)
     do {
       struct stat buf;
       found_dirs.resize(deepness + 2);
-
       // loop over all directories in that deepness
       for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
         Path = found_dirs[deepness][i].c_str();
@@ -392,14 +393,13 @@ com_find(char* arg1)
         int rstat = 0;
         rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf) : stat(url.c_str(),
                 &buf);
-
         if (!rstat) {
           //
           if (S_ISDIR(buf.st_mode)) {
             // add all children
+
             DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(
                          url.c_str());
-
             if (dir) {
               struct dirent* entry;
 
@@ -835,6 +835,10 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
+
+  int FindXroot(std::string path);
+
+  int FindAs3(std::string path);
 };
 
 
@@ -1139,6 +1143,253 @@ FindHelper::ParseCommand(const char* arg)
   return true;
 }
 
+int
+FindHelper::FindXroot(std::string path) {
+  XrdPosixXrootd Xroot;
+
+  if (path.rfind('/') != path.length() - 1) {
+    if (path.rfind(':') != path.length() - 1) {
+      // if the user gave file: as a search path we shouldn't add '/'=root
+      path += "/";
+    }
+  }
+
+  bool XRootD = path.find("root:") == 0;
+  std::vector< std::vector<std::string> > found_dirs;
+  std::map<std::string, std::set<std::string> > found;
+  XrdOucString protocol;
+  XrdOucString hostport;
+  XrdOucString sPath;
+
+  if (path == "/") {
+    std::cerr << "error: I won't do a find on '/'" << std::endl;
+    global_retc = EINVAL;
+    return (0);
+  }
+
+  const char* v = nullptr;
+
+  if (!(v = eos::common::StringConversion::ParseUrl(path.c_str(), protocol,
+                                                    hostport))) {
+    global_retc = EINVAL;
+    return (0);
+  }
+
+  sPath = v;
+  std::string Path = v;
+
+  if (sPath == "" && (protocol == "file")) {
+    sPath = getenv("PWD");
+    Path = getenv("PWD");
+
+    if (!sPath.endswith("/")) {
+      sPath += "/";
+      Path += "/";
+    }
+  }
+
+  found_dirs.resize(1);
+  found_dirs[0].resize(1);
+  found_dirs[0][0] = Path.c_str();
+  int deepness = 0;
+
+  do {
+    struct stat buf;
+    found_dirs.resize(deepness + 2);
+
+    // loop over all directories in that deepness
+    for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
+      Path = found_dirs[deepness][i].c_str();
+      XrdOucString url = "";
+      eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
+                                               Path.c_str(), url);
+      int rstat = 0;
+      rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf) : stat(url.c_str(), &buf);
+
+      if (rstat == 0) {
+        //
+        if (S_ISDIR(buf.st_mode)) {
+          // add all children
+          DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(url.c_str());
+
+          if (dir != nullptr) {
+            struct dirent* entry;
+
+            while ((entry = (XRootD) ? XrdPosixXrootd::Readdir(dir) : readdir(dir))) {
+              XrdOucString curl = "";
+              XrdOucString cpath = Path.c_str();
+              cpath += entry->d_name;
+
+              if ((!strcmp(entry->d_name, ".")) || (!strcmp(entry->d_name, ".."))) {
+                continue;  // skip . and .. directories
+              }
+
+              eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
+                                                       cpath.c_str(), curl);
+
+              if (!((XRootD) ? XrdPosixXrootd::Stat(curl.c_str(), &buf) : stat(curl.c_str(),
+                                                                               &buf))) {
+                if (S_ISDIR(buf.st_mode)) {
+                  curl += "/";
+                  cpath += "/";
+                  found_dirs[deepness + 1].push_back(cpath.c_str());
+                  (void) found[curl.c_str()].size();
+                } else {
+                  found[url.c_str()].insert(entry->d_name);
+                }
+              }
+            }
+
+            (XRootD) ? XrdPosixXrootd::Closedir(dir) : closedir(dir);
+          }
+        }
+      }
+    }
+
+    deepness++;
+  } while (found_dirs[deepness].size());
+
+  for (const auto& it : found) {
+    std::cout << it.first << std::endl;
+
+    for (const auto& sit : it.second) {
+      std::cout << it.first << sit << std::endl;
+    }
+  }
+
+  return 0;
+}
+
+int
+FindHelper::FindAs3(std::string path) {
+  // ----------------------------------------------------------------
+  // this is nightmare code because of a missing proper CLI for S3
+  // ----------------------------------------------------------------
+  XrdOucString hostport;
+  XrdOucString protocol;
+  int rc = system("which s3 >&/dev/null");
+
+  if (WEXITSTATUS(rc)) {
+    std::cerr << "error: you miss the <s3> executable provided by libs3 in your PATH" << std::endl;
+    exit(-1);
+  }
+
+  if (path.rfind('/') == path.length()) {
+    path.erase(path.length() - 1);
+  }
+
+  XrdOucString sPath = path.c_str();
+  XrdOucString sOpaque;
+  int qpos = 0;
+
+  if ((qpos = sPath.find("?")) != STR_NPOS) {
+    sOpaque.assign(sPath, qpos + 1);
+    sPath.erase(qpos);
+  }
+
+  XrdOucString fPath = eos::common::StringConversion::ParseUrl(sPath.c_str(),
+                                                               protocol, hostport);
+  XrdOucEnv env(sOpaque.c_str());
+
+  if (env.Get("s3.key")) {
+    setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
+  }
+
+  if (env.Get("s3.id")) {
+    setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
+  }
+
+  // Apply the ROOT compatability environment variables
+  const char* cstr = getenv("S3_ACCESS_KEY");
+
+  if (cstr) {
+    setenv("S3_SECRET_ACCESS_KEY", cstr, 1);
+  }
+
+  cstr = getenv("S3_ACESSS_ID");
+
+  if (cstr) {
+    setenv("S3_ACCESS_KEY_ID", cstr, 1);
+  }
+
+  // check that the environment is set
+  if (!getenv("S3_ACCESS_KEY_ID") ||
+      !getenv("S3_HOSTNAME") ||
+      !getenv("S3_SECRET_ACCESS_KEY")) {
+    std::cerr << "error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY" << std::endl;
+    global_retc = EINVAL;
+    return (0);
+  }
+
+  XrdOucString s3env;
+  s3env = "env S3_ACCESS_KEY_ID=";
+  s3env += getenv("S3_ACCESS_KEY_ID");
+  s3env += " S3_HOSTNAME=";
+  s3env += getenv("S3_HOSTNAME");
+  s3env += " S3_SECRET_ACCESS_KEY=";
+  s3env += getenv("S3_SECRET_ACCESS_KEY");
+  XrdOucString cmd = "bash -c \"";
+  cmd += s3env;
+  cmd += " s3 list ";
+  // extract bucket from path
+  int bpos = fPath.find("/");
+  XrdOucString bucket;
+
+  if (bpos != STR_NPOS) {
+    bucket.assign(fPath, 0, bpos - 1);
+  } else {
+    bucket = fPath.c_str();
+  }
+
+  XrdOucString match;
+
+  if (bpos != STR_NPOS) {
+    match.assign(fPath, bpos + 1);
+  } else {
+    match = "";
+  }
+
+  if ((!bucket.length()) || (bucket.find("*") != STR_NPOS)) {
+    std::cerr << "error: no bucket specified or wildcard in bucket name!" << std::endl;
+    global_retc = EINVAL;
+    return (0);
+  }
+
+  cmd += bucket.c_str();
+  cmd += " | awk '{print \\$1}' ";
+
+  if (match.length()) {
+    if (match.endswith("*")) {
+      match.erase(match.length() - 1);
+      match.insert("^", 0);
+    }
+
+    if (match.beginswith("*")) {
+      match.erase(0, 1);
+      match += "$";
+    }
+
+    cmd += " | egrep '";
+    cmd += match.c_str();
+    cmd += "'";
+  }
+
+  cmd += " | grep -v 'Bucket' | grep -v '\\-\\-\\-\\-\\-\\-\\-\\-\\-\\-' | grep -v 'Key' | awk -v prefix=";
+  cmd += "'";
+  cmd += bucket.c_str();
+  cmd += "' ";
+  cmd += "'{print \\\"as3:\\\"prefix\\\"/\\\"\\$1}'";
+  cmd += "\"";
+  rc = system(cmd.c_str());
+
+  if (WEXITSTATUS(rc)) {
+    std::cerr << "error: failed to run " << cmd << std::endl;
+    return rc;
+  }
+
+  return 0;
+}
+
 void com_find_help()
 {
   std::ostringstream oss;
@@ -1194,6 +1445,30 @@ com_find_new(char* arg)
   }
 
   FindHelper find;
+
+  // Handle differently if it's an xroot, file or as3 path
+  std::string argStr(arg);
+  auto xrootAt = argStr.rfind("root://");
+  auto fileAt = argStr.rfind("file:");
+  auto as3At = argStr.rfind("as3:");
+  if (xrootAt != std::string::npos) {
+    auto path = argStr.substr(xrootAt);
+    // remove " from the path
+    path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+    return find.FindXroot(path);
+  }
+  else if (fileAt != std::string::npos) {
+    auto path = argStr.substr(fileAt);
+    // remove " from the path
+    path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+    return find.FindXroot(path);
+  }
+  else if (as3At != std::string::npos) {
+    auto path = argStr.substr(as3At);
+    // remove " from the path
+    path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+    return find.FindAs3(path);
+  }
 
   if (!find.ParseCommand(arg)) {
     com_find_help();

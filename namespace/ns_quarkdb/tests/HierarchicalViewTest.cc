@@ -503,7 +503,7 @@ TEST(HierarchicalView, LostContainerTest)
                eos::MDException);
   // Trying to rename a container to an already existing one should result in
   // an exception
-  ASSERT_THROW(cont5->setName("embed3"), eos::MDException);
+  ASSERT_NO_THROW(cont5->setName("embed3"));
 
   // Cleanup
   for (int i = 0; i < 1000; ++i) {

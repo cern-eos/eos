@@ -37,7 +37,10 @@ std::mutex ProcInterface::mMutexCmds;
 std::list<std::unique_ptr<IProcCommand>> ProcInterface::mCmdToDel;
 std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
     ProcInterface::mMapCmds;
-eos::common::ThreadPool ProcInterface::sProcThreads;
+eos::common::ThreadPool ProcInterface::sProcThreads(
+  std::max(std::thread::hardware_concurrency() / 10, 1u),
+  std::max(std::thread::hardware_concurrency() / 4, 3u)
+);
 
 //------------------------------------------------------------------------------
 // Factory method to get a ProcCommand object
