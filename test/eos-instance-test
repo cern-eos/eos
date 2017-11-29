@@ -728,7 +728,7 @@ runtest "### Cleanup    " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/st
 runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
-runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
+runtest "### Find      " unix 0 "" eos "find 2>&1 | grep Usage"
 runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 
 ################################################################################
