@@ -83,6 +83,7 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 set(EOSCOMMON_SRCS
   Fmd.cc
   Mapping.cc
+  ClockGetTime.cc
   Statfs.cc
   SymKeys.cc
   GlobalConfig.cc
