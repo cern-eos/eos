@@ -1247,6 +1247,7 @@ Master::Activate (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype
     stdOut += "\n";
   }
 
+  MasterLog(eos_static_notice(stdOut.c_str()));
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
 
   if (transitiontype != kSlaveToMaster)
