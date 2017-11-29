@@ -208,7 +208,7 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
   EOS_RWMUTEX_TIMER_START;
   int retc = 0;
   struct timespec timeout = {0};
-  clock_gettime(CLOCK_REALTIME, &timeout);
+  _clock_gettime(CLOCK_REALTIME, &timeout);
 
   if (timeout_ms > 1000) {
     timeout.tv_sec += (timeout_ms / 1000);
@@ -267,7 +267,7 @@ RWMutex::LockReadCancel()
 
   while (1) {
     struct timespec readtimeout = {0};
-    clock_gettime(CLOCK_REALTIME, &readtimeout);
+    _clock_gettime(CLOCK_REALTIME, &readtimeout);
     // Add time for timeout value
     readtimeout.tv_sec  += rlocktime.tv_sec;
     readtimeout.tv_nsec += rlocktime.tv_nsec;
@@ -349,7 +349,7 @@ RWMutex::LockWrite()
     // the lock queue.
     while (1) {
       struct timespec writetimeout = {0};
-      clock_gettime(CLOCK_REALTIME, &writetimeout);
+      _clock_gettime(CLOCK_REALTIME, &writetimeout);
       // Add time for timeout value
       writetimeout.tv_sec  += wlocktime.tv_sec;
       writetimeout.tv_nsec += wlocktime.tv_nsec;
