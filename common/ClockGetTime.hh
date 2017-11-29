@@ -9,7 +9,7 @@
 #define CLOCK_REALTIME_COARSE 0
 #endif 
 
-int _clock_gettime(int clk_id, struct timespec *t){
+int _clock_gettime(clockid_t clk_id, struct timespec *t){
   if (clock_gettime == 0)
   {
     mach_timebase_info_data_t timebase;
