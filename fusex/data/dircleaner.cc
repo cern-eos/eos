@@ -196,8 +196,8 @@ dircleaner::trim(bool force)
     bool files_ok = true;
 
     // an external cache can give change hints via the externaltree
-    int64_t tree_size = treeinfo.totalsize + externaltree.get_size();
-    int64_t tree_files = treeinfo.totalfiles + externaltree.get_files();
+    int64_t tree_size = treeinfo.get_size() + externaltree.get_size();
+    int64_t tree_files = treeinfo.get_files() + externaltree.get_files();
 
     eos_static_info("max-size=%ld is-size=%ld max-files=%lld is-files=%ld force=%d",
                     max_size, tree_size,
@@ -223,16 +223,16 @@ dircleaner::trim(bool force)
 
   for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it)
   {
-    eos_static_debug("is-size %lld max-size %lld", treeinfo.totalsize, max_size);
+    eos_static_debug("is-size %lld max-size %lld", treeinfo.get_size(), max_size);
     bool size_ok = true;
     bool files_ok = true;
 
-    if (max_size && (treeinfo.totalsize > max_size))
+    if (max_size && (treeinfo.get_size() > max_size))
     {
       size_ok = false;
     }
 
-    if (max_files && (treeinfo.totalfiles > max_files))
+    if (max_files && (treeinfo.get_files() > max_files))
     {
       files_ok = false;
     }
@@ -241,15 +241,14 @@ dircleaner::trim(bool force)
     if (size_ok && files_ok)
       return 0;
 
-    eos_static_info("erasing %s %ld => %ld", it->second.path.c_str(), treeinfo.totalsize, it->second.size);
+    eos_static_info("erasing %s %ld => %ld", it->second.path.c_str(), treeinfo.get_size(), it->second.size);
     if (::unlink(it->second.path.c_str()))
     {
       eos_static_err("failed to unlink file %s errno=%d", it->second.path.c_str(), errno);
     }
     else
     {
-      treeinfo.totalfiles--;
-      treeinfo.totalsize-=it->second.size;
+      treeinfo.change(-it->second.size,-1);
     }
   }
   return 0;

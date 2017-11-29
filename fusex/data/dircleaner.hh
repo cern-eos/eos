@@ -65,7 +65,7 @@ public:
     void Print(std::string& out);
     XrdSysMutex Locker;
 
-    // thrad safe change size, files
+    // thread safe change size, files
     void change(int64_t size, int64_t files)
     {
       eos_static_info("size=%ld files=%ld", size, files);
