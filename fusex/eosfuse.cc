@@ -1162,7 +1162,7 @@ EosFuse::DumpStatistic(ThreadAssistant &assistant)
     eos::common::LinuxMemConsumption::linux_mem_t mem;
     eos::common::LinuxStat::linux_stat_t osstat;
 
-#ifbdef __APPLE__
+#ifndef __APPLE__
     if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem))
     {
       eos_static_err("failed to get the MEM usage information");
