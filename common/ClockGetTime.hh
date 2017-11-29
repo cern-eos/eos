@@ -1,3 +1,5 @@
+#include <time.h>
+
 #ifdef __MACH__
 #include <mach/mach_time.h>
 #ifndef CLOCK_REALTIME
@@ -8,7 +10,7 @@
 #endif 
 
 int _clock_gettime(int clk_id, struct timespec *t){
-  if (clock_gettime == null)
+  if (clock_gettime == 0)
   {
     mach_timebase_info_data_t timebase;
     mach_timebase_info(&timebase);
