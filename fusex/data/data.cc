@@ -751,7 +751,11 @@ data::datax::pwrite(fuse_req_t req, const void *buf, size_t count, off_t offset)
 
   if (mFile->file())
   {
-    dw = mFile->file()->pwrite(buf, count, offset);
+    if (mFile->file()->size())
+    {
+      // don't write into the file start cache, if it is currently empty since it indicates we never prefetched this file
+      dw = mFile->file()->pwrite(buf, count, offset);
+    }
   }
 
   if (dw < 0)
