@@ -692,7 +692,11 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
   ssize_t dw = 0 ;
 
   if (mFile->file()) {
-    dw = mFile->file()->pwrite(buf, count, offset);
+    if (mFile->file()->size())
+    {
+      // don't write into the file start cache, if it is currently empty since it indicates we never prefetched this file
+      dw = mFile->file()->pwrite(buf, count, offset);
+    }
   }
 
   if (dw < 0) {
@@ -809,7 +813,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       }
     }
   }
-  eos_crit("offset=%llu count=%lu m-size=%lu", offset, count, mFile->file()->size());
+
   buffer = sBufferManager.get_buffer();
 
   if (count > buffer->capacity()) {
