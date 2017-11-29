@@ -3968,6 +3968,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 
   cap::shared_cap pcap;
   std::string attrlist;
+  size_t attrlistsize=0;
 
   metad::shared_md md;
 
@@ -4001,7 +4002,6 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
     {
       auto map = md->attr();
 
-      size_t attrlistsize=0;
       attrlist="";
 
       for ( auto it = map.begin(); it != map.end(); ++it)
@@ -4011,11 +4011,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         attrlist += '\0';
       }
 
-      if (size == 0 )
-      {
-        fuse_reply_xattr (req, attrlistsize);
-      }
-      else
+      if (size != 0 )
       {
         if (attrlist.size() > size)
         {
@@ -4028,7 +4024,12 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   if (rc)
     fuse_reply_err (req, rc);
   else
-    fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
+  {
+    if (size == 0)
+      fuse_reply_xattr (req, attrlistsize);
+    else
+      fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
+  }
 
   EXEC_TIMING_END(__func__);
 
