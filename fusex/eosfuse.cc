@@ -2976,7 +2976,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 	}
 	else
 	{
-	  rc = rc?(errno?errno:EIO):0;
+	  rc = errno?errno:EIO;
 	}
 	if (Instance().Config().options.global_flush)
 	{
