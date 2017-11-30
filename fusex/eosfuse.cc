@@ -2730,10 +2730,10 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           Instance().mds.add(req, pmd, md, pcap->authid());
         }
 
-        Instance().caps.book_inode(pcap);
-        memset(&e, 0, sizeof(e));
+	memset(&e, 0, sizeof (e));
 
         if (!rc) {
+	  Instance().caps.book_inode(pcap);
           md->convert(e);
           md->lookup_inc();
 
