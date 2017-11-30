@@ -47,7 +47,7 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
   notifier(*this),
   qcl(qdb_members, true,
 {
-  true, std::chrono::seconds(60)
+  false, std::chrono::seconds(0)
 }),
 backgroundFlusher(qcl, notifier, 50000 /* size limit */,
                   5000 /* pipeline length */,
