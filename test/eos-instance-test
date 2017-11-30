@@ -252,7 +252,7 @@ timeout() {
 }
 
 meta() {
-    echo xrdfs $EOS_TEST_REDIRECTOR $1 $2\?$3 >& $EOSLASTLOG ; $XROOTSYS/bin/xrdfs $EOS_TEST_REDIRECTOR $1 $2\?$3 >> $EOSCERTLOG 2>&1
+    echo xrdfs $EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG ; eval $XROOTSYS/bin/xrdfs $EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 eos() {
@@ -788,17 +788,18 @@ runtest "### Find      " unix 0 "" eos find -f -x sys.test=abc "/eos/$EOS_TEST_I
 ################################################################################
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Touch     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat"
-runtest "### Prepare   " unix 0 "" xrdfs root://$EOS_TEST_REDIRECTOR// prepare "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat?eos.ruid=99&eos.rgid=99\" | wc -l | grep -w 0"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 | wc -l | grep -w 0"
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" xrdfs root://$EOS_TEST_REDIRECTOR// prepare "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat?eos.ruid=99&eos.rgid=99\" | grep permission"
+runtest "### Attr      " unix 0 "" eos attr set sys.workflow.sync::prepare.default=test "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep permission"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:pw "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" xrdfs root://$EOS_TEST_REDIRECTOR// prepare "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat?eos.ruid=99&eos.rgid=99\" | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep trigger"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" xrdfs root://$EOS_TEST_REDIRECTOR// prepare "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat?eos.ruid=99&eos.rgid=99\" | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep trigger"
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" xrdfs root://$EOS_TEST_REDIRECTOR// prepare "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat?eos.ruid=0&eos.rgid=0\" | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0 2>&1 | grep trigger"
 
 ################################################################################
 # ACL
