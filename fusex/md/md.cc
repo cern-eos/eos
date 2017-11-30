@@ -353,7 +353,10 @@ metad::mdx::convert(struct fuse_entry_param &e)
     e.attr.st_mode &= (~S_ISGID);
     e.attr.st_mode &= (~S_ISUID);
   }
-
+  else
+  {
+    e.attr.st_nlink=1;    
+  }
   if (S_ISLNK(e.attr.st_mode))
   {
     e.attr.st_size = target().size();
