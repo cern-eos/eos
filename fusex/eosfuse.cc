@@ -1175,7 +1175,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
       eos_static_err("failed to get the OS usage information");
     }
 #endif
-    
+
     eos_static_debug("dumping statistics");
     XrdOucString out;
     fusestat.PrintOutTotal(out);
@@ -3499,6 +3499,8 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   fuse_id id(req);
   cap::shared_cap pcap;
   std::string attrlist;
+  size_t attrlistsize=0;
+
   metad::shared_md md;
   md = Instance().mds.get(req, ino);
 
@@ -3529,10 +3531,9 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         attrlist += '\0';
       }
 
-      if (size == 0) {
-        fuse_reply_xattr(req, attrlistsize);
-      } else {
-        if (attrlist.size() > size) {
+      if (size != 0 ) {
+        if (attrlist.size() > size)
+        {
           rc = ERANGE;
         }
       }
@@ -3540,9 +3541,12 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   if (rc) {
-    fuse_reply_err(req, rc);
+    fuse_reply_err (req, rc);
   } else {
-    fuse_reply_buf(req, attrlist.c_str(), attrlist.length());
+    if (size == 0)
+      fuse_reply_xattr (req, attrlistsize);
+    else
+      fuse_reply_buf (req, attrlist.c_str(), attrlist.length());
   }
 
   EXEC_TIMING_END(__func__);
