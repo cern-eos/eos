@@ -808,7 +808,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
         continue;
 
       // skip identical client mounts!
-      if (cap->clientid() == refcap->clientid())
+      if (cap->clientuuid() == refcap->clientuuid())
         continue;
 
       if (cap->id())
@@ -861,13 +861,14 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md & md,
 
       // skip our own cap!
       if (cap->authid() == refcap->authid())
+      {
         continue;
+      }
 
       // skip identical client mounts, the have it anyway!
-      if (cap->clientid() == refcap->clientid())
+      if (cap->clientuuid() == refcap->clientuuid())
         continue;
-
-
+      
       if (cap->id() && !clients_sent.count(cap->clientuuid()))
       {
         gOFS->zMQ->gFuseServer.Client().SendMD(md,
