@@ -1166,6 +1166,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     eos::common::LinuxMemConsumption::linux_mem_t mem;
     eos::common::LinuxStat::linux_stat_t osstat;
 
+#ifndef __APPLE__
     if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
       eos_static_err("failed to get the MEM usage information");
     }
@@ -1173,7 +1174,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     if (!eos::common::LinuxStat::GetStat(osstat)) {
       eos_static_err("failed to get the OS usage information");
     }
-
+#endif
+    
     eos_static_debug("dumping statistics");
     XrdOucString out;
     fusestat.PrintOutTotal(out);
@@ -3932,6 +3934,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
 
+#ifndef __APPLE__
   if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
     eos_static_err("failed to get the MEM usage information");
   }
@@ -3939,7 +3942,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   if (!eos::common::LinuxStat::GetStat(osstat)) {
     eos_static_err("failed to get the OS usage information");
   }
-
+#endif
   hbs.set_inodes(getMdStat().inodes());
   hbs.set_inodes_todelete(getMdStat().inodes_deleted());
   hbs.set_inodes_backlog(getMdStat().inodes_backlog());
@@ -3955,13 +3958,14 @@ bool
 EosFuse::isRecursiveRm(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
+#ifndef __APPLE__
   const struct fuse_ctx* ctx = fuse_req_ctx(req);
   ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid, ctx->uid, ctx->gid, false);
   if(snapshot->getProcessInfo().getRmInfo().isRm() &&
      snapshot->getProcessInfo().getRmInfo().isRecursive()) {
     return true;
   }
-
+#endif
   return false;
 }
 
