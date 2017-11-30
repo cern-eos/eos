@@ -263,7 +263,7 @@ FileMDSvc::getNumFiles()
     bucket_key = stringify(i);
     bucket_key += constants::sFileKeySuffix;
     qclient::QHash bucket_map(*pQcl, bucket_key);
-    ah.Register(bucket_map.hlen_async(), bucket_map.getClient());
+    bucket_map.hlen_async(&ah);
   }
 
   // Wait for all responses and sum up the results

@@ -166,11 +166,9 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas) {
-    ah.Register(pNoReplicasSet.sadd_async(file->getId()),
-                pNoReplicasSet.getClient());
+    pNoReplicasSet.sadd_async(file->getId(), &ah);
   } else {
-    ah.Register(pNoReplicasSet.srem_async(file->getId()),
-                pNoReplicasSet.getClient());
+    pNoReplicasSet.srem_async(file->getId(), &ah);
   }
 
   // Make sure all active locations are accounted for
@@ -178,7 +176,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
   for (IFileMD::location_t location : replica_locs) {
     replica_set.setKey(keyFilesystemFiles(location));
-    ah.Register(replica_set.sadd_async(file->getId()), replica_set.getClient());
+    replica_set.sadd_async(file->getId(), &ah);
   }
 
   // Make sure all unlinked locations are accounted for.
@@ -186,7 +184,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
   for (IFileMD::location_t location : unlink_locs) {
     unlink_set.setKey(keyFilesystemUnlinked(location));
-    ah.Register(unlink_set.sadd_async(file->getId()), unlink_set.getClient());
+    unlink_set.sadd_async(file->getId(), &ah);
   }
 
   // Make sure there's no other filesystems that erroneously contain this file.
@@ -196,13 +194,13 @@ FileSystemView::fileMDCheck(IFileMD* file)
     if (std::find(replica_locs.begin(), replica_locs.end(),
                   fsid) == replica_locs.end()) {
       replica_set.setKey(keyFilesystemFiles(fsid));
-      ah.Register(replica_set.srem_async(file->getId()), replica_set.getClient());
+      replica_set.srem_async(file->getId(), &ah);
     }
 
     if (std::find(unlink_locs.begin(), unlink_locs.end(),
                   fsid) == unlink_locs.end()) {
       unlink_set.setKey(keyFilesystemUnlinked(fsid));
-      ah.Register(unlink_set.srem_async(file->getId()), unlink_set.getClient());
+      unlink_set.srem_async(file->getId(), &ah);
     }
   }
 

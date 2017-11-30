@@ -220,7 +220,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
     cmd.push_back(stringify(elem.second));
 
     if (count == max_per_batch) {
-      ah.Register(qclient.execute(cmd), &qclient);
+      ah.Register(&qclient, cmd);
       cmd.clear();
       cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
@@ -241,7 +241,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
   }
 
   if (cmd.size() > 2) {
-    ah.Register(qclient.execute(cmd), &qclient);
+    ah.Register(&qclient, cmd);
   }
 }
 
@@ -267,7 +267,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
     cmd.push_back(stringify(elem.second));
 
     if (count == max_per_batch) {
-      ah.Register(qclient.execute(cmd), &qclient);
+      ah.Register(&qclient, cmd);
       cmd.clear();
       cmd.reserve(max_per_batch * 2 + 2);
       cmd.push_back("HMSET");
@@ -288,7 +288,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   }
 
   if (cmd.size() > 2) {
-    ah.Register(qclient.execute(cmd), &qclient);
+    ah.Register(&qclient, cmd);
   }
 }
 
@@ -483,7 +483,7 @@ ConvertContainerMDSvc::commitToBackend()
     std::shared_ptr<IContainerMD> container;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
-    qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
+    qclient::QClient qclient{sBkndHost, sBkndPort};
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
@@ -505,8 +505,7 @@ ConvertContainerMDSvc::commitToBackend()
         conv_cont->serializeToStr(buffer);
         std::string sid = stringify(container->getId());
         qclient::QHash bucket_map(qclient, getBucketKey(container->getId()));
-        ah.Register(bucket_map.hset_async(sid, buffer),
-                    bucket_map.getClient());
+        bucket_map.hset_async(sid, buffer, &ah);
 
         // Commit subcontainers and files only if not empty otherwise the hmset
         // command will fail
@@ -638,7 +637,7 @@ ConvertFileMDSvc::initialize()
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
     qclient::AsyncHandler ah;
-    qclient::QClient qclient {sBkndHost, sBkndPort, true, true};
+    qclient::QClient qclient {sBkndHost, sBkndPort};
     int max_elem = ((i == (nthreads - 1) ? last_chunk : chunk));
 
     for (int n = 0; n < max_elem; ++n) {
@@ -755,7 +754,7 @@ const
     file->updateInternal();
     file->serializeToStr(buffer);
     qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
-    ah.Register(bucket_map.hset_async(sid, buffer), &qclient);
+    bucket_map.hset_async(sid, buffer, &ah);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << file->getId() << " failed to contact backend";
@@ -857,7 +856,7 @@ void
 ConvertQuotaView::commitToBackend()
 {
   qclient::AsyncHandler ah;
-  qclient::QClient qcl {sBkndHost, sBkndPort, true, true};
+  qclient::QClient qcl {sBkndHost, sBkndPort};
   std::string uid_key, gid_key;
   std::uint64_t count = 0u;
   std::uint64_t max_count = 100;
@@ -873,12 +872,11 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : uid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
-      ah.Register(quota_map.hset_async(field, info.physicalSpace),
-                  quota_map.getClient());
+      quota_map.hset_async(field, info.physicalSpace, &ah);
       field = elem.first + quota::sLogicalSize;
-      ah.Register(quota_map.hset_async(field, info.space), quota_map.getClient());
+      quota_map.hset_async(field, info.space, &ah);
       field = elem.first + quota::sNumFiles;
-      ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+      quota_map.hset_async(field, info.files, &ah);
     }
 
     quota_map.setKey(gid_key);
@@ -886,13 +884,11 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : gid_map) {
       eos::IQuotaNode::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
-      ah.Register(quota_map.hset_async(field, info.physicalSpace),
-                  quota_map.getClient());
+      quota_map.hset_async(field, info.physicalSpace, &ah);
       field = elem.first + quota::sLogicalSize;
-      ah.Register(quota_map.hset_async(field, info.space),
-                  quota_map.getClient());
+      quota_map.hset_async(field, info.space, &ah);
       field = elem.first + quota::sPhysicalSize;
-      ah.Register(quota_map.hset_async(field, info.files), quota_map.getClient());
+      quota_map.hset_async(field, info.files, &ah);
     }
 
     if (count >= max_count) {
@@ -967,7 +963,7 @@ ConvertFsView::commitToBackend()
     std::uint64_t count = 0u;
     std::string key, val;
     qclient::AsyncHandler ah;
-    qclient::QClient qclient{sBkndHost, sBkndPort, true, true};
+    qclient::QClient qclient{sBkndHost, sBkndPort};
     qclient::QSet fs_set(qclient, "");
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
     auto it = mFsView.begin();
@@ -989,7 +985,7 @@ ConvertFsView::commitToBackend()
           uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
-          ah.Register(fs_set.sadd_async(begin, end), fs_set.getClient());
+          fs_set.sadd_async(begin, end, &ah);
           begin = end;
           pos += step;
           ++num_batches;
@@ -1019,8 +1015,7 @@ ConvertFsView::commitToBackend()
           uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
           auto end = begin;
           std::advance(end, step);
-          ah.Register(fs_set.sadd_async(begin, end),
-                      fs_set.getClient());
+          fs_set.sadd_async(begin, end, &ah);
           begin = end;
           pos += step;
           ++num_batches;
@@ -1060,8 +1055,7 @@ ConvertFsView::commitToBackend()
         uint64_t step = (pos + max_sadd_size >= total) ? (total - pos) : max_sadd_size;
         auto end = begin;
         std::advance(end, step);
-        ah.Register(fs_set.sadd_async(begin, end),
-                    fs_set.getClient());
+        fs_set.sadd_async(begin, end, &ah);
         begin = end;
         pos += step;
         ++num_batches;

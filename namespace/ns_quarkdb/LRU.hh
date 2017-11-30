@@ -98,9 +98,9 @@ public:
   //!         cache is full then the least recently used entry is evicted
   //!         provided that it's not referenced anywhere else in the program.
   //----------------------------------------------------------------------------
-  typename std::enable_if<hasGetId<EntryT>::value,
-           std::shared_ptr<EntryT>>::type
-           put(IdT id, std::shared_ptr<EntryT> obj);
+  typename
+  std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
+      put(IdT id, std::shared_ptr<EntryT> obj);
 
   //----------------------------------------------------------------------------
   //! Remove entry from cache

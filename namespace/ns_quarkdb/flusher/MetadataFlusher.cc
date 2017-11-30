@@ -45,11 +45,14 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 MetadataFlusher::MetadataFlusher(const std::string& path,
                                  const qclient::Members& qdb_members):
   notifier(*this),
-  qcl(qdb_members, true /* yes to redirects */, false /* no to exceptions */),
-  backgroundFlusher(qcl, notifier, 50000 /* size limit */,
-                    5000 /* pipeline length */,
-                    new qclient::RocksDBPersistency(path)),
-  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+  qcl(qdb_members, true,
+{
+  true, std::chrono::seconds(60)
+}),
+backgroundFlusher(qcl, notifier, 50000 /* size limit */,
+                  5000 /* pipeline length */,
+                  new qclient::RocksDBPersistency(path)),
+sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
 }
@@ -189,11 +192,11 @@ void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
 
 MetadataFlusher*
 MetadataFlusherFactory::getInstance(const std::string& id,
-  const qclient::Members &members)
+                                    const qclient::Members& members)
 {
   std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
 
-  if(members.empty()) {
+  if (members.empty()) {
     eos_static_crit("MetadataFlusherFactory::getInstance received empty qclient::Members!");
     std::terminate();
   }
@@ -206,7 +209,8 @@ MetadataFlusherFactory::getInstance(const std::string& id,
   }
 
   MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, members);
-  eos_static_notice("Created new metadata flusher towards %s", members.toString().c_str());
+  eos_static_notice("Created new metadata flusher towards %s",
+                    members.toString().c_str());
   instances[key] = flusher;
   return flusher;
 }

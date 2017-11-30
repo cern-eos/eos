@@ -294,13 +294,13 @@ TEST(FileSystemView, FileIterator)
   }
 
   // Push the set to QuarkDB
-  qclient::QClient qcl("localhost", 7778, true, true);
+  qclient::QClient qcl("localhost", 7778);
   qclient::AsyncHandler ah;
   const std::string key = "set_iter_test";
   qclient::QSet set(qcl, key);
 
   for (auto elem : input_set) {
-    ah.Register(set.sadd_async(elem), &qcl);
+    set.sadd_async(elem, &ah);
   }
 
   ASSERT_TRUE(ah.Wait());
