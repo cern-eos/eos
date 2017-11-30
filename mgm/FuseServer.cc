@@ -762,7 +762,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
       }
 
       // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid())
+      if (cap->clientuuid() == refcap->clientuuid()) {
         continue;
       }
 
