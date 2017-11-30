@@ -394,10 +394,10 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
     eos::IContainerMD::XAttrMap map;
 
-    if (_attr_ls(prep_path.c_str(), error, vid, nullptr, map) == 0) {
+    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid, nullptr, map) == 0) {
       bool foundPrepareTag = false;
       for (auto& attrEntry : map) {
-        foundPrepareTag |= attrEntry.first.find("sys.link.workflow.sync::prepare") == 0;
+        foundPrepareTag |= attrEntry.first.find("sys.workflow.sync::prepare") == 0;
       }
 
       if (foundPrepareTag) {
@@ -426,8 +426,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
     }
 
     // check that we have write permission on path
-    if (gOFS->_access(prep_path.c_str(), W_OK, error, vid, "")) {
-      Emsg(epname, error, EPERM, "prepare - you don't have write permission",
+    if (gOFS->_access(prep_path.c_str(), W_OK | P_OK, error, vid, "")) {
+      Emsg(epname, error, EPERM, "prepare - you don't have write and workflow permission",
            prep_path.c_str());
       return SFS_ERROR;
     }

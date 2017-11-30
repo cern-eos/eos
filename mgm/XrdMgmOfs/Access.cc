@@ -79,7 +79,7 @@ XrdMgmOfs::_access(const char* path,
  * @brief check access permissions for file/directories
  *
  * @param inpath path to access
- * @param mode access mode can be R_OK |& W_OK |& X_OK or F_OK
+ * @param mode access mode can be R_OK |& W_OK |& X_OK |& F_OK or P_OK
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK if possible otherwise SFS_ERROR
@@ -200,6 +200,11 @@ XrdMgmOfs::_access(const char* path,
           }
         }
       }
+    }
+
+    // Check workflow permissions when mode requires
+    if (permok && (mode & P_OK) && ((acl.HasAcl() && !acl.CanWorkflow()) || !acl.HasAcl())) {
+      permok = false;
     }
   } catch (eos::MDException& e) {
     dh.reset();

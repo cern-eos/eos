@@ -113,6 +113,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   mHasEgroup = false;
   mIsMutable = true;
   mCanArchive = false;
+  mCanWorkflow = false;
 
   // no acl definition
   if (!acl.length()) {
@@ -208,25 +209,31 @@ Acl::Set(std::string sysacl, std::string useracl,
         }
 
         // 'a' defines archiving permission
-        if ((entry[2].find("a")) != std::string::npos) {
+        if ((entry[2].find('a')) != std::string::npos) {
           mCanArchive = true;
           mHasAcl = true;
         }
 
         // 'r' defines read permission
-        if ((entry[2].find("r")) != std::string::npos) {
+        if ((entry[2].find('r')) != std::string::npos) {
           mCanRead = true;
           mHasAcl = true;
         }
 
         // 'x' defines browsing permission
-        if ((entry[2].find("x")) != std::string::npos) {
+        if ((entry[2].find('x')) != std::string::npos) {
           mCanBrowse = true;
           mHasAcl = true;
         }
 
+        // 'p' defines workflow permission
+        if ((entry[2].find('p')) != std::string::npos) {
+          mCanWorkflow = true;
+          mHasAcl = true;
+        }
+
         // 'm' defines mode change permission
-        if ((entry[2].find("m")) != std::string::npos) {
+        if ((entry[2].find('m')) != std::string::npos) {
           if ((entry[2].find("!m")) != std::string::npos) {
             mCanNotChmod = true;
           } else {
@@ -238,7 +245,7 @@ Acl::Set(std::string sysacl, std::string useracl,
 
         // 'c' defines owner change permission (for directories)
         if ((sysacl.find(*it) != std::string::npos) &&
-            ((entry[2].find("c")) != std::string::npos)) {
+            ((entry[2].find('c')) != std::string::npos)) {
           // this is only valid if it is specified as a sysacl
           mCanChown = true;
           mHasAcl = true;
@@ -283,21 +290,21 @@ Acl::Set(std::string sysacl, std::string useracl,
         }
 
         // 'w' defines write permissions if 'wo' is not granted
-        if ((!mCanWriteOnce) && (entry[2].find("w")) != std::string::npos) {
+        if ((!mCanWriteOnce) && (entry[2].find('w')) != std::string::npos) {
           mCanWrite = true;
           mHasAcl = true;
         }
 
         // 'q' defines quota set permission
         if (((sysacl.find(*it) != std::string::npos)) &&
-            ((entry[2].find("q")) != std::string::npos)) {
+            ((entry[2].find('q')) != std::string::npos)) {
           // this is only valid if it is specified as a sysacl
           mCanSetQuota = true;
           mHasAcl = true;
         }
 
         // 'i' makes directories immutable
-        if ((entry[2].find("i")) != std::string::npos) {
+        if ((entry[2].find('i')) != std::string::npos) {
           mIsMutable = false;
           mHasAcl = true;
         }

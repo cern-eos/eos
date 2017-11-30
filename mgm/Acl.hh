@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <string>
 
+#define	P_OK	8		/* Test for workflow permission.  */
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -47,13 +49,13 @@ public:
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
 
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
@@ -86,7 +88,7 @@ public:
     mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false),
     mCanBrowse(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanWorkflow(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -228,6 +230,14 @@ public:
     return mCanArchive;
   }
 
+  //----------------------------------------------------------------------------
+  //! Has the 'p' flag - archiving permission
+  //----------------------------------------------------------------------------
+  inline bool CanWorkflow() const
+  {
+    return mCanWorkflow;
+  }
+
 private:
   bool mCanRead; ///< acl allows read access
   bool mCanWrite; ///< acl allows write access
@@ -244,6 +254,7 @@ private:
   bool mHasEgroup; ///< acl contains egroup rule
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
+  bool mCanWorkflow; ///< acl which allows triggering workflows
 };
 
 EOSMGMNAMESPACE_END
