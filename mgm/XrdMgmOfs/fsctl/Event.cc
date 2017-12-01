@@ -28,15 +28,6 @@
 // -----------------------------------------------------------------------
 
 {
-  REQUIRE_SSS_OR_LOCAL_AUTH;
-  ACCESSMODE_W;
-  MAYSTALL;
-  MAYREDIRECT;
-
-  EXEC_TIMING_BEGIN("Event");
-
-  gOFS->MgmStats.Add("Event", 0, 0, 1);
-
   char* spath = env.Get("mgm.path");
   char* afid = env.Get("mgm.fid");
   char* alogid = env.Get("mgm.logid");
@@ -48,6 +39,7 @@
 
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
+
   int retc = 0;
 
   if (auid)
@@ -77,6 +69,20 @@
   {
     ThreadLogId.SetLogId(alogid, tident);
   }
+
+  // check that we have write permission on path
+  if (gOFS->_access(spath, W_OK | P_OK, error, vid, "")) {
+    Emsg(epname, error, EPERM, "prepare - you don't have write and workflow permission", spath);
+    return SFS_ERROR;
+  }
+
+  ACCESSMODE_W;
+  MAYSTALL;
+  MAYREDIRECT;
+
+  EXEC_TIMING_BEGIN("Event");
+
+  gOFS->MgmStats.Add("Event", 0, 0, 1);
 
   int envlen = 0;
 
