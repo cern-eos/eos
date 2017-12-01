@@ -38,18 +38,23 @@ EOSNSNAMESPACE_BEGIN
 //! The proper solution would be that the object itself contacts redis running
 //! SCAN, but this should be fine for now.
 //------------------------------------------------------------------------------
-class FileSystemIterator:
+class QdbFileSystemIterator:
   public ICollectionIterator<IFileMD::location_t>
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemIterator(std::set<IFileMD::location_t>&& filesystems)
+  QdbFileSystemIterator(std::set<IFileMD::location_t>&& filesystems)
   {
     pFilesystems = std::move(filesystems);
     iterator = pFilesystems.begin();
   }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~QdbFileSystemIterator() = default;
 
   //----------------------------------------------------------------------------
   //! Get current fsid
@@ -83,24 +88,29 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Class FileIterator that can iterate through a list of files from the
+//! Class QdbFileIterator that can iterate through a list of files from the
 //! FileSystem class. Used to iterate through the files / unlinked files on a
 //! filesystem.
 //------------------------------------------------------------------------------
-class FileIterator:
+class QdbFileIterator:
   public ICollectionIterator<IFileMD::id_t>
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileIterator(qclient::QClient& qcl, const std::string& key) :
+  QdbFileIterator(qclient::QClient& qcl, const std::string& key) :
     mSet(qcl, key), mCursor("0")
   {
     mReply = mSet.sscan(mCursor, mCount);
     mCursor = mReply.first;
     mIt = mReply.second.begin();
   }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~QdbFileIterator() = default;
 
   //----------------------------------------------------------------------------
   //! Check if iterator is valid
@@ -143,6 +153,65 @@ private:
 };
 
 //------------------------------------------------------------------------------
+// File System iterator implementation of a in-memory namespace
+// Trivial implementation, using the same logic to iterate over filesystems
+// as we did with "getNumFileSystems" before.
+//------------------------------------------------------------------------------
+class ListFileSystemIterator:
+  public ICollectionIterator<IFileMD::location_t>
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ListFileSystemIterator(const std::map<IFileMD::location_t,
+                         IFsView::FileList>& map)
+  {
+    for (const auto& pair : map) {
+      mList.push_back(pair.first);
+    }
+
+    mIt = mList.cbegin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ListFileSystemIterator() = default;
+
+  //----------------------------------------------------------------------------
+  //! Get current fsid
+  //----------------------------------------------------------------------------
+  IFileMD::location_t getElement() override
+  {
+    return *mIt;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if iterator is valid
+  //----------------------------------------------------------------------------
+  bool valid() override
+  {
+    return (mIt != mList.cend());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Retrieve next fsid - returns false when no more filesystems exist
+  //----------------------------------------------------------------------------
+  void next() override
+  {
+    if (valid()) {
+      ++mIt;
+    }
+  }
+
+private:
+  std::list<IFileMD::location_t> mList;
+  std::list<IFileMD::location_t>::const_iterator mIt;
+};
+
+
+//------------------------------------------------------------------------------
 //! FileSystemView implementation on top of QuarkDB
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
@@ -170,7 +239,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView();
+  virtual ~FileSystemView() = default;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -296,6 +365,51 @@ public:
   void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Load view from backend
+  //----------------------------------------------------------------------------
+  void loadFromBackend();
+
+  //----------------------------------------------------------------------------
+  //! Get iterator object to run through all the filesystem IDs stored in the
+  //! backend.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+      getQdbFileSystemIterator(const std::string& pattern);
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to list of unlinked files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getQdbUnlinkedFileList(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to list of files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getQdbFileList(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to list of files without replicas
+  //!
+  //! @return shard ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getQdbNoReplicasFileList();
+
+
+  std::map<IFileMD::location_t, IFsView::FileList> pFiles;
+  std::map<IFileMD::location_t, IFsView::FileList> pUnlinkedFiles;
+  IFsView::FileList pNoReplicas;
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas

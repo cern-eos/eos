@@ -171,9 +171,6 @@ TEST(FileMDSvc, CheckFileTest)
   key = eos::fsview::sNoReplicaPrefix;
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sadd(sfid));
-  key = eos::keyFilesystemFiles(5);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sadd(sfid));
   // Introduce file in the set to be checked and trigger a check
   fs_set.setKey(eos::constants::sSetCheckFiles);
   ASSERT_NO_THROW(fs_set.sadd(sfid));
@@ -186,9 +183,6 @@ TEST(FileMDSvc, CheckFileTest)
   key = eos::keyFilesystemFiles(2);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));
-  key = eos::keyFilesystemFiles(5);
-  fs_set.setKey(key);
-  ASSERT_TRUE(!fs_set.sismember(sfid));
   key = eos::keyFilesystemUnlinked(3);
   fs_set.setKey(key);
   ASSERT_TRUE(fs_set.sismember(sfid));

@@ -31,18 +31,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
   pFlusher(nullptr), pQcl(nullptr)
-{}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FileSystemView::~FileSystemView()
 {
-  // @todo (esindril): this should be droppped and the flusher should
-  // synchronize in his destructor
-  if (pFlusher) {
-    pFlusher->synchronize();
-  }
+  pNoReplicas.set_empty_key(0xffffffffffffffffll);
+  pNoReplicas.set_deleted_key(0);
 }
 
 //------------------------------------------------------------------------------
@@ -82,6 +73,13 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
     pNoReplicasSet.setKey(fsview::sNoReplicaPrefix);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
+
+  auto start = std::time(nullptr);
+  loadFromBackend();
+  auto end = std::time(nullptr);
+  std::chrono::seconds duration(end - start);
+  std::cerr << "FileSystemView loadingFromBackend duration: "
+            << duration.count() << " seconds" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -97,51 +95,118 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   switch (e->action) {
   // New file has been created
   case IFileMDChangeListener::Created:
-    pFlusher->sadd(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
+    if (!file->isLink()) {
+      pNoReplicas.insert(file->getId());
+      pFlusher->sadd(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
+    }
+
     break;
 
   // File has been deleted
-  case IFileMDChangeListener::Deleted:
+  case IFileMDChangeListener::Deleted: {
+    pNoReplicas.erase(file->getId());
     pFlusher->srem(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
     break;
+  }
 
   // Add location
-  case IFileMDChangeListener::LocationAdded:
+  case IFileMDChangeListener::LocationAdded: {
+    auto it = pFiles.find(e->location);
+
+    if (it == pFiles.end()) {
+      auto pair = pFiles.emplace(e->location, IFsView::FileList());
+      auto& file_set = pair.first->second;
+      file_set.set_deleted_key(0);
+      file_set.set_empty_key(0xffffffffffffffffll);
+      file_set.insert(file->getId());
+    } else {
+      it->second.insert(file->getId());
+    }
+
+    pNoReplicas.erase(file->getId());
+    // Commit to the backend
     key = keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
     pFlusher->sadd(key, val);
     pFlusher->srem(fsview::sNoReplicaPrefix, val);
     break;
+  }
 
   // Replace location
-  case IFileMDChangeListener::LocationReplaced:
+  case IFileMDChangeListener::LocationReplaced: {
+    auto it = pFiles.find(e->oldLocation);
+
+    if (it != pFiles.end()) {
+      it->second.erase(file->getId());
+    }
+
+    it = pFiles.find(e->location);
+
+    if (it == pFiles.end()) {
+      auto pair = pFiles.emplace(e->location, IFsView::FileList());
+      auto& file_set = pair.first->second;
+      file_set.set_deleted_key(0);
+      file_set.set_empty_key(0xffffffffffffffffll);
+      file_set.insert(file->getId());
+    } else {
+      it->second.insert(file->getId());
+    }
+
     key = keyFilesystemFiles(e->oldLocation);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
     key = keyFilesystemFiles(e->location);
     pFlusher->sadd(key, val);
     break;
+  }
 
   // Remove location
-  case IFileMDChangeListener::LocationRemoved:
+  case IFileMDChangeListener::LocationRemoved: {
+    auto it = pUnlinkedFiles.find(e->location);
+
+    if (it != pUnlinkedFiles.end()) {
+      it->second.erase(file->getId());
+    }
+
     key = keyFilesystemUnlinked(e->location);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
 
-    if (!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation()) {
+    if (!file->getNumUnlinkedLocation() && !file->getNumLocation()) {
+      pNoReplicas.insert(file->getId());
       pFlusher->sadd(fsview::sNoReplicaPrefix, val);
     }
 
     break;
+  }
 
   // Unlink location
-  case IFileMDChangeListener::LocationUnlinked:
+  case IFileMDChangeListener::LocationUnlinked: {
+    auto it = pFiles.find(e->location);
+
+    if (it != pFiles.end()) {
+      it->second.erase(file->getId());
+    }
+
+    it = pUnlinkedFiles.find(e->location);
+
+    if (it == pUnlinkedFiles.end()) {
+      auto pair = pUnlinkedFiles.emplace(e->location, IFsView::FileList());
+      auto& file_set = pair.first->second;
+      file_set.set_deleted_key(0);
+      file_set.set_empty_key(0xffffffffffffffffll);
+      file_set.insert(file->getId());
+    } else {
+      it->second.insert(file->getId());
+    }
+
     key = keyFilesystemFiles(e->location);
     val = std::to_string(e->file->getId());
     pFlusher->srem(key, val);
     key = keyFilesystemUnlinked(e->location);
     pFlusher->sadd(key, val);
     break;
+  }
 
   default:
     break;
@@ -155,7 +220,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 bool
 FileSystemView::fileMDCheck(IFileMD* file)
 {
-  pFlusher->synchronize();
   std::string key;
   IFileMD::LocationVector replica_locs = file->getLocations();
   IFileMD::LocationVector unlink_locs = file->getUnlinkedLocations();
@@ -209,15 +273,27 @@ FileSystemView::fileMDCheck(IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Get iterator to list of files on a particular file system
+// Get iterator object to run through all currently active filesystem IDs
 //------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+    FileSystemView::getFileSystemIterator()
+{
+  return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+         (new ListFileSystemIterator(pFiles));
+}
+
+//----------------------------------------------------------------------------
+// Get iterator to list of files on a particular file system
+//----------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
 {
-  pFlusher->synchronize();
-  std::string key = keyFilesystemFiles(location);
+  if (pFiles.find(location) == pFiles.end()) {
+    return nullptr;
+  }
+
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(*pQcl, key));
+         (new FileIterator(pFiles[location]));
 }
 
 //------------------------------------------------------------------------------
@@ -226,10 +302,12 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  pFlusher->synchronize();
-  std::string key = keyFilesystemUnlinked(location);
+  if (pUnlinkedFiles.find(location) == pUnlinkedFiles.end()) {
+    return nullptr;
+  }
+
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(*pQcl, key));
+         (new FileIterator(pUnlinkedFiles[location]));
 }
 
 //------------------------------------------------------------------------------
@@ -238,9 +316,8 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getNoReplicasFileList()
 {
-  pFlusher->synchronize();
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(*pQcl, fsview::sNoReplicaPrefix));
+         (new FileIterator(pNoReplicas));
 }
 
 //------------------------------------------------------------------------------
@@ -249,13 +326,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 uint64_t
 FileSystemView::getNumNoReplicasFiles()
 {
-  pFlusher->synchronize();
-
-  try {
-    return pNoReplicasSet.scard();
-  } catch (std::runtime_error& qdb_err) {
-    return 0ull;
-  }
+  return pNoReplicas.size();
 }
 
 //------------------------------------------------------------------------------
@@ -264,14 +335,12 @@ FileSystemView::getNumNoReplicasFiles()
 uint64_t
 FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 {
-  pFlusher->synchronize();
-  std::string key = keyFilesystemFiles(fs_id);
+  auto it = pFiles.find(fs_id);
 
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.scard();
-  } catch (std::runtime_error& qdb_err) {
+  if (it == pFiles.end()) {
     return 0ull;
+  } else {
+    return it->second.size();
   }
 }
 
@@ -281,17 +350,14 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 uint64_t
 FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
-  pFlusher->synchronize();
-  const std::string key = keyFilesystemUnlinked(fs_id);
+  auto it = pUnlinkedFiles.find(fs_id);
 
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.scard();
-  } catch (const std::runtime_error& qdb_err) {
+  if (it == pUnlinkedFiles.end()) {
     return 0ull;
+  } else {
+    return it->second.size();
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Check if file system has file id
@@ -299,15 +365,17 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 bool
 FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
 {
-  pFlusher->synchronize();
-  const std::string key = keyFilesystemFiles(fs_id);
+  auto it = pFiles.find(fs_id);
 
-  try {
-    qclient::QSet files_set(*pQcl, key);
-    return files_set.sismember(fid);
-  } catch (const std::runtime_error& qdb_err) {
-    return false;
+  if (it != pFiles.end()) {
+    auto& files_set = it->second;
+
+    if (files_set.find(fid) != files_set.end()) {
+      return true;
+    }
   }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -316,39 +384,16 @@ FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  pFlusher->synchronize();
-  std::string key = keyFilesystemUnlinked(location);
-  return (pQcl->del(key) >= 0);
-}
+  auto it = pUnlinkedFiles.find(location);
 
-//----------------------------------------------------------------------------
-// Get iterator object to run through all currently active filesystem IDs
-//----------------------------------------------------------------------------
-std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-    FileSystemView::getFileSystemIterator()
-{
-  pFlusher->synchronize();
-  qclient::QScanner replicaSets(*pQcl, fsview::sPrefix + "*:*");
-  std::set<IFileMD::location_t> uniqueFilesytems;
-  std::vector<std::string> results;
-
-  while (replicaSets.next(results)) {
-    for (std::string& rep : results) {
-      // extract fsid from key
-      IFileMD::location_t fsid;
-      bool unused;
-
-      if (!parseFsId(rep, fsid, unused)) {
-        eos_static_crit("Unable to parse redis key: %s", rep.c_str());
-        continue;
-      }
-
-      uniqueFilesytems.insert(fsid);
-    }
+  if (it != pUnlinkedFiles.end()) {
+    it->second.clear();
+    it->second.resize(0);
   }
 
-  return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-         (new FileSystemIterator(std::move(uniqueFilesytems)));
+  std::string key = keyFilesystemUnlinked(location);
+  pFlusher->del(key);
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -380,6 +425,123 @@ bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
   }
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+// Get iterator object to run through all currently active filesystem IDs
+//----------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+    FileSystemView::getQdbFileSystemIterator(const std::string& pattern)
+{
+  qclient::QScanner replicaSets(*pQcl, pattern);
+  std::set<IFileMD::location_t> uniqueFilesytems;
+  std::vector<std::string> results;
+
+  while (replicaSets.next(results)) {
+    for (std::string& rep : results) {
+      // extract fsid from key
+      IFileMD::location_t fsid;
+      bool unused;
+
+      if (!parseFsId(rep, fsid, unused)) {
+        eos_static_crit("Unable to parse redis key: %s", rep.c_str());
+        continue;
+      }
+
+      uniqueFilesytems.insert(fsid);
+    }
+  }
+
+  return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
+         (new QdbFileSystemIterator(std::move(uniqueFilesytems)));
+}
+
+//------------------------------------------------------------------------------
+// Get iterator to list of files on a particular file system
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getQdbFileList(IFileMD::location_t location)
+{
+  std::string key = keyFilesystemFiles(location);
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new QdbFileIterator(*pQcl, key));
+}
+
+//------------------------------------------------------------------------------
+// Get iterator to list of unlinked files on a particular file system
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getQdbUnlinkedFileList(IFileMD::location_t location)
+{
+  std::string key = keyFilesystemUnlinked(location);
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new QdbFileIterator(*pQcl, key));
+}
+
+//------------------------------------------------------------------------------
+// Get iterator to list of files without replicas
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    FileSystemView::getQdbNoReplicasFileList()
+{
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new QdbFileIterator(*pQcl, fsview::sNoReplicaPrefix));
+}
+
+//------------------------------------------------------------------------------
+// Load view from backend
+//------------------------------------------------------------------------------
+void
+FileSystemView::loadFromBackend()
+{
+  std::vector<std::string> patterns {
+    fsview::sPrefix + "*:files",
+    fsview::sPrefix + "*:unlinked" };
+
+  for (const auto& pattern : patterns) {
+    for (auto it = getQdbFileSystemIterator(pattern);
+         (it && it->valid()); it->next()) {
+      IFileMD::location_t fsid = it->getElement();
+
+      if (pattern.find("unlinked") != std::string::npos) {
+        auto pair = pUnlinkedFiles.emplace(fsid, IFsView::FileList());
+        auto& set_ids = pair.first->second;
+        set_ids.set_deleted_key(0);
+        set_ids.set_empty_key(0xffffffffffffffffll);
+      } else {
+        auto pair = pFiles.emplace(fsid, IFsView::FileList());
+        auto& set_ids = pair.first->second;
+        set_ids.set_deleted_key(0);
+        set_ids.set_empty_key(0xffffffffffffffffll);
+      }
+    }
+  }
+
+  // Load from the backend the files on each file system
+  for (auto& elem : pFiles) {
+    auto& set_ids = elem.second;
+
+    for (auto it = getQdbFileList(elem.first);
+         (it && it->valid()); it->next()) {
+      set_ids.insert(it->getElement());
+    }
+  }
+
+  // Load from the backend the unlinked files on each file system
+  for (auto& elem : pUnlinkedFiles) {
+    auto& set_ids = elem.second;
+
+    for (auto it = getQdbUnlinkedFileList(elem.first);
+         (it && it->valid()); it->next()) {
+      set_ids.insert(it->getElement());
+    }
+  }
+
+  // Load the no replica files
+  for (auto it = getQdbNoReplicasFileList();
+       (it && it->valid()); it->next()) {
+    pNoReplicas.insert(it->getElement());
+  }
 }
 
 EOSNSNAMESPACE_END
