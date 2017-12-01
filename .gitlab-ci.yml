@@ -379,6 +379,7 @@ eos_system_test:
     - docker exec -i eos-client-test mkdir /eos/
     - docker exec -di eos-client-test mount -t fuse eosxd /eos/
     - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos/dockertest/ && fusex-benchmark)'
+    - docker exec -i -u eos-user eos-client-test python /eosclient-tests/microtests/run-ci.py --eosdir /eos/dockertest
     - docker exec -i eos-mgm-test eos -b space quota default on
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
