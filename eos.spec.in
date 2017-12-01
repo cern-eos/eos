@@ -23,7 +23,7 @@
 %bcond_without server
 
 # Define minimum required dependency for XRootD
-%define xrootd_version 4.7.1
+%define xrootd_version 4.7.0
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
 #-------------------------------------------------------------------------------
