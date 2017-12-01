@@ -2099,6 +2099,7 @@ FuseServer::HandleMD(const std::string& id,
             cmd->setName(md.name());
             pcmd->addContainer(cmd.get());
             gOFS->eosView->updateContainerStore(pcmd.get());
+            gOFS->eosView->updateContainerStore(cmd.get());
           }
 
           if (cmd->getName() != md.name()) {
