@@ -269,6 +269,8 @@ XrdMgmOfs::FSctl(const int cmd,
 
     // Trigger an event
     if (execmd == "event") {
+      env.Put("mgm.ruid", std::to_string(vid.uid).c_str());
+      env.Put("mgm.rgid", std::to_string(vid.gid).c_str());
 #include "fsctl/Event.cc"
     }
 
