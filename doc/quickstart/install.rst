@@ -9,8 +9,8 @@ Installation of EOS
 |more|
 
 .. note::
-   You need to add the EOS repositories. 
-   Please follow instruction from :ref:`eos_base_setup_repos` 
+   You need to add the XRootD and EOS repositories.
+   Please follow instruction from :ref:`eos_base_setup_repos`
 
 
 
@@ -23,16 +23,16 @@ For client
 
    yum install eos-client
 
-For server 
+For server
 
 .. code-block:: text
 
    yum install eos-server eos-client eos-testkeytab eos-fuse jemalloc
 
 For HTTP server
-   
+
 .. code-block:: text
-    
+
    yum install eos-nginx
 
 For GridFTP server
