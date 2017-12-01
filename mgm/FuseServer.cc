@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 #define C_OK 32    // chown
 #define SA_OK 64   // set xattr
 #define U_OK 128   // can update
-
+#define SU_OK 256  // set utime
 /*----------------------------------------------------------------------------*/
 FuseServer::FuseServer()
 {
@@ -1541,16 +1541,16 @@ FuseServer::FillContainerCAP(uint64_t id,
   {
     if (vid->sudoer)
     {
-      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK ; // chown + chmod permission + all the rest
+      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK ; // chown + chmod permission + all the rest
     }
 
     if (vid->uid == (uid_t) dir.uid())
     {
       if (dir.mode() & S_IRUSR)
-        mode |= R_OK;
+        mode |= R_OK | M_OK | SU_OK;
 
       if (dir.mode() & S_IWUSR)
-        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK;
+        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
 
       if (dir.mode() & S_IXUSR)
         mode |= X_OK;
@@ -1563,7 +1563,7 @@ FuseServer::FillContainerCAP(uint64_t id,
 
       if (dir.mode() & S_IWGRP)
       {
-        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK;
+        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
       if (dir.mode() & S_IXGRP)
         mode |= X_OK;
@@ -1574,7 +1574,7 @@ FuseServer::FillContainerCAP(uint64_t id,
 
     if (dir.mode() & S_IWOTH)
     {
-      mode |= U_OK | W_OK | D_OK | SA_OK | M_OK;
+      mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
     }
 
     if (dir.mode() & S_IXOTH)
