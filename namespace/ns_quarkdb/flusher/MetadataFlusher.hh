@@ -94,6 +94,7 @@ public:
 
 private:
   void queueSizeMonitoring(qclient::ThreadAssistant& assistant);
+  std::string id;
 
   FlusherNotifier notifier;
   qclient::QClient qcl;

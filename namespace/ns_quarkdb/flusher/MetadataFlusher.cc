@@ -52,7 +52,8 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 backgroundFlusher(qcl, notifier, 50000 /* size limit */,
                   5000 /* pipeline length */,
                   new qclient::RocksDBPersistency(path)),
-sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+sizePrinter(&MetadataFlusher::queueSizeMonitoring, this),
+id(basename(path.c_str()))
 {
   synchronize();
 }
@@ -71,7 +72,8 @@ MetadataFlusher::~MetadataFlusher()
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
-    eos_static_info("total-pending=%d enqueued=%d acknowledged=%d",
+    eos_static_info("id=%s total-pending=%d enqueued=%d acknowledged=%d",
+                    id.c_str(),
                     backgroundFlusher.size(),
                     backgroundFlusher.getEnqueuedAndClear(),
                     backgroundFlusher.getAcknowledgedAndClear());
