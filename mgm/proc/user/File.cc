@@ -642,60 +642,52 @@ ProcCommand::File()
         }
       }
 
-      // check that we have write permission on path
-      if (gOFS->_access(spath.c_str(), W_OK, *mError, *pVid, "")) {
-        stdErr += "error: ";
+      XrdSfsFSctl args;
+      XrdOucString opaque = "mgm.pcmd=event&mgm.fid=";
+      XrdOucString hexfid;
+      XrdOucString lSec;
+      eos::common::FileId::Fid2Hex(fid, hexfid);
+      opaque += hexfid;
+      opaque += "&mgm.logid=";
+      opaque += logId;
+      opaque += "&mgm.event=";
+      opaque += event.c_str();
+      opaque += "&mgm.workflow=";
+      opaque += workflow.c_str();
+      opaque += "&mgm.path=";
+      opaque += spath.c_str();
+      opaque += "&mgm.ruid=";
+      opaque += (int) vid.uid;
+      opaque += "&mgm.rgid=";
+      opaque += (int) vid.gid;
+      XrdSecEntity lClient(pVid->prot.c_str());
+      lClient.name = (char*) pVid->name.c_str();
+      lClient.tident = (char*) pVid->tident.c_str();
+      lClient.host = (char*) pVid->host.c_str();
+      lSec = "&mgm.sec=";
+      lSec += eos::common::SecEntity::ToKey(&lClient,
+                                            "eos").c_str();
+      opaque += lSec;
+      args.Arg1 = spath.c_str();
+      args.Arg1Len = spath.length();
+      args.Arg2 = opaque.c_str();
+      args.Arg2Len = opaque.length();
+
+      if (gOFS->FSctl(SFS_FSCTL_PLUGIN,
+                      args,
+                      *mError,
+                      &lClient) != SFS_DATA) {
+        stdErr += "error: unable to run workflow '";
+        stdErr += event.c_str();
+        stdErr += "' : ";
         stdErr += mError->getErrText();
         retc = errno;
-        return SFS_OK;
       } else {
-        XrdSfsFSctl args;
-        XrdOucString opaque = "mgm.pcmd=event&mgm.fid=";
-        XrdOucString hexfid;
-        XrdOucString lSec;
-        eos::common::FileId::Fid2Hex(fid, hexfid);
-        opaque += hexfid;
-        opaque += "&mgm.logid=";
-        opaque += logId;
-        opaque += "&mgm.event=";
-        opaque += event.c_str();
-        opaque += "&mgm.workflow=";
-        opaque += workflow.c_str();
-        opaque += "&mgm.path=";
-        opaque += spath.c_str();
-        opaque += "&mgm.ruid=";
-        opaque += (int) vid.uid;
-        opaque += "&mgm.rgid=";
-        opaque += (int) vid.gid;
-        XrdSecEntity lClient(pVid->prot.c_str());
-        lClient.name = (char*) pVid->name.c_str();
-        lClient.tident = (char*) pVid->tident.c_str();
-        lClient.host = (char*) pVid->host.c_str();
-        lSec = "&mgm.sec=";
-        lSec += eos::common::SecEntity::ToKey(&lClient,
-                                              "eos").c_str();
-        opaque += lSec;
-        args.Arg1 = spath.c_str();
-        args.Arg1Len = spath.length();
-        args.Arg2 = opaque.c_str();
-        args.Arg2Len = opaque.length();
-
-        if (gOFS->FSctl(SFS_FSCTL_PLUGIN,
-                        args,
-                        *mError,
-                        &lClient) != SFS_DATA) {
-          stdErr += "error: unable to run workflow '";
-          stdErr += event.c_str();
-          stdErr += "' : ";
-          stdErr += mError->getErrText();
-          retc = errno;
-        } else {
-          stdOut += "success: triggered workflow  '";
-          stdOut += event.c_str();
-          stdOut += "' on '";
-          stdOut += spath.c_str();
-          stdOut += "'";
-        }
+        stdOut += "success: triggered workflow  '";
+        stdOut += event.c_str();
+        stdOut += "' on '";
+        stdOut += spath.c_str();
+        stdOut += "'";
       }
     }
 

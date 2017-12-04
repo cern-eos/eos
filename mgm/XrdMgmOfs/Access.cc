@@ -202,8 +202,8 @@ XrdMgmOfs::_access(const char* path,
       }
     }
 
-    // Check workflow permissions when mode requires
-    if (permok && (mode & P_OK) && ((acl.HasAcl() && !acl.CanWorkflow()) || !acl.HasAcl())) {
+    // Check prepare permissions when mode requires
+    if (permok && (mode & P_OK) && ((acl.HasAcl() && !acl.CanPrepare()) || !acl.HasAcl())) {
       permok = false;
     }
   } catch (eos::MDException& e) {

@@ -37,32 +37,32 @@
   char* agid = env.Get("mgm.rgid");
   char* asec = env.Get("mgm.sec");
 
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
+  eos::common::Mapping::VirtualIdentity localVid;
+  eos::common::Mapping::Nobody(localVid);
 
   int retc = 0;
 
   if (auid)
   {
-    vid.uid = strtoul(auid, 0, 10);
-    vid.uid_string = eos::common::Mapping::UidToUserName(vid.uid, retc);
+    localVid.uid = strtoul(auid, 0, 10);
+    localVid.uid_string = eos::common::Mapping::UidToUserName(localVid.uid, retc);
   }
 
   if (agid)
   {
-    vid.gid = strtoul(agid, 0, 10);
-    vid.gid_string = eos::common::Mapping::GidToGroupName(vid.gid, retc);
+    localVid.gid = strtoul(agid, 0, 10);
+    localVid.gid_string = eos::common::Mapping::GidToGroupName(localVid.gid, retc);
   }
 
   if (asec)
   {
     std::map<std::string, std::string> secmap = eos::common::SecEntity::KeyToMap(
       std::string(asec));
-    vid.prot = secmap["prot"].c_str();
-    vid.name = secmap["name"].c_str();
-    vid.host = secmap["host"];
-    vid.grps = secmap["grps"];
-    vid.app  = secmap["app"];
+    localVid.prot = secmap["prot"].c_str();
+    localVid.name = secmap["name"].c_str();
+    localVid.host = secmap["host"];
+    localVid.grps = secmap["grps"];
+    localVid.app  = secmap["app"];
   }
 
   if (alogid)
@@ -70,9 +70,14 @@
     ThreadLogId.SetLogId(alogid, tident);
   }
 
+  bool isPrepare = std::string(aevent).find("prepare") != std::string::npos;
+
   // check that we have write permission on path
-  if (gOFS->_access(spath, W_OK, error, vid, "")) {
-    Emsg(epname, error, EPERM, "prepare - you don't have write permission", spath);
+  if (localVid.prot != "sss" &&
+      gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, vid, "")) {
+    Emsg(epname, error, EPERM,
+         isPrepare ? "event - you don't have write and prepare permissions" : "event - you don't have write permission",
+         spath);
     return SFS_ERROR;
   }
 

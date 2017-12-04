@@ -88,7 +88,7 @@ public:
     mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false),
     mCanBrowse(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanWorkflow(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -231,11 +231,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Has the 'p' flag - archiving permission
+  //! Has the 'p' flag - prepare permission
   //----------------------------------------------------------------------------
-  inline bool CanWorkflow() const
+  inline bool CanPrepare() const
   {
-    return mCanWorkflow;
+    return mCanPrepare;
   }
 
 private:
@@ -254,7 +254,7 @@ private:
   bool mHasEgroup; ///< acl contains egroup rule
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
-  bool mCanWorkflow; ///< acl which allows triggering workflows
+  bool mCanPrepare; ///< acl which allows triggering workflows
 };
 
 EOSMGMNAMESPACE_END

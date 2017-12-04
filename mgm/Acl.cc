@@ -113,7 +113,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   mHasEgroup = false;
   mIsMutable = true;
   mCanArchive = false;
-  mCanWorkflow = false;
+  mCanPrepare = false;
 
   // no acl definition
   if (!acl.length()) {
@@ -228,7 +228,7 @@ Acl::Set(std::string sysacl, std::string useracl,
 
         // 'p' defines workflow permission
         if ((entry[2].find('p')) != std::string::npos) {
-          mCanWorkflow = true;
+          mCanPrepare = true;
           mHasAcl = true;
         }
 
