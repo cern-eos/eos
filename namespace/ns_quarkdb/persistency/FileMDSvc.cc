@@ -39,18 +39,6 @@ FileMDSvc::FileMDSvc()
     mMetaMap(), mDirtyFidBackend(), mFileCache(10e8) {}
 
 //------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FileMDSvc::~FileMDSvc()
-{
-  // @todo (esindril): this should be droppped and the flusher should
-  // synchronize in his destructor
-  if (pFlusher) {
-    pFlusher->synchronize();
-  }
-}
-
-//------------------------------------------------------------------------------
 // Configure the file service
 //------------------------------------------------------------------------------
 void

@@ -242,10 +242,6 @@ QuotaStats::QuotaStats():
 //------------------------------------------------------------------------------
 QuotaStats::~QuotaStats()
 {
-  if (pFlusher) {
-    pFlusher->synchronize();
-  }
-
   for (auto && elem : pNodeMap) {
     delete elem.second;
   }

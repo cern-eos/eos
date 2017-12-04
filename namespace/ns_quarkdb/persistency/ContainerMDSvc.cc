@@ -49,18 +49,6 @@ ContainerMDSvc::ContainerMDSvc()
     mMetaMap(), mContainerCache(10e7) {}
 
 //------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-ContainerMDSvc::~ContainerMDSvc()
-{
-  // @todo (esindril): this should be droppped and the flusher should
-  // synchronize in his destructor
-  if (pFlusher) {
-    pFlusher->synchronize();
-  }
-}
-
-//------------------------------------------------------------------------------
 // Configure the container service
 //------------------------------------------------------------------------------
 void
