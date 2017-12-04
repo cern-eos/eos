@@ -643,7 +643,7 @@ ProcCommand::File()
       }
 
       // check that we have write permission on path
-      if (gOFS->_access(spath.c_str(), W_OK | P_OK, *mError, *pVid, "")) {
+      if (gOFS->_access(spath.c_str(), W_OK, *mError, *pVid, "")) {
         stdErr += "error: ";
         stdErr += mError->getErrText();
         retc = errno;

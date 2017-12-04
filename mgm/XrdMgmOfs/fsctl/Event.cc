@@ -71,8 +71,8 @@
   }
 
   // check that we have write permission on path
-  if (gOFS->_access(spath, W_OK | P_OK, error, vid, "")) {
-    Emsg(epname, error, EPERM, "prepare - you don't have write and workflow permission", spath);
+  if (gOFS->_access(spath, W_OK, error, vid, "")) {
+    Emsg(epname, error, EPERM, "prepare - you don't have write permission", spath);
     return SFS_ERROR;
   }
 
