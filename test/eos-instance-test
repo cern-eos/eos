@@ -789,6 +789,7 @@ runtest "### Find      " unix 0 "" eos find -f -x sys.test=abc "/eos/$EOS_TEST_I
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Touch     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat"
 runtest "### Vid       " unix 0 "" eos vid "set map -krb5 vuid:99 vgid:99"
+runtest "### Vid       " unix 0 "" eos vid "disable krb5"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat | wc -l | grep -w 0"
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
@@ -802,6 +803,7 @@ runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/in
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat 2>&1 | grep trigger"
 runtest "### Vid       " unix 0 "" eos vid "rm krb5:\"vuid:99\":gid"
+runtest "### Vid       " unix 0 "" eos vid "enable krb5"
 
 ################################################################################
 # ACL
