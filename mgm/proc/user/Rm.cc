@@ -35,11 +35,18 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Rm()
 {
-  XrdOucString spath = pOpaque->Get("mgm.path");
-  GetPathFromFid(spath, pOpaque, "Cannot get fid");
+  XrdOucString spath = "";
+  XrdOucString spathid = pOpaque->Get("mgm.file.id");
+
+  if (spathid.length()) {
+    GetPathFromFid(spath, pOpaque, "Cannot get fid");
+  } else {
+    spath = pOpaque->Get("mgm.path");
+  }
+
+  const char* inpath = spath.c_str();
   XrdOucString option = pOpaque->Get("mgm.option");
   XrdOucString deep = pOpaque->Get("mgm.deletion");
-  const char* inpath = spath.c_str();
   eos::common::Path cPath(inpath);
   bool force = (option.find("f") != STR_NPOS);
   XrdOucString filter = "";
