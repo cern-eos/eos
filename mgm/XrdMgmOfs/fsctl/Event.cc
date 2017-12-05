@@ -73,8 +73,8 @@
   bool isPrepare = std::string(aevent).find("prepare") != std::string::npos;
 
   // check that we have write permission on path
-  eos_debug("vid.prot=%s, vid.uid=%ull, vid.gid=%ull", vid.prot, vid.uid, vid.gid);
-  eos_debug("local.prot=%s, local.uid=%ull, local.gid=%ull", localVid.prot, localVid.uid, localVid.gid);
+  eos_debug("vid.prot=%s, vid.uid=%ull, vid.gid=%ull", vid.prot.c_str(), vid.uid, vid.gid);
+  eos_debug("local.prot=%s, local.uid=%ull, local.gid=%ull", localVid.prot.c_str(), localVid.uid, localVid.gid);
   if (vid.prot != "sss" &&
       gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, localVid, "")) {
     Emsg(epname, error, EPERM,
