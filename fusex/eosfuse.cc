@@ -1355,6 +1355,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
 
     if (op & FUSE_SET_ATTR_MODE)
     {
+      // chmod permissions are derived from the parent in case of a directory or file
+      // otherwise we trap ourselfs when revoking W_OK
+      if (S_ISDIR(md->mode()))
+	cap_ino = md->pid();
+
       // retrieve cap for mode setting
       pcap = Instance().caps.acquire(req, cap_ino,
                                      M_OK);
@@ -1383,6 +1388,12 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       // retrieve cap for write
       pcap = Instance().caps.acquire(req, cap_ino,
                                      W_OK);
+      if (pcap->errc())
+      {
+	// retrieve cap for set utime
+	pcap = Instance().caps.acquire(req, cap_ino, 
+				       SU_OK);
+      }
     }
 
     if (pcap->errc())
