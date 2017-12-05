@@ -50,8 +50,8 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 {
   false, std::chrono::seconds(0)
 }),
-backgroundFlusher(qcl, notifier, 50000 /* size limit */,
-                  5000 /* pipeline length */,
+backgroundFlusher(qcl, notifier, 200000 /* size limit */,
+                  20000 /* pipeline length */,
                   new qclient::RocksDBPersistency(path)),
 sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
