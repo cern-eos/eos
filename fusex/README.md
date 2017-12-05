@@ -33,13 +33,15 @@ This
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
     "symlink-is-sync" : 1,
+    "rename-is-sync" : 1,
     "global-flush" : 1,
     "global-locking" : 1, 
     "fd-limit" : 65536,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
     "overlay-mode" : 000, 
     "rm-rf-protect-levels" : 1
-    "show-tree-size" : 0
+    "show-tree-size" : 0,
+    "free-md-asap" : 1 
   },
   "auth" : {
     "shared-mount" : 1,
