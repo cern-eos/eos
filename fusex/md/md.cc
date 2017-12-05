@@ -2018,7 +2018,7 @@ metad::mdcflush(ThreadAssistant &assistant)
               // TODO: check if we need to lock pmd? But then we have to enforce
               // locking order child -> parent
               uint64_t md_pino = pmd->md_ino();
-              eos_static_info"metacache::flush providing parent inode %016lx to %016lx", md->id(), md_pino);
+              eos_static_info("metacache::flush providing parent inode %016lx to %016lx", md->id(), md_pino);
               md->set_md_pino(md_pino);
             }
             else
