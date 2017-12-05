@@ -994,13 +994,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     // We feed the layout size, not the physical on disk!
     eos_info("msg=\"layout size\": disk_size=%zu db_size= %llu",
-             statinfo.st_size, fMd->fMd.size());
+             statinfo.st_size, fMd->mProtoFmd.size());
 
-    if ((off_t) statinfo.st_size != (off_t) fMd->fMd.size()) {
+    if ((off_t) statinfo.st_size != (off_t) fMd->mProtoFmd.size()) {
       // in a RAID-like layout if the header is corrupted there is no way to know
       // the size of the initial file, therefore we take the value from the DB
       if (!isReconstruction) {
-        openSize = fMd->fMd.size();
+        openSize = fMd->mProtoFmd.size();
       } else {
         openSize = statinfo.st_size;
       }
@@ -1010,8 +1010,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     if (checkSum && isRW) {
       // Preset with the last known checksum
-      eos_info("msg=\"reset init\" file-xs=%s", fMd->fMd.checksum().c_str());
-      checkSum->ResetInit(0, openSize, fMd->fMd.checksum().c_str());
+      eos_info("msg=\"reset init\" file-xs=%s", fMd->mProtoFmd.checksum().c_str());
+      checkSum->ResetInit(0, openSize, fMd->mProtoFmd.checksum().c_str());
     }
   }
 
@@ -1404,7 +1404,7 @@ XrdFstOfsFile::verifychecksum()
 
       checkSum->GetBinChecksum(checksumlen);
       // Copy checksum into meta data
-      fMd->fMd.set_checksum(checkSum->GetHexChecksum());
+      fMd->mProtoFmd.set_checksum(checkSum->GetHexChecksum());
 
       if (haswrite) {
         // If we have no write, we don't set this attributes (xrd3cp!)
@@ -1459,13 +1459,13 @@ XrdFstOfsFile::verifychecksum()
       eos_info("(read)  checksum type: %s checksum hex: %s fmd-checksum: %s",
                checkSum->GetName(),
                checkSum->GetHexChecksum(),
-               fMd->fMd.checksum().c_str());
+               fMd->mProtoFmd.checksum().c_str());
       std::string calculatedchecksum = checkSum->GetHexChecksum();
 
       // We might fetch an unitialized value, so that is not to be considered
       // a checksum error yet.
-      if (fMd->fMd.checksum() != "none") {
-        if (calculatedchecksum != fMd->fMd.checksum().c_str()) {
+      if (fMd->mProtoFmd.checksum() != "none") {
+        if (calculatedchecksum != fMd->mProtoFmd.checksum().c_str()) {
           checksumerror = true;
         }
       }
@@ -1518,12 +1518,12 @@ XrdFstOfsFile::close()
   if (opened && (!closed) && fMd) {
     // Check if the file close comes from a client disconnect e.g. the destructor
     XrdOucString hexstring = "";
-    eos::common::FileId::Fid2Hex(fMd->fMd.fid(), hexstring);
+    eos::common::FileId::Fid2Hex(fMd->mProtoFmd.fid(), hexstring);
     XrdOucErrInfo error;
     XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
     XrdOucString OpaqueString = "";
     OpaqueString += "&mgm.fsid=";
-    OpaqueString += (int) fMd->fMd.fsid();
+    OpaqueString += (int) fMd->mProtoFmd.fsid();
     OpaqueString += "&mgm.fid=";
     OpaqueString += hexstring;
     XrdOucEnv Opaque(OpaqueString.c_str());
@@ -1535,17 +1535,17 @@ XrdFstOfsFile::close()
       // or the specified checksum does not match the computed one
       if (viaDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                 "  fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
+                 "  fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       if (writeDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
+                 " fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       if (remoteDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
+                 " fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       // Delete the file - set the file to be deleted
@@ -1562,7 +1562,7 @@ XrdFstOfsFile::close()
 
       if (rc) {
         eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                    hexstring.c_str(), fMd->fMd.fid(), capOpaque->Get("mgm.manager"));
+                    hexstring.c_str(), fMd->mProtoFmd.fid(), capOpaque->Get("mgm.manager"));
       }
     } else {
       // Check if this was a newly created file
@@ -1651,7 +1651,7 @@ XrdFstOfsFile::close()
 
         if (rc) {
           eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hexstring.c_str(), fMd->fMd.fid(), capOpaque->Get("mgm.manager"));
+                      hexstring.c_str(), fMd->mProtoFmd.fid(), capOpaque->Get("mgm.manager"));
         }
       }
 
@@ -1680,38 +1680,38 @@ XrdFstOfsFile::close()
           if ((statinfo.st_size == 0) || haswrite) {
             // Update size
             closeSize = statinfo.st_size;
-            fMd->fMd.set_size(statinfo.st_size);
-            fMd->fMd.set_disksize(statinfo.st_size);
-            fMd->fMd.set_mgmsize(0xfffffffffff1ULL); // now again undefined
-            fMd->fMd.set_mgmchecksum(""); // now again empty
-            fMd->fMd.set_diskchecksum(""); // now again empty
-            fMd->fMd.set_layouterror(0); // reset layout errors
-            fMd->fMd.set_locations(""); // reset locations
-            fMd->fMd.set_filecxerror(0);
-            fMd->fMd.set_blockcxerror(0);
-            fMd->fMd.set_locations(""); // reset locations
-            fMd->fMd.set_filecxerror(0);
-            fMd->fMd.set_blockcxerror(0);
-            fMd->fMd.set_mtime(statinfo.st_mtime);
+            fMd->mProtoFmd.set_size(statinfo.st_size);
+            fMd->mProtoFmd.set_disksize(statinfo.st_size);
+            fMd->mProtoFmd.set_mgmsize(0xfffffffffff1ULL); // now again undefined
+            fMd->mProtoFmd.set_mgmchecksum(""); // now again empty
+            fMd->mProtoFmd.set_diskchecksum(""); // now again empty
+            fMd->mProtoFmd.set_layouterror(0); // reset layout errors
+            fMd->mProtoFmd.set_locations(""); // reset locations
+            fMd->mProtoFmd.set_filecxerror(0);
+            fMd->mProtoFmd.set_blockcxerror(0);
+            fMd->mProtoFmd.set_locations(""); // reset locations
+            fMd->mProtoFmd.set_filecxerror(0);
+            fMd->mProtoFmd.set_blockcxerror(0);
+            fMd->mProtoFmd.set_mtime(statinfo.st_mtime);
 #ifdef __APPLE__
-            fMd->fMd.set_mtime_ns(0);
+            fMd->mProtoFmd.set_mtime_ns(0);
 #else
-            fMd->fMd.set_mtime_ns(statinfo.st_mtim.tv_nsec);
+            fMd->mProtoFmd.set_mtime_ns(statinfo.st_mtim.tv_nsec);
 #endif
             // Set the container id
-            fMd->fMd.set_cid(cid);
+            fMd->mProtoFmd.set_cid(cid);
 
             // For replicat's set the original uid/gid/lid values
             if (capOpaque->Get("mgm.source.lid")) {
-              fMd->fMd.set_lid(strtoul(capOpaque->Get("mgm.source.lid"), 0, 10));
+              fMd->mProtoFmd.set_lid(strtoul(capOpaque->Get("mgm.source.lid"), 0, 10));
             }
 
             if (capOpaque->Get("mgm.source.ruid")) {
-              fMd->fMd.set_uid(atoi(capOpaque->Get("mgm.source.ruid")));
+              fMd->mProtoFmd.set_uid(atoi(capOpaque->Get("mgm.source.ruid")));
             }
 
             if (capOpaque->Get("mgm.source.rgid")) {
-              fMd->fMd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
+              fMd->mProtoFmd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
             }
 
             // Commit local
@@ -1732,7 +1732,7 @@ XrdFstOfsFile::close()
             capOpaqueFile += "&mgm.pcmd=commit";
             capOpaqueFile += "&mgm.size=";
             char filesize[1024];
-            sprintf(filesize, "%" PRIu64 "", fMd->fMd.size());
+            sprintf(filesize, "%" PRIu64 "", fMd->mProtoFmd.size());
             capOpaqueFile += filesize;
 
             if (checkSum) {
@@ -1742,11 +1742,12 @@ XrdFstOfsFile::close()
 
             capOpaqueFile += "&mgm.mtime=";
             capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                             (mForcedMtime != 1) ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
+                             (mForcedMtime != 1) ? mForcedMtime : (unsigned long long)
+                             fMd->mProtoFmd.mtime());
             capOpaqueFile += "&mgm.mtime_ns=";
             capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
                              (mForcedMtime != 1) ? mForcedMtime_ms : (unsigned long long)
-                             fMd->fMd.mtime_ns());
+                             fMd->mProtoFmd.mtime_ns());
 
             if (mFusex) {
               capOpaqueFile += "&mgm.fusex=1";
@@ -1757,7 +1758,7 @@ XrdFstOfsFile::close()
             }
 
             capOpaqueFile += "&mgm.add.fsid=";
-            capOpaqueFile += (int) fMd->fMd.fsid();
+            capOpaqueFile += (int) fMd->mProtoFmd.fsid();
 
             // If <drainfsid> is set, we can issue a drop replica
             if (capOpaque->Get("mgm.drainfsid")) {
@@ -1808,20 +1809,20 @@ XrdFstOfsFile::close()
                   // unlink that immedeatly
                   eos_info("info=\"unlinking fid=%08x path=%s - "
                            "file has been already unlinked from the namespace\"",
-                           fMd->fMd.fid(), Path.c_str());
+                           fMd->mProtoFmd.fid(), Path.c_str());
                 }
 
                 if (rc == -EBADE) {
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "file size of replica does not match reference\"",
-                          fMd->fMd.fid(), Path.c_str());
+                          fMd->mProtoFmd.fid(), Path.c_str());
                   consistencyerror = true;
                 }
 
                 if (rc == -EBADR) {
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "checksum of replica does not match reference\"",
-                          fMd->fMd.fid(), Path.c_str());
+                          fMd->mProtoFmd.fid(), Path.c_str());
                   consistencyerror = true;
                 }
 
@@ -1854,21 +1855,21 @@ XrdFstOfsFile::close()
           // use inode + checksum
           char setag[256];
           snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
-                   eos::common::FileId::FidToInode((unsigned long long) fMd->fMd.fid()),
-                   fMd->fMd.checksum().c_str());
+                   eos::common::FileId::FidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+                   fMd->mProtoFmd.checksum().c_str());
           ETag = setag;
         } else {
           // use checksum, S3 wants the pure MD5
           char setag[256];
-          snprintf(setag, sizeof(setag) - 1, "\"%s\"", fMd->fMd.checksum().c_str());
+          snprintf(setag, sizeof(setag) - 1, "\"%s\"", fMd->mProtoFmd.checksum().c_str());
           ETag = setag;
         }
       } else {
         // use inode + mtime
         char setag[256];
         snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-                 eos::common::FileId::FidToInode((unsigned long long) fMd->fMd.fid()),
-                 (unsigned long long) fMd->fMd.mtime());
+                 eos::common::FileId::FidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+                 (unsigned long long) fMd->mProtoFmd.mtime());
         ETag = setag;
       }
     }
@@ -1903,27 +1904,27 @@ XrdFstOfsFile::close()
 
       if (isRW) {
         if ((isInjection || isCreation || IsChunkedUpload()) && (!rc) &&
-            (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] > 1)) {
+            (gOFS.WOpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] > 1)) {
           // indicate that this file was closed properly and disable further delete on close
-          gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()][fMd->fMd.fid()] = true;
+          gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] = true;
         }
 
-        gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
+        gOFS.WOpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()]--;
       } else {
-        gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()]--;
+        gOFS.ROpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()]--;
       }
 
-      if (gOFS.WOpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
-        gOFS.WOpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-        gOFS.WOpenFid[fMd->fMd.fsid()].resize(0);
+      if (gOFS.WOpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] <= 0) {
+        gOFS.WOpenFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
+        gOFS.WOpenFid[fMd->mProtoFmd.fsid()].resize(0);
         // When the last writer is gone we can remove the prohibiting entry
-        gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-        gOFS.WNoDeleteOnCloseFid[fMd->fMd.fsid()].resize(0);
+        gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
+        gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].resize(0);
       }
 
-      if (gOFS.ROpenFid[fMd->fMd.fsid()][fMd->fMd.fid()] <= 0) {
-        gOFS.ROpenFid[fMd->fMd.fsid()].erase(fMd->fMd.fid());
-        gOFS.ROpenFid[fMd->fMd.fsid()].resize(0);
+      if (gOFS.ROpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] <= 0) {
+        gOFS.ROpenFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
+        gOFS.ROpenFid[fMd->mProtoFmd.fsid()].resize(0);
       }
     }
 
@@ -1943,7 +1944,7 @@ XrdFstOfsFile::close()
       if (isRW) {
         // Store in the WrittenFilesQueue
         gOFS.WrittenFilesQueueMutex.Lock();
-        gOFS.WrittenFilesQueue.push(fMd->fMd);
+        gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
         gOFS.WrittenFilesQueueMutex.UnLock();
       }
     }
@@ -2748,9 +2749,8 @@ XrdFstOfsFile::DoTpcTransfer()
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    rbytes = tpcIO.fileReadAsync( offset, &((*buffer)[0]),
-                            tpcIO.GetBlockSize(), true, 30);
-
+    rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
+                                 tpcIO.GetBlockSize(), true, 30);
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
               rbytes, tpcIO.GetBlockSize());
 

@@ -355,12 +355,12 @@ ScanDir::CheckFile(const char* filepath)
 
               if (fmd) {
                 // real orphanes get rechecked
-                if (fmd->fMd.layouterror() & eos::common::LayoutId::kOrphan) {
+                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
                   orphaned = true;
                 }
 
                 // unregistered replicas get rechecked
-                if (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered) {
+                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
                   orphaned = true;
                 }
               }
@@ -379,9 +379,9 @@ ScanDir::CheckFile(const char* filepath)
                 fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, 0, false, true);
 
                 if (resynced && fmd) {
-                  if ((fmd->fMd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
-                      ((!(fmd->fMd.layouterror() & eos::common::LayoutId::kReplicaWrong))
-                       && (fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                  if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+                      ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+                       && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
                     char oname[4096];
                     snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x",
                              dirPath.c_str(), (unsigned int) fid);
@@ -410,7 +410,7 @@ ScanDir::CheckFile(const char* filepath)
                 // or unregistered filed. If MGM autorepair is disabled then it
                 // doesn't do anything.
                 if (fmd && !orphaned &&
-                    (!(fmd->fMd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                    (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
                   gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
                 }
               }

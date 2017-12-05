@@ -323,8 +323,8 @@ set(XRDEOSFST_SRCS
   txqueue/TransferQueue.cc
 
   # File metadata interface
+  FmdHandler.hh
   Fmd.cc               Fmd.hh
-  FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
 
@@ -398,8 +398,7 @@ add_executable(eos-compute-blockxs
 
 add_executable(eos-scan-fs
   ScanDir.cc             Load.cc
-  Fmd.cc                 FmdHandler.cc
-  FmdDbMap.cc
+  Fmd.cc                 FmdDbMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   ${FMDBASE_SRCS}

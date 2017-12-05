@@ -188,7 +188,7 @@ Messaging::Process(XrdMqMessage* newmessage)
           // force a resync of meta data from the MGM
           // e.g. store in the WrittenFilesQueue to have it done asynchronous
           gOFS.WrittenFilesQueueMutex.Lock();
-          gOFS.WrittenFilesQueue.push(fMd->fMd);
+          gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
           gOFS.WrittenFilesQueueMutex.UnLock();
           delete fMd;
         }

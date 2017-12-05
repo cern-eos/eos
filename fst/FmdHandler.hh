@@ -21,25 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   FmdHandler.hh
- *
- * @brief  Structure holding the File Meta Data
- *
- *
- */
-
 #ifndef __EOSFST_FMDHANDLER_HH__
 #define __EOSFST_FMDHANDLER_HH__
 
-
-/*----------------------------------------------------------------------------*/
 #include "common/SymKeys.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "fst/FmdClient.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -50,9 +39,10 @@ public:
   eos::common::RWMutex Mutex; //< Mutex protecting the Fmd handler
 
   // ---------------------------------------------------------------------------
-  //! Return's the syncing flag (if we sync, all files on disk are flagge as orphans until the MGM meta data has been verified and when this flag is set, we don't report orphans!
+  //! Return's the syncing flag (if we sync, all files on disk are flagge as
+  //! orphans until the MGM meta data has been verified and when this flag is
+  //! set, we don't report orphans!
   // ---------------------------------------------------------------------------
-
   virtual bool
   IsSyncing(eos::common::FileSystem::fsid_t fsid)
   {
@@ -181,11 +171,6 @@ public:
   virtual bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                             const char* manager) = 0;
 
-//  // ---------------------------------------------------------------------------
-//  //! Query list of fids
-//  // ---------------------------------------------------------------------------
-//  virtual size_t Query (eos::common::FileSystem::fsid_t fsid, std::string query, std::vector<eos::common::FileId::fileid_t> &fidvector)=0;
-
   // ---------------------------------------------------------------------------
   //! GetIncosistencyStatistics
   // ---------------------------------------------------------------------------
@@ -200,8 +185,22 @@ public:
 
   // ---------------------------------------------------------------------------
   //! Comparison function for modification times
+  //!
+  //! @param a pointer to a filestat struct
+  //! @param b pointer to a filestat struct
+  //!
+  //! @return difference between the two modification times within the
+  //! filestat struct
   // ---------------------------------------------------------------------------
-  static int CompareMtime(const void* a, const void* b);
+  static int CompareMtime(const void* a, const void* b)
+  {
+    struct filestat {
+      struct stat buf;
+      char filename[1024];
+    };
+    return ((((struct filestat*) b)->buf.st_mtime) -
+            ((struct filestat*) a)->buf.st_mtime);
+  }
 
   // that is all we need for meta data handling
 

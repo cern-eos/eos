@@ -105,7 +105,7 @@ Storage::Verify()
         // force a resync of meta data from the MGM
         // e.g. store in the WrittenFilesQueue to have it done asynchronous
         gOFS.WrittenFilesQueueMutex.Lock();
-        gOFS.WrittenFilesQueue.push(fMd->fMd);
+        gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
         gOFS.WrittenFilesQueueMutex.UnLock();
         delete fMd;
       }
@@ -136,31 +136,35 @@ Storage::Verify()
       eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored",
                      verifyfile->fId, verifyfile->fsId, fstPath.c_str());
     } else {
-      if ((fMd->fMd.size() != (unsigned long long) statinfo.st_size)  ||
-          (fMd->fMd.disksize() != (unsigned long long) statinfo.st_size)) {
+      if ((fMd->mProtoFmd.size() != (unsigned long long) statinfo.st_size)  ||
+          (fMd->mProtoFmd.disksize() != (unsigned long long) statinfo.st_size)) {
         eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size());
-        fMd->fMd.set_disksize(statinfo.st_size);
+                       verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size,
+                       fMd->mProtoFmd.size());
+        fMd->mProtoFmd.set_disksize(statinfo.st_size);
         localUpdate = true;
       }
 
-      if (fMd->fMd.lid() != verifyfile->lId) {
+      if (fMd->mProtoFmd.lid() != verifyfile->lId) {
         eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u",
-                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->lId, fMd->fMd.lid());
+                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->lId,
+                       fMd->mProtoFmd.lid());
         localUpdate = true;
       }
 
-      if (fMd->fMd.cid() != verifyfile->cId) {
+      if (fMd->mProtoFmd.cid() != verifyfile->cId) {
         eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->cId, fMd->fMd.cid());
+                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->cId,
+                       fMd->mProtoFmd.cid());
         localUpdate = true;
       }
 
       // update size
-      fMd->fMd.set_size(statinfo.st_size);
-      fMd->fMd.set_lid(verifyfile->lId);
-      fMd->fMd.set_cid(verifyfile->cId);
-      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid());
+      fMd->mProtoFmd.set_size(statinfo.st_size);
+      fMd->mProtoFmd.set_lid(verifyfile->lId);
+      fMd->mProtoFmd.set_cid(verifyfile->cId);
+      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(
+                                fMd->mProtoFmd.lid());
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
@@ -188,12 +192,12 @@ Storage::Verify()
           bool cxError = false;
           std::string computedchecksum = checksummer->GetHexChecksum();
 
-          if (fMd->fMd.checksum() != computedchecksum) {
+          if (fMd->mProtoFmd.checksum() != computedchecksum) {
             cxError = true;
           }
 
           // commit the disk checksum in case of differences between the in-memory value
-          if (fMd->fMd.diskchecksum() != computedchecksum) {
+          if (fMd->mProtoFmd.diskchecksum() != computedchecksum) {
             cxError = true;
             localUpdate = true;
           }
@@ -201,19 +205,19 @@ Storage::Verify()
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s",
                            verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum(),
-                           fMd->fMd.checksum().c_str());
-            fMd->fMd.set_checksum(computedchecksum);
-            fMd->fMd.set_diskchecksum(computedchecksum);
-            fMd->fMd.set_disksize(fMd->fMd.size());
+                           fMd->mProtoFmd.checksum().c_str());
+            fMd->mProtoFmd.set_checksum(computedchecksum);
+            fMd->mProtoFmd.set_diskchecksum(computedchecksum);
+            fMd->mProtoFmd.set_disksize(fMd->mProtoFmd.size());
 
             if (verifyfile->commitSize) {
-              fMd->fMd.set_mgmsize(fMd->fMd.size());
+              fMd->mProtoFmd.set_mgmsize(fMd->mProtoFmd.size());
             }
 
             if (verifyfile->commitChecksum) {
-              fMd->fMd.set_mgmchecksum(computedchecksum);
-              fMd->fMd.set_blockcxerror(0);
-              fMd->fMd.set_filecxerror(0);
+              fMd->mProtoFmd.set_mgmchecksum(computedchecksum);
+              fMd->mProtoFmd.set_blockcxerror(0);
+              fMd->mProtoFmd.set_filecxerror(0);
             }
 
             localUpdate = true;
@@ -223,9 +227,9 @@ Storage::Verify()
                             checksummer->GetHexChecksum());
 
             // Reset error flags if needed
-            if (fMd->fMd.blockcxerror() || fMd->fMd.filecxerror()) {
-              fMd->fMd.set_blockcxerror(0);
-              fMd->fMd.set_filecxerror(0);
+            if (fMd->mProtoFmd.blockcxerror() || fMd->mProtoFmd.filecxerror()) {
+              fMd->mProtoFmd.set_blockcxerror(0);
+              fMd->mProtoFmd.set_filecxerror(0);
               localUpdate = true;
             }
           }
@@ -262,7 +266,7 @@ Storage::Verify()
           capOpaqueFile += "&mgm.verify.checksum=1";
           capOpaqueFile += "&mgm.size=";
           char filesize[1024];
-          sprintf(filesize, "%" PRIu64 "", fMd->fMd.size());
+          sprintf(filesize, "%" PRIu64 "", fMd->mProtoFmd.size());
           capOpaqueFile += filesize;
           capOpaqueFile += "&mgm.fid=";
           capOpaqueFile += hexfid;
@@ -284,12 +288,12 @@ Storage::Verify()
 
           capOpaqueFile += "&mgm.mtime=";
           capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                           (unsigned long long) fMd->fMd.mtime());
+                           (unsigned long long) fMd->mProtoFmd.mtime());
           capOpaqueFile += "&mgm.mtime_ns=";
           capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
-                           (unsigned long long) fMd->fMd.mtime_ns());
+                           (unsigned long long) fMd->mProtoFmd.mtime_ns());
           capOpaqueFile += "&mgm.add.fsid=";
-          capOpaqueFile += (int) fMd->fMd.fsid();
+          capOpaqueFile += (int) fMd->mProtoFmd.fsid();
 
           if (verifyfile->commitSize || verifyfile->commitChecksum) {
             if (localUpdate) {

@@ -1,11 +1,6 @@
-// ----------------------------------------------------------------------
-// File: Fmd.cc
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,74 +16,101 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "fst/Fmd.hh"
+#include "common/StringConversion.hh"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-/*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
-#include "common/FileId.hh"
-#include "common/Path.hh"
-#include "fst/FmdDbMap.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/Fmd.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdCl/XrdClFileSystem.hh"
-/*----------------------------------------------------------------------------*/
-#include <stdio.h>
-#include <sys/mman.h>
-#include <fts.h>
-#include <iostream>
-#include <fstream>
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * Dump an Fmd record to stderr
- *
- * @param fmd handle to the Fmd struct
- */
-
-/*----------------------------------------------------------------------------*/
-void
-FmdHelper::Dump(struct Fmd* fmd)
+//------------------------------------------------------------------------------
+// Compute layout error
+//------------------------------------------------------------------------------
+int
+FmdHelper::LayoutError(const Fmd& fmd, eos::common::FileSystem::fsid_t fsid)
 {
-  fprintf(stderr, "%08" PRIx64 " %06" PRIu64 " %04" PRIu32 " %010" PRIu32 " %010"
-          PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010"
-          PRIu32 " %08" PRIu64 " %08" PRIu64 " %08" PRIu64 " %s %s %s %03" PRIu32 " %05"
-          PRIu32 " %05" PRIu32 "\n",
-          fmd->fid(),
-          fmd->cid(),
-          fmd->fsid(),
-          fmd->ctime(),
-          fmd->ctime_ns(),
-          fmd->mtime(),
-          fmd->mtime_ns(),
-          fmd->atime(),
-          fmd->atime_ns(),
-          fmd->checktime(),
-          fmd->size(),
-          fmd->disksize(),
-          fmd->mgmsize(),
-          fmd->checksum().c_str(),
-          fmd->diskchecksum().c_str(),
-          fmd->mgmchecksum().c_str(),
-          fmd->lid(),
-          fmd->uid(),
-          fmd->gid());
+  uint32_t lid = fmd.lid();
+
+  if (lid == 0) {
+    // An orphan has no lid at the MGM e.g. lid=0
+    return eos::common::LayoutId::kOrphan;
+  }
+
+  size_t valid_replicas = 0;
+  auto location_set = GetLocations(fmd, valid_replicas);
+  size_t nstripes = eos::common::LayoutId::GetStripeNumber(lid) + 1;
+  int lerror = 0;
+
+  if (nstripes != valid_replicas) {
+    lerror |= eos::common::LayoutId::kReplicaWrong;
+  }
+
+  if (!location_set.count(fsid)) {
+    lerror |= eos::common::LayoutId::kUnregistered;
+  }
+
+  return lerror;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Convert a Fmd struct into an env representation
- *
- *
- * @return env representation
- */
+//---------------------------------------------------------------------------
+// Reset file meta data object
+//---------------------------------------------------------------------------
+void
+FmdHelper::Reset(Fmd& fmd)
+{
+  fmd.set_fid(0);
+  fmd.set_cid(0);
+  fmd.set_ctime(0);
+  fmd.set_ctime_ns(0);
+  fmd.set_mtime(0);
+  fmd.set_mtime_ns(0);
+  fmd.set_atime(0);
+  fmd.set_atime_ns(0);
+  fmd.set_checktime(0);
+  fmd.set_size(0xfffffff1ULL);
+  fmd.set_disksize(0xfffffff1ULL);
+  fmd.set_mgmsize(0xfffffff1ULL);
+  fmd.set_checksum("");
+  fmd.set_diskchecksum("");
+  fmd.set_mgmchecksum("");
+  fmd.set_lid(0);
+  fmd.set_uid(0);
+  fmd.set_gid(0);
+  fmd.set_filecxerror(0);
+  fmd.set_blockcxerror(0);
+  fmd.set_layouterror(0);
+  fmd.set_locations("");
+}
 
-/*----------------------------------------------------------------------------*/
+//---------------------------------------------------------------------------
+// Get the set of all file system id locations of the current file
+//---------------------------------------------------------------------------
+std::set<eos::common::FileSystem::fsid_t>
+FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
+{
+  valid_replicas = 0;
+  std::vector<std::string> location_vector;
+  eos::common::StringConversion::Tokenize(fmd.locations(), location_vector, ",");
+  std::set<eos::common::FileSystem::fsid_t> location_set;
+
+  for (size_t i = 0; i < location_vector.size(); i++) {
+    if (location_vector[i].length()) {
+      // Unlinked locates have a '!' in front of the fsid
+      if (location_vector[i][0] == '!') {
+        location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
+      } else {
+        location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
+        ++valid_replicas;
+      }
+    }
+  }
+
+  return location_set;
+}
+
+//-------------------------------------------------------------------------------
+// Convert fmd object to env representation
+//-------------------------------------------------------------------------------
 XrdOucEnv*
 FmdHelper::FmdToEnv()
 {
@@ -97,16 +119,11 @@ FmdHelper::FmdToEnv()
           "&ctime_ns=%" PRIu32 "&mtime=%" PRIu32 "&"
           "mtime_ns=%" PRIu32 "&size=%" PRIu64 "&checksum=%s&lid=%" PRIu32 "&uid=%" PRIu32
           "&gid=%" PRIu32 "&",
-          fMd.fid(), fMd.cid(), fMd.ctime(), fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
-          fMd.size(),
-          fMd.checksum().c_str(), fMd.lid(), fMd.uid(), fMd.gid());
+          mProtoFmd.fid(), mProtoFmd.cid(), mProtoFmd.ctime(),
+          mProtoFmd.ctime_ns(), mProtoFmd.mtime(), mProtoFmd.mtime_ns(),
+          mProtoFmd.size(), mProtoFmd.checksum().c_str(), mProtoFmd.lid(),
+          mProtoFmd.uid(), mProtoFmd.gid());
   return new XrdOucEnv(serialized);
 }
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_END
-
-
-
-//  LocalWords:  ResyncAllMgm

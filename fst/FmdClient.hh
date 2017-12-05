@@ -21,18 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   FmdClient.hh
- *
- * @brief  Classes for FST File Meta Data Request from a client
- *
- *
- */
-
 #ifndef __EOSFST_FMDCLIENT_HH__
 #define __EOSFST_FMDCLIENT_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
@@ -40,10 +31,8 @@
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "fst/Fmd.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 #include <google/dense_hash_map>
@@ -64,11 +53,11 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Class handling Request to Fmd
-// ---------------------------------------------------------------------------
-
-class FmdClient : public eos::common::LogId {
+//------------------------------------------------------------------------------
+class FmdClient : public eos::common::LogId
+{
 public:
 
 
@@ -84,7 +73,7 @@ public:
 
   /*----------------------------------------------------------------------------*/
   bool
-  EnvFstToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd);
+  EnvFstToFmdSqlite(XrdOucEnv& env, struct Fmd& fmd);
 
   /*----------------------------------------------------------------------------*/
   /**
@@ -97,7 +86,7 @@ public:
    */
   /*----------------------------------------------------------------------------*/
   bool
-  EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd);
+  EnvMgmToFmdSqlite(XrdOucEnv& env, struct Fmd& fmd);
 
   /*----------------------------------------------------------------------------*/
   /**
@@ -110,8 +99,8 @@ public:
    * @return
    */
   /*----------------------------------------------------------------------------*/
-  int GetMgmFmd (const char* manager, eos::common::FileId::fileid_t fid,
-		 struct Fmd& fmd);
+  int GetMgmFmd(const char* manager, eos::common::FileId::fileid_t fid,
+                struct Fmd& fmd);
 
   /*----------------------------------------------------------------------------*/
   /**
@@ -126,10 +115,10 @@ public:
    */
 
   /*----------------------------------------------------------------------------*/
-  int GetRemoteAttribute (const char* manager,
-                          const char* key,
-                          const char* path,
-                          XrdOucString& attribute);
+  int GetRemoteAttribute(const char* manager,
+                         const char* key,
+                         const char* path,
+                         XrdOucString& attribute);
 
   /**
    * Return Fmd from a remote filesystem
@@ -141,10 +130,10 @@ public:
    *
    * @return
    */
-  int GetRemoteFmdSqlite (const char* manager,
-                          const char* shexfid,
-                          const char* sfsid,
-                          struct Fmd& fmd);
+  int GetRemoteFmdSqlite(const char* manager,
+                         const char* shexfid,
+                         const char* sfsid,
+                         struct Fmd& fmd);
 
 
   /**
@@ -155,13 +144,13 @@ public:
    *
    * @return
    */
-  int CallAutoRepair (const char* manager,
-                      eos::common::FileId::fileid_t fid);
+  int CallAutoRepair(const char* manager,
+                     eos::common::FileId::fileid_t fid);
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
 
-  FmdClient ()
+  FmdClient()
   {
     SetLogId("CommonFmdClient");
   }
@@ -170,7 +159,7 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
 
-  virtual ~FmdClient ()
+  virtual ~FmdClient()
   {
   }
 };

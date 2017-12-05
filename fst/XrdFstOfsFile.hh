@@ -127,7 +127,7 @@ public:
   time_t GetMtime()
   {
     if (fMd) {
-      return fMd->fMd.mtime();
+      return fMd->mProtoFmd.mtime();
     } else {
       return 0;
     }
@@ -345,7 +345,7 @@ public:
   //--------------------------------------------------------------------------
   std::string GetFmdChecksum()
   {
-    return fMd->fMd.checksum();
+    return fMd->mProtoFmd.checksum();
   }
 
   //--------------------------------------------------------------------------

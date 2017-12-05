@@ -211,8 +211,8 @@ FileSystem::CleanTransactions()
           fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
           if (fMd) {
-            std::set<eos::common::FileSystem::fsid_t> location_set =
-              FmdHelper::GetLocations(fMd->fMd);
+            size_t valid_loc;
+            auto location_set = FmdHelper::GetLocations(fMd->mProtoFmd, valid_loc);
 
             if (location_set.count(GetId())) {
               // close that transaction and keep the file
