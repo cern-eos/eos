@@ -79,6 +79,21 @@ data::get(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
+bool 
+/* -------------------------------------------------------------------------- */
+data::has(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper mLock(datamap);
+  if (datamap.count(ino))
+    return true;
+  else
+    return false;
+}
+
+
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 data::release(fuse_req_t req,
@@ -869,7 +884,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                           req) : mFile->xrdiorw(req);
   XrdCl::XRootDStatus status;
-  eos_crit("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
+  eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
 
   if (proxy) {
     if (proxy->IsOpening())

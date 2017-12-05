@@ -287,6 +287,8 @@ public:
                   fuse_ino_t ino,
                   metad::shared_md m);
 
+  bool has(fuse_ino_t);
+
   void release(fuse_req_t req,
                fuse_ino_t ino);
 

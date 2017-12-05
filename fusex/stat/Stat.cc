@@ -546,7 +546,7 @@ Stat::GetExec(const char* tag, double& deviation)
       sum += *it;
     }
 
-    avg = sum / cnt?cnt:999999999;
+    avg = sum / (cnt?cnt:999999999);
 
     for (it = StatExec[tag].begin(); it != StatExec[tag].end(); it++) {
       deviation += pow((*it - avg), 2);

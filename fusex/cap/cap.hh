@@ -43,7 +43,7 @@
 #define C_OK 32    // chown
 #define SA_OK 64   // set xattr
 #define U_OK 128   // can update
-
+#define SU_OK 256  // set utimes
 class cap
 {
 public:

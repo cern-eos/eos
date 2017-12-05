@@ -240,6 +240,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
 	if ( (fsuser == "gw") || (fsuser == "smb") )
 	{
+	  // keep always all meta-data
+	  root["options"]["free-md-asap"] = 0;
 	  // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
 	  if (!root.isMember("mdcachedir"))
 	  {
@@ -351,6 +353,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       {
 	root["options"]["symlink-is-sync"] = 1;
       }
+      if (!root["options"].isMember("rename-is-sync"))
+      {
+	root["options"]["rename-is-sync"] = 1;
+      }
       if (!root["options"].isMember("global-flush"))
       {
 	root["options"]["global-flush"] = 1;
@@ -363,7 +369,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       {
 	root["options"]["show-tree-size"] = 0;
       }
-      
+      if (!root["options"].isMember("free-md-asap"))
+      {
+	root["options"]["free-md-asap"] = 1;
+      }      
       if (!root["auth"].isMember("krb5"))
       {
 	root["auth"]["krb5"] = 1;
@@ -426,12 +435,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
     config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
+    config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
     config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.options.rm_rf_protect_levels = root["options"]["rm-rf-protect-levels"].asInt();
     config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
+    config.options.free_md_asap = root["options"]["free-md-asap"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -1022,26 +1033,27 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
     tCapFlush.reset(&cap::capflush, &caps);
     eos_static_warning("********************************************************************************");
-    eos_static_warning("eosdx started version %s - FUSE protocol version %d",
-                       VERSION, FUSE_USE_VERSION);
+    eos_static_warning("eosxd started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("eos-instance-url       := %s", config.hostport.c_str());
     eos_static_warning("thread-pool            := %s",
                        config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
                        config.options.data_kernelcache,
                        config.options.mkdir_is_sync,
                        config.options.create_is_sync,
-                       config.options.symlink_is_sync,
+		       config.options.symlink_is_sync,
+		       config.options.rename_is_sync,
                        config.options.global_flush,
                        config.options.global_locking,
 		       no_fsync_list.c_str(),
 		       config.options.overlay_mode,
-		       config.options.show_tree_size
+		       config.options.show_tree_size,
+		       config.options.free_md_asap
 		       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
 		       cconfig.read_ahead_strategy.c_str(),
@@ -1084,8 +1096,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       fuse_session_destroy(fusesession);
     }
 
-    eos_static_warning("eosdx stopped version %s - FUSE protocol version %d",
-                       VERSION, FUSE_USE_VERSION);
+    eos_static_warning("eosxd stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
     tDumpStatistic.join();
     tStatCirculate.join();
@@ -1313,6 +1324,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
     if (op & FUSE_SET_ATTR_MODE)
     {
+      // chmod permissions are derived from the parent in case of a directory or file
+      // otherwise we trap ourselfs when revoking W_OK
+      if (S_ISDIR(md->mode()))
+	cap_ino = md->pid();
+
       // retrieve cap for mode setting
       pcap = Instance().caps.acquire(req, cap_ino,
                                      M_OK);
@@ -1332,6 +1348,12 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
       // retrieve cap for write
       pcap = Instance().caps.acquire(req, cap_ino,
                                      W_OK);
+      if (pcap->errc())
+      {
+	// retrieve cap for set utime
+	pcap = Instance().caps.acquire(req, cap_ino, 
+				       SU_OK);
+      }
     }
 
     if (pcap->errc()) {
@@ -2414,8 +2436,12 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     if (!rc) {
       Track::Monitor mone(__func__, Instance().Tracker(), md_ino, true);
       std::string new_name = newname;
-      Instance().mds.mv(req, p1md, p2md, md, newname, p1cap->authid(),
-                        p2cap->authid());
+      Instance().mds.mv (req, p1md, p2md, md, newname, p1cap->authid(), p2cap->authid());
+      if (Instance().Config().options.rename_is_sync)
+      {
+	XrdSysMutexHelper mLock(md->Locker());
+	Instance().mds.wait_flush(req, md);
+      }
     }
   }
 
