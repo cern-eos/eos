@@ -1470,6 +1470,68 @@ metad::statvfs(fuse_req_t req, struct statvfs * svfs)
 }
 
 /* -------------------------------------------------------------------------- */
+void 
+/* -------------------------------------------------------------------------- */
+metad::cleanup(shared_md md)
+/* -------------------------------------------------------------------------- */
+{
+  std::vector<std::string> delete_child_dir;
+  for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it)
+  {
+    shared_md cmd;
+    if (mdmap.retrieveTS(it->second, cmd))
+    {
+      XrdSysMutex cmLock(cmd->Locker());
+      if (!S_ISDIR(cmd->mode()))
+      {
+	if (!mdqueue.count(cmd->id()) && !EosFuse::Instance().datas.has(cmd->id()))
+	{
+	  // clean-only entries, which are not in the flush queue and not open
+	  mdmap.eraseTS(it->second);
+	  stats().inodes_dec();
+	}
+      }
+      else
+      {
+	if (!mdqueue.count(cmd->id()))
+	{
+	  delete_child_dir.push_back(it->first);
+	}
+      }
+    }
+  }
+  // remove the listing type
+  md->set_type(md->MD);
+  md->set_creator(false);
+  md->cap_count_reset();
+  // hide child directories
+  for (auto it = delete_child_dir.begin(); it != delete_child_dir.end(); ++it)
+  {
+    md->local_children().erase(*it);
+  }
+  md->set_nchildren(md->local_children().size());
+  eos_static_crit("set children %16lx %d", md->id(), md->nchildren());
+  md->get_todelete().clear();
+}
+
+/* -------------------------------------------------------------------------- */
+void 
+/* -------------------------------------------------------------------------- */
+metad::cleanup(fuse_ino_t ino, bool force)
+/* -------------------------------------------------------------------------- */
+{
+  shared_md md;
+  if (force || EosFuse::Instance().Config().options.free_md_asap)
+  {
+    if (mdmap.retrieveTS(ino, md))
+    {
+      XrdSysMutex cmLock(md->Locker());
+      return cleanup(md);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 uint64_t
 /* -------------------------------------------------------------------------- */
 metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
@@ -2294,9 +2356,8 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                       }
                     }
 
+		    cleanup(md);
                     md->Locker().UnLock();
-                    md->cap_count_reset();
-		    md->set_creator(false);
 
 		    if (EOS_LOGS_DEBUG)
 		      eos_static_debug("%s", dump_md(md).c_str());

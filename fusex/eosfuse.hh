@@ -209,11 +209,13 @@ public:
       int mkdir_is_sync;
       int create_is_sync;
       int symlink_is_sync;
+      int rename_is_sync;
       int global_flush;
       int global_locking;
       int fdlimit;
       int rm_rf_protect_levels;
       int show_tree_size;
+      int free_md_asap;
       mode_t overlay_mode;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
@@ -273,6 +275,10 @@ public:
     return caps;
   }
 
+  void cleanup(fuse_ino_t ino) {
+    return mds.cleanup(ino);
+  }
+  
 protected:
 
 private:

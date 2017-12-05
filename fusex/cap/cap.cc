@@ -567,6 +567,8 @@ cap::capflush(ThreadAssistant &assistant)
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
       {
 	kernelcache::inval_inode(*it, false);
+	// retrieve the md object and if there is no cap reference remove all child files
+	EosFuse::Instance().cleanup(*it);
       }
 
       assistant.wait_for(std::chrono::seconds(1));

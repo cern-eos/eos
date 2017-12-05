@@ -452,6 +452,9 @@ public:
   int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
   int calculateDepth(shared_md md);
 
+  void cleanup(shared_md md);
+  void cleanup(fuse_ino_t ino, bool force=false);
+
   class mdstat
   {
   public:
