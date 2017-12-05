@@ -258,7 +258,8 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   std::string qdb_cluster;
   std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
-  const std::string key_flusher = "qdb_flusher_quota";
+  const std::string key_flusher = "qdb_flusher_md";
+  // const std::string key_flusher = "qdb_flusher_quota";
 
   if ((config.find(key_cluster) != config.end()) &&
       (config.find(key_flusher) != config.end())) {
