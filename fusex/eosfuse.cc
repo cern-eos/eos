@@ -1022,7 +1022,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     tCapFlush.reset(&cap::capflush, &caps);
 
     eos_static_warning("********************************************************************************");
-    eos_static_warning("eosdx started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
+    eos_static_warning("eosxd started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("eos-instance-url       := %s", config.hostport.c_str());
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
@@ -1090,7 +1090,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     }
 
 
-    eos_static_warning("eosdx stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
+    eos_static_warning("eosxd stopped version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
 
     tDumpStatistic.join();
