@@ -89,7 +89,7 @@ public:
   //!
   //! @return XrdOucEnv holding information about current object
   //---------------------------------------------------------------------------
-  XrdOucEnv* FmdToEnv();
+  std::unique_ptr<XrdOucEnv> FmdToEnv();
 
   //---------------------------------------------------------------------------
   //! File meta data object replication function (copy constructor)

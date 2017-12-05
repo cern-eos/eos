@@ -1328,10 +1328,9 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return SFS_DATA;
       }
 
-      XrdOucEnv* fmdenv = fmd->FmdToEnv();
+      auto fmdenv = fmd->FmdToEnv();
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
-      delete fmdenv;
       delete fmd;
       error.setErrInfo(fmdenvstring.length() + 1, fmdenvstring.c_str());
       return SFS_DATA;

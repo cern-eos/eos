@@ -95,7 +95,7 @@ FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
 
   for (size_t i = 0; i < location_vector.size(); i++) {
     if (location_vector[i].length()) {
-      // Unlinked locates have a '!' in front of the fsid
+      // Unlinked locations have a '!' in front of the fsid
       if (location_vector[i][0] == '!') {
         location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
       } else {
@@ -111,7 +111,7 @@ FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
 //-------------------------------------------------------------------------------
 // Convert fmd object to env representation
 //-------------------------------------------------------------------------------
-XrdOucEnv*
+std::unique_ptr<XrdOucEnv>
 FmdHelper::FmdToEnv()
 {
   char serialized[1024 * 64];
@@ -123,7 +123,7 @@ FmdHelper::FmdToEnv()
           mProtoFmd.ctime_ns(), mProtoFmd.mtime(), mProtoFmd.mtime_ns(),
           mProtoFmd.size(), mProtoFmd.checksum().c_str(), mProtoFmd.lid(),
           mProtoFmd.uid(), mProtoFmd.gid());
-  return new XrdOucEnv(serialized);
+  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(serialized));
 }
 
 EOSFSTNAMESPACE_END
