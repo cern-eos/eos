@@ -311,13 +311,14 @@ eos_microhttpd_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ make rpm-build which git tar sssd-client sudo createrepo
+    - yum install --nogpg -y gcc-c++ make rpm-build which git tar sudo createrepo
     - cd microhttpd
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
+    - groupadd --gid 2766 def-cg
+    - useradd -u 102230 -g def-cg stci
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
