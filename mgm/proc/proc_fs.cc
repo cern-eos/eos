@@ -586,8 +586,12 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 retc = EFAULT;
               }
             } else {
-              splitgroup = splitspace;
-              splitgroup += ".0";
+              if (splitspace != "spare") {
+                splitgroup = splitspace;
+                splitgroup += ".0";
+              } else {
+                splitgroup = splitspace;
+              }
             }
 
             if (!retc) {
