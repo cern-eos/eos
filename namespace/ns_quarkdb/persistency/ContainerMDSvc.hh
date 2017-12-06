@@ -191,6 +191,11 @@ private:
   //----------------------------------------------------------------------------
   void SafetyCheck();
 
+  //----------------------------------------------------------------------------
+  //! Compute the number of containers from the backend
+  //----------------------------------------------------------------------------
+  void ComputeNumberOfContainers();
+
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
   ListenerList pListeners;   ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;  ///< Quota view
@@ -200,6 +205,7 @@ private:
   qclient::QHash mMetaMap ;  ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider; ///< Provide next free inode
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
+  std::atomic<uint64_t> mNumConts; ///< Total number of containers
 };
 
 EOSNSNAMESPACE_END

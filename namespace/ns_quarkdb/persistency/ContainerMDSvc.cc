@@ -46,7 +46,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
-    mMetaMap(), mContainerCache(10e7) {}
+    mMetaMap(), mContainerCache(10e7), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
 // Configure the container service
@@ -107,6 +107,7 @@ ContainerMDSvc::initialize()
   }
 
   SafetyCheck();
+  ComputeNumberOfContainers();
 }
 
 //------------------------------------------------------------------------------
@@ -245,6 +246,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   obj->setDeleted();
+  --mNumConts;
 }
 
 //------------------------------------------------------------------------------
@@ -266,6 +268,7 @@ ContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
   container->setName(name);
   parent->addContainer(container.get());
   updateStore(container.get());
+  ++mNumConts;
   return container;
 }
 
@@ -323,21 +326,7 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 uint64_t
 ContainerMDSvc::getNumContainers()
 {
-  std::uint64_t num_conts = 0;
-  std::string bucket_key("");
-  qclient::AsyncHandler ah;
-
-  for (std::uint64_t i = 0; i < sNumContBuckets; ++i) {
-    bucket_key = stringify(i);
-    bucket_key += constants::sContKeySuffix;
-    qclient::QHash bucket_map(*pQcl, bucket_key);
-    bucket_map.hlen_async(&ah);
-  }
-
-  (void) ah.Wait();
-  auto resp = ah.GetResponses();
-  num_conts = std::accumulate(resp.begin(), resp.end(), 0ull);
-  return num_conts;
+  return mNumConts.load();
 }
 
 //------------------------------------------------------------------------------
@@ -359,6 +348,27 @@ IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
   return mInodeProvider.getFirstFreeId();
+}
+
+//------------------------------------------------------------------------------
+// Compute the number of containers from the backend
+//------------------------------------------------------------------------------
+void
+ContainerMDSvc::ComputeNumberOfContainers()
+{
+  std::string bucket_key("");
+  qclient::AsyncHandler ah;
+
+  for (std::uint64_t i = 0; i < sNumContBuckets; ++i) {
+    bucket_key = stringify(i);
+    bucket_key += constants::sContKeySuffix;
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    bucket_map.hlen_async(&ah);
+  }
+
+  (void) ah.Wait();
+  auto resp = ah.GetResponses();
+  mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
 }
 
 EOSNSNAMESPACE_END

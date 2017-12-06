@@ -36,7 +36,7 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
-    mMetaMap(), mDirtyFidBackend(), mFileCache(10e8) {}
+    mMetaMap(), mDirtyFidBackend(), mFileCache(10e8), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -104,6 +104,8 @@ FileMDSvc::initialize()
     e.getMessage()  << __FUNCTION__ << oss.str();
     throw e;
   }
+
+  ComputeNumberOfFiles();
 }
 
 //------------------------------------------------------------------------------
@@ -204,6 +206,7 @@ FileMDSvc::createFile()
   file = mFileCache.put(free_id, file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
+  ++mNumFiles;
   return file;
 }
 
@@ -233,6 +236,7 @@ FileMDSvc::removeFile(IFileMD* obj)
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   obj->setDeleted();
+  --mNumFiles;
   // Remove id from dirty set
   pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }
@@ -243,22 +247,7 @@ FileMDSvc::removeFile(IFileMD* obj)
 uint64_t
 FileMDSvc::getNumFiles()
 {
-  uint64_t num_files = 0ull;
-  std::string bucket_key("");
-  qclient::AsyncHandler ah;
-
-  for (uint64_t i = 0ull; i < sNumFileBuckets; ++i) {
-    bucket_key = stringify(i);
-    bucket_key += constants::sFileKeySuffix;
-    qclient::QHash bucket_map(*pQcl, bucket_key);
-    bucket_map.hlen_async(&ah);
-  }
-
-  // Wait for all responses and sum up the results
-  (void) ah.Wait();
-  std::list<long long int> resp = ah.GetResponses();
-  num_files = std::accumulate(resp.begin(), resp.end(), 0ull);
-  return num_files;
+  return mNumFiles.load();
 }
 
 //------------------------------------------------------------------------------
@@ -407,6 +396,28 @@ IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
   return mInodeProvider.getFirstFreeId();
+}
+
+//----------------------------------------------------------------------------
+//! Compute the number of files from the backend
+//----------------------------------------------------------------------------
+void
+FileMDSvc::ComputeNumberOfFiles()
+{
+  std::string bucket_key("");
+  qclient::AsyncHandler ah;
+
+  for (uint64_t i = 0ull; i < sNumFileBuckets; ++i) {
+    bucket_key = stringify(i);
+    bucket_key += constants::sFileKeySuffix;
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    bucket_map.hlen_async(&ah);
+  }
+
+  // Wait for all responses and sum up the results
+  (void) ah.Wait();
+  std::list<long long int> resp = ah.GetResponses();
+  mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
 }
 
 EOSNSNAMESPACE_END

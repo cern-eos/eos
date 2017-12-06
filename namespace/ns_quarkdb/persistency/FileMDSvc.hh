@@ -190,6 +190,11 @@ private:
   //----------------------------------------------------------------------------
   void SafetyCheck();
 
+  //----------------------------------------------------------------------------
+  //! Compute the number of files from the backend
+  //----------------------------------------------------------------------------
+  void ComputeNumberOfFiles();
+
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
@@ -199,6 +204,7 @@ private:
   NextInodeProvider mInodeProvider; ///< Provides next free inode
   qclient::QSet mDirtyFidBackend; ///< Set of "dirty" files
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
+  std::atomic<uint64_t> mNumFiles; ///< Total number of fileso
 };
 
 EOSNSNAMESPACE_END
