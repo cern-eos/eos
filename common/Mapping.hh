@@ -131,6 +131,7 @@ public:
     XrdOucString name;
     XrdOucString prot;
     std::string host;
+    std::string domain;
     std::string grps;
     std::string role;
     std::string dn;
@@ -240,7 +241,7 @@ public:
     for (unsigned int i = 0; i < vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
 
     vidout.host = vidin.host;
-    vidout.host = vidin.host;
+    vidout.domain = vidin.domain;
     vidout.grps = vidin.grps;
     vidout.role = vidin.role;
     vidout.dn = vidin.dn;

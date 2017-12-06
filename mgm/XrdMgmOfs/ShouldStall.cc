@@ -90,6 +90,17 @@ XrdMgmOfs::ShouldStall (const char* function,
       smsg = "your client host is banned in this instance - contact an administrator";
     }
     else
+      if (Access::gBannedDomains.count(vid.domain))
+    {
+      // fuse clients don't get stalled by a booted namespace 
+      if ( vid.app == "fuse" )
+	return false;
+      
+      // BANNED DOMAIN
+      stalltime = 300;
+      smsg = "your client domain is banned in this instance - contact an administrator";
+    }
+    else
       if (Access::gStallRules.size() && (Access::gStallGlobal))
     {
       // GLOBAL STALL

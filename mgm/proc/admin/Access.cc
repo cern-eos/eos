@@ -37,6 +37,7 @@ ProcCommand::Access ()
   std::string user = "";
   std::string group = "";
   std::string host = "";
+  std::string domain = "";
   std::string option = "";
   std::string redirect = "";
   std::string stall = "";
@@ -47,6 +48,7 @@ ProcCommand::Access ()
   user = pOpaque->Get("mgm.access.user") ? pOpaque->Get("mgm.access.user") : "";
   group = pOpaque->Get("mgm.access.group") ? pOpaque->Get("mgm.access.group") : "";
   host = pOpaque->Get("mgm.access.host") ? pOpaque->Get("mgm.access.host") : "";
+  domain = pOpaque->Get("mgm.access.domain") ? pOpaque->Get("mgm.access.domain") : "";
   option = pOpaque->Get("mgm.access.option") ? pOpaque->Get("mgm.access.option") : "";
   redirect = pOpaque->Get("mgm.access.redirect") ? pOpaque->Get("mgm.access.redirect") : "";
   stall = pOpaque->Get("mgm.access.stall") ? pOpaque->Get("mgm.access.stall") : "";
@@ -121,6 +123,22 @@ ProcCommand::Access ()
 	Access::gBannedHosts.insert(host);
 	stdOut = "success: ban host '";
 	stdOut += host.c_str();
+	stdOut += "'";
+	retc = 0;
+      }
+      else
+      {
+	stdErr = "error: unable to store access configuration";
+	retc = EIO;
+      }
+    }
+    if (domain.length())
+    {
+      if (Access::StoreAccessConfig())
+      {
+	Access::gBannedDomains.insert(domain);
+	stdOut = "success: ban domain '";
+	stdOut += domain.c_str();
 	stdOut += "'";
 	retc = 0;
       }
@@ -242,7 +260,32 @@ ProcCommand::Access ()
 	stdErr += "' is not banned anyway!";
 	retc = ENOENT;
       }
-
+    }
+    if (domain.length())
+    {
+      if (Access::gBannedDomains.count(domain))
+      {
+	Access::gBannedDomains.erase(domain);
+	if (Access::StoreAccessConfig())
+	{
+	  stdOut = "success: unban domain '";
+	  stdOut += domain.c_str();
+	  stdOut += "'";
+	  retc = 0;
+	}
+	else
+	{
+	  stdErr = "error: unable to store access configuration";
+	  retc = EIO;
+	}
+      }
+      else
+      {
+	stdErr = "error: domain '";
+	stdErr += domain.c_str();
+	stdErr += "' is not banned anyway!";
+	retc = ENOENT;
+      }
     }
   }
 

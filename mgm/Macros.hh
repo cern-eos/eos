@@ -295,8 +295,17 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
               "path=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),        \
               (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath);  \
       return Emsg(epname, error, EACCES,"give access - user access "    \
-                  "restricted - unauthorized identity used");         \
+                  "restricted - unauthorized identity used");           \
     }									\
+    if (Access::gAllowedDomains.size() &&                               \
+	(!Access::gAllowedDomains.count(vid.domain))) {			\
+      eos_err("domain access restricted - unauthorized identity "       \
+              "vid.domain=\"%s\"for "                                   \
+              "path=\"%s\"", vid.domain.c_str(),                        \
+               inpath);                                                 \
+      return Emsg(epname, error, EACCES,"give access - domain access "  \
+                  "restricted - unauthorized identity used");           \
+    }                                                                   \
   }
 
 // -----------------------------------------------------------------------------
@@ -306,9 +315,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   if ((vid.uid > 3) &&                                                  \
       (Access::gAllowedUsers.size() ||                                  \
        Access::gAllowedGroups.size() ||                                 \
+       Access::gAllowedDomains.size() ||                                \
        Access::gAllowedHosts.size())) {                                 \
     if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
 	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
+	 (!Access::gAllowedDomains.count(vid.domain)) &&		\
 	 (!Access::gAllowedHosts.count(vid.host))) {			\
       eos_err("user access restricted - unauthorized identity vid.uid=" \
               "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for " \

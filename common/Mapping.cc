@@ -770,6 +770,17 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   else
     vid.host = host.c_str();
 
+  size_t dotpos = vid.host.find(".");
+  // remove hostname
+  if (dotpos != std::string::npos)
+  {
+    vid.domain=vid.host.substr(dotpos+1);
+  }
+  else
+  {
+    vid.domain="localdomain";
+  }
+
   {
     int errc = 0;
     // add the uid/gid as strings
