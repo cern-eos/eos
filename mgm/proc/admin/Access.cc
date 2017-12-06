@@ -362,6 +362,23 @@ ProcCommand::Access ()
 	retc = EIO;
       }
     }
+    if (domain.length())
+    {
+      Access::gAllowedDomains.insert(domain);
+      if (Access::StoreAccessConfig())
+      {
+
+	stdOut = "success: allow domain '";
+	stdOut += domain.c_str();
+	stdOut += "'";
+	retc = 0;
+      }
+      else
+      {
+	stdErr = "error: unable to store access configuration";
+	retc = EIO;
+      }
+    }
   }
 
   if (mSubCmd == "unallow")
@@ -471,6 +488,32 @@ ProcCommand::Access ()
       {
 	stdErr = "error: host '";
 	stdErr += host.c_str();
+	stdErr += "' is not banned anyway!";
+	retc = ENOENT;
+      }
+    }
+    if (domain.length())
+    {
+      if (Access::gAllowedDomains.count(domain))
+      {
+	Access::gAllowedDomains.erase(domain);
+	if (Access::StoreAccessConfig())
+	{
+	  stdOut = "success: unallow domain '";
+	  stdOut += domain.c_str();
+	  stdOut += "'";
+	  retc = 0;
+	}
+	else
+	{
+	  stdErr = "error: unable to store access configuration";
+	  retc = EIO;
+	}
+      }
+      else
+      {
+	stdErr = "error: domain '";
+	stdErr += domain.c_str();
 	stdErr += "' is not banned anyway!";
 	retc = ENOENT;
       }
@@ -746,6 +789,7 @@ ProcCommand::Access ()
     std::set<uid_t>::const_iterator ituid;
     std::set<gid_t>::const_iterator itgid;
     std::set<std::string>::const_iterator ithost;
+    std::set<std::string>::const_iterator itdomain;
     std::map<std::string, std::string>::const_iterator itred;
     int cnt;
 
@@ -849,6 +893,34 @@ ProcCommand::Access ()
       }
     }
 
+    if (Access::gBannedDomains.size())
+    {
+      if (!monitoring)
+      {
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Banned Domains ...\n";
+	stdOut += "# ....................................................................................\n";
+      }
+
+      cnt = 0;
+      for (itdomain = Access::gBannedDomains.begin(); itdomain != Access::gBannedDomains.end(); itdomain++)
+      {
+	cnt++;
+	if (monitoring)
+	  stdOut += "domain.banned=";
+	else
+	{
+	  char counter[16];
+	  snprintf(counter, sizeof (counter) - 1, "%02d", cnt);
+	  stdOut += "[ ";
+	  stdOut += counter;
+	  stdOut += " ] ";
+	}
+	stdOut += itdomain->c_str();
+	stdOut += "\n";
+      }
+    }
+
     if (Access::gAllowedUsers.size())
     {
       if (!monitoring)
@@ -946,6 +1018,34 @@ ProcCommand::Access ()
 	  stdOut += " ] ";
 	}
 	stdOut += ithost->c_str();
+	stdOut += "\n";
+      }
+    }
+
+    if (Access::gAllowedDomains.size())
+    {
+      if (!monitoring)
+      {
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Allowed Domains ...\n";
+	stdOut += "# ....................................................................................\n";
+      }
+
+      cnt = 0;
+      for (itdomain = Access::gAllowedDomains.begin(); itdomain != Access::gAllowedDomains.end(); itdomain++)
+      {
+	cnt++;
+	if (monitoring)
+	  stdOut += "domain.allowed=";
+	else
+	{
+	  char counter[16];
+	  snprintf(counter, sizeof (counter) - 1, "%02d", cnt);
+	  stdOut += "[ ";
+	  stdOut += counter;
+	  stdOut += " ] ";
+	}
+	stdOut += itdomain->c_str();
 	stdOut += "\n";
       }
     }
