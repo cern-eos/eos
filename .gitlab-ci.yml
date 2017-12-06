@@ -322,7 +322,7 @@ eos_microhttpd_slc6:
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
-    - docker-slc6
+    - docker-fc_rawhide
   when: manual
     
 eos_docs:
