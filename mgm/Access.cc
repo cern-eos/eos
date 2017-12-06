@@ -376,7 +376,7 @@ Access::StoreAccessConfig ()
     hostval += ":";
   }
   for (itdomain = Access::gBannedDomains.begin();
-       itdomain != Access::gBannedDomains.end(); ithost++)
+       itdomain != Access::gBannedDomains.end(); itdomain++)
   {
     hostval += itdomain->c_str();
     hostval += ":";
@@ -401,7 +401,7 @@ Access::StoreAccessConfig ()
     hostaval += ":";
   }
   for (itdomain = Access::gAllowedDomains.begin();
-       itdomain != Access::gAllowedDomains.end(); ithost++)
+       itdomain != Access::gAllowedDomains.end(); itdomain++)
   {
     domainaval += itdomain->c_str();
     domainaval += ":";
