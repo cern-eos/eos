@@ -398,6 +398,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 	{
 	  root["options"]["fd-limit"] = 65535;
 	}
+	else
+	{
+	  root["options"]["fd-limit"] = 4096;
+	}
       }
       if (!root["options"].isMember("no-fsync"))
       {
@@ -545,7 +549,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       newrlimit.rlim_max = config.options.fdlimit;
 
       if( (setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid()) ) {
-        fprintf(stderr, "error: unable to set fd limit to %d - errno %d\n", config.options.fdlimit, errno);
+        fprintf(stderr, "error: unable to set fd limit to %lu - errno %d\n", config.options.fdlimit, errno);
         exit(EINVAL);
       }
     }
@@ -556,6 +560,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       exit(EINVAL);
     }
     fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
+
+
+    // store the current limit                                                                                                  
+    config.options.fdlimit = nofilelimit.rlim_cur;
 
     // data caching configuration
     cconfig.type = cache_t::INVALID;
@@ -1027,6 +1035,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("thread-pool            := %s", config.options.libfusethreads ? "libfuse" : "custom");
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
+    eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
     eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
