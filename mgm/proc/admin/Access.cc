@@ -348,9 +348,9 @@ ProcCommand::Access ()
     }
     if (host.length())
     {
-      if (Access::StoreAccessConfig())
+      Access::gAllowedHosts.insert(host);
+      if (Access::StoreAccessConfig()) 
       {
-	Access::gAllowedHosts.insert(host);
 	stdOut = "success: allow host '";
 	stdOut += host.c_str();
 	stdOut += "'";
