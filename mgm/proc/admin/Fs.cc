@@ -99,8 +99,8 @@ ProcCommand::Fs()
 
     if (mSubCmd == "dumpmd") {
       if ((pVid->uid == 0) || (pVid->prot == "sss")) {
-        // we have to stall if the namespace is still booting
         {
+          // Stall if the namespace is still booting
           XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
           if (gOFS->Initialized != gOFS->kBooted) {
@@ -114,8 +114,8 @@ ProcCommand::Fs()
         XrdOucString ds = pOpaque->Get("mgm.dumpmd.size");
         XrdOucString dt = pOpaque->Get("mgm.dumpmd.storetime");
         size_t entries = 0;
-        retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr, tident, *pVid,
-                              entries);
+        retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
+                              tident, *pVid, entries);
 
         if (!retc) {
           gOFS->MgmStats.Add("DumpMd", pVid->uid, pVid->gid, entries);
@@ -128,7 +128,8 @@ ProcCommand::Fs()
         }
       } else {
         retc = EPERM;
-        stdErr = "error: you have to take role 'root' or connect via 'sss' to execute this command";
+        stdErr = "error: you have to take role 'root' or connect via 'sss' "
+                 "to execute this command";
       }
     }
 

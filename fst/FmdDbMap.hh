@@ -33,19 +33,6 @@
 #include "fst/FmdHandler.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-// this is needed because of some openssl definition conflict!
-#undef des_set_key
-#include <google/dense_hash_map>
-#include <google/sparse_hash_map>
-#include <google/sparsehash/densehashtable.h>
-#include <sys/time.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <dirent.h>
-#include <zlib.h>
-#include <openssl/sha.h>
 
 #ifdef __APPLE__
 #define ECOMM 70

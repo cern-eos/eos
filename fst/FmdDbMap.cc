@@ -72,19 +72,19 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
     mDbMap[fsid] = new eos::common::DbMap();
   }
 
-  // -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
-  // -when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
-  // -when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has
-  // not been shutdown properly and we set a 'dirty' flag to force a full
-  // resynchronization
+  // - when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
+  // - when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
+  // - when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has
+  //   not been shutdown properly and we set a 'dirty' flag to force a full
+  //   resynchronization
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s.%04d.%s", dbfileprefix, fsid,
           eos::common::DbMap::getDbType().c_str());
   eos_info("%s DB is now %s\n", eos::common::DbMap::getDbType().c_str(),
            fsDBFileName);
-  // store the DB file name
+  // Store the DB file name
   DBfilename[fsid] = fsDBFileName;
-  // check the mode of the DB
+  // Check the mode of the DB
   struct stat buf;
   int src = 0;
 
@@ -96,8 +96,9 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
 
     if (!src) {
       if (chmod(fsDBFileName, S_IRWXU | S_IRGRP)) {
-        eos_crit("failed to switch the %s database file mode to S_IRWXU | S_IRGRP errno=%d",
-                 eos::common::DbMap::getDbType().c_str(), errno);
+        eos_crit("failed to switch the %s database file mode to S_IRWXU | "
+                 "S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(),
+                 errno);
       }
     }
   } else {
@@ -105,10 +106,11 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
     stayDirty[fsid] = false;
   }
 
-  // create / or attach the db (try to repair if needed)
+  // Create / or attach the db (try to repair if needed)
   eos::common::LvDbDbMapInterface::Option* dbopt = &lvdboption;
 
-  // if we have not set the leveldb option, use the default (currently, bloom filter 10 bits and 100MB cache)
+  // If we have not set the leveldb option, use the default (currently, bloom
+  // filter 10 bits and 100MB cache)
   if (lvdboption.BloomFilterNbits == 0) {
     dbopt = NULL;
   }
@@ -121,10 +123,11 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
     mDbMap[fsid]->outOfCore(true);
   }
 
-  // set the mode to S_IRWXU & ~S_IRGRP
+  // Set the mode to S_IRWXU & ~S_IRGRP
   if (chmod(fsDBFileName, S_IRWXU & ~S_IRGRP)) {
-    eos_crit("failed to switch the %s database file mode to S_IRWXU & ~S_IRGRP errno=%d",
-             eos::common::DbMap::getDbType().c_str(), errno);
+    eos_crit("failed to switch the %s database file mode to S_IRWXU & "
+             "~S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(),
+             errno);
     return false;
   }
 
@@ -278,8 +281,10 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
                        "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s "
                        "filecxerror=%d blockcxerror=%d", fid,
                        (unsigned long) fsid, fmd->mProtoFmd.checksum().c_str(),
-                       fmd->mProtoFmd.diskchecksum().c_str(), fmd->mProtoFmd.mgmchecksum().c_str(),
-                       fmd->mProtoFmd.filecxerror(), fmd->mProtoFmd.blockcxerror());
+                       fmd->mProtoFmd.diskchecksum().c_str(),
+                       fmd->mProtoFmd.mgmchecksum().c_str(),
+                       fmd->mProtoFmd.filecxerror(),
+                       fmd->mProtoFmd.blockcxerror());
               delete fmd;
               FmdSqliteUnLockRead(fsid);
               return 0;
@@ -287,14 +292,14 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
           }
         }
 
-        // return the new entry
+        // Return the new entry
         FmdSqliteUnLockRead(fsid);
         return fmd;
       }
     }
 
     if (isRW) {
-      // make a new record
+      // Create a new record
       struct timeval tv;
       struct timezone tz;
       gettimeofday(&tv, &tz);
@@ -326,20 +331,20 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
         // return the mmaped meta data block
         return fmd;
       } else {
-        eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing",
-                 fid, (unsigned long) fsid);
+        eos_crit("unable to write new block for fid %d on fs %d - no changelog "
+                 "db open for writing", fid, (unsigned long) fsid);
         delete fmd;
         return 0;
       }
     } else {
-      eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid,
-                  (unsigned long) fsid);
+      eos_warning("unable to get fmd for fid %llu on fs %lu - record not found",
+                  fid, (unsigned long) fsid);
       FmdSqliteUnLockRead(fsid);
       return 0;
     }
   } else {
-    eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id",
-             fid, (unsigned long) fsid);
+    eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog "
+             "file open for that file system id", fid, (unsigned long) fsid);
     return 0;
   }
 }
@@ -607,7 +612,7 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
       cpt++;
     }
 
-    // The setsequence makes that it's impossible to know which key is faulty
+    // The setsequence makes it impossible to know which key is faulty
     if (mDbMap[fsid]->endSetSequence() != cpt) {
       eos_err("unable to update fsid=%lu\n", fsid);
       return false;
@@ -647,7 +652,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
         char checksumVal[SHA_DIGEST_LENGTH];
         size_t checksumLen = 0;
         unsigned long checktime = 0;
-        // got the file size
         disksize = buf.st_size;
         memset(checksumVal, 0, sizeof(checksumVal));
         checksumLen = SHA_DIGEST_LENGTH;
@@ -681,9 +685,11 @@ FmdDbMapHandler::ResyncDisk(const char* path,
           }
         }
 
-        // now update the DB
+        // Now update the DB
         if (!UpdateFromDisk(fsid, fid, disksize, diskchecksum, checktime,
-                            (filecxError == "1") ? 1 : 0, (blockcxError == "1") ? 1 : 0, flaglayouterror)) {
+                            (filecxError == "1") ? 1 : 0,
+                            (blockcxError == "1") ? 1 : 0,
+                            flaglayouterror)) {
           eos_err("failed to update %s DB for fsid=%lu fid=%08llx",
                   eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
           retc = false;
@@ -693,7 +699,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
   } else {
     eos_debug("would convert %s (%s) to fid 0", cPath.GetName(), path);
     retc = false;
-    ;
   }
 
   return retc;
@@ -727,7 +732,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
     return false;
   }
 
-  // scan all the files
+  // Scan all the files
   FTS* tree = fts_open(paths, FTS_NOCHDIR, 0);
 
   if (!tree) {
@@ -794,11 +799,11 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       }
     }
 
-    // define layouterrors
+    // Define layouterrors
     fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
-    // get an existing record without creation of a record !!!
-    FmdHelper* fmd = GetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), false,
-                            true);
+    // Get an existing record without creation of a record !!!
+    FmdHelper* fmd = GetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(),
+                            false, true);
 
     if (fmd) {
       // check if there was a disk replica
@@ -832,13 +837,14 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       delete fmd;
     }
 
-    // get/create a record
+    // Get/create a record
     fmd = GetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), true, true);
 
     if (fmd) {
       if (!UpdateFromMgm(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
-                         fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
-                         fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(), fMd.locations())) {
+                         fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(),
+                         fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
+                         fMd.layouterror(), fMd.locations())) {
         eos_err("failed to update fmd for fid=%08llx", fid);
         delete fmd;
         return false;
@@ -851,10 +857,11 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                     (unsigned long) fsid);
       }
 
-      // check if it exists on disk and on the mgm
+      // Check if it exists on disk and at the mgm
       if ((fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) &&
           (fmd->mProtoFmd.mgmsize() == 0xfffffffffff1ULL)) {
-        // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
+        // There is no replica supposed to be here and there is nothing on
+        // disk, so remove it from the SLIQTE database
         eos_warning("removing <ghost> entry for fid=%08llx on fsid=%lu", fid,
                     (unsigned long) fsid);
         delete fmd;
@@ -931,7 +938,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
       struct Fmd fMd;
       FmdHelper::Reset(fMd);
 
-      if (EnvMgmToFmdSqlite(*env, fMd)) {
+      if (EnvMgmToFmd(*env, fMd)) {
         // get/create one
         FmdHelper* fmd = GetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), true,
                                 true);
@@ -946,8 +953,9 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
           }
 
           if (!UpdateFromMgm(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
-                             fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
-                             fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(), fMd.locations())) {
+                             fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(),
+                             fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
+                             fMd.layouterror(), fMd.locations())) {
             eos_err("failed to update fmd %s", dumpentry.c_str());
           }
 

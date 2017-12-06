@@ -312,7 +312,9 @@ Storage::PushVerification(eos::fst::Verify* entry)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Boot file system
+//------------------------------------------------------------------------------
 void
 Storage::Boot(FileSystem* fs)
 {
@@ -321,7 +323,7 @@ Storage::Boot(FileSystem* fs)
   }
 
   fs->SetStatus(eos::common::FileSystem::kBooting);
-  // we have to wait that we know who is our manager
+  // Wait to know who is our manager
   std::string manager = "";
   size_t cnt = 0;
 
@@ -358,7 +360,7 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  // try to statfs the filesystem
+  // Try to statfs the filesystem
   eos::common::Statfs* statfs = fs->GetStatfs();
 
   if (!statfs) {
@@ -369,7 +371,7 @@ Storage::Boot(FileSystem* fs)
 
   // Exclude remote disks
   if (fs->GetPath()[0] == '/') {
-    // test if we have rw access
+    // Test if we have rw access
     struct stat buf;
 
     if (::stat(fs->GetPath().c_str(), &buf) ||
@@ -388,7 +390,7 @@ Storage::Boot(FileSystem* fs)
       return;
     }
 
-    // test if we are on the root partition
+    // Test if we are on the root partition
     struct stat root_buf;
 
     if (::stat("/", &root_buf)) {
@@ -398,7 +400,7 @@ Storage::Boot(FileSystem* fs)
     }
 
     if (root_buf.st_dev == buf.st_dev) {
-      // this filesystem is on the ROOT partition
+      // This filesystem is on the ROOT partition
       if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
         fs->SetStatus(eos::common::FileSystem::kBootFailure);
         fs->SetError(EIO, "filesystem is on the root partition without or "
@@ -421,7 +423,7 @@ Storage::Boot(FileSystem* fs)
   XrdOucString dbfilename;
   gFmdDbMapHandler.CreateDBFileName(mMetaDir.c_str(), dbfilename);
 
-  // attach to the SQLITE DB
+  // Attach to the local DB
   if (!gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
@@ -443,17 +445,16 @@ Storage::Boot(FileSystem* fs)
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
     if (resyncmgm) {
-      // clean-up the DB
       if (!gFmdDbMapHandler.ResetDB(fsid)) {
         fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EFAULT, "cannot clean SQLITE DB on local disk");
+        fs->SetError(EFAULT, "cannot clean DB on local disk");
         return;
       }
     }
 
     if (!gFmdDbMapHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(EFAULT, "cannot resync the SQLITE DB from local disk");
+      fs->SetError(EFAULT, "cannot resync the DB from local disk");
       return;
     }
 
@@ -464,7 +465,7 @@ Storage::Boot(FileSystem* fs)
              (unsigned long) fsid);
   }
 
-  // if we detect an unclean shutdown, we resync with the MGM
+  // If we detect an unclean shutdown, we resync with the MGM
   // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
   // remove the bootcheck flag
   fs->SetLongLong("bootcheck", 0);
@@ -472,7 +473,7 @@ Storage::Boot(FileSystem* fs)
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
 
-    // resync the MGM meta data
+    // Resync the MGM meta data
     if (!gFmdDbMapHandler.ResyncAllMgm(fsid, manager.c_str())) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the mgm meta data");
@@ -485,10 +486,10 @@ Storage::Boot(FileSystem* fs)
              (unsigned long) fsid);
   }
 
-  // indicate the flag to unset the DB dirty flag at shutdown
+  // Indicate the flag to unset the DB dirty flag at shutdown
   gFmdDbMapHandler.StayDirty(fsid, false);
 
-  // allows fast boot the next time
+  // Allows fast boot the next time
   if (fast_boot) {
     gFmdDbMapHandler.MarkCleanDB(fsid);
   }
@@ -509,7 +510,7 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  // create FS transaction directory
+  // Create FS transaction directory
   std::string transactionDirectory = fs->GetPath();
 
   if (fs->GetPath()[0] != '/') {
@@ -525,7 +526,7 @@ Storage::Boot(FileSystem* fs)
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(errno ? errno : EIO, "cannot create transactiondirectory");
+      fs->SetError(errno ? errno : EIO, "cannot create transaction directory");
       return;
     }
   }
@@ -533,7 +534,7 @@ Storage::Boot(FileSystem* fs)
   if (chown(transactionDirectory.c_str(), 2, 2)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno ? errno : EIO,
-                 "cannot change ownership of transactiondirectory");
+                 "cannot change ownership of transaction directory");
     return;
   }
 
@@ -547,7 +548,7 @@ Storage::Boot(FileSystem* fs)
   fs->IoPing();
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0, "");
-  // create FS orphan directory
+  // Create FS orphan directory
   std::string orphanDirectory = fs->GetPath();
 
   if (fs->GetPath()[0] != '/') {
@@ -563,14 +564,15 @@ Storage::Boot(FileSystem* fs)
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(errno ? errno : EIO, "cannot create orphandirectory");
+      fs->SetError(errno ? errno : EIO, "cannot create orphan directory");
       return;
     }
   }
 
   if (chown(orphanDirectory.c_str(), 2, 2)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot change ownership of orphandirectory");
+    fs->SetError(errno ? errno : EIO, "cannot change ownership of orphan "
+                 "directory");
     return;
   }
 
