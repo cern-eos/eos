@@ -557,7 +557,7 @@ public:
       return (GetStripeNumber(layout) + 1);
     }
 
-    return (GetStripeNumber(layout) + 1);
+    return 1;
   }
 
   //--------------------------------------------------------------------------
