@@ -52,6 +52,7 @@
   {
     localVid.gid = strtoul(agid, 0, 10);
     localVid.gid_string = eos::common::Mapping::GidToGroupName(localVid.gid, retc);
+    localVid.gid_list = vid.gid_list;
   }
 
   if (asec)
@@ -73,8 +74,8 @@
   bool isPrepare = std::string(aevent).find("prepare") != std::string::npos;
 
   // check that we have write permission on path
-  eos_debug("vid.prot=%s, vid.uid=%ull, vid.gid=%ull", vid.prot.c_str(), vid.uid, vid.gid);
-  eos_debug("local.prot=%s, local.uid=%ull, local.gid=%ull", localVid.prot.c_str(), localVid.uid, localVid.gid);
+  eos_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u", vid.prot.c_str(), vid.uid, vid.gid);
+  eos_debug("local.prot=%s, local.uid=%u, local.gid=%u", localVid.prot.c_str(), localVid.uid, localVid.gid);
   if (vid.prot != "sss" &&
       gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, localVid, "")) {
     Emsg(epname, error, EPERM,
