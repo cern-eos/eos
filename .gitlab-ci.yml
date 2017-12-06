@@ -162,7 +162,7 @@ eos_deb_ubuntu_artful:
     - git submodule update --init --recursive
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
-    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
     - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - ccache -s
@@ -228,12 +228,14 @@ eos_nginx_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sssd-client sudo createrepo
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
     - cd nginx
     - ./makesrpm.sh
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - groupadd --gid 2766 def-cg
+    - useradd -u 102230 -g def-cg stci
     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
@@ -268,7 +270,7 @@ eos_apmon_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sssd-client sudo createrepo
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
     - cd ApMon
     - ./maketar.sh
     - mkdir -p rpmbuild/{BUILD,BUILDROT,RPMS,SOURCES,SPECS,SRPMS}
@@ -276,6 +278,8 @@ eos_apmon_slc6:
     - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -bs eos-apmon.spec
     - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
     - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - groupadd --gid 2766 def-cg
+    - useradd -u 102230 -g def-cg stci
     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
