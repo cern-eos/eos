@@ -1586,7 +1586,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
           if (child)
           {
-	    eos_static_crit("case 1 %s", md->name().c_str());
+	    eos_static_debug("case 1 %s", md->name().c_str());
 	    eos::fusex::md::TYPE mdtype = md->type();
 	    md->CopyFrom(map->second);
             md->set_nchildren(md->local_children().size());
