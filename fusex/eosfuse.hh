@@ -209,7 +209,7 @@ public:
       int rename_is_sync;
       int global_flush;
       int global_locking;
-      int fdlimit;
+      uint64_t fdlimit;
       int rm_rf_protect_levels;
       int show_tree_size;
       int free_md_asap;

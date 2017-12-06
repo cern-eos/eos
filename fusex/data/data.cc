@@ -24,6 +24,7 @@
 
 #include "data/data.hh"
 #include "kv/kv.hh"
+#include "eosfuse.hh"
 #include "data/cachesyncer.hh"
 #include "data/journalcache.hh"
 #include "misc/MacOSXHelper.hh"
@@ -70,6 +71,19 @@ data::get(fuse_req_t req,
     io->attach(); // client ref counting
     return io;
   } else {
+    // protect against running out of file descriptors                                                                          
+    size_t openfiles = datamap.size();
+    size_t openlimit = (EosFuse::Instance().Config().options.fdlimit-128)/2;
+
+    while ( (openfiles=datamap.size()) > openlimit ) 
+    {
+      datamap.UnLock();
+      eos_static_warning("open-files=%lu limit=%lu - waiting for release of file descriptors",
+                         openfiles, openlimit);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      datamap.Lock();
+    }
+
     shared_data io = std::make_shared<datax>(md);
     io->set_id(ino, req);
     datamap[(fuse_ino_t) io->id()] = io;
