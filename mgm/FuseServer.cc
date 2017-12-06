@@ -110,8 +110,10 @@ FuseServer::Clients::MonitorHeartBeat()
 	    }
 	    else
 	    {
+	      // drop locks once
+	      if (it->second.state() != Client::OFFLINE)
+		gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
 	      it->second.set_state(Client::OFFLINE);
-	      gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
 	    }
           }
           else
@@ -1157,7 +1159,7 @@ int
 FuseServer::Lock::dropLocks(const std::string & owner)
 /*----------------------------------------------------------------------------*/
 {
-  eos_static_info("owner=%s", owner.c_str());
+  eos_static_debug("owner=%s", owner.c_str());
 
   // drop locks for a given owner
   int retc = 0;
@@ -2154,6 +2156,7 @@ FuseServer::HandleMD(const std::string &id,
       std::string perm = "W";
       // a CAP might have gone or timedout, let's check again the permissions
       if ( ((errno == ENOENT) ||
+	    (errno == EINVAL) ||
 	    (errno == ETIMEDOUT)) &&
 	   ValidatePERM(md, perm, vid))
       {
@@ -2663,6 +2666,7 @@ FuseServer::HandleMD(const std::string &id,
       std::string perm = "D";
       // a CAP might have gone or timedout, let's check again the permissions
       if ( ((errno == ENOENT) ||
+	    (errno == EINVAL) ||
 	    (errno == ETIMEDOUT)) &&
 	   ValidatePERM(md, perm, vid))
       {
