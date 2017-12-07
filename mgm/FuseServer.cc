@@ -2200,6 +2200,7 @@ FuseServer::HandleMD(const std::string &id,
       {
         if (md.md_ino() && exclusive)
         {
+	  eos_static_err("ino=%lx exists", (long) md.md_ino());
           return EEXIST;
         }
 
@@ -2208,6 +2209,7 @@ FuseServer::HandleMD(const std::string &id,
           if (md.implied_authid().length())
           {
             // this is a create on top of an existing inode
+	    eos_static_err("ino=%lx exists implied=%s", (long) md.md_ino(), md.implied_authid().c_str());
             return EEXIST;
           }
 
@@ -2257,6 +2259,7 @@ FuseServer::HandleMD(const std::string &id,
           if (exclusive && pcmd->findContainer( md.name() ))
           {
             // O_EXCL set on creation - 
+	    eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
             return EEXIST;
           }
 
