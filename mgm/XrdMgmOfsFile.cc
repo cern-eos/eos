@@ -237,7 +237,7 @@ XrdMgmOfsFile::open (const char *inpath,
   MAYREDIRECT;
 
   unsigned long long byfid = 0;
-
+  unsigned long long bypid = 0;
 
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
   {
@@ -265,6 +265,7 @@ XrdMgmOfsFile::open (const char *inpath,
     try
     {
       fmd = gOFS->eosFileService->getFileMD(byfid);
+      bypid = fmd->getContainerId();
       spath = gOFS->eosView->getUri(fmd).c_str();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
       path = spath.c_str();
@@ -520,7 +521,11 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     try
     {
-      dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      if (byfid)
+	dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+      else 
+	dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
       // get the attributes out
       gOFS->_attr_ls(gOFS->eosView->getUri(dmd).c_str(),
                      error,
@@ -540,7 +545,10 @@ XrdMgmOfsFile::open (const char *inpath,
 	  }
 	  else
 	  {
-	    fmd = gOFS->eosView->getFile(cPath.GetPath());
+	    if (byfid)
+	      fmd = gOFS->eosFileService->getFileMD(byfid);
+	    else
+	      fmd = gOFS->eosView->getFile(cPath.GetPath());
 	  }
 	}
 	catch (eos::MDException &e)
@@ -1176,18 +1184,23 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::FileMD* fmdnew = 0;
-      try
+
+      if (!byfid)
       {
-        fmdnew = gOFS->eosView->getFile(path);
+	try
+	{
+	  fmdnew = gOFS->eosView->getFile(path);
+	}
+	catch (eos::MDException &e)
+	{
+	  if ((!isAtomicUpload) && (fmdnew != fmd))
+	  {
+	    // file has been recreated in the meanwhile
+	    return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
+	  }
+	}
       }
-      catch (eos::MDException &e)
-      {
-        if ((!isAtomicUpload) && (fmdnew != fmd))
-        {
-          // file has been recreated in the meanwhile
-          return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
-        }
-      }
+
       // -----------------------------------------------------------------------
       // set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
