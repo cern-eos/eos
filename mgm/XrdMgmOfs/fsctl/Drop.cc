@@ -47,7 +47,7 @@
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> container;
-    eos::IQuotaNode* ns_quota = 0;
+    eos::IQuotaNode* ns_quota = nullptr;
 
     try {
       fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
@@ -65,11 +65,8 @@
       try {
         ns_quota = gOFS->eosView->getQuotaNode(container.get());
 
-        if (ns_quota) {
-          ns_quota->removeFile(fmd.get());
-        }
       } catch (eos::MDException& e) {
-        ns_quota = 0;
+        ns_quota = nullptr;
       }
     }
 
@@ -108,12 +105,6 @@
             gOFS->eosView->updateFileStore(fmd.get());
             // After update we have to get the new address - who knows ...
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
-          }
-        }
-
-        if (drop_fsid.size()) {
-          if (ns_quota) {
-            ns_quota->addFile(fmd.get());
           }
         }
 
