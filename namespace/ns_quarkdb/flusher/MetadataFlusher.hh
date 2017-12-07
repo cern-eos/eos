@@ -73,6 +73,11 @@ public:
   //----------------------------------------------------------------------------
   //! Methods to stage redis commands for background flushing.
   //----------------------------------------------------------------------------
+  template<typename... Args>
+  void exec(const Args... args) {
+    backgroundFlusher.pushRequest(std::vector<std::string> {args...});
+  }
+
   void del(const std::string& key);
   void hdel(const std::string& key, const std::string& field);
   void hset(const std::string& key, const std::string& field,

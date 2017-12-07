@@ -55,18 +55,19 @@ QuotaNode::addFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
-  std::string field = suid + quota::sPhysicalSize;
-  pFlusher->hincrby(pQuotaUidKey, field, size);
-  field = sgid + quota::sPhysicalSize;
-  pFlusher->hincrby(pQuotaGidKey, field, size);
-  field = suid + quota::sLogicalSize;
-  pFlusher->hincrby(pQuotaUidKey, field, file->getSize());
-  field = sgid + quota::sLogicalSize;
-  pFlusher->hincrby(pQuotaGidKey, field, file->getSize());
-  field = suid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaUidKey, field, 1);
-  field = sgid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaGidKey, field, 1);
+
+  const std::string physicalSize = std::to_string(size);
+  const std::string logicalSize = std::to_string(file->getSize());
+
+  pFlusher->exec("HINCRBYMULTI",
+    pQuotaUidKey, suid + quota::sPhysicalSize, physicalSize,
+    pQuotaGidKey, sgid + quota::sPhysicalSize, physicalSize,
+    pQuotaUidKey, suid + quota::sLogicalSize,  logicalSize,
+    pQuotaGidKey, sgid + quota::sLogicalSize,  logicalSize,
+    pQuotaUidKey, suid + quota::sNumFiles,     "1",
+    pQuotaGidKey, sgid + quota::sNumFiles,     "1"
+  );
+
   // Update the cached information
   UsageInfo& user  = pUserUsage[file->getCUid()];
   UsageInfo& group = pGroupUsage[file->getCGid()];
@@ -86,19 +87,20 @@ QuotaNode::removeFile(const IFileMD* file)
 {
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
-  int64_t size = pQuotaStats->getPhysicalSize(file);
-  std::string field = suid + quota::sPhysicalSize;
-  pFlusher->hincrby(pQuotaUidKey, field, -size);
-  field = sgid + quota::sPhysicalSize;
-  pFlusher->hincrby(pQuotaGidKey, field, -size);
-  field = suid + quota::sLogicalSize;
-  pFlusher->hincrby(pQuotaUidKey, field, -file->getSize());
-  field = sgid + quota::sLogicalSize;
-  pFlusher->hincrby(pQuotaGidKey, field, -file->getSize());
-  field = suid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaUidKey, field, -1);
-  field = sgid + quota::sNumFiles;
-  pFlusher->hincrby(pQuotaGidKey, field, -1);
+  const int64_t size = pQuotaStats->getPhysicalSize(file);
+
+  const std::string minusPhysicalSize = std::to_string(-size);
+  const std::string minusLogicalSize = std::to_string(-file->getSize());
+
+  pFlusher->exec("HINCRBYMULTI",
+    pQuotaUidKey, suid + quota::sPhysicalSize, minusPhysicalSize,
+    pQuotaGidKey, sgid + quota::sPhysicalSize, minusPhysicalSize,
+    pQuotaUidKey, suid + quota::sLogicalSize,  minusLogicalSize,
+    pQuotaGidKey, sgid + quota::sLogicalSize,  minusLogicalSize,
+    pQuotaUidKey, suid + quota::sNumFiles,     "-1",
+    pQuotaGidKey, sgid + quota::sNumFiles,     "-1"
+  );
+
   // Update the cached information
   UsageInfo& user  = pUserUsage[file->getCUid()];
   UsageInfo& group = pGroupUsage[file->getCGid()];
