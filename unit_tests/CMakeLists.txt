@@ -46,19 +46,17 @@ set(COMMON_UT_SRCS
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc)
 
-set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
+set(FST_UT_SRCS
+  #fst/XrdFstOssFileTest.cc
+  fst/HealthTest.cc)
+
+set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS} ${FST_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})
 
-# @todo all these should be moved to gtest and simplified
-# set(SOURCE_FILES
-#   fst/XrdFstOssFileTest.cc
-#   ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-#   ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-#   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
-
 set(EOS_UT_RPATH
-"${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;${CMAKE_BINARY_DIR}/common/;"
-"${CMAKE_BINARY_DIR}/mq/;${CMAKE_BINARY_DIR}/auth_plugin/")
+  "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
+  "${CMAKE_BINARY_DIR}/common/;${CMAKE_BINARY_DIR}/mq/;"
+  "${CMAKE_BINARY_DIR}/auth_plugin/")
 
 set_target_properties(
   eos-unit-tests PROPERTIES
