@@ -151,10 +151,9 @@ utils::ConvertToProtoBuf(const XrdSfsPrep* obj,
   XrdOucTList* next_oinfo = obj->oinfo;
 
   while (next_path && next_oinfo) {
-    proto->add_paths(next_path->text);
-    next_path = next_path->next;
-
-    if (next_oinfo && next_oinfo->text) {
+    if (next_path->text && next_oinfo->text) {
+      proto->add_paths(next_path->text);
+      next_path = next_path->next;
       proto->add_oinfo(next_oinfo->text);
       next_oinfo = next_oinfo->next;
     }
@@ -222,6 +221,11 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
   XrdOucTList*& next_paths = obj->paths;
   XrdOucTList*& next_oinfo = obj->oinfo;
 
+  // The number of paths and oinfo should match
+  if (proto_obj.paths_size() != proto_obj.oinfo_size()) {
+    return obj;
+  }
+
   for (int i = 0; i < proto_obj.paths_size(); i++) {
     auto tmp_path = new XrdOucTList(proto_obj.paths(i).c_str());
 
@@ -233,19 +237,16 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
     }
 
     tmp_path = 0;
+    auto tmp_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
 
-    if (proto_obj.oinfo_size()) {
-      auto tmp_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
-
-      if (next_oinfo) {
-        next_oinfo->next = tmp_oinfo;
-        next_oinfo = next_oinfo->next;
-      } else {
-        next_oinfo = tmp_oinfo;
-      }
-
-      tmp_oinfo = 0;
+    if (next_oinfo) {
+      next_oinfo->next = tmp_oinfo;
+      next_oinfo = next_oinfo->next;
+    } else {
+      next_oinfo = tmp_oinfo;
     }
+
+    tmp_oinfo = 0;
   }
 
   return obj;

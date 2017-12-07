@@ -340,39 +340,28 @@ XrdMgmOfs::getVersion()
 
 
 //------------------------------------------------------------------------------
-// Prepare a file (EOS does nothing, only stall/redirect if configured)
+// Prepare a file (EOS will call a prepare workflow if defined)
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::prepare(XrdSfsPrep& pargs,
-                   XrdOucErrInfo& error,
+XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
-/*----------------------------------------------------------------------------*/
-/*
- * Prepare a file (EOS will call a prepare workflow if defined)
- *
- * @return SFS_OK,SFS_ERR
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "prepare";
   const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
+  XrdOucTList* pptr = pargs.paths;
+  XrdOucTList* optr = pargs.oinfo;
   std::string info;
-  info = pargs.oinfo->text ? pargs.oinfo->text : "";
+  info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   std::string cmd = "mgm.pcmd=event";
-
-  XrdOucTList* pptr = pargs.paths;
-  XrdOucTList* optr = pargs.oinfo;
   int retc = SFS_OK;
-
   std::list<std::pair<char**, char**>> pathsWithPrepare;
 
   // check that all files exist
@@ -394,16 +383,18 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
     eos::IContainerMD::XAttrMap map;
 
-    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid, nullptr, map) == 0) {
+    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+                 nullptr, map) == 0) {
       bool foundPrepareTag = false;
+
       for (auto& attrEntry : map) {
         foundPrepareTag |= attrEntry.first.find("sys.workflow.sync::prepare") == 0;
       }
 
       if (foundPrepareTag) {
-        pathsWithPrepare.emplace_back(&(pptr->text), optr != nullptr ? &(optr->text) : nullptr);
-      }
-      else {
+        pathsWithPrepare.emplace_back(&(pptr->text),
+                                      optr != nullptr ? & (optr->text) : nullptr);
+      } else {
         // don't do workflow if no such tag
         pptr = pptr->next;
 
@@ -413,8 +404,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
         continue;
       }
-    }
-    else {
+    } else {
       // don't do workflow if we can't check attributes
       pptr = pptr->next;
 
@@ -427,7 +417,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
 
     // check that we have write permission on path
     if (gOFS->_access(prep_path.c_str(), W_OK | P_OK, error, vid, "")) {
-      Emsg(epname, error, EPERM, "prepare - you don't have write and workflow permission",
+      Emsg(epname, error, EPERM,
+           "prepare - you don't have write and workflow permission",
            prep_path.c_str());
       return SFS_ERROR;
     }
@@ -445,7 +436,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs,
   for (auto& pathPair : pathsWithPrepare) {
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
     eos_info("path=\"%s\"", prep_path.c_str());
-    XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ? *pathPair.second : "") : "";
+    XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
+                             *pathPair.second : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
     prep_info += "&";
