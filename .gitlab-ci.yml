@@ -344,6 +344,26 @@ eos_docs:
     - docker-cc7
   when: manual
 
+eos_repopackage:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y rpm-build sssd-client sudo createrepo
+    - mkdir build
+    - cd build
+    - rpmbuild --bb --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" ../elrepopackage.spec
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+  tags:
+    - docker-cc7
+  when: manual
+
 eos_dockerimage_commit:
   stage: build:dockerimage
   tags:
