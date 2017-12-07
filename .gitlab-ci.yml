@@ -592,7 +592,7 @@ eos_periodic_coverity:
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
-    - sudo yum-builddep --nogpgcheck -y SRPMS/*
+    - sudo yum-builddep --nogpgcheck -y --setopt=cern*.exclude=xrootd* SRPMS/*
     - rm -f CMakeCache.txt
     - cmake3 ..
     - cov-build --dir cov-int make -j 4
