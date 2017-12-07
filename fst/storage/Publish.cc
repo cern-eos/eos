@@ -299,7 +299,7 @@ Storage::Publish()
             std::map<std::string, std::string> health;
 
             if (!mFsVect[i]->getHealth(health)) {
-              health = mFstHealth.getDiskHealth(mFsVect[i]->GetPath().c_str());
+              health = mFstHealth.getDiskHealth(mFsVect[i]->GetPath());
             }
 
             success &= mFsVect[i]->SetString("stat.health",

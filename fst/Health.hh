@@ -43,7 +43,7 @@ public:
   //!
   //! @return map of health parameters and values
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> getHealth(const char* devpath);
+  std::map<std::string, std::string> getHealth(const std::string& devpath);
 
   //----------------------------------------------------------------------------
   //! Update health information for all the registered devices
@@ -51,16 +51,6 @@ public:
   void Measure();
 
 private:
-  //----------------------------------------------------------------------------
-  //! Parse /proc/mdstat to obtain raid health. Existing indicator shows
-  //! rebuild in progress.
-  //!
-  //! @param device targeted device
-  //!
-  //! @return map of health parameters and values
-  //----------------------------------------------------------------------------
-  std::map<std::string, std::string> parse_mdstat(const char* device);
-
   //----------------------------------------------------------------------------
   //! Obtain health of a single locally attached storage device by evaluating
   //! S.M.A.R.T values.
@@ -76,6 +66,23 @@ private:
   //! Map holding the smartclt results
   std::map<std::string, std::map<std::string, std::string>> smartctl_results;
   std::mutex mMutex; ///< Protect acces to the smartctl_results map
+
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  //----------------------------------------------------------------------------
+  //! Parse /proc/mdstat to obtain raid health. Existing indicator shows
+  //! rebuild in progress.
+  //!
+  //! @param device targeted device
+  //! @param mdstat_path path of the mdstat file
+  //!
+  //! @return map of health parameters and values
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string>
+  parse_mdstat(const std::string& device,
+               const std::string& mdstat_path = "/proc/mdstat");
+
 };
 
 //------------------------------------------------------------------------------
@@ -121,7 +128,7 @@ public:
   //!
   //! @return map of health parameters and values
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> getDiskHealth(const char* devpath);
+  std::map<std::string, std::string> getDiskHealth(const std::string& devpath);
 
 private:
   ///< Trigger update thread without waiting for the whole interval to elapse

@@ -33,18 +33,18 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Get health information about a certain device
 //------------------------------------------------------------------------------
-std::map<std::string, std::string> DiskHealth::getHealth(const char* devpath)
+std::map<std::string, std::string>
+DiskHealth::getHealth(const std::string& devpath)
 {
-  std::string dev = Load::DevMap(devpath);
+  std::string dev = Load::DevMap(devpath.c_str());
 
   if (dev[0] == 'm') {
-    return parse_mdstat(dev.c_str());
+    return parse_mdstat(dev);
   }
 
   // Chunck partition digits, we need the actual device name for smartctl...
-  // no string::back or pop_back support in gcc 4.4 so it looks a bit funny.
-  while (isdigit(dev.at(dev.length() - 1))) {
-    dev.resize(dev.length() - 1);
+  while (isdigit(dev.back())) {
+    dev.pop_back();
   }
 
   std::lock_guard<std::mutex> lock(mMutex);
@@ -70,79 +70,116 @@ DiskHealth::Measure()
 //------------------------------------------------------------------------------
 // Parse /proc/mdstat to obtain raid health
 //------------------------------------------------------------------------------
-std::map<std::string, std::string> DiskHealth::parse_mdstat(const char* device)
+std::map<std::string, std::string>
+DiskHealth::parse_mdstat(const std::string& device,
+                         const std::string& mdstat_path)
 {
+  std::string line, buffer;
   std::map<std::string, std::string> health;
-  std::ifstream file("/proc/mdstat");
-  file.rdbuf()->pubsetbuf(0, 0);
-  std::stringstream buffer;
-  buffer << file.rdbuf();
+  std::ifstream file(mdstat_path.c_str());
+  health["summary"] = "no mdstat";
 
-  if (buffer.str().empty()) {
-    health["summary"] = "no mdstat";
-    return health;
-  }
+  while (std::getline(file, line)) {
+    auto pos = line.find(device + " : ");
 
-  std::string output = buffer.str();
-  auto pos = output.find(device);
-  int redundancy_factor;
-  pos = output.find("raid", pos);
-  auto c = output[pos + 4];
+    if (pos == std::string::npos) {
+      continue;
+    }
 
-  switch (c) {
-  case '0' :
-    health["redundancy_factor"] = "0";
-    redundancy_factor = 0;
+    buffer = line;
+
+    // Read in also the next lines until empty
+    while (std::getline(file, line)) {
+      // Trim whitespaces
+      while (line.back() == ' ') {
+        line.pop_back();
+      }
+
+      if (line.empty()) {
+        break;
+      }
+
+      buffer += "\n";
+      buffer += line;
+    }
+
+    int redundancy_factor;
+    pos = buffer.find("raid", pos);
+
+    // Skip line if not holding raid info
+    if (pos == std::string::npos) {
+      continue;
+    }
+
+    auto c = buffer[pos + 4];
+
+    switch (c) {
+    case '0' :
+      health["redundancy_factor"] = "0";
+      redundancy_factor = 0;
+      break;
+
+    case '1' :
+    case '5' :
+      health["redundancy_factor"] = "1";
+      redundancy_factor = 1;
+      break;
+
+    case '6' :
+      health["redundancy_factor"] = "2";
+      redundancy_factor = 2;
+      break;
+
+    default:
+      health["summary"] = "unknown raid";
+      return health;
+    }
+
+    pos = buffer.find("blocks", pos);
+
+    if (pos == std::string::npos) {
+      break;
+    }
+
+    pos = buffer.find("[", pos);
+
+    if (pos == std::string::npos) {
+      break;
+    }
+
+    health["drives_total"] = buffer.substr(pos + 1,
+                                           buffer.find("/", pos) - pos - 1);
+    auto drives_total = strtoll(health["drives_total"].c_str(), 0, 10);
+    pos = buffer.find("/", pos);
+    health["drives_healthy"] = buffer.substr(pos + 1, buffer.find("]",
+                               pos) - pos - 1);
+    auto drives_healthy = strtoll(health["drives_healthy"].c_str(), 0, 10);
+    auto drives_failed = drives_total - drives_healthy;
+    health["drives_failed"] = std::to_string((long long int) drives_failed);
+    auto end = buffer.find("md", pos);
+    pos = buffer.find("recovery", pos);
+    health["indicator"] = pos < end ? "1" : "0";
+    // Build summary string
+    std::string summary;
+
+    if (health["indicator"] == "1") {
+      summary += "! ";
+    }
+
+    summary += health["drives_healthy"] + "/" + health["drives_total"];
+    summary += " (";
+
+    if (redundancy_factor >= drives_failed) {
+      summary += "+";
+    }
+
+    summary += std::to_string((long long int) redundancy_factor -
+                              (drives_total - drives_healthy));
+    summary += ")";
+    health["summary"] = summary;
     break;
-
-  case '1' :
-  case '5' :
-    health["redundancy_factor"] = "1";
-    redundancy_factor = 1;
-    break;
-
-  case '6' :
-    health["redundancy_factor"] = "2";
-    redundancy_factor = 2;
-    break;
-
-  default:
-    health["summary"] = "unknown raid";
-    return health;
   }
 
-  pos = output.find("blocks", pos);
-  pos = output.find("[", pos);
-  health["drives_total"] = output.substr(pos + 1, output.find("/",
-                                         pos) - pos - 1);
-  auto drives_total = strtoll(health["drives_total"].c_str(), 0, 10);
-  pos = output.find("/", pos);
-  health["drives_healthy"] = output.substr(pos + 1, output.find("]",
-                             pos) - pos - 1);
-  auto drives_healthy = strtoll(health["drives_healthy"].c_str(), 0, 10);
-  auto drives_failed = drives_total - drives_healthy;
-  health["drives_failed"] = std::to_string((long long int) drives_failed);
-  auto end = output.find("md", pos);
-  pos = output.find("recovery", pos);
-  health["indicator"] = pos < end ? "1" : "0";
-  /* Build summary string. */
-  std::string summary;
-
-  if (health["indicator"] == "1") {
-    summary += "! ";
-  }
-
-  summary += health["drives_healthy"] + "/" + health["drives_total"];
-  summary += " (";
-
-  if (redundancy_factor >= drives_failed) {
-    summary += "+";
-  }
-
-  summary += std::to_string((long long int) redundancy_factor -
-                            (drives_total - drives_healthy));
-  summary += ")";
-  health["summary"] = summary;
   return health;
 }
 
@@ -272,7 +309,7 @@ Health::Measure()
 // available then trigger the monitoring thread to do an update.
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Health::getDiskHealth(const char* devpath)
+Health::getDiskHealth(const std::string& devpath)
 {
   auto result = mDiskHealth.getHealth(devpath);
 
