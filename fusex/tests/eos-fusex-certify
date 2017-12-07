@@ -41,10 +41,19 @@ fi
 ##################################################
 time (
 echo "===================================================================="
-echo "002 ... rename-test"
+echo "002a ... rename-test"
 mkdir 002-rename
 cd 002-rename
 for name in `seq 1 1000`; do unlink b 2>/dev/null && echo damn b exists; touch a; mv a b ; stat b>/dev/null; touch a; mv -f a b ; unlink b; ls | grep b && echo failed && exit 2 ; done;  exit 0;
+) || exit 2
+
+##################################################
+time (
+echo "===================================================================="
+echo "002b ... mkdir-rmdir-test"
+mkdir 002-mkdir-rmdir
+cd 002-mkdir-rmdir
+for name in `seq 1 1000`; do  mkdir asdf || exit 2; rmdir asdf; done;  exit 0;
 ) || exit 2
 ##################################################
 time (
