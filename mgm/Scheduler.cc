@@ -588,6 +588,12 @@ Scheduler::FileAccess (
 	  }
 
 	  // we are off the wire
+	  eos_static_info("ENETUNREACH: reasons stat-ok:%d config-ok:%d err-ok:%d active-ok:%d reserve-ok:%d", 
+			   (snapshot.mStatus == eos::common::FileSystem::kBooted),
+			   (snapshot.mConfigStatus >= eos::common::FileSystem::kWO),
+			   (snapshot.mErrCode == 0),
+			   (fs->GetActiveStatus(snapshot)),
+			   (fs->ReserveSpace(snapshot, bookingsize)));
 	  return ENETUNREACH;
 	}
       } else {
@@ -599,6 +605,12 @@ Scheduler::FileAccess (
 	  fsindex = 0;
 	  return returnCode;
 	} else {
+	  eos_static_info("ENETUNREACH: reasons stat-ok:%d config-ok:%d err-ok:%d active-ok:%d", 
+			  (snapshot.mStatus == eos::common::FileSystem::kBooted),
+			  (snapshot.mConfigStatus >= min_fsstatus),
+			  (snapshot.mErrCode == 0),
+			  (fs->GetActiveStatus(snapshot)));
+	  
 	  return ENETUNREACH;
 	}
       }
@@ -635,6 +647,7 @@ Scheduler::FileAccess (
 
       if (!filesystem) {
 	if (isRW) {
+	  eos_static_info("ENETUNREACH: reasons: missing filesystem");
 	  return ENETUNREACH;
 	} else {
 	  continue;
@@ -668,6 +681,13 @@ Scheduler::FileAccess (
 	  }
 
 	  // we are off the wire
+	  eos_static_info("ENETUNREACH: reasons stat-ok:%d config-ok:%d err-ok:%d active-ok:%d reserve-ok:%d", 
+			   (snapshot.mStatus == eos::common::FileSystem::kBooted),
+			   (snapshot.mConfigStatus >= eos::common::FileSystem::kWO),
+			   (snapshot.mErrCode == 0),
+			   (fs->GetActiveStatus(snapshot)),
+			   (fs->ReserveSpace(snapshot, bookingsize)));
+
 	  return ENETUNREACH;
 	}
       } else {
@@ -734,6 +754,7 @@ Scheduler::FileAccess (
     eos_static_debug("Requesting %d/%d replicas to be online\n", availablefs.size(), eos::common::LayoutId::GetMinOnlineReplica(lid));
     // Check if there are enough stripes available for a read operation of the given layout
     if (availablefs.size() < eos::common::LayoutId::GetMinOnlineReplica(lid)) {
+      eos_static_info("ENETUNREACH: reasons: only %d out of %d replicas available", availablefs.size(), eos::common::LayoutId::GetMinOnlineReplica(lid));
       return ENETUNREACH;
     }
 
