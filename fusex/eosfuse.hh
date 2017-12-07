@@ -210,6 +210,7 @@ public:
       int create_is_sync;
       int symlink_is_sync;
       int rename_is_sync;
+      int rmdir_is_sync;
       int global_flush;
       int global_locking;
       uint64_t fdlimit;

@@ -361,6 +361,10 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       {
 	root["options"]["rename-is-sync"] = 1;
       }
+      if (!root["options"].isMember("rm-is-sync"))
+      {
+	root["options"]["rm-is-sync"] = 0;
+      }
       if (!root["options"].isMember("global-flush"))
       {
 	root["options"]["global-flush"] = 1;
@@ -442,6 +446,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
     config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
     config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
+    config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
     config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
@@ -1036,7 +1041,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1045,6 +1050,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
                        config.options.create_is_sync,
 		       config.options.symlink_is_sync,
 		       config.options.rename_is_sync,
+		       config.options.rmdir_is_sync,
                        config.options.global_flush,
                        config.options.global_locking,
 		       no_fsync_list.c_str(),
@@ -2215,12 +2221,26 @@ EROFS  pathname refers to a file on a read-only filesystem.
   {
     metad::shared_md md;
     metad::shared_md pmd;
+    uint64_t del_ino=0;
     md = Instance().mds.lookup(req, parent, name);
     pmd = Instance().mds.get(req, parent, pcap->authid());
 
     {
       std::string implied_cid;
 
+      {
+	// logic avoiding a mkdir/rmdir/mkdir sync/async race
+	{
+	  XrdSysMutexHelper pLock(pmd->Locker());
+	  auto it = pmd->get_todelete().find(name);
+	  if (it->second)
+	    del_ino = it->second;
+	}
+	if (del_ino)
+	{
+	  Instance().mds.wait_deleted(req, del_ino);
+	}
+      }
 
       XrdSysMutexHelper mLock(md->Locker());
       if (md->id() && !md->deleted())
@@ -2229,11 +2249,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
       }
       else
       {
-	if (md->deleted())
-	{
-	  // we need to wait that this entry is really gone
-	  Instance().mds.wait_flush(req, md);
-	}
 
 	md->set_err(0);
         md->set_mode(mode | S_IFDIR);
@@ -2421,6 +2436,11 @@ EROFS  pathname refers to a file on a read-only filesystem.
           pmd = Instance().mds.get(req, parent, pcap->authid());
           Instance().datas.unlink(req, md->id());
           Instance().mds.remove(req, pmd, md, pcap->authid());
+
+	  if (Instance().Config().options.rmdir_is_sync)
+	  {
+	    Instance().mds.wait_flush(req, md);
+	  }
         }
       }
     }
@@ -2561,6 +2581,12 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       {
         pmd = Instance().mds.get(req, parent, pcap->authid());
         Instance().mds.remove(req, pmd, md, pcap->authid());
+
+	if (Instance().Config().options.rmdir_is_sync)
+	{
+	  XrdSysMutexHelper mLock(md->Locker());
+	  Instance().mds.wait_flush(req, md);
+	}
       }
     }
   }
@@ -3008,6 +3034,22 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
       pmd = Instance().mds.get(req, parent, pcap->authid());
+
+
+      {
+	uint64_t del_ino=0;
+	// logic avoiding a create/unlink/create sync/async race
+	{
+	  XrdSysMutexHelper pLock(pmd->Locker());
+	  auto it = pmd->get_todelete().find(name);
+	  if (it->second)
+	    del_ino = it->second;
+	}
+	if (del_ino)
+	{
+	  Instance().mds.wait_deleted(req, del_ino);
+	}
+      }
 
       XrdSysMutexHelper mLock(md->Locker());
 
