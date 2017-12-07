@@ -38,25 +38,24 @@ fi
 rm -rf /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/usr/local/bin/
+mkdir -p /tmp/eos.dst/usr/local/lib/
 make install DESTDIR=/tmp/eos.dst/
 
 # Copy non-XRootD dependencies e.g openssl, ncurses
-for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
 echo $NAME
 if [ -n "$NAME" ];  then
-  dn=`dirNAME $NAME`;
-  mkdir -p /tmp/eos.dst/$dn/
-  cp -v $NAME /tmp/eos.dst/$NAME
+  sn=`echo $NAME | awk -F "/" '{print $NF}'`
+  cp -v $NAME /tmp/eos.dst/usr/local/lib/$sn
 fi
 done
 
 # Copy eosxd dependencies
-for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosxd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosxd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
 echo $NAME
 if [ -n "$NAME" ];  then
-  dn=`dirNAME $NAME`;
-  mkdir -p /tmp/eos.dst/$dn/
-  cp -v $NAME /tmp/eos.dst/$NAME
+  sn=`echo $NAME | awk -F "/" '{print $NF}'`
+  cp -v $NAME /tmp/eos.dst/usr/local/lib/$sn
 fi
 done
 
