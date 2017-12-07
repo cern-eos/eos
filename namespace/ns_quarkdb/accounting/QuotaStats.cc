@@ -88,9 +88,10 @@ QuotaNode::removeFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
+  const int64_t logicalSizeInt = file->getSize();
 
   const std::string minusPhysicalSize = std::to_string(-size);
-  const std::string minusLogicalSize = std::to_string(-file->getSize());
+  const std::string minusLogicalSize = std::to_string(-logicalSizeInt);
 
   pFlusher->exec("HINCRBYMULTI",
     pQuotaUidKey, suid + quota::sPhysicalSize, minusPhysicalSize,
