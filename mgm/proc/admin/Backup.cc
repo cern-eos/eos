@@ -165,46 +165,6 @@ int ProcCommand::Backup()
     dst_surl = dst_url.GetURL();
   }
 
-  // Check that the destinatin directory exists and has permission 2777
-  eos_debug("backup src=%s, dst=%s", src_surl.c_str(), dst_surl.c_str());
-  XrdCl::FileSystem fs(dst_url);
-  XrdCl::StatInfo* stat_info = 0;
-  XrdCl::XRootDStatus st = fs.Stat(dst_url.GetPath(), stat_info, 5);
-
-  if (!st.IsOK()) {
-    stdErr = "error: backup destination must exist and have permission 2777";
-    retc = EIO;
-    return SFS_OK;
-  }
-
-  if (!stat_info->TestFlags(XrdCl::StatInfo::IsReadable) ||
-      !stat_info->TestFlags(XrdCl::StatInfo::IsWritable)) {
-    delete stat_info;
-    stdErr = "error: backup destination is not readable or writable";
-    retc = EPERM;
-    return SFS_OK;
-  }
-
-  delete stat_info;
-  // Check that the destination directory is empty
-  XrdCl::DirectoryList* response = 0;
-  st = fs.DirList(dst_url.GetPath(), XrdCl::DirListFlags::None, response);
-
-  if (!st.IsOK()) {
-    stdErr = "error: failed listing backup destination directory";
-    retc = EIO;
-    delete response;
-    return SFS_OK;
-  }
-
-  if (response->GetSize() != 0) {
-    stdErr = "error: backup destination directory is not empty";
-    retc = EIO;
-    delete response;
-    return SFS_OK;
-  }
-
-  delete response;
   // Create backup file and copy it to the destination location
   std::string twindow_type = (pOpaque->Get("mgm.backup.ttime") ?
                               pOpaque->Get("mgm.backup.ttime") : "");
@@ -248,13 +208,14 @@ int ProcCommand::Backup()
   retc = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
   if (!retc) {
-    std::string bfile_url = dst_url.GetURL();
+    std::string bfile_url = src_url.GetURL();
     bfile_url += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
     bfile_url += "backup.file";
     std::ostringstream cmd_json;
+    // @todo (esindril): The force flag should be passed on from the console
     cmd_json << "{\"cmd\": \"backup\", "
              << "\"src\": \"" << bfile_url.c_str() << "\", "
-             << "\"opt\": \"\", "
+             << "\"opt\": \"force\", "
              << "\"uid\": \"" << pVid->uid << "\", "
              << "\"gid\": \"" << pVid->gid << "\" "
              << "}";
@@ -433,11 +394,11 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   files_ofs.close();
   dirs_ofs.close();
   backup_ofs.close();
-  // Copy local backup file to backup destination
+  // Copy local backup file to backup source
   XrdCl::PropertyList properties;
   XrdCl::PropertyList result;
   XrdCl::URL url_src, url_dst;
-  XrdCl::URL tmp_url(dst_surl);
+  XrdCl::URL tmp_url(src_surl);
   std::string dst_path = tmp_url.GetPath();
   dst_path += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
   dst_path += "backup.file";

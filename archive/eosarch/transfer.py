@@ -190,6 +190,7 @@ class Transfer(object):
         self.oper = req_json['cmd']
         self.uid, self.gid = req_json['uid'], req_json['gid']
         self.do_retry = (req_json['opt'] == self.config.OPT_RETRY)
+        self.force = (req_json['opt'] == self.config.OPT_FORCE)
         self.efile_full = req_json['src']
         self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
         self.root_dir = self.efile_root[self.efile_root.rfind('//') + 1:]
@@ -1032,14 +1033,35 @@ class Transfer(object):
                             self.tx_file.encode("utf-8"), True)
 
         if not st.ok:
-            err_msg = ("Failed to copy backup file={0} to local disk at={1}"
-                       "").format(self.efile_full, self.tx_file)
+            err_msg = ("Failed to copy backup file={0} to local disk at={1} err_msg={2}"
+                       "").format(self.efile_full, self.tx_file, st.message)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
         # Create the ArchiveFile object for the backup which is similar to a
         # tape to disk transfer
         self.archive = ArchiveFile(self.tx_file, False)
+
+        # Check that the destination directory exists and has mode 777, if
+        # forced then skip checks
+        if not self.force:
+            surl = self.archive.header['dst']
+            url = client.URL(surl.encode("utf-8"))
+            fs = self.archive.get_fs(surl)
+            st_stat, resp_stat = fs.stat((url.path, + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
+
+            if st_stat.ok:
+                err_msg = ("Failed to stat backup destination url={0}"
+                           "").format(surl)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+
+            if resp_stat.flags != (client.StatInfoFlags.IS_READABLE |
+                                   client.StatInfoFlags.IS_WRITABLE):
+                err_msg = ("Backup destination url={0} must have move 777").format(surl)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+
 
     def do_backup(self):
         """ Perform a backup operation using the provided backup file.
@@ -1061,8 +1083,8 @@ class Transfer(object):
         # Create directories
         for dentry in self.archive.dirs():
             # Do special checks for root directory
-            if dentry[1] == "./":
-                self.archive.check_root_dir()
+            #if dentry[1] == "./":
+            #    self.archive.check_root_dir()
 
             indx_dir += 1
             self.archive.mkdir(dentry)
