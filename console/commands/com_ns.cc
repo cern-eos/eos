@@ -324,8 +324,9 @@ void com_ns_help()
       << "    --log             : show master log" << std::endl
       << "    --log-clear       : clean master log" << std::endl
       << "    --enable          : enable the slave/master supervisor thread modifying stall/"
+      << std::endl
       << "                        redirectorion rules" << std::endl
-      << "    --disable   : disable supervisor thread"
+      << "    --disable         : disable supervisor thread"
       << std::endl
       << std::endl
       << "  ns recompute_tree_size <path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]"
