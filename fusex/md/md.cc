@@ -486,7 +486,7 @@ metad::wait_deleted(fuse_req_t req,
       if (mdqueue.count(md->id()))
       {
 	mdflush.UnLock();
-	eos_static_warning("waiting for deletion entry to be synced upstream ino=%lx",
+	eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
 			md->id());
 	XrdSysTimer delay;
 	delay.Wait(25);
@@ -851,6 +851,21 @@ metad::wait_flush(fuse_req_t req,
     return 0;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+metad::has_flush(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  bool in_flush = false;
+  mdflush.Lock();
+  if (mdqueue.count(ino))
+    in_flush = true;
+  mdflush.UnLock();
+  return in_flush;
+}
+
 
 /* -------------------------------------------------------------------------- */
 void
@@ -1523,10 +1538,13 @@ metad::cleanup(shared_md md)
     shared_md cmd;
     if (mdmap.retrieveTS(it->second, cmd))
     {
-      XrdSysMutex cmLock(cmd->Locker());
+      XrdSysMutexHelper cmLock(cmd->Locker());
+
+      bool in_flush = has_flush(it->second);
+
       if (!S_ISDIR(cmd->mode()))
       {
-	if (!mdqueue.count(cmd->id()) && !EosFuse::Instance().datas.has(cmd->id()))
+	if (!in_flush && !EosFuse::Instance().datas.has(cmd->id()))
 	{
 	  // clean-only entries, which are not in the flush queue and not open
 	  mdmap.eraseTS(it->second);
@@ -1535,7 +1553,7 @@ metad::cleanup(shared_md md)
       }
       else
       {
-	if (!mdqueue.count(cmd->id()))
+	if (!in_flush)
 	{
 	  delete_child_dir.push_back(it->first);
 	}
@@ -1566,7 +1584,7 @@ metad::cleanup(fuse_ino_t ino, bool force)
   {
     if (mdmap.retrieveTS(ino, md))
     {
-      XrdSysMutex cmLock(md->Locker());
+      XrdSysMutexHelper cmLock(md->Locker());
       return cleanup(md);
     }
   }

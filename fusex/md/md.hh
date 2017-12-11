@@ -421,6 +421,8 @@ public:
   int wait_flush(fuse_req_t req,
                  shared_md md);
 
+  bool has_flush(fuse_ino_t ino);
+
   void update(fuse_req_t req,
               shared_md md,
               std::string authid,
