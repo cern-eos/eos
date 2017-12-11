@@ -111,8 +111,10 @@ com_fsck (char* arg1)
          (option != "--adjust-replicas-nodrop") &&
          (option != "--drop-missing-replicas") &&
          (option != "--unlink-zero-replicas") &&
+         (option != "--replace-damaged-replicas") &&
          (option != "--all")))
       goto com_fsck_usage;
+
     option.replace("--", "");
     in += "&mgm.option=";
     in += option;
@@ -163,8 +165,13 @@ com_fsck_usage:
   fprintf(stdout, "       fsck repair --drop-missing-replicas\n");
   fprintf(stdout, "                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
   fprintf(stdout, "       fsck repair --unlink-zero-replicas\n");
-  fprintf(stdout, "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
-  fprintf(stdout, "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
+  fprintf(stdout,
+          "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
+  fprintf(stdout, "       fsck repair --replace-damaged-replicas\n");
+  fprintf(stdout,
+          "                                                                  :  drop the damaged replica of the file and recover with a healthy one if possible!\n");
+  fprintf(stdout,
+          "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
   global_retc = EINVAL;
   return (0);
 }

@@ -1130,7 +1130,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       (option != "adjust-replicas") &&
       (option != "adjust-replicas-nodrop") &&
       (option != "drop-missing-replicas") &&
-      (option != "unlink-zero-replicas"))
+      (option != "unlink-zero-replicas") &&
+      (option != "replace-damaged-replicas"))
   {
     err += "error: illegal option <";
     err += option;
@@ -1258,7 +1259,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
 
   if (option.beginswith("resync"))
   {
-    out += "# resycnc         -------------------------------------------------------------------------\n";
+    out += "# resync         -------------------------------------------------------------------------\n";
     std::map < eos::common::FileSystem::fsid_t,
             std::set < eos::common::FileId::fileid_t >> ::const_iterator efsmapit;
 
@@ -1814,6 +1815,97 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
         }
       }
     }
+    return true;
+  }
+
+  if (option == "replace-damaged-replicas") {
+    out += "# repairing replace-damaged-replicas -------------------------------------------"
+      "-------------------------\n";
+    // Loop over all filesystems
+    for (const auto& efsmapit : eFsMap["d_mem_sz_diff"]) {
+      // Loop over all fids
+      for (const auto& fid : efsmapit.second) {
+        std::string path;
+        std::shared_ptr<eos::IFileMD> fmd;
+        {
+          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+          try {
+            fmd = gOFS->eosFileService->getFileMD(fid);
+            path = gOFS->eosView->getUri(fmd.get());
+          } catch (eos::MDException& e) {}
+        }
+
+        if (fmd == nullptr) {
+          char errline[1024];
+          snprintf(errline, sizeof(errline) - 1,
+                   "error: unable to repair file fsid=%u fxid=%llx, could not get meta data\n",
+                   efsmapit.first, fid);
+          out += errline;
+
+          break;
+        }
+
+        bool fsAvailable = false;
+
+        {
+          eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
+          for (const auto& fsid : fmd->getLocations()) {
+            if (efsmapit.first != fsid) {
+              FileSystem* fileSystem = nullptr;
+
+              if (FsView::gFsView.mIdView.count(fsid) != 0) {
+                fileSystem = FsView::gFsView.mIdView[fsid];
+                if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO) {
+                  fsAvailable = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (!fsAvailable) {
+          char errline[1024];
+          snprintf(errline, sizeof(errline) - 1,
+                   "error: unable to repair file fsid=%u fxid=%llx, no available file systems to use\n",
+                   efsmapit.first, fid);
+          out += errline;
+
+          break;
+        }
+
+        eos::common::Mapping::VirtualIdentity vid;
+        eos::common::Mapping::Root(vid);
+        XrdOucErrInfo error;
+        if (gOFS->_dropstripe(path.c_str(), error, vid, efsmapit.first, true)) {
+          char errline[1024];
+          snprintf(errline, sizeof(errline) - 1,
+                   "error: unable to repair file fsid=%u fxid=%llx, could not drop it\n",
+                   efsmapit.first, fid);
+          out += errline;
+        } else {
+          ProcCommand Cmd;
+          XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
+          info += path.c_str();
+          info += "&mgm.format=fuse";
+
+          Cmd.open("/proc/user", info.c_str(), vid, &error);
+          Cmd.AddOutput(out, err);
+
+          if (!out.endswith("\n")) {
+            out += "\n";
+          }
+
+          if (!err.endswith("\n")) {
+            err += "\n";
+          }
+
+          Cmd.close();
+        }
+      }
+    }
+
     return true;
   }
 
