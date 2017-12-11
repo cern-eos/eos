@@ -31,7 +31,7 @@ extern int com_file(char*);
 
 /* Find files/directories */
 int
-com_find_old(char* arg1)
+com_find(char* arg1)
 {
   XrdPosixXrootd Xroot;
 
@@ -607,7 +607,7 @@ com_find_old(char* arg1)
     repstripes += " ";
     subfind.replace("-layoutstripes", "");
     subfind.replace(repstripes, " -f -s ");
-    int rc = com_find_old((char*) subfind.c_str());
+    int rc = com_find((char*) subfind.c_str());
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
@@ -651,7 +651,7 @@ com_find_old(char* arg1)
     XrdOucString subfind = oarg;
     subfind.replace("-c", "-s -f");
     subfind.replace(filter, "");
-    int rc = com_find_old((char*) subfind.c_str());
+    int rc = com_find((char*) subfind.c_str());
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
@@ -1436,7 +1436,7 @@ void com_find_help()
 }
 
 int
-com_find(char* arg)
+com_find_new(char* arg)
 {
   if (wants_help(arg)) {
     com_find_help();
