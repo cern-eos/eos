@@ -1846,7 +1846,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           break;
         }
 
-        bool fsAvailable = false;
+        bool replicaAvailable = false;
 
         {
           eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
@@ -1856,8 +1856,13 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
 
               if (FsView::gFsView.mIdView.count(fsid) != 0) {
                 fileSystem = FsView::gFsView.mIdView[fsid];
-                if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO) {
-                  fsAvailable = true;
+
+                const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
+                auto found = inconsistentsOnFs.find(fid);
+
+                if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
+                    found == inconsistentsOnFs.end()) {
+                  replicaAvailable = true;
                   break;
                 }
               }
@@ -1865,10 +1870,10 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           }
         }
 
-        if (!fsAvailable) {
+        if (!replicaAvailable) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fxid=%llx, no available file systems to use\n",
+                   "error: unable to repair file fsid=%u fxid=%llx, no available file systems and replicas to use\n",
                    efsmapit.first, fid);
           out += errline;
 
