@@ -537,8 +537,9 @@ XrdMgmOfs::Emsg(const char* pfx,
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
     eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
-    if ((!strcmp(op, "stat")) || ((!strcmp(pfx, "attr_get") ||
-                                   (!strcmp(pfx, "attr_ls"))) && (ecode == ENOENT))) {
+    if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) || ( (!strcmp(pfx,"attr_get") || (!strcmp(pfx,"attr_ls")) ) && (ecode == ENOENT) ) )
+    {
+>>>>>>> MGM: don't show errno=ENOENT error messsage for get-if-clock calls
       eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
       eos_err("Unable to %s %s; %s", op, target, etext);
