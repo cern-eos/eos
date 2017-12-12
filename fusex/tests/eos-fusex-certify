@@ -124,7 +124,7 @@ else
 fi
 
 make srpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
-rpmbuild --rebuild --define "_topdir $(pwd)/build" SRPMS/eos-*.src.rpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+rpmbuild --rebuild --define "_topdir $(pwd)/build" --define "debug_package %{nil}" SRPMS/eos-*.src.rpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
 for name in `seq 1 15`; do echo $name / 15 ; sleep 10; done
 cd ../../
 rm -rf eos
