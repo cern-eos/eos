@@ -1096,12 +1096,7 @@ FuseServer::Lock::dropLocks(uint64_t id, pid_t pid)
 int
 FuseServer::Lock::dropLocks(const std::string& owner)
 {
-<<<<<<< HEAD
-  eos_static_info("owner=%s", owner.c_str());
-=======
   eos_static_debug("owner=%s", owner.c_str());
-
->>>>>>> beryl_aquamarine
   // drop locks for a given owner
   int retc = 0;
   {
@@ -2047,25 +2042,15 @@ FuseServer::HandleMD(const std::string& id,
       std::string perm = "W";
 
       // a CAP might have gone or timedout, let's check again the permissions
-<<<<<<< HEAD
-      if (((errno == ENOENT) ||
-           (errno == ETIMEDOUT)) &&
-          ValidatePERM(md, perm, vid)) {
-        // this can pass on ... permissions are fine
-      } else {
-        return EPERM;
-=======
       if ( ((errno == ENOENT) ||
 	    (errno == EINVAL) ||
 	    (errno == ETIMEDOUT)) &&
-	   ValidatePERM(md, perm, vid))
-      {
+	   ValidatePERM(md, perm, vid)) {
 	// this can pass on ... permissions are fine
       }
       else
       {
 	return EPERM;
->>>>>>> beryl_aquamarine
       }
     }
 
@@ -2090,16 +2075,9 @@ FuseServer::HandleMD(const std::string& id,
       std::shared_ptr<eos::IContainerMD> cpcmd;
       mode_t sgid_mode = 0;
 
-<<<<<<< HEAD
       try {
         if (md.md_ino() && exclusive) {
-=======
-      try
-      {
-        if (md.md_ino() && exclusive)
-        {
 	  eos_static_err("ino=%lx exists", (long) md.md_ino());
->>>>>>> beryl_aquamarine
           return EEXIST;
         }
 
@@ -2148,15 +2126,9 @@ FuseServer::HandleMD(const std::string& id,
           op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-<<<<<<< HEAD
           if (exclusive && pcmd->findContainer(md.name())) {
-            // O_EXCL set on creation -
-=======
-          if (exclusive && pcmd->findContainer( md.name() ))
-          {
             // O_EXCL set on creation - 
 	    eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
->>>>>>> beryl_aquamarine
             return EEXIST;
           }
 

@@ -325,19 +325,11 @@ com_access_usage:
   fprintf(stdout,
           "                                                                  -n    : don't translate uid/gids to names\n");
   fprintf(stdout, "Examples:\n");
-<<<<<<< HEAD
-  fprintf(stdout, "  access ban foo           Ban host foo\n");
-  fprintf(stdout,
-          "  access set redirect foo  Redirect all requests to host foo\n");
-  fprintf(stdout,
-          "  access rm redirect       Remove redirection to previously defined host foo\n");
-=======
   fprintf(stdout, "  access ban host foo      Ban host foo\n");
   fprintf(stdout, "  access ban domain bar    Ban domain bar\n");
   fprintf(stdout, "  access allow bar         Allow only domain bar\n");
   fprintf(stdout, "  access set redirect foo  Redirect all requests to host foo\n");
   fprintf(stdout, "  access rm redirect       Remove redirection to previously defined host foo\n");
->>>>>>> beryl_aquamarine
   fprintf(stdout, "  access set stall 60      Stall all clients by 60 seconds\n");
   fprintf(stdout, "  access ls                Print all defined access rules\n");
   fprintf(stdout,
