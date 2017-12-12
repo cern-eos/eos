@@ -209,9 +209,10 @@ XrdMgmOfsFile::open(const char* inpath,
   MAYREDIRECT;
   XrdOucString currentWorkflow = "default";
   unsigned long long byfid = 0;
+  unsigned long long bypid = 0;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
-       (spath.beginswith("ino:")))) {
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
+  {
     WAIT_BOOT;
 
     // reference by fid+fsid
@@ -236,6 +237,7 @@ XrdMgmOfsFile::open(const char* inpath,
     try {
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      bypid = fmd->getContainerId();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
       path = spath.c_str();
     } catch (eos::MDException& e) {
@@ -490,7 +492,11 @@ XrdMgmOfsFile::open(const char* inpath,
 
     // -------------------------------------------------------------------------
     try {
-      dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      if (byfid)
+	dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+      else 
+	dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
       // get the attributes out
       gOFS->_attr_ls(gOFS->eosView->getUri(dmd.get()).c_str(), error, vid, 0,
                      attrmap, false);
@@ -1010,14 +1016,16 @@ XrdMgmOfsFile::open(const char* inpath,
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmdnew;
 
-      try {
+      if (!byfid) {
+	try {
         fmdnew = gOFS->eosView->getFile(path);
-      } catch (eos::MDException& e) {
-        // TODO: this should be review to see if it is possible
-        if ((!isAtomicUpload) && (fmdnew != fmd)) {
-          // file has been recreated in the meanwhile
-          return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
-        }
+	} catch (eos::MDException& e) {
+	  // TODO: this should be review to see if it is possible
+	  if ((!isAtomicUpload) && (fmdnew != fmd)) {
+	    // file has been recreated in the meanwhile
+	    return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
+	  }
+	}
       }
 
       // Set the layout and commit new meta data

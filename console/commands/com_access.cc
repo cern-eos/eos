@@ -114,7 +114,11 @@ com_access(char* arg1)
         in += id;
         ok = true;
       }
-
+      if (type == "domain") {
+        in += "&mgm.access.domain=";
+        in += id;
+        ok = true;
+      }
       if (type == "user") {
         in += "&mgm.access.user=";
         in += id;
@@ -231,32 +235,23 @@ com_access(char* arg1)
   global_retc = output_result(client_command(in, true));
   return (0);
 com_access_usage:
-  fprintf(stdout,
-          "'[eos] access ..' provides the access interface of EOS to allow/disallow hosts and/or users\n");
+  fprintf(stdout, "'[eos] access ..' provides the access interface of EOS to allow/disallow hosts/domains and/or users\n");
   fprintf(stdout, "Usage: access ban|unban|allow|unallow|set|rm|ls ...\n\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "access ban user|group|host <identifier> : \n");
-  fprintf(stdout,
-          "                                                  ban user,group or host with identifier <identifier>\n");
-  fprintf(stdout,
-          "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access unban user|group|host <identifier> :\n");
-  fprintf(stdout,
-          "                                                  unban user,group or host with identifier <identifier>\n");
-  fprintf(stdout,
-          "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access allow user|group|host <identifier> :\n");
-  fprintf(stdout,
-          "                                                  allows this user,group or host access\n");
-  fprintf(stdout,
-          "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access unallow user|group|host <identifier> :\n");
-  fprintf(stdout,
-          "                                                  unallows this user,group or host access\n");
-  fprintf(stdout,
-          "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout,
-          "HINT:  if you add any 'allow' the instance allows only the listed users.\nA banned identifier will still overrule an allowed identifier!\n\n");
+  fprintf(stdout, "access ban user|group|host|domain <identifier> : \n");
+
+  fprintf(stdout, "                                                  ban user,group or host,DOMAIN with identifier <identifier>\n");
+  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n");
+  fprintf(stdout, "access unban user|group|host|domain <identifier> :\n");
+  fprintf(stdout, "                                                  unban user,group or host,domain with identifier <identifier>\n");
+  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n");
+  fprintf(stdout, "access allow user|group|host|domain <identifier> :\n");
+  fprintf(stdout, "                                                  allows this user,group or host,domain access\n");
+  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n");
+  fprintf(stdout, "access unallow user|group|host|domain <identifier> :\n");
+  fprintf(stdout, "                                                  unallows this user,group or host,domain access\n");
+  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP or domainname\n");
+  fprintf(stdout, "HINT:  if you add any 'allow' the instance allows only the listed users.\nA banned identifier will still overrule an allowed identifier!\n\n");
   fprintf(stdout, "access set redirect <target-host> [r|w|ENOENT|ENONET] :\n");
   fprintf(stdout,
           "                                                  allows to set a global redirection to <target-host>\n");
@@ -330,11 +325,19 @@ com_access_usage:
   fprintf(stdout,
           "                                                                  -n    : don't translate uid/gids to names\n");
   fprintf(stdout, "Examples:\n");
+<<<<<<< HEAD
   fprintf(stdout, "  access ban foo           Ban host foo\n");
   fprintf(stdout,
           "  access set redirect foo  Redirect all requests to host foo\n");
   fprintf(stdout,
           "  access rm redirect       Remove redirection to previously defined host foo\n");
+=======
+  fprintf(stdout, "  access ban host foo      Ban host foo\n");
+  fprintf(stdout, "  access ban domain bar    Ban domain bar\n");
+  fprintf(stdout, "  access allow bar         Allow only domain bar\n");
+  fprintf(stdout, "  access set redirect foo  Redirect all requests to host foo\n");
+  fprintf(stdout, "  access rm redirect       Remove redirection to previously defined host foo\n");
+>>>>>>> beryl_aquamarine
   fprintf(stdout, "  access set stall 60      Stall all clients by 60 seconds\n");
   fprintf(stdout, "  access ls                Print all defined access rules\n");
   fprintf(stdout,

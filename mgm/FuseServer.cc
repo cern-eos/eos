@@ -100,22 +100,21 @@ FuseServer::Clients::MonitorHeartBeat()
       XrdSysMutexHelper lLock(this);
       struct timespec tsnow;
       eos::common::Timing::GetTimeSpec(tsnow);
-
-      for (auto it = map().begin(); it != map().end(); ++it) {
-        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() +
-                                (((int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns())
-                                 * 1.0 / 1000000000.0);
-
+      for (auto it = map().begin(); it != map().end(); ++it)
+      {
+        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() + (((int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns())*1.0 / 1000000000.0);
         if (last_heartbeat > mHeartBeatWindow) {
           if (last_heartbeat > mHeartBeatOfflineWindow) {
-            if (last_heartbeat > mHeartBeatRemoveWindow) {
-              evictmap[it->second.heartbeat().uuid()] = it->first;
-              it->second.set_state(Client::EVICTED);
-            } else {
-              it->second.set_state(Client::OFFLINE);
-              gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
-            }
-          } else {
+	    if (last_heartbeat > mHeartBeatRemoveWindow) {
+	      evictmap[it->second.heartbeat().uuid()] = it->first;
+	      it->second.set_state(Client::EVICTED);
+	    } else {
+	      // drop locks once
+	      if (it->second.state() != Client::OFFLINE)
+		gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+	      it->second.set_state(Client::OFFLINE);
+	    }
+	  } else {
             it->second.set_state(Client::VOLATILE);
           }
         } else {
@@ -1097,7 +1096,12 @@ FuseServer::Lock::dropLocks(uint64_t id, pid_t pid)
 int
 FuseServer::Lock::dropLocks(const std::string& owner)
 {
+<<<<<<< HEAD
   eos_static_info("owner=%s", owner.c_str());
+=======
+  eos_static_debug("owner=%s", owner.c_str());
+
+>>>>>>> beryl_aquamarine
   // drop locks for a given owner
   int retc = 0;
   {
@@ -2043,12 +2047,25 @@ FuseServer::HandleMD(const std::string& id,
       std::string perm = "W";
 
       // a CAP might have gone or timedout, let's check again the permissions
+<<<<<<< HEAD
       if (((errno == ENOENT) ||
            (errno == ETIMEDOUT)) &&
           ValidatePERM(md, perm, vid)) {
         // this can pass on ... permissions are fine
       } else {
         return EPERM;
+=======
+      if ( ((errno == ENOENT) ||
+	    (errno == EINVAL) ||
+	    (errno == ETIMEDOUT)) &&
+	   ValidatePERM(md, perm, vid))
+      {
+	// this can pass on ... permissions are fine
+      }
+      else
+      {
+	return EPERM;
+>>>>>>> beryl_aquamarine
       }
     }
 
@@ -2073,14 +2090,23 @@ FuseServer::HandleMD(const std::string& id,
       std::shared_ptr<eos::IContainerMD> cpcmd;
       mode_t sgid_mode = 0;
 
+<<<<<<< HEAD
       try {
         if (md.md_ino() && exclusive) {
+=======
+      try
+      {
+        if (md.md_ino() && exclusive)
+        {
+	  eos_static_err("ino=%lx exists", (long) md.md_ino());
+>>>>>>> beryl_aquamarine
           return EEXIST;
         }
 
         if (md.md_ino()) {
           if (md.implied_authid().length()) {
             // this is a create on top of an existing inode
+	    eos_static_err("ino=%lx exists implied=%s", (long) md.md_ino(), md.implied_authid().c_str());
             return EEXIST;
           }
 
@@ -2122,8 +2148,15 @@ FuseServer::HandleMD(const std::string& id,
           op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
+<<<<<<< HEAD
           if (exclusive && pcmd->findContainer(md.name())) {
             // O_EXCL set on creation -
+=======
+          if (exclusive && pcmd->findContainer( md.name() ))
+          {
+            // O_EXCL set on creation - 
+	    eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
+>>>>>>> beryl_aquamarine
             return EEXIST;
           }
 
@@ -2471,6 +2504,7 @@ FuseServer::HandleMD(const std::string& id,
 
       // a CAP might have gone or timedout, let's check again the permissions
       if ( ((errno == ENOENT) ||
+	    (errno == EINVAL) ||
 	    (errno == ETIMEDOUT)) &&
 	   ValidatePERM(md, perm, vid))
       {

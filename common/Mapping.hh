@@ -145,6 +145,7 @@ public:
     XrdOucString name;
     XrdOucString prot;
     std::string host;
+    std::string domain;
     std::string grps;
     std::string role;
     std::string dn;
@@ -321,7 +322,7 @@ public:
     }
 
     vidout.host = vidin.host;
-    vidout.host = vidin.host;
+    vidout.domain = vidin.domain;
     vidout.grps = vidin.grps;
     vidout.role = vidin.role;
     vidout.dn = vidin.dn;

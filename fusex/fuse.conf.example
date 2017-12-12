@@ -19,6 +19,7 @@
     "create-is-sync" : 1,
     "symlink-is-sync" : 1,
     "rename-is-sync" : 1,
+    "rmdir-is-sync" : 0,
     "global-flush" : 1,
     "global-locking" : 1,
     "fd-limit" : 65536,

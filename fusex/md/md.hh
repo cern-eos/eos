@@ -228,7 +228,7 @@ public:
       return s;
     }
 
-    std::set<std::string>& get_todelete()
+    std::map<std::string, uint64_t >& get_todelete()
     {
       return todelete;
     }
@@ -254,7 +254,7 @@ public:
     bool lock_remote;
     bool refresh;
     std::vector<struct flock> locktable;
-    std::set<std::string> todelete;
+    std::map<std::string, uint64_t> todelete;
     std::map<std::string, uint64_t> _local_children;
   } ;
 
@@ -406,6 +406,9 @@ public:
              fuse_ino_t ino,
              int nlookup);
 
+  void wait_deleted(fuse_req_t req, 
+		    fuse_ino_t ino);
+
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",
@@ -421,6 +424,8 @@ public:
 
   int wait_flush(fuse_req_t req,
                  shared_md md);
+
+  bool has_flush(fuse_ino_t ino);
 
   void update(fuse_req_t req,
               shared_md md,

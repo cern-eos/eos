@@ -256,8 +256,11 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     return 0;
   }
 
-  eos_static_info("delete md object - ino=%016x name=%s", ino,
-                  md->name().c_str());
+  if (has_flush(ino))
+    return 0;
+
+  eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
+
   mdmap.eraseTS(ino);
   stat.inodes_dec();
   inomap.erase_bwd(ino);
@@ -435,6 +438,38 @@ metad::map_children_to_local(shared_md pmd)
 }
 
 /* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+metad::wait_deleted(fuse_req_t req,
+		    fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  shared_md md;
+  mdmap.retrieveTS(ino, md);
+  if (md && md->id())
+  {
+    while (1)
+    {
+      // wait that the deletion entry is leavin the flush queue
+      mdflush.Lock();
+      if (mdqueue.count(md->id()))
+      {
+	mdflush.UnLock();
+	eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
+			md->id());
+	XrdSysTimer delay;
+	delay.Wait(25);
+      }
+      else
+      {
+	mdflush.UnLock();
+	break;
+      }
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 metad::shared_md
 metad::get(fuse_req_t req,
            fuse_ino_t ino,
@@ -472,7 +507,8 @@ metad::get(fuse_req_t req,
     // there is local meta data, we have to decide if we can 'trust' it, or we
     // need to refresh it from upstream  - TODO !
     // -------------------------------------------------------------------------
-    if (readdir) {
+    if (readdir && !listing)
+    {
       eos_static_info("returning opendir(readdir) entry");
       return md;
     }
@@ -757,6 +793,21 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
 }
 
 /* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+metad::has_flush(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  bool in_flush = false;
+  mdflush.Lock();
+  if (mdqueue.count(ino))
+    in_flush = true;
+  mdflush.UnLock();
+  return in_flush;
+}
+
+
+/* -------------------------------------------------------------------------- */
 void
 metad::update(fuse_req_t req, shared_md md, std::string authid,
               bool localstore)
@@ -992,7 +1043,7 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     XrdSysMutexHelper mLock(pmd->Locker());
     pmd->local_children().erase(name);
     pmd->set_nchildren(pmd->nchildren() - 1);
-    pmd->get_todelete().insert(name);
+    pmd->get_todelete()[name] = md->id();
     pmd->set_mtime(ts.tv_sec);
     pmd->set_mtime_ns(ts.tv_nsec);
   }
@@ -1061,7 +1112,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     md->set_name(newname);
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
-    p1md->get_todelete().insert(md->name()); // make it known as deleted
+    p1md->get_todelete()[md->name()] = md->id(); // make it known as deleted
     p2md->get_todelete().erase(newname); // the new target is not deleted anymore
   } else {
     // move within directory
@@ -1072,7 +1123,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     }
     p2md->local_children()[newname] = md->id();
     p1md->local_children().erase(md->name());
-    p1md->get_todelete().insert(md->name()); // make it known as deleted
+    p1md->get_todelete()[md->name()] = md->id(); // make it known as deleted
     p2md->get_todelete().erase(newname); // the new target is not deleted anymore
     md->set_name(newname);
   }
@@ -1150,7 +1201,7 @@ metad::dump_md(shared_md md, bool lock)
   for (auto it = md->get_todelete().begin();it != md->get_todelete().end();)
   {
     jsonstring += "\"";
-    jsonstring += it->c_str();
+    jsonstring += it->first.c_str();
     ++it;
     if (it == md->get_todelete().end())
     {
@@ -1364,10 +1415,13 @@ metad::cleanup(shared_md md)
     shared_md cmd;
     if (mdmap.retrieveTS(it->second, cmd))
     {
-      XrdSysMutex cmLock(cmd->Locker());
+      XrdSysMutexHelper cmLock(cmd->Locker());
+
+      bool in_flush = has_flush(it->second);
+
       if (!S_ISDIR(cmd->mode()))
       {
-	if (!mdqueue.count(cmd->id()) && !EosFuse::Instance().datas.has(cmd->id()))
+	if (!in_flush && !EosFuse::Instance().datas.has(cmd->id()))
 	{
 	  // clean-only entries, which are not in the flush queue and not open
 	  mdmap.eraseTS(it->second);
@@ -1376,7 +1430,7 @@ metad::cleanup(shared_md md)
       }
       else
       {
-	if (!mdqueue.count(cmd->id()))
+	if (!in_flush)
 	{
 	  delete_child_dir.push_back(it->first);
 	}
@@ -1407,7 +1461,7 @@ metad::cleanup(fuse_ino_t ino, bool force)
   {
     if (mdmap.retrieveTS(ino, md))
     {
-      XrdSysMutex cmLock(md->Locker());
+      XrdSysMutexHelper cmLock(md->Locker());
       return cleanup(md);
     }
   }
@@ -1455,7 +1509,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       p_ino = next_ino.inc();
       // it might happen that we don't know yet anything about this parent
       inomap.insert(md_pino, p_ino);
-      eos_static_crit("msg=\"creating lookup entry for parent inode\" md-pino=%016lx pino=%016lx md-ino=%016lx ino=%016lx",
+      eos_static_debug("msg=\"creating lookup entry for parent inode\" md-pino=%016lx pino=%016lx md-ino=%016lx ino=%016lx",
 		      md_pino, p_ino, md_ino, ino);
     }
 
@@ -1596,7 +1650,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           else
           {
             // we have to overlay the listing
-            std::set<std::string> todelete;
+            std::map<std::string, uint64_t> todelete;
 
             mdflush.Lock();
             if (!mdqueue.count(md->id()))
@@ -1633,12 +1687,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           md->set_id(ino);
           p_ino = inomap.forward(md->md_pino());
           md->set_pid(p_ino);
-          eos_static_info("store remote-ino=%016lx local pino=%016lx for %016lx",
-                          md-> md_pino(), md->pid(), md->id());
-
-          for (auto it = md->get_todelete().begin(); it != md->get_todelete().end();
-               ++it) {
-            eos_static_info("%016lx to-delete=%s", md->id(), it->c_str());
+          eos_static_info("store remote-ino=%016lx local pino=%016lx for %016lx", md-> md_pino(), md->pid(), md->id());
+          for (auto it=md->get_todelete().begin(); it != md->get_todelete().end(); ++it) {
+            eos_static_info("%016lx to-delete=%s", md->id(), it->first.c_str());
           }
           // push only into the local KV cache - md was retrieved from upstream
           if (map->first != cont.ref_inode_()) {

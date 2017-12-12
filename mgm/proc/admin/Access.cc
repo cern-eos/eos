@@ -34,6 +34,7 @@ ProcCommand::Access()
   std::string user = "";
   std::string group = "";
   std::string host = "";
+  std::string domain = "";
   std::string option = "";
   std::string redirect = "";
   std::string stall = "";
@@ -46,6 +47,7 @@ ProcCommand::Access()
   host = pOpaque->Get("mgm.access.host") ? pOpaque->Get("mgm.access.host") : "";
   option = pOpaque->Get("mgm.access.option") ? pOpaque->Get("mgm.access.option") :
            "";
+  domain = pOpaque->Get("mgm.access.domain") ? pOpaque->Get("mgm.access.domain") : "";
   redirect = pOpaque->Get("mgm.access.redirect") ?
              pOpaque->Get("mgm.access.redirect") : "";
   stall = pOpaque->Get("mgm.access.stall") ? pOpaque->Get("mgm.access.stall") :
@@ -119,6 +121,22 @@ ProcCommand::Access()
       } else {
         stdErr = "error: unable to store access configuration";
         retc = EIO;
+      }
+    }
+    if (domain.length())
+    {
+      if (Access::StoreAccessConfig())
+      {
+	Access::gBannedDomains.insert(domain);
+	stdOut = "success: ban domain '";
+	stdOut += domain.c_str();
+	stdOut += "'";
+	retc = 0;
+      }
+      else
+      {
+	stdErr = "error: unable to store access configuration";
+	retc = EIO;
       }
     }
   }
@@ -211,6 +229,26 @@ ProcCommand::Access()
         retc = ENOENT;
       }
     }
+
+    if (domain.length()) {
+      if (Access::gBannedDomains.count(domain)) {
+	Access::gBannedDomains.erase(domain);
+	if (Access::StoreAccessConfig()) {
+	  stdOut = "success: unban domain '";
+	  stdOut += domain.c_str();
+	  stdOut += "'";
+	  retc = 0;
+	} else {
+	  stdErr = "error: unable to store access configuration";
+	  retc = EIO;
+	}
+      } else {
+	stdErr = "error: domain '";
+	stdErr += domain.c_str();
+	stdErr += "' is not banned anyway!";
+	retc = ENOENT;
+      }
+    }
   }
 
   if (mSubCmd == "allow") {
@@ -261,17 +299,28 @@ ProcCommand::Access()
         retc = EINVAL;
       }
     }
-
     if (host.length()) {
-      if (Access::StoreAccessConfig()) {
-        Access::gAllowedHosts.insert(host);
-        stdOut = "success: allow host '";
-        stdOut += host.c_str();
-        stdOut += "'";
-        retc = 0;
+      Access::gAllowedHosts.insert(host);
+      if (Access::StoreAccessConfig())  {
+	stdOut = "success: allow host '";
+	stdOut += host.c_str();
+	stdOut += "'";
+	retc = 0;
       } else {
-        stdErr = "error: unable to store access configuration";
-        retc = EIO;
+	stdErr = "error: unable to store access configuration";
+	retc = EIO;
+      }
+    }
+    if (domain.length()) {
+      Access::gAllowedDomains.insert(domain);
+      if (Access::StoreAccessConfig()) {
+	stdOut = "success: allow domain '";
+	stdOut += domain.c_str();
+	stdOut += "'";
+	retc = 0;
+      } else {
+	stdErr = "error: unable to store access configuration";
+	retc = EIO;
       }
     }
   }
@@ -362,6 +411,32 @@ ProcCommand::Access()
         stdErr += host.c_str();
         stdErr += "' is not banned anyway!";
         retc = ENOENT;
+      }
+    }
+    if (domain.length())
+    {
+      if (Access::gAllowedDomains.count(domain))
+      {
+	Access::gAllowedDomains.erase(domain);
+	if (Access::StoreAccessConfig())
+	{
+	  stdOut = "success: unallow domain '";
+	  stdOut += domain.c_str();
+	  stdOut += "'";
+	  retc = 0;
+	}
+	else
+	{
+	  stdErr = "error: unable to store access configuration";
+	  retc = EIO;
+	}
+      }
+      else
+      {
+	stdErr = "error: domain '";
+	stdErr += domain.c_str();
+	stdErr += "' is not banned anyway!";
+	retc = ENOENT;
       }
     }
   }
@@ -612,6 +687,7 @@ ProcCommand::Access()
     std::set<uid_t>::const_iterator ituid;
     std::set<gid_t>::const_iterator itgid;
     std::set<std::string>::const_iterator ithost;
+    std::set<std::string>::const_iterator itdomain;
     std::map<std::string, std::string>::const_iterator itred;
     int cnt;
 
@@ -711,11 +787,35 @@ ProcCommand::Access()
       }
     }
 
+    if (Access::gBannedDomains.size()) {
+      if (!monitoring) {
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Banned Domains ...\n";
+	stdOut += "# ....................................................................................\n";
+      }
+
+      cnt = 0;
+      for (itdomain = Access::gBannedDomains.begin(); itdomain != Access::gBannedDomains.end(); itdomain++) {
+	cnt++;
+	if (monitoring) {
+	  stdOut += "domain.banned=";
+	} else {
+	  char counter[16];
+	  snprintf(counter, sizeof (counter) - 1, "%02d", cnt);
+	  stdOut += "[ ";
+	  stdOut += counter;
+	  stdOut += " ] ";
+	}
+	stdOut += itdomain->c_str();
+	stdOut += "\n";
+      }
+    }
+
     if (Access::gAllowedUsers.size()) {
       if (!monitoring) {
-        stdOut += "# ....................................................................................\n";
-        stdOut += "# Allowd Users ...\n";
-        stdOut += "# ....................................................................................\n";
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Allowd Users ...\n";
+	stdOut += "# ....................................................................................\n";
       }
 
       cnt = 0;
@@ -807,11 +907,35 @@ ProcCommand::Access()
       }
     }
 
+    if (Access::gAllowedDomains.size()) {
+      if (!monitoring) {
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Allowed Domains ...\n";
+	stdOut += "# ....................................................................................\n";
+      }
+
+      cnt = 0;
+      for (itdomain = Access::gAllowedDomains.begin(); itdomain != Access::gAllowedDomains.end(); itdomain++) {
+	cnt++;
+	if (monitoring) {
+	  stdOut += "domain.allowed=";
+	} else {
+	  char counter[16];
+	  snprintf(counter, sizeof (counter) - 1, "%02d", cnt);
+	  stdOut += "[ ";
+	  stdOut += counter;
+	  stdOut += " ] ";
+	}
+	stdOut += itdomain->c_str();
+	stdOut += "\n";
+      }
+    }
+
     if (Access::gRedirectionRules.size()) {
       if (!monitoring) {
-        stdOut += "# ....................................................................................\n";
-        stdOut += "# Redirection Rules ...\n";
-        stdOut += "# ....................................................................................\n";
+	stdOut += "# ....................................................................................\n";
+	stdOut += "# Redirection Rules ...\n";
+	stdOut += "# ....................................................................................\n";
       }
 
       cnt = 0;
