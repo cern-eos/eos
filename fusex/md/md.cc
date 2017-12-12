@@ -294,6 +294,9 @@ metad::forget(fuse_req_t req,
   if (!md->deleted())
     return 0;
 
+  if (has_flush(ino))
+    return 0;
+
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);
@@ -545,7 +548,7 @@ metad::get(fuse_req_t req,
     // there is local meta data, we have to decide if we can 'trust' it, or we
     // need to refresh it from upstream  - TODO !
     // -------------------------------------------------------------------------
-    if (readdir)
+    if (readdir && !listing)
     {
       eos_static_info("returning opendir(readdir) entry");
       return md;

@@ -1963,7 +1963,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       b_size += a_size;
 
       // at offset=0 add the '..' directory
-      metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "" , 0, 0, 0, true);
+      metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "" , true, 0, 0, true);
       if (ppmd && (ppmd->id() == pmd->pid()))
       {
         fuse_ino_t cino = 0;
