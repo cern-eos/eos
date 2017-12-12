@@ -557,7 +557,6 @@ metad::get(fuse_req_t req,
     }
 
     XrdSysMutexHelper mLock(md->Locker());
-
     if ( (md->id() != 1) && !md->pid()) {
       // this must have been generated locally, we return this entry
       eos_static_info("returning generated entry");
