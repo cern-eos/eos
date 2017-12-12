@@ -12,7 +12,7 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.6.2
+Version:        1.9.9
 Release:        5
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
@@ -147,7 +147,6 @@ export DESTDIR=%{buildroot}
     --without-http_geo_module           \
     --without-http_map_module           \
     --without-http_referer_module       \
-    --without-http_limit_zone_module    \
     --without-http_empty_gif_module     \
     --without-http_browser_module       \
     --without-mail_imap_module          \
