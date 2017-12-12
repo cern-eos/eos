@@ -1214,12 +1214,20 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-backlog      := %lu\n"
              "ALL        inodes-ever         := %lu\n"
              "ALL        inodes-ever-deleted := %lu\n"
+	     "ALL        inodes-open         := %lu\n"
+	     "ALL        inodes-vmap         := %lu\n"
+	     "ALL        inodes-caps         := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_deleted(),
              this->getMdStat().inodes_backlog(),
              this->getMdStat().inodes_ever(),
-             this->getMdStat().inodes_deleted_ever());
+             this->getMdStat().inodes_deleted_ever(),
+	     this->datas.size(),
+	     this->mds.vmaps().size(),
+	     this->caps.size()
+	     );
+
     sout += ino_stat;
     std::string s1;
     std::string s2;

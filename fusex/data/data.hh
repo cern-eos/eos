@@ -300,6 +300,13 @@ public:
   void update_cookie(uint64_t ino, std::string& cookie);
 
   void invalidate_cache(fuse_ino_t ino);
+
+  size_t size() {
+    XrdSysMutexHelper mLock(datamap);
+    return datamap.size();
+  }
+
+
 private:
   dmap datamap;
 } ;
