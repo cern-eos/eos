@@ -1561,6 +1561,9 @@ metad::cleanup(shared_md md)
 	  delete_child_dir.push_back(it->first);
 	}
       }
+
+      if (EosFuse::Instance().Config().options.md_kernelcache)
+	kernelcache::inval_entry(md->id(), it->first);
     }
   }
   // remove the listing type
@@ -2466,9 +2469,9 @@ metad::mdcommunicate(ThreadAssistant &assistant)
                             {
                               kernelcache::inval_inode(it->second, false);
                             }
-                            // drop the entry stats
-                            kernelcache::inval_entry(ino, it->first);
                           }
+			  // drop the entry stats
+			  kernelcache::inval_entry(ino, it->first);
                         }
                       }
                       eos_static_info("invalidated direct children ino=%016lx cap-cnt=%d", ino, md->cap_count());
