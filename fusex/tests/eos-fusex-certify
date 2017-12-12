@@ -102,6 +102,34 @@ echo "005d... sqlite"
 ./test_sqlite.py $PWD >& /tmp/005-eos-clienttests.log 2>&1|| exit 5
 ) || exit 5
 
+##################################################
+time (
+echo "===================================================================="
+echo "006 ... eos-rpm-test"
+mkdir 006-eos-rpm-test
+cd 006-eos-rpm-test
+echo "006 ... clone eos"
+git clone https://:@gitlab.cern.ch:8443/dss/eos.git >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+cd eos
+echo "006 ... submodule update"
+git submodule update --init --recursive >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+echo "006 ... cmake"
+mkdir build
+cd build
+uname -a | grep ".el6." >& /dev/null
+if [ $? -eq 0 ] ; then
+    scl enable devtoolset-2 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+else
+    cmake3 ../ -DPACKAGEONLY=1 >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+fi
+
+make srpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+rpmbuild --rebuild --define "_topdir $(pwd)/build" SRPMS/eos-*.src.rpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+for name in `seq 1 15`; do echo $name / 15 ; sleep 10; done
+cd ../../
+rm -rf eos
+) || exit 6
+
 echo "===================================================================="
 echo "... :-) passed !"
 echo "===================================================================="
