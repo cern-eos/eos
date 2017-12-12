@@ -2580,6 +2580,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       if (!rc)
       {
         pmd = Instance().mds.get(req, parent, pcap->authid());
+
+	Track::Monitor mon (__func__, Instance().Tracker(), md->id(), true);
         Instance().mds.remove(req, pmd, md, pcap->authid());
 
 	if (Instance().Config().options.rmdir_is_sync)
