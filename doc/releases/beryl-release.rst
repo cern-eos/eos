@@ -13,8 +13,15 @@ Beryl Release Notes
 New Features
 ============
 
-- MGM: add the 'eos fusex' interface and new FUSE client server side support (beta status - be carefule with this version)
-- FUSEX: added new FUSE client submodule (beta status) (see README in submodule)
+- MGM: add the 'eos fusex' interface and new FUSE client server side support (beta status - be careful with using this)
+- MGM/CONSOLE: add new 'access allow|unallow|ban domain <domain>'
+- NS: add hopscotch map/hash
+
+Bug Fixes
++++++++++
+
+- NS: use murmurhash as string hash function
+- COMMON: fix dead-lock im common/Mapping.cc
 
 ``V0.3.268 Aquamarine``
 =======================
