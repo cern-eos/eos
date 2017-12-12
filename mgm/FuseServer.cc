@@ -879,8 +879,10 @@ FuseServer::Caps::Print(std::string option, std::string filter)
       snprintf(ahex, sizeof(ahex), "%08lx", (unsigned long) cap->mode());
       match += ahex;
       match += " v:";
-      match += eos::common::StringConversion::GetSizeString(astring,
-               (unsigned long long) cap->vtime() - now);
+      if ( (cap->vtime() - now) >  0)
+	match += eos::common::StringConversion::GetSizeString(astring, (unsigned long long) cap->vtime() - now);
+      else
+	match += eos::common::StringConversion::GetSizeString(astring, (unsigned long long) 0);
       match += "\n";
 
       if (filter.size() &&
