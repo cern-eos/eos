@@ -90,6 +90,7 @@ eos_rpm_fedora_rawhide:
   allow_failure: true
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_rpm_fedora_26:
   stage: build:rpm
@@ -124,7 +125,7 @@ eos_rpm_fedora_26:
   allow_failure: true
   except:
     - beryl_aquamarine
-
+    - /^0\.3.*$/
 
 eos_deb_ubuntu_artful:
   stage: build:rpm
@@ -157,6 +158,7 @@ eos_deb_ubuntu_artful:
   allow_failure: true
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_dmg_macosx:
   stage: build:rpm
@@ -183,6 +185,7 @@ eos_dmg_macosx:
   allow_failure: true
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_nginx_cc7:
   stage: build:rpm
@@ -205,6 +208,7 @@ eos_nginx_cc7:
     name: nginx-cc7-prod
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_nginx_slc6:
   stage: build:rpm
@@ -227,6 +231,7 @@ eos_nginx_slc6:
     name: nginx-slc6-prod
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_apmon_cc7:
   stage: build:rpm
@@ -249,6 +254,7 @@ eos_apmon_cc7:
     name: apmon-cc7-prod
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
     
 eos_docs:
   stage: build:rpm
@@ -265,6 +271,7 @@ eos_docs:
   when: manual
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_dockerimage_commit:
   stage: build:dockerimage
@@ -281,6 +288,7 @@ eos_dockerimage_commit:
     - branches
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_dockerimage_tag:
   stage: build:dockerimage
@@ -295,6 +303,8 @@ eos_dockerimage_tag:
     - eos_rpm_cc7
   only:
     - tags
+  except:
+    - /^0\.3.*$/
 
 eos_unit_test:
   stage: test
@@ -328,6 +338,7 @@ eos_unit_test:
     - docker-cc7
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_system_test:
   stage: test
@@ -349,6 +360,7 @@ eos_system_test:
     - eos_rpm_cc7
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_stress_test:
   stage: test
@@ -368,6 +380,7 @@ eos_stress_test:
   retry: 1
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_publish_artifacts:
   stage: publish
@@ -407,6 +420,7 @@ eos_publish_debian_artifacts:
     - tags
   except:
     - beryl_aquamarine
+    - /^0\.3.*$/
 
 eos_publish_debian_artifacts_volume:
   stage: publish
@@ -423,6 +437,8 @@ eos_publish_debian_artifacts_volume:
     - eos_deb_ubuntu_artful
   only:
     - tags
+  except:
+    - /^0\.3.*$/
 
 eos_clean_artifacts:
   stage: clean
@@ -487,3 +503,5 @@ eos_cppcheck_sonar:
   only:
     - master
     - tags
+  except:
+    - /^0\.3.*$/
