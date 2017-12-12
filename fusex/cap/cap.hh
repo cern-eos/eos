@@ -265,6 +265,12 @@ public:
     return extensionmap;
   }
 
+  size_t size()
+  {
+    XrdSysMutexHelper mLock( capmap );
+    return capmap.size();
+  }
+
 private:
 
   cmap capmap;

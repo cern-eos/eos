@@ -287,6 +287,11 @@ public:
     fuse_ino_t forward(fuse_ino_t lookup);
     fuse_ino_t backward(fuse_ino_t lookup);
 
+    size_t size() {
+      XrdSysMutexHelper mLock(mMutex);
+      return fwd_map.size();
+    }
+
   private:
     std::map<fuse_ino_t, fuse_ino_t> fwd_map; // forward map points from remote to local inode
     std::map<fuse_ino_t, fuse_ino_t> bwd_map; // backward map points from local remote inode
