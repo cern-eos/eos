@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.2.5 Citrine``
+===================
+
+2017-12-12
+
+Bug
++++
+
+* [EOS-2142] - eosfstregister fails to get mgm url in CentOS 7
+* [EOS-2146] - symlinks have to show the size of the target string
+* [EOS-2147] - listxattr creates SEGV on OSX
+* [EOS-2148] - eosxd on OSX creates empty file when copying with 'cp'
+* [EOS-2159] - An owner of a directory has to get always chmod permissions
+* [EOS-2161] - rm -rf on fusex mount fails to remove all files/subdirectories
+* [EOS-2167] - new file systems added go to 'spare.0'
+* [EOS-2174] - Running out of FDs when using a user mount
+* [EOS-2175] - eos ns command takes 10s on EOSPPS  
+* [EOS-2179] - calling verifychecksum issue
+* [EOS-2180] - Unable to access quota space <filename> Read-only file system
+
+* Many improvements and fixes for esoxd
+* Performance improvements and fixes for the namespace and QuarkDB
+
 ``v4.2.4 Citrine``
 ===================
 
