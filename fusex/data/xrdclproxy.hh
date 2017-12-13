@@ -494,11 +494,12 @@ namespace XrdCl
         mDone = false;
         mEOF = false;
         mProxy = file;
-        eos_static_debug("----: creating chunk offset=%ld", off);
+        eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size, this);
       }
 
       virtual ~ReadAsyncHandler()
       {
+        eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset, mBuffer.size(), this);
       }
 
       char* buffer()
@@ -519,6 +520,11 @@ namespace XrdCl
       off_t offset()
       {
         return roffset;
+      }
+
+      size_t size()
+      {
+	return mBuffer.size();
       }
 
       bool matches(off_t off, uint32_t size,
