@@ -2593,7 +2593,6 @@ EROFS  pathname refers to a directory on a read-only filesystem.
         Instance().mds.remove(req, pmd, md, pcap->authid());
 	del_ino = md->id();
       }
-
     }
     if (!rc)
     {
