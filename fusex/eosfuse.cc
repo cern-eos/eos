@@ -2413,7 +2413,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
       rc = ENAMETOOLONG;
     }
 
-
     fuse_ino_t del_ino = 0;
 
     if (!rc) {
@@ -2594,6 +2593,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
         Instance().mds.remove(req, pmd, md, pcap->authid());
 	del_ino = md->id();
       }
+
     }
     if (!rc)
     {
