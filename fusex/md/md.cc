@@ -1200,6 +1200,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::str
     // anyway.
 
     MdLocker locker(p1md, p2md, determineLockOrder(p1md, p2md));
+    std::string oldname = md->name();
 
     if (!p2md->local_children().count(newname))
       p2md->set_nchildren(p2md->nchildren() + 1);
@@ -1223,7 +1224,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::str
     md->set_name(newname);
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
-    p1md->get_todelete()[md->name()] = md->id(); // make it known as deleted
+    p1md->get_todelete()[oldname] = md->id(); // make it known as deleted
     p2md->get_todelete().erase(newname); // the new target is not deleted anymore
   }
   else
