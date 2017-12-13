@@ -2053,8 +2053,9 @@ metad::mdcflush(ThreadAssistant &assistant)
 
         shared_md md;
 
-        if (!mdmap.retrieveTS(ino, md))
-        {
+
+        if (!mdmap.retrieveTS(ino, md)) {
+	  eos_static_crit("metacache::flush failed to retrieve ino=%016lx", ino);
           continue;
         }
 
