@@ -2236,6 +2236,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
       rc = ENAMETOOLONG;
     }
 
+    fuse_ino_t del_ino = 0;
+
     if (!rc) {
       metad::shared_md md;
       metad::shared_md pmd;
@@ -2261,16 +2263,17 @@ EROFS  pathname refers to a file on a read-only filesystem.
           pmd = Instance().mds.get(req, parent, pcap->authid());
           Instance().datas.unlink(req, md->id());
           Instance().mds.remove(req, pmd, md, pcap->authid());
-
-	  if (Instance().Config().options.rmdir_is_sync)
-	  {
-	    Instance().mds.wait_flush(req, md);
-	  }
+	  del_ino = md->id();
         }
       }
     }
 
     if (!rc) {
+      if (Instance().Config().options.rmdir_is_sync)
+      {
+	Instance().mds.wait_deleted(req, del_ino);
+      }
+
       XrdSysMutexHelper pLock(pcap->Locker());
       Instance().caps.free_volume(pcap, freesize);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
@@ -2340,7 +2343,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon(__func__, Instance().Tracker(), parent);
+  Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
   // retrieve cap
@@ -2359,6 +2362,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
     if (sname.length() > 1024) {
       rc = ENAMETOOLONG;
     }
+
+    fuse_ino_t del_ino = 0;
 
     if (!rc) {
       metad::shared_md md;
@@ -2386,13 +2391,16 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
 	Track::Monitor mon (__func__, Instance().Tracker(), md->id(), true);
         Instance().mds.remove(req, pmd, md, pcap->authid());
-
-	if (Instance().Config().options.rmdir_is_sync)
-	{
-	  XrdSysMutexHelper mLock(md->Locker());
-	  Instance().mds.wait_flush(req, md);
-	}
+	del_ino = md->id();
       }
+    }
+    if (!rc)
+    {
+      if (Instance().Config().options.rmdir_is_sync)
+      {
+	Instance().mds.wait_deleted(req, del_ino);
+      }
+
     }
   }
 

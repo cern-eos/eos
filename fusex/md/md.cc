@@ -1113,8 +1113,11 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     md->set_name(newname);
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
-    p1md->get_todelete()[oldname] = md->id(); // make it known as deleted
+    p1md->get_todelete()[oldname] = 0;//md->id(); // make it known as deleted
     p2md->get_todelete().erase(newname); // the new target is not deleted anymore
+    md->setop_update();
+    p1md->setop_update();
+    p2md->setop_update();
   } else {
     // move within directory
     XrdSysMutexHelper m1Lock(p1md->Locker());
@@ -1127,6 +1130,8 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     p1md->get_todelete()[md->name()] = md->id(); // make it known as deleted
     p2md->get_todelete().erase(newname); // the new target is not deleted anymore
     md->set_name(newname);
+    md->setop_update();
+    p1md->setop_update();
   }
 
   md->clear_pmtime();
