@@ -114,16 +114,13 @@ FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
 std::unique_ptr<XrdOucEnv>
 FmdHelper::FmdToEnv()
 {
-  char serialized[1024 * 64];
-  sprintf(serialized, "id=%" PRIu64 "&cid=%" PRIu64 "&ctime=%" PRIu32
-          "&ctime_ns=%" PRIu32 "&mtime=%" PRIu32 "&"
-          "mtime_ns=%" PRIu32 "&size=%" PRIu64 "&checksum=%s&lid=%" PRIu32 "&uid=%" PRIu32
-          "&gid=%" PRIu32 "&",
-          mProtoFmd.fid(), mProtoFmd.cid(), mProtoFmd.ctime(),
-          mProtoFmd.ctime_ns(), mProtoFmd.mtime(), mProtoFmd.mtime_ns(),
-          mProtoFmd.size(), mProtoFmd.checksum().c_str(), mProtoFmd.lid(),
-          mProtoFmd.uid(), mProtoFmd.gid());
-  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(serialized));
+  std::ostringstream serializedStream;
+  serializedStream << "id=" << mProtoFmd.fid() << "&cid=" << mProtoFmd.cid() << "&ctime=" << mProtoFmd.ctime();
+  serializedStream << "&ctime_ns=" << mProtoFmd.ctime_ns() << "&mtime=" << mProtoFmd.mtime() << "&mtime_ns=" << mProtoFmd.mtime_ns();
+  serializedStream << "&size=" << mProtoFmd.size() << "&checksum=" << mProtoFmd.checksum() << "&lid=" << mProtoFmd.lid();
+  serializedStream << "&uid=" << mProtoFmd.uid() << "&gid=" << mProtoFmd.gid() << '&';
+
+  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(serializedStream.str().c_str()));
 }
 
 EOSFSTNAMESPACE_END
