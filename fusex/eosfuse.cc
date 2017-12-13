@@ -2603,6 +2603,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   (mode == W_OK));
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
+	  if (md->creator())
+	    fi->keep_cache = Instance().Config().options.data_kernelcache;
           fi->direct_io = 0;
           eos_static_info("%s", md->dump(e).c_str());
         }
