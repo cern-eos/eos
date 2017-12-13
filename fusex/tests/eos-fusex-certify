@@ -58,6 +58,26 @@ for name in `seq 1 1000`; do  mkdir asdf || exit 2; rmdir asdf; done;  exit 0;
 ##################################################
 time (
 echo "===================================================================="
+echo "002c ... rename-overwrite-test"
+mkdir 002-rename-overwrite
+cd 002-rename-overwrite
+for name in `seq 1 1000`; do 
+echo $name
+mkdir a  || exit 1
+mkdir a/a 
+mkdir b
+mkdir b/b 
+mv -T a/a b/b
+ls -la a/
+ls -la b/
+find b
+rm -rf a || exit 9
+rm -rf b || exit 10
+done
+) || exit 2
+##################################################
+time (
+echo "===================================================================="
 echo "003 ... git-clone-test"
 mkdir 003-git
 cd 003-git
