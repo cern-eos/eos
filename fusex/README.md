@@ -60,7 +60,7 @@ You also need to define a local cache directory (location) where small files are
     "type" : "disk",
     "size-mb" : 1000,
     "location" : "/var/eos/fusex/cache/",
-    "journal" : " /var/eos/fusex/journal/",
+    "journal" : "/var/eos/fusex/journal/",
     "read-ahead-strategy" : "dynamic",
     "read-ahead-bytes-nominal" : 1048576,
     "read-ahead-bytes-max" : 8388608
