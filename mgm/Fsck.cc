@@ -1826,7 +1826,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // Loop over all fids
       for (const auto& fid : efsmapit.second) {
         std::string path;
-        std::shared_ptr<eos::IFileMD> fmd;
+        std::shared_ptr<eos::FileMD> fmd;
         {
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -1850,14 +1850,14 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
 
         {
           eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
-          for (const auto& fsid : fmd->getLocations()) {
-            if (efsmapit.first != fsid) {
+          for (auto fsidit = fmd->locationsBegin(); fsidit != fmd->locationsEnd(); ++fsidit) {
+            if (efsmapit.first != *fsidit) {
               FileSystem* fileSystem = nullptr;
 
-              if (FsView::gFsView.mIdView.count(fsid) != 0) {
-                fileSystem = FsView::gFsView.mIdView[fsid];
+              if (FsView::gFsView.mIdView.count(*fsidit) != 0) {
+                fileSystem = FsView::gFsView.mIdView[*fsidit];
 
-                const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
+                const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][*fsidit];
                 auto found = inconsistentsOnFs.find(fid);
 
                 if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
