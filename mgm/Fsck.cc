@@ -1831,7 +1831,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
           try {
-            fmd = gOFS->eosFileService->getFileMD(fid);
+            fmd.reset(gOFS->eosFileService->getFileMD(fid));
             path = gOFS->eosView->getUri(fmd.get());
           } catch (eos::MDException& e) {}
         }
