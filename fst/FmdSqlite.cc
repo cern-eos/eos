@@ -201,7 +201,7 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
 
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s.%04d.sql", dbfileprefix, fsid);
-  eos_info("SQLITE DB is now %s\n", fsDBFileName);
+  eos_info("msg=\"SQLITE DB is now %s\"\n", fsDBFileName);
 
   // store the DB file name
   DBfilename[fsid] = fsDBFileName;
@@ -213,12 +213,12 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
   {
     isDirty[fsid] = true;
     stayDirty[fsid] = true;
-    eos_warning("setting sqlite3 file dirty - unclean shutdown detected");
+    eos_warning("msg=\"setting sqlite3 file dirty - unclean shutdown detected for fsid=%d\"", fsid);
     if (!src)
     {
       if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
       {
-        eos_crit("failed to switch the sqlite3 database file mode to S_IRWXU errno=%d", errno);
+        eos_crit("msg=\"failed to switch the sqlite3 database file mode to S_IRWXU for fsid=%d errno=%d\"", fsid, errno);
       }
     }
   }
@@ -238,11 +238,11 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
 
   if (WEXITSTATUS(rc))
   {
-    eos_warning("sqlite3 command execution failed");
+    eos_warning("msg=\"sqlite3 command execution failed for fsid=%d\"", fsid);
   }
   else
   {
-    eos_info("msg=\"sqlite3 clean-procedure succeeded\"");
+    eos_info("msg=\"sqlite3 clean-procedure succeeded for fsid=%d\"", fsid);
   }
 
   // create the SQLITE DB
@@ -272,7 +272,7 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
   // set the mode to S_IRUSR
   if (chmod(fsDBFileName, S_IRUSR))
   {
-    eos_crit("failed to switch the sqlite3 database file mode to S_IRUSR errno=%d", errno);
+    eos_crit("msg=\"failed to switch the sqlite3 database file mode to S_IRUSR for fsid=%d errno=%d\"", fsid, errno);
   }
 
   return ReadDBFile(fsid, option);
@@ -292,7 +292,7 @@ bool
 FmdSqliteHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
-  eos_info("SQLITE DB shutdown for fsid=%lu\n", (unsigned long) fsid);
+  eos_info("msg=\"SQLITE DB shutdown for fsid=%lu\"\n", (unsigned long) fsid);
   if (DB.count(fsid))
   {
     if (DBfilename.count(fsid))
@@ -303,7 +303,7 @@ FmdSqliteHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
         // set the mode back to S_IRWXU
         if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
         {
-          eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
+          eos_crit("msg=\"failed to switch the sqlite3 database file to S_IRWXU for fsid=%lu errno=%d\"", (unsigned long) fsid, errno);
         }
       }
     }
@@ -320,7 +320,7 @@ bool
 FmdSqliteHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
-  eos_info("SQLITE DB mark clean for fsid=%lu\n", (unsigned long) fsid);
+  eos_info("msg=\"SQLITE DB mark clean for fsid=%lu\"\n", (unsigned long) fsid);
   if (DB.count(fsid))
   {
     if (DBfilename.count(fsid))
@@ -329,7 +329,7 @@ FmdSqliteHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
       // set the mode back to S_IRWXU
       if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
       {
-	eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
+	      eos_crit("msg=\"failed to switch the sqlite3 database file to S_IRWXU for fsid=%lu errno=%d\"", (unsigned long) fsid, errno);
       }
     }
   }
@@ -428,152 +428,142 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 {
   // eos_info("fid=%08llx fsid=%lu", fid, (unsigned long) fsid);
 
-  if (fid == 0)
-  {
-    eos_warning("fid=0 requested for fsid=", fsid);
+  if (fid == 0) {
+    eos_warning("msg=\"fid=0 requested for fsid=%lu\"", (unsigned long) fsid);
     return 0;
   }
 
   eos::common::RWMutexReadLock lock(Mutex);
 
-  if (DB.count(fsid))
-  {
-    if (FmdSqliteMap.count(fsid))
-    {
+  if (DB.count(fsid)) {
+    if (FmdSqliteMap.count(fsid)) {
       FmdSqliteLockRead(fsid);
-      if (FmdSqliteMap[fsid].count(fid))
-      {
+      if (FmdSqliteMap[fsid].count(fid)) {
         // this is to read an existing entry
         FmdSqlite* fmd = new FmdSqlite();
-        if (!fmd)
-        {
+        if (!fmd) {
           FmdSqliteUnLockRead(fsid);
           return 0;
         }
 
-	// make a copy of the current record
-	fmd->Replicate(FmdSqliteMap[fsid][fid]);
-	
-	if (fmd->fMd.fid != fid)
-	{
-	  // fatal this is somehow a wrong record!
-	  eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fid);
-	  delete fmd;
+        // make a copy of the current record
+        fmd->Replicate(FmdSqliteMap[fsid][fid]);
+
+        if (fmd->fMd.fid != fid) {
+          // fatal this is somehow a wrong record!
+          eos_crit("msg=\"unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)\"", fid,
+                   (unsigned long) fsid, fmd->fMd.fid);
+          delete fmd;
           FmdSqliteUnLockRead(fsid);
-	  return 0;
-	}
+          return 0;
+        }
 
-	if (fmd->fMd.fsid != fsid)
-	{
-	  // fatal this is somehow a wrong record!
-	  eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fsid);
-	  delete fmd;
-	  FmdSqliteUnLockRead(fsid);
-	  return 0;
-	}
+        if (fmd->fMd.fsid != fsid) {
+          // fatal this is somehow a wrong record!
+          eos_crit(
+            "msg=\"unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)\"", fid,
+            (unsigned long) fsid, fmd->fMd.fsid);
+          delete fmd;
+          FmdSqliteUnLockRead(fsid);
+          return 0;
+        }
 
-	// the force flag allows to retrieve 'any' value even with inconsistencies as needed by ResyncAllMgm
-	
-	if (!force)
-	{
-	  if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raid6") &&
-	      strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raiddp") &&
-	      strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive"))
-	  {
-	    // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
-	    if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != 0xfffffffffff1ULL) && (fmd->fMd.disksize != fmd->fMd.size)) ||
-			    (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
-	    {
-	      eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
-	      delete fmd;
-	      FmdSqliteUnLockRead(fsid);
-	      return 0;
-	    }
+        // the force flag allows to retrieve 'any' value even with inconsistencies as needed by ResyncAllMgm
 
-	    // don't return a record, if there is a checksum error flagged
+        if (!force) {
+          if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raid6") &&
+              strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raiddp") &&
+              strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive")) {
+            // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
+            if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != 0xfffffffffff1ULL) &&
+                             (fmd->fMd.disksize != fmd->fMd.size)) ||
+                            (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) &&
+                             (fmd->fMd.mgmsize != fmd->fMd.size)))) {
+              eos_crit(
+                "msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
+                fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
+              delete fmd;
+              FmdSqliteUnLockRead(fsid);
+              return 0;
+            }
 
-	    if ( (!isRW) && ((fmd->fMd.filecxerror==1) ||
-			     (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))) )
-	    {
-	      eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
-		       "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s filecxerror=%d blockcxerror=%d",
-		       fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-		       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str(),
-		       fmd->fMd.filecxerror, fmd->fMd.blockcxerror);
-	      
-	      delete fmd;
-	      FmdSqliteUnLockRead(fsid);
-	      return 0;
-	    }
-	  }
-	}
-	
-	// return the entry
-	FmdSqliteUnLockRead(fsid);
-	return fmd;
+            // don't return a record, if there is a checksum error flagged
+
+            if ((!isRW) && ((fmd->fMd.filecxerror == 1) ||
+                            (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum)))) {
+              eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
+                         "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s filecxerror=%d blockcxerror=%d",
+                       fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
+                       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str(),
+                       fmd->fMd.filecxerror, fmd->fMd.blockcxerror);
+
+              delete fmd;
+              FmdSqliteUnLockRead(fsid);
+              return 0;
+            }
+          }
+        }
+
+        // return the entry
+        FmdSqliteUnLockRead(fsid);
+        return fmd;
       }
 
-      if (isRW)
-      {
-      // make a new record
-	
-	struct timeval tv;
-	struct timezone tz;
-	
-	gettimeofday(&tv, &tz);
-	
-	FmdSqliteUnLockRead(fsid);
-	
-	FmdSqliteWriteLock lock(fsid); // --> (return)
-	
-	FmdSqliteMap[fsid][fid].uid = uid;
-	FmdSqliteMap[fsid][fid].gid = gid;
-	FmdSqliteMap[fsid][fid].lid = layoutid;
-	FmdSqliteMap[fsid][fid].fsid = fsid;
-	FmdSqliteMap[fsid][fid].fid = fid;
-	
-	FmdSqliteMap[fsid][fid].ctime = FmdSqliteMap[fsid][fid].mtime = FmdSqliteMap[fsid][fid].atime = tv.tv_sec;
-	FmdSqliteMap[fsid][fid].ctime_ns = FmdSqliteMap[fsid][fid].mtime_ns = FmdSqliteMap[fsid][fid].atime_ns = tv.tv_usec * 1000;
-	
-	FmdSqlite* fmd = new FmdSqlite(fid, fsid);
-	if (!fmd)
-	{
-	  return 0;
-	}
-	
-	// make a copy of the current record
-	fmd->Replicate(FmdSqliteMap[fsid][fid]);
-	
-	if (Commit(fmd, false))
-	{
-	  eos_debug("returning meta data block for fid %d on fs %d", fid, (unsigned long) fsid);
-	  // return the mmaped meta data block
-	  
-	  return fmd;
-	}
-	else
-	{
-	  eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing", fid, (unsigned long) fsid);
-	  delete fmd;
-	  return 0;
-	}
+      if (isRW) {
+        // make a new record
+
+        struct timeval tv;
+        struct timezone tz;
+
+        gettimeofday(&tv, &tz);
+
+        FmdSqliteUnLockRead(fsid);
+
+        FmdSqliteWriteLock lock(fsid); // --> (return)
+
+        FmdSqliteMap[fsid][fid].uid = uid;
+        FmdSqliteMap[fsid][fid].gid = gid;
+        FmdSqliteMap[fsid][fid].lid = layoutid;
+        FmdSqliteMap[fsid][fid].fsid = fsid;
+        FmdSqliteMap[fsid][fid].fid = fid;
+
+        FmdSqliteMap[fsid][fid].ctime = FmdSqliteMap[fsid][fid].mtime = FmdSqliteMap[fsid][fid].atime = tv.tv_sec;
+        FmdSqliteMap[fsid][fid].ctime_ns = FmdSqliteMap[fsid][fid].mtime_ns = FmdSqliteMap[fsid][fid].atime_ns =
+          tv.tv_usec * 1000;
+
+        FmdSqlite* fmd = new FmdSqlite(fid, fsid);
+        if (!fmd) {
+          return 0;
+        }
+
+        // make a copy of the current record
+        fmd->Replicate(FmdSqliteMap[fsid][fid]);
+
+        if (Commit(fmd, false)) {
+          eos_debug("msg=\"returning meta data block for fid %d on fs %d\"", fid, (unsigned long) fsid);
+          // return the mmaped meta data block
+
+          return fmd;
+        } else {
+          eos_crit("msg=\"unable to write new block for fid %d on fs %d - no changelog db open for writing\"", fid,
+                   (unsigned long) fsid);
+          delete fmd;
+          return 0;
+        }
+      } else {
+        eos_warning("msg=\"unable to get fmd for fid %llu on fs %lu - record not found\"", fid, (unsigned long) fsid);
+        FmdSqliteUnLockRead(fsid);
+        return 0;
       }
-      else
-      {
-	eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
-	FmdSqliteUnLockRead(fsid);
-	return 0;
-      }
-    }
-    else
-    {
-      eos_crit("unable to get fmd for fid %llu on fs %lu - there is no memory map for that file system id", fid, (unsigned long) fsid);
+    } else {
+      eos_crit("msg=\"unable to get fmd for fid %llu on fs %lu - there is no memory map for that file system id\"", fid,
+               (unsigned long) fsid);
       return 0;
     }
-  }
-  else
-  {
-    eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id", fid, (unsigned long) fsid);
+  } else {
+    eos_crit(
+      "msg=\"unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id\"", fid,
+      (unsigned long) fsid);
     return 0;
   }
 }
@@ -680,7 +670,7 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("msg=\"no sqlite DB open for fsid=%llu\"", (unsigned long) fsid);
     if (lockit)
     {
       FmdSqliteUnLockWrite(fsid);
@@ -767,11 +757,11 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
   eos::common::RWMutexReadLock lock(Mutex);
   FmdSqliteWriteLock vlock(fsid);
 
-  eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
+  eos_debug("msg\"fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d\"", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 
   if (!fid)
   {
-    eos_info("skipping to insert a file with fid 0");
+    eos_info("msg=\"skipping to insert a file with fid 0\"");
     return false;
   }
 
@@ -798,7 +788,7 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("msg=\"no sqlite DB open for fsid=%llu\"", (unsigned long) fsid);
     return false;
   }
 
@@ -825,12 +815,12 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
   eos::common::RWMutexReadLock lock(Mutex);
   FmdSqliteWriteLock vlock(fsid);
 
-  eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
+  eos_debug("msg=\"fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s\"",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
 
   if (!fid)
   {
-    eos_info("skipping to insert a file with fid 0");
+    eos_info("msg=\"skipping to insert a file with fid 0\"");
     return false;
   }
 
@@ -867,7 +857,7 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("msg=\"no sqlite DB open for fsid=%llu\"", (unsigned long) fsid);
     return false;
   }
 }
@@ -915,7 +905,7 @@ FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("msg=\"no sqlite DB open for fsid=%llu\"", (unsigned long) fsid);
     return false;
   }
   return true;
@@ -961,7 +951,7 @@ FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("msg=\"no sqlite DB open for fsid=%llu\"", (unsigned long) fsid);
     return false;
   }
   return true;
@@ -1040,7 +1030,7 @@ FmdSqliteHandler::ResyncDisk (const char* path,
         // now update the SQLITE DB
         if (!UpdateFromDisk(fsid, fid, disksize, diskchecksum, checktime, (filecxError == "1") ? 1 : 0, (blockcxError == "1") ? 1 : 0, flaglayouterror))
         {
-          eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", (unsigned long) fsid, fid);
+          eos_err("msg=\"failed to update SQLITE DB for fsid=%lu fid=%08llx\"", (unsigned long) fsid, fid);
           retc = false;
         }
       }
@@ -1049,7 +1039,7 @@ FmdSqliteHandler::ResyncDisk (const char* path,
   }
   else
   {
-    eos_debug("would convert %s (%s) to fid 0", cPath.GetName(), path);
+    eos_debug("msg=\"would convert %s (%s) to fid 0\"", cPath.GetName(), path);
     retc = false;
     ;
   }
@@ -1087,7 +1077,7 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
 
   if (!ResetDiskInformation(fsid))
   {
-    eos_err("failed to reset the disk information before resyncing");
+    eos_err("msg=\"failed to reset the disk information before resyncing for fsid=%lu\"", (unsigned long) fsid);
     return false;
   }
   // scan all the files
@@ -1095,7 +1085,7 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
 
   if (!tree)
   {
-    eos_err("fts_open failed");
+    eos_err("msg=\"fts_open failed\"");
     free(paths);
     return false;
   }
@@ -1128,7 +1118,7 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
   }
   if (fts_close(tree))
   {
-    eos_err("fts_close failed");
+    eos_err("msg=\"fts_close failed\"");
     free(paths);
     return false;
   }
@@ -1161,11 +1151,11 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
   {
     if (rc == ENODATA)
     {
-      eos_warning("no such file on MGM for fid=%llu", fid);
+      eos_warning("msg=\"no such file on MGM for fid=%llu\"", fid);
       fMd.fid = fid;
       if (fid == 0)
       {
-        eos_warning("removing fid=0 entry");
+        eos_warning("msg=\"removing fid=0 entry\"");
         return DeleteFmd(fMd.fid, fsid);
       }
     }
@@ -1183,7 +1173,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
         if (fMd.layouterror && eos::common::LayoutId::kUnregistered)
         {
           // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-          eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
+          eos_warning("msg=\"removing <ghost> entry for fid=%llu on fsid=%lu\"", fid, (unsigned long) fsid);
           delete fmd;
           return DeleteFmd(fMd.fid, fsid);
         }
@@ -1220,7 +1210,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
     {
       if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.uid, fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations))
       {
-        eos_err("failed to update fmd for fid=%08llx", fid);
+        eos_err("msg=\"failed to update fmd for fid=%08llx\"", fid);
         delete fmd;
         return false;
       }
@@ -1228,14 +1218,14 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
       if (fmd->fMd.disksize == 0xfffffffffff1ULL)
       {
         fMd.layouterror |= eos::common::LayoutId::kMissing;
-        eos_warning("found missing replica for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
+        eos_warning("msg=\"found missing replica for fid=%llu on fsid=%lu\"", fid, (unsigned long) fsid);
       }
 
       // check if it exists on disk and on the mgm
       if ((fmd->fMd.disksize == 0xfffffffffff1ULL) && (fmd->fMd.mgmsize == 0xfffffffffff1ULL))
       {
         // there is no replica supposed to be here and there is nothing on disk, so remove it from the SLIQTE database
-        eos_warning("removing <ghost> entry for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
+        eos_warning("msg=\"removing <ghost> entry for fid=%llu on fsid=%lu\"", fid, (unsigned long) fsid);
         delete fmd;
         return DeleteFmd(fMd.fid, fsid);
       }
@@ -1243,13 +1233,13 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
     }
     else
     {
-      eos_err("failed to get/create fmd for fid=%08llx", fid);
+      eos_err("msg=\"failed to get/create fmd for fid=%08llx\"", fid);
       return false;
     }
   }
   else
   {
-    eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
+    eos_err("msg=\"failed to retrieve MGM fmd for fid=%08llx\"", fid);
     return false;
   }
 
@@ -1272,7 +1262,7 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 
   if (!ResetMgmInformation(fsid))
   {
-    eos_err("failed to reset the mgm information before resyncing");
+    eos_err("msg=\"failed to reset the mgm information before resyncing for fsid=%lu\"", (unsigned long) fsid);
     return false;
   }
 
@@ -1292,7 +1282,7 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
   int rc = system(cmd.c_str());
   if (WEXITSTATUS(rc))
   {
-    eos_err("%s returned %d", cmd.c_str(), WEXITSTATUS(rc));
+    eos_err("msg=\"%s returned %d\"", cmd.c_str(), WEXITSTATUS(rc));
     return false;
   }
   else
@@ -1330,23 +1320,23 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
           if (fmd->fMd.disksize == 0xfffffffffff1ULL)
           {
             fMd.layouterror |= eos::common::LayoutId::kMissing;
-            eos_warning("found missing replica for fid=%llu on fsid=%lu", fMd.fid, (unsigned long) fsid);
+            eos_warning("msg=\"found missing replica for fid=%llu on fsid=%lu\"", fMd.fid, (unsigned long) fsid);
           }
 
           if (!UpdateFromMgm(fsid, fMd.fid, fMd.cid, fMd.lid, fMd.mgmsize, fMd.mgmchecksum, fMd.uid, fMd.gid, fMd.ctime, fMd.ctime_ns, fMd.mtime, fMd.mtime_ns, fMd.layouterror, fMd.locations))
           {
-            eos_err("failed to update fmd %s", dumpentry.c_str());
+            eos_err("msg=\"failed to update fmd %s\"", dumpentry.c_str());
           }
           delete fmd;
         }
         else
         {
-          eos_err("failed to get/create fmd %s", dumpentry.c_str());
+          eos_err("msg=\"failed to get/create fmd %s\"", dumpentry.c_str());
         }
       }
       else
       {
-        eos_err("failed to convert %s", dumpentry.c_str());
+        eos_err("msg=\"failed to convert %s\"", dumpentry.c_str());
       }
       delete env;
     }
@@ -1395,7 +1385,7 @@ FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
     }
 
     qr_result_t::const_iterator it;
-    eos_info("Query returned %lu fids", Qr.size());
+    eos_info("msg=\"Query returned %lu fids\"", Qr.size());
     for (size_t i = 0; i < Qr.size(); i++)
     {
       eos::common::FileId::fileid_t fid = strtoull(Qr[i]["fid"].c_str(), 0, 10);
@@ -1406,7 +1396,7 @@ FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
   }
   else
   {
-    eos_err("no SQL DB open for fsid=%lu", (unsigned long) fsid);
+    eos_err("msg=\"no SQL DB open for fsid=%lu\"", (unsigned long) fsid);
     return 0;
   }
 }
@@ -1571,54 +1561,43 @@ FmdSqliteHandler::RemoveGhostEntries (const char* path, eos::common::FileSystem:
 
   eos::common::RWMutexReadLock lock(Mutex);
 
-  if (!IsSyncing(fsid))
-  {
+  if (!IsSyncing(fsid)) {
     {
       FmdSqliteReadLock vlock(fsid);
-      
-      eos_static_info("verifying %d entries", FmdSqliteMap[fsid].size());
+
+      eos_static_info("msg=\"verifying %d entries\"", FmdSqliteMap[fsid].size());
       // we report values only when we are not in the sync phase from disk/mgm
-      for (auto it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++)
-      {
-	if (it->second.layouterror)
-	{
-	  XrdOucString hexfid;
-	  XrdOucString fstPath;
-	  int rc = 0;
-	  struct stat buf;
-	  eos::common::FileId::Fid2Hex (it->first, hexfid);
-	  eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
-	  
-	  if ( (rc=stat(fstPath.c_str(), &buf)))
-	  {
-	    if ( (errno == ENOENT) || (errno == ENOTDIR) )
-	    {
-	      if ( (it->second.layouterror & eos::common::LayoutId::kOrphan) || 
-		   (it->second.layouterror & eos::common::LayoutId::kUnregistered) )
-	      {
-		eos_static_info("push back for deletion %lu", it->first);
-		delvector.push_back(it->first);
-	      }
-	    }
-	  }
-	  eos_static_info("stat %s rc=%d errno=%d", fstPath.c_str(), rc, errno);
-	}
+      for (auto it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++) {
+        if (it->second.layouterror) {
+          XrdOucString hexfid;
+          XrdOucString fstPath;
+          int rc = 0;
+          struct stat buf;
+          eos::common::FileId::Fid2Hex(it->first, hexfid);
+          eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
+
+          if ((rc = stat(fstPath.c_str(), &buf))) {
+            if ((errno == ENOENT) || (errno == ENOTDIR)) {
+              if ((it->second.layouterror & eos::common::LayoutId::kOrphan) ||
+                  (it->second.layouterror & eos::common::LayoutId::kUnregistered)) {
+                eos_static_info("msg=\"push back for deletion %lu\"", it->first);
+                delvector.push_back(it->first);
+              }
+            }
+          }
+          eos_static_info("msg=\"stat %s rc=%d errno=%d\"", fstPath.c_str(), rc, errno);
+        }
       }
     }
-    
-    for (size_t i=0; i< delvector.size(); ++i)
-    {
-      if (DeleteFmd(delvector[i], fsid))
-      {
-	eos_static_info("removed FMD ghost entry fid=%lx fsid=%d", delvector[i], fsid);
-      }
-      else
-      {
-	eos_static_err("failed to removed FMD ghost entry fid=%lx fsid=%d", delvector[i], fsid);
+
+    for (size_t i = 0; i < delvector.size(); ++i) {
+      if (DeleteFmd(delvector[i], fsid)) {
+        eos_static_info("msg=\"removed FMD ghost entry fid=%lx fsid=%d\"", delvector[i], fsid);
+      } else {
+        eos_static_err("msg=\"failed to removed FMD ghost entry fid=%lx fsid=%d\"", delvector[i], fsid);
       }
     }
-  }
-  else
+  } else
     rc = false;
   return rc;
 }
@@ -1688,7 +1667,7 @@ FmdSqliteHandler::TrimDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
 
   if (!DB.count(fsid))
   {
-    eos_err("unable to trim DB for fsid=%lu - DB not open", (unsigned long) fsid);
+    eos_err("msg=\"unable to trim DB for fsid=%lu - DB not open\"", (unsigned long) fsid);
     return false;
   }
 
@@ -1777,7 +1756,7 @@ again:
 
   if (!url.IsValid())
   {
-    eos_err("error=URL is not valid: %s", address.c_str());
+    eos_err("msg=\"URL is not valid: %s\"", address.c_str());
     return EINVAL;
   }
 
@@ -1788,7 +1767,7 @@ again:
 
   if (!fs)
   {
-    eos_err("error=failed to get new FS object");
+    eos_err("msg=\"failed to get new FS object\"");
     return EINVAL;
   }
 
@@ -1798,7 +1777,7 @@ again:
   if (status.IsOK() && response->GetBuffer())
   {
     rc = 0;
-    eos_static_debug("got response for file meta data from mgm %s for fid=%08llx",
+    eos_static_debug("msg=\"got response for file meta data from mgm %s for fid=%08llx\"",
                      manager, fid);
   }
   else
@@ -1827,7 +1806,7 @@ again:
     }
 
     rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
+    eos_static_err("msg=\"Unable to retrieve meta data from mgm %s for fid=%08llx\"",
                    manager, fid);
   }
 
@@ -1844,7 +1823,7 @@ again:
   if ((sresult.find("getfmd: retc=0 ")) == std::string::npos)
   {
     // remote side couldn't get the record
-    eos_static_info("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",
+    eos_static_info("msg=\"Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s\"",
                     manager, fid, response->GetBuffer());
     delete response;
     return ENODATA;
@@ -1861,14 +1840,14 @@ again:
   if (!EnvMgmToFmdSqlite(fmdenv, fmd))
   {
     int envlen;
-    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    eos_static_err("msg=\"Failed to unparse file meta data %s\"", fmdenv.Env(envlen));
     delete response;
     return EIO;
   }
   // very simple check
   if (fmd.fid != fid)
   {
-    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
+    eos_static_err("msg=\"Received wrong meta data from remote server - fid is %lu instead of %lu \"",
                    fmd.fid, fid);
     delete response;
     return EIO;
