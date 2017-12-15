@@ -548,6 +548,11 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
     }
   }
 
+  journal.clear();
+  eos_static_debug("ret=%d truncatesize=%ld\n", ret, truncatesize);
+  ret |= ::ftruncate(fd, 0);
+  eos_static_debug("ret=%d errno=%d\n", ret, errno);
+
   clck.broadcast();
   return ret;
 }
