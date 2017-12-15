@@ -216,6 +216,7 @@ public:
       int free_md_asap;
       int cpu_core_affinity;
       mode_t overlay_mode;
+      int no_xattr;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
     options_t options;

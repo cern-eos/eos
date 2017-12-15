@@ -92,6 +92,14 @@ protected:
     return operations;
   }
 
+  void disable_xattr()
+  {
+    operations.getxattr = 0;
+    operations.setxattr = 0;
+    operations.listxattr = 0;
+    operations.removexattr = 0;
+  }
+
   //------------------------------------------------------------------------
   //! Constructor
   //!

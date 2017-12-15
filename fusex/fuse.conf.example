@@ -28,7 +28,8 @@
     "rm-rf-protect-levels" : 1
     "show-tree-size" : 0,
     "free-md-asap" : 1,
-    "cpu-core-affinity" : 1
+    "cpu-core-affinity" : 1,
+    "no-xattr" : 0
   },
   "auth" : {
     "shared-mount" : 1,
