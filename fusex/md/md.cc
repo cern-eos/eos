@@ -1416,6 +1416,7 @@ metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
 {
   std::vector<std::string> delete_child_dir;
+  std::vector<std::string> inval_entry_name;
   for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it)
   {
     shared_md cmd;
@@ -1440,10 +1441,9 @@ metad::cleanup(shared_md md)
 	{
 	  delete_child_dir.push_back(it->first);
 	}
-      }
-      if (EosFuse::Instance().Config().options.md_kernelcache)
-	kernelcache::inval_entry(md->id(), it->first);
+      }      
     }
+    inval_entry_name.push_back(it->first);
   }
   // remove the listing type
   md->set_type(md->MD);
@@ -1453,6 +1453,17 @@ metad::cleanup(shared_md md)
   for (auto it = delete_child_dir.begin(); it != delete_child_dir.end(); ++it)
   {
     md->local_children().erase(*it);
+  }
+
+  if (EosFuse::Instance().Config().options.md_kernelcache)
+  {
+    // no mutex lock when invalidating entries
+    md->Locker().UnLock();
+    for (auto it = inval_entry_name.begin(); it != inval_entry_name.end(); ++it)
+    {
+      kernelcache::inval_entry(md->id(), *it);
+    }
+    md->Locker().Lock();
   }
   md->set_nchildren(md->local_children().size());
   md->get_todelete().clear();
