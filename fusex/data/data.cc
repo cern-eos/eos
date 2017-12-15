@@ -1255,11 +1255,14 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                                file_rescue_location) : 0 ;
                     int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
                                journal_rescue_location) : 0;
-                    eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
-                                    (*it)->id(),
-                                    msg.c_str(),
-                                    (!dt) ? file_rescue_location.c_str() : "<none>",
-                                    (!jt) ? journal_rescue_location.c_str() : "<none>");
+
+		    if (dt || jt) {
+		      eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
+				      (*it)->id(),
+				      msg.c_str(),
+				      (!dt) ? file_rescue_location.c_str() : "<none>",
+				      (!jt) ? journal_rescue_location.c_str() : "<none>");
+		    }
                   }
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
