@@ -44,11 +44,6 @@ eos_rpm_cc7:
     - eos-docker/
   tags:
     - docker-cc7
-  only:
-    - master
-    - tags
-    - beryl_aquamarine
-    - centralized_drain
 
 eos_rpm_slc6:
   stage: build:rpm
