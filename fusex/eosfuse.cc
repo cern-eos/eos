@@ -555,8 +555,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       newrlimit.rlim_max = config.options.fdlimit;
 
       if( (setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid()) ) {
-        fprintf(stderr, "error: unable to set fd limit to %lu - errno %d\n", config.options.fdlimit, errno);
-        exit(EINVAL);
+        fprintf(stderr, "warning: unable to set fd limit to %lu - errno %d\n", config.options.fdlimit, errno);
       }
     }
 
