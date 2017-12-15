@@ -40,13 +40,16 @@
 #include <algorithm>
 #include <thread>
 #include <iterator>
-
+#include <malloc.h>
 #include <dirent.h>
 #include <stdint.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <sched.h>
+
+
 
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -419,6 +422,11 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
     }
 
+    if (!root["options"].isMember("cpu-core-affinity"))
+    {
+	root["options"]["cpu-core-affinity"] = 1;
+    }
+
     if (!root["auth"].isMember("forknoexec-heuristic")) {
       root["auth"]["forknoexec-heuristic"] = 1;
     }
@@ -454,6 +462,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.options.rm_rf_protect_levels = root["options"]["rm-rf-protect-levels"].asInt();
     config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
     config.options.free_md_asap = root["options"]["free-md-asap"].asInt();
+    config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -825,8 +834,16 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 	fprintf(stderr,"error: failed to renice this process '%u', to maximum priority '%d'\n", getpid(), -PRIO_MAX/2);
 	exit (-1);
       }
-    }
 
+      if (config.options.cpu_core_affinity>0)
+      {
+	cpu_set_t cpuset;
+	CPU_ZERO(&cpuset);
+	CPU_SET(config.options.cpu_core_affinity-1, &cpuset);
+	sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset);
+	fprintf(stderr, "# Setting CPU core affinity to core %d\n", config.options.cpu_core_affinity-1);
+      }
+    }
 #endif
     fusexrdlogin::initializeProcessCache(config.auth);
 
@@ -1040,7 +1057,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1055,7 +1072,8 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 		       no_fsync_list.c_str(),
 		       config.options.overlay_mode,
 		       config.options.show_tree_size,
-		       config.options.free_md_asap
+		       config.options.free_md_asap,
+		       config.options.cpu_core_affinity
 		       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
 		       cconfig.read_ahead_strategy.c_str(),

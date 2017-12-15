@@ -217,6 +217,7 @@ public:
       int rm_rf_protect_levels;
       int show_tree_size;
       int free_md_asap;
+      int cpu_core_affinity;
       mode_t overlay_mode;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
