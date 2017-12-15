@@ -223,7 +223,7 @@ namespace XrdCl
 
     double state_age()
     {
-      return ((double) eos::common::Timing::GetCoarseAgeInNs(&open_state_time, 0) / 1000000000.0);
+      return ((double) eos::common::Timing::GetAgeInNs(&open_state_time, 0) / 1000000000.0);
     }
 
     void set_writestate(XRootDStatus* xs)
