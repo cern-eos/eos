@@ -94,6 +94,7 @@ public:
     int flush_nolock(fuse_req_t req);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
+    int journalflush_async(std::string cid);
     int attach(fuse_req_t req, std::string& cookie, int flags);
     int detach(fuse_req_t req, std::string& cookie, int flags);
     int store_cookie(std::string& cookie);
