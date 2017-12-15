@@ -403,6 +403,64 @@ int journalcache::remote_sync( cachesyncer & syncer )
   return ret;
 }
 
+int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
+{
+  // sends all the journal content as asynchronous write requests
+  int ret = 0;
+  if (!proxy)
+    return -1;
+
+  off_t offshift = sizeof(header_t);
+
+  write_lock lck(clck);
+
+  for ( auto itr = journal.begin(); itr != journal.end(); ++itr )
+  {
+    off_t  cacheoff = itr->value + offshift;
+    size_t size   = itr->high - itr->low;
+
+    // prepare async buffer
+    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(size);
+    
+    int bytesRead = ::pread( fd, (void*)handler->buffer(), size, cacheoff );
+    
+    if ( bytesRead < 0 )
+    {
+      // TODO handle error
+      clck.broadcast();
+      return -1;
+    }
+      
+    if ( bytesRead < (int) size )
+    {
+      // TODO handle error - still we continue
+    }
+    
+    XrdCl::XRootDStatus st = proxy->WriteAsync( itr->low, size, 0, handler, 0);   
+    if ( !st.IsOK() )
+    {
+      eos_static_err("failed to issue async-write");
+      clck.broadcast();
+      return -1;
+    }
+  }
+
+  // there might be a truncate call after the writes to be applied                                                               
+  if (truncatesize != -1)
+  {
+    XrdCl::XRootDStatus st = proxy->Truncate( truncatesize );
+    if ( !st.IsOK() )
+    {
+      eos_static_err("failed to truncate");
+      clck.broadcast();
+      return -1;
+    }
+  }
+
+  clck.broadcast();
+  return ret;
+}
+
 int journalcache::reset()
 {
   write_lock lck( clck );

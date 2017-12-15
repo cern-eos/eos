@@ -29,6 +29,7 @@
 #include "cachelock.hh"
 #include "cachesyncer.hh"
 #include "cacheconfig.hh"
+#include "xrdclproxy.hh"
 
 #include "interval_tree.hh"
 
@@ -85,6 +86,8 @@ public:
   int attr(const std::string &key, std::string& value) {return 0;}
 
   int remote_sync( cachesyncer &syncer );
+
+  int remote_sync_async(XrdCl::Proxy* proxy);
 
   static int init(const cacheconfig &config);
   static int init_daemonized(const cacheconfig &config);

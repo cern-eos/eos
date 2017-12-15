@@ -544,7 +544,10 @@ XrdCl::Proxy::WriteAsync( uint64_t         offset,
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  handler->copy(buffer, size);
+
+  // a buffer indicates, the handler buffer is already filled
+  if (buffer)
+    handler->copy(buffer, size);
 
   XRootDStatus status = Write(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (size),
