@@ -1371,7 +1371,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
                     int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
                                journal_rescue_location) : 0;
 
-		    if (dt || jt) {
+		    if (!dt || !jt) {
 		      eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
 				      (*it)->id(),
 				      msg.c_str(),
