@@ -353,6 +353,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       if (mFile->xrdiorw(freq) && (mFile->xrdiorw(freq)->IsClosing() ||
                                    mFile->xrdiorw(freq)->IsClosed())) {
         mFile->xrdiorw(freq)->WaitClose();
+        mFile->xrdiorw(freq)->attach();
       } else {
         // attach an rw io object
         mFile->set_xrdiorw(freq, new XrdCl::Proxy());
@@ -1229,10 +1230,12 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 if (fit->second->IsWaitWrite()) {
                   if (!fit->second->OutstandingWrites()) {
                     if (fit->second->state_age() > 1.0) {
-                      eos_static_info("changing to close async state");
+                      eos_static_info("changing to close async state - age = %f ino:%16lx", fit->second->state_age(), (*it)->id());
                       fit->second->CloseAsync();
+		      break;
                     } else {
-                      eos_static_info("waiting for right age before async close");
+                      eos_static_info("waiting for right age before async close - age = %f", fit->second->state_age());
+		      break;
                     }
                   }
                 }
