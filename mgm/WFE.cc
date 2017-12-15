@@ -28,7 +28,7 @@
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
-#include "mgm/cta/xroot_plugins/messages/CtaFrontendApi.hpp"
+#include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1567,7 +1567,7 @@ WFE::Job::DoIt(bool issync)
       else if (method == "proto") {
         cerr << "proto" << endl;
         cerr << "event: " << mActions[0].mEvent << endl;
-        auto endpoint = eos::common::StringTokenizer::split(args, ' ')[0];
+        auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
         std::shared_ptr<eos::IFileMD> fmd ;
         std::shared_ptr<eos::IContainerMD> cmd ;

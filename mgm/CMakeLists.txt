@@ -37,15 +37,14 @@ include_directories(
   ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
-  ${CMAKE_SOURCE_DIR}/mgm/cta
-  ${CMAKE_SOURCE_DIR}/mgm/cta/xroot_ssi_pb
-  ${CMAKE_BINARY_DIR}/mgm/cta)
+  ${CMAKE_SOURCE_DIR}/mgm/cta_interface/include
+  ${CMAKE_BINARY_DIR}/mgm/cta_interface/eos_cta/protobuf
+)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
 #-------------------------------------------------------------------------------
-include(cta/cmake/FindProtobuf3.cmake)
-add_subdirectory(cta/xroot_plugins/messages)
+add_subdirectory(cta_interface)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
