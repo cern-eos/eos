@@ -170,6 +170,35 @@ public:
   } ;
 
   //----------------------------------------------------------------------------
+  class forgotten
+  {
+    // used to remove caps which point forgotten directory inodes
+  public:
+
+    forgotten() {}
+    virtual ~forgotten() {}
+
+    void add(fuse_ino_t ino) {
+      XrdSysMutexHelper mLock(mLocker);
+      mUnlinkedInodes.insert(ino);
+    }
+    bool has(fuse_ino_t ino) {
+      XrdSysMutexHelper mLock(mLocker);
+      return mUnlinkedInodes.count(ino);
+    }
+
+    void clear() {
+      XrdSysMutexHelper mLock(mLocker);
+      mUnlinkedInodes.clear();
+    }
+
+  private:
+    XrdSysMutex mLocker;
+    std::set<fuse_ino_t> mUnlinkedInodes;
+  };
+
+
+  //----------------------------------------------------------------------------
   cap();
 
   virtual ~cap();
@@ -269,6 +298,9 @@ public:
     XrdSysMutexHelper mLock( capmap );
     return capmap.size();
   }
+
+
+  forgotten forgetlist;
 
 private:
 

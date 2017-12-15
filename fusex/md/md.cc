@@ -260,10 +260,15 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     return 0;
 
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
-
+  
   mdmap.eraseTS(ino);
   stat.inodes_dec();
   inomap.erase_bwd(ino);
+  
+  if (EOS_LOGS_DEBUG)
+    eos_static_debug("adding ino to forgetlist %016x", ino);
+  EosFuse::Instance().caps.forgetlist.add(ino);
+
   return 0;
 }
 
@@ -1440,6 +1445,9 @@ metad::cleanup(shared_md md)
 	if (!in_flush)
 	{
 	  delete_child_dir.push_back(it->first);
+	  if (EOS_LOGS_DEBUG)
+	    eos_static_debug("adding ino to forgetlist %016x", cmd->id());
+	  EosFuse::Instance().caps.forgetlist.add(cmd->id());
 	}
       }      
     }
@@ -1467,6 +1475,7 @@ metad::cleanup(shared_md md)
   }
   md->set_nchildren(md->local_children().size());
   md->get_todelete().clear();
+  EosFuse::Instance().caps.forgetlist.add(md->id());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2016,6 +2025,10 @@ metad::mdcflush(ThreadAssistant& assistant)
 	      eos_static_debug("delete md object - ino=%016x", removeentry);
 
             {
+	      if (EOS_LOGS_DEBUG)
+		eos_static_debug("adding ino to forgetlist %016x", removeentry);
+	      EosFuse::Instance().caps.forgetlist.add(removeentry);
+
               XrdSysMutexHelper mmLock(mdmap);
               mdmap.retrieve(md->pid(), pmd);
               mdmap.erase(removeentry);

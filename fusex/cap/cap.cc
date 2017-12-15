@@ -492,6 +492,13 @@ cap::capflush(ThreadAssistant& assistant)
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
 
+	if (forgetlist.has(it->second->id()))
+	{
+	  eos_static_debug("remove %s - deleted", it->second->dump().c_str());
+	  capdelmap[it->first] = it->second;
+	  continue;
+	}
+
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
           capdelmap[it->first] = it->second;
@@ -521,9 +528,11 @@ cap::capflush(ThreadAssistant& assistant)
       }
 
       for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
-        // remove the expired caps
+        // remove the expired or invalidated by delete caps
         capmap.erase(it->first);
       }
+
+      forgetlist.clear();
 
       capmap.UnLock();
 
