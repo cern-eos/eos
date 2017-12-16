@@ -679,7 +679,6 @@ eos::mgm::FindCmd::ProcessRequest() {
   eos_debug("Listing directories");
 
   if (dirs) {
-    cerr << "directories" << endl;
     for (auto& foundit : *found) {
       // Filtering the directories
       bool selected = true;
