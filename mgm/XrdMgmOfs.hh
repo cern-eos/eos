@@ -538,7 +538,7 @@ public:
   // check access permissions by vid
   // ---------------------------------------------------------------------------
   int _access (const char*, int mode, XrdOucErrInfo&,
-               eos::common::Mapping::VirtualIdentity &vid, const char*);
+               eos::common::Mapping::VirtualIdentity &vid, const char*, bool lock=true);
 
   // ---------------------------------------------------------------------------
   // define access permissions by vid for a file/directory
