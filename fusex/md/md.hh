@@ -414,6 +414,9 @@ public:
   void wait_deleted(fuse_req_t req, 
 		    fuse_ino_t ino);
 
+  shared_md getlocal(fuse_req_t req,
+		     fuse_ino_t ino);
+
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",

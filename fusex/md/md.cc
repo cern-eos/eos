@@ -479,6 +479,22 @@ metad::wait_deleted(fuse_req_t req,
 
 /* -------------------------------------------------------------------------- */
 metad::shared_md
+/* -------------------------------------------------------------------------- */
+metad::getlocal(fuse_req_t req,
+		fuse_ino_t ino)
+{
+  eos_static_info("ino=%1llx", ino);
+  shared_md md;
+  if (!mdmap.retrieveTS(ino, md))
+  {
+    md = std::make_shared<mdx>();
+  }
+  return md;
+}
+
+/* -------------------------------------------------------------------------- */
+metad::shared_md
+/* -------------------------------------------------------------------------- */
 metad::get(fuse_req_t req,
            fuse_ino_t ino,
            std::string authid,
@@ -1424,6 +1440,8 @@ metad::cleanup(shared_md md)
 {
   std::vector<std::string> delete_child_dir;
   std::vector<std::string> inval_entry_name;
+  std::map<std::string,fuse_ino_t> erase_entry_inodes;
+
   for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it)
   {
     shared_md cmd;
@@ -1438,8 +1456,8 @@ metad::cleanup(shared_md md)
 	if (!in_flush && !EosFuse::Instance().datas.has(cmd->id()))
 	{
 	  // clean-only entries, which are not in the flush queue and not open
-	  mdmap.eraseTS(it->second);
-	  stats().inodes_dec();
+	  //mdmap.eraseTS(it->second);
+	  erase_entry_inodes[it->first] = it->second;
 	}
       }
       else
@@ -1472,6 +1490,12 @@ metad::cleanup(shared_md md)
     for (auto it = inval_entry_name.begin(); it != inval_entry_name.end(); ++it)
     {
       kernelcache::inval_entry(md->id(), *it);
+      auto iit = erase_entry_inodes.find(*it);
+      // now remove from the map to avoid that we have a race condition before we actually did the kernal upcall
+      if (iit != erase_entry_inodes.end()) {
+	mdmap.eraseTS(iit->second);
+	stats().inodes_dec();
+      }
     }
     md->Locker().Lock();
   }

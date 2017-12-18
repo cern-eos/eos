@@ -1312,7 +1312,9 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
-  metad::shared_md md = Instance().mds.get(req, ino);
+
+  metad::shared_md md = Instance().mds.getlocal(req, ino);
+
   {
     XrdSysMutexHelper mLock(md->Locker());
 
@@ -2547,14 +2549,59 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
+
+  ADD_FUSE_STAT(__func__, req);
+
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino);
   int rc = 0;
   fuse_id id(req);
-  metad::shared_md md = Instance().mds.get(req, ino);
+
+  metad::shared_md md = Instance().mds.getlocal(req, ino);
+  metad::shared_md pmd = md;
+  
+  mode_t mode = 0;
+  mode_t pmode = mask;
+  bool is_deleted = false;
+  fuse_ino_t pino = 0 ;
+
+  {
+    XrdSysMutexHelper mLock(md->Locker());
+    pino = (md->id()==1)?md->id():md->pid();
+    mode = md->mode();
+    is_deleted = md->deleted();
+  }
+
+  pmode &= ~F_OK;
+
   if (!md->id())
   {
-    rc = md->deleted()? ENOENT : md->err();
+    rc = is_deleted? ENOENT : EIO;
+  }
+  else
+  {
+    if (S_ISREG(mode))
+    {
+      pmd = Instance().mds.getlocal(req, pino);
+    }
+    if (!pmd->id())
+    {
+      rc = EIO;
+    }
+    else 
+    {
+      // we need a fresh cap for pino 
+      cap::shared_cap pcap = Instance().caps.acquire(req, pino,
+                                                     S_IFDIR | pmode);
+      
+      XrdSysMutexHelper mLock(pcap->Locker());
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
+	if (rc == EPERM)
+	  rc = EACCES;
+      }
+    }
   }
 
   fuse_reply_err(req, rc);
