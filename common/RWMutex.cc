@@ -137,7 +137,7 @@ RWMutex::RWMutex():
 
   // Readers don't go ahead of writers!
   if ((retc = pthread_rwlockattr_setkind_np(&attr,
-              PTHREAD_RWLOCK_PREFER_WRITER_NP))) {
+              PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
     fprintf(stderr, "%s Failed to set writers priority: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
