@@ -40,7 +40,9 @@
 #include <algorithm>
 #include <thread>
 #include <iterator>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 #include <dirent.h>
 #include <stdint.h>
 #include <errno.h>
@@ -2270,7 +2272,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 	{
 	  XrdSysMutexHelper pLock(pmd->Locker());
 	  auto it = pmd->get_todelete().find(name);
-	  if (it->second)
+	  if ( (it != pmd->get_todelete().end()) && it->second)
 	    del_ino = it->second;
 	}
 	if (del_ino)
@@ -3085,7 +3087,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 	{
 	  XrdSysMutexHelper pLock(pmd->Locker());
 	  auto it = pmd->get_todelete().find(name);
-	  if (it->second)
+	  if ( (it != pmd->get_todelete().end()) && it->second)
 	    del_ino = it->second;
 	}
 	if (del_ino)
