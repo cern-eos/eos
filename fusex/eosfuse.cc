@@ -1083,7 +1083,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
     eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
