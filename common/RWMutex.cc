@@ -127,7 +127,7 @@ RWMutex::RWMutex ()
   pthread_rwlockattr_init(&attr);
 
   // readers don't go ahead of writers!
-  if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP))
+  if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))
   {
     throw "pthread_rwlockattr_setkind_np failed";
   }
