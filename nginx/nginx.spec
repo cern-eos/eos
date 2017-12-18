@@ -12,7 +12,7 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.9.9
+Version:        1.12.2
 Release:        5
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
@@ -72,7 +72,7 @@ Patch2:     nginx-auto-options.patch
 
 Patch3:     nginx-auth-ldap.patch
 
-Patch4:     nginx-no-put-body.patch
+# Patch4:     nginx-no-put-body.patch
 
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
