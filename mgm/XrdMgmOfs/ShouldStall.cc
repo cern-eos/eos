@@ -35,7 +35,6 @@ XrdMgmOfs::ShouldStall(const char* function,
                        int& stalltime, XrdOucString& stallmsg)
 {
   // Check for user, group or host banning
-  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
   std::string smsg = "";
   stalltime = 0;
   bool stall = true;
@@ -46,6 +45,8 @@ XrdMgmOfs::ShouldStall(const char* function,
     eos_static_debug("info=\"avoid stalling of the FST node\" host=%s",
                      vid.host.c_str());
   }
+
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
 
   if (stall) {
     if ((vid.uid > 3)) {
