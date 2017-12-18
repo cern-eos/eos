@@ -69,11 +69,12 @@ XrdMgmOfs::access(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_access(const char* path,
-                   int mode,
-                   XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
-                   const char* info)
+XrdMgmOfs::_access(const char *path,
+		   int mode,
+		   XrdOucErrInfo &error,
+		   eos::common::Mapping::VirtualIdentity &vid,
+		   const char *info, 
+		   bool lock)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -102,7 +103,9 @@ XrdMgmOfs::_access(const char* path,
   gid_t fgid = 99;
   std::string attr_path = cPath.GetPath();
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+  if (lock)
+    gOFS->eosViewRWMutex.LockRead();
 
   // check for existing file
   try {
@@ -152,6 +155,8 @@ XrdMgmOfs::_access(const char* path,
     if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
       eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
       errno = EPERM;
+      if (lock)
+	gOFS->eosViewRWMutex.UnLockRead();
       return Emsg(epname, error, EPERM, "access", path);
     }
 
@@ -217,6 +222,8 @@ XrdMgmOfs::_access(const char* path,
   if (!dh) {
     eos_debug("msg=\"access\" errno=ENOENT");
     errno = ENOENT;
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();    
     return Emsg(epname, error, ENOENT, "access", path);
   }
 
@@ -231,18 +238,30 @@ XrdMgmOfs::_access(const char* path,
   }
 
   if (dh && (mode & F_OK)) {
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();
+    
     return SFS_OK;
   }
 
   if (dh && permok) {
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();
+    
     return SFS_OK;
   }
 
   if (dh && (!permok)) {
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();
+    
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access", path);
   }
-
+  
+  if (lock)
+    gOFS->eosViewRWMutex.UnLockRead();
+  
   errno = EOPNOTSUPP;
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }

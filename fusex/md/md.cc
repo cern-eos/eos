@@ -1451,7 +1451,7 @@ metad::cleanup(shared_md md)
 	    eos_static_debug("adding ino to forgetlist %016x", cmd->id());
 	  EosFuse::Instance().caps.forgetlist.add(cmd->id());
 	}
-      }
+      }      
     }
     inval_entry_name.push_back(it->first);
   }

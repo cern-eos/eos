@@ -488,10 +488,8 @@ cap::capflush(ThreadAssistant& assistant)
       cmap capdelmap;
       cinodes capdelinodes;
       capmap.Lock();
-
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
-
 	if (forgetlist.has(it->second->id()))
 	{
 	  eos_static_debug("remove %s - deleted", it->second->dump().c_str());
@@ -527,8 +525,14 @@ cap::capflush(ThreadAssistant& assistant)
         }
       }
 
+<<<<<<< HEAD
       for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
         // remove the expired or invalidated by delete caps
+=======
+      for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it)
+      {
+        // remove the expired caps
+>>>>>>> beryl_aquamarine
         capmap.erase(it->first);
       }
 
