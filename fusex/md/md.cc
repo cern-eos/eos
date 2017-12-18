@@ -484,25 +484,28 @@ metad::wait_deleted(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   shared_md md;
-  mdmap.retrieveTS(ino, md);
-  if (md && md->id())
+
+  if (mdmap.retrieveTS(ino, md))
   {
-    while (1)
+    if (md && md->id())
     {
-      // wait that the deletion entry is leavin the flush queue
-      mdflush.Lock();
-      if (mdqueue.count(md->id()))
+      while (1)
       {
-	mdflush.UnLock();
-	eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
-			md->id());
-	XrdSysTimer delay;
-	delay.Wait(25);
-      }
-      else
-      {
-	mdflush.UnLock();
-	break;
+	// wait that the deletion entry is leavin the flush queue
+	mdflush.Lock();
+	if (mdqueue.count(md->id()))
+	{
+	  mdflush.UnLock();
+	  eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
+			    md->id());
+	  XrdSysTimer delay;
+	  delay.Wait(25);
+	}
+	else
+	{
+	  mdflush.UnLock();
+	  break;
+	}
       }
     }
   }
@@ -2362,7 +2365,7 @@ metad::mdcommunicate(ThreadAssistant &assistant)
         if (items[0].revents & ZMQ_POLLIN)
         {
           int rc;
-          int64_t more;
+          int64_t more=0;
           size_t more_size = sizeof (more);
           zmq_msg_t message;
           rc = zmq_msg_init (&message);
