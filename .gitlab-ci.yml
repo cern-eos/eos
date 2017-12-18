@@ -45,7 +45,7 @@ eos_rpm_slc6:
     - make srpm
     - cd ..
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* --setopt=epel*.exclude=xrootd* -y build/SRPMS/*
+    - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y build/SRPMS/*
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - mkdir slc6_artifacts
     - cp -R /root/rpmbuild/SRPMS/ slc6_artifacts
@@ -321,7 +321,7 @@ eos_unit_test:
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/el-7-x86_64\nenabled=1\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck -y build/SRPMS/*
+    - yum-builddep --nogpgcheck -y --setopt=cern*.exclude=xrootd* build/SRPMS/*
     - rm -rf build
     - mkdir build
     - cd build
@@ -479,7 +479,7 @@ eos_periodic_coverity:
     - cd build
     - cmake3 .. -DPACKAGEONLY=1
     - make srpm
-    - sudo yum-builddep --nogpgcheck -y SRPMS/*
+    - sudo yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* -y SRPMS/*
     - rm -f CMakeCache.txt
     - cmake3 ..
     - cov-build --dir cov-int make -j 4
