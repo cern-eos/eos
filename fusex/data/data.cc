@@ -324,35 +324,6 @@ data::datax::journalflush_async(std::string cid)
 }
 
 /* -------------------------------------------------------------------------- */
-int
-/* -------------------------------------------------------------------------- */
-data::datax::journalflush_async(std::string cid)
-/* -------------------------------------------------------------------------- */
-{
-  // call this with a mLock locked
-  eos_info("");
-
-  // we have to push the journal now
-  if (!mFile->xrdiorw(cid)->WaitOpen().IsOK()) {
-    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
-    return -1;
-  }
-
-  if (mFile->journal()) {
-    eos_info("syncing cache asynchronously");
-    
-    if ((mFile->journal())->remote_sync_async(mFile->xrdiorw(cid)))
-    {
-      eos_err("async journal-cache-sync-async failed - ino=%08lx", id());
-      return -1;
-    }
-  }
-
-  eos_info("retc=0");
-  return 0;
-}
-
-/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 data::datax::set_id(uint64_t ino, fuse_req_t req)

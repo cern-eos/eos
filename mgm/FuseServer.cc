@@ -2104,7 +2104,7 @@ FuseServer::HandleMD(const std::string& id,
             gOFS->eosView->updateContainerStore(cpcmd.get());
             cmd->setName(md.name());
 
-	    eos::ContainerMD* exist_target_cmd = 0;
+	    std::shared_ptr<eos::IContainerMD> exist_target_cmd;
 	    try {
 	      // if the target exists, we have to remove it
 	      exist_target_cmd = pcmd->findContainer(md.name());
@@ -2115,13 +2115,13 @@ FuseServer::HandleMD(const std::string& id,
 		return ENOTEMPTY;
 	      }
 	      // remove it via the directory service
-	      gOFS->eosDirectoryService->removeContainer(exist_target_cmd);
+	      gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
 	      pcmd->removeContainer(md.name());
 	    } catch ( eos::MDException &e ) {
 	      // it might not exist, that is fine
 	    }
-            pcmd->addContainer(cmd);
-            gOFS->eosView->updateContainerStore(pcmd);
+            pcmd->addContainer(cmd.get());
+            gOFS->eosView->updateContainerStore(pcmd.get());
           }
 
           if (cmd->getName() != md.name()) {

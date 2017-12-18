@@ -991,18 +991,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-<<<<<<< HEAD
   if (option.beginswith("resync")) {
     out += "# resync         ------------------------------------------------"
            "-------------------------\n";
-=======
-  if (option.beginswith("resync"))
-  {
-    out += "# resync         -------------------------------------------------------------------------\n";
-    std::map < eos::common::FileSystem::fsid_t,
-            std::set < eos::common::FileId::fileid_t >> ::const_iterator efsmapit;
-
->>>>>>> beryl_aquamarine
     std::map < eos::common::FileSystem::fsid_t,
         std::set < eos::common::FileId::fileid_t >> fid2check;
 
@@ -1427,102 +1418,6 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
                 fileSystem = FsView::gFsView.mIdView[fsid];
 
                 const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
-                auto found = inconsistentsOnFs.find(fid);
-
-                if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
-                    found == inconsistentsOnFs.end()) {
-                  replicaAvailable = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        if (!replicaAvailable) {
-          char errline[1024];
-          snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fxid=%llx, no available file systems and replicas to use\n",
-                   efsmapit.first, fid);
-          out += errline;
-
-          break;
-        }
-
-        eos::common::Mapping::VirtualIdentity vid;
-        eos::common::Mapping::Root(vid);
-        XrdOucErrInfo error;
-        if (gOFS->_dropstripe(path.c_str(), error, vid, efsmapit.first, true)) {
-          char errline[1024];
-          snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fxid=%llx, could not drop it\n",
-                   efsmapit.first, fid);
-          out += errline;
-        } else {
-          ProcCommand Cmd;
-          XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
-          info += path.c_str();
-          info += "&mgm.format=fuse";
-
-          Cmd.open("/proc/user", info.c_str(), vid, &error);
-          Cmd.AddOutput(out, err);
-
-          if (!out.endswith("\n")) {
-            out += "\n";
-          }
-
-          if (!err.endswith("\n")) {
-            err += "\n";
-          }
-
-          Cmd.close();
-        }
-      }
-    }
-
-    return true;
-  }
-
-  if (option == "replace-damaged-replicas") {
-    out += "# repairing replace-damaged-replicas -------------------------------------------"
-      "-------------------------\n";
-    // Loop over all filesystems
-    for (const auto& efsmapit : eFsMap["d_mem_sz_diff"]) {
-      // Loop over all fids
-      for (const auto& fid : efsmapit.second) {
-        std::string path;
-        std::shared_ptr<eos::FileMD> fmd;
-        {
-          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-          try {
-            fmd.reset(gOFS->eosFileService->getFileMD(fid));
-            path = gOFS->eosView->getUri(fmd.get());
-          } catch (eos::MDException& e) {}
-        }
-
-        if (fmd == nullptr) {
-          char errline[1024];
-          snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fxid=%llx, could not get meta data\n",
-                   efsmapit.first, fid);
-          out += errline;
-
-          break;
-        }
-
-        bool replicaAvailable = false;
-
-        {
-          eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
-          for (auto fsidit = fmd->locationsBegin(); fsidit != fmd->locationsEnd(); ++fsidit) {
-            if (efsmapit.first != *fsidit) {
-              FileSystem* fileSystem = nullptr;
-
-              if (FsView::gFsView.mIdView.count(*fsidit) != 0) {
-                fileSystem = FsView::gFsView.mIdView[*fsidit];
-
-                const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][*fsidit];
                 auto found = inconsistentsOnFs.find(fid);
 
                 if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO &&

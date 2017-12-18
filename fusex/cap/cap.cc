@@ -525,14 +525,8 @@ cap::capflush(ThreadAssistant& assistant)
         }
       }
 
-<<<<<<< HEAD
       for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
         // remove the expired or invalidated by delete caps
-=======
-      for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it)
-      {
-        // remove the expired caps
->>>>>>> beryl_aquamarine
         capmap.erase(it->first);
       }
 
