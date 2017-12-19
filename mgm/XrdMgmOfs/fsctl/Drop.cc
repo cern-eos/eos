@@ -64,7 +64,6 @@
     if (container) {
       try {
         ns_quota = gOFS->eosView->getQuotaNode(container.get());
-
       } catch (eos::MDException& e) {
         ns_quota = nullptr;
       }
@@ -132,7 +131,7 @@
         }
       } catch (...) {
         eos_thread_warning("no meta record exists anymore for fid=%s", afid);
-      };
+      }
     }
 
     gOFS->MgmStats.Add("Drop", vid.uid, vid.gid, 1);
