@@ -207,6 +207,7 @@ ContainerMDSvc::createContainer()
   uint64_t free_id = mInodeProvider.reserve();
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
+  ++mNumConts;
   return mContainerCache.put(cont->getId(), cont);
 }
 
