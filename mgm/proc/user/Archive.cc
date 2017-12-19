@@ -584,7 +584,7 @@ ProcCommand::ArchiveUpdateStatus(std::vector<ProcCommand::ArchDirStatus>& dirs,
 
       for (auto st_file = vect_files.begin(); st_file != vect_files.end();
            ++st_file) {
-        path = url.GetPath() + *st_file;
+        path = url.GetPath() + "/" + *st_file;
 
         if ((gOFS->_exists(path.c_str(), exists_flag, out_error) == SFS_OK) &&
             ((exists_flag & XrdSfsFileExistIsFile) == true)) {
