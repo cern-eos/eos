@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.7 Citrine``
+===================
+
+2017-12-18
+
+Bug
++++
+
+* [EOS-2207] - Work-around via environment variable to avoid loading too big no-replica sets (export EOS_NS_QDB_SKIP_UNLINKED_FILELIST)
+
+* Many improvements and fixes for eosxd
+  - fixing gateway mount options to work as NFS exports
+  - fixing access function which was not refreshing caps/md objects
 
 ``v4.2.6 Citrine``
 ===================
