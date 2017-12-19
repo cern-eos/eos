@@ -217,7 +217,7 @@ scratch -fstype=eosx,fsname=eos.cern.ch:/eos/user/ :eosxd
 Web/NFS/Samba Gateway Configuration
 -----------------------------------
 
-To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an WebServer/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option. To work around an issue with Sambe and EOS Acls, use '-ofsname=smb@eos.cern.ch' to enable additionally the overlay-mode flag. 
+To run as an export gateway one needs to configure 'stable inodes'. In the configuration file one can specify the 'mdcachedir' directive pointing to a directory where a ROCKSDB database will be stored. There is however a much simpler method to get an WebServer/NFS ready mount. Just use the normal mount or AUTOFS configuration but prefix '-ofsname=eos.cern.ch' like '-ofsname=gw@eos.cern.ch', which will automatically enable the stable inodes option. To work around an issue with Sambe and EOS Acls, use '-ofsname=smb@eos.cern.ch' to enable additionally the overlay-mode flag. You CANNOT enable the kernel meta data cache when using the NFS kernel daemon because the invalidation kernel upcall creates permission denied errors on NFS client side.
 
 ```
 # WebServer, NFS etc...
