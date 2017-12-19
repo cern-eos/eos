@@ -2831,6 +2831,38 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
     }
   }
 
+  pmode &= ~F_OK;
+
+  if (!md->id())
+  {
+    rc = is_deleted? ENOENT : EIO;
+  }
+  else
+  {
+    if (S_ISREG(mode))
+    {
+      pmd = Instance().mds.getlocal(req, pino);
+    }
+    if (!pmd->id())
+    {
+      rc = EIO;
+    }
+    else 
+    {
+      // we need a fresh cap for pino 
+      cap::shared_cap pcap = Instance().caps.acquire(req, pino,
+                                                     S_IFDIR | pmode);
+      
+      XrdSysMutexHelper mLock(pcap->Locker());
+      if (pcap->errc())
+      {
+        rc = pcap->errc();
+	if (rc == EPERM)
+	  rc = EACCES;
+      }
+    }
+  }
+
   fuse_reply_err(req, rc);
 
   EXEC_TIMING_END(__func__);
