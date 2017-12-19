@@ -1319,7 +1319,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
         }
       }
 
-      assistant.wait_for(std::chrono::seconds(1));
+      assistant.wait_for(std::chrono::milliseconds(128));
     }
   }
 }
