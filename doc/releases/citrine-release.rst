@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.2.6 Citrine``
+===================
+
+2017-12-18
+
+Bug
++++
+
+* [EOS-2150] - Repair option for d_mem_sz_diff error files
+* [EOS-2202] - Lock-order-inversion between gAccessMutex and ViewMutex
+
+* Many improvements and fixes for eosxd
+
 ``v4.2.5 Citrine``
 ===================
 
