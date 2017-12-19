@@ -538,9 +538,14 @@ FileSystemView::loadFromBackend()
   }
 
   // Load the no replica files
-  for (auto it = getQdbNoReplicasFileList();
-       (it && it->valid()); it->next()) {
-    pNoReplicas.insert(it->getElement());
+
+  // TODO: remove and fix me (temporary work around to boot namespace with >100M no replica files
+  if (!getenv("EOS_NS_QDB_SKIP_UNLINKED_FILELIST"))
+  {
+    for (auto it = getQdbNoReplicasFileList();
+	 (it && it->valid()); it->next()) {
+      pNoReplicas.insert(it->getElement());
+    }
   }
 }
 
