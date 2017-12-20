@@ -29,7 +29,7 @@
 
 /*----------------------------------------------------------------------------*/
 void
-xrdmgmofs_shutdown (int sig)
+xrdmgmofs_shutdown(int sig)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief shutdown function cleaning up running threads/objects for a clean exit
@@ -44,50 +44,48 @@ xrdmgmofs_shutdown (int sig)
  */
 /*----------------------------------------------------------------------------*/
 {
-
   (void) signal(SIGINT, SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
-
   eos_static_alert("msg=\"shutdown sequence started\'");
+
   // avoid shutdown recursions
-  if (gOFS->Shutdown)
+  if (gOFS->Shutdown) {
     return;
+  }
 
   gOFS->Shutdown = true;
-
   // ---------------------------------------------------------------------------
   // handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let's time to finish write operations)
   // ---------------------------------------------------------------------------
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop vst ... ");
-  if (gOFS->MgmOfsVstMessaging)
-  {
+
+  if (gOFS->MgmOfsVstMessaging) {
     gOFS->MgmOfsVstMessaging->StopListener();
   }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop deletion thread ... ");
-  if (gOFS->deletion_tid)
-  {
+
+  if (gOFS->deletion_tid) {
     XrdSysThread::Cancel(gOFS->deletion_tid);
     XrdSysThread::Join(gOFS->deletion_tid, 0);
   }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop statistics thread ... ");
-  if (gOFS->stats_tid)
-  {
+
+  if (gOFS->stats_tid) {
     XrdSysThread::Cancel(gOFS->stats_tid);
     XrdSysThread::Join(gOFS->stats_tid, 0);
   }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop fs listener thread ... ");
-  if (gOFS->fsconfiglistener_tid)
-  {
+
+  if (gOFS->fsconfiglistener_tid) {
     XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
     XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
   }
@@ -95,100 +93,105 @@ xrdmgmofs_shutdown (int sig)
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh.Stop();
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop LRU thread ... ");
   gOFS->LRUd.Stop();
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
-  if (gOFS->MgmOfsMessaging)
-  {
+
+  if (gOFS->MgmOfsMessaging) {
     gOFS->MgmOfsMessaging->StopListener();
   }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop fusex server ... ");
   gOFS->zMQ->gFuseServer.shutdown();
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: remove messaging ... ");
-  if (gOFS->MgmOfsMessaging)
-  {
+
+  if (gOFS->MgmOfsMessaging) {
     delete gOFS->MgmOfsMessaging;
   }
 
   eos_static_warning("Shutdown:: grab write mutex");
   gOFS->eosViewRWMutex.TimeoutLockWrite();
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: set stall rule");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gStallRules[std::string("*")] = "300";
 
-  if (gOFS->ErrorLog)
-  {
+  if (gOFS->ErrorLog) {
     XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
     int rrc = system(errorlogkillline.c_str());
-    if (WEXITSTATUS(rrc))
-    {
+
+    if (WEXITSTATUS(rrc)) {
       eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
     }
   }
-  // ---------------------------------------------------------------------------
-  if (gOFS->Initialized == gOFS->kBooted)
-  {
-    eos_static_warning("Shutdown:: finalizing views ... ");
-    try
-    {
-      gOFS->MgmMaster.ShutdownSlaveFollower();
 
-      if (gOFS->eosFsView)
-      {	
+  // ---------------------------------------------------------------------------
+  if (gOFS->Initialized == gOFS->kBooted) {
+    eos_static_warning("Shutdown:: finalizing views ... ");
+
+    try {
+      // These two views need to be deleted without holding the namespace mutex
+      // as this might lead to a deadlock
+      gOFS->eosViewRWMutex.UnLockWrite();
+
+      if (gOFS->eosSyncTimeAccounting) {
+        delete gOFS->eosSyncTimeAccounting;
+      }
+
+      if (gOFS->eosContainerAccounting) {
+        delete gOFS->eosContainerAccounting;
+      }
+
+      gOFS->eosViewRWMutex.TimeoutLockWrite();
+
+      if (gOFS->eosFsView) {
         delete gOFS->eosFsView;
       }
-      if (gOFS->eosView)
-      {
+
+      if (gOFS->eosView) {
         delete gOFS->eosView;
       }
-      if (gOFS->eosDirectoryService)
-      {
-	gOFS->eosDirectoryService->finalize();
+
+      if (gOFS->eosDirectoryService) {
+        gOFS->eosDirectoryService->finalize();
         delete gOFS->eosDirectoryService;
       }
-      if (gOFS->eosFileService)
-      {
-	gOFS->eosFileService->finalize();
+
+      if (gOFS->eosFileService) {
+        gOFS->eosFileService->finalize();
         delete gOFS->eosFileService;
       }
-
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       // we don't really care about any exception here!
     }
   }
 
   gOFS->ConfEngine->SetAutoSave(false);
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop GeoTree engine ... ");
-  if(!gGeoTreeEngine.StopUpdater())
-  	eos_static_crit("error Stopping the GeoTree engine");
+
+  if (!gGeoTreeEngine.StopUpdater()) {
+    eos_static_crit("error Stopping the GeoTree engine");
+  }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
   (void) Quota::CleanUp();
-
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop shared object modification notifier ... ");
-  if(!gOFS->ObjectNotifier.Stop())
+
+  if (!gOFS->ObjectNotifier.Stop()) {
     eos_static_crit("error Stopping the shared object change notifier");
+  }
 
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop config engine ... ");
-  if (gOFS->ConfEngine)
-  {
+
+  if (gOFS->ConfEngine) {
     delete gOFS->ConfEngine;
     gOFS->ConfEngine = 0;
     FsView::ConfEngine = 0;
