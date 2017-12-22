@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <string>
 #include <pthread.h>
+#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -113,7 +114,7 @@ private:
   std::string stdin_name;
 
   pthread_t monitor_thread;
-  bool monitor_active;
+  std::atomic<bool> monitor_active;
   bool monitor_joined;
   cmd_status cmd_stat;
 };
