@@ -3624,9 +3624,10 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 
       if (formattags.count("format")) {
         std::string header = "";
-        unsigned int width = atoi(formattags["width"].c_str());
         std::string format = formattags["format"];
-        std::string unit = formattags["unit"];
+        unsigned int width = (formattags.count("width") ?
+                              atoi(formattags["width"].c_str()) : 0);
+        std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
 
         // Normal member printout
         if (formattags.count("member")) {
