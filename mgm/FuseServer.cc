@@ -2108,7 +2108,7 @@ FuseServer::HandleMD(const std::string& id,
 	    try {
 	      // if the target exists, we have to remove it
 	      exist_target_cmd = pcmd->findContainer(md.name());
-	      if (exits_target_cmd) {
+	      if (exist_target_cmd) {
 		if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
 		  // that is a fatal error we have to fail that rename
 		  eos_static_err("ino=%lx target exists and is not empty", (long) md.md_ino());
