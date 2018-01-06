@@ -24,6 +24,12 @@ function getVersionFromLog()
   fi
 
   TAG=$1
+
+  # remove release from tag for commits and append log info instead
+  if [[ $TAG == *"-"* ]]; then
+    TAG=${TAG%-*}
+  fi
+
   VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); gsub(":","",$2); print tag"-"$1$2"git"$4; }')"
 
   if test $? -ne 0; then
