@@ -46,7 +46,7 @@ XrdMgmOfs::AuthMasterThread()
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
   frontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
 #else
-  enalbe_ipv6 = 0;
+  enable_ipv6 = 0;
   frontend.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
 #endif
   std::ostringstream sstr;
