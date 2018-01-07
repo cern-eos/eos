@@ -74,7 +74,12 @@ public:
     void run()
     {
       int enable_ipv6 = 1;
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
       frontend_.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
+#else
+      enable_ipv6 = 0;
+      frontend_.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
+#endif
       frontend_.bind(bindUrl.c_str());
       backend_.bind("inproc://backend");
       injector_.connect("inproc://backend");
