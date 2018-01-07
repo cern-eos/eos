@@ -73,6 +73,8 @@ public:
 
     void run()
     {
+      int enable_ipv6 = 1;
+      frontend_.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
       frontend_.bind(bindUrl.c_str());
       backend_.bind("inproc://backend");
       injector_.connect("inproc://backend");

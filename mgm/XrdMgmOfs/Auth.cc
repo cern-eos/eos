@@ -42,6 +42,8 @@ XrdMgmOfs::AuthMasterThread()
 {
   // Socket facing clients
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
+  int enable_ipv6 = 1;
+  frontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
   std::ostringstream sstr;
   sstr << "tcp://*:" << mFrontendPort;
 

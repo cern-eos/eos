@@ -211,8 +211,8 @@ XrdMgmOfsFile::open(const char* inpath,
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) || (spath.beginswith("ino:"))))
-  {
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
+       (spath.beginswith("ino:")))) {
     WAIT_BOOT;
 
     // reference by fid+fsid
@@ -492,10 +492,11 @@ XrdMgmOfsFile::open(const char* inpath,
 
     // -------------------------------------------------------------------------
     try {
-      if (byfid)
-	dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
-      else 
-	dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      if (byfid) {
+        dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+      } else {
+        dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      }
 
       // get the attributes out
       gOFS->_attr_ls(gOFS->eosView->getUri(dmd.get()).c_str(), error, vid, 0,
@@ -976,7 +977,8 @@ XrdMgmOfsFile::open(const char* inpath,
   std::string targetgeotag;
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+  // @todo (jmakai): fix this - the same lock is taken later on in ShouldStall-IsKnownNode
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;
@@ -1017,15 +1019,15 @@ XrdMgmOfsFile::open(const char* inpath,
       std::shared_ptr<eos::IFileMD> fmdnew;
 
       if (!byfid) {
-	try {
-        fmdnew = gOFS->eosView->getFile(path);
-	} catch (eos::MDException& e) {
-	  // TODO: this should be review to see if it is possible
-	  if ((!isAtomicUpload) && (fmdnew != fmd)) {
-	    // file has been recreated in the meanwhile
-	    return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
-	  }
-	}
+        try {
+          fmdnew = gOFS->eosView->getFile(path);
+        } catch (eos::MDException& e) {
+          // TODO: this should be review to see if it is possible
+          if ((!isAtomicUpload) && (fmdnew != fmd)) {
+            // file has been recreated in the meanwhile
+            return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
+          }
+        }
       }
 
       // Set the layout and commit new meta data
