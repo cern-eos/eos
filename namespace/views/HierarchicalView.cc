@@ -408,6 +408,15 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
 
+    if (!elements.size())
+    {
+      // this can happen for an empty uri created when trying to follow a symlink out of the filesystem 
+      // which has been reduced by the absPath function to uri=""
+      MDException e( ENOENT );
+      e.getMessage() << uri << ": No such file or directory";
+      throw e;
+    }
+
     size_t position=0;
     ContainerMD *cont =0;
 
