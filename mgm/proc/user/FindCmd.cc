@@ -520,24 +520,7 @@ eos::mgm::FindCmd::ProcessRequest() {
                   }
                   else {
                     // print fileinfo -m
-                    ProcCommand Cmd;
-                    XrdOucString lStdOut = "";
-                    XrdOucString lStdErr = "";
-                    XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
-                    info += fspath.c_str();
-                    info += "&mgm.file.info.option=-m";
-                    Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
-                    Cmd.AddOutput(lStdOut, lStdErr);
-
-                    if (lStdOut.length()) {
-                      ofstdoutStream << lStdOut;
-                    }
-
-                    if (lStdErr.length()) {
-                      ofstdoutStream << lStdErr;
-                    }
-
-                    Cmd.close();
+                    this->PrintFileInfoMinusM(fspath, errInfo);
                   }
 
                   if (!printcounter) {
@@ -828,24 +811,7 @@ eos::mgm::FindCmd::ProcessRequest() {
             }
           } else {
             // print fileinfo -m
-            ProcCommand Cmd;
-            XrdOucString lStdOut = "";
-            XrdOucString lStdErr = "";
-            XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
-            info += foundit.first.c_str();
-            info += "&mgm.file.info.option=-m";
-            Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
-            Cmd.AddOutput(lStdOut, lStdErr);
-
-            if (lStdOut.length()) {
-              ofstdoutStream << lStdOut;
-            }
-
-            if (lStdErr.length()) {
-              ofstderrStream << lStdErr;
-            }
-
-            Cmd.close();
+            this->PrintFileInfoMinusM(foundit.first, errInfo);
           }
 
           ofstdoutStream << std::endl;
@@ -931,6 +897,28 @@ eos::mgm::FindCmd::ProcessRequest() {
   }
 
   return reply;
+}
+
+void FindCmd::PrintFileInfoMinusM(const std::string &path, XrdOucErrInfo &errInfo) {
+  // print fileinfo -m
+  ProcCommand Cmd;
+  XrdOucString lStdOut = "";
+  XrdOucString lStdErr = "";
+  XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
+  info += path.c_str();
+  info += "&mgm.file.info.option=-m";
+  Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
+  Cmd.AddOutput(lStdOut, lStdErr);
+
+  if (lStdOut.length()) {
+    ofstdoutStream << lStdOut;
+  }
+
+  if (lStdErr.length()) {
+    ofstderrStream << lStdErr;
+  }
+
+  Cmd.close();
 }
 
 EOSMGMNAMESPACE_END

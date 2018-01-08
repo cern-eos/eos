@@ -45,6 +45,7 @@ public:
   virtual ~FindCmd() = default;
 
   eos::console::ReplyProto ProcessRequest() override;
+  void PrintFileInfoMinusM(const std::string &path, XrdOucErrInfo &errInfo);
 };
 
 EOSMGMNAMESPACE_END
