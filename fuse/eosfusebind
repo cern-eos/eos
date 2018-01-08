@@ -414,7 +414,7 @@ function UnlinkUnactiveSessions
 # if this a pam call, re-issue the command as the right user
 if [[ ( "$#" = 1 )   &&  (  "$1" = "--pam" ) && (  "$EUID" = "0" ) ]]; then
   if [[ (  "$PAM_USER" != "0" ) && (  "$PAM_USER" != "root" ) ]]; then
-    su -c "$0 $*" $PAM_USER
+    runuser -u $PAM_USER "$0 $*"
     exit $?
   else
     echo "note: eosfusebind not running for user root from pam."
