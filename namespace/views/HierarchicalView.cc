@@ -987,44 +987,31 @@ namespace eos
   //----------------------------------------------------------------------------
   // abspath sanitizing all '..' and '.' in a path
   //----------------------------------------------------------------------------
-  void HierarchicalView::absPath(std::string &mypath)
+  void HierarchicalView::absPath(std::string& mypath)
   {
-    std::string path = mypath;
-    std::string abspath;
+    std::vector<std::string> elements;
+    eos::PathProcessor::splitPath(elements, mypath);
+    std::ostringstream oss;
 
-    size_t rpos=4096;
-    size_t bppos;
-
-    // remove /../ from front
-    while ((bppos = path.find("/../")) != std::string::npos)
-    {
-      size_t spos = path.rfind("/", bppos - 1);
-      if (spos != std::string::npos)
-      {
-	path.erase(bppos, 4);
-	path.erase(spos + 1, bppos - spos - 1);
+    for (size_t i = 0; i < elements.size(); ++i) {
+      if ((elements[i] == ".") || (elements[i] == "..")) {
+        continue;
       }
-      else
-      {
-	path="/";
-	break;
-      }
-    }
-    
-    while ( (rpos = path.rfind("/", rpos)) != std::string::npos) {
-      rpos--;
-      std::string tp = path.substr(rpos+1);
-      path.erase(rpos+1);
-      if (tp == "/")
-	continue;
-      if (tp == "/.")
-	continue;
-      abspath.insert(0,tp);
 
-      if (rpos <=0)
-	break;
+      if ((i + 1 < elements.size())) {
+        if (elements[i + 1] == "..") {
+          continue;
+        }
+      }
+
+      oss << "/" << elements[i];
     }
-    mypath = abspath;
+
+    mypath = oss.str();
+
+    if (mypath.empty()) {
+      mypath = "/";
+    }
   }
 };
 
