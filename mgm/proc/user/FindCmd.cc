@@ -22,12 +22,14 @@
  ************************************************************************/
 
 
+
 #include "FindCmd.hh"
 #include "common/Path.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
 
 eos::console::ReplyProto
 eos::mgm::FindCmd::ProcessRequest() {
@@ -131,32 +133,25 @@ eos::mgm::FindCmd::ProcessRequest() {
   eos::common::Path cPath(spath.c_str());
   bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() || findRequest.files());
   static eos::common::RWMutex deepQueryMutex;
-  static std::map<std::string, std::set<std::string>>* globalfound = nullptr;
+  static std::unique_ptr<std::map<std::string, std::set<std::string>>> globalfound;
   eos::common::RWMutexWriteLock deepQueryMutexGuard;
 
-  std::unique_ptr<std::map<std::string, std::set<std::string>>,
-    std::function<void(std::map<std::string, std::set<std::string>>*)>> found;
-
+  std::unique_ptr<std::map<std::string, std::set<std::string>>> localfound;
+  std::map<std::string, std::set<std::string>> *found = nullptr;
   XrdOucErrInfo errInfo;
 
   if (deepquery) {
     // we use a single once allocated map for deep searches to store the results to avoid memory explosion
     deepQueryMutexGuard.Grab(deepQueryMutex);
 
-    if (globalfound == nullptr) {
-      globalfound = new std::map<std::string, std::set<std::string>>;
+    if (!globalfound) {
+      globalfound.reset(new std::map<std::string, std::set<std::string>>());
     }
 
-    found = std::unique_ptr<std::map<std::string, std::set<std::string>>,
-      std::function<void(std::map<std::string, std::set<std::string>>*)>>
-      (globalfound, [](std::map<std::string, std::set<std::string>>* ptr) {});
+    found = globalfound.get();
   } else {
-    found = std::unique_ptr<std::map<std::string, std::set<std::string>>,
-      std::function<void(std::map<std::string, std::set<std::string>>*)>>
-      (new std::map<std::string, std::set<std::string>>,
-       [](std::map<std::string, std::set<std::string>>* ptr) {
-         delete ptr;
-       });
+    localfound.reset(new std::map<std::string, std::set<std::string>>());
+    found = localfound.get();
   }
 
   // check what <path> actually is ...
