@@ -606,10 +606,9 @@ eos::mgm::FindCmd::ProcessRequest() {
                       e.getMessage().str().c_str());
           }
 
-          if (fmd) {
-            eosViewMutexGuard.Release();
-            //-------------------------------------------
+          eosViewMutexGuard.Release();
 
+          if (fmd) {
             for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
               auto loc = fmd->getLocation(i);
               size_t size = fmd->getSize();
@@ -643,9 +642,6 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
               }
             }
-          } else {
-            eosViewMutexGuard.Release();
-            //-------------------------------------------
           }
         }
       }
