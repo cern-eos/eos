@@ -991,7 +991,7 @@ namespace eos
   void HierarchicalView::absPath(std::string& mypath)
   {
     std::vector<std::string> elements, abs_path;
-    splitPath(elements, mypath);
+    eos::PathProcessor::splitPath(elements, mypath);
     std::ostringstream oss;
     int skip = 0;
 
