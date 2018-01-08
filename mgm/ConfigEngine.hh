@@ -242,7 +242,7 @@ public:
   // ---------------------------------------------------------------------------
   // Dump a configuration
   // ---------------------------------------------------------------------------
-  bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
+  bool DumpConfig (XrdOucString &out, XrdOucEnv &filter, bool lock = true);
 
   // ---------------------------------------------------------------------------
   // Parse a configuration
