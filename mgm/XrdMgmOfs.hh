@@ -1293,6 +1293,7 @@ public:
   //! Mgm writes error log with cluster collected file into
   //! /var/log/eos/error.log if <true>
   bool ErrorLog;
+  bool NsInQDB = true; ///< True if we're using the QDB namespace.
 
   //----------------------------------------------------------------------------
   // Namespace variables

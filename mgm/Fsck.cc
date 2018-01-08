@@ -299,6 +299,10 @@ Fsck::Check(void)
         XrdSysMutexHelper lock(eMutex);
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
 
+        // it_fid not invalidated when items are added or removed for QDB
+        // namespace, safe to release lock after each item.
+        bool needLockThroughout = ! gOFS->NsInQDB;
+
         for (auto it_fid = gOFS->eosFsView->getNoReplicasFileList();
              (it_fid && it_fid->valid()); it_fid->next()) {
           auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
@@ -313,6 +317,11 @@ Fsck::Check(void)
           if (fmd && (!fmd->isLink())) {
             eMap["zero_replica"].insert(it_fid->getElement());
             eCount["zero_replica"]++;
+          }
+
+          if(!needLockThroughout) {
+            nslock.Release();
+            nslock.Grab(gOFS->eosViewRWMutex);
           }
         }
       } catch (eos::MDException& e) {

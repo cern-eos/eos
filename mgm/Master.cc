@@ -1813,6 +1813,8 @@ Master::BootNamespace()
   bool ns_in_qdb = (dynamic_cast<eos::IChLogContainerMDSvc*>
                     (gOFS->eosDirectoryService) == nullptr);
 
+  gOFS->NsInQDB = ns_in_qdb;
+
   if (ns_in_qdb ||
       (getenv("EOS_NS_ACCOUNTING") &&
        ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
