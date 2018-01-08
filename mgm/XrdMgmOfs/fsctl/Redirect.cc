@@ -69,7 +69,13 @@
     {
       char buf[1024];
       snprintf(buf,1024,":%d/%s?",file->error.getErrInfo(),spath.c_str());
-      ei.replace(ei.find("?"),1,buf);
+      size_t qpos = ei.find("?");
+
+      if (qpos != std::string::npos)
+	ei.replace(qpos,1,buf);
+      else
+	ei+=buf;
+
       error.setErrInfo(ei.size() + 1, ei.c_str());
       delete file;
       eos_static_debug("sucess redirect=%s",error.getErrText());
