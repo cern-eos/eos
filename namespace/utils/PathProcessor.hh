@@ -27,108 +27,97 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <sstream>
 
 namespace eos
 {
-  //----------------------------------------------------------------------------
-  //! Helper class responsible for spliting the path
-  //----------------------------------------------------------------------------
-  class PathProcessor
+//----------------------------------------------------------------------------
+//! Helper class responsible for spliting the path
+//----------------------------------------------------------------------------
+class PathProcessor
+{
+public:
+  //------------------------------------------------------------------------
+  //! Split the path and put its elements in a vector, the tokens are
+  //! copied, the buffer is not overwritten
+  //------------------------------------------------------------------------
+  static void splitPath(std::vector<std::string>& elements,
+                        const std::string& path)
   {
-    public:
-      //------------------------------------------------------------------------
-      //! Split the path and put its elements in a vector, the tokens are
-      //! copied, the buffer is not overwritten
-      //------------------------------------------------------------------------
-      static void splitPath( std::vector<std::string> &elements,
-                             const std::string &path )
-      {
-        elements.clear();
-        std::vector<char*> elems;
-        char buffer[path.length()+1];
-        strcpy( buffer, path.c_str() );
-        splitPath( elems, buffer );
-        for( size_t i = 0; i < elems.size(); ++i )
-          elements.push_back( elems[i] );
-      }
+    elements.clear();
+    std::vector<char*> elems;
+    char buffer[path.length() + 1];
+    strcpy(buffer, path.c_str());
+    splitPath(elems, buffer);
 
-      //------------------------------------------------------------------------
-      //! Split the path and put its element in a vector, the split is done
-      //! in-place and the buffer is overwritten
-      //------------------------------------------------------------------------
-      static void splitPath( std::vector<char*> &elements, char *buffer )
-      {
-        elements.clear();
-        elements.reserve( 10 );
+    for (size_t i = 0; i < elems.size(); ++i) {
+      elements.push_back(elems[i]);
+    }
+  }
 
-        char *cursor = buffer;
-        char *beg    = buffer;
+  //------------------------------------------------------------------------
+  //! Split the path and put its element in a vector, the split is done
+  //! in-place and the buffer is overwritten
+  //------------------------------------------------------------------------
+  static void splitPath(std::vector<char*>& elements, char* buffer)
+  {
+    elements.clear();
+    elements.reserve(10);
+    char* cursor = buffer;
+    char* beg    = buffer;
 
-        //----------------------------------------------------------------------
-        // Go by the characters one by one
-        //----------------------------------------------------------------------
-        while( *cursor )
-        {
-          if( *cursor == '/' )
-          {
-            *cursor = 0;
-            if( beg != cursor )
-              elements.push_back( beg );
-            beg = cursor+1;
-          }
-          ++cursor;
+    //----------------------------------------------------------------------
+    // Go by the characters one by one
+    //----------------------------------------------------------------------
+    while (*cursor) {
+      if (*cursor == '/') {
+        *cursor = 0;
+
+        if (beg != cursor) {
+          elements.push_back(beg);
         }
 
-        if( beg != cursor )
-          elements.push_back( beg );
+        beg = cursor + 1;
       }
 
-      //------------------------------------------------------------------------
-      //! Absolute Path sanitizing all '/../' and '/./' entries
-      //------------------------------------------------------------------------
-      static void absPath(std::string& mypath)
-      {
-        std::string path = mypath;
-        std::string abspath;
-        size_t rpos = 4096;
-        size_t bppos;
+      ++cursor;
+    }
 
-        // remove /../ from front
-        while ((bppos = path.find("/../")) != std::string::npos) {
-          size_t spos = path.rfind("/", bppos - 1);
+    if (beg != cursor) {
+      elements.push_back(beg);
+    }
+  }
 
-          if (spos != std::string::npos) {
-            path.erase(bppos, 4);
-            path.erase(spos + 1, bppos - spos - 1);
-          } else {
-            path = "/";
-            break;
-          }
-        }
+  //------------------------------------------------------------------------
+  //! Absolute Path sanitizing all '/../' and '/./' entries
+  //------------------------------------------------------------------------
+  static void absPath(std::string& mypath)
+  {
+    std::vector<std::string> elements;
+    splitPath(elements, mypath);
+    std::ostringstream oss;
 
-        while ((rpos = path.rfind("/", rpos)) != std::string::npos) {
-          rpos--;
-          std::string tp = path.substr(rpos + 1);
-          path.erase(rpos + 1);
-
-          if (tp == "/") {
-            continue;
-          }
-
-          if (tp == "/.") {
-            continue;
-          }
-
-          abspath.insert(0, tp);
-
-          if (rpos <= 0) {
-            break;
-          }
-        }
-
-        mypath = abspath;
+    for (size_t i = 0; i < elements.size(); ++i) {
+      if ((elements[i] == ".") || (elements[i] == "..")) {
+        continue;
       }
-  };
+
+      if ((i + 1 < elements.size())) {
+        if (elements[i + 1] == "..") {
+          continue;
+        }
+      }
+
+      oss << "/" << elements[i];
+    }
+
+    mypath = oss.str();
+
+    if (mypath.empty()) {
+      mypath = "/";
+    }
+  }
+};
 }
 
 #endif // EOS_NS_PATH_PROCESSOR_HH

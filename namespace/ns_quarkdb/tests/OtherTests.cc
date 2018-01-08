@@ -49,14 +49,14 @@ checkPath(const std::vector<std::string>& elements, size_t depth)
   return true;
 }
 
-TEST(PathSplitter, BasicSanity) {
+TEST(PathSplitter, BasicSanity)
+{
   std::string path1 = "/test1/test2/test3/test4/";
   std::string path2 = "/test1/test2/test3/test4";
   std::string path3 = "test1/test2/test3/test4/";
   std::string path4 = "test1/test2/test3/test4";
   std::vector<std::string> elements;
   eos::PathProcessor::splitPath(elements, path1);
-
   ASSERT_TRUE(checkPath(elements, 4));
   elements.clear();
   eos::PathProcessor::splitPath(elements, path2);
@@ -75,7 +75,8 @@ TEST(PathSplitter, BasicSanity) {
   ASSERT_TRUE(elements.empty());
 }
 
-TEST(LRU, BasicSanity) {
+TEST(LRU, BasicSanity)
+{
   struct Entry {
     explicit Entry(std::uint64_t id) : id_(id) {}
 
@@ -122,4 +123,23 @@ TEST(LRU, BasicSanity) {
   ASSERT_TRUE(cache.get(101));
   // Obect 102 should have been evicted from the cache
   ASSERT_TRUE(!cache.get(100));
+}
+
+TEST(PathProcessor, AbsPathTest)
+{
+  std::string path = "/a/b/c/d/";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/a/b/c/d", path);
+  path = "/a/./b/./c/././d";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/a/b/c/d", path);
+  path = "/a/./b/./c/././d/../d/../d/e/../";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/a/b/c/d", path);
+  path = "/";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/", path);
+  path = ".././../../.";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/", path);
 }
