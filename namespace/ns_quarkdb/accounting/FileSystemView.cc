@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
-  pFlusher(nullptr), pQcl(nullptr)
+  pNoReplicasCached(false), pFlusher(nullptr), pQcl(nullptr)
 {
   pNoReplicas.set_empty_key(0xffffffffffffffffll);
   pNoReplicas.set_deleted_key(0);
@@ -292,6 +292,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     return nullptr;
   }
 
+  CacheFiles(location);
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pFiles[location]));
 }
@@ -306,6 +307,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     return nullptr;
   }
 
+  CacheUnlinkedFiles(location);
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pUnlinkedFiles[location]));
 }
@@ -316,6 +318,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getNoReplicasFileList()
 {
+  CacheNoReplicasFiles();
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pNoReplicas));
 }
@@ -326,6 +329,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 uint64_t
 FileSystemView::getNumNoReplicasFiles()
 {
+  CacheNoReplicasFiles();
   return pNoReplicas.size();
 }
 
@@ -340,6 +344,7 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
   if (it == pFiles.end()) {
     return 0ull;
   } else {
+    CacheFiles(fs_id);
     return it->second.size();
   }
 }
@@ -355,6 +360,7 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
   if (it == pUnlinkedFiles.end()) {
     return 0ull;
   } else {
+    CacheUnlinkedFiles(fs_id);
     return it->second.size();
   }
 }
@@ -363,11 +369,12 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 // Check if file system has file id
 //------------------------------------------------------------------------------
 bool
-FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
+FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 {
   auto it = pFiles.find(fs_id);
 
   if (it != pFiles.end()) {
+    CacheFiles(fs_id);
     auto& files_set = it->second;
 
     if (files_set.find(fid) != files_set.end()) {
@@ -439,12 +446,12 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 
   while (replicaSets.next(results)) {
     for (std::string& rep : results) {
-      // extract fsid from key
+      // Extract fsid from key
       IFileMD::location_t fsid;
       bool unused;
 
       if (!parseFsId(rep, fsid, unused)) {
-        eos_static_crit("Unable to parse redis key: %s", rep.c_str());
+        eos_static_crit("Unable to parse key: %s", rep.c_str());
         continue;
       }
 
@@ -504,11 +511,13 @@ FileSystemView::loadFromBackend()
       IFileMD::location_t fsid = it->getElement();
 
       if (pattern.find("unlinked") != std::string::npos) {
+        (void) pUnlinkedFilesCached.emplace(fsid, false);
         auto pair = pUnlinkedFiles.emplace(fsid, IFsView::FileList());
         auto& set_ids = pair.first->second;
         set_ids.set_deleted_key(0);
         set_ids.set_empty_key(0xffffffffffffffffll);
       } else {
+        (void) pFilesCached.emplace(fsid, false);
         auto pair = pFiles.emplace(fsid, IFsView::FileList());
         auto& set_ids = pair.first->second;
         set_ids.set_deleted_key(0);
@@ -516,34 +525,69 @@ FileSystemView::loadFromBackend()
       }
     }
   }
+}
 
-  // Load from the backend the files on each file system
-  for (auto& elem : pFiles) {
-    auto& set_ids = elem.second;
+//------------------------------------------------------------------------------
+// Cache from backend the list of file on the file system
+//------------------------------------------------------------------------------
+void
+FileSystemView::CacheFiles(IFileMD::location_t fsid)
+{
+  auto iter = pFilesCached.find(fsid);
 
-    for (auto it = getQdbFileList(elem.first);
-         (it && it->valid()); it->next()) {
-      set_ids.insert(it->getElement());
+  if ((iter != pFilesCached.end()) && (iter->second == false)) {
+    // Do it only if it's not already cached
+    pFlusher->synchronize();
+    iter->second = true;
+    auto it_fs = pFiles.find(fsid);
+
+    if (it_fs != pFiles.end()) {
+      auto& set_ids = it_fs->second;
+
+      for (auto it = getQdbFileList(it_fs->first);
+           (it && it->valid()); it->next()) {
+        set_ids.insert(it->getElement());
+      }
     }
   }
+}
 
-  // Load from the backend the unlinked files on each file system
-  for (auto& elem : pUnlinkedFiles) {
-    auto& set_ids = elem.second;
+//------------------------------------------------------------------------------
+// Cache from backend the list of unlinked file on the file system
+//------------------------------------------------------------------------------
+void
+FileSystemView::CacheUnlinkedFiles(IFileMD::location_t fsid)
+{
+  auto iter = pUnlinkedFilesCached.find(fsid);
 
-    for (auto it = getQdbUnlinkedFileList(elem.first);
-         (it && it->valid()); it->next()) {
-      set_ids.insert(it->getElement());
+  if ((iter != pUnlinkedFilesCached.end()) && (iter->second == false)) {
+    // Do it only if it's not already cached
+    pFlusher->synchronize();
+    iter->second = true;
+    auto it_fs = pUnlinkedFiles.find(fsid);
+
+    if (it_fs != pUnlinkedFiles.end()) {
+      auto& set_ids = it_fs->second;
+
+      for (auto it = getQdbUnlinkedFileList(it_fs->first);
+           (it && it->valid()); it->next()) {
+        set_ids.insert(it->getElement());
+      }
     }
   }
+}
 
-  // Load the no replica files
+//------------------------------------------------------------------------------
+// Cache from backend the list of files without replicas
+//------------------------------------------------------------------------------
+void
+FileSystemView::CacheNoReplicasFiles()
+{
+  if (pNoReplicasCached == false) {
+    pNoReplicasCached = true;
 
-  // TODO: remove and fix me (temporary work around to boot namespace with >100M no replica files
-  if (!getenv("EOS_NS_QDB_SKIP_UNLINKED_FILELIST"))
-  {
     for (auto it = getQdbNoReplicasFileList();
-	 (it && it->valid()); it->next()) {
+         (it && it->valid()); it->next()) {
       pNoReplicas.insert(it->getElement());
     }
   }

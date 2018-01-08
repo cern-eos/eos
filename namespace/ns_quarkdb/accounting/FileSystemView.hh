@@ -335,7 +335,7 @@ public:
   //!
   //! @return true if file is on the provided file system, otherwise false
   //----------------------------------------------------------------------------
-  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const override;
+  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
   //! Configure
@@ -406,10 +406,35 @@ private:
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
       getQdbNoReplicasFileList();
 
+  //----------------------------------------------------------------------------
+  //! Cache from backend the list of file on the file system
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  void CacheFiles(IFileMD::location_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Cache from backend the list of unlinked file on the file system
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  void CacheUnlinkedFiles(IFileMD::location_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Cache from backend the list of files without replicas
+  //----------------------------------------------------------------------------
+  void CacheNoReplicasFiles();
+
+  ///! Map of file ids residing on a particular file system
   std::map<IFileMD::location_t, IFsView::FileList> pFiles;
+  ///! Mark if file systemd id info is already cached
+  std::map<IFileMD::location_t, bool> pFilesCached;
+  ///! Map of unlinked file ids residing on a particular file system
   std::map<IFileMD::location_t, IFsView::FileList> pUnlinkedFiles;
+  ///! Mark if file systemd id info is already cached
+  std::map<IFileMD::location_t, bool> pUnlinkedFilesCached;
   IFsView::FileList pNoReplicas;
+  bool pNoReplicasCached; ///< Mark if set of files without replicas are cached
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;    ///< QClient object
   qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas

@@ -152,7 +152,7 @@ public:
   //!
   //! @return true if file is on the provided file system, otherwise false
   //----------------------------------------------------------------------------
-  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const override;
+  bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) override;
 
   //----------------------------------------------------------------------------
   //! Configure

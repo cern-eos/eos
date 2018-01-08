@@ -186,7 +186,7 @@ public:
   //!
   //! @return true if file is on the provided file system, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const = 0;
+  virtual bool hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) = 0;
 
   //----------------------------------------------------------------------------
   //! Finalize

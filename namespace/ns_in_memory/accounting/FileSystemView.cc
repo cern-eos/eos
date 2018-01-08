@@ -265,7 +265,7 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 // Check if file system has file id
 //------------------------------------------------------------------------------
 bool
-FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id) const
+FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 {
   if (pFiles.size() <= fs_id) {
     return false;
