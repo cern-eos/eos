@@ -646,7 +646,7 @@ ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
       configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
     }
 
-    DumpConfig(config, env);
+    DumpConfig(config, env, false);
 
     // sort the config file
     XrdMqMessage::Sort(config, true);
@@ -1335,7 +1335,7 @@ ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter, bool lock)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Dump function for selective configuration printing
@@ -1391,6 +1391,10 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
     pinfo.option += "m";
   }
 
+
+  if (lock)
+    Mutex.Lock();
+
   if (name == 0)
   {
     configDefinitions.Apply(PrintEachConfig, &pinfo);
@@ -1435,6 +1439,10 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
       }
     }
   }
+
+  if (lock)
+    Mutex.UnLock();
+
   return true;
 }
 
@@ -1465,6 +1473,7 @@ ConfigEngine::AutoSave ()
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
+    XrdSysMutexHelper configLock (Mutex);
     if (!SaveConfig(env, err))
     {
 
@@ -1561,6 +1570,7 @@ ConfigEngine::SetConfigValue (const char* prefix,
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
+    XrdSysMutexHelper configLock (Mutex);
     if (!SaveConfig(env, err))
     {
 
