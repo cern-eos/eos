@@ -27,6 +27,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <list>
 #include <sstream>
 
 namespace eos
@@ -93,22 +94,31 @@ public:
   //------------------------------------------------------------------------
   static void absPath(std::string& mypath)
   {
-    std::vector<std::string> elements;
+    std::vector<std::string> elements, abs_path;
     splitPath(elements, mypath);
     std::ostringstream oss;
+    int skip = 0;
 
-    for (size_t i = 0; i < elements.size(); ++i) {
-      if ((elements[i] == ".") || (elements[i] == "..")) {
+    for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
+      if ((*it == ".") || it->empty()) {
         continue;
       }
 
-      if ((i + 1 < elements.size())) {
-        if (elements[i + 1] == "..") {
-          continue;
-        }
+      if (*it == "..") {
+        ++skip;
+        continue;
       }
 
-      oss << "/" << elements[i];
+      if (skip) {
+        --skip;
+        continue;
+      }
+
+      abs_path.push_back(*it);
+    }
+
+    for (auto it = abs_path.rbegin(); it != abs_path.rend(); ++it) {
+      oss << "/" << *it;
     }
 
     mypath = oss.str();

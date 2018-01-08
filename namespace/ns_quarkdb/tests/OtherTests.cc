@@ -142,4 +142,10 @@ TEST(PathProcessor, AbsPathTest)
   path = ".././../../.";
   eos::PathProcessor::absPath(path);
   EXPECT_EQ("/", path);
+  path = "/a/./b//./c/////./././d";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/a/b/c/d", path);
+  path = "/a/b/././././/../../c/d/.././../e/./f/";
+  eos::PathProcessor::absPath(path);
+  EXPECT_EQ("/e/f", path);
 }
