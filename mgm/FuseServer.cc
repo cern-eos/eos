@@ -2232,23 +2232,19 @@ FuseServer::HandleMD(const std::string &id,
             cmd->setName(md.name());
 
 	    eos::ContainerMD* exist_target_cmd = 0;
-	    try {
-	      // if the target exists, we have to remove it
-	      exist_target_cmd = pcmd->findContainer(md.name());
-	      if (exist_target_cmd)
+	    // if the target exists, we have to remove it
+	    exist_target_cmd = pcmd->findContainer(md.name());
+	    if (exist_target_cmd)
+	    {
+	      if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers())
 	      {
-		if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers())
-		{
-		  // that is a fatal error we have to fail that rename
-		  eos_static_err("ino=%lx target exists and is not empty", (long) md.md_ino());
-		  return ENOTEMPTY;
-		}
-		// remove it via the directory service
-		gOFS->eosDirectoryService->removeContainer(exist_target_cmd);
-		pcmd->removeContainer(md.name());
+		// that is a fatal error we have to fail that rename
+		eos_static_err("ino=%lx target exists and is not empty", (long) md.md_ino());
+		return ENOTEMPTY;
 	      }
-	    } catch ( eos::MDException &e ) {
-	      // it might not exist, that is fine
+	      // remove it via the directory service
+	      gOFS->eosDirectoryService->removeContainer(exist_target_cmd);
+	      pcmd->removeContainer(md.name());
 	    }
             pcmd->addContainer(cmd);
             gOFS->eosView->updateContainerStore(pcmd);
