@@ -126,7 +126,7 @@ if(NOT PACKAGEONLY)
     endif ()
   endif()
 else()
-  message(STATUS "Runing CMake in package only mode.")
+  message(STATUS "Running CMake in package only mode.")
   # Fake function for building the SRPMS in build system
   function(PROTOBUF_GENERATE_CPP SRCS HDRS)
     return()
