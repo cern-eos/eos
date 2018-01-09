@@ -297,7 +297,11 @@ diskcache::truncate(off_t offset)
     offset = sMaxSize;
   }
 
-  rc = ::ftruncate(fd, offset);
+  if (size() != 0)
+  {
+    // don't truncate empty files to a larger size
+    rc = ::ftruncate(fd, offset);
+  }
 
   if (!rc)
   {
