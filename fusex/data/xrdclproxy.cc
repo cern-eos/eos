@@ -151,6 +151,17 @@ XrdCl::Proxy::Read( uint64_t  offset,
       else
         request_next = false;
 
+      // check if we can remove previous prefetched chunks
+      for ( auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
+      {
+        XrdSysCondVarHelper lLock(it->second->ReadCondVar());
+	if (it->second->done() && offset && ( (offset) >= (it->second->offset()+it->second->size())))
+	{
+	  eos_debug("----: dropping chunk offset=%lu chunk-offset=%lu", offset, it->second->offset());
+	  delete_chunk.insert(it->first);
+	}
+      }
+
       for ( auto it = delete_chunk.begin(); it != delete_chunk.end(); ++it)
       {
         ChunkRMap().erase(*it);
