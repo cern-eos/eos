@@ -155,7 +155,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
       for ( auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
       {
         XrdSysCondVarHelper lLock(it->second->ReadCondVar());
-	if (it->second->done() && offset && ( (offset+size) >= (it->second->offset()+it->second->size())))
+	if (it->second->done() && offset && ( (offset) >= (it->second->offset()+it->second->size())))
 	{
 	  eos_debug("----: dropping chunk offset=%lu chunk-offset=%lu", offset, it->second->offset());
 	  delete_chunk.insert(it->first);
