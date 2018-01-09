@@ -46,10 +46,10 @@ BuildRequires: cmake >= 3.3
 BuildRequires: cmake3 >= 3.3
 %define cmake_cmd cmake3
 %endif
-BuildRequires: xrootd = %{xrootd_version}
-BuildRequires: xrootd-client-devel = %{xrootd_version}
-BuildRequires: xrootd-server-devel = %{xrootd_version}
-BuildRequires: xrootd-private-devel = %{xrootd_version}
+BuildRequires: xrootd >= %{xrootd_version}
+BuildRequires: xrootd-client-devel >= %{xrootd_version}
+BuildRequires: xrootd-server-devel >= %{xrootd_version}
+BuildRequires: xrootd-private-devel >= %{xrootd_version}
 BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
@@ -143,8 +143,8 @@ rm -rf $RPM_BUILD_ROOT
 Summary: The EOS server installation
 Group: Applications/File
 
-Requires: xrootd = %{xrootd_version}
-Requires: xrootd-client = %{xrootd_version}
+Requires: xrootd >= %{xrootd_version}
+Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
@@ -300,7 +300,7 @@ fi
 Summary: The EOS shell client
 Group: Applications/File
 
-Requires: xrootd-client = %{xrootd_version}
+Requires: xrootd-client >= %{xrootd_version}
 %if %{?fedora}%{!?fedora:0} >= 27
 Requires: protobuf >= 3.3
 %else
@@ -362,7 +362,7 @@ The new EOS fuse client bundle.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client = %{xrootd_version}
+Requires: xrootd-client >= %{xrootd_version}
 Requires: fuse
 Requires: jemalloc
 Requires: policycoreutils
@@ -514,7 +514,7 @@ The new EOS fuse client bundle.
 Summary: The new EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client = %{xrootd_version}
+Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
@@ -618,7 +618,7 @@ Summary: The EOS archive daemon
 Group: Applications/File
 
 Requires: python-daemon python-zmq
-Requires: xrootd-python = %{xrootd_version}
+Requires: xrootd-python >= %{xrootd_version}
 
 %description -n eos-archive
 The EOS archive daemon.
