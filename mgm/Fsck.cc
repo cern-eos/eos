@@ -31,6 +31,7 @@
 #include "common/Mapping.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -303,7 +304,7 @@ Fsck::Check(void)
         // namespace, safe to release lock after each item.
         bool needLockThroughout = ! gOFS->NsInQDB;
 
-        for (auto it_fid = gOFS->eosFsView->getNoReplicasFileList();
+        for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
              (it_fid && it_fid->valid()); it_fid->next()) {
           auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
           std::string path = gOFS->eosView->getUri(fmd.get());

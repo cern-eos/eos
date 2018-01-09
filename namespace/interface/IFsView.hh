@@ -168,6 +168,14 @@ public:
       getNoReplicasFileList() = 0;
 
   //----------------------------------------------------------------------------
+  //! Get streaming iterator to list of files without replicas
+  //!
+  //! @return shard ptr to collection iterator
+  //----------------------------------------------------------------------------
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getStreamingNoReplicasFileList() = 0;
+
+  //----------------------------------------------------------------------------
   //! Get number of files with no replicas
   //----------------------------------------------------------------------------
   virtual uint64_t getNumNoReplicasFiles() = 0;

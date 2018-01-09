@@ -489,7 +489,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 // Get iterator to list of files without replicas
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getQdbNoReplicasFileList()
+    FileSystemView::getStreamingNoReplicasFileList()
 {
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new QdbFileIterator(*pQcl, fsview::sNoReplicaPrefix));
@@ -586,7 +586,7 @@ FileSystemView::CacheNoReplicasFiles()
   if (pNoReplicasCached == false) {
     pNoReplicasCached = true;
 
-    for (auto it = getQdbNoReplicasFileList();
+    for (auto it = getStreamingNoReplicasFileList();
          (it && it->valid()); it->next()) {
       pNoReplicas.insert(it->getElement());
     }

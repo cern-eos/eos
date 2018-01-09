@@ -308,6 +308,14 @@ public:
       getNoReplicasFileList() override;
 
   //----------------------------------------------------------------------------
+  //! Get streaming iterator to list of files without replicas
+  //!
+  //! @return shard ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getStreamingNoReplicasFileList() override;
+
+  //----------------------------------------------------------------------------
   //! Get number of files with no replicas
   //----------------------------------------------------------------------------
   uint64_t getNumNoReplicasFiles() override;
@@ -397,14 +405,6 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
       getQdbFileList(IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to list of files without replicas
-  //!
-  //! @return shard ptr to collection iterator
-  //----------------------------------------------------------------------------
-  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-      getQdbNoReplicasFileList();
 
   //----------------------------------------------------------------------------
   //! Cache from backend the list of file on the file system

@@ -137,6 +137,17 @@ public:
       getNoReplicasFileList() override;
 
   //----------------------------------------------------------------------------
+  //! Get streaming iterator to list of files without replicas. No such thing
+  //! is available on the in-memory namespace, so just return a normal iterator.
+  //!
+  //! @return shard ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getStreamingNoReplicasFileList() override {
+    return getNoReplicasFileList();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get number of files with no replicas
   //----------------------------------------------------------------------------
   virtual uint64_t getNumNoReplicasFiles() override
