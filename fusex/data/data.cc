@@ -1020,7 +1020,7 @@ data::datax::truncate(fuse_req_t req, off_t offset)
   int dt = 0;
 
   if (mFile->file()) {
-    dt = mFile->file()->truncate(offset);
+    dt = mFile->file()->truncate(0);
   }
 
   // if we have a journal it copes with the truncation size
