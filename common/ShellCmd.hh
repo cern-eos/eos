@@ -28,8 +28,8 @@
 #include "common/ShellExecutor.hh"
 #include <signal.h>
 #include <string>
-#include <pthread.h>
 #include <atomic>
+#include <thread>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -102,8 +102,6 @@ public:
 
 private:
 
-  static void* run_monitor(void*);
-
   void monitor();
 
   std::string cmd;
@@ -113,7 +111,7 @@ private:
   std::string stderr_name;
   std::string stdin_name;
 
-  pthread_t monitor_thread;
+  std::thread monitor_thread;
   std::atomic<bool> monitor_active;
   bool monitor_joined;
   cmd_status cmd_stat;
@@ -122,4 +120,3 @@ private:
 EOSCOMMONNAMESPACE_END
 
 #endif  /* SHELL_CMD_H */
-

@@ -58,7 +58,7 @@ ShellCmd::ShellCmd(std::string const& cmd):
   // execute the command
   pid = ShellExecutor::instance().execute(cmd, uuid);
   // start the monitor thread
-  (void) pthread_create(&monitor_thread, 0, run_monitor, this);
+  monitor_thread = std::thread(&ShellCmd::monitor, this);
   //----------------------------------------------------------------------------
   // open the 'fifos'
   // (the order is not random: it has to match the order in
@@ -91,7 +91,7 @@ ShellCmd::~ShellCmd()
   // Wait for the monitor thread to exit gracefully
   // (make sure the thread is joined to avoid memory leaks)
   if (monitor_active || !monitor_joined) {
-    pthread_join(monitor_thread, 0);
+    monitor_thread.join();
   }
 }
 
@@ -173,21 +173,12 @@ ShellCmd::monitor()
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-ShellCmd::run_monitor(void* ptr)
-{
-  ShellCmd* const me = static_cast<ShellCmd* const>(ptr);
-  me->monitor();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
 cmd_status
 ShellCmd::wait()
 {
   if (monitor_active) {
     monitor_joined = true;
-    pthread_join(monitor_thread, 0);
+    monitor_thread.join();
   }
 
   return cmd_stat;
@@ -221,7 +212,7 @@ ShellCmd::wait(size_t timeout)
 
   if (monitor_active) {
     monitor_joined = true;
-    pthread_join(monitor_thread, 0);
+    monitor_thread.join();
   }
 
   return cmd_stat;
