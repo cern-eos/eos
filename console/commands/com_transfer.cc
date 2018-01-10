@@ -23,6 +23,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Control-C handler for interactive transfers */

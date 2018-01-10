@@ -23,6 +23,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 
 /* fusex Clients -  Interface */

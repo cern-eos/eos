@@ -22,29 +22,9 @@
  ************************************************************************/
 
 #pragma once
-#include "common/LayoutId.hh"
-#include "common/Fmd.hh"
-#include "common/Logging.hh"
-#include "common/StringConversion.hh"
-#include "common/StringTokenizer.hh"
-#include "mq/XrdMqSharedObject.hh"
-#include "console/ConsoleCliCommand.hh"
-
-#ifndef CLIENT_ONLY
-#include "mq/XrdMqMessage.hh"
-#endif
-
-#include "mq/XrdMqTiming.hh"
-#include "console/RegexUtil.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdSys/XrdSysDNS.hh"
-#include "XrdOuc/XrdOucUtils.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdSys/XrdSysSemWait.hh"
+
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -65,6 +45,8 @@
 #include <deque>
 #include <map>
 #include <math.h>
+
+class XrdOucEnv;
 
 extern const char* abspath(const char* in);
 extern XrdOucString gPwd;

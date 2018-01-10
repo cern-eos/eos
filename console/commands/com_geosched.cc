@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/RWMutex.hh"
+#include "common/StringTokenizer.hh"
 #include<set>
 #include<string>
 /*----------------------------------------------------------------------------*/

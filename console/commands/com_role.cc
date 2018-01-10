@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Set the client user and group role */

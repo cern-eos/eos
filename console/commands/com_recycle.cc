@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Recycle a file/directory and configure recycling */
@@ -208,4 +209,3 @@ com_recycle_usage:
   global_retc = EINVAL;
   return (0);
 }
-

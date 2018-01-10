@@ -23,6 +23,10 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
+#include "common/SymKeys.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <streambuf>

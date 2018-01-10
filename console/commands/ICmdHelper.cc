@@ -22,6 +22,8 @@
 
 #include "console/commands/ICmdHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "common/Logging.hh"
+#include "common/SymKeys.hh"
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information

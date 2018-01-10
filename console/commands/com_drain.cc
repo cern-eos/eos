@@ -26,6 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "common/Drain.pb.h"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 using eos::console::DrainProto;
@@ -79,7 +80,7 @@ DrainHelper::ParseCommand(const char* arg)
   if (subcommand == "status") {
       drain->set_op(DrainProto::STATUS);
   }
-  const char* fsid = subtokenizer.GetToken(); 
+  const char* fsid = subtokenizer.GetToken();
   const char* targetFsId = subtokenizer.GetToken();
 
   if (fsid) {
@@ -107,10 +108,10 @@ DrainHelper::ParseCommand(const char* arg)
   } else {
     targetFsId="0";
   }
-  
+
   drain->set_fsid(fsid);
   drain->set_targetfsid(targetFsId);
-  return true; 
+  return true;
 }
 
 
@@ -162,4 +163,3 @@ int com_drain(char* arg)
   global_retc = drain.Execute();
   return global_retc;
 }
-

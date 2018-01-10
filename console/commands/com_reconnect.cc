@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "XrdClient/XrdClientConn.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Force a reconnection/reauthentication */

@@ -26,6 +26,7 @@
 #include <memory>
 #include <sys/time.h>
 /*----------------------------------------------------------------------------*/
+#include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"

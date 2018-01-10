@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <sys/types.h>

@@ -24,10 +24,18 @@
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
 #include "ConsoleCompletion.hh"
+#include "console/RegexUtil.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "License"
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
+#include "common/SymKeys.hh"
+#include "common/Logging.hh"
+#include "common/StringTokenizer.hh"
+#include "mq/XrdMqMessage.hh"
+#include "mq/XrdMqTiming.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdCl/XrdClFile.hh"
 #include <setjmp.h>
 
 #ifdef __APPLE__

@@ -22,10 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/StringTokenizer.hh"
 #include "console/commands/ICmdHelper.hh"
 #include "console/ConsoleMain.hh"
 #include "common/Acl.pb.h"
 #include <iostream>
+#include <algorithm>
 
 using eos::console::AclProto;
 

@@ -23,6 +23,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 
 using namespace eos::common;

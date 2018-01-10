@@ -24,6 +24,9 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
+#include "XrdSys/XrdSysDNS.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
 extern int com_file(char*);

@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Get the server version*/
@@ -74,4 +75,3 @@ com_version_usage:
   global_retc = EINVAL;
   return (0);
 }
-

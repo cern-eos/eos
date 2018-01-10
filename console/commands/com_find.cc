@@ -24,7 +24,11 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
+#include "common/StringTokenizer.hh"
+#include "common/Logging.hh"
 #include "common/Find.pb.h"
+#include "XrdPosix/XrdPosixXrootd.hh"
+#include <dirent.h>
 /*----------------------------------------------------------------------------*/
 
 extern int com_file(char*);
