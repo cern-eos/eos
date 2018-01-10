@@ -3036,6 +3036,8 @@ BaseView::SumDouble(const char* param, bool lock,
 //------------------------------------------------------------------------------
 // Computes the average for <param>
 //------------------------------------------------------------------------------
+// @todo (esindril) The lock parameter should be removed as this function is
+// never called without the lock taken
 double
 BaseView::AverageDouble(const char* param, bool lock,
                         const std::set<eos::common::FileSystem::fsid_t>* subset)

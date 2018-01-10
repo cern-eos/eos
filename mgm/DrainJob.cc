@@ -171,15 +171,12 @@ DrainJob::SetDrainer()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief Set number of transfers and rate in all participating nodes
+//------------------------------------------------------------------------------
 void
 DrainJob::SetSpaceNode()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief set number of transfers and rate in all participating nodes
- *
- */
-/*----------------------------------------------------------------------------*/
+
 {
   std::string SpaceNodeTransfers = "";
   std::string SpaceNodeTransferRate = "";
@@ -249,7 +246,7 @@ retry:
     ntried);
   FileSystem* fs = 0;
   {
-    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     ResetCounter();
   }
   time_t drainstart = time(NULL);
@@ -259,7 +256,7 @@ retry:
   XrdSysThread::SetCancelOff();
   {
     // set status to 'prepare'
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     fs = 0;
 
     if (FsView::gFsView.mIdView.count(mFsId)) {
@@ -326,8 +323,8 @@ retry:
   XrdSysThread::SetCancelOff();
   {
     //---------------------------------------------------------------------------
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       totalfiles = gOFS->eosFsView->getNumFilesOnFs(mFsId);
@@ -355,7 +352,7 @@ retry:
   XrdSysThread::SetCancelOff();
   // set the shared object counter
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     fs = 0;
 
     if (FsView::gFsView.mIdView.count(mFsId)) {
@@ -363,10 +360,8 @@ retry:
     }
 
     if (!fs) {
-      eos_static_notice(
-        "Filesystem fsid=%u has been removed during drain operation",
-        mFsId
-      );
+      eos_static_notice("Filesystem fsid=%u has been removed during drain "
+                        "operation", mFsId);
       XrdSysThread::SetCancelOn();
       return 0;
     }
@@ -382,10 +377,8 @@ retry:
     time_t now;
     XrdSysThread::SetCancelOff();
     {
-      //------------------------------------------------------------------------
-      // set status to 'waiting'
-      //------------------------------------------------------------------------
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      // Set status to 'waiting'
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       fs = 0;
 
       if (FsView::gFsView.mIdView.count(mFsId)) {
@@ -393,9 +386,8 @@ retry:
       }
 
       if (!fs) {
-        eos_static_notice(
-          "Filesystem fsid=%u has been removed during drain operation",
-          mFsId);
+        eos_static_notice("Filesystem fsid=%u has been removed during drain "
+                          "operation", mFsId);
         return 0;
       }
 
@@ -464,17 +456,14 @@ retry:
     }
 
     if (!fs) {
-      eos_static_notice(
-        "Filesystem fsid=%u has been removed during drain operation",
-        mFsId);
+      eos_static_notice("Filesystem fsid=%u has been removed during drain "
+                        "operation", mFsId);
       XrdSysThread::SetCancelOn();
       return 0;
     }
 
     fs->SetDrainStatus(eos::common::FileSystem::kDraining);
-    //--------------------------------------------------------------------------
-    // this enables the pull functionality on FST
-    //--------------------------------------------------------------------------
+    // Enable the pull functionality on FST
     SetDrainer();
   }
   time_t last_filesleft_change;
@@ -483,9 +472,7 @@ retry:
   last_filesleft = 0;
   filesleft = 0;
 
-  //----------------------------------------------------------------------------
-  // enable draining
-  //----------------------------------------------------------------------------
+  // Enable draining
   do {
     XrdSysThread::SetCancelOff();
     bool stalled = ((time(NULL) - last_filesleft_change) > 600);

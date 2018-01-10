@@ -232,9 +232,8 @@ XrdMgmOfsFile::open(const char* inpath,
       byfid = eos::common::FileId::InodeToFid(byfid);
     }
 
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
     try {
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
@@ -476,9 +475,8 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
-  // get the directory meta data if exists
-  std::shared_ptr<eos::IContainerMD> dmd =
-    std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+  // Get the directory meta data if it exists
+  std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   Workflow workflow;
@@ -490,7 +488,6 @@ XrdMgmOfsFile::open(const char* inpath,
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    // -------------------------------------------------------------------------
     try {
       if (byfid) {
         dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
@@ -542,9 +539,7 @@ XrdMgmOfsFile::open(const char* inpath,
                 e.getErrno(), e.getMessage().str().c_str());
     };
 
-    // -------------------------------------------------------------------------
-    // check permissions
-    // -------------------------------------------------------------------------
+    // Check permissions
     if (!dmd) {
       int save_errno = errno;
       MAYREDIRECT_ENOENT;
@@ -552,9 +547,7 @@ XrdMgmOfsFile::open(const char* inpath,
       if (cPath.GetSubPath(2)) {
         eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
 
-        // ---------------------------------------------------------------------
-        // check if we have a redirection setting at level 2 in the namespace
-        // ---------------------------------------------------------------------
+        // Check if we have a redirection setting at level 2 in the namespace
         try {
           dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
           // get the attributes out
@@ -564,7 +557,7 @@ XrdMgmOfsFile::open(const char* inpath,
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
                     e.getErrno(), e.getMessage().str().c_str());
-        };
+        }
 
         // ---------------------------------------------------------------------
         if (attrmap.count("sys.redirect.enoent")) {
@@ -1015,8 +1008,8 @@ XrdMgmOfsFile::open(const char* inpath,
              eos::common::LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
     {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmdnew;
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
       if (!byfid) {
         try {
@@ -1115,8 +1108,7 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += attrmap["user.tag"].c_str();
   }
 
-  // the size which will be reserved with a placement of one replica
-  // for that file
+  // Size which will be reserved with a placement of one replica for the file
   unsigned long long bookingsize;
   bool hasClientBookingSize = false;
   unsigned long long targetsize = 0;
@@ -1329,7 +1321,7 @@ XrdMgmOfsFile::open(const char* inpath,
   /// ###############
 
   if (retc) {
-    // if we don't have quota we don't bounce the client back
+    // If we don't have quota we don't bounce the client back
     if ((retc != ENOSPC) && (retc != EDQUOT)) {
       // INLINE Workflows
       int stalltime = 0;

@@ -28,9 +28,6 @@
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
-void
-XrdMgmOfs::FsConfigListener()
-/*----------------------------------------------------------------------------*/
 /*
  * @brief file system listener agent starting drain jobs when receving opserror
  * and applying remote master configuration changes to the local configuration
@@ -43,6 +40,8 @@ XrdMgmOfs::FsConfigListener()
  * broadcasted by a remote master MGM.
  */
 /*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::FsConfigListener()
 {
   // setup the modifications which the fs listener thread is waiting for
   std::string watch_errc = "stat.errc";
@@ -175,22 +174,20 @@ XrdMgmOfs::FsConfigListener()
             }
           }
         } else if (key == watch_geotag) {
-          // -------------------------------------------------------------------
-          // this is a geotag update
-          // -------------------------------------------------------------------
+          // Geotag update
           eos::common::FileSystem::fsid_t fsid = 0;
           std::string newgeotag, oldgeotag;
           FileSystem* fs = 0;
-          // read the id from the hash and the new geotag
-          gOFS->ObjectManager.HashMutex.LockRead();
-          XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+          {
+            // Read the id from the hash and the new geotag
+            XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
+            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
-          if (hash) {
-            fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
-            oldgeotag = newgeotag = hash->Get("stat.geotag");
+            if (hash) {
+              fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
+              oldgeotag = newgeotag = hash->Get("stat.geotag");
+            }
           }
-
-          gOFS->ObjectManager.HashMutex.UnLockRead();
 
           if (!fsid) {
             eos_debug("Received a geotag modification (might be no change) for "
@@ -210,67 +207,65 @@ XrdMgmOfs::FsConfigListener()
               eos_warning("Received a geotag change for fsid %lu new geotag is "
                           "%s, old geotag was %s ", (unsigned long)fsid,
                           newgeotag.c_str(), oldgeotag.c_str());
-              {
-                FsView::gFsView.ViewMutex.UnLockRead();
-                eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-                eos::common::FileSystem::fs_snapshot snapshot;
+              FsView::gFsView.ViewMutex.UnLockRead();
+              eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
+              eos::common::FileSystem::fs_snapshot snapshot;
 
-                if (FsView::gFsView.mIdView.count(fsid)) {
-                  fs = FsView::gFsView.mIdView[fsid];
+              if (FsView::gFsView.mIdView.count(fsid)) {
+                fs = FsView::gFsView.mIdView[fsid];
+              }
+
+              if (fs) {
+                fs->SnapShotFileSystem(snapshot);
+
+                // Update node view tree structure
+                if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
+                  FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
+                  eos_static_info("updating geotag of fsid %lu in node %s",
+                                  (unsigned long)fsid, node->mName.c_str());
+
+                  if (!static_cast<GeoTree*>(node)->erase(fsid)) {
+                    eos_static_err("error removing fsid %lu from node %s",
+                                   (unsigned long)fsid, node->mName.c_str());
+                  }
+
+                  if (!static_cast<GeoTree*>(node)->insert(fsid)) {
+                    eos_static_err("error inserting fsid %lu into node %s",
+                                   (unsigned long)fsid, node->mName.c_str());
+                  }
                 }
 
-                if (fs) {
-                  fs->SnapShotFileSystem(snapshot);
+                // Update group view tree structure
+                if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
+                  FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
+                  eos_static_info("updating geotag of fsid %lu in group %s",
+                                  (unsigned long)fsid, group->mName.c_str());
 
-                  // Update node view tree structure
-                  if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
-                    FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
-                    eos_static_info("updating geotag of fsid %lu in node %s",
-                                    (unsigned long)fsid, node->mName.c_str());
-
-                    if (!static_cast<GeoTree*>(node)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from node %s",
-                                     (unsigned long)fsid, node->mName.c_str());
-                    }
-
-                    if (!static_cast<GeoTree*>(node)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into node %s",
-                                     (unsigned long)fsid, node->mName.c_str());
-                    }
+                  if (!static_cast<GeoTree*>(group)->erase(fsid)) {
+                    eos_static_err("error removing fsid %lu from group %s",
+                                   (unsigned long)fsid, group->mName.c_str());
                   }
 
-                  // Update group view tree structure
-                  if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
-                    FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
-                    eos_static_info("updating geotag of fsid %lu in group %s",
-                                    (unsigned long)fsid, group->mName.c_str());
+                  if (!static_cast<GeoTree*>(group)->insert(fsid)) {
+                    eos_static_err("error inserting fsid %lu into group %s",
+                                   (unsigned long)fsid, group->mName.c_str());
+                  }
+                }
 
-                    if (!static_cast<GeoTree*>(group)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from group %s",
-                                     (unsigned long)fsid, group->mName.c_str());
-                    }
+                // Update space view tree structure
+                if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
+                  FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
+                  eos_static_info("updating geotag of fsid %lu in space %s",
+                                  (unsigned long)fsid, space->mName.c_str());
 
-                    if (!static_cast<GeoTree*>(group)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into group %s",
-                                     (unsigned long)fsid, group->mName.c_str());
-                    }
+                  if (!static_cast<GeoTree*>(space)->erase(fsid)) {
+                    eos_static_err("error removing fsid %lu from space %s",
+                                   (unsigned long)fsid, space->mName.c_str());
                   }
 
-                  // Update space view tree structure
-                  if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
-                    FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
-                    eos_static_info("updating geotag of fsid %lu in space %s",
-                                    (unsigned long)fsid, space->mName.c_str());
-
-                    if (!static_cast<GeoTree*>(space)->erase(fsid)) {
-                      eos_static_err("error removing fsid %lu from space %s",
-                                     (unsigned long)fsid, space->mName.c_str());
-                    }
-
-                    if (!static_cast<GeoTree*>(space)->insert(fsid)) {
-                      eos_static_err("error inserting fsid %lu into space %s",
-                                     (unsigned long)fsid, space->mName.c_str());
-                    }
+                  if (!static_cast<GeoTree*>(space)->insert(fsid)) {
+                    eos_static_err("error inserting fsid %lu into space %s",
+                                   (unsigned long)fsid, space->mName.c_str());
                   }
                 }
               }
@@ -282,17 +277,17 @@ XrdMgmOfs::FsConfigListener()
           // This is a dataproxy / dataep status update
           std::string status;
           eos::mgm::FsNode* node = 0;
-          // read the proxygrouplist
-          gOFS->ObjectManager.HashMutex.LockRead();
-          XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+          {
+            // Read the proxygrouplist
+            XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
+            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
-          if (hash) {
-            status = hash->Get("proxygroups");
+            if (hash) {
+              status = hash->Get("proxygroups");
+            }
           }
-
-          gOFS->ObjectManager.HashMutex.UnLockRead();
-          eos::mgm::FsView::gFsView.ViewMutex.LockRead();
           std::string hostport = "/eos/" + queue.substr(queue.rfind('/') + 1) + "/fst";
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
           if (eos::mgm::FsView::gFsView.mNodeView.count(hostport)) {
             node = eos::mgm::FsView::gFsView.mNodeView[hostport];
@@ -301,8 +296,6 @@ XrdMgmOfs::FsConfigListener()
             eos_err("could not find the FsNode object associated with queue %s  and  hostport %s",
                     queue.c_str(), hostport.c_str());
           }
-
-          eos::mgm::FsView::gFsView.ViewMutex.UnLockRead();
         } else {
           // This is a filesystem status error
           if (gOFS->MgmMaster.IsMaster()) {
@@ -379,9 +372,7 @@ XrdMgmOfs::FsConfigListener()
           queue.erase(dpos);
         }
 
-        gOFS->ConfEngine->DeleteConfigValue(0,
-                                            key.c_str(),
-                                            false);
+        gOFS->ConfEngine->DeleteConfigValue(0, key.c_str(), false);
         gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
         gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
@@ -397,4 +388,3 @@ XrdMgmOfs::FsConfigListener()
     XrdSysThread::SetCancelOff();
   } while (1);
 }
-

@@ -201,7 +201,7 @@ Fsck::Check(void)
 
     XrdSysThread::SetCancelOff();
     {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       size_t max  = FsView::gFsView.mIdView.size();
       Log(false, "Filesystems to check: %lu", max);
       eos_static_debug("filesystems to check: %lu", max);
@@ -254,7 +254,7 @@ Fsck::Check(void)
 
     {
       // Grab all files which are damaged because filesystems are down
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
       for (auto it = FsView::gFsView.mIdView.cbegin();
            it != FsView::gFsView.mIdView.cend(); ++it) {
@@ -299,7 +299,6 @@ Fsck::Check(void)
       try {
         XrdSysMutexHelper lock(eMutex);
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-
         // it_fid not invalidated when items are added or removed for QDB
         // namespace, safe to release lock after each item.
         bool needLockThroughout = ! gOFS->NsInQDB;
@@ -320,7 +319,7 @@ Fsck::Check(void)
             eCount["zero_replica"]++;
           }
 
-          if(!needLockThroughout) {
+          if (!needLockThroughout) {
             nslock.Release();
             nslock.Grab(gOFS->eosViewRWMutex);
           }
@@ -438,8 +437,8 @@ Fsck::Check(void)
       // Look for dark MD entries e.g. filesystem ids which have MD entries,
       // but have no configured file system
       XrdSysMutexHelper lock(eMutex);
-      eos::common::RWMutexReadLock fs_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
       for (auto it = gOFS->eosFsView->getFileSystemIterator(); it->valid();
            it->next()) {
@@ -1390,7 +1389,8 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
   if (option == "replace-damaged-replicas") {
     out += "# repairing replace-damaged-replicas -------------------------------------------"
-      "-------------------------\n";
+           "-------------------------\n";
+
     // Loop over all filesystems
     for (const auto& efsmapit : eFsMap["d_mem_sz_diff"]) {
       // Loop over all fids
@@ -1412,25 +1412,24 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
                    "error: unable to repair file fsid=%u fxid=%llx, could not get meta data\n",
                    efsmapit.first, fid);
           out += errline;
-
           break;
         }
 
         bool replicaAvailable = false;
-
         {
           eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
+
           for (const auto& fsid : fmd->getLocations()) {
             if (efsmapit.first != fsid) {
               FileSystem* fileSystem = nullptr;
 
               if (FsView::gFsView.mIdView.count(fsid) != 0) {
                 fileSystem = FsView::gFsView.mIdView[fsid];
-
                 const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
                 auto found = inconsistentsOnFs.find(fid);
 
-                if (fileSystem != nullptr && fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
+                if (fileSystem != nullptr &&
+                    fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
                     found == inconsistentsOnFs.end()) {
                   replicaAvailable = true;
                   break;
@@ -1446,13 +1445,13 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
                    "error: unable to repair file fsid=%u fxid=%llx, no available file systems and replicas to use\n",
                    efsmapit.first, fid);
           out += errline;
-
           break;
         }
 
         eos::common::Mapping::VirtualIdentity vid;
         eos::common::Mapping::Root(vid);
         XrdOucErrInfo error;
+
         if (gOFS->_dropstripe(path.c_str(), error, vid, efsmapit.first, true)) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
@@ -1464,7 +1463,6 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
           info += path.c_str();
           info += "&mgm.format=fuse";
-
           Cmd.open("/proc/user", info.c_str(), vid, &error);
           Cmd.AddOutput(out, err);
 
