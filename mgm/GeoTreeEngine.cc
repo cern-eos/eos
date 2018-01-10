@@ -136,7 +136,9 @@ bool GeoTreeEngine::forceRefreshSched()
   // mark all fs needing a refresh for all the watched attributes
   // => SCHED
   for (auto it = pFsId2FsPtr.begin(); it != pFsId2FsPtr.end(); it++) {
-    gNotificationsBufferFs[it->second->GetQueuePath()] = (~0);
+    if (it->second) {
+        gNotificationsBufferFs[it->second->GetQueuePath()] = (~0);
+    }
   }
 
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
