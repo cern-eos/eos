@@ -273,6 +273,7 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
                         0,
                         "opened"
                         );
+
     return status;
   }
 
@@ -322,6 +323,36 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   {
 
     proxy()->set_state(OPENED);
+
+    proxy()->OpenCondVar().UnLock();
+
+    XrdSysCondVarHelper lLock(proxy()->WriteCondVar());
+    while (proxy()->WriteQueue().size())
+    {
+      write_handler handler = proxy()->WriteQueue().front();
+      XRootDStatus status;
+      eos_static_debug("sending scheduled write request: off=%ld size=%lu timeout=%hu", 
+		handler->offset(), 
+		handler->vbuffer().size(), 
+		handler->timeout());
+
+      proxy()->WriteCondVar().UnLock();
+      status = proxy()->WriteAsync ( (uint64_t)handler->offset(), 
+				     (uint32_t)(handler->vbuffer().size()),
+				     0,
+				     handler, 
+				     handler->timeout()
+				     );
+      proxy()->WriteCondVar().Lock();
+      proxy()->WriteQueue().pop_front();
+
+      if (!status.IsOK())
+      {        
+	proxy()->set_writestate(&status);
+      }
+    }
+
+    proxy()->OpenCondVar().Lock();
   }
   else
   {
@@ -358,6 +389,65 @@ XrdCl::Proxy::CloseAsync(uint16_t         timeout)
   set_state(CLOSING, &status);
   return XOpenState;
 }
+
+/* -------------------------------------------------------------------------- */
+XRootDStatus
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::ScheduleCloseAsync(uint16_t         timeout)
+/* -------------------------------------------------------------------------- */
+{
+  eos_debug("");
+  if (mAttached > 1)
+  {
+    eos_debug("still attached");
+    return XRootDStatus();
+  }
+
+  {
+    bool no_chunks_left = true;
+
+    if ( (stateTS () == OPENING) ||
+	 (stateTS () == OPENED) )
+    {
+      {
+	XrdSysCondVarHelper lLock(WriteCondVar());
+	// either we have submitted chunks
+	if (ChunkMap().size())
+	  no_chunks_left = false;
+
+	// or we have chunks still to be submitted
+	if (WriteQueue().size())
+	  no_chunks_left = false;
+	if (!no_chunks_left)
+	{
+	  // indicate to close this file when the last write-callback arrived
+	  eos_debug("indicating close-after-write");
+	  XCloseAfterWrite = true;
+	  XCloseAfterWriteTimeout = timeout;
+	}
+      }
+
+      if (no_chunks_left) 
+      {
+	return CloseAsync (timeout);
+      }
+      else
+      {
+	return XOpenState;
+      }
+    }
+    
+  }
+
+  XRootDStatus status(XrdCl::stError,
+		      suAlreadyDone,
+		      XrdCl::errInvalidOp,
+		      "file not open"
+		      );
+
+  return status;
+}
+
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
@@ -519,26 +609,41 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-  if (!status->IsOK())
+  bool no_chunks_left = true;
   {
-
-    mProxy->set_writestate(status);
+    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
+    if (!status->IsOK())
+    {
+      
+      mProxy->set_writestate(status);
+    }
+    mProxy->WriteCondVar().Signal();
+    delete response;
+    delete status;
+    mProxy->ChunkMap().erase((uint64_t)this);
+    if (mProxy->ChunkMap().size())
+      no_chunks_left = false;
   }
-  mProxy->WriteCondVar().Signal();
-  delete response;
-  delete status;
-  mProxy->ChunkMap().erase((uint64_t)this);
+
+  if (no_chunks_left)
+  {
+    if (mProxy->close_after_write())
+    {
+      eos_static_debug("sending close-after-write");
+      // send an asynchronous close now
+      XrdCl::XRootDStatus status = mProxy->CloseAsync(mProxy->close_after_write_timeout());
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::write_handler
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::WriteAsyncPrepare(uint32_t size)
+XrdCl::Proxy::WriteAsyncPrepare(uint32_t size, uint64_t offset, uint16_t timeout)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  write_handler dst = std::make_shared<WriteAsyncHandler>(this, size);
+  write_handler dst = std::make_shared<WriteAsyncHandler>(this, size, offset, timeout);
   XrdSysCondVarHelper lLock(WriteCondVar());
   ChunkMap()[(uint64_t) dst.get()] = dst;
   return dst;
@@ -574,12 +679,64 @@ XrdCl::Proxy::WriteAsync( uint64_t         offset,
 }
 
 /* -------------------------------------------------------------------------- */
+XRootDStatus 
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::ScheduleWriteAsync(
+				 const void   *buffer,
+				 write_handler handler
+				 )
+/* -------------------------------------------------------------------------- */
+{
+  eos_debug("");
+  if (buffer)
+    handler->copy(buffer, handler->vbuffer().size());
+
+  XrdSysCondVarHelper openLock(OpenCondVar());
+  if (state () == OPENED)
+  {
+    OpenCondVar().UnLock();
+    eos_debug("direct");
+    inc_write_queue_direct_submissions();
+    // we can send off the write request
+    return WriteAsync ( handler->offset(), 
+			(size_t)handler->vbuffer().size(), 
+			0,
+			handler, 
+			handler->timeout());
+  }
+
+  if (state () == OPENING)
+  {
+    inc_write_queue_scheduled_submissions();
+    eos_debug("scheduled");
+    // we add this write to the list to be submitted when the open call back arrives
+    XrdSysCondVarHelper lLock(WriteCondVar());
+    WriteQueue().push_back(handler);
+
+    // we can only say status OK in that case
+    XRootDStatus status(XrdCl::stOK,
+			0,
+                        XrdCl::errInProgress,
+			"in progress"
+                        );
+
+    return status;
+  }
+
+  return XOpenState;
+}
+
+
+/* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::WaitWrite()
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
+
+  WaitOpen();
+
   XrdSysCondVarHelper lLock(WriteCondVar());
 
   while ( ChunkMap().size() )
