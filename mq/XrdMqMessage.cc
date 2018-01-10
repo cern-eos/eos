@@ -597,7 +597,7 @@ XrdMqMessage::Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_push(b64, bmem);
   buffer_length = BIO_get_mem_data(bmem, NULL);
-  decoded_bytes = (char*) malloc(buffer_length);
+  decoded_bytes = (char*) malloc(buffer_length + 1);
   decoded_length = BIO_read(bmem, decoded_bytes, buffer_length);
   decoded_bytes[decoded_length] = '\0';
   BIO_free_all(bmem);
