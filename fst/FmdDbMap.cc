@@ -1122,13 +1122,14 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
       const eos::common::DbMapTypes::Tkey* k;
       const eos::common::DbMapTypes::Tval* v;
       eos::common::DbMap* db_map = mDbMap.find(fsid)->second;
-      eos_static_info("verifying %d entries", db_map->size());
+      eos_static_info("msg=\"verifying %d entries on fsid=%lu\"",
+                      db_map->size(), fsid);
 
       // Report values only when we are not in the sync phase from disk/mgm
       for (db_map->beginIter(); db_map->iterate(&k, &v);) {
         Fmd f;
         f.ParseFromString(v->value);
-        fid = atoi(k->c_str());
+        (void)memcpy(&fid, (void*)k->data(), k->size());
 
         if (f.layouterror()) {
           int rc = 0;
@@ -1142,24 +1143,25 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
             if ((errno == ENOENT) || (errno == ENOTDIR)) {
               if ((f.layouterror() & eos::common::LayoutId::kOrphan) ||
                   (f.layouterror() & eos::common::LayoutId::kUnregistered)) {
-                eos_static_info("push back for deletion %s", k->c_str());
+                eos_static_info("msg=\"push back for deletion fid=%lu\"", fid);
                 delvector.push_back(fid);
               }
             }
           }
 
-          eos_static_info("stat %s rc=%d errno=%d", fstPath.c_str(), rc, errno);
+          eos_static_info("msg=\"stat %s rc=%d errno=%d\"",
+                          fstPath.c_str(), rc, errno);
         }
       }
     }
 
     for (size_t i = 0; i < delvector.size(); ++i) {
       if (DeleteFmd(delvector[i], fsid)) {
-        eos_static_info("removed FMD ghost entry fid=%08llx fsid=%d",
+        eos_static_info("msg=\"removed FMD ghost entry fid=%08llx fsid=%d\"",
                         delvector[i], fsid);
       } else {
-        eos_static_err("failed to removed FMD ghost entry fid=%08llx fsid=%d",
-                       delvector[i], fsid);
+        eos_static_err("msg=\"failed to removed FMD ghost entry fid=%08llx "
+                       "fsid=%d\"", delvector[i], fsid);
       }
     }
   } else {
