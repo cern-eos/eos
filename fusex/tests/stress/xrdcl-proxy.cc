@@ -691,3 +691,148 @@ TEST(XrdClProxy, ReadAheadDynamic) {
   status = file.Close( (uint16_t) 0);
   ASSERT_TRUE( status.IsOK() );
 }
+
+TEST(XrdClProxy, ScheduleWrite) {
+  eos::common::ShellCmd xrd("xrootd -p 21234 -n proxytest");
+  XrdSysTimer sleeper;
+  sleeper.Snooze(1);
+
+  std::vector<int> buffer;
+  buffer.resize(64 * 1024 * 1024);
+  for (size_t i=0; i < buffer.size(); i++)
+  {
+    buffer[i] = i;
+  }
+  XrdCl::Proxy file;
+  XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update | XrdCl::OpenFlags::Delete;
+  XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
+
+  fprintf(stderr, "[01] open)\n");
+  XrdCl::XRootDStatus status = file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+  ASSERT_TRUE( status.IsOK() );
+  fprintf(stderr, "[02] no waitopen)\n");
+
+  fprintf(stderr, "\n[03] write-schedule-async \n");
+  for (size_t i=0; i < 64 ; ++i)
+  {
+    fprintf(stderr, ".");
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024, 4 * i * 1024 * 1024, 300);
+    status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
+    ASSERT_TRUE( status.IsOK() );
+  }
+
+  status = file.WaitWrite();
+  ASSERT_TRUE( status.IsOK() );
+
+
+  fprintf(stderr, "\n[04] zero \n");
+  for (size_t i=0; i < 64 * 1024 * 1024; i++)
+  {
+    buffer[i] = 0;
+  }
+
+  fprintf(stderr, "\n[05] read \n");
+  ssize_t total_bytes = 0;
+  for (size_t i=0; i < 330 ; ++i)
+  {
+    uint32_t bytesRead=0;
+    fprintf(stderr, ".");
+    status = file.Read(4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024], bytesRead, (uint16_t) 300);
+    total_bytes += bytesRead;
+    //fprintf(stderr, "----: bytesRead=%u\n", bytesRead);
+    ASSERT_TRUE( status.IsOK() );
+  }
+
+  ASSERT_EQ( total_bytes, (4 * 1024 * 1024 * 64));
+
+  fprintf(stderr, "\n[06] comparing \n");
+  for (ssize_t i=0; i < 64 * 1024 * 1024; i++)
+  {
+    if (buffer[i] != (int) i)
+    {
+      ASSERT_EQ(buffer[i], i );
+    }
+  }
+
+  fprintf(stderr, "\n[07] scheduled-write-fraction=%f\n", file.get_scheduled_submission_fraction());
+  file.Collect();
+  status = file.Close( (uint16_t) 0);
+  ASSERT_TRUE( status.IsOK() );
+}
+
+TEST(XrdClProxy, ScheduleClose) {
+  eos::common::ShellCmd xrd("xrootd -p 21234 -n proxytest");
+  XrdSysTimer sleeper;
+  sleeper.Snooze(1);
+
+  std::vector<int> buffer;
+  buffer.resize(64 * 1024 * 1024);
+  for (size_t i=0; i < buffer.size(); i++)
+  {
+    buffer[i] = i;
+  }
+  XrdCl::Proxy file;
+  XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update | XrdCl::OpenFlags::Delete;
+  XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
+
+  fprintf(stderr, "[01] open)\n");
+  XrdCl::XRootDStatus status = file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+  ASSERT_TRUE( status.IsOK() );
+  fprintf(stderr, "[02] no waitopen)\n");
+
+  fprintf(stderr, "\n[03] write-schedule-async \n");
+  for (size_t i=0; i < 64 ; ++i)
+  {
+    fprintf(stderr, ".");
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024, 4 * i * 1024 * 1024, 300);
+    status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
+    ASSERT_TRUE( status.IsOK() );
+  }
+
+  fprintf(stderr, "\n[07] scheduled-write-fraction=%f\n", file.get_scheduled_submission_fraction());
+  
+  status = file.WaitClose();
+
+  ASSERT_TRUE( status.IsOK() );
+}
+
+
+TEST(XrdClProxy, ScheduleCloseAfterCollect) {
+  eos::common::ShellCmd xrd("xrootd -p 21234 -n proxytest");
+  XrdSysTimer sleeper;
+  sleeper.Snooze(1);
+
+  std::vector<int> buffer;
+  buffer.resize(64 * 1024 * 1024);
+  for (size_t i=0; i < buffer.size(); i++)
+  {
+    buffer[i] = i;
+  }
+  XrdCl::Proxy file;
+  XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update | XrdCl::OpenFlags::Delete;
+  XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX;
+
+  fprintf(stderr, "[01] open)\n");
+  XrdCl::XRootDStatus status = file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+  ASSERT_TRUE( status.IsOK() );
+  fprintf(stderr, "[02] no waitopen)\n");
+
+  fprintf(stderr, "\n[03] write-schedule-async \n");
+  for (size_t i=0; i < 64 ; ++i)
+  {
+    fprintf(stderr, ".");
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024, 4 * i * 1024 * 1024, 300);
+    status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
+    ASSERT_TRUE( status.IsOK() );
+  }
+
+  file.Collect();
+  file.ScheduleCloseAsync(300);
+
+
+  fprintf(stderr, "\n[07] scheduled-write-fraction=%f\n", file.get_scheduled_submission_fraction());
+  
+  status = file.WaitClose();
+
+  ASSERT_TRUE( status.IsOK() );
+}

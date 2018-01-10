@@ -35,7 +35,7 @@
 #include <memory>
 #include <map>
 #include <string>
-
+#include <deque>
 
 // need some redefines for XRootD v3
 #ifndef EOSCITRINE
@@ -147,6 +147,9 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
 
     XRootDStatus CloseAsync(uint16_t         timeout = 0 );
+
+    XRootDStatus ScheduleCloseAsync(uint16_t timeout = 0 );
+
 
     XRootDStatus WaitClose();
 
@@ -290,11 +293,15 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
 
     Proxy() : XOpenAsyncHandler(this),
-    XCloseAsyncHandler(this),
-    XOpenAsyncCond(0),
-    XWriteAsyncCond(0),
-    XReadAsyncCond(0),
-    mReq(0), mIno(0)
+	      XCloseAsyncHandler(this),
+	      XOpenAsyncCond(0),
+	      XWriteAsyncCond(0),
+	      XReadAsyncCond(0),
+	      XWriteQueueDirectSubmission(0),
+	      XWriteQueueScheduledSubmission(0),
+	      XCloseAfterWrite(false),
+	      XCloseAfterWriteTimeout(0),
+	      mReq(0), mIno(0)
     {
       XrdSysCondVarHelper lLock(XOpenAsyncCond);
       set_state(CLOSED);
@@ -424,14 +431,15 @@ namespace XrdCl
       {
         mProxy = other->proxy();
         mBuffer = other->vbuffer();
+	woffset = other->offset();
+	mTimeout = other->timeout();
       }
 
-      WriteAsyncHandler(Proxy* file, uint32_t size)  : mProxy(file)
+      WriteAsyncHandler(Proxy* file, uint32_t size, off_t off=0, uint16_t timeout=0)  : mProxy(file), woffset(off), mTimeout(timeout)
       {
         XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
         mBuffer.resize(size);
         mProxy->WriteCondVar().Signal();
-
       }
 
       virtual ~WriteAsyncHandler()
@@ -441,6 +449,16 @@ namespace XrdCl
       const char* buffer()
       {
         return &mBuffer[0];
+      }
+
+      const off_t offset()
+      {
+	return woffset;
+      }
+
+      const uint16_t timeout()
+      {
+	return mTimeout;
       }
 
       const std::vector<char>& vbuffer()
@@ -465,6 +483,8 @@ namespace XrdCl
     private:
       Proxy* mProxy;
       std::vector<char> mBuffer;
+      off_t woffset;
+      uint16_t mTimeout;
     } ;
 
     // ---------------------------------------------------------------------- //
@@ -594,15 +614,22 @@ namespace XrdCl
     typedef std::map<uint64_t, read_handler> chunk_rmap;
 
     // ---------------------------------------------------------------------- //
-    write_handler WriteAsyncPrepare(uint32_t size);
+    write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset=0, uint16_t timeout=0);
 
 
     // ---------------------------------------------------------------------- //
     XRootDStatus WriteAsync( uint64_t          offset,
-                            uint32_t           size,
-                            const void        *buffer,
-                            write_handler      handler,
-                            uint16_t           timeout);
+                             uint32_t           size,
+                             const void        *buffer,
+                             write_handler      handler,
+                             uint16_t           timeout);
+
+    // ---------------------------------------------------------------------- //
+    XRootDStatus ScheduleWriteAsync( 
+ 				     const void   *buffer,
+				     write_handler handler
+				     );
+
 
     // ---------------------------------------------------------------------- //
 
@@ -650,6 +677,22 @@ namespace XrdCl
                            uint32_t &bytesRead
                            );
 
+    std::deque<write_handler>& WriteQueue() 
+    {
+      return XWriteQueue;
+    }
+
+    void inc_write_queue_direct_submissions() { XWriteQueueDirectSubmission++; }
+
+    void inc_write_queue_scheduled_submissions() { XWriteQueueScheduledSubmission++; }
+
+    float get_scheduled_submission_fraction() { return (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission)? 100.0 * XWriteQueueScheduledSubmission / (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission) : 0; }
+
+
+    const bool close_after_write() { return XCloseAfterWrite; }
+
+    const uint16_t close_after_write_timeout() { return XCloseAfterWriteTimeout; }
+
     chunk_map& ChunkMap()
     {
 
@@ -689,6 +732,13 @@ namespace XrdCl
     chunk_rmap XReadAsyncChunks;
 
     XRootDStatus XWriteState;
+
+    std::deque<write_handler> XWriteQueue;
+    size_t XWriteQueueDirectSubmission;
+    size_t XWriteQueueScheduledSubmission;
+
+    bool XCloseAfterWrite;
+    uint16_t XCloseAfterWriteTimeout;
 
     READAHEAD_STRATEGY XReadAheadStrategy;
     size_t XReadAheadMin;
