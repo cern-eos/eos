@@ -147,7 +147,7 @@ public:
 private:
   qclient::QSet mSet; ///< Set to iterate through
   std::string mCursor; ///< Cursor used while scanning the set
-  int64_t mCount = 10000; ///< Max number of elements returned at once
+  int64_t mCount = 2000000; ///< Max number of elements returned at once
   std::pair<std::string, std::vector<std::string>> mReply;
   std::vector<std::string>::iterator mIt; ///< Iterator to element to return
 };
