@@ -66,7 +66,8 @@ Storage::Publish()
     eos_static_err("ip route list call failed to get netspeed");
   }
 
-  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
+  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
+                              getenv("EOS_GEOTAG") : "geotagdefault");
   XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
                                getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
   FILE* fnetspeed = fopen(tmp_name, "r");
