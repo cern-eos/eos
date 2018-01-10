@@ -91,7 +91,7 @@ DiskHealth::parse_mdstat(const std::string& device,
     // Read in also the next lines until empty
     while (std::getline(file, line)) {
       // Trim whitespaces
-      while (line.back() == ' ') {
+      while (!line.empty() && line.back() == ' ') {
         line.pop_back();
       }
 
