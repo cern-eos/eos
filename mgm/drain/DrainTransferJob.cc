@@ -26,6 +26,7 @@
 #include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

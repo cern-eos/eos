@@ -25,6 +25,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
+#include "namespace/interface/IView.hh"
 #include <thread>
 #include <regex.h>
 #include "common/Logging.hh"
@@ -817,7 +818,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       // skip identical client mounts, the have it anyway!
       if (cap->clientuuid() == refcap->clientuuid())
         continue;
-      
+
       if (cap->id() && !clients_sent.count(cap->clientuuid())) {
         gOFS->zMQ->gFuseServer.Client().SendMD(md,
                                                cap->clientuuid(),
@@ -1765,14 +1766,14 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     if (cmd->access(vid->uid, vid->gid, X_OK))
       x_ok = true;
 
-    // ACL and permission check                                                                       
+    // ACL and permission check
     Acl acl(attrmap, *vid);
     eos_static_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
 		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
 		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
 		    acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
-    
-    // browse permission by ACL                                                                        
+
+    // browse permission by ACL
     if (acl.HasAcl())
     {
       if (acl.CanWrite())
@@ -1780,16 +1781,16 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
 	w_ok = true;
 	d_ok = true;
       }
-      
+
       // write-once excludes updates
       if (!(acl.CanWrite() || acl.CanWriteOnce()))
 	w_ok = false;
 
-      // deletion might be overwritten/forbidden                                                      
+      // deletion might be overwritten/forbidden
       if (acl.CanNotDelete())
 	d_ok = false;
-      
-      // the r/x are added to the posix permissions already set                                        
+
+      // the r/x are added to the posix permissions already set
       if (acl.CanRead())
 	r_ok |= true;
       if (acl.CanBrowse())
@@ -1805,7 +1806,7 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     eos_static_err("failed to get directory inode ino=%16x",md.md_pino());
     return false;
   }
-  
+
   std::string accperm;
   accperm == "R";
   if (r_ok)
@@ -1818,11 +1819,11 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   {
     accperm += "D";
   }
-  
+
   if (accperm.find(mode) != std::string::npos)
   {
-    eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s", 
-		   md.md_pino(), 
+    eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s",
+		   md.md_pino(),
 		   mode.c_str(),
 		   accperm.c_str()
 		   );
@@ -1830,8 +1831,8 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   }
   else
   {
-    eos_static_err("reject access to ino=%16x request-mode=%s granted-mode=%s", 
-		   md.md_pino(), 
+    eos_static_err("reject access to ino=%16x request-mode=%s granted-mode=%s",
+		   md.md_pino(),
 		   mode.c_str(),
 		   accperm.c_str()
 		   );
@@ -2147,7 +2148,7 @@ FuseServer::HandleMD(const std::string& id,
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
           if (exclusive && pcmd->findContainer(md.name())) {
-            // O_EXCL set on creation - 
+            // O_EXCL set on creation -
 	    eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
             return EEXIST;
           }

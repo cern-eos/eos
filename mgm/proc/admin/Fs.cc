@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

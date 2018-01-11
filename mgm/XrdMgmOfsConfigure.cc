@@ -42,6 +42,7 @@
 #include "mgm/FileConfigEngine.hh"
 #include "mgm/VstMessaging.hh"
 #include "mgm/Egroup.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "mgm/http/HttpServer.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
@@ -50,6 +51,7 @@
 #include "common/CommentLog.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
+#include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"

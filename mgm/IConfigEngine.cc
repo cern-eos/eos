@@ -29,6 +29,7 @@
 #include "mgm/Vid.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "namespace/interface/IQuota.hh"
 #include <sstream>

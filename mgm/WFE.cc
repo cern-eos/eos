@@ -30,6 +30,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"

@@ -26,6 +26,7 @@
 #include "mgm/http/s3/S3Handler.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "namespace/interface/IView.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"

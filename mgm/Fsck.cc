@@ -31,7 +31,8 @@
 #include "common/Mapping.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

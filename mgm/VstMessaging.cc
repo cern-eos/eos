@@ -28,6 +28,8 @@
 #include "mgm/VstView.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqTiming.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -530,5 +532,3 @@ VstMessaging::PublishInfluxDbUdp()
 
 
 EOSMGMNAMESPACE_END
-
-

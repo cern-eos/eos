@@ -37,6 +37,7 @@
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
 
 // -----------------------------------------------------------------------------
 // Note: the defines after have to be in agreements with the defins in XrdMqOfs.cc

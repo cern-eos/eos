@@ -30,6 +30,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/

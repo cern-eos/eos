@@ -29,6 +29,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is

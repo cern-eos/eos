@@ -24,6 +24,9 @@
 #include "common/Path.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/CommentLog.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

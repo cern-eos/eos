@@ -27,14 +27,12 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
-#include "namespace/interface/IView.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "Xrd/XrdScheduler.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
 #include <sys/types.h>
+
+//! Forward declaration
+class XrdScheduler;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -220,7 +218,7 @@ public:
 
     bool IsSync(std::string event="" ) {return ( (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::");}
 
-    
+
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
     std::string mDescription;

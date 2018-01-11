@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

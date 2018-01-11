@@ -105,7 +105,6 @@
 #include "common/JeMallocHandler.hh"
 #include "common/ZMQ.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
@@ -134,6 +133,8 @@ namespace eos
   class IFileMDSvc;
   class IContainerMDSvc;
   class IView;
+  class IFileMDChangeListener;
+  class IContainerMDChangeListener;
 }
 
 namespace eos
@@ -154,6 +155,7 @@ class VstMessaging;
 class IConfigEngine;
 class HttpServer;
 class Egroup;
+class GeoTreeEngine;
 }
 }
 
@@ -1426,7 +1428,6 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier
   ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
-  GeoTreeEngine GeotreeEngine; ///< Placement / Access Engine
   Drainer* DrainerEngine; ///< Drainer management thread
 
   //! Map storing the modification times of directories, they are either

@@ -25,6 +25,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IView.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/StringConversion.hh"

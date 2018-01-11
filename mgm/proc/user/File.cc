@@ -30,6 +30,9 @@
 #include "mgm/Policy.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include <math.h>
 #include <memory>

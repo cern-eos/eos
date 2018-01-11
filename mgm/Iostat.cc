@@ -26,6 +26,7 @@
 #include "common/Path.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <iostream>

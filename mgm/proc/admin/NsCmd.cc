@@ -25,6 +25,9 @@
 #include "common/LinuxStat.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include <sstream>
