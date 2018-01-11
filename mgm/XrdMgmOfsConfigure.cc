@@ -435,7 +435,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       Eroute.Say(mJeMallocHandler.ProfRunning() ?
                  "jemalloc heap profiling enabled and running" :
                  "jemalloc heap profiling enabled and NOT running");
-      eos_warning("jemalloc heap profiling enabled and %srunning. will start running on signal 40 and will stop running on signal 41",
+      eos_warning("jemalloc heap profiling enabled and %srunning. will start "
+                  "running on signal 40 and will stop running on signal 41",
                   mJeMallocHandler.ProfRunning() ? "" : "NOT ");
     } else {
       eos_warning("jemalloc heap profiling is disabled");
@@ -451,7 +452,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     signal(41, StopHeapProfiling);
     signal(42, DumpHeapProfile);
   } else {
-    eos_static_warning("cannot install signal handlers for heap profiling as ports 40,41,42 don't fit in the allowed realtime dignal range. SIGRTMIN=%d  SIGRTMAX=%d",
+    eos_static_warning("cannot install signal handlers for heap profiling as "
+                       "ports 40, 41, 42 don't fit in the allowed realtime "
+                       "dignal range. SIGRTMIN=%d  SIGRTMAX=%d",
                        (int)SIGRTMIN, (int)SIGRTMAX);
   }
 
