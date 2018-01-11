@@ -28,8 +28,6 @@
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
 /*----------------------------------------------------------------------------*/
@@ -63,11 +61,11 @@ public:
   Add (unsigned long val)
   {
     int64_t time_val = time(0);
-    
+
     if (time_val < 0) {
       time_val = 0;
     }
-    
+
     unsigned int bin3600 = time_val % 3600;
     unsigned int bin300 = time_val % 300;
     unsigned int bin60 = time_val % 60;
@@ -87,7 +85,7 @@ public:
   StampZero ()
   {
     int64_t time_val = time(0);
-    
+
     if (time_val < 0) {
       time_val = 0;
     }
@@ -198,7 +196,7 @@ public:
   Insert (unsigned long nsample, const double &avgv, const double &minv, const double &maxv)
   {
     int64_t time_val = time(0);
-    
+
     if (time_val < 0) {
       time_val = 0;
     }
@@ -248,7 +246,7 @@ public:
   StampZero ()
   {
     int64_t time_val = time(0);
-    
+
     if (time_val < 0) {
       time_val = 0;
     }
@@ -450,7 +448,7 @@ public:
   struct timeval start__ID__;                   \
   struct timeval stop__ID__;                    \
   struct timezone tz__ID__;                     \
-  gettimeofday(&start__ID__, &tz__ID__);                                        
+  gettimeofday(&start__ID__, &tz__ID__);
 
 #define EXEC_TIMING_END(__ID__)                                         \
   gettimeofday(&stop__ID__, &tz__ID__);                                 \

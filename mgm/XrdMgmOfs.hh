@@ -108,8 +108,6 @@
 #include "common/JeMallocHandler.hh"
 #include "common/ZMQ.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mq/XrdMqSharedObject.hh"
-#include "mgm/IConfigEngine.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
@@ -122,15 +120,7 @@
 #include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/http/HttpServer.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucTable.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSec/XrdSecEntity.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <dirent.h>
-#include "auth_plugin/ProtoUtils.hh"
 #include "mgm/ZMQ.hh"
 #include <chrono>
 #include <mutex>
@@ -164,6 +154,7 @@ namespace mgm
 class MgmOfsVstMessaging;
 class Drainer;
 class VstMessaging;
+class IConfigEngine;
 }
 }
 

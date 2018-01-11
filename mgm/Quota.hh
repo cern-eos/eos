@@ -31,8 +31,6 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
-#include "mgm/Namespace.hh"
-#include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "common/Logging.hh"
