@@ -236,7 +236,11 @@ FileMDSvc::removeFile(IFileMD* obj)
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   obj->setDeleted();
-  --mNumFiles;
+
+  if (mNumFiles) {
+    --mNumFiles;
+  }
+
   // Remove id from dirty set
   pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }

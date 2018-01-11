@@ -247,7 +247,10 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   obj->setDeleted();
-  --mNumConts;
+
+  if (mNumConts) {
+    --mNumConts;
+  }
 }
 
 //------------------------------------------------------------------------------

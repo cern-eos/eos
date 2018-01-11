@@ -585,6 +585,7 @@ FileSystemView::CacheNoReplicasFiles()
 {
   if (pNoReplicasCached == false) {
     pNoReplicasCached = true;
+    pNoReplicas.clear();
 
     for (auto it = getStreamingNoReplicasFileList();
          (it && it->valid()); it->next()) {
