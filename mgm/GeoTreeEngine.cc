@@ -3137,16 +3137,24 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
     gOFS->ObjectManager.HashMutex.UnLockRead();
 
+    pTreeMapMutex.LockRead();
+
     if (!pFsId2FsPtr.count(fsid)) {
       eos_warning("Inconsistency: Trying to access an existing fs which is not "
                   "referenced in the GeoTreeEngine anymore");
+      pTreeMapMutex.UnLockRead();
       continue;
     }
 
     eos::common::FileSystem* filesystem = pFsId2FsPtr[fsid];
+
+    if (!filesystem) {
+      eos_err("update : Invalid FileSystem Entry, skipping this update");
+      pTreeMapMutex.UnLockRead();
+      continue;   
+    }
     eos::common::FileSystem::fs_snapshot_t fs;
     filesystem->SnapShotFileSystem(fs, true);
-    pTreeMapMutex.LockRead();
 
     if (!pFs2SchedTME.count(fsid)) {
       eos_err("update : TreeEntryMap has been removed, skipping this update");
