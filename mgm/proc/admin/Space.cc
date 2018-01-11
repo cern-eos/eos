@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
+#include "namespace/interface/IFsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

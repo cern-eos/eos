@@ -24,6 +24,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
+#include "mgm/VstMessaging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

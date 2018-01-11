@@ -22,6 +22,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "common/CommentLog.hh"
 #include "IProcCommand.hh"
 #include <json/json.h>
 

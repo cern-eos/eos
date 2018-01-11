@@ -24,6 +24,7 @@
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "namespace/interface/IFsView.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -256,7 +257,7 @@ DrainFS::Drain()
             (*job)->ReportError(error);
             mJobsFailed.push_back(*job);
             job = mJobsPending.erase(job);
-            continue;     
+            continue;
           }
         }
         XrdSysTimer sleep;

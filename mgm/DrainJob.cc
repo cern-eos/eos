@@ -27,6 +27,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
+#include "namespace/interface/IFsView.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
@@ -688,4 +689,3 @@ nofilestodrain:
 }
 
 EOSMGMNAMESPACE_END
-

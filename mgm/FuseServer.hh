@@ -372,7 +372,7 @@ public:
     // essentially a map containing clients which currently flush a file
   public:
 
-    static const int cFlushWindow = 60;
+    static constexpr int cFlushWindow = 60;
 
     Flush() = default;
 

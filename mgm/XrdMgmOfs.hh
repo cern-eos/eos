@@ -104,7 +104,6 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
-#include "common/CommentLog.hh"
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/ZMQ.hh"
@@ -121,13 +120,8 @@
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Messaging.hh"
-#include "mgm/VstMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/http/HttpServer.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -149,9 +143,27 @@ class XrdMgmOfsDirectory;
 
 namespace eos
 {
+  class IFsView;
+  class IFileMDSvc;
+  class IContainerMDSvc;
+  class IView;
+}
+
+namespace eos
+{
+namespace common
+{
+  class CommentLog;
+}
+}
+
+namespace eos
+{
 namespace mgm
 {
+class MgmOfsVstMessaging;
 class Drainer;
+class VstMessaging;
 }
 }
 

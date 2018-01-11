@@ -39,6 +39,7 @@
 #include "mgm/Recycle.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/FileConfigEngine.hh"
+#include "mgm/VstMessaging.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif

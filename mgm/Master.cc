@@ -36,6 +36,7 @@
 #include "mq/XrdMqClient.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
+#include "namespace/interface/IFsView.hh"
 
 // -----------------------------------------------------------------------------
 // Note: the defines after have to be in agreements with the defins in XrdMqOfs.cc
