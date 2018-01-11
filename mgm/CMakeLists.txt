@@ -38,13 +38,14 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_SOURCE_DIR}/mgm/cta_interface/include
-  ${CMAKE_BINARY_DIR}/mgm/cta_interface/eos_cta/protobuf
+  ${CMAKE_BINARY_DIR}/mgm/eos_cta_pb
 )
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
 #-------------------------------------------------------------------------------
-add_subdirectory(cta_interface)
+set(EOS_CTA_PB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cta_interface/eos_cta/protobuf/)
+add_subdirectory(eos_cta_pb)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -214,7 +215,7 @@ target_link_libraries(
   eosCommonServer
   EosNsCommon
   eosCapability-Static
-  XrdCtaMessages
+  XrdSsiPbEosCta
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
@@ -286,7 +287,7 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     eosCommonServer
     eosCapability-Static
     qclient
-    XrdCtaMessages
+    XrdSsiPbEosCta
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
