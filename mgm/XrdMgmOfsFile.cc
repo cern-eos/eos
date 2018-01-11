@@ -486,7 +486,7 @@ XrdMgmOfsFile::open(const char* inpath,
   gid_t d_gid = vid.gid;
   std::string creation_path = path;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       if (byfid) {
@@ -682,6 +682,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
     // If a file has the sys.proc attribute, it will be redirected as a command
     if (fmd != nullptr && fmd->getAttributes().count("sys.proc")) {
+      ns_rd_lock.Release();
       return open("/proc/user/", open_mode, Mode, client,
                   fmd->getAttribute("sys.proc").c_str());
     }
