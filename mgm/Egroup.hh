@@ -28,8 +28,6 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
 #include <deque>
@@ -40,9 +38,9 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file Egroup.hh
- * 
+ *
  * @brief Class implementing egroup support via LDAP queries
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -53,16 +51,16 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Class implementing EGROUP support
- * 
- * Provides static functions to check egroup membership's by 
+ *
+ * Provides static functions to check egroup membership's by
  * username/egroup name.\n
  * The Egroup object mantains a thread which is serving async
  * Egroup membership update requests. \n
- * The application has to generate a single Egroup object and should use the 
+ * The application has to generate a single Egroup object and should use the
  * static Egroup::Member function to check Egroup membership.\n\n
  * The problem here is that the calling function in the MGM
  * has a read lock durign the Egroup::Member call and the
- * refreshing of Egroup permissions should be done if possible asynchronous to 
+ * refreshing of Egroup permissions should be done if possible asynchronous to
  * avoid mutex starvation.
  */
 /*----------------------------------------------------------------------------*/
@@ -78,7 +76,7 @@ private:
   void DoRefresh (std::string &egroupname, std::string &username);
 
 public:
-  /// static queue with pairs of egroup/username 
+  /// static queue with pairs of egroup/username
   static std::deque <std::pair<std::string, std::string > > LdapQueue;
 
   /// static mutex protecting static Egroup objects

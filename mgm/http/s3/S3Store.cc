@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/http/HttpServer.hh"
 #include "mgm/http/s3/S3Store.hh"
 #include "mgm/http/s3/S3Handler.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -962,4 +963,3 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
 }
 
 EOSMGMNAMESPACE_END
-

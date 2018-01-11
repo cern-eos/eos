@@ -35,8 +35,6 @@
 #include "common/http/HttpServer.hh"
 #include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
@@ -87,11 +85,11 @@ public:
 
   virtual void
   CompleteHandler (void                              *cls,
-		   struct MHD_Connection             *connection, 
+		   struct MHD_Connection             *connection,
 		   void                             **con_cls,
 		   enum MHD_RequestTerminationCode    toe);
 
-  
+
 
 #endif
 

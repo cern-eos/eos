@@ -25,6 +25,8 @@
 #include "mgm/Quota.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ExpiryCache.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

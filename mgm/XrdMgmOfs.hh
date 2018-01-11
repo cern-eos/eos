@@ -98,12 +98,9 @@
 #ifndef __EOSMGM_MGMOFS__HH__
 #define __EOSMGM_MGMOFS__HH__
 
-#include "authz/XrdCapability.hh"
 #include "auth_plugin/ProtoUtils.hh"
 #include "common/Mapping.hh"
-#include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/GlobalConfig.hh"
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/ZMQ.hh"
@@ -115,11 +112,9 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
-#include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
-#include "mgm/http/HttpServer.hh"
 #include <dirent.h>
 #include "mgm/ZMQ.hh"
 #include <chrono>
@@ -130,6 +125,8 @@ USE_EOSMGMNAMESPACE
 //! Forward declaration
 class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
+class XrdCapability;
+class XrdAccAuthorize;
 
 namespace eos
 {
@@ -155,6 +152,8 @@ class MgmOfsVstMessaging;
 class Drainer;
 class VstMessaging;
 class IConfigEngine;
+class HttpServer;
+class Egroup;
 }
 }
 
@@ -1436,11 +1435,12 @@ public:
   XrdSysMutex MgmDirectoryModificationTimeMutex;
   google::sparse_hash_map<unsigned long long, struct timespec>
     MgmDirectoryModificationTime;
-  HttpServer Httpd; ///<  Http daemon if available
+
+  std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
   LRU LRUd; ///< LRU object running the LRU policy engine
   WFE WFEd; ///< WFE object running the WFE engine
   //!  Egroup refresh object running asynchronous Egroup fetch thread
-  Egroup EgroupRefresh;
+  std::unique_ptr<Egroup> EgroupRefresh;
   Recycle Recycler; ///<  Recycle object running the recycle bin deletion thread
   bool UTF8; ///< true if running in less restrictive character set mode
 

@@ -92,7 +92,7 @@ xrdmgmofs_shutdown(int sig)
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
-  gOFS->EgroupRefresh.Stop();
+  gOFS->EgroupRefresh->Stop();
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop LRU thread ... ");
   gOFS->LRUd.Stop();

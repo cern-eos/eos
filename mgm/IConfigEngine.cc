@@ -28,7 +28,9 @@
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
 #include "mgm/proc/proc_fs.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/txengine/TransferEngine.hh"
+#include "namespace/interface/IQuota.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN

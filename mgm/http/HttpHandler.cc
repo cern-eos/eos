@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/http/HttpServer.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Namespace.hh"

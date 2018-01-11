@@ -30,6 +30,7 @@
 #include <string.h>
 #include <sys/fsuid.h>
 /*----------------------------------------------------------------------------*/
+#include "authz/XrdCapability.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
@@ -40,10 +41,13 @@
 #include "mgm/drain/Drainer.hh"
 #include "mgm/FileConfigEngine.hh"
 #include "mgm/VstMessaging.hh"
+#include "mgm/Egroup.hh"
+#include "mgm/http/HttpServer.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "common/plugin_manager/PluginManager.hh"
+#include "common/CommentLog.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
@@ -1954,12 +1958,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // create the 'default' quota space which is needed if quota is disabled!
-  if (!Httpd.Start()) {
+  Httpd.reset(new eos::mgm::HttpServer());
+  if (!Httpd->Start()) {
     eos_warning("msg=\"cannot start httpd daemon\"");
   }
 
   // start the Egroup fetching
-  if (!gOFS->EgroupRefresh.Start()) {
+  EgroupRefresh.reset(new eos::mgm::Egroup());
+  if (!gOFS->EgroupRefresh->Start()) {
     eos_warning("msg=\"cannot start egroup thread\"");
   }
 

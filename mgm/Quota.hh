@@ -31,12 +31,10 @@
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
 /*----------------------------------------------------------------------------*/
-#include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
-#include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
 #include "namespace/interface/IQuota.hh"
 #include "XrdOuc/XrdOucString.hh"

@@ -23,6 +23,7 @@
 #include "ProcCommand.hh"
 #include "common/Path.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "common/CommentLog.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

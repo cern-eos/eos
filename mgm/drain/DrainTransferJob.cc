@@ -23,6 +23,7 @@
 
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
 
