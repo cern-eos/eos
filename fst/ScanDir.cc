@@ -669,7 +669,7 @@ ScanDir::ThreadProc(void)
                      fsId);
           gFmdDbMapHandler.RemoveGhostEntries(dirPath.c_str(), fsId);
           XrdSysTimer sleeper;
-          sleeper.Wait(60);
+          sleeper.Wait(60 * 1000);
         }
       }
     }
