@@ -44,11 +44,15 @@
 #include "mgm/Egroup.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/http/HttpServer.hh"
+#include "mgm/ZMQ.hh"
+#include "mgm/Iostat.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
+#include "common/ZMQ.hh"
+#include "common/Path.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -1960,13 +1964,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // create the 'default' quota space which is needed if quota is disabled!
-  Httpd.reset(new eos::mgm::HttpServer());
   if (!Httpd->Start()) {
     eos_warning("msg=\"cannot start httpd daemon\"");
   }
 
   // start the Egroup fetching
-  EgroupRefresh.reset(new eos::mgm::Egroup());
   if (!gOFS->EgroupRefresh->Start()) {
     eos_warning("msg=\"cannot start egroup thread\"");
   }
@@ -1982,7 +1984,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // start the recycler garbage collection thread on a master machine
-  if ((MgmMaster.IsMaster()) && (!Recycler.Start())) {
+  if ((MgmMaster.IsMaster()) && (!Recycler->Start())) {
     eos_warning("msg=\"cannot start recycle thread\"");
   }
 
@@ -1995,7 +1997,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ioaccounting += ".dump";
   eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
-  if (!IoStats.SetStoreFileName(ioaccounting.c_str()))
+  if (!IoStats->SetStoreFileName(ioaccounting.c_str()))
     eos_warning("couldn't load anything from the io stat dump file %s",
                 ioaccounting.c_str());
   else {
@@ -2003,7 +2005,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // start IO ciruclate thread
-  IoStats.StartCirculate();
+  IoStats->StartCirculate();
 
   if (!MgmRedirector) {
     if (hash) {

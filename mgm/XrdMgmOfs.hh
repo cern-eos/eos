@@ -103,19 +103,15 @@
 #include "common/Logging.hh"
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
-#include "common/ZMQ.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/Stat.hh"
-#include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
-#include "mgm/Recycle.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include <dirent.h>
-#include "mgm/ZMQ.hh"
 #include <chrono>
 #include <mutex>
 
@@ -156,6 +152,9 @@ class IConfigEngine;
 class HttpServer;
 class Egroup;
 class GeoTreeEngine;
+class ZMQ;
+class Recycle;
+class Iostat;
 }
 }
 
@@ -165,6 +164,12 @@ namespace auth
 {
 class RequestProto;
 }
+}
+
+namespace zmq
+{
+  class socket_t;
+  class context_t;
 }
 
 //------------------------------------------------------------------------------
@@ -1399,7 +1404,7 @@ public:
   XrdAccAuthorize* Authorization; ///< Authorization service
 
   Stat MgmStats; ///<  Mgm Namespace Statistics
-  Iostat IoStats; ///<  Mgm IO Statistics
+  std::unique_ptr<Iostat> IoStats; ///<  Mgm IO Statistics
 
   //! Mgm IO Report store path by default is /var/tmp/eos/report
   XrdOucString IoReportStorePath;
@@ -1442,7 +1447,8 @@ public:
   WFE WFEd; ///< WFE object running the WFE engine
   //!  Egroup refresh object running asynchronous Egroup fetch thread
   std::unique_ptr<Egroup> EgroupRefresh;
-  Recycle Recycler; ///<  Recycle object running the recycle bin deletion thread
+  //!  Recycle object running the recycle bin deletion thread
+  std::unique_ptr<Recycle> Recycler;
   bool UTF8; ///< true if running in less restrictive character set mode
 
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
@@ -1451,7 +1457,6 @@ public:
   std::string mQdbCluster; ///< Quardb cluster info host1:port1 host2:port2 etc.
 
 private:
-  eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
   std::map<std::string, XrdMgmOfsDirectory*>
   mMapDirs; ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

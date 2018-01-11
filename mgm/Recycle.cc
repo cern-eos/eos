@@ -25,6 +25,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
+#include "common/Path.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
@@ -1215,7 +1216,7 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
       stdOut += "success: recycle bin size configured!\n";
     }
 
-    gOFS->Recycler.WakeUp();
+    gOFS->Recycler->WakeUp();
     return result;
   }
 
@@ -1259,7 +1260,7 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
       stdOut += "success: recycle bin lifetime configured!\n";
     }
 
-    gOFS->Recycler.WakeUp();
+    gOFS->Recycler->WakeUp();
   }
 
   if (option == "--ratio") {
@@ -1300,7 +1301,7 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
       stdOut += "success: recycle bin ratio configured!\n";
     }
 
-    gOFS->Recycler.WakeUp();
+    gOFS->Recycler->WakeUp();
   }
 
   return 0;

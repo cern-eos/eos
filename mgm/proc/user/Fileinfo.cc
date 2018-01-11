@@ -28,6 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/LayoutId.hh"
+#include "common/Path.hh"
 #include "namespace/interface/IView.hh"
 #include <json/json.h>
 

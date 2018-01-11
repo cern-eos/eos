@@ -32,6 +32,7 @@
 #include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/plugin_manager/Plugin.hh"
+#include "common/ZMQ.hh"
 #include "namespace/Constants.hh"
 #include "authz/XrdCapability.hh"
 #include "mgm/Access.hh"
@@ -53,6 +54,8 @@
 #include "mgm/VstMessaging.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/http/HttpServer.hh"
+#include "mgm/ZMQ.hh"
+#include "mgm/Iostat.hh"
 #include "namespace/interface/IFsView.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
@@ -168,6 +171,11 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN = 0;
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
+
+  IoStats.reset(new eos::mgm::Iostat());
+  Httpd.reset(new eos::mgm::HttpServer());
+  EgroupRefresh.reset(new eos::mgm::Egroup());
+  Recycler.reset(new eos::mgm::Recycle());
 }
 
 //------------------------------------------------------------------------------

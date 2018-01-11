@@ -28,6 +28,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Access.hh"
 #include "mgm/Acl.hh"
+#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"

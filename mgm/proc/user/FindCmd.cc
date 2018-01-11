@@ -25,6 +25,7 @@
 
 #include "FindCmd.hh"
 #include "common/Path.hh"
+#include "common/LayoutId.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
 #include "namespace/interface/IView.hh"

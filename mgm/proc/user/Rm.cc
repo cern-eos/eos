@@ -28,6 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
+#include "common/Path.hh"
 #include <regex.h>
 
 EOSMGMNAMESPACE_BEGIN

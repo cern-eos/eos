@@ -27,6 +27,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
+#include "mgm/Iostat.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -384,7 +385,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
   }
   Access::ApplyAccessConfig();
   gOFS->FsCheck.ApplyFsckConfig();
-  gOFS->IoStats.ApplyIostatConfig();
+  gOFS->IoStats->ApplyIostatConfig();
   gTransferEngine.ApplyTransferEngineConfig();
 
   if (err.length()) {

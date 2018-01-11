@@ -34,8 +34,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-#include "common/http/HttpResponse.hh"
-#include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -380,4 +378,3 @@ public:
 EOSCOMMONNAMESPACE_END
 
 #endif
-

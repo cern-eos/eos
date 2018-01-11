@@ -154,7 +154,7 @@ XrdMgmOfs::FsConfigListener()
                   Access::ApplyAccessConfig(false);
 
                   if (skey.beginswith("iostat:")) {
-                    gOFS->IoStats.ApplyIostatConfig();
+                    gOFS->IoStats->ApplyIostatConfig();
                   }
 
                   if (skey.beginswith("fsck")) {

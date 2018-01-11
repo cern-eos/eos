@@ -26,6 +26,7 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Macros.hh"
 #include <sys/fsuid.h>
+#include <fcntl.h>
 
 EOSMGMNAMESPACE_BEGIN
 

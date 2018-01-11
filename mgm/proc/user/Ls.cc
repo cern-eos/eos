@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

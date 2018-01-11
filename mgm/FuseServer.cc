@@ -30,6 +30,8 @@
 #include <regex.h>
 #include "common/Logging.hh"
 #include "XrdMgmOfs.hh"
+#include "mgm/ZMQ.hh"
+#include "common/ZMQ.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

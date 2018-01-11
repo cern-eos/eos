@@ -40,13 +40,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysPthread.hh"
-
 /*----------------------------------------------------------------------------*/
-#include <pwd.h>
-#include <grp.h>
 #include <map>
 #include <set>
 #include <vector>

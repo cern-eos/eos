@@ -31,6 +31,9 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
+#include <pwd.h>
+#include <grp.h>
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -1138,7 +1141,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   eos_static_debug("find in uid cache %s", name);
 
   XrdSysMutexHelper gLock(gPhysicalIdMutex);
-  
+
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name))) {
     eos_static_debug("not found in uid cache");

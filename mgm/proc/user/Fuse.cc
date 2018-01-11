@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
+#include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -23,6 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Iostat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -55,7 +56,7 @@ ProcCommand::Io()
       if ((!reports) && (!reportnamespace)) {
         if (mSubCmd == "enable") {
           if (target.length()) {
-            if (gOFS->IoStats.AddUdpTarget(target.c_str())) {
+            if (gOFS->IoStats->AddUdpTarget(target.c_str())) {
               stdOut += "success: enabled IO udp target ";
               stdOut += target.c_str();
             } else {
@@ -65,9 +66,9 @@ ProcCommand::Io()
             }
           } else {
             if (popularity) {
-              gOFS->IoStats.Start(); // always enable collection otherwise we don't get anything for popularity reporting
+              gOFS->IoStats->Start(); // always enable collection otherwise we don't get anything for popularity reporting
 
-              if (gOFS->IoStats.StartPopularity()) {
+              if (gOFS->IoStats->StartPopularity()) {
                 stdOut += "success: enabled IO popularity collection";
               } else {
                 stdErr += "error: IO popularity collection already enabled";
@@ -75,7 +76,7 @@ ProcCommand::Io()
                 retc = EINVAL;
               }
             } else {
-              if (gOFS->IoStats.StartCollection()) {
+              if (gOFS->IoStats->StartCollection()) {
                 stdOut += "success: enabled IO report collection";
               } else {
                 stdErr += "error: IO report collection already enabled";
@@ -88,7 +89,7 @@ ProcCommand::Io()
 
         if (mSubCmd == "disable") {
           if (target.length()) {
-            if (gOFS->IoStats.RemoveUdpTarget(target.c_str())) {
+            if (gOFS->IoStats->RemoveUdpTarget(target.c_str())) {
               stdOut += "success: disabled IO udp target ";
               stdOut += target.c_str();
             } else {
@@ -98,7 +99,7 @@ ProcCommand::Io()
             }
           } else {
             if (popularity) {
-              if (gOFS->IoStats.StopPopularity()) {
+              if (gOFS->IoStats->StopPopularity()) {
                 stdOut += "success: disabled IO popularity collection";
               } else {
                 stdErr += "error: IO popularity collection already disabled";
@@ -106,7 +107,7 @@ ProcCommand::Io()
                 retc = EINVAL;
               }
             } else {
-              if (gOFS->IoStats.StopCollection()) {
+              if (gOFS->IoStats->StopCollection()) {
                 stdOut += "success: disabled IO report collection";
               } else {
                 stdErr += "error: IO report collection was already disabled";
@@ -118,7 +119,7 @@ ProcCommand::Io()
       } else {
         if (reports) {
           if (mSubCmd == "enable") {
-            if (gOFS->IoStats.StartReport()) {
+            if (gOFS->IoStats->StartReport()) {
               stdErr += "error: IO report store already enabled";
               retc = EINVAL;
             } else {
@@ -127,7 +128,7 @@ ProcCommand::Io()
           }
 
           if (mSubCmd == "disable") {
-            if (!gOFS->IoStats.StopReport()) {
+            if (!gOFS->IoStats->StopReport()) {
               stdErr += "error: IO report store already disabled";
               retc = EINVAL;
             } else {
@@ -138,7 +139,7 @@ ProcCommand::Io()
 
         if (reportnamespace) {
           if (mSubCmd == "enable") {
-            if (gOFS->IoStats.StartReportNamespace()) {
+            if (gOFS->IoStats->StartReportNamespace()) {
               stdErr += "error: IO report namespace already enabled";
               retc = EINVAL;
             } else {
@@ -147,7 +148,7 @@ ProcCommand::Io()
           }
 
           if (mSubCmd == "disable") {
-            if (!gOFS->IoStats.StopReportNamespace()) {
+            if (!gOFS->IoStats->StopReportNamespace()) {
               stdErr += "error: IO report namespace already disabled";
               ;
               retc = EINVAL;
@@ -204,14 +205,14 @@ ProcCommand::Io()
     }
 
     eos_info("io stat");
-    gOFS->IoStats.PrintOut(stdOut, summary, details, monitoring, numerical,
+    gOFS->IoStats->PrintOut(stdOut, summary, details, monitoring, numerical,
                            top, domain, apps, option);
   }
 
   if (mSubCmd == "ns") {
     XrdOucString option = pOpaque->Get("mgm.option");
     eos_info("io ns");
-    gOFS->IoStats.PrintNs(stdOut, option);
+    gOFS->IoStats->PrintNs(stdOut, option);
   }
 
   return SFS_OK;

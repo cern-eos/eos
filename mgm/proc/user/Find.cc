@@ -28,6 +28,7 @@
 #include "mgm/Acl.hh"
 #include "namespace/interface/IView.hh"
 #include "common/LayoutId.hh"
+#include "common/Path.hh"
 
 #ifdef __APPLE__
 #define ENONET 64

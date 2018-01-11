@@ -28,8 +28,11 @@
 #include "mgm/Macros.hh"
 #include "mgm/Acl.hh"
 #include "common/SymKeys.hh"
+#include "common/Path.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "common/ZMQ.hh"
+#include "mgm/ZMQ.hh"
 #include <iomanip>
 
 EOSMGMNAMESPACE_BEGIN

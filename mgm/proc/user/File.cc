@@ -28,6 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
+#include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
 #include "namespace/interface/IContainerMDSvc.hh"

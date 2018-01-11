@@ -26,6 +26,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Recycle.hh"
 #include "common/Statfs.hh"
 #include "common/ShellCmd.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1543,7 +1544,7 @@ Master::Slave2Master()
     }
   }
   // Re-start the recycler thread
-  gOFS->Recycler.Start();
+  gOFS->Recycler->Start();
   eos_alert("msg=\"running as master-rw\"");
   MasterLog(eos_notice("running in master mode"));
   return true;
@@ -1579,7 +1580,7 @@ Master::Master2MasterRO()
   }
 
   // Stop the recycler thread
-  gOFS->Recycler.Stop();
+  gOFS->Recycler->Stop();
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   fRunningState = Run::State::kIsReadOnlyMaster;
   eos_alert("msg=\"running as master-ro\"");

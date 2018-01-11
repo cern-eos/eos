@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include <sstream>
+#include <fcntl.h>
 
 EOSMGMNAMESPACE_BEGIN
 
