@@ -217,7 +217,7 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
     return *(iter_map->second);
   }
 
-  // Check if map full and purge some entries is necessary 10% of max size
+  // Check if map full and purge some entries if necessary 10% of max size
   if (mMap.size() >= mMaxSize) {
     auto iter = mList.begin();
 
