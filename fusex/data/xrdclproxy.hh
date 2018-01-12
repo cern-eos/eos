@@ -547,9 +547,9 @@ namespace XrdCl
 
       WriteAsyncHandler(Proxy* file, uint32_t size, off_t off=0, uint16_t timeout=0)  : mProxy(file), woffset(off), mTimeout(timeout)
       {
-        XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
         mBuffer = sWrBufferManager.get_buffer(size);
 	mBuffer->resize(size);
+        XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
         mProxy->WriteCondVar().Signal();
       }
 
