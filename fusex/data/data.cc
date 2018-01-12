@@ -33,12 +33,14 @@
 #include <iostream>
 #include <sstream>
 
+
 bufferllmanager data::datax::sBufferManager;
 
 /* -------------------------------------------------------------------------- */
 data::data()
 /* -------------------------------------------------------------------------- */
 {
+  XrdCl::Proxy::sRaBufferManager.configure(16, cachehandler::instance().get_config().default_read_ahead_size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -193,36 +195,78 @@ data::datax::flush(fuse_req_t req)
 {
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
-  return flush_nolock(req);
+  return flush_nolock(req, true, false);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::flush_nolock(fuse_req_t req)
+data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
 
-  if (mFile->journal()) {
-    if ((ssize_t) mFile->journal()->size() > (ssize_t)
-        mFile->file()->prefetch_size()) {
-      eos_debug("no attach jsize=%ld psize=%ld", (ssize_t) mFile->journal()->size(),
-                (ssize_t) mFile->file()->prefetch_size());
+  bool journal_recovery = false;
+  
+  if (mFile->journal() && mFile->has_xrdiorw(req)) {
+    eos_info("flushing journal");
 
-      if (mWaitForOpen) {
-        if (journalflush(req)) {
-          errno = EREMOTEIO ;
-          return -1;
-        }
+    ssize_t truncate_size = mFile->journal()->get_truncatesize();
 
-        mWaitForOpen = false;
+    if (wait_open)
+    {
+      // wait atleast that we could open that file
+      mFile->xrdiorw(req)->WaitOpen();
+    }
+
+    if ( (truncate_size != -1 ) 
+	 || ( wait_writes  &&  mFile->journal()->size() ) )
+    {
+      // if there is a truncate to be done, we have to wait for the writes and truncate
+      // if we are asked to wait for writes (when pwrite sees a journal full) we free the journal
+
+      for (auto it = mFile->get_xrdiorw().begin();
+	   it != mFile->get_xrdiorw().end(); ++it) {
+	XrdCl::XRootDStatus status = it->second->WaitOpen();
+	if (!status.IsOK()) {
+	  journal_recovery = true;
+	  eos_err("file not open");
+	}
+	
+	status = it->second->WaitWrite();
+	
+	if (!status.IsOK()) {
+	  journal_recovery = true;
+	  eos_err("write error error=%s", status.ToStr().c_str());
+	}
+      }
+
+      ssize_t truncate_size = mFile->journal()->get_truncatesize();
+      if (!journal_recovery && (truncate_size != -1)) {
+	// the journal might have a truncation size indicated, so we need to run a sync truncate in the end
+	XrdCl::XRootDStatus status = mFile->xrdiorw(req)->Truncate(truncate_size);
+	if (!status.IsOK()) {
+	  journal_recovery = true;
+	  eos_err("truncateion failed");
+	}
+      }
+      
+      if (journal_recovery) {
+	eos_err("journal-flushing failed");
+	errno = EREMOTEIO ;
+	return -1;
+      } else {
+	// truncate the journal
+	if (mFile->journal()->reset()) {
+	  char msg[1024];
+	  snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
+	  throw std::runtime_error(msg);
+	}
       }
     }
   }
 
   // check if the open failed
-
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
   if (proxy)
   {
@@ -395,6 +439,11 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
                                  XrdCl::Access::UX;
       mFile->xrdiorw(freq)->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
     } else {
+      if (mFile->xrdiorw(freq)->IsWaitWrite())
+      {
+	// re-open the file in the state machine
+	mFile->xrdiorw(freq)->set_state_TS(XrdCl::Proxy::OPENED);
+      }
       mFile->xrdiorw(freq)->attach();
     }
   } else {
@@ -403,6 +452,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       if (mFile->has_xrdioro(freq) && (mFile->xrdioro(freq)->IsClosing() ||
                                        mFile->xrdioro(freq)->IsClosed())) {
         mFile->xrdioro(freq)->WaitClose();
+        mFile->xrdioro(freq)->attach();
       } else {
         mFile->set_xrdioro(freq, new XrdCl::Proxy());
         mFile->xrdioro(freq)->attach();
@@ -751,9 +801,9 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
   ssize_t dw = 0 ;
 
   if (mFile->file()) {
-    if (mFile->file()->size())
+    if (mFile->file()->size() || (mFlags & O_CREAT))
     {
-      // don't write into the file start cache, if it is currently empty since it indicates we never prefetched this file
+      // don't write into the file start cache, if it is currently empty and it is not a newly created file
       dw = mFile->file()->pwrite(buf, count, offset);
     }
   }
@@ -763,36 +813,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
   } else {
     if (mFile->journal()) {
       if (!mFile->journal()->fits(count)) {
-        if (flush_nolock(req)) {
-          return -1;
-        }
-
-        if (!mWaitForOpen) {
-          bool journal_recovery = false;
-
-          // collect all writes in flight
-          for (auto it = mFile->get_xrdiorw().begin();
-               it != mFile->get_xrdiorw().end(); ++it) {
-            XrdCl::XRootDStatus status = it->second->WaitWrite();
-
-            if (!status.IsOK()) {
-              journal_recovery = true;
-            }
-          }
-
-          if (journal_recovery) {
-            eos_err("journal-flushing failed");
-            errno = EREMOTEIO ;
-            return -1;
-          } else {
-            // truncate the journal
-            if (mFile->journal()->reset()) {
-              char msg[1024];
-              snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
-              throw std::runtime_error(msg);
-            }
-          }
-        }
+	flush_nolock(req, true, true);
       }
 
       // now there is space to write for us
@@ -803,39 +824,42 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       }
 
       dw = jw;
-    } else {
-      if (mFile->xrdiorw(req)->IsOpening()) {
-        mFile->xrdiorw(req)->WaitOpen();
-      }
     }
 
-    if (!mFile->xrdiorw(req)->IsOpening()) {
-      // send an asynchronous upstream write
-      XrdCl::Proxy::write_handler handler =
-        mFile->xrdiorw(req)->WriteAsyncPrepare(count);
-      XrdCl::XRootDStatus status =
-        mFile->xrdiorw(req)->WriteAsync(offset, count, buf, handler, 0);
-
-
+    // send an asynchronous upstream write, which does not wait for the file open to be done
+    XrdCl::Proxy::write_handler handler =
+      mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+    XrdCl::XRootDStatus status =
+      mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+    
+    
+    if (!status.IsOK())
+    {
+      errno = XrdCl::Proxy::status2errno (status);
+      eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
+      return -1;
+    }
+    
+    if (mFlags & O_SYNC) {
+      // make sure the file gets opened
+      XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
       if (!status.IsOK())
       {
 	errno = XrdCl::Proxy::status2errno (status);
-        eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
-        return -1;
+	eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	// TODO: we can recover this later
+	return -1;
       }
-
-      if (mFlags & O_SYNC) {
-        XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitWrite();
-        if (!status.IsOK())
-        {
-	  errno = XrdCl::Proxy::status2errno (status);
-          eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
-	  // TODO: we can recover this later
-          return -1;
-        }
+      
+      // make sure all writes were successfull
+      status = mFile->xrdiorw(req)->WaitWrite();
+      if (!status.IsOK())
+      {
+	errno = XrdCl::Proxy::status2errno (status);
+	eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	// TODO: we can recover this later
+	return -1;
       }
-    } else {
-      mWaitForOpen = true;
     }
   }
 
@@ -873,13 +897,10 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     }
   }
 
-  buffer = sBufferManager.get_buffer();
-
-  if (count > buffer->capacity()) {
-    buffer->reserve(count);
-  }
+  buffer = sBufferManager.get_buffer(count);
 
   buf = buffer->ptr();
+
   ssize_t br = 0;
 
   if (mFile->file()) {
@@ -927,6 +948,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   // read the missing part remote
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                           req) : mFile->xrdiorw(req);
+
   XrdCl::XRootDStatus status;
   eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
 
@@ -936,9 +958,12 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       proxy->WaitOpen();
     }
 
-    if (proxy->OutstandingWrites())
-    {
-      status = proxy->WaitWrite();
+    if (mFile->has_xrdiorw(req)) {
+      XrdCl::Proxy* wproxy = mFile->xrdiorw(req);
+      if (wproxy->OutstandingWrites())
+      {
+	status = wproxy->WaitWrite();
+      }
     }
 
     if (!status.IsOK())
@@ -1015,15 +1040,14 @@ data::datax::truncate(fuse_req_t req, off_t offset)
 {
   XrdSysMutexHelper lLock(mLock);
   eos_info("offset=%llu size=%llu", offset, mSize);
-  //  if (offset == mSize)
-  //    return 0;
+
   int dt = 0;
 
   if (mFile->file()) {
     dt = mFile->file()->truncate(0);
   }
 
-  // if we have a journal it copes with the truncation size
+  // if we have a journal it tracks the truncation size
   int jt = 0;
 
   if (mFile->journal()) {
@@ -1038,7 +1062,9 @@ data::datax::truncate(fuse_req_t req, off_t offset)
         mFile->xrdiorw(req)->WaitOpen();
       }
 
-      // the journal keeps track of truncation, otherwise we do it here
+      mFile->xrdiorw(req)->WaitWrite();
+
+      // the journal keeps track of truncation, otherwise or for O_SYNC we do it here
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->Truncate( offset );
 
       errno = XrdCl::Proxy::status2errno (status);
@@ -1205,7 +1231,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
     {
-      eos_static_debug("");
+      //eos_static_debug("");
       std::vector<shared_data> data;
       {
         // avoid mutex contention
@@ -1267,7 +1293,12 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 		      break;
                     }
                   }
-                }
+                } 
+		
+		if (!fit->second->IsClosed())
+		{
+		  break;
+		}
 
                 {
                   std::string msg;

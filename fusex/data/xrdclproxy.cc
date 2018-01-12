@@ -29,6 +29,10 @@
 
 using namespace XrdCl;
 
+
+XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
+XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
+
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
@@ -620,8 +624,8 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     mProxy->WriteCondVar().Signal();
     delete response;
     delete status;
-    mProxy->ChunkMap().erase((uint64_t)this);
-    if (mProxy->ChunkMap().size())
+    if ( (mProxy->ChunkMap().size() > 1 ) ||
+	 (!mProxy->ChunkMap().count( (uint64_t) this)) )
       no_chunks_left = false;
   }
 
@@ -633,6 +637,10 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
       // send an asynchronous close now
       XrdCl::XRootDStatus status = mProxy->CloseAsync(mProxy->close_after_write_timeout());
     }
+  }
+  {
+    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
+    mProxy->ChunkMap().erase((uint64_t)this);
   }
 }
 
@@ -737,19 +745,34 @@ XrdCl::Proxy::WaitWrite()
 
   WaitOpen();
 
-  XrdSysCondVarHelper lLock(WriteCondVar());
-
-  while ( ChunkMap().size() )
+  if (stateTS() == WAITWRITE)
   {
-
-    eos_debug("     [..] map-size=%lu", ChunkMap().size());
-    WriteCondVar().WaitMS(1000);
+    XrdSysCondVarHelper openLock(OpenCondVar());
+    return XOpenState;
   }
-  eos_debug(" [..] map-size=%lu", ChunkMap().size());
-  lLock.UnLock();
 
-  XrdSysCondVarHelper openLock(OpenCondVar());
-  return XOpenState;
+  // check if the open failed
+  if (stateTS() != OPENED)
+  {
+    XrdSysCondVarHelper openLock(OpenCondVar());
+    return XOpenState;
+  }
+
+  {  
+    XrdSysCondVarHelper lLock(WriteCondVar());
+    
+    while ( ChunkMap().size() )
+    {
+      eos_debug("     [..] map-size=%lu", ChunkMap().size());
+      WriteCondVar().WaitMS(1000);
+    }
+    eos_debug(" [..] map-size=%lu", ChunkMap().size());
+  }
+
+  {
+    XrdSysCondVarHelper openLock(OpenCondVar());
+    return XOpenState;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -778,16 +801,15 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     if (response)
     {
       response->Get(chunk);
-      if (chunk->length < mBuffer.size())
+      if (chunk->length < mBuffer->size())
       {
-        mBuffer.resize(chunk->length);
+        mBuffer->resize(chunk->length);
         mEOF = true;
       }
       delete response;
     }
-
     else
-      mBuffer.resize(0);
+      mBuffer->resize(0);
   }
   mDone = true;
   delete status;

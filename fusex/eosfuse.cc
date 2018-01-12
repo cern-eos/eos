@@ -1270,10 +1270,22 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     sout += ino_stat;
     std::string s1;
     std::string s2;
+    std::string s3;
+    std::string s4;
+    std::string s5;
+    std::string s6;
+    std::string s7;
+    std::string s8;
     snprintf(ino_stat, sizeof(ino_stat),
              "ALL        threads             := %llu\n"
              "ALL        visze               := %s\n"
              "All        rss                 := %s\n"
+	     "All        wr-buf-inflight     := %s\n"
+	     "All        wr-buf-queued       := %s\n"
+	     "All        ra-buf-inflight     := %s\n"
+	     "All        ra-buf-queued       := %s\n"
+	     "All        rd-buf-inflight     := %s\n"
+	     "All        rd-buf-queued       := %s\n"
              "All        version             := %s\n"
              "ALl        fuseversion         := %d\n"
              "All        starttime           := %lu\n"
@@ -1283,6 +1295,12 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              osstat.threads,
              eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
              eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
+             eos::common::StringConversion::GetReadableSizeString(s3, XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s4, XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s5, XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s6, XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s7, data::datax::sBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s8, data::datax::sBufferManager.queued(), "b"),
              VERSION,
              FUSE_USE_VERSION,
              start_time,

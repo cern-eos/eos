@@ -91,7 +91,7 @@ public:
     }
 
     int flush(fuse_req_t req);
-    int flush_nolock(fuse_req_t req);
+    int flush_nolock(fuse_req_t req, bool wait_open=true, bool wait_writes=false);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
     int journalflush_async(std::string cid);
@@ -149,6 +149,9 @@ public:
     {
       return (mAttached) ? true : false;
     }
+
+    static bufferllmanager sBufferManager;
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -163,7 +166,6 @@ public:
     XrdCl::Proxy::read_handler mPrefetchHandler;
 
     bufferllmanager::shared_buffer buffer;
-    static bufferllmanager sBufferManager;
     bool mWaitForOpen;
     int mFlags;
   } ;
