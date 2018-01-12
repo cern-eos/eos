@@ -1161,6 +1161,8 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   md->clear_pmtime_ns();
   md->set_ctime(ts.tv_sec);
   md->set_ctime_ns(ts.tv_nsec);
+  md->set_mv_authid(authid1); // store also the source authid
+
   mdflush.Lock();
 
   while (mdqueue.size() == mdqueue_max_backlog) {
@@ -2010,6 +2012,7 @@ metad::mdcflush(ThreadAssistant& assistant)
 
               if (md->getop() != md->RM) {
                 md->setop_none();
+		md->clear_mv_authid();
               }
 
 	      md->set_type(mdtype);
@@ -2203,6 +2206,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           size_t more_size = sizeof (more);
           zmq_msg_t message;
           rc = zmq_msg_init(&message);
+	  if (rc) rc=0;
 
           do
           {
