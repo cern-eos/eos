@@ -25,6 +25,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Access.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
@@ -76,6 +79,7 @@ dav_uri_decode(char* source, char* dest)
   return nLength;
 }
 
+
 /*----------------------------------------------------------------------------*/
 std::string
 PropFindResponse::EncodeURI(const char* uri)
@@ -85,6 +89,7 @@ PropFindResponse::EncodeURI(const char* uri)
   dav_uri_encode((unsigned char*) uri, enc, dav_rfc3986);
   return std::string(enc);
 }
+
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
@@ -114,7 +119,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
     if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "",
                         eos::common::OwnCloud::GetAllowSyncName(), val)) {
       // Sync not allowed in this tree.
-      SetResponseCode(ResponseCodes::METHOD_NOT_ALLOWED);
+      SetResponseCode(ResponseCodes::FORBIDDEN);
       return this;
     }
   }
@@ -166,7 +171,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
   } else if (depth == "1") {
     // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
-    int listrc = directory._open(request->GetUrl().c_str(), *mVirtualIdentity,
+    int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                  (const char*) 0);
     responseNode = BuildResponseNode(request->GetUrl().c_str(),
                                      request->GetUrl(true).c_str());
@@ -207,8 +212,8 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
         }
       }
     } else {
-      eos_static_warning("msg=\"error opening directory\"");
-      SetResponseCode(HttpResponse::BAD_REQUEST);
+      eos_static_warning("msg=\"error opening directory - might be stalled/banned\"");
+      SetResponseCode(ResponseCodes::FORBIDDEN);
       return this;
     }
   } else if (depth == "1,noroot") {
