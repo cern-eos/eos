@@ -53,11 +53,12 @@ backend::~backend()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::init(std::string& _hostport, std::string& _remotemountdir)
+backend::init(std::string& _hostport, std::string& _remotemountdir, double& _timeout)
 /* -------------------------------------------------------------------------- */
 {
   hostport = _hostport;
   mount = _remotemountdir;
+  timeout = _timeout;
 
   if ( (mount.length() && (mount.at(mount.length() - 1) == '/')) )
     mount.erase(mount.length() - 1);
@@ -207,20 +208,20 @@ backend::fetchResponse(std::string& requestURL,
   eos_static_debug("request='%s'", requestURL.c_str());
   
   double total_exec_time_sec = 0;
-
-  XrdCl::File file;
   XrdCl::XRootDStatus status;
-					  
-  do
-  {
+  std::unique_ptr <XrdCl::File> file(new XrdCl::File());
+
+  do {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
 
     // the MD get operation is implemented via a stream: open/read/close
-    status = file.Open (requestURL.c_str (),
-					    XrdCl::OpenFlags::Flags::Read);
+    eos_static_debug("opening %s", requestURL.c_str());
 
-    double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts, 0)/ 1000000000.0;
+    status = file->Open(requestURL.c_str(),
+                       XrdCl::OpenFlags::Flags::Read);
+    double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
+                           0) / 1000000000.0;
     total_exec_time_sec += exec_time_sec;
 
     if (!status.IsOK ())
@@ -254,27 +255,26 @@ backend::fetchResponse(std::string& requestURL,
 	errno = EL2NSYNC;
 	return EL2NSYNC;
       }
-      
-      if ( 
-	  ( status.code == XrdCl::errSocketTimeout ) ||
-	  ( status.code == XrdCl::errOperationExpired )
-	   )
-      {
-	// if there is a timeout, we might retry according to the backend timeout setting
-	if ( EosFuse::Instance().Config().options.md_backend_timeout &&
-	     (total_exec_time_sec > EosFuse::Instance().Config().options.md_backend_timeout) )
-	{
-	  // it took longer than our backend timeout allows
-	  eos_static_err("giving up fetch after sum-fetch-exec-s=%.02f backend-timeout-s=%.02f", total_exec_time_sec,  EosFuse::Instance().Config().options.md_backend_timeout);
-	  
-	}
-	else
-	{
-	  // retry 
-	  XrdSysTimer sleeper;
-	  sleeper.Snooze(5);
-	  continue;
-	}
+
+      if (
+	  (status.code == XrdCl::errConnectionError) || 
+	  (status.code == XrdCl::errSocketTimeout) ||
+	  (status.code == XrdCl::errOperationExpired)
+      ) {
+        // if there is a timeout, we might retry according to the backend timeout setting
+        if (timeout &&
+            (total_exec_time_sec >
+             timeout)) {
+          // it took longer than our backend timeout allows
+          eos_static_err("giving up fetch after sum-fetch-exec-s=%.02f backend-timeout-s=%.02f",
+                         total_exec_time_sec,  timeout);
+        } else {
+          // retry
+          XrdSysTimer sleeper;
+          sleeper.Snooze(5);
+	  file.reset(new XrdCl::File());
+          continue;
+        }
       }
 
       // all the other errors are reported back
@@ -312,7 +312,8 @@ backend::fetchResponse(std::string& requestURL,
   do
   {
 
-    status = file.Read(offset, kPAGE, (char*) & rbuff[0], bytesread);
+  do {
+    status = file->Read(offset, kPAGE, (char*) & rbuff[0], bytesread);
 
     if (status.IsOK())
     {
@@ -442,7 +443,6 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid, XrdSys
   if (locker) locker->UnLock();
 
   eos_static_info("proto-serialize unlock");
-  XrdCl::FileSystem fs(url);
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
 
@@ -450,10 +450,11 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid, XrdSys
   arg.Append(prefix.c_str(), prefix.length());
 
   arg.Append(mdstream.c_str(), mdstream.length());
-  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(), prefix.c_str(), mdstream.length());
 
-  XrdCl::XRootDStatus status = Query(fs, XrdCl::QueryCode::OpaqueFile, arg, response);
-
+  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(),
+                   prefix.c_str(), mdstream.length());
+  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+                                     response);
   eos_static_info("sync-response");
 
   eos_static_debug("response-size=%d",
@@ -587,7 +588,6 @@ backend::doLock(fuse_req_t req,
   locker->UnLock();
 
   eos_static_info("proto-serialize unlock");
-  XrdCl::FileSystem fs(url);
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
 
@@ -595,7 +595,12 @@ backend::doLock(fuse_req_t req,
   arg.Append(prefix.c_str(), prefix.length());
 
   arg.Append(mdstream.c_str(), mdstream.length());
-  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(), prefix.c_str(), mdstream.length());
+
+  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(),
+                   prefix.c_str(), mdstream.length());
+  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+                                     response);
+  eos_static_info("sync-response");
 
   XrdCl::XRootDStatus status = Query (fs, XrdCl::QueryCode::OpaqueFile, arg, response);
 
@@ -687,13 +692,20 @@ backend::getURL(fuse_req_t req, const std::string & path, std::string op, std::s
   query["mgm.path"] = eos::common::StringConversion::curl_escaped(mount + path);
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
-  query["mgm.cid"] = cap::capx::getclientid(req);
+  if (req)
+  {
+    query["mgm.cid"] = cap::capx::getclientid(req);
+  }
   query["eos.app"] = "fuse";
   if (authid.length())
     query["mgm.authid"]= authid;
 
-  fusexrdlogin::loginurl(url, query, req, 0);
+  if (req) 
+  {
+    fusexrdlogin::loginurl(url, query, req, 0);
+  }
   url.SetParams(query);
+
   return url.GetURL();
 }
 
@@ -809,10 +821,8 @@ backend::statvfs (fuse_req_t req,
 
   XrdCl::Buffer* response = 0;
 
-  XrdCl::FileSystem fs (url);
-
-  XrdCl::XRootDStatus status = Query (fs, XrdCl::QueryCode::OpaqueFile, arg, response);
-
+  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+                                     response);
   eos_static_info("calling %s\n", url.GetURL().c_str());
 
   if (status.IsOK () && response && response->GetBuffer ())
@@ -861,24 +871,26 @@ backend::statvfs (fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 XrdCl::XRootDStatus 
 /* -------------------------------------------------------------------------- */
-backend::Query (XrdCl::FileSystem& fs, XrdCl::QueryCode::Code query_code, XrdCl::Buffer &arg, XrdCl::Buffer* &response )
+backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
+               XrdCl::Buffer& arg, XrdCl::Buffer*& response)
 /* -------------------------------------------------------------------------- */
 {
   // this function retries queries until the given timeout period has been rechaed
   // it does not proceed if there is an authentication failure
   double total_exec_time_sec = 0;
 
-  do
-  {
+  std::unique_ptr <XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
+
+  do {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
     
     XrdCl::XRootDStatus status;
 #ifdef EOSCITRINE
-    status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+    status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 #else
     SyncResponseHandler handler;
-    fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+    fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
     status = handler.Sync(response);
 #endif
 
@@ -886,32 +898,30 @@ backend::Query (XrdCl::FileSystem& fs, XrdCl::QueryCode::Code query_code, XrdCl:
     if (status.code == XrdCl::errAuthFailed)
       return status;
 
-    // we can't do anything if there is a fatal error like invalid hostname etc.
-    if (status.IsFatal())
-      return status;
-
     // we want to report all errors which are not timeout related
-    if ( 
-	( status.code != XrdCl::errSocketTimeout ) &&
-	( status.code != XrdCl::errOperationExpired )
-	 )
-    {
+    if (
+	(status.code != XrdCl::errConnectionError) &&
+	(status.code != XrdCl::errSocketTimeout) &&
+	(status.code != XrdCl::errOperationExpired)
+	) {
       return status;
     }
 
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts, 0)/ 1000000000.0;
     total_exec_time_sec += exec_time_sec;
+    eos_static_err("query-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
+                   exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
+                   status.IsError(), status.IsFatal(), status.code, status.errNo);
 
-    eos_static_err("query-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d", exec_time_sec*1000.0, total_exec_time_sec*1000.0, status.IsOK(), status.IsError(), status.IsFatal(), status.code, status.errNo);
-    
-    if ( EosFuse::Instance().Config().options.md_backend_timeout &&
-	 (total_exec_time_sec > EosFuse::Instance().Config().options.md_backend_timeout) )
-    {
-      eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f", total_exec_time_sec,  EosFuse::Instance().Config().options.md_backend_timeout);
+    if (timeout &&
+        (total_exec_time_sec >
+         timeout)) {
+      eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f",
+                     total_exec_time_sec, timeout);
       return status;
     }
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
-  }
-  while (1);
+    fs.reset(new XrdCl::FileSystem(url));
+  } while (1);
 }
