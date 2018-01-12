@@ -37,8 +37,11 @@
 #include "mgm/http/webdav/WebDAVResponse.hh"
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
+#include "common/Logging.hh"
 #include "mgm/http/rapidxml/rapidxml.hpp"
 #include "mgm/http/rapidxml/rapidxml_print.hpp"
+/*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN;
@@ -91,8 +94,8 @@ public:
    */
   PropFindResponse (eos::common::HttpRequest *request,
                     eos::common::Mapping::VirtualIdentity *vid) :
-  WebDAVResponse (request), mRequestPropertyTypes (NONE),
-  mVirtualIdentity (vid)
+    WebDAVResponse (request), mRequestPropertyTypes (NONE),
+    mVirtualIdentity (vid)
   {
     static bool initialized = false;
     if (!initialized)
@@ -135,6 +138,7 @@ public:
    */
   void
   ParseRequestPropertyTypes (rapidxml::xml_node<> *node);
+
 
   /**
    * Build a response XML <response/> node containing the properties that were
