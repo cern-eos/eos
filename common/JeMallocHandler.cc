@@ -88,8 +88,8 @@ bool JeMallocHandler::IsProfEnabled()
   int errc = 0;
 
   if ((errc = mallctl("opt.prof", &b, &s, NULL, 0))) {
-    eos_static_err("error reading status of opt.prof : b=%d  s=%d  errc=%d", (int)b,
-                   (int)s, errc);
+    eos_static_err("error reading status of opt.prof : b=%d  s=%d  errc=%d",
+                   (int)b, (int)s, errc);
   }
 
   return b;

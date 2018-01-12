@@ -355,7 +355,7 @@ void XrdMgmOfs::DumpHeapProfile(int sig)
   if (gOFS->mJeMallocHandler.DumpProfile()) {
     eos_static_warning("dumped heap profile");
   } else {
-    eos_static_warning("failed to sump heap profile");
+    eos_static_warning("failed to sum heap profile");
   }
 }
 

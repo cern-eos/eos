@@ -48,18 +48,22 @@ class JeMallocHandler
 public:
   JeMallocHandler();
   ~JeMallocHandler();
+
   inline bool JeMallocLoaded()
   {
     return pJeMallocLoaded;
   }
+
   inline bool CanProfile()
   {
     return pCanProfile;
   }
+
   inline bool ProfRunning()
   {
     return IsProfgRunning();
   }
+
   bool StartProfiling();
   bool StopProfiling();
   bool DumpProfile();
