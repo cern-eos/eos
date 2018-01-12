@@ -1719,8 +1719,9 @@ FuseServer::Header(const std::string& response)
 
 /*----------------------------------------------------------------------------*/
 bool
-FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
-                         eos::common::Mapping::VirtualIdentity* vid)
+FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, 
+			 eos::common::Mapping::VirtualIdentity * vid, 
+			 bool take_lock)
 {
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
@@ -1740,7 +1741,12 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   bool x_ok = false;
   bool d_ok = false;
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  
+  eos::common::RWMutexReadLock rd_ns_lock;
+
+  if (take_lock) {
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   try
   {
@@ -1802,10 +1808,14 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
 	w_ok = d_ok = false;
       }
     }
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();
   }
   catch (eos::MDException &e)
   {
     eos_static_err("failed to get directory inode ino=%16x",md.md_pino());
+    if (lock)
+      gOFS->eosViewRWMutex.UnLockRead();
     return false;
   }
 
@@ -2078,6 +2088,7 @@ FuseServer::HandleMD(const std::string& id,
       std::shared_ptr<eos::IContainerMD> cmd;
       std::shared_ptr<eos::IContainerMD> pcmd;
       std::shared_ptr<eos::IContainerMD> cpcmd;
+      eos::fusex::md mv_md;
       mode_t sgid_mode = 0;
 
       try {
@@ -2100,7 +2111,27 @@ FuseServer::HandleMD(const std::string& id,
 
           if (cmd->getParentId() != md.md_pino()) {
             // this indicates a directory move
+	    {
+	      // we have to check that we have write permission on the source parent
+	      eos::fusex::md source_md;
+	      source_md.set_md_pino(cmd->getParentId());
+	      source_md.set_mode(S_IFDIR);
+	      std::string perm = "W";
+	      
+	      if (!ValidatePERM(source_md, perm, vid, false))
+	      {
+		eos_static_err("source-ino=%lx no write permission on source directory to do mv ino=%lx", 
+			       cmd->getParentId(), 
+			       md.md_ino());
+		return EPERM;
+	      }
+	    }
+
             op = MOVE;
+
+	    // create a broadcast md object with the authid of the source directory, the target is the standard authid for notification
+	    mv_md.set_authid(md.mv_authid());
+
             eos_static_info("moving %lx => %lx", cmd->getParentId(), md.md_pino());
             cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
             cpcmd->removeContainer(cmd->getName());
@@ -2227,12 +2258,12 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
 
         // broadcast this update around
-
-        switch (op) {
+        switch ( op ) {
+        case MOVE:
+	  Cap().BroadcastRelease(mv_md);
         case UPDATE:
         case CREATE:
         case RENAME:
-        case MOVE:
           Cap().BroadcastRelease(md);
           break;
         }
