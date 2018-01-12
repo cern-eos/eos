@@ -301,10 +301,11 @@ HierarchicalView::unlinkFile(const std::string& uri)
     throw e;
   }
 
+  // @todo (esindril): attach file to unlinked containers
   file->setContainerId(0);
   file->unlinkAllLocations();
-  updateFileStore(file.get());
   cont->removeFile(file->getName());
+  updateFileStore(file.get());
 }
 
 //------------------------------------------------------------------------------
@@ -315,10 +316,11 @@ HierarchicalView::unlinkFile(eos::IFileMD* file)
 {
   std::shared_ptr<IContainerMD> cont =
     pContainerSvc->getContainerMD(file->getContainerId());
+  // @todo (esindril): attach file to unlinked containers
   file->setContainerId(0);
   file->unlinkAllLocations();
-  updateFileStore(file);
   cont->removeFile(file->getName());
+  updateFileStore(file);
 }
 
 //------------------------------------------------------------------------------
