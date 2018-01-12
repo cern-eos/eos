@@ -842,6 +842,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fprintf(stderr, "# Disabling nagle algorithm (XRD_NODELAY=1)\n");
   }
 
+  if (!getenv("MALLOC_CONF"))
+  {
+    fprintf(stderr,"# Setting MALLOC_CONF=dirty_decay_ms:0\n");
+    putenv((char*)"MALLOC_CONF=dirty_decay_ms:0");
+  } else {
+    fprintf(stderr,"# MALLOC_CONF=%s\n",getenv("MALLOC_CONF"));
+  }
+
   int debug;
 
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
