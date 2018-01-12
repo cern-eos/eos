@@ -506,7 +506,7 @@ public:
                         bool issue_only_one=false);
 
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
-  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, eos::common::Mapping::VirtualIdentity* vid);
+  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, eos::common::Mapping::VirtualIdentity* vid, bool lock=true);
 
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
