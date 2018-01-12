@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include "common/Timing.hh"
 #include "common/ShellCmd.hh"
 
@@ -18,6 +19,7 @@
 #define LOOP_11 100
 #define LOOP_12 10
 #define LOOP_13 10
+#define LOOP_14 100
 
 int main(int argc, char* argv[])
 {
@@ -541,6 +543,32 @@ int main(int argc, char* argv[])
     }
     COMMONTIMING("write-unlinked-loop", &tm);
   }
+
+  // ------------------------------------------------------------------------ //
+  testno = 14;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    for (size_t i = 0; i < LOOP_14; i++) {
+      int fd = creat("lockme", S_IRWXU);
+      
+      int lock_rc = lockf(fd, F_LOCK, 0);
+      int tlock_rc = lockf(fd, F_TLOCK,0);
+      int ulock_rc = lockf(fd, F_ULOCK, 0);
+      int lockagain_rc = lockf(fd, F_LOCK, 0);
+      close (fd);
+      unlink("lockme");
+      if (lock_rc | tlock_rc | ulock_rc | lockagain_rc)
+      {
+	fprintf(stderr,"[test=%3d] %d %d %d %d\n", testno, lock_rc, tlock_rc, ulock_rc, lockagain_rc);
+	exit(testno);
+      }
+    }
+
+    COMMONTIMING("rename-circular-loop", &tm);
+  }
+
 
   tm.Print();
   fprintf(stdout, "realtime = %.02f", tm.RealTime());
