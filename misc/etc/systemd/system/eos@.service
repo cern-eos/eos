@@ -27,6 +27,7 @@ Wants=network-online.target local-fs.target
 PartOf=eos.target
 
 [Service]
+WorkingDirectory=/var/eos
 EnvironmentFile=/etc/sysconfig/eos_env
 
 ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
