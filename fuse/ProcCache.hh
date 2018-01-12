@@ -120,7 +120,7 @@ class ProcReaderKrb5UserName
 {
   std::string pKrb5CcFile;
 
-  static eos::common::RWMutex sMutex;
+  static eos::common::RWMutexR sMutex;
   static bool sMutexOk;
   static krb5_context sKcontext;
   static bool sKcontextOk;
@@ -176,7 +176,7 @@ class ProcCacheEntry
 {
   friend class ProcCache;
   // RWMutex to protect entry
-  mutable eos::common::RWMutex pMutex;
+  mutable eos::common::RWMutexR pMutex;
 
   // internal values
   ProcReaderPsStat pciPsStat;
@@ -301,7 +301,7 @@ class ProcCache
   // RWMUtex; Mutex to protect catalog
   std::map<int, ProcCacheEntry*> pCatalog;
   // RWMutex to protect entry
-  eos::common::RWMutex pMutex;
+  eos::common::RWMutexR pMutex;
   // path od the proc filesystem
   std::string pProcPath;
 

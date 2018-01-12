@@ -112,7 +112,7 @@ public:
   };
 
   static const unsigned int proccachenbins;
-  std::vector<eos::common::RWMutex> proccachemutexes;
+  std::vector<eos::common::RWMutexR> proccachemutexes;
 
   //------------------------------------------------------------------------------
   // Lock

@@ -38,7 +38,7 @@ struct dirbuf
   size_t size;
 };
 
-using eos::common::RWMutex;
+using eos::common::RWMutexR;
 
 //------------------------------------------------------------------------------
 //! Information about a directory saved in cache
@@ -159,7 +159,7 @@ class FuseCacheEntry
     struct timespec mModifTime;        ///< modification time of the directory
     struct timespec mQueryTime;        ///< time when queried
     long mLifeTime;                    ///< lifetime in nanoseconds
-    eos::common::RWMutex mMutex;       ///< mutex protecting the subentries map
+    eos::common::RWMutexR mMutex;      ///< mutex protecting the subentries map
     std::map<unsigned long long, struct fuse_entry_param> mSubEntries;  ///< map of subentries
 };
 
