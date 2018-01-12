@@ -506,7 +506,13 @@ public:
                         bool issue_only_one=false);
 
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
+<<<<<<< HEAD
   bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, eos::common::Mapping::VirtualIdentity* vid, bool lock=true);
+=======
+  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, 
+		    eos::common::Mapping::VirtualIdentity* vid, 
+		    bool lock=true);
+>>>>>>> 9f285f7... MGM: add notification for 'mv' to the source of a subdirectory move and add permission check on the source
 
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
