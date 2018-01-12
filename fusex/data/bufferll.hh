@@ -166,6 +166,8 @@ public:
   {
     max = _max;
     buffersize = _default_size;
+    queued_size = 0;
+    inflight_size = 0;
   }
 
   virtual ~bufferllmanager()
@@ -174,18 +176,28 @@ public:
 
   typedef std::shared_ptr<bufferll> shared_buffer;
 
-  shared_buffer get_buffer()
+  void configure(size_t _max, size_t _size)
+  {
+    max = _max;
+    buffersize = _size;
+  }
+
+  shared_buffer get_buffer(size_t size)
   {
     XrdSysMutexHelper lLock(this);
 
-    if (!queue.size())
-    {
-      // create one buffer on the queue
-      return std::make_shared<bufferll>(buffersize,buffersize);
-    }
-    else
-    {
+    size_t cap_size = (size > buffersize)?size : buffersize;
+
+    if (!queue.size()) {
+      inflight_size += cap_size;
+      return std::make_shared<bufferll>( cap_size , 0);
+    } else {
       shared_buffer buffer = queue.front();
+      queued_size -= buffer->capacity();
+      buffer->resize(cap_size);
+      buffer->reserve(cap_size);
+      inflight_size += buffer->capacity();
+
       queue.pop();
       return buffer;
     }
@@ -194,6 +206,7 @@ public:
   void put_buffer(shared_buffer buffer)
   {
     XrdSysMutexHelper lLock(this);
+    inflight_size -= buffer->capacity();
 
     if (queue.size() == max)
     {
@@ -202,16 +215,32 @@ public:
     else
     {
       queue.push(buffer);
-      buffer->resize(0);
+      buffer->resize(buffersize);
       buffer->reserve(buffersize);
+      buffer->shrink_to_fit();
+      queued_size += buffersize;
       return;
     }
+  }
+
+  const size_t queued()
+  {
+    XrdSysMutexHelper lLock(this);
+    return queued_size;
+  }
+
+  const size_t inflight()
+  {
+    XrdSysMutexHelper lLock(this);
+    return inflight_size;
   }
 
 private:
   std::queue<shared_buffer> queue;
   size_t max;
   size_t buffersize;
+  size_t queued_size;
+  size_t inflight_size;
 } ;
 #endif
 

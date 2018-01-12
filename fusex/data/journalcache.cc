@@ -420,7 +420,7 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
     size_t size   = itr->high - itr->low;
 
     // prepare async buffer
-    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(size);
+    XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(size, itr->low, 0);
     
     int bytesRead = ::pread( fd, (void*)handler->buffer(), size, cacheoff );
     
@@ -436,7 +436,7 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
       // TODO handle error - still we continue
     }
     
-    XrdCl::XRootDStatus st = proxy->WriteAsync( itr->low, size, 0, handler, 0);   
+    XrdCl::XRootDStatus st = proxy->ScheduleWriteAsync( 0, handler );
     if ( !st.IsOK() )
     {
       eos_static_err("failed to issue async-write");
@@ -455,10 +455,12 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
       clck.broadcast();
       return -1;
     }
+    truncatesize = -1;
   }
 
   journal.clear();
   eos_static_debug("ret=%d truncatesize=%ld\n", ret, truncatesize);
+  errno = 0;
   ret |= ::ftruncate(fd, 0);
   eos_static_debug("ret=%d errno=%d\n", ret, errno);
 
@@ -472,7 +474,7 @@ int journalcache::reset()
   journal.clear();
   int retc = ::ftruncate( fd,  0 );
   cachesize = 0;
-  truncatesize = 0;
+  truncatesize = -1;
   clck.broadcast();
   return retc;
 }
