@@ -94,7 +94,7 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 
 
 
-RWMutex::RWMutex ()
+RWMutex::RWMutex (bool preferreader)
 {
   // ---------------------------------------------------------------------------
   //! Constructor
@@ -126,10 +126,21 @@ RWMutex::RWMutex ()
 #ifndef __APPLE__
   pthread_rwlockattr_init(&attr);
 
-  // readers don't go ahead of writers!
-  if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))
+  if (!preferreader)
   {
-    throw "pthread_rwlockattr_setkind_np failed";
+    // readers don't go ahead of writers!
+    if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))
+    {
+      throw "pthread_rwlockattr_setkind_np failed";
+    }
+  }
+  else
+  {
+    // readers go ahead of writers (see man page)
+    if (pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP))
+    {
+      throw "pthread_rwlockattr_setkind_np failed";
+    }
   }
   if (pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))
   {
