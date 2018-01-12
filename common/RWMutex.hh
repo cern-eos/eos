@@ -87,8 +87,8 @@ class RWMutex
 public:
   //----------------------------------------------------------------------------
   //! Constructor
-  //----------------------------------------------------------------------------
-  RWMutex();
+  // ---------------------------------------------------------------------------
+  RWMutex(bool preferreader=false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -541,7 +541,29 @@ private:
   RWMutex* mRdMutex;
 };
 
-// Undefine the timer stuff
+// ---------------------------------------------------------------------------
+//! RW Mutex prefereing the reader
+// ---------------------------------------------------------------------------
+
+class RWMutexR : public RWMutex {
+public: 
+  RWMutexR() : RWMutex(true) { }
+  virtual ~RWMutexR(){}
+};
+
+
+// ---------------------------------------------------------------------------
+//! RW Mutex prefereing the writerr
+// ---------------------------------------------------------------------------
+
+class RWMutexW : public RWMutex {
+public: 
+  RWMutexW() : RWMutex(false) { }
+  virtual ~RWMutexW(){}
+};
+
+
+// undefine the timer stuff
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 #undef EOS_RWMUTEX_TIMER_START
 #undef EOS_RWMUTEX_TIMER_STOP_AND_UPDATE

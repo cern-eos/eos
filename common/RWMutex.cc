@@ -108,7 +108,7 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutex::RWMutex():
+RWMutex::RWMutex(bool preferreader):
   mBlocking(false), mRdLockCounter(0), mWrLockCounter(0)
 {
   int retc = 0;
@@ -135,14 +135,23 @@ RWMutex::RWMutex():
   pthread_rwlockattr_init(&attr);
 #ifndef __APPLE__
 
-  // Readers don't go ahead of writers!
-  if ((retc = pthread_rwlockattr_setkind_np(&attr,
-              PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
-    fprintf(stderr, "%s Failed to set writers priority: %s\n", __FUNCTION__,
-            strerror(retc));
-    std::terminate();
+  if (preferreader) {
+    // Readers go ahead of writers and are reentrant
+    if ((retc = pthread_rwlockattr_setkind_np(&attr,
+					      PTHREAD_RWLOCK_PREFER_WRITER_WRITER_NP))) {
+      fprintf(stderr, "%s Failed to set readers priority: %s\n", __FUNCTION__,
+	      strerror(retc));
+      std::terminate();
+    }
+  } else {
+    // Readers don't go ahead of writers!
+    if ((retc = pthread_rwlockattr_setkind_np(&attr,
+					      PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
+      fprintf(stderr, "%s Failed to set writers priority: %s\n", __FUNCTION__,
+	      strerror(retc));
+      std::terminate();
+    }
   }
-
 #endif
 
   if ((retc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))) {
