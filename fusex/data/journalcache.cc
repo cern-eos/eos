@@ -26,6 +26,9 @@
 #include "dircleaner.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
+#ifdef __APPLE__
+#include "XrdSys/XrdSysPlatform.hh"
+#endif
 #include <algorithm>
 #include <iostream>
 

@@ -30,6 +30,7 @@
 #ifdef __APPLE__
 #define EKEYEXPIRED 127
 #include <sys/xattr.h>
+#include "XrdSys/XrdSysPlatform.hh"
 #else
 #include <attr/xattr.h>
 #endif
