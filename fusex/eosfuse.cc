@@ -355,7 +355,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
       if (!root["options"].isMember("md-backend.timeout"))
       {
-	root["options"]["md-backend.timeout"] = 100;
+	root["options"]["md-backend.timeout"] = 86400;
       }
       if (!root["options"].isMember("data-kernelcache"))
       {

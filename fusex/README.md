@@ -27,7 +27,7 @@ This
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 5,
-    "md-backend.timeout" : 100, 
+    "md-backend.timeout" : 86400, 
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
