@@ -1808,13 +1808,13 @@ FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode,
 	w_ok = d_ok = false;
       }
     }
-    if (lock)
+    if (take_lock)
       gOFS->eosViewRWMutex.UnLockRead();
   }
   catch (eos::MDException &e)
   {
     eos_static_err("failed to get directory inode ino=%16x",md.md_pino());
-    if (lock)
+    if (take_lock)
       gOFS->eosViewRWMutex.UnLockRead();
     return false;
   }
