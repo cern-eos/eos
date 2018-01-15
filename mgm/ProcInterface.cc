@@ -119,6 +119,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "mv") ||
         (subcmd == "rm"))) ||
       ((cmd == "fusex")) ||
+      ((cmd == "fuseX")) ||
       ((cmd == "space") &&
        ((subcmd == "config") ||
         (subcmd == "define") ||
