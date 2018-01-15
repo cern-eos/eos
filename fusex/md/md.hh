@@ -468,7 +468,8 @@ public:
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
 
-  int connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid);
+  int connect(std::string zmqtarget, std::string zmqidentity="", std::string zmqname="", std::string zmqclienthost="", std::string zmqclientuuid="");
+
   int calculateDepth(shared_md md);
 
   void cleanup(shared_md md);
@@ -692,6 +693,17 @@ public:
 
   typedef std::deque<flushentry> flushentry_set_t;
 
+  void set_zmq_wants_to_connect(int val) 
+  {
+    want_zmq_connect.store(val, std::memory_order_seq_cst);
+  }
+  
+  int zmq_wants_to_connect() 
+  {
+    return want_zmq_connect.load();
+  }
+
+
 private:
 
   // Lock _two_ md objects in the given order.
@@ -751,6 +763,8 @@ private:
   std::string zmq_name;
   std::string zmq_clienthost;
   std::string zmq_clientuuid;
+  std::mutex zmq_socket_mutex;
+  std::atomic<int> want_zmq_connect;
 
   backend* mdbackend;
 } ;

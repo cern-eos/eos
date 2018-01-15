@@ -307,17 +307,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       {
 	root["hostport"] = "localhost";
       }
-
-      if (!root.isMember("mdzmqtarget"))
-      {
-	std::string target = "tcp://";
-	target += root["hostport"].asString();
-	if (target.find(":") != std::string::npos)
-	{
-	  target.erase(target.find(":"));
-	}
-	target += ":1100";
-      }
       if (!root.isMember("mdzmqidentity"))
       {
 	if (geteuid())
@@ -4232,6 +4221,9 @@ void
 EosFuse::TrackMgm(const std::string& lasturl)
 /* -------------------------------------------------------------------------- */
 {
+  static std::mutex lTrackMgmMutex;
+  std::lock_guard<std::mutex> sequenzerMutex(lTrackMgmMutex);
+
   std::string currentmgm = lastMgmHostPort.get();
   XrdCl::URL lastUrl(lasturl);
 
@@ -4242,6 +4234,27 @@ EosFuse::TrackMgm(const std::string& lasturl)
   
   eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(), newmgm.c_str());
 
-  if (currentmgm != newmgm)
+  if (currentmgm != newmgm) 
+  {
+    // let's failover the ZMQ connection
+    size_t p_pos = config.mqtargethost.rfind(":");
+    std::string new_mqtargethost = config.mqtargethost;
+    if ( (p_pos != std::string::npos) && ( p_pos > 6))
+    {
+      new_mqtargethost.erase(6, p_pos-6);
+    } 
+    else
+    {
+      new_mqtargethost.erase(4);
+    }
+
     lastMgmHostPort.set(newmgm);
+    newmgm.erase(newmgm.find(":"));
+    new_mqtargethost.insert(6, newmgm);
+
+
+    // instruct a new ZMQ connection
+    mds.connect(new_mqtargethost);
+    eos_static_warning("reconnecting mqtarget=%s => mqtarget=%s", config.mqtargethost.c_str(), new_mqtargethost.c_str());
+  }
 }

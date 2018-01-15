@@ -89,8 +89,13 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
                std::string zmqname, std::string zmqclienthost,
                std::string zmqclientuuid)
 {
+  set_zmq_wants_to_connect(1);
+  std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
+
   if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
-    // TODO:
+    // delete the exinsting ZMQ connection
+    delete z_socket;
+    delete z_ctx;
   }
 
   if (zmqtarget.length()) {
@@ -135,7 +140,11 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
     }
   }
 
-  mdbackend->set_clientuuid(zmq_clientuuid);
+  if (zmqclientuuid.length()) {
+    mdbackend->set_clientuuid(zmq_clientuuid);
+  }
+
+  set_zmq_wants_to_connect(0);
   return 0;
 }
 
@@ -2186,6 +2195,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
   while (!assistant.terminationRequested()) {
     try {
+      std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
+
       eos_static_debug("");
       zmq::pollitem_t items[] = {
         {static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}
@@ -2193,6 +2204,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
       for (int i = 0; i < 100 * interval; ++i)
       {
+	// if there is a ZMQ reconnection to be done we release the ZQM socket mutex
+	if (zmq_wants_to_connect())
+	  continue;
+
         // 10 milliseconds
         zmq_poll(items, 1, 10);
 
