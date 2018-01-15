@@ -236,7 +236,7 @@ ContainerMD::removeFile(const std::string& name)
 
     try {
       std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-      // NOTE: This is an ugly hack. The file object has not reference to the
+      // NOTE: This is an ugly hack. The file object has no reference to the
       // container id, therefore we hijack the "location" member of the Event
       // class to pass in the container id.
       IFileMDChangeListener::Event
