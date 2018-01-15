@@ -224,8 +224,11 @@ backend::fetchResponse(std::string& requestURL,
                            0) / 1000000000.0;
     total_exec_time_sec += exec_time_sec;
 
-    if (!status.IsOK ())
-    {
+    std::string lasturl;
+    file->GetProperty("LastURL", lasturl);
+    EosFuse::Instance().TrackMgm(lasturl);
+
+    if (!status.IsOK()) {
       // in case of any failure
       if (status.errNo == XErrorCode::kXR_NotFound )
       {

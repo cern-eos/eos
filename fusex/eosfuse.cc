@@ -4828,3 +4828,23 @@ EosFuse::isRecursiveRm(fuse_req_t req)
 
   return false;
 }
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::TrackMgm(const std::string& lasturl)
+/* -------------------------------------------------------------------------- */
+{
+  std::string currentmgm = lastMgmHostPort.get();
+  XrdCl::URL lastUrl(lasturl);
+
+  std::string newmgm = lastUrl.GetHostName();
+  std::string sport;
+  newmgm += ":";
+  newmgm += eos::common::StringConversion::GetSizeString(sport, (unsigned long long)lastUrl.GetPort());
+  
+  eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(), newmgm.c_str());
+
+  if (currentmgm != newmgm)
+    lastMgmHostPort.set(newmgm);
+}
