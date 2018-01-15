@@ -524,7 +524,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   if (lock)
     mLock.Lock();
 
-  size_t file_size = mMd->sizeTS();
+  size_t file_size = mMd->size();
 
   if (mPrefetchHandler && mFile->file())
   {
