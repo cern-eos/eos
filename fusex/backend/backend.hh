@@ -43,7 +43,7 @@ public:
   backend();
   virtual ~backend();
 
-  int init(std::string& hostport, std::string& remotemountdir);
+  int init(std::string& hostport, std::string& remotemountdir, double& timeout);
 
   int getMD(fuse_req_t req,
             const std::string& path,
@@ -104,11 +104,12 @@ private:
   std::string hostport;
   std::string mount;
   std::string clientuuid;
+  double timeout;
 
   int mapErrCode(int retc);
 
-  XrdCl::XRootDStatus Query(XrdCl::FileSystem& fs,
-                            XrdCl::QueryCode::Code query_code, XrdCl::Buffer& arg,
+  XrdCl::XRootDStatus Query(XrdCl::URL &url, 
+			    XrdCl::QueryCode::Code query_code, XrdCl::Buffer& arg,
                             XrdCl::Buffer*& repsonse);
 
 } ;
