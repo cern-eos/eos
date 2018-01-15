@@ -1101,7 +1101,7 @@ protected:
   //
   std::map<const FsGroup*, SchedTME*> pGroup2SchedTME;
   std::map<FileSystem::fsid_t, SchedTME*> pFs2SchedTME;
-  std::map<FileSystem::fsid_t, FileSystem*> pFsId2FsPtr;
+  //std::map<FileSystem::fsid_t, FileSystem*> pFsId2FsPtr;
   /// protects all the above maps
   eos::common::RWMutex pTreeMapMutex;
 

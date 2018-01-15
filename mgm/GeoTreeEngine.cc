@@ -135,12 +135,13 @@ bool GeoTreeEngine::forceRefreshSched()
 
   // mark all fs needing a refresh for all the watched attributes
   // => SCHED
-  for (auto it = pFsId2FsPtr.begin(); it != pFsId2FsPtr.end(); it++) {
-    if (it->second) {
-        gNotificationsBufferFs[it->second->GetQueuePath()] = (~0);
+  {
+    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    for (auto it_fs = FsView::gFsView.mIdView.begin();
+                 it_fs != FsView::gFsView.mIdView.end(); it_fs++) {
+     gNotificationsBufferFs[it_fs->second->GetQueuePath()] = (~0);
     }
   }
-
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     it->second->fastStructModified = true;
     it->second->slowTreeModified = true;
@@ -397,7 +398,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
     mapEntry->group = group;
     pGroup2SchedTME[group] = mapEntry;
     pFs2SchedTME[fsid] = mapEntry;
-    pFsId2FsPtr[fsid] = fs;
     pTreeMapMutex.UnLockWrite();
     mapEntry->slowTreeMutex.UnLockWrite();
   }
@@ -529,7 +529,6 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   {
     pTreeMapMutex.LockWrite();
     pFs2SchedTME.erase(fsid);
-    pFsId2FsPtr.erase(fsid);
 
     if (mapEntry->fs2SlowTreeNode.empty()) {
       pGroup2SchedTME.erase(group); // prevent from access by other threads
@@ -3137,16 +3136,22 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
     gOFS->ObjectManager.HashMutex.UnLockRead();
 
+    eos::common::FileSystem* filesystem = NULL;
+
     pTreeMapMutex.LockRead();
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-    if (!pFsId2FsPtr.count(fsid)) {
-      eos_warning("Inconsistency: Trying to access an existing fs which is not "
-                  "referenced in the GeoTreeEngine anymore");
-      pTreeMapMutex.UnLockRead();
-      continue;
+      if (it_fs == FsView::gFsView.mIdView.end()) {
+        eos_err("update: the given FS does not exist, skipping this update");
+        pTreeMapMutex.UnLockRead();
+        continue;
+      } else {
+        filesystem = it_fs->second;
+      }
+      
     }
-
-    eos::common::FileSystem* filesystem = pFsId2FsPtr[fsid];
 
     if (!filesystem) {
       eos_err("update : Invalid FileSystem Entry, skipping this update");
