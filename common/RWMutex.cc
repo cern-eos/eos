@@ -138,7 +138,7 @@ RWMutex::RWMutex(bool preferreader):
   if (preferreader) {
     // Readers go ahead of writers and are reentrant
     if ((retc = pthread_rwlockattr_setkind_np(&attr,
-					      PTHREAD_RWLOCK_PREFER_WRITER_WRITER_NP))) {
+					      PTHREAD_RWLOCK_PREFER_WRITER_NP))) {
       fprintf(stderr, "%s Failed to set readers priority: %s\n", __FUNCTION__,
 	      strerror(retc));
       std::terminate();
