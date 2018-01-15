@@ -189,6 +189,17 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   //   user mounts are private mounts with kerberos configuration
   // --------------------------------------------------------------------------------------------
 
+
+  // XrdCl::* options we read from our config file
+  std::vector<std::string> xrdcl_options;
+  xrdcl_options.push_back("TimeoutResolution");
+  xrdcl_options.push_back("ConnectionWindow");
+  xrdcl_options.push_back("ConnectionRetry");
+  xrdcl_options.push_back("StreamErrorWindow");
+  xrdcl_options.push_back("RequestTimeout");
+  xrdcl_options.push_back("StreamTimeout");
+  xrdcl_options.push_back("RedirectLimit");
+
   {
     // parse JSON configuration
     Json::Value root;
@@ -438,6 +449,31 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["rm-rf-protect-levels"] = 1;
     }
 
+    // xrdcl default options
+    XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 15);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
+
+
+    for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it)
+    {
+      if (root["xrdcl"].isMember(*it))
+      {
+	XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(), root["xrdcl"][it->c_str()].asInt());
+      }
+    }
+
+    if (root["xrdcl"].isMember("LogLevel"))
+    {
+      XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel", root["xrdcl"]["LogLevel"].asString());
+      setenv((char*)"XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
+      XrdCl::DefaultEnv::ReInitializeLogging();
+    }
+
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
@@ -446,7 +482,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.statfilesuffix = root["statfilesuffix"].asString();
     config.statfilepath = root["statfilepath"].asString();
     config.options.debug = root["options"]["debug"].asInt();
-    config.options.lowleveldebug = root["options"]["lowleveldebug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
@@ -1025,7 +1060,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mKV.reset(kv);
     }
 
-    mdbackend.init(config.hostport, config.remotemountdir);
+    mdbackend.init(config.hostport, config.remotemountdir, config.options.md_backend_timeout);
     mds.init(&mdbackend);
     caps.init(&mdbackend, &mds);
     datas.init();
@@ -1116,6 +1151,21 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       cconfig.total_file_cache_size,
 		       cconfig.location.c_str(),
 		       cconfig.journal.c_str());
+
+    std::string xrdcl_option_string;
+    std::string xrdcl_option_loglevel;
+    for ( auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it )
+    {
+      xrdcl_option_string += *it;
+      xrdcl_option_string += ":";
+      int value=0;
+      std::string svalue;
+      XrdCl::DefaultEnv::GetEnv()->GetInt(it->c_str(), value);
+      xrdcl_option_string += eos::common::StringConversion::GetSizeString(svalue, (unsigned long long) value);
+      xrdcl_option_string += " ";
+    }
+    XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
+    eos_static_warning("xrdcl-options          := %s log-level=%s", xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str()); 
 
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),
