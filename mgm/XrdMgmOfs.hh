@@ -1350,7 +1350,7 @@ public:
   std::map<eos::auth::RequestProto_OperationType,
       std::list<std::int64_t> > mAuthSamples;
   //! Map of operation types to aggregate info response times
-  std::chrono::system_clock::time_point mLastTimestamp;
+  std::chrono::steady_clock::time_point mLastTimestamp;
   std::map<eos::auth::RequestProto_OperationType, AuthStats>
   mAuthAggregate;
 

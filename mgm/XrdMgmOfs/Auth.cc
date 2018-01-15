@@ -144,7 +144,7 @@ XrdMgmOfs::AuthWorkerThread()
   }
 
   bool done = false;
-  std::chrono::system_clock::time_point time_start, time_end;
+  std::chrono::steady_clock::time_point time_start, time_end;
 
   // Main loop of the worker thread
   while (1) {
@@ -167,7 +167,7 @@ XrdMgmOfs::AuthWorkerThread()
     }
 
     // Read in the ProtocolBuffer object just received
-    time_start = std::chrono::system_clock::now();
+    time_start = std::chrono::steady_clock::now();
     std::string msg_recv((char*)request.data(), request.size());
     RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
@@ -561,7 +561,7 @@ XrdMgmOfs::AuthWorkerThread()
       }
     }
 
-    time_end = std::chrono::system_clock::now();
+    time_end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>
                     (time_end - time_start);
     AuthCollectInfo(req_proto.type(), duration.count());
@@ -617,7 +617,7 @@ void
 XrdMgmOfs::AuthCollectInfo(eos::auth::RequestProto_OperationType op,
                            std::int64_t ms_duration)
 {
-  auto now = std::chrono::system_clock::now();
+  auto now = std::chrono::steady_clock::now();
   std::lock_guard<std::mutex> lock(mAuthStatsMutex);
 
   if (std::chrono::duration_cast<std::chrono::minutes>(now -

@@ -1469,9 +1469,9 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
 {
   bool all_done = true;
   std::chrono::seconds check_interval(5);
-  auto deadline = std::chrono::system_clock::now() + timeout;
+  auto deadline = std::chrono::steady_clock::now() + timeout;
 
-  while (std::chrono::system_clock::now() <= deadline) {
+  while (std::chrono::steady_clock::now() <= deadline) {
     all_done = true;
     {
       XrdSysMutexHelper scope_lock(OpenFidMutex);
