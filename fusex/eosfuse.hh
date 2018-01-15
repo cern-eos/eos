@@ -198,7 +198,6 @@ public:
     typedef struct options
     {
       int debug;
-      int lowleveldebug;
       int debuglevel;
       int libfusethreads;
       int foreground;

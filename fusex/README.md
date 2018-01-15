@@ -23,7 +23,6 @@ This
 
   "options" : {
     "debug" : 1,
-    "lowleveldebug" : 0,
     "debuglevel" : 4,
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
@@ -69,6 +68,22 @@ You also need to define a local cache directory (location) where small files are
   }
 
 ```
+
+You can modify some of the XrdCl variables:
+
+```
+  "xrdcl" : {
+    "TimeoutResolution" : 1,
+    "ConnectionWindow": 10,
+    "ConnectionRetry" : 0,
+    "StreamErrorWindow" : 30,
+    "RequestTimeout" : 15,
+    "StreamTimeout" : 30,
+    "RedirectLimit" : 3,
+    "LogLevel" : "None"
+  }
+```
+
 The available read-ahead strategies are 'dynamic', 'static' or 'none'. Dynamic read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits.
 
 
