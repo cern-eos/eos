@@ -77,6 +77,7 @@ Egroup::Stop()
   if (mThread) {
     XrdSysThread::Cancel(mThread);
     XrdSysThread::Join(mThread, 0);
+    mThread = 0;
   }
 }
 

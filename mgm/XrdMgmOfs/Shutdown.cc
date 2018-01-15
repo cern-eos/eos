@@ -75,6 +75,10 @@ xrdmgmofs_shutdown(int sig)
   }
 
   // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop transfer engine thread ... ");
+  gTransferEngine.Stop();
+
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop statistics thread ... ");
 
   if (gOFS->stats_tid) {

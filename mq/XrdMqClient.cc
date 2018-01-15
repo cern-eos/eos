@@ -61,7 +61,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   kInitOK = true;
   kBrokerN = 0;
   kMessageBuffer = "";
-  kRecvBuffer = 0;
+  kRecvBuffer = nullptr;
   kRecvBufferAlloc = 0;
   // Install sigbus signal handler
   struct sigaction act;
@@ -137,7 +137,10 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
 //------------------------------------------------------------------------------
 XrdMqClient::~XrdMqClient()
 {
-  free(kRecvBuffer);
+  if(kRecvBuffer) {
+    free(kRecvBuffer);
+    kRecvBuffer = nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -600,4 +603,3 @@ XrdMqClient::AddBroker(const char* brokerurl,
 
   return (!exists);
 }
-
