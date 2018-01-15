@@ -1593,13 +1593,13 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
 
         int errc = 0;
-        auto user_name  = Mapping::UidToUserName(fmd->getCUid(), errc);
+        auto user_name  = Mapping::UidToUserName(mVid.uid, errc);
         if (errc) {
           user_name = "nobody";
         }
 
         errc = 0;
-        auto group_name = Mapping::GidToGroupName(fmd->getCGid(), errc);
+        auto group_name = Mapping::GidToGroupName(mVid.gid, errc);
         if (errc) {
           group_name = "nobody";
         }
