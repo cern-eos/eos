@@ -138,6 +138,7 @@ ProcCommand::Rm()
         }
       }
 
+      regfree(&regex_filter);
       // if we have rm * (whatever wildcard) we remove the -r flag
       option.replace("r", "");
     } else {
