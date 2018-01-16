@@ -129,9 +129,9 @@ namespace XrdCl
 
       XrdSysMutexHelper lLock(this);
 
-      size_t cap_size = (size > buffersize)?size : buffersize;
+      size_t cap_size = size;
 
-      if (!queue.size()) {
+      if (!queue.size() || (size < buffersize)) {
 	inflight_size += cap_size;
 	return std::make_shared<std::vector<char>>( cap_size , 0);
       } else {
@@ -151,7 +151,7 @@ namespace XrdCl
       XrdSysMutexHelper lLock(this);
       inflight_size -= buffer->capacity();
 
-      if (queue.size() == max) {
+      if ( (queue.size() == max) || (buffer->capacity() < buffersize)) {
 	return;
       } else {
 	queue.push(buffer);
