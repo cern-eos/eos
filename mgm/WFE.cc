@@ -1567,30 +1567,27 @@ WFE::Job::DoIt(bool issync)
       else if (method == "proto") {
         cerr << "proto" << endl;
         cerr << "event: " << mActions[0].mEvent << endl;
+        auto event = mActions[0].mEvent;
         auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
-//        std::shared_ptr<eos::IFileMD> fmd;
-//        std::shared_ptr<eos::IContainerMD> cmd ;
-//        std::string fullpath;
-//        // do meta replacement
-//        {
-//          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-//
-//          try {
-//            fmd = gOFS->eosFileService->getFileMD(mFid);
-//            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-//            fullpath = gOFS->eosView->getUri(fmd.get());
-//          } catch (eos::MDException& e) {
-//            eos_static_debug("caught exception %d %s\n", e.getErrno(),
-//                             e.getMessage().str().c_str());
-//            return e.getErrno();
-//          }
-//        }
+        std::shared_ptr<eos::IFileMD> fmd;
+        std::string fullpath;
+        // do meta replacement
+        {
+          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+
+          try {
+            fmd = gOFS->eosFileService->getFileMD(mFid);
+            fullpath = gOFS->eosView->getUri(fmd.get());
+          } catch (eos::MDException& e) {
+            eos_static_debug("caught exception %d %s\n", e.getErrno(),
+                             e.getMessage().str().c_str());
+            return e.getErrno();
+          }
+        }
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
-
-        notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
 
         int errc = 0;
         auto user_name  = Mapping::UidToUserName(mVid.uid, errc);
@@ -1608,12 +1605,29 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
         google::protobuf::MapPair<std::string,std::string> id("CTA_ArchiveFileId", std::to_string(mFid));
+
+        if (event == "sync::delete") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
+        }
+        else if (event == "sync::prepare") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
+          *(notification->mutable_file()->mutable_lpath()) = fullpath;
+          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+          char buffer[1024];
+          StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
+          std::ostringstream destStream;
+          destStream << "root://" << gOFS->HostName << "//" << fullpath << "?eos.lfn=fxid:" << buffer;
+          notification->mutable_transport()->set_dst_url(destStream.str());
+        }
+
         notification->mutable_file()->mutable_xattr()->insert(id);
 
         eos_static_info("request:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
         cerr << "endpoint: " << endpoint << endl;
+
 //        cta::xrd::Response response = cta_service.Send(request);
 //
 //        switch(response.type())
