@@ -2727,7 +2727,12 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         if (!rc) {
+	  std::string md_name = md->name();
+	  uint64_t md_ino = md->md_ino();
+	  uint64_t md_pino = md->md_pino();
+	  std::string cookie = md->Cookie();
           mLock.UnLock();
+
           struct fuse_entry_param e;
           memset(&e, 0, sizeof(e));
           md->convert(e);
@@ -2745,11 +2750,10 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           pcap->Locker().UnLock();
           // attach a datapool object
           fi->fh = (uint64_t) io;
-          std::string cookie = md->Cookie();
           io->ioctx()->set_remote(Instance().Config().hostport,
-                                  md->name(),
-                                  md->md_ino(),
-                                  md->md_pino(),
+                                  md_name,
+                                  md_ino,
+                                  md_pino,
                                   req,
                                   (mode == W_OK));
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
@@ -2959,10 +2963,15 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
         md->set_creator(true);
-        XrdSysMutexHelper mLockParent(pmd->Locker());
-        pmd->set_mtime(ts.tv_sec);
-        pmd->set_mtime_ns(ts.tv_nsec);
-        mLockParent.UnLock();
+	// avoid lock-order violation
+	{
+	  md->Locker().UnLock();
+	  XrdSysMutexHelper mLockParent(pmd->Locker());
+	  pmd->set_mtime(ts.tv_sec);
+	  pmd->set_mtime_ns(ts.tv_nsec);
+	  mLockParent.UnLock();
+	  md->Locker().Lock();
+	}
 
         if ((Instance().Config().options.create_is_sync) ||
             (fi && fi->flags & O_EXCL)) {
@@ -2992,17 +3001,23 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               fi->direct_io = 0;
             }
 
+	    std::string md_name = md->name();
+	    uint64_t md_ino = md->md_ino();
+	    uint64_t md_pino = md->md_pino();
+            std::string cookie = md->Cookie();
+
+	    md->Locker().UnLock();
+
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
                                 md), md, true);
             io->set_authid(pcap->authid());
             io->set_maxfilesize(pcap->max_file_size());
             // attach a datapool object
             fi->fh = (uint64_t) io;
-            std::string cookie = md->Cookie();
             io->ioctx()->set_remote(Instance().Config().hostport,
-                                    md->name(),
-                                    md->md_ino(),
-                                    md->md_pino(),
+                                    md_name,
+                                    md_ino,
+                                    md_pino,
                                     req,
                                     true);
             io->ioctx()->attach(req, cookie, fi->flags);
