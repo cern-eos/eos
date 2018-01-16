@@ -1569,23 +1569,23 @@ WFE::Job::DoIt(bool issync)
         cerr << "event: " << mActions[0].mEvent << endl;
         auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
-        std::shared_ptr<eos::IFileMD> fmd ;
-        std::shared_ptr<eos::IContainerMD> cmd ;
-        std::string fullpath;
-        // do meta replacement
-        {
-          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-
-          try {
-            fmd = gOFS->eosFileService->getFileMD(mFid);
-            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-            fullpath = gOFS->eosView->getUri(fmd.get());
-          } catch (eos::MDException& e) {
-            eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                             e.getMessage().str().c_str());
-            return e.getErrno();
-          }
-        }
+//        std::shared_ptr<eos::IFileMD> fmd;
+//        std::shared_ptr<eos::IContainerMD> cmd ;
+//        std::string fullpath;
+//        // do meta replacement
+//        {
+//          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+//
+//          try {
+//            fmd = gOFS->eosFileService->getFileMD(mFid);
+//            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+//            fullpath = gOFS->eosView->getUri(fmd.get());
+//          } catch (eos::MDException& e) {
+//            eos_static_debug("caught exception %d %s\n", e.getErrno(),
+//                             e.getMessage().str().c_str());
+//            return e.getErrno();
+//          }
+//        }
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
