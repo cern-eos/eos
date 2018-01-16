@@ -4839,25 +4839,34 @@ EosFuse::TrackMgm(const std::string& lasturl)
 
   if (currentmgm != newmgm) 
   {
-    // let's failover the ZMQ connection
-    size_t p_pos = config.mqtargethost.rfind(":");
-    std::string new_mqtargethost = config.mqtargethost;
-    if ( (p_pos != std::string::npos) && ( p_pos > 6))
+    // for the first call currentmgm is an empty string, so we assume there is no failover needed
+    if (currentmgm.length())
     {
-      new_mqtargethost.erase(6, p_pos-6);
-    } 
+      // let's failover the ZMQ connection
+      size_t p_pos = config.mqtargethost.rfind(":");
+      std::string new_mqtargethost = config.mqtargethost;
+      if ( (p_pos != std::string::npos) && ( p_pos > 6))
+      {
+	new_mqtargethost.erase(6, p_pos-6);
+      } 
+      else
+      {
+	new_mqtargethost.erase(4);
+      }
+      
+      lastMgmHostPort.set(newmgm);
+      newmgm.erase(newmgm.find(":"));
+      new_mqtargethost.insert(6, newmgm);
+      
+      
+      // instruct a new ZMQ connection
+      mds.connect(new_mqtargethost);
+      eos_static_warning("reconnecting mqtarget=%s => mqtarget=%s", config.mqtargethost.c_str(), new_mqtargethost.c_str());
+    }
     else
     {
-      new_mqtargethost.erase(4);
+      // just store the first time we see the connected endpoint url
+      lastMgmHostPort.set(newmgm);
     }
-
-    lastMgmHostPort.set(newmgm);
-    newmgm.erase(newmgm.find(":"));
-    new_mqtargethost.insert(6, newmgm);
-
-
-    // instruct a new ZMQ connection
-    mds.connect(new_mqtargethost);
-    eos_static_warning("reconnecting mqtarget=%s => mqtarget=%s", config.mqtargethost.c_str(), new_mqtargethost.c_str());
   }
 }
