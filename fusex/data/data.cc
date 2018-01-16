@@ -1022,6 +1022,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
 	status = wproxy->WaitWrite();
       }
     }
+  }
 
   eos_info("offset=%llu count=%lu br=%lu jr=%lu", offset, count, br, jr);
 
@@ -1072,7 +1073,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
   }
 
   return -1;
-}
+  }
 
 /* -------------------------------------------------------------------------- */
 void
@@ -1080,7 +1081,6 @@ void
 data::datax::release_pread()
 /* -------------------------------------------------------------------------- */
 {
-
   eos_info("");
   sBufferManager.put_buffer(buffer);
   buffer.reset();

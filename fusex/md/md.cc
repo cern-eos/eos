@@ -2012,8 +2012,6 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       pmd->Locker().Lock();
     }
 
-    if (pmd) pmd->Locker().Lock();
-
     if (pmd && listing)
     {
       bool ret = false;

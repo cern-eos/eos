@@ -299,8 +299,6 @@ backend::fetchResponse(std::string& requestURL,
       eos_static_debug("fetch-exec-ms=%.02f sum-fetch-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d", exec_time_sec*1000.0, total_exec_time_sec*1000.0, status.IsOK(), status.IsError(), status.IsFatal(), status.code, status.errNo);
       break;
     }
-
-
   } while (1);
 
   // Start to read
@@ -312,8 +310,6 @@ backend::fetchResponse(std::string& requestURL,
   std::vector<char> rbuff;
   rbuff.reserve(kPAGE);
   uint32_t bytesread = 0;
-  do
-  {
 
   do {
     status = file->Read(offset, kPAGE, (char*) & rbuff[0], bytesread);
@@ -390,7 +386,7 @@ backend::fetchResponse(std::string& requestURL,
     {
       eos_static_err("fatal protocol parsing error");
       return EINVAL;
-    };
+    }
   }
   while (1);
 
@@ -601,11 +597,8 @@ backend::doLock(fuse_req_t req,
 
   eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(),
                    prefix.c_str(), mdstream.length());
-  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
-                                     response);
-  eos_static_info("sync-response");
 
-  XrdCl::XRootDStatus status = Query (fs, XrdCl::QueryCode::OpaqueFile, arg, response);
+  XrdCl::XRootDStatus status = Query (url, XrdCl::QueryCode::OpaqueFile, arg, response);
 
   eos_static_info("sync-response");
 
