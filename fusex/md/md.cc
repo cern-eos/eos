@@ -950,6 +950,8 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::strin
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d", md->name().c_str(),
 		     pmd->name().c_str(), md->id(), authid.c_str(), localstore);
 
+  // avoid lock-order violation
+  md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     pmd->local_children()[md->name()] = md->id();
@@ -958,6 +960,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::strin
     pmd->get_todelete().erase(md->name());
     pid = pmd->id();
   }
+  md->Locker().Lock();
 
   {
     // store the local and remote parent inode
@@ -1065,6 +1068,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s", md->name().c_str(),
 		     pmd->name().c_str(), md->id(), authid.c_str());
 
+  // avoid lock-order violation
+  md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     if (!pmd->local_children().count(md->name()))
@@ -1075,6 +1080,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     pmd->set_nlink(1);
     pmd->get_todelete().erase(md->name());
   }
+
+  md->Locker().Lock();
 
   mdflush.Lock();
 
