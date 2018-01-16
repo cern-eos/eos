@@ -73,11 +73,11 @@ data::get(fuse_req_t req,
     io->attach(); // client ref counting
     return io;
   } else {
-    // protect against running out of file descriptors                                                                          
+    // protect against running out of file descriptors
     size_t openfiles = datamap.size();
     size_t openlimit = (EosFuse::Instance().Config().options.fdlimit-128)/2;
 
-    while ( (openfiles=datamap.size()) > openlimit ) 
+    while ( (openfiles=datamap.size()) > openlimit )
     {
       datamap.UnLock();
       eos_static_warning("open-files=%lu limit=%lu - waiting for release of file descriptors",
@@ -95,7 +95,7 @@ data::get(fuse_req_t req,
 }
 
 /* -------------------------------------------------------------------------- */
-bool 
+bool
 /* -------------------------------------------------------------------------- */
 data::has(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
@@ -207,7 +207,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   eos_info("");
 
   bool journal_recovery = false;
-  
+
   if (mFile->journal() && mFile->has_xrdiorw(req)) {
     eos_info("flushing journal");
 
@@ -219,7 +219,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       mFile->xrdiorw(req)->WaitOpen();
     }
 
-    if ( (truncate_size != -1 ) 
+    if ( (truncate_size != -1 )
 	 || ( wait_writes  &&  mFile->journal()->size() ) )
     {
       // if there is a truncate to be done, we have to wait for the writes and truncate
@@ -232,9 +232,9 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 	  journal_recovery = true;
 	  eos_err("file not open");
 	}
-	
+
 	status = it->second->WaitWrite();
-	
+
 	if (!status.IsOK()) {
 	  journal_recovery = true;
 	  eos_err("write error error=%s", status.ToStr().c_str());
@@ -250,7 +250,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 	  eos_err("truncateion failed");
 	}
       }
-      
+
       if (journal_recovery) {
 	eos_err("journal-flushing failed");
 	errno = EREMOTEIO ;
@@ -355,7 +355,7 @@ data::datax::journalflush_async(std::string cid)
 
   if (mFile->journal()) {
     eos_info("syncing cache asynchronously");
-    
+
     if ((mFile->journal())->remote_sync_async(mFile->xrdiorw(cid)))
     {
       eos_err("async journal-cache-sync-async failed - ino=%08lx", id());
@@ -493,7 +493,7 @@ bool
 data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
-  size_t file_size = mMd->sizeTS();
+  size_t file_size = mMd->size();
 
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
@@ -547,7 +547,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
     mLock.Lock();
   }
 
-  size_t file_size = mMd->sizeTS();
+  size_t file_size = mMd->size();
 
   if (mPrefetchHandler && mFile->file())
   {
@@ -831,15 +831,15 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
     XrdCl::XRootDStatus status =
       mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
-    
-    
+
+
     if (!status.IsOK())
     {
       errno = XrdCl::Proxy::status2errno (status);
       eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
       return -1;
     }
-    
+
     if (mFlags & O_SYNC) {
       // make sure the file gets opened
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
@@ -850,7 +850,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 	// TODO: we can recover this later
 	return -1;
       }
-      
+
       // make sure all writes were successfull
       status = mFile->xrdiorw(req)->WaitWrite();
       if (!status.IsOK())
@@ -877,9 +877,8 @@ ssize_t
 data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->sizeTS());
-
   mLock.Lock();
+  eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->size());
 
   if (mFile->journal()) {
     ssize_t jts = ((mFile->journal()))->get_truncatesize();
@@ -1293,8 +1292,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 		      break;
                     }
                   }
-                } 
-		
+                }
+
 		if (!fit->second->IsClosed())
 		{
 		  break;
