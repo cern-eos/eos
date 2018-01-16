@@ -2467,6 +2467,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       metad::shared_md md;
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
+      Track::Monitor mon (__func__, Instance().Tracker(), md->id(), true);
       XrdSysMutexHelper mLock(md->Locker());
 
       if (!md->id() || md->deleted()) {
@@ -2487,9 +2488,8 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       if (!rc) {
         pmd = Instance().mds.get(req, parent, pcap->authid());
 
-	Track::Monitor mon (__func__, Instance().Tracker(), md->id(), true);
         Instance().mds.remove(req, pmd, md, pcap->authid());
-	del_ino = md->id();
+        del_ino = md->id();
       }
     }
     if (!rc)
