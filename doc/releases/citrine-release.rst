@@ -15,6 +15,40 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.8 Citrine``
+===================
+
+2018-01-16
+
+Bug
++++
+
+* [EOS-2184] - "eos ls -l" doesn't display the setgid bit anymore
+* [EOS-2186] - eos ns reports wrong number of directory
+* [EOS-2187] - Authproxy port only listens on IPv4
+* [EOS-2211] - CITRINE deadlocks on namespace mutex
+* [EOS-2216] - "binary junk" logged in func=RemoveGhostEntries (FID?)
+* [EOS-2224] - selinux denials with eosfuse bind.
+* [EOS-2229] - files downloaded with scp show 0 byte contents
+* [EOS-2230] - read-ahead inefficiency
+* [EOS-2231] - ioflush thread serializes file closeing and leads to memory aggregation
+* [EOS-2241] - Directory TREE mv does not invalidate source caches
+
+New Feature
++++++++++++
+
+* [EOS-2248] - FUSEX has to point ZMQ connection to active master
+
+Improvement
++++++++++++
+
+* [EOS-2238] - Print a warning for 'node ...' functions when an FST is seen without a GEO tag
+
+Support
++++++++
+* [EOS-2208] - EOS MGM (new NS) aborts with "pure virtual method called" on update (restart?)
+
+
 ``v4.2.7 Citrine``
 ===================
 
@@ -58,7 +92,7 @@ Bug
 * [EOS-2161] - rm -rf on fusex mount fails to remove all files/subdirectories
 * [EOS-2167] - new file systems added go to 'spare.0'
 * [EOS-2174] - Running out of FDs when using a user mount
-* [EOS-2175] - eos ns command takes 10s on EOSPPS  
+* [EOS-2175] - eos ns command takes 10s on EOSPPS
 * [EOS-2179] - calling verifychecksum issue
 * [EOS-2180] - Unable to access quota space <filename> Read-only file system
 
