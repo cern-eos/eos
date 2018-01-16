@@ -22,7 +22,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifdef EOSCITRINE
 #include "deps/backward-cpp/backward.hpp"
+#endif
 
 #ifdef ROCKSDB_FOUND
 #include "kv/RocksKV.hh"
@@ -1164,8 +1166,10 @@ void
 EosFuse::umounthandler(int sig, siginfo_t *si, void *ctx)
 /* -------------------------------------------------------------------------- */
 {
+#ifdef EOSCITRINE
 #ifdef __linux__
   backward::SignalHandling::handleSignal(sig, si, ctx);
+#endif
 #endif
   eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
