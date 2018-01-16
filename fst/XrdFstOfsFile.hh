@@ -25,25 +25,21 @@
 #ifndef __EOSFST_FSTOFSFILE_HH__
 #define __EOSFST_FSTOFSFILE_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <numeric>
 #include <cmath>
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
 #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/FmdDbMap.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN;
 
@@ -452,9 +448,7 @@ protected:
   off_t closeSize; //! file size when the file was closed
 
 private:
-  //----------------------------------------------------------------------------
   // File statistics for monitoring purposes
-  //----------------------------------------------------------------------------
   struct timeval openTime; //! time when a file was opened
   struct timeval closeTime; //! time when a file was closed
   struct timezone tz; //! timezone
@@ -494,27 +488,23 @@ private:
   struct timeval rvTime; ///< sum time to server readv requests in ms
   struct timeval wTime; ///< sum time to serve write requests in ms
   XrdOucString tIdent; ///< tident
-  struct stat
-    updateStat; ///< stat struct to check if a file is updated between open-close
-
+  //! Stat struct to check if a file is updated between open-close
+  struct stat updateStat;
 
   //--------------------------------------------------------------------------
   //! Compute total time to serve read requests
   //--------------------------------------------------------------------------
   void AddReadTime();
 
-
   //--------------------------------------------------------------------------
   //! Compute total time to serve vector read requests
   //--------------------------------------------------------------------------
   void AddReadVTime();
 
-
   //--------------------------------------------------------------------------
   //! Compute total time to serve write requests
   //--------------------------------------------------------------------------
   void AddWriteTime();
-
 
   //--------------------------------------------------------------------------
   //! Compute general statistics on a set of input values
@@ -525,7 +515,6 @@ private:
   //! @param sum sum of the elements
   //! @param avg average value
   //! @param sigma sigma of the elements
-  //!
   //--------------------------------------------------------------------------
   template <typename T>
   void ComputeStatistics(const std::vector<T>& vect, T& min, T& max,
@@ -564,37 +553,30 @@ private:
     }
   }
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create report as a string
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void MakeReportEnv(XrdOucString& reportString);
-
-private:
 
   //----------------------------------------------------------------------------
   //! Static method used to start an asynchronous thread which is doing the
   //! TPC transfer
   //!
   //! @param arg XrdFstOfsFile instance object
-  //!
   //----------------------------------------------------------------------------
   static void* StartDoTpcTransfer(void* arg);
-
 
   //----------------------------------------------------------------------------
   //! Do TPC transfer
   //----------------------------------------------------------------------------
   void* DoTpcTransfer();
 
-
   //----------------------------------------------------------------------------
   //! Set the TPC state
   //!
   //! @param state TPC state
-  //!
   //----------------------------------------------------------------------------
   void SetTpcState(TpcState_t state);
-
 
   //----------------------------------------------------------------------------
   //! Get the TPC state of the transfer
@@ -603,12 +585,26 @@ private:
   //----------------------------------------------------------------------------
   TpcState_t GetTpcState();
 
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+
+  //----------------------------------------------------------------------------
+  //! Filter out particular tags from the opaque information
+  //!
+  //! @param opaque original opaque information
+  //! @param tags set of tags to be filtered out
+  //!
+  //! @return new opaque information
+  //----------------------------------------------------------------------------
+  static std::string FilterTags(const std::string& opaque,
+                                const std::set<std::string> tags);
+
   int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
   pthread_t mTpcThread; ///< thread doing the TPC transfer
   TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
   XrdSysMutex mTpcStateMutex; ///< mutex protecting the access to TPC state
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
-
   uint16_t mTimeout; ///< timeout for layout operations
 };
 

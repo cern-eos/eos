@@ -23,22 +23,18 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-/*----------------------------------------------------------------------------*/
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
+#include "common/StringTokenizer.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
 #include <math.h>
 #include <fst/io/FileIoPluginCommon.hh>
-
-/*----------------------------------------------------------------------------*/
 
 extern XrdOssSys* XrdOfsOss;
 
@@ -231,6 +227,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   while (stringOpaque.replace("&&", "&")) {}
 
+  //----------------------------------------------------------------------------
+  {
+    //@todo (esindril): This should be dropped after Sept 2018 since it's
+    // just a temporary fix for an issue on the eos fuse.
+    std::string filtered_opaque = FilterTags(stringOpaque.c_str(),
+    {"xrdcl.secuid", "xrdcl.secgid"});
+    stringOpaque = filtered_opaque.c_str();
+  }
+  //----------------------------------------------------------------------------
   int envlen;
   XrdOucString maskOpaque = opaque ? opaque : "";
   // mask some opaque parameters to shorten the logging
@@ -2959,6 +2964,42 @@ XrdFstOfsFile::GetTpcState()
 {
   XrdSysMutexHelper scope_lock(mTpcStateMutex);
   return mTpcState;
+}
+
+//------------------------------------------------------------------------------
+// Filter out particular tags from the opaque information
+//------------------------------------------------------------------------------
+std::string
+XrdFstOfsFile::FilterTags(const std::string& opaque,
+                          const std::set<std::string> tags)
+{
+  bool found = false;
+  std::ostringstream oss;
+  std::list<std::string> tokens = eos::common::StringTokenizer::split
+                                  <std::list<std::string>>(opaque, '&');
+
+  for (const auto& token : tokens) {
+    found = false;
+
+    for (const auto& tag : tags) {
+      if (token.find(tag) == 0) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found && !token.empty()) {
+      oss << token << "&";
+    }
+  }
+
+  std::string new_opaque = oss.str();
+
+  if (!new_opaque.empty()) {
+    new_opaque.pop_back();
+  }
+
+  return new_opaque;
 }
 
 EOSFSTNAMESPACE_END
