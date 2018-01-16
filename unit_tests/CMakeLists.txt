@@ -48,6 +48,7 @@ set(COMMON_UT_SRCS
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
+  fst/XrdFstOfsFileTest.cc
   fst/HealthTest.cc)
 
 set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
