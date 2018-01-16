@@ -374,6 +374,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       {
 	root["options"]["global-locking"] = 1;
       }
+      if (!root["options"].isMember("flush-wait-open"))
+      {
+	root["options"]["flush-wait-open"] = 0;
+      }
+
       if (!root["options"].isMember("show-tree-size"))
       {
 	root["options"]["show-tree-size"] = 0;
@@ -485,6 +490,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
     config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
+    config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
     config.options.global_locking = root["options"]["global-locking"].asInt();
     config.options.overlay_mode = strtol(root["options"]["overlay-mode"].asString().c_str(), 0, 8);
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
@@ -1114,7 +1120,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
 		       config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1125,6 +1131,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       config.options.rename_is_sync,
 		       config.options.rmdir_is_sync,
                        config.options.global_flush,
+                       config.options.flush_wait_open,
                        config.options.global_locking,
 		       no_fsync_list.c_str(),
 		       config.options.overlay_mode,
@@ -3140,8 +3147,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       else
       {
         {
-          XrdSysMutexHelper mLock(io->mdctx()->Locker());
-          io->mdctx()->set_size(io->ioctx()->size());
+	  XrdSysMutexHelper mLock(io->mdctx()->Locker());
+	  io->mdctx()->set_size(io->ioctx()->size());
           io->set_update();
         }
         fuse_reply_write(req, size);

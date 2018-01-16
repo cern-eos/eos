@@ -34,7 +34,8 @@ This
     "symlink-is-sync" : 1,
     "rename-is-sync" : 1,
     "rmdir-is-sync" : 0,
-    "global-flush" : 1,
+    "global-flush" : 0,
+    "flush-wait-open" : 0,
     "global-locking" : 1, 
     "fd-limit" : 65536,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
@@ -43,7 +44,7 @@ This
     "show-tree-size" : 0,
     "free-md-asap" : 1,
     "cpu-core-affinity" : 1,
-    "no-xattr" : 0 
+    "no-xattr" : 1, 
   },
   "auth" : {
     "shared-mount" : 1,

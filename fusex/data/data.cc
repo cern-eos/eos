@@ -195,7 +195,7 @@ data::datax::flush(fuse_req_t req)
 {
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
-  return flush_nolock(req, true, false);
+  return flush_nolock(req, EosFuse::Instance().Config().options.flush_wait_open?true:false, false);
 }
 
 /* -------------------------------------------------------------------------- */

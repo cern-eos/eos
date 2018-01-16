@@ -209,6 +209,7 @@ public:
       int rename_is_sync;
       int rmdir_is_sync;
       int global_flush;
+      int flush_wait_open;
       int global_locking;
       uint64_t fdlimit;
       int rm_rf_protect_levels;
