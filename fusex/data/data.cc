@@ -440,8 +440,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       {
         mFile->xrdiorw(freq)->WaitClose();
         mFile->xrdiorw(freq)->attach();
-      } 
-      else 
+      }
+      else
       {
         // attach an rw io object
         mFile->set_xrdiorw(freq, new XrdCl::Proxy());
@@ -931,6 +931,8 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
   mLock.Lock();
   eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->size());
 
+  eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->size());
+
   if (mFile->journal())
   {
     ssize_t jts = ((mFile->journal()))->get_truncatesize();
@@ -968,7 +970,7 @@ data::datax::peek_pread(fuse_req_t req, char* &buf, size_t count, off_t offset)
       return br;
     }
 
-    if ( (br == (ssize_t) count) || (br == (ssize_t) mMd->sizeTS()) )
+    if ( (br == (ssize_t) count) || (br == (ssize_t) mMd->size()) )
     {
       return br;
     }
@@ -1344,7 +1346,7 @@ data::dmap::ioflush(ThreadAssistant &assistant)
                   break;
                 }
 
-                if (fit->second->IsOpen()) 
+                if (fit->second->IsOpen())
                 {
                   eos_static_info("flushing journal for req=%s id=%08lx", fit->first.c_str(),
                                   (*it)->id());
