@@ -269,11 +269,11 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     return 0;
 
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
-  
+
   mdmap.eraseTS(ino);
   stat.inodes_dec();
   inomap.erase_bwd(ino);
-  
+
   if (EOS_LOGS_DEBUG)
     eos_static_debug("adding ino to forgetlist %016x", ino);
   EosFuse::Instance().caps.forgetlist.add(ino);
@@ -341,7 +341,7 @@ metad::mdx::convert(struct fuse_entry_param& e)
   }
   else
   {
-    e.attr.st_nlink=1;    
+    e.attr.st_nlink=1;
   }
   if (S_ISLNK(e.attr.st_mode))
   {
@@ -1452,7 +1452,7 @@ metad::statvfs(fuse_req_t req, struct statvfs* svfs)
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
@@ -1466,7 +1466,7 @@ metad::cleanup(shared_md md)
     shared_md cmd;
     if (mdmap.retrieveTS(it->second, cmd))
     {
-      XrdSysMutexHelper cmLock(cmd->Locker());
+      // XrdSysMutexHelper cmLock(cmd->Locker());
 
       bool in_flush = has_flush(it->second);
 
@@ -1488,7 +1488,7 @@ metad::cleanup(shared_md md)
 	    eos_static_debug("adding ino to forgetlist %016x", cmd->id());
 	  EosFuse::Instance().caps.forgetlist.add(cmd->id());
 	}
-      }      
+      }
     }
     inval_entry_name.push_back(it->first);
   }
@@ -1524,7 +1524,7 @@ metad::cleanup(shared_md md)
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::cleanup(fuse_ino_t ino, bool force)
 /* -------------------------------------------------------------------------- */
@@ -1602,7 +1602,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       mdmap.retrieveTS(p_ino, pmd);
       md->Locker().Lock();
     }
-    
+
     {
       if (!pmd || (((!S_ISDIR(md->mode())) && !pmd->cap_count())) ||
           (!md->cap_count())) {
@@ -1807,27 +1807,27 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           // extract any new capability
           cap_received = map->second.capability();
         }
-	
+
         *md = map->second;
         md->clear_capability();
-	
+
         if (!pmd) {
           pmd = md;
 	  md->set_type(pmd->MD);
         }
-	
+
         uint64_t new_ino = 0;
-	
+
 	if (! (new_ino = inomap.forward(md->md_ino())) ) {
 	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
 	  new_ino = insert(req, md, md->authid());
 	}
-	
+
         md->set_id(new_ino);
         if (!listing) {
           p_ino = inomap.forward(md->md_pino());
         }
-	
+
         md->set_pid(p_ino);
         eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
         inomap.insert(map->first, new_ino);
@@ -1837,10 +1837,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           stat.inodes_ever_inc();
         }
         update(req, md, md->authid(), true);
-	
+
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("cap count %d\n", pmd->cap_count());
-	
+
 	if (!pmd->cap_count()) {
 	  if (EOS_LOGS_DEBUG)
 	    eos_static_debug("clearing out %0016lx", pmd->id());
@@ -1848,22 +1848,22 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 	  pmd->local_children().clear();
 	  pmd->get_todelete().clear();
 	}
-	
+
         if (cap_received.id()) {
           // store cap
           EosFuse::Instance().getCap().store(req, cap_received);
           md->cap_inc();
         }
-	
+
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx type=%d -", (long) new_ino, (long) map->first, md->type());
-	
+
         if (EOS_LOGS_DEBUG)
           eos_static_debug("%s", md->dump().c_str());
       }
     }
-  
-    
+
+
     if (pmd) {
       pmd->Locker().Lock();
     }
@@ -1886,17 +1886,17 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       pmd->set_type(pmd->MDLS);
 
     }
-    
+
     if (pmd) {
       // store the parent now, after all children are inserted
       update(req, pmd, "", true);
     }
-    
+
     if (pmd) {
       pmd->Locker().UnLock();
     }
   }
-  
+
   if (pmd) {
     return pmd->id();
   } else {
@@ -2321,7 +2321,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
 		    if (EOS_LOGS_DEBUG)
 		      eos_static_debug("%s", dump_md(md).c_str());
-		    
+
                     if (EosFuse::Instance().Config().options.md_kernelcache) {
                       for (auto it = children_copy.begin(); it != children_copy.end(); ++it) {
                         shared_md child_md;
