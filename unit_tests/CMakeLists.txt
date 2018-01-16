@@ -50,8 +50,11 @@ set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
   fst/HealthTest.cc)
 
-set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS} ${FST_UT_SRCS})
+set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})
+
+set(UT_FST_SRCS ${FST_UT_SRCS})
+add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
 set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
@@ -66,10 +69,24 @@ set_target_properties(
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+set_target_properties(
+  eos-fst-unit-tests PROPERTIES
+  INSTALL_RPATH "${EOS_UT_RPATH}"
+  SKIP_RPATH FALSE
+  SKIP_BUILD_RPATH  FALSE
+  BUILD_WITH_INSTALL_RPATH TRUE
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 target_link_libraries(
   eos-unit-tests
   gtest_main
   gmock
   XrdEosMgm-Shared
+  ${XROOTD_SERVER_LIBRARY})
+
+target_link_libraries(
+  eos-fst-unit-tests
+  gtest_main
+  gmock
   XrdEosFst-Shared
   ${XROOTD_SERVER_LIBRARY})

@@ -269,9 +269,9 @@ if(BUILD_QUARKDB_NAMESPACE AND Linux)
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
-    XrdEosMgm-Shared PRIVATE
+    XrdEosMgm-Shared PUBLIC
     EosNsCommon-Static
-    eosCommon-Static
+    eosCommon
     eosCommonServer
     eosCapability-Static
     qclient
