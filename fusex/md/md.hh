@@ -69,7 +69,7 @@ public:
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     } ;
 
-    mdx() : mSync(0)
+    mdx() : mSync(1)
     {
       setop_add();
       lookup_cnt.store(0, std::memory_order_seq_cst);
@@ -235,12 +235,12 @@ public:
     }
 
 
-    size_t sizeTS() 
+    size_t sizeTS()
     {
       XrdSysMutexHelper lLock(mLock);
       return size();
     }
-    
+
     std::map<std::string, uint64_t>& local_children()
     {
       return _local_children;
@@ -407,7 +407,7 @@ public:
              fuse_ino_t ino,
              int nlookup);
 
-  void wait_deleted(fuse_req_t req, 
+  void wait_deleted(fuse_req_t req,
 		    fuse_ino_t ino);
 
   shared_md getlocal(fuse_req_t req,
@@ -680,12 +680,12 @@ public:
 
   typedef std::deque<flushentry> flushentry_set_t;
 
-  void set_zmq_wants_to_connect(int val) 
+  void set_zmq_wants_to_connect(int val)
   {
     want_zmq_connect.store(val, std::memory_order_seq_cst);
   }
-  
-  int zmq_wants_to_connect() 
+
+  int zmq_wants_to_connect()
   {
     return want_zmq_connect.load();
   }
