@@ -2983,9 +2983,10 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     {
       // do a parent check
       cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
-                                                     S_IFDIR | mode);
+						     S_IFDIR | mode);
 
-      XrdSysMutexHelper mLock(pcap->Locker());
+      XrdSysMutexHelper capLock(pcap->Locker());
+
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -3007,14 +3008,17 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 	  uint64_t md_ino = md->md_ino();
 	  uint64_t md_pino = md->md_pino();
 	  std::string cookie = md->Cookie();
-          mLock.UnLock();
+          capLock.UnLock();
 
           struct fuse_entry_param e;
           memset(&e, 0, sizeof (e));
           md->convert(e);
+	  mLock.UnLock();
 
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
-          pcap->Locker().Lock();
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
+                              md), md, (mode == W_OK));
+          capLock.Lock(&pcap->Locker());
+
           io->set_authid(pcap->authid());
 
           if (pquota < pcap->max_file_size())
@@ -3025,8 +3029,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
           {
             io->set_maxfilesize(pcap->max_file_size());
           }
-          pcap->Locker().UnLock();
 
+          capLock.UnLock();
           // attach a datapool object
           fi->fh = (uint64_t) io;
           io->ioctx()->set_remote(Instance().Config().hostport,
@@ -3197,12 +3201,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
   struct fuse_entry_param e;
 
-  if (pcap->errc())
-  {
+  XrdSysMutexHelper capLock(pcap->Locker());
+  if (pcap->errc()) {
     rc = pcap->errc();
-  }
-  else
-  {
+  } else {
+    capLock.UnLock();
+
     {
       if (!Instance().caps.has_quota(pcap, 1024 * 1024))
       {
@@ -3210,8 +3214,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       }
     }
 
-    if (!rc)
-    {
+    if (!rc) {
       metad::shared_md md;
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
@@ -3268,12 +3271,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_creator(true);
 	// avoid lock-order violation
 	{
-    mLock.UnLock();
+	  mLock.UnLock();
 	  XrdSysMutexHelper mLockParent(pmd->Locker());
 	  pmd->set_mtime(ts.tv_sec);
 	  pmd->set_mtime_ns(ts.tv_nsec);
 	  mLockParent.UnLock();
-    mLock.Lock(&md->Locker());
+	  mLock.Lock(&md->Locker());
 	}
 
         if ( (Instance().Config().options.create_is_sync) ||
@@ -3316,7 +3319,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 	    uint64_t md_pino = md->md_pino();
             std::string cookie = md->Cookie();
 
-      mLock.UnLock();
+	    mLock.UnLock();
 
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
                                 md), md, true);
