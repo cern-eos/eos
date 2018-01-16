@@ -410,7 +410,7 @@ eos_unit_test:
     - mkdir build
     - cd build
     - cmake3 .. -DBUILD_TESTS=1
-    - make eos-unit-tests -j 4
+    - make eos-unit-tests eos-fst-unit-tests -j 4
     - ccache -s
     - ./unit_tests/eos-unit-tests
     - ./unit_tests/eos-fst-unit-tests
