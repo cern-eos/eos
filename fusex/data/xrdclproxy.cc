@@ -322,45 +322,46 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
 {
   eos_static_debug("");
 
-  XrdSysCondVarHelper lLock(proxy()->OpenCondVar());
+  XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
   if (status->IsOK())
   {
 
     proxy()->set_state(OPENED);
 
-    proxy()->OpenCondVar().UnLock();
+    openLock.UnLock();
 
-    XrdSysCondVarHelper lLock(proxy()->WriteCondVar());
+    XrdSysCondVarHelper writeLock(proxy()->WriteCondVar());
     while (proxy()->WriteQueue().size())
     {
       write_handler handler = proxy()->WriteQueue().front();
       XRootDStatus status;
       eos_static_debug("sending scheduled write request: off=%ld size=%lu timeout=%hu",
-		handler->offset(),
-		handler->vbuffer().size(),
-		handler->timeout());
+      handler->offset(),
+      handler->vbuffer().size(),
+      handler->timeout());
 
-      proxy()->WriteCondVar().UnLock();
+      writeLock.UnLock();
       status = proxy()->WriteAsync ( (uint64_t)handler->offset(),
-				     (uint32_t)(handler->vbuffer().size()),
-				     0,
-				     handler,
-				     handler->timeout()
-				     );
-      proxy()->WriteCondVar().Lock();
+        (uint32_t)(handler->vbuffer().size()),
+        0,
+        handler,
+        handler->timeout()
+      );
+
+      writeLock.Lock(&proxy()->WriteCondVar());
       proxy()->WriteQueue().pop_front();
 
       if (!status.IsOK())
       {
-	proxy()->set_writestate(&status);
+        proxy()->set_writestate(&status);
       }
     }
 
-    proxy()->OpenCondVar().Lock();
+    writeLock.UnLock();
+    openLock.Lock(&proxy()->OpenCondVar());
   }
   else
   {
-
     proxy()->set_state(FAILED, status);
   }
 
