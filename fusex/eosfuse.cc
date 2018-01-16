@@ -385,7 +385,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       if (!root["options"].isMember("free-md-asap"))
       {
 	root["options"]["free-md-asap"] = 1;
-      }      
+      }
       if (!root["auth"].isMember("krb5"))
       {
 	root["auth"]["krb5"] = 1;
@@ -613,7 +613,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
 
-    // store the current limit                                                                                                  
+    // store the current limit
     config.options.fdlimit = nofilelimit.rlim_cur;
 
     // data caching configuration
@@ -658,7 +658,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     {
       root["cache"]["read-ahead-bytes-max"] = 8 * 1024 * 1024;
     }
-  
+
     if (!root["cache"].isMember("read-ahead-strategy"))
     {
       root["cache"]["read-ahead-strategy"] = "dynamic";
@@ -1142,7 +1142,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       xrdcl_option_string += " ";
     }
     XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
-    eos_static_warning("xrdcl-options          := %s log-level=%s", xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str()); 
+    eos_static_warning("xrdcl-options          := %s log-level=%s", xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str());
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),
                                     sizeof (operations), NULL);
@@ -1506,7 +1506,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       if (pcap->errc())
       {
 	// retrieve cap for set utime
-	pcap = Instance().caps.acquire(req, cap_ino, 
+	pcap = Instance().caps.acquire(req, cap_ino,
 				       SU_OK);
       }
     }
@@ -2847,7 +2847,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 
   metad::shared_md md = Instance().mds.getlocal(req, ino);
   metad::shared_md pmd = md;
-  
+
   mode_t mode = 0;
   mode_t pmode = mask;
   bool is_deleted = false;
@@ -2876,12 +2876,12 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
     {
       rc = EIO;
     }
-    else 
+    else
     {
-      // we need a fresh cap for pino 
+      // we need a fresh cap for pino
       cap::shared_cap pcap = Instance().caps.acquire(req, pino,
                                                      S_IFDIR | pmode);
-      
+
       XrdSysMutexHelper mLock(pcap->Locker());
       if (pcap->errc())
       {
@@ -3268,12 +3268,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_creator(true);
 	// avoid lock-order violation
 	{
-	  md->Locker().UnLock();
+    mLock.UnLock();
 	  XrdSysMutexHelper mLockParent(pmd->Locker());
 	  pmd->set_mtime(ts.tv_sec);
 	  pmd->set_mtime_ns(ts.tv_nsec);
 	  mLockParent.UnLock();
-	  md->Locker().Lock();
+    mLock.Lock(&md->Locker());
 	}
 
         if ( (Instance().Config().options.create_is_sync) ||
@@ -3316,7 +3316,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 	    uint64_t md_pino = md->md_pino();
             std::string cookie = md->Cookie();
 
-	    md->Locker().UnLock();
+      mLock.UnLock();
 
             data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
                                 md), md, true);
@@ -4843,10 +4843,10 @@ EosFuse::TrackMgm(const std::string& lasturl)
   std::string sport;
   newmgm += ":";
   newmgm += eos::common::StringConversion::GetSizeString(sport, (unsigned long long)lastUrl.GetPort());
-  
+
   eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(), newmgm.c_str());
 
-  if (currentmgm != newmgm) 
+  if (currentmgm != newmgm)
   {
     // for the first call currentmgm is an empty string, so we assume there is no failover needed
     if (currentmgm.length())
@@ -4857,17 +4857,17 @@ EosFuse::TrackMgm(const std::string& lasturl)
       if ( (p_pos != std::string::npos) && ( p_pos > 6))
       {
 	new_mqtargethost.erase(6, p_pos-6);
-      } 
+      }
       else
       {
 	new_mqtargethost.erase(4);
       }
-      
+
       lastMgmHostPort.set(newmgm);
       newmgm.erase(newmgm.find(":"));
       new_mqtargethost.insert(6, newmgm);
-      
-      
+
+
       // instruct a new ZMQ connection
       mds.connect(new_mqtargethost);
       eos_static_warning("reconnecting mqtarget=%s => mqtarget=%s", config.mqtargethost.c_str(), new_mqtargethost.c_str());
