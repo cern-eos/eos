@@ -87,6 +87,7 @@ public:
       std::thread* worker_thread;
 
       for (int i = 0; i < kMaxThread; ++i) {
+        // @todo (esindril): Fix worker leak
         worker = new Worker(ctx_, ZMQ_DEALER);
         worker_thread = new std::thread(&Worker::work, worker);
         worker_thread->detach();
