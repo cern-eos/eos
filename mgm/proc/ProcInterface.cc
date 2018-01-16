@@ -256,6 +256,8 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
       ((cmd == "rm")) ||
       ((cmd == "chown")) ||
       ((cmd == "chmod")) ||
+      ((cmd == "fuseX")) ||
+      ((cmd == "fusex")) ||
       ((cmd == "fs") &&
        ((subcmd == "config") ||
         (subcmd == "boot") ||
