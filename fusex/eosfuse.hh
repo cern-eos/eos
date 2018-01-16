@@ -39,7 +39,7 @@
 #include "auth/CredentialFinder.hh"
 #include "misc/Track.hh"
 #include "misc/FuseId.hh"
-
+#include "misc/stringTS.hh"
 #include <set>
 #include <signal.h>
 #include <string.h>
@@ -198,7 +198,6 @@ public:
     typedef struct options
     {
       int debug;
-      int lowleveldebug;
       int debuglevel;
       int libfusethreads;
       int foreground;
@@ -281,7 +280,9 @@ public:
   void cleanup(fuse_ino_t ino) {
     return mds.cleanup(ino);
   }
-  
+
+  void TrackMgm(const std::string& lasturl);
+
 protected:
 
 private:
@@ -292,6 +293,8 @@ private:
 
   cfg_t config;
 
+  stringTS lastMgmHostPort;
+ 
   std::unique_ptr<kv> mKV;
   Stat fusestat;
 

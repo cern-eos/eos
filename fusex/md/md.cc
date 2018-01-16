@@ -96,9 +96,13 @@ int
 metad::connect(std::string zmqtarget, std::string zmqidentity, std::string zmqname, std::string zmqclienthost, std::string zmqclientuuid)
 /* -------------------------------------------------------------------------- */
 {
-  if (z_socket && z_socket->connected() && (zmqtarget != zmq_target))
-  {
-    // TODO:
+  set_zmq_wants_to_connect(1);
+  std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
+
+  if (z_socket && z_socket->connected() && (zmqtarget != zmq_target)) {
+    // delete the exinsting ZMQ connection
+    delete z_socket;
+    delete z_ctx;
   }
 
   if (zmqtarget.length())
@@ -154,8 +158,11 @@ metad::connect(std::string zmqtarget, std::string zmqidentity, std::string zmqna
     }
   }
 
-  mdbackend->set_clientuuid(zmq_clientuuid);
+  if (zmqclientuuid.length()) {
+    mdbackend->set_clientuuid(zmq_clientuuid);
+  }
 
+  set_zmq_wants_to_connect(0);
   return 0;
 }
 
@@ -298,11 +305,11 @@ metad::forget(fuse_req_t req,
     return 0;
 
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
-  
+
   mdmap.eraseTS(ino);
   stat.inodes_dec();
   inomap.erase_bwd(ino);
-  
+
   if (EOS_LOGS_DEBUG)
     eos_static_debug("adding ino to forgetlist %016x", ino);
   EosFuse::Instance().caps.forgetlist.add(ino);
@@ -363,7 +370,7 @@ metad::mdx::convert(struct fuse_entry_param &e)
   }
   else
   {
-    e.attr.st_nlink=1;    
+    e.attr.st_nlink=1;
   }
   if (S_ISLNK(e.attr.st_mode))
   {
@@ -943,6 +950,8 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::strin
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s localstore=%d", md->name().c_str(),
 		     pmd->name().c_str(), md->id(), authid.c_str(), localstore);
 
+  // avoid lock-order violation
+  md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     pmd->local_children()[md->name()] = md->id();
@@ -951,6 +960,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md, std::strin
     pmd->get_todelete().erase(md->name());
     pid = pmd->id();
   }
+  md->Locker().Lock();
 
   {
     // store the local and remote parent inode
@@ -1058,6 +1068,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     eos_static_debug("child=%s parent=%s inode=%016lx authid=%s", md->name().c_str(),
 		     pmd->name().c_str(), md->id(), authid.c_str());
 
+  // avoid lock-order violation
+  md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
     if (!pmd->local_children().count(md->name()))
@@ -1068,6 +1080,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     pmd->set_nlink(1);
     pmd->get_todelete().erase(md->name());
   }
+
+  md->Locker().Lock();
 
   mdflush.Lock();
 
@@ -1272,6 +1286,8 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md, std::str
   md->clear_pmtime_ns();
   md->set_ctime(ts.tv_sec);
   md->set_ctime_ns(ts.tv_nsec);
+
+  md->set_mv_authid(authid1); // store also the source authid
 
   mdflush.Lock();
 
@@ -1556,7 +1572,7 @@ metad::statvfs(fuse_req_t req, struct statvfs * svfs)
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
@@ -1570,7 +1586,7 @@ metad::cleanup(shared_md md)
     shared_md cmd;
     if (mdmap.retrieveTS(it->second, cmd))
     {
-      XrdSysMutexHelper cmLock(cmd->Locker());
+      // XrdSysMutexHelper cmLock(cmd->Locker());
 
       bool in_flush = has_flush(it->second);
 
@@ -1592,7 +1608,7 @@ metad::cleanup(shared_md md)
 	    eos_static_debug("adding ino to forgetlist %016x", cmd->id());
 	  EosFuse::Instance().caps.forgetlist.add(cmd->id());
 	}
-      }      
+      }
     }
     inval_entry_name.push_back(it->first);
   }
@@ -1628,7 +1644,7 @@ metad::cleanup(shared_md md)
 }
 
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
 metad::cleanup(fuse_ino_t ino, bool force)
 /* -------------------------------------------------------------------------- */
@@ -1711,7 +1727,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       mdmap.retrieveTS(p_ino, pmd);
       md->Locker().Lock();
     }
-    
+
     {
       if ( !pmd || (((!S_ISDIR(md->mode())) && !pmd->cap_count())) ||
           (!md->cap_count()) )
@@ -1932,18 +1948,18 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
           // extract any new capability
           cap_received = map->second.capability();
         }
+
         *md = map->second;
         md->clear_capability();
 
-        if (!pmd)
-        {
+        if (!pmd) {
           pmd = md;
 	  md->set_type(pmd->MD);
         }
 
         uint64_t new_ino = 0;
-	if (! (new_ino = inomap.forward(md->md_ino())) )
-	{
+
+	if (! (new_ino = inomap.forward(md->md_ino())) ) {
 	  // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
 	  new_ino = insert(req, md, md->authid());
 	}
@@ -1969,8 +1985,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("cap count %d\n", pmd->cap_count());
 
-	if (!pmd->cap_count())
-	{
+	if (!pmd->cap_count()) {
 	  if (EOS_LOGS_DEBUG)
 	    eos_static_debug("clearing out %0016lx", pmd->id());
 
@@ -1978,8 +1993,7 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
 	  pmd->get_todelete().clear();
 	}
 
-        if (cap_received.id())
-        {
+        if (cap_received.id()) {
           // store cap
           EosFuse::Instance().getCap().store(req, cap_received);
           md->cap_inc();
@@ -1993,7 +2007,10 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       }
     }
 
-    if (pmd) pmd->Locker().Lock();
+
+    if (pmd) {
+      pmd->Locker().Lock();
+    }
 
     if (pmd && listing)
     {
@@ -2014,16 +2031,20 @@ metad::apply(fuse_req_t req, eos::fusex::container & cont, bool listing)
       pmd->set_type(pmd->MDLS);
 
     }
-    if (pmd)
-    {
+
+    if (pmd) {
       // store the parent now, after all children are inserted
       update(req, pmd, "", true);
     }
 
-    if (pmd) pmd->Locker().UnLock();
+    if (pmd) {
+      pmd->Locker().UnLock();
+    }
   }
-  else
-  {
+
+  if (pmd) {
+    return pmd->id();
+  } else {
     return 0;
   }
 
@@ -2182,6 +2203,7 @@ metad::mdcflush(ThreadAssistant &assistant)
               if (md->getop() != md->RM)
               {
                 md->setop_none();
+		md->clear_mv_authid();
               }
 
 	      md->set_type(mdtype);
@@ -2364,11 +2386,10 @@ metad::mdcommunicate(ThreadAssistant &assistant)
   size_t cnt=0;
   int interval=1;
 
-  while (!assistant.terminationRequested())
-  {
+  while (!assistant.terminationRequested()) {
+    try {
+      std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
 
-    try
-    {
       eos_static_debug("");
 
       zmq::pollitem_t items[] ={
@@ -2377,6 +2398,10 @@ metad::mdcommunicate(ThreadAssistant &assistant)
 
       for (int i = 0; i < 100 * interval; ++i)
       {
+	// if there is a ZMQ reconnection to be done we release the ZQM socket mutex
+	if (zmq_wants_to_connect())
+	  continue;
+
         // 10 milliseconds
         zmq_poll(items, 1, 10);
 
@@ -2391,7 +2416,10 @@ metad::mdcommunicate(ThreadAssistant &assistant)
           int64_t more=0;
           size_t more_size = sizeof (more);
           zmq_msg_t message;
+
           rc = zmq_msg_init (&message);
+
+	  if (rc) rc=0;
 
           do
           {

@@ -226,9 +226,13 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 	  SetResponseCode(HttpResponse::OK);
         }
       }
+<<<<<<< HEAD
     }
     else
     {
+=======
+    } else {
+>>>>>>> 9639089... HTTP: conform to access rules when serving PROPFIND requests (banned users could pass etc.)
       eos_static_warning("msg=\"error opening directory - might be stalled/banned\"");
       SetResponseCode(ResponseCodes::FORBIDDEN);
       return this;

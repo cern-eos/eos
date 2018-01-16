@@ -35,7 +35,9 @@
 #include <memory>
 #include <map>
 #include <string>
-
+#include <deque>
+#include <queue>
+#include <thread>
 
 // need some redefines for XRootD v3
 #ifndef EOSCITRINE
@@ -81,10 +83,117 @@ static int XtoErrno( int xerr )
 
 namespace XrdCl
 {
+  // ---------------------------------------------------------------------- //
+  typedef std::shared_ptr<std::vector<char>> shared_buffer;
+  // ---------------------------------------------------------------------- //
 
-  class Proxy : public XrdCl::File, public eos::common::LogId
+  // ---------------------------------------------------------------------- //
+  class BufferManager : public XrdSysMutex
+  // ---------------------------------------------------------------------- //
   {
   public:
+
+    BufferManager(size_t _max = 128, size_t _default_size = 128 * 1024, size_t _max_inflight_size = 1*1024*1024*1024)
+    {
+      max = _max;
+      buffersize = _default_size;
+      queued_size = 0;
+      inflight_size = 0;
+      max_inflight_size = _max_inflight_size;
+    }
+
+    virtual ~BufferManager() {}
+
+    void configure(size_t _max, size_t _size)
+    {
+      max = _max;
+      buffersize = _size;
+    }
+
+    shared_buffer get_buffer(size_t size)
+    {
+      // make sure, we don't have more buffers in flight than max_inflight_size
+      do {
+	size_t cnt=0;
+	{
+	  XrdSysMutexHelper lLock(this);
+	  if (inflight_size < max_inflight_size)
+	    break;
+	}
+	// we wait that the situation relaxes
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	if (!(cnt%50))
+	  eos_static_warning("inflight-buffer exceeds maximum of %lu bytes", max_inflight_size);
+	cnt++;
+      } while (1);
+
+      XrdSysMutexHelper lLock(this);
+
+      size_t cap_size = (size > buffersize)?size : buffersize;
+
+      if (!queue.size()) {
+	inflight_size += cap_size;
+	return std::make_shared<std::vector<char>>( cap_size , 0);
+      } else {
+	shared_buffer buffer = queue.front();
+	queued_size -= buffer->capacity();
+	buffer->resize(cap_size);
+	buffer->reserve(cap_size);
+	inflight_size += buffer->capacity();
+
+	queue.pop();
+	return buffer;
+      }
+    }
+
+    void put_buffer(shared_buffer buffer)
+    {
+      XrdSysMutexHelper lLock(this);
+      inflight_size -= buffer->capacity();
+
+      if (queue.size() == max) {
+	return;
+      } else {
+	queue.push(buffer);
+	buffer->resize(buffersize);
+	buffer->reserve(buffersize);
+	buffer->shrink_to_fit();
+	queued_size += buffersize;
+	return;
+      }
+    }
+
+    const size_t queued() 
+    {
+      XrdSysMutexHelper lLock(this);
+      return queued_size;
+    }
+    
+    const size_t inflight()
+    {
+      XrdSysMutexHelper lLock(this);
+      return inflight_size;
+    }
+    
+  private:
+    std::queue<shared_buffer> queue;
+    size_t max;
+    size_t buffersize;
+    size_t queued_size;
+    size_t inflight_size;
+    size_t max_inflight_size;
+  } ;
+
+
+  // ---------------------------------------------------------------------- //
+  class Proxy : public XrdCl::File, public eos::common::LogId
+  // ---------------------------------------------------------------------- //
+  {
+  public:
+
+    static BufferManager sWrBufferManager; // write buffer manager
+    static BufferManager sRaBufferManager; // async read buffer manager
+
     // ---------------------------------------------------------------------- //
     XRootDStatus OpenAsync( const std::string &url,
                            OpenFlags::Flags   flags,
@@ -147,6 +256,9 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
 
     XRootDStatus CloseAsync(uint16_t         timeout = 0 );
+
+    XRootDStatus ScheduleCloseAsync(uint16_t timeout = 0 );
+
 
     XRootDStatus WaitClose();
 
@@ -290,11 +402,15 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
 
     Proxy() : XOpenAsyncHandler(this),
-    XCloseAsyncHandler(this),
-    XOpenAsyncCond(0),
-    XWriteAsyncCond(0),
-    XReadAsyncCond(0),
-    mReq(0), mIno(0)
+	      XCloseAsyncHandler(this),
+	      XOpenAsyncCond(0),
+	      XWriteAsyncCond(0),
+	      XReadAsyncCond(0),
+	      XWriteQueueDirectSubmission(0),
+	      XWriteQueueScheduledSubmission(0),
+	      XCloseAfterWrite(false),
+	      XCloseAfterWriteTimeout(0),
+	      mReq(0), mIno(0)
     {
       XrdSysCondVarHelper lLock(XOpenAsyncCond);
       set_state(CLOSED);
@@ -341,6 +457,7 @@ namespace XrdCl
     virtual ~Proxy()
     {
       Collect();
+      eos_notice("ra-efficiency=%f", get_readahead_efficiency());
     }
 
     // ---------------------------------------------------------------------- //
@@ -423,29 +540,42 @@ namespace XrdCl
       WriteAsyncHandler(WriteAsyncHandler* other )
       {
         mProxy = other->proxy();
-        mBuffer = other->vbuffer();
+        *mBuffer = other->vbuffer();
+	woffset = other->offset();
+	mTimeout = other->timeout();
       }
 
-      WriteAsyncHandler(Proxy* file, uint32_t size)  : mProxy(file)
+      WriteAsyncHandler(Proxy* file, uint32_t size, off_t off=0, uint16_t timeout=0)  : mProxy(file), woffset(off), mTimeout(timeout)
       {
+        mBuffer = sWrBufferManager.get_buffer(size);
+	mBuffer->resize(size);
         XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-        mBuffer.resize(size);
         mProxy->WriteCondVar().Signal();
-
       }
 
       virtual ~WriteAsyncHandler()
       {
+        sWrBufferManager.put_buffer(mBuffer);
       }
 
-      const char* buffer()
+      char* buffer()
       {
-        return &mBuffer[0];
+        return &((*mBuffer)[0]);
+      }
+
+      const off_t offset()
+      {
+	return woffset;
+      }
+
+      const uint16_t timeout()
+      {
+	return mTimeout;
       }
 
       const std::vector<char>& vbuffer()
       {
-        return mBuffer;
+        return *mBuffer;
       }
 
       Proxy* proxy()
@@ -453,10 +583,10 @@ namespace XrdCl
         return mProxy;
       }
 
-      void copy(const void* buffer, size_t size)
+      void copy(const void* cbuffer, size_t size)
       {
-        mBuffer.resize(size);
-        memcpy(&mBuffer[0], buffer, size);
+        mBuffer->resize(size);
+        memcpy(buffer(), cbuffer, size);
       }
 
       virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
@@ -464,7 +594,9 @@ namespace XrdCl
 
     private:
       Proxy* mProxy;
-      std::vector<char> mBuffer;
+      shared_buffer mBuffer;
+      off_t woffset;
+      uint16_t mTimeout;
     } ;
 
     // ---------------------------------------------------------------------- //
@@ -481,7 +613,7 @@ namespace XrdCl
       ReadAsyncHandler(ReadAsyncHandler* other ) : mAsyncCond(0)
       {
         mProxy = other->proxy();
-        mBuffer = other->vbuffer();
+        *mBuffer = other->vbuffer();
         roffset = other->offset();
         mDone = false;
         mEOF = false;
@@ -489,7 +621,8 @@ namespace XrdCl
 
       ReadAsyncHandler(Proxy* file, off_t off, uint32_t size)  : mProxy(file), mAsyncCond(0)
       {
-        mBuffer.resize(size);
+        mBuffer = sRaBufferManager.get_buffer(size);
+	mBuffer->resize(size);
         roffset = off;
         mDone = false;
         mEOF = false;
@@ -499,16 +632,18 @@ namespace XrdCl
 
       virtual ~ReadAsyncHandler()
       {
+        eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset, mBuffer->size(), this);
+	sRaBufferManager.put_buffer(mBuffer);
       }
 
       char* buffer()
       {
-        return &mBuffer[0];
+        return &((*mBuffer)[0]);
       }
 
       std::vector<char>& vbuffer()
       {
-        return mBuffer;
+        return *mBuffer;
       }
 
       Proxy* proxy()
@@ -521,17 +656,22 @@ namespace XrdCl
         return roffset;
       }
 
+      size_t size()
+      {
+	return mBuffer->size();
+      }
+
       bool matches(off_t off, uint32_t size,
                    off_t& match_offset, uint32_t& match_size)
       {
         if ( (off >= roffset) &&
-            (off < ((off_t) (roffset + mBuffer.size()) )) )
+            (off < ((off_t) (roffset + mBuffer->size()) )) )
         {
           match_offset = off;
-          if ( (off + size) <= (off_t) (roffset + mBuffer.size()) )
+          if ( (off + size) <= (off_t) (roffset + mBuffer->size()) )
             match_size = size;
           else
-            match_size = (roffset + mBuffer.size() - off);
+            match_size = (roffset + mBuffer->size() - off);
           return true;
         }
 
@@ -579,7 +719,7 @@ namespace XrdCl
       bool mDone;
       bool mEOF;
       Proxy* mProxy;
-      std::vector<char> mBuffer;
+      shared_buffer mBuffer;
       off_t roffset;
       XRootDStatus mStatus;
       XrdSysCondVar mAsyncCond;
@@ -594,15 +734,22 @@ namespace XrdCl
     typedef std::map<uint64_t, read_handler> chunk_rmap;
 
     // ---------------------------------------------------------------------- //
-    write_handler WriteAsyncPrepare(uint32_t size);
+    write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset=0, uint16_t timeout=0);
 
 
     // ---------------------------------------------------------------------- //
     XRootDStatus WriteAsync( uint64_t          offset,
-                            uint32_t           size,
-                            const void        *buffer,
-                            write_handler      handler,
-                            uint16_t           timeout);
+                             uint32_t           size,
+                             const void        *buffer,
+                             write_handler      handler,
+                             uint16_t           timeout);
+
+    // ---------------------------------------------------------------------- //
+    XRootDStatus ScheduleWriteAsync( 
+ 				     const void   *buffer,
+				     write_handler handler
+				     );
+
 
     // ---------------------------------------------------------------------- //
 
@@ -650,6 +797,22 @@ namespace XrdCl
                            uint32_t &bytesRead
                            );
 
+    std::deque<write_handler>& WriteQueue() 
+    {
+      return XWriteQueue;
+    }
+
+    void inc_write_queue_direct_submissions() { XWriteQueueDirectSubmission++; }
+
+    void inc_write_queue_scheduled_submissions() { XWriteQueueScheduledSubmission++; }
+
+    float get_scheduled_submission_fraction() { return (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission)? 100.0 * XWriteQueueScheduledSubmission / (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission) : 0; }
+
+
+    const bool close_after_write() { return XCloseAfterWrite; }
+
+    const uint16_t close_after_write_timeout() { return XCloseAfterWriteTimeout; }
+
     chunk_map& ChunkMap()
     {
 
@@ -689,6 +852,13 @@ namespace XrdCl
     chunk_rmap XReadAsyncChunks;
 
     XRootDStatus XWriteState;
+
+    std::deque<write_handler> XWriteQueue;
+    size_t XWriteQueueDirectSubmission;
+    size_t XWriteQueueScheduledSubmission;
+
+    bool XCloseAfterWrite;
+    uint16_t XCloseAfterWriteTimeout;
 
     READAHEAD_STRATEGY XReadAheadStrategy;
     size_t XReadAheadMin;

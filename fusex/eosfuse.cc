@@ -196,6 +196,17 @@ EosFuse::run(int argc, char* argv[], void *userdata)
   //   user mounts are private mounts with kerberos configuration
   // --------------------------------------------------------------------------------------------
 
+
+  // XrdCl::* options we read from our config file
+  std::vector<std::string> xrdcl_options;
+  xrdcl_options.push_back("TimeoutResolution");
+  xrdcl_options.push_back("ConnectionWindow");
+  xrdcl_options.push_back("ConnectionRetry");
+  xrdcl_options.push_back("StreamErrorWindow");
+  xrdcl_options.push_back("RequestTimeout");
+  xrdcl_options.push_back("StreamTimeout");
+  xrdcl_options.push_back("RedirectLimit");
+
   {
     // parse JSON configuration
     Json::Value root;
@@ -302,17 +313,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       {
 	root["hostport"] = "localhost";
       }
-
-      if (!root.isMember("mdzmqtarget"))
-      {
-	std::string target = "tcp://";
-	target += root["hostport"].asString();
-	if (target.find(":") != std::string::npos)
-	{
-	  target.erase(target.find(":"));
-	}
-	target += ":1100";
-      }
       if (!root.isMember("mdzmqidentity"))
       {
 	if (geteuid())
@@ -346,7 +346,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       }
       if (!root["options"].isMember("md-backend.timeout"))
       {
-	root["options"]["md-backend.timeout"] = 100;
+	root["options"]["md-backend.timeout"] = 86400;
       }
       if (!root["options"].isMember("data-kernelcache"))
       {
@@ -387,7 +387,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       if (!root["options"].isMember("free-md-asap"))
       {
 	root["options"]["free-md-asap"] = 1;
-      }      
+      }
       if (!root["auth"].isMember("krb5"))
       {
 	root["auth"]["krb5"] = 1;
@@ -444,6 +444,31 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       root["options"]["rm-rf-protect-levels"] = 1;
     }
 
+    // xrdcl default options
+    XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 15);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
+
+
+    for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it)
+    {
+      if (root["xrdcl"].isMember(*it))
+      {
+	XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(), root["xrdcl"][it->c_str()].asInt());
+      }
+    }
+
+    if (root["xrdcl"].isMember("LogLevel"))
+    {
+      XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel", root["xrdcl"]["LogLevel"].asString());
+      setenv((char*)"XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
+      XrdCl::DefaultEnv::ReInitializeLogging();
+    }
+
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
@@ -452,7 +477,6 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     config.statfilesuffix = root["statfilesuffix"].asString();
     config.statfilepath = root["statfilepath"].asString();
     config.options.debug = root["options"]["debug"].asInt();
-    config.options.lowleveldebug = root["options"]["lowleveldebug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
@@ -591,7 +615,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n", nofilelimit.rlim_cur, nofilelimit.rlim_max);
 
 
-    // store the current limit                                                                                                  
+    // store the current limit
     config.options.fdlimit = nofilelimit.rlim_cur;
 
     // data caching configuration
@@ -636,7 +660,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     {
       root["cache"]["read-ahead-bytes-max"] = 8 * 1024 * 1024;
     }
-  
+
     if (!root["cache"].isMember("read-ahead-strategy"))
     {
       root["cache"]["read-ahead-strategy"] = "dynamic";
@@ -826,6 +850,13 @@ EosFuse::run(int argc, char* argv[], void *userdata)
     fprintf(stderr,"# Disabling nagle algorithm (XRD_NODELAY=1)\n");
   }
 
+  if (!getenv("MALLOC_CONF"))
+  {
+    fprintf(stderr,"# Setting MALLOC_CONF=dirty_decay_ms:0\n");
+    putenv((char*)"MALLOC_CONF=dirty_decay_ms:0");
+  } else {
+    fprintf(stderr,"# MALLOC_CONF=%s\n",getenv("MALLOC_CONF"));
+  }
 
   int debug;
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1)
@@ -1006,7 +1037,7 @@ EosFuse::run(int argc, char* argv[], void *userdata)
       mKV.reset(kv);
     }
 
-    mdbackend.init(config.hostport, config.remotemountdir);
+    mdbackend.init(config.hostport, config.remotemountdir, config.options.md_backend_timeout);
     mds.init(&mdbackend);
     caps.init(&mdbackend, &mds);
     datas.init();
@@ -1100,7 +1131,20 @@ EosFuse::run(int argc, char* argv[], void *userdata)
 		       cconfig.location.c_str(),
 		       cconfig.journal.c_str());
 
-
+    std::string xrdcl_option_string;
+    std::string xrdcl_option_loglevel;
+    for ( auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it )
+    {
+      xrdcl_option_string += *it;
+      xrdcl_option_string += ":";
+      int value=0;
+      std::string svalue;
+      XrdCl::DefaultEnv::GetEnv()->GetInt(it->c_str(), value);
+      xrdcl_option_string += eos::common::StringConversion::GetSizeString(svalue, (unsigned long long) value);
+      xrdcl_option_string += " ";
+    }
+    XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
+    eos_static_warning("xrdcl-options          := %s log-level=%s", xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str());
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),
                                     sizeof (operations), NULL);
@@ -1271,11 +1315,22 @@ EosFuse::DumpStatistic(ThreadAssistant &assistant)
 
     std::string s1;
     std::string s2;
-
-    snprintf(ino_stat, sizeof (ino_stat),
+    std::string s3;
+    std::string s4;
+    std::string s5;
+    std::string s6;
+    std::string s7;
+    std::string s8;
+    snprintf(ino_stat, sizeof(ino_stat),
              "ALL        threads             := %llu\n"
              "ALL        visze               := %s\n"
              "All        rss                 := %s\n"
+	     "All        wr-buf-inflight     := %s\n"
+	     "All        wr-buf-queued       := %s\n"
+	     "All        ra-buf-inflight     := %s\n"
+	     "All        ra-buf-queued       := %s\n"
+	     "All        rd-buf-inflight     := %s\n"
+	     "All        rd-buf-queued       := %s\n"
              "All        version             := %s\n"
              "ALl        fuseversion         := %d\n"
              "All        starttime           := %lu\n"
@@ -1285,6 +1340,12 @@ EosFuse::DumpStatistic(ThreadAssistant &assistant)
              osstat.threads,
              eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
              eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
+             eos::common::StringConversion::GetReadableSizeString(s3, XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s4, XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s5, XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s6, XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s7, data::datax::sBufferManager.inflight(), "b"),
+             eos::common::StringConversion::GetReadableSizeString(s8, data::datax::sBufferManager.queued(), "b"),
              VERSION,
              FUSE_USE_VERSION,
              start_time,
@@ -1449,7 +1510,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int op,
       if (pcap->errc())
       {
 	// retrieve cap for set utime
-	pcap = Instance().caps.acquire(req, cap_ino, 
+	pcap = Instance().caps.acquire(req, cap_ino,
 				       SU_OK);
       }
     }
@@ -2790,7 +2851,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
 
   metad::shared_md md = Instance().mds.getlocal(req, ino);
   metad::shared_md pmd = md;
-  
+
   mode_t mode = 0;
   mode_t pmode = mask;
   bool is_deleted = false;
@@ -2819,12 +2880,12 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
     {
       rc = EIO;
     }
-    else 
+    else
     {
-      // we need a fresh cap for pino 
+      // we need a fresh cap for pino
       cap::shared_cap pcap = Instance().caps.acquire(req, pino,
                                                      S_IFDIR | pmode);
-      
+
       XrdSysMutexHelper mLock(pcap->Locker());
       if (pcap->errc())
       {
@@ -2926,9 +2987,10 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
     {
       // do a parent check
       cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
-                                                     S_IFDIR | mode);
+						     S_IFDIR | mode);
 
-      XrdSysMutexHelper mLock(pcap->Locker());
+      XrdSysMutexHelper capLock(pcap->Locker());
+
       if (pcap->errc())
       {
         rc = pcap->errc();
@@ -2944,16 +3006,23 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
             rc = EDQUOT;
           }
         }
-        if (!rc)
-        {
-          mLock.UnLock();
+
+        if (!rc) {
+	  std::string md_name = md->name();
+	  uint64_t md_ino = md->md_ino();
+	  uint64_t md_pino = md->md_pino();
+	  std::string cookie = md->Cookie();
+          capLock.UnLock();
 
           struct fuse_entry_param e;
           memset(&e, 0, sizeof (e));
           md->convert(e);
+	  mLock.UnLock();
 
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, (mode == W_OK));
-          pcap->Locker().Lock();
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
+                              md), md, (mode == W_OK));
+          capLock.Lock(&pcap->Locker());
+
           io->set_authid(pcap->authid());
 
           if (pquota < pcap->max_file_size())
@@ -2964,17 +3033,14 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
           {
             io->set_maxfilesize(pcap->max_file_size());
           }
-          pcap->Locker().UnLock();
 
+          capLock.UnLock();
           // attach a datapool object
           fi->fh = (uint64_t) io;
-
-          std::string cookie=md->Cookie();
-
           io->ioctx()->set_remote(Instance().Config().hostport,
-                                  md->name(),
-                                  md->md_ino(),
-                                  md->md_pino(),
+                                  md_name,
+                                  md_ino,
+                                  md_pino,
                                   req,
 				  (mode == W_OK) );
 
@@ -3139,12 +3205,12 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
   struct fuse_entry_param e;
 
-  if (pcap->errc())
-  {
+  XrdSysMutexHelper capLock(pcap->Locker());
+  if (pcap->errc()) {
     rc = pcap->errc();
-  }
-  else
-  {
+  } else {
+    capLock.UnLock();
+
     {
       if (!Instance().caps.has_quota(pcap, 1024 * 1024))
       {
@@ -3152,8 +3218,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       }
     }
 
-    if (!rc)
-    {
+    if (!rc) {
       metad::shared_md md;
       metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
@@ -3207,12 +3272,16 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
-	md->set_creator(true);
-
-        XrdSysMutexHelper mLockParent(pmd->Locker());
-        pmd->set_mtime(ts.tv_sec);
-        pmd->set_mtime_ns(ts.tv_nsec);
-        mLockParent.UnLock();
+        md->set_creator(true);
+	// avoid lock-order violation
+	{
+	  mLock.UnLock();
+	  XrdSysMutexHelper mLockParent(pmd->Locker());
+	  pmd->set_mtime(ts.tv_sec);
+	  pmd->set_mtime_ns(ts.tv_nsec);
+	  mLockParent.UnLock();
+	  mLock.Lock(&md->Locker());
+	}
 
         if ( (Instance().Config().options.create_is_sync) ||
             (fi && fi->flags & O_EXCL) )
@@ -3249,21 +3318,25 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             else
               fi->direct_io = 0;
 
-            data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(), md), md, true);
+	    std::string md_name = md->name();
+	    uint64_t md_ino = md->md_ino();
+	    uint64_t md_pino = md->md_pino();
+            std::string cookie = md->Cookie();
 
+	    mLock.UnLock();
+
+            data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
+                                md), md, true);
             io->set_authid(pcap->authid());
 
             io->set_maxfilesize(pcap->max_file_size());
 
             // attach a datapool object
             fi->fh = (uint64_t) io;
-
-            std::string cookie=md->Cookie();
-
             io->ioctx()->set_remote(Instance().Config().hostport,
-                                    md->name(),
-                                    md->md_ino(),
-                                    md->md_pino(),
+                                    md_name,
+                                    md_ino,
+                                    md_pino,
                                     req,
 				    true);
 
@@ -4759,4 +4832,57 @@ EosFuse::isRecursiveRm(fuse_req_t req)
   }
 
   return false;
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::TrackMgm(const std::string& lasturl)
+/* -------------------------------------------------------------------------- */
+{
+  static std::mutex lTrackMgmMutex;
+  std::lock_guard<std::mutex> sequenzerMutex(lTrackMgmMutex);
+
+  std::string currentmgm = lastMgmHostPort.get();
+  XrdCl::URL lastUrl(lasturl);
+
+  std::string newmgm = lastUrl.GetHostName();
+  std::string sport;
+  newmgm += ":";
+  newmgm += eos::common::StringConversion::GetSizeString(sport, (unsigned long long)lastUrl.GetPort());
+
+  eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(), newmgm.c_str());
+
+  if (currentmgm != newmgm)
+  {
+    // for the first call currentmgm is an empty string, so we assume there is no failover needed
+    if (currentmgm.length())
+    {
+      // let's failover the ZMQ connection
+      size_t p_pos = config.mqtargethost.rfind(":");
+      std::string new_mqtargethost = config.mqtargethost;
+      if ( (p_pos != std::string::npos) && ( p_pos > 6))
+      {
+	new_mqtargethost.erase(6, p_pos-6);
+      }
+      else
+      {
+	new_mqtargethost.erase(4);
+      }
+
+      lastMgmHostPort.set(newmgm);
+      newmgm.erase(newmgm.find(":"));
+      new_mqtargethost.insert(6, newmgm);
+
+
+      // instruct a new ZMQ connection
+      mds.connect(new_mqtargethost);
+      eos_static_warning("reconnecting mqtarget=%s => mqtarget=%s", config.mqtargethost.c_str(), new_mqtargethost.c_str());
+    }
+    else
+    {
+      // just store the first time we see the connected endpoint url
+      lastMgmHostPort.set(newmgm);
+    }
+  }
 }

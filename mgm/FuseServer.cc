@@ -1812,8 +1812,14 @@ FuseServer::Header(const std::string & response)
 
 /*----------------------------------------------------------------------------*/
 bool
+<<<<<<< HEAD
 FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, eos::common::Mapping::VirtualIdentity * vid, 
 			 bool lock)
+=======
+FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, 
+			 eos::common::Mapping::VirtualIdentity * vid, 
+			 bool take_lock)
+>>>>>>> 9f285f7... MGM: add notification for 'mv' to the source of a subdirectory move and add permission check on the source
 {
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
@@ -1832,8 +1838,17 @@ FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, eos
   bool x_ok = false;
   bool d_ok = false;
 
+<<<<<<< HEAD
   if (lock)
     gOFS->eosViewRWMutex.LockRead();
+=======
+  
+  eos::common::RWMutexReadLock rd_ns_lock;
+
+  if (take_lock) {
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+  }
+>>>>>>> 9f285f7... MGM: add notification for 'mv' to the source of a subdirectory move and add permission check on the source
 
   try
   {
@@ -2200,11 +2215,18 @@ FuseServer::HandleMD(const std::string &id,
                       md.authid().c_str());
 
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+<<<<<<< HEAD
       eos::ContainerMD* cmd = 0;
       eos::ContainerMD* pcmd = 0;
       eos::ContainerMD* cpcmd = 0;
       eos::fusex::md mv_md;
 
+=======
+      std::shared_ptr<eos::IContainerMD> cmd;
+      std::shared_ptr<eos::IContainerMD> pcmd;
+      std::shared_ptr<eos::IContainerMD> cpcmd;
+      eos::fusex::md mv_md;
+>>>>>>> 9f285f7... MGM: add notification for 'mv' to the source of a subdirectory move and add permission check on the source
       mode_t sgid_mode = 0;
 
       try
