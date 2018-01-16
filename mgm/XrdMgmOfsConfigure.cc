@@ -312,8 +312,6 @@ XrdMgmOfs::InitializeFileView()
 
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
-  // Force refresh the GeoTreeEngine info at the end of the mgm booting process
-  gGeoTreeEngine.forceRefresh();
   return 0;
 }
 
@@ -1952,7 +1950,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     DrainerEngine = new Drainer();
   }
 
-  gGeoTreeEngine.StartUpdater();
   XrdSysTimer sleeper;
   sleeper.Snooze(1);
 
@@ -2060,6 +2057,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // we don't check if it succeeds because we might fail because we timeout
   // if there is no FST sending update
   gGeoTreeEngine.forceRefresh();
+  gGeoTreeEngine.StartUpdater();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
