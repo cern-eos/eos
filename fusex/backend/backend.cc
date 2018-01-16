@@ -225,7 +225,13 @@ backend::fetchResponse(std::string& requestURL,
     total_exec_time_sec += exec_time_sec;
 
     std::string lasturl;
+
+#ifdef EOSCITRINE
     file->GetProperty("LastURL", lasturl);
+#else
+    lasturl = file->GetLastURL().GetURL();
+#endif
+
     EosFuse::Instance().TrackMgm(lasturl);
 
     if (!status.IsOK()) {
