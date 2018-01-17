@@ -75,7 +75,25 @@ GeoBalancer::Stop()
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdSysThread::Cancel(mThread);
+  if(mThread) {
+    XrdSysThread::Cancel(mThread);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+GeoBalancer::Join()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief thread join function
+ */
+/*----------------------------------------------------------------------------*/
+{
+  if(mThread) {
+    XrdSysThread::Cancel(mThread);
+    XrdSysThread::Join(mThread, nullptr);
+    mThread = 0;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -88,7 +106,7 @@ GeoBalancer::~GeoBalancer()
 {
   Stop();
 
-  if (!gOFS->Shutdown) {
+  if (mThread && !gOFS->Shutdown) {
     XrdSysThread::Join(mThread, NULL);
   }
 

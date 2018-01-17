@@ -169,12 +169,17 @@ public:
   void Stop ();
 
   // ---------------------------------------------------------------------------
+  // thread join function
+  // ---------------------------------------------------------------------------
+  void Join ();
+
+  // ---------------------------------------------------------------------------
   // Service thread static startup function
   // ---------------------------------------------------------------------------
   static void* StaticGeoBalancer (void*);
 
   // ---------------------------------------------------------------------------
-  // Service implementation e.g. eternal conversion loop running third-party 
+  // Service implementation e.g. eternal conversion loop running third-party
   // conversion
   // ---------------------------------------------------------------------------
   void* GeoBalance (void);
@@ -183,4 +188,3 @@ public:
 
 EOSMGMNAMESPACE_END
 #endif
-

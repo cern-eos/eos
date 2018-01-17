@@ -618,6 +618,25 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Synchronously join threads before destruction
+  //----------------------------------------------------------------------------
+  void Join()
+  {
+#ifndef EOSMGMFSVIEWTEST
+
+    if (mGroupBalancer) {
+      mGroupBalancer->Join();
+    }
+
+    if (mGeoBalancer) {
+      mGeoBalancer->Join();
+    }
+
+#endif
+  }
+
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FsSpace()

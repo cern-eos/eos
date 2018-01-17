@@ -1971,6 +1971,10 @@ FsView::Reset()
     // stop all the threads having only a read-lock
     for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
       it->second->Stop();
+
+      if(getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
+        it->second->Join();
+      }
     }
   }
   eos::common::RWMutexWriteLock viewlock(ViewMutex);

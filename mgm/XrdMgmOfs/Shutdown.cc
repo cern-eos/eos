@@ -203,5 +203,15 @@ xrdmgmofs_shutdown(int sig)
 
   eos_static_warning("Shutdown complete");
   eos_static_alert("msg=\"shutdown complete\'");
-  kill(getpid(), 9);
+
+  if(getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
+    eos_static_crit("msg=\"attempting graceful shutdown, expect SEGV\'");
+
+    FsView::gFsView.Reset();
+    exit(9);
+  }
+  else {
+    kill(getpid(), 9);
+  }
+
 }

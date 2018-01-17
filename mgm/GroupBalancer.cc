@@ -70,7 +70,24 @@ GroupBalancer::GroupBalancer(const char* spacename)
 void
 GroupBalancer::Stop()
 {
-  XrdSysThread::Cancel(mThread);
+  if(mThread) {
+    XrdSysThread::Cancel(mThread);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief thread join function
+ */
+/*----------------------------------------------------------------------------*/
+void
+GroupBalancer::Join()
+{
+  if(mThread) {
+    XrdSysThread::Cancel(mThread);
+    XrdSysThread::Join(mThread, nullptr);
+    mThread = 0;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -82,7 +99,7 @@ GroupBalancer::~GroupBalancer()
 {
   Stop();
 
-  if (!gOFS->Shutdown) {
+  if (mThread && !gOFS->Shutdown) {
     XrdSysThread::Join(mThread, NULL);
   }
 
