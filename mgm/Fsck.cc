@@ -32,6 +32,7 @@
 #include "mgm/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
+#include "mgm/Messaging.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 

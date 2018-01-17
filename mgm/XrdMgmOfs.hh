@@ -98,7 +98,7 @@
 #ifndef __EOSMGM_MGMOFS__HH__
 #define __EOSMGM_MGMOFS__HH__
 
-#include "auth_plugin/ProtoUtils.hh"
+#include "auth_plugin/Request.pb.h"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/LinuxStat.hh"
@@ -106,7 +106,6 @@
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
@@ -159,6 +158,7 @@ class WFE;
 class LRU;
 class Fsck;
 class Master;
+class Messaging;
 }
 }
 
