@@ -1669,7 +1669,7 @@ WFE::Job::DoIt(bool issync)
         }
       } else {
         storetime = 0;
-        eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
+        eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
                        mDescription.c_str());
         Move(mActions[0].mQueue, "g", storetime);
         XrdOucString log = "workflow is not known";
