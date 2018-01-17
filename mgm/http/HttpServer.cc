@@ -25,6 +25,7 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Stat.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/StringConversion.hh"
@@ -98,7 +99,7 @@ HttpServer::Handler(void* cls,
       char host[NI_MAXHOST];
 
       if ( ! getnameinfo(info->client_addr, (info->client_addr->sa_family == AF_INET)? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST) )
-      { 
+      {
 	headers["client-real-ip"] = host;
       }
       else

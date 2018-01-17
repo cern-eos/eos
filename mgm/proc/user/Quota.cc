@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

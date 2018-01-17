@@ -25,6 +25,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Stat.hh"
+
 
 EOSMGMNAMESPACE_BEGIN
 

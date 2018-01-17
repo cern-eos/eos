@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
 #include "mgm/Macros.hh"

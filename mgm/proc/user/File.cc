@@ -28,6 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
+#include "mgm/Stat.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"

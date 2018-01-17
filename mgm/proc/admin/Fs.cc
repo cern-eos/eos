@@ -23,6 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Stat.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"

@@ -26,6 +26,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Stat.hh"
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"

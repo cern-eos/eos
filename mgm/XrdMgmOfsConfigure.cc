@@ -31,6 +31,7 @@
 #include <sys/fsuid.h>
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
+#include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsTrace.hh"

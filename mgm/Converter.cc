@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/Converter.hh"
+#include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"

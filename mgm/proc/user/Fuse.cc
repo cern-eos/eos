@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "common/Path.hh"
 

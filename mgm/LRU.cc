@@ -28,6 +28,7 @@
 #include "common/RWMutex.hh"
 #include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
+#include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"

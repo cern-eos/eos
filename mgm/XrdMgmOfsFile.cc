@@ -36,6 +36,7 @@
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
+#include "mgm/Stat.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"

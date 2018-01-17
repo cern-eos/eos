@@ -104,7 +104,6 @@
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mgm/Stat.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
@@ -155,6 +154,7 @@ class GeoTreeEngine;
 class ZMQ;
 class Recycle;
 class Iostat;
+class Stat;
 }
 }
 
@@ -1403,7 +1403,9 @@ public:
   //----------------------------------------------------------------------------
   XrdAccAuthorize* Authorization; ///< Authorization service
 
-  Stat MgmStats; ///<  Mgm Namespace Statistics
+  //! Mgm Namespace Statistics
+  std::unique_ptr<Stat> MgmStatsPtr;
+  Stat &MgmStats;
   std::unique_ptr<Iostat> IoStats; ///<  Mgm IO Statistics
 
   //! Mgm IO Report store path by default is /var/tmp/eos/report

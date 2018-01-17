@@ -28,6 +28,7 @@
 #include "common/LayoutId.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN

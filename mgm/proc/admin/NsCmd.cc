@@ -30,6 +30,7 @@
 #include "namespace/interface/IView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Stat.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN

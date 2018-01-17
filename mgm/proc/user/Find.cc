@@ -26,6 +26,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"

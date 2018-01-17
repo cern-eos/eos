@@ -26,6 +26,7 @@
 #include "mgm/VstMessaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
+#include "mgm/Stat.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqTiming.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
