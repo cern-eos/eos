@@ -1565,8 +1565,6 @@ WFE::Job::DoIt(bool issync)
         }
       }
       else if (method == "proto") {
-        cerr << "proto" << endl;
-        cerr << "event: " << mActions[0].mEvent << endl;
         auto event = mActions[0].mEvent;
         auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
@@ -1578,6 +1576,9 @@ WFE::Job::DoIt(bool issync)
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
+            if (fmd == nullptr) {
+              return ENOENT;
+            }
             fullpath = gOFS->eosView->getUri(fmd.get());
           } catch (eos::MDException& e) {
             eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -1610,15 +1611,39 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
         }
         else if (event == "sync::prepare") {
-          notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
-          *(notification->mutable_file()->mutable_lpath()) = fullpath;
-          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          char buffer[1024];
-          StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
-          std::ostringstream destStream;
-          destStream << "root://" << gOFS->HostName << "//" << fullpath << "?eos.lfn=fxid:" << buffer;
-          notification->mutable_transport()->set_dst_url(destStream.str());
+          stat buf;
+          XrdOucErrInfo errInfo;
+
+          // Check if we have a disk replica and if not, it's on tape
+          if (gOFS->_stat(fullpath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
+            auto onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) > 0;
+            auto onTape = buf.st_mode & EOS_TAPE_MODE_T;
+
+            if (onDisk) {
+              return SFS_OK;
+            }
+            else if (!onTape) {
+              eos_static_err("File is not on disk nor on tape, cannot prepare it.");
+              return EINVAL;
+            }
+            else {
+              notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
+              *(notification->mutable_file()->mutable_lpath()) = fullpath;
+              notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+              notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+
+              char buffer[1024];
+              StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
+              std::ostringstream destStream;
+              destStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << std::string{buffer};
+              destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=CTA_retrieve";
+              notification->mutable_transport()->set_dst_url(destStream.str());
+            }
+          }
+          else {
+            eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s", errInfo.getErrText());
+            return EAGAIN;
+          }
         }
 
         notification->mutable_file()->mutable_xattr()->insert(id);
@@ -1626,19 +1651,21 @@ WFE::Job::DoIt(bool issync)
         eos_static_info("request:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
-        cerr << "endpoint: " << endpoint << endl;
 
-//        cta::xrd::Response response = cta_service.Send(request);
-//
-//        switch(response.type())
-//        {
-//          case cta::xrd::Response::RSP_SUCCESS:
-//            retc = 0;
-//            break;
-//          default:
-//            retc = EINVAL;
-//            eos_static_err("response:\n%s", response.DebugString().c_str());
-//        }
+        cta::xrd::Response response;
+        auto future = cta_service.Send(request, response);
+
+        future.get();
+
+        switch(response.type())
+        {
+          case cta::xrd::Response::RSP_SUCCESS:
+            retc = 0;
+            break;
+          default:
+            retc = EINVAL;
+            eos_static_err("response:\n%s", response.DebugString().c_str());
+        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
