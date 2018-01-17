@@ -23,6 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Fsck.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

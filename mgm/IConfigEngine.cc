@@ -32,6 +32,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/txengine/TransferEngine.hh"
+#include "mgm/Fsck.hh"
 #include "namespace/interface/IQuota.hh"
 #include <sstream>
 

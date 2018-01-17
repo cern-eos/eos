@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/FsView.hh"
+#include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "common/StringConversion.hh"

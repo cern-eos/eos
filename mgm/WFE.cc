@@ -31,6 +31,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
 

@@ -103,12 +103,13 @@
 #include "common/Logging.hh"
 #include "common/LinuxStat.hh"
 #include "common/JeMallocHandler.hh"
+#include "common/FileId.hh"
+#include "common/FileSystem.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mgm/Fsck.hh"
-#include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include <google/sparse_hash_map>
 #include <dirent.h>
 #include <chrono>
 #include <mutex>
@@ -156,6 +157,8 @@ class Iostat;
 class Stat;
 class WFE;
 class LRU;
+class Fsck;
+class Master;
 }
 }
 
@@ -1416,12 +1419,17 @@ public:
   //! comment into /var/log/eos/comments.log
   eos::common::CommentLog* commentLog;
 
-  Fsck FsCheck; ///<  Class checking the filesystem
+  //! Class checking the filesystem
+  std::unique_ptr<Fsck> FsckPtr;
+  Fsck &FsCheck;
+
   //! Map remembering 'healing' inodes
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
   XrdSysMutex MgmHealMapMutex; ///< mutex protecting the help map
 
-  Master MgmMaster; ///<  Master/Slave configuration/failover class
+  //!  Master/Slave configuration/failover class
+  std::unique_ptr<Master> MasterPtr;
+  Master &MgmMaster;
 
   //! Map storing the last time of a filesystem dump, this information is used
   //! to track filesystems which have not been checked decentral by an FST.

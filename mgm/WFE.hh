@@ -29,6 +29,7 @@
 #include "common/Timing.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "Xrd/XrdJob.hh"
 #include <sys/types.h>
 
 //! Forward declaration

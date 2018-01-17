@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
+#include "mgm/FsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -82,7 +83,7 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId, XrdOucSt
     }
 
     it_fs->second->SnapShotFileSystem(source_drain_snapshot, false);
-  
+
     FileSystem::fsstatus_t status = it_fs->second->GetConfigStatus();
 
     if (status == eos::common::FileSystem::kDrain) {
@@ -177,7 +178,7 @@ Drainer::StopFSDrain(unsigned int fsId, XrdOucString& err)
     it_fs->second->SnapShotFileSystem(drain_snapshot, false);
   }
   auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
-  
+
   if (it_drainfs == mDrainFS.end()) {
     //fs is not drainin
     err = "error: a central FS drain has not started for the given FS ";
@@ -224,7 +225,7 @@ Drainer::ClearFSDrain(unsigned int fsId, XrdOucString& err)
     }
 
     it_fs->second->SnapShotFileSystem(drain_snapshot, false);
-  }  
+  }
   auto it_drainfs = mDrainFS.find(drain_snapshot.mHostPort);
 
   if (it_drainfs == mDrainFS.end()) {
@@ -292,7 +293,7 @@ Drainer::GetDrainStatus(unsigned int fsId, XrdOucString& out, XrdOucString& err)
   } else {
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    {  
+    {
       auto it_fs = FsView::gFsView.mIdView.find(fsId);
 
       if (it_fs == FsView::gFsView.mIdView.end()) {
@@ -467,7 +468,7 @@ Drainer::Drain()
             XrdOucString err;
             if (!StartFSDrain(it_fs->first,0, err)) {
 	      eos_notice("Failed to start the drain for fs %d: %s", it_fs->first, err.c_str());
-            }  
+            }
           }
 
         }

@@ -46,6 +46,8 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
+#include "mgm/FsView.hh"
+#include "mgm/Master.hh"
 #include "authz/XrdCapability.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"

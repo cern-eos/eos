@@ -59,6 +59,8 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
+#include "mgm/Fsck.hh"
+#include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
@@ -169,6 +171,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr.get()),
   commentLog(0),
+  FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr.get()),
+  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr.get()),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr.get()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr.get()),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),

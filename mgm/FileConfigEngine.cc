@@ -24,7 +24,9 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/FileConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Master.hh"
 #include "mq/XrdMqMessage.hh"
+#include "common/GlobalConfig.hh"
 #include <sstream>
 #include <fcntl.h>
 

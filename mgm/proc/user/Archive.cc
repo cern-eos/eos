@@ -33,6 +33,7 @@
 #include "namespace/interface/IView.hh"
 #include "common/ZMQ.hh"
 #include "mgm/ZMQ.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 #include <iomanip>
 
 EOSMGMNAMESPACE_BEGIN

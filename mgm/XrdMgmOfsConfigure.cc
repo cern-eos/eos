@@ -49,6 +49,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
+#include "mgm/Master.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif

@@ -25,6 +25,7 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include <sstream>
 

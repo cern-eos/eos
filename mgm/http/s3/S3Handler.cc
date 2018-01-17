@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include <string>

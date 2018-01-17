@@ -27,6 +27,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Master.hh"
+#include "mgm/FsView.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqTiming.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
