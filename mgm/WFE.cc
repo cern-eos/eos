@@ -1611,7 +1611,7 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
         }
         else if (event == "sync::prepare") {
-          stat buf;
+          struct stat buf;
           XrdOucErrInfo errInfo;
 
           // Check if we have a disk replica and if not, it's on tape
@@ -1652,20 +1652,20 @@ WFE::Job::DoIt(bool issync)
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 
-        cta::xrd::Response response;
-        auto future = cta_service.Send(request, response);
-
-        future.get();
-
-        switch(response.type())
-        {
-          case cta::xrd::Response::RSP_SUCCESS:
-            retc = 0;
-            break;
-          default:
-            retc = EINVAL;
-            eos_static_err("response:\n%s", response.DebugString().c_str());
-        }
+//        cta::xrd::Response response;
+//        auto future = cta_service.Send(request, response);
+//
+//        future.get();
+//
+//        switch(response.type())
+//        {
+//          case cta::xrd::Response::RSP_SUCCESS:
+//            retc = 0;
+//            break;
+//          default:
+//            retc = EINVAL;
+//            eos_static_err("response:\n%s", response.DebugString().c_str());
+//        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
