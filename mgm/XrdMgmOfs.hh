@@ -105,11 +105,10 @@
 #include "common/JeMallocHandler.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/Fsck.hh"
-#include "mgm/LRU.hh"
-#include "mgm/WFE.hh"
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/ProcCommand.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include <dirent.h>
 #include <chrono>
 #include <mutex>
@@ -155,6 +154,8 @@ class ZMQ;
 class Recycle;
 class Iostat;
 class Stat;
+class WFE;
+class LRU;
 }
 }
 
@@ -1445,8 +1446,15 @@ public:
     MgmDirectoryModificationTime;
 
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
-  LRU LRUd; ///< LRU object running the LRU policy engine
-  WFE WFEd; ///< WFE object running the WFE engine
+
+  //! LRU object running the LRU policy engine
+  std::unique_ptr<LRU> LRUPtr;
+  LRU &LRUd;
+
+  //! WFE object running the WFE engine
+  std::unique_ptr<WFE> WFEPtr;
+  WFE &WFEd;
+
   //!  Egroup refresh object running asynchronous Egroup fetch thread
   std::unique_ptr<Egroup> EgroupRefresh;
   //!  Recycle object running the recycle bin deletion thread

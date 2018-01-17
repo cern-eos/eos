@@ -47,6 +47,8 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Iostat.hh"
+#include "mgm/LRU.hh"
+#include "mgm/WFE.hh"
 #ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
 #endif

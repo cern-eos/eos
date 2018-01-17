@@ -57,6 +57,8 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Iostat.hh"
+#include "mgm/LRU.hh"
+#include "mgm/WFE.hh"
 #include "namespace/interface/IFsView.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
@@ -166,7 +168,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0), auth_tid(0),
   mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr.get()),
-  commentLog(0), UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),
+  commentLog(0),
+  LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr.get()),
+  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr.get()),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),
   mSubmitterTid(0)
 {
   eDest = ep;

@@ -29,8 +29,6 @@
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
@@ -53,18 +51,18 @@ private:
   //............................................................................
   pthread_t mThread; //< thread id of the LRU thread
   time_t mMs; //< forced sleep time used for find / scans
-  
+
   eos::common::Mapping::VirtualIdentity mRootVid;//< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
-  
+
 public:
 
-  /* Default Constructor - use it to run the LRU thread by calling Start 
+  /* Default Constructor - use it to run the LRU thread by calling Start
    */
   LRU ()
   {
     mThread = 0;
-    mMs = 0; 
+    mMs = 0;
     eos::common::Mapping::Root(mRootVid);
   }
 
@@ -73,14 +71,14 @@ public:
    * @return configured sleep time
    */
   time_t GetMs() { return mMs; }
-  
+
   /**
    * @brief set the millisecond sleep time for find
    * @param ms sleep time in milliseconds to enforce
    */
   void SetMs(time_t ms) { mMs = ms; }
-  
-  /* Start the LRU thread engine   
+
+  /* Start the LRU thread engine
    */
   bool Start ();
 
@@ -98,58 +96,58 @@ public:
 
   /**
    * @brief Destructor
-   * 
+   *
    */
   ~LRU ()
   {
     if (mThread) Stop ();
   };
-  
+
   /* expire by age if empty
    */
   void AgeExpireEmpty(const char* dir, std::string& policy);
-  
+
   /* expire by age
    */
   void AgeExpire(const char* dir, std::string& policy);
-  
-  /* expire by volume 
+
+  /* expire by volume
    */
   void CacheExpire(const char* dir, std::string& low, std::string& high);
-  
+
   /* convert by match
    */
   void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap &map);
-  
+
   static const char* gLRUPolicyPrefix;
-  
+
   struct lru_entry
   {
-    // compare operator to use struct in a map 
+    // compare operator to use struct in a map
     bool operator< (lru_entry const& lhs) const
     {
       if (lhs.getCTime() == getCTime())
         return (getPath() < lhs.getPath());
-      
+
       return getCTime() < lhs.getCTime();
     }
     std::string path;
     time_t ctime;
     unsigned long long size;
-    
+
     // ctime getter
     time_t getCTime() const
     {
       return ctime;
     }
-    
+
     // path getter
     std::string getPath() const
     {
       return path;
     }
   } ;
-  
+
   // entry in an lru queue having path name,mtime,size
   typedef struct lru_entry lru_entry_t;
 };

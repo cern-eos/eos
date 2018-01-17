@@ -28,6 +28,7 @@
 #include "common/StringConversion.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/WFE.hh"
 /*----------------------------------------------------------------------------*/
 #include <ctime>
 
