@@ -1620,6 +1620,7 @@ WFE::Job::DoIt(bool issync)
             auto onTape = buf.st_mode & EOS_TAPE_MODE_T;
 
             if (onDisk) {
+              eos_static_info("File is already on disk, nothing to prepare.");
               return SFS_OK;
             }
             else if (!onTape) {
@@ -1652,20 +1653,20 @@ WFE::Job::DoIt(bool issync)
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 
-//        cta::xrd::Response response;
-//        auto future = cta_service.Send(request, response);
-//
-//        future.get();
-//
-//        switch(response.type())
-//        {
-//          case cta::xrd::Response::RSP_SUCCESS:
-//            retc = 0;
-//            break;
-//          default:
-//            retc = EINVAL;
-//            eos_static_err("response:\n%s", response.DebugString().c_str());
-//        }
+        cta::xrd::Response response;
+        auto future = cta_service.Send(request, response);
+
+        future.get();
+
+        switch(response.type())
+        {
+          case cta::xrd::Response::RSP_SUCCESS:
+            retc = 0;
+            break;
+          default:
+            retc = EINVAL;
+            eos_static_err("response:\n%s", response.DebugString().c_str());
+        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
