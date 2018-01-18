@@ -28,10 +28,9 @@
 #include "common/StringTokenizer.hh"
 #include "common/FileId.hh"
 #include "common/SymKeys.hh"
+#include "common/LayoutId.hh"
 #include "fst/Fmd.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-
-using namespace eos::common;
 
 //------------------------------------------------------------------------------
 //! Convert an FST env representation to an Fmd struct
@@ -811,7 +810,7 @@ com_file(char* arg1)
       XrdOucString inconsistencylable = "";
       int nreplicaonline = 0;
 
-      for (i = 0; i < LayoutId::kSixteenStripe; i++) {
+      for (i = 0; i < eos::common::LayoutId::kSixteenStripe; i++) {
         XrdOucString repurl = "mgm.replica.url";
         repurl += i;
         XrdOucString repfid = "mgm.fid";

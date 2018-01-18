@@ -18,8 +18,7 @@
 
 #include "fst/Fmd.hh"
 #include "common/StringConversion.hh"
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#include "common/LayoutId.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -115,14 +114,17 @@ std::unique_ptr<XrdOucEnv>
 FmdHelper::FmdToEnv()
 {
   std::ostringstream serializedStream;
-  serializedStream << "id=" << mProtoFmd.fid() << "&cid=" << mProtoFmd.cid() <<
-                   "&ctime=" << mProtoFmd.ctime();
-  serializedStream << "&ctime_ns=" << mProtoFmd.ctime_ns() << "&mtime=" <<
-                   mProtoFmd.mtime() << "&mtime_ns=" << mProtoFmd.mtime_ns();
-  serializedStream << "&size=" << mProtoFmd.size() << "&checksum=" <<
-                   mProtoFmd.checksum() << "&lid=" << mProtoFmd.lid();
-  serializedStream << "&uid=" << mProtoFmd.uid() << "&gid=" << mProtoFmd.gid() <<
-                   '&';
+  serializedStream << "id=" << mProtoFmd.fid()
+                   << "&cid=" << mProtoFmd.cid()
+                   << "&ctime=" << mProtoFmd.ctime()
+                   << "&ctime_ns=" << mProtoFmd.ctime_ns()
+                   << "&mtime=" << mProtoFmd.mtime()
+                   << "&mtime_ns=" << mProtoFmd.mtime_ns()
+                   << "&size=" << mProtoFmd.size()
+                   << "&checksum=" << mProtoFmd.checksum()
+                   << "&lid=" << mProtoFmd.lid()
+                   << "&uid=" << mProtoFmd.uid()
+                   << "&gid=" << mProtoFmd.gid() << '&';
   return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
                                       serializedStream.str().c_str()));
 }
