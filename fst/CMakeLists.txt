@@ -182,6 +182,10 @@ add_library(EosFstIo-Objects OBJECT
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
   layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
+# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
+# buffer files are generated when we try to build these libraries
+add_dependencies(EosFstIo-Objects EosNsQuarkdb-Shared)
+
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -189,10 +193,6 @@ target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
-
-# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
-# buffer files are generated when we try to build these libraries
-add_dependencies(EosFstIo EosNsQuarkdb-Shared)
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
