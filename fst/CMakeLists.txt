@@ -430,14 +430,6 @@ add_executable(eos-adler32
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.cc)
-# TODO (esindril): Review if this is still used
-add_executable(FstLoad Load.cc tools/FstLoad.cc)
-
-target_link_libraries(FstLoad PRIVATE
-  ${GLIBC_RT_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-check-blockxs PRIVATE
   EosFstIo-Static
