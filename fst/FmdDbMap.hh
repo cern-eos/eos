@@ -20,11 +20,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FmdLEVELDB_HH__
-#define __EOSFST_FmdLEVELDB_HH__
-
+#pragma once
 #include "fst/Namespace.hh"
-#include "fst/FmdClient.hh"
+#include "fst/Fmd.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -44,9 +42,53 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class handling many Fmd changelog files at a time
 //------------------------------------------------------------------------------
-class FmdDbMapHandler : public FmdClient
+class FmdDbMapHandler : public eos::common::LogId
 {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Convert an FST env representation to an Fmd struct
+  //!
+  //! @param env env representation
+  //! @param fmd reference to Fmd struct
+  //!
+  //! @return true if successful otherwise false
+  //----------------------------------------------------------------------------
+  static bool EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Convert namespace file metadata to an Fmd struct
+  //!
+  //! @param file namespace file metadata object
+  //! @param fmd reference to Fmd struct
+  //!
+  //! @return true if successful otherwise false
+  //----------------------------------------------------------------------------
+  bool NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Return Fmd from an mgm
+  //!
+  //! @param manager host:port of the mgm to contact
+  //! @param fid file id
+  //! @param fmd reference to the Fmd struct to store Fmd
+  //!
+  //! @return
+  //----------------------------------------------------------------------------
+  static int GetMgmFmd(const char* manager, eos::common::FileId::fileid_t fid,
+                       struct Fmd& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Call the 'auto repair' function e.g. 'file convert --rewrite'
+  //!
+  //! @param manager host:port of the server to contact
+  //! @param fid file id to auto-repair
+  //!
+  //! @return
+  //----------------------------------------------------------------------------
+  static int CallAutoRepair(const char* manager,
+                            eos::common::FileId::fileid_t fid);
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -79,35 +121,6 @@ public:
     clname += "/";
     clname += "fmd";
     return clname.c_str();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return's the syncing flag (if we sync, all files on disk are flagge as
-  //! orphans until the MGM meta data has been verified and when this flag is
-  //! set, we don't report orphans!
-  //----------------------------------------------------------------------------
-  virtual bool
-  IsSyncing(eos::common::FileSystem::fsid_t fsid)
-  {
-    return isSyncing[fsid];
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return's the dirty flag indicating a non-clean shutdown
-  //----------------------------------------------------------------------------
-  virtual bool
-  IsDirty(eos::common::FileSystem::fsid_t fsid)
-  {
-    return isDirty[fsid];
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the stay dirty flag indicating a non completed bootup
-  //----------------------------------------------------------------------------
-  virtual void
-  StayDirty(eos::common::FileSystem::fsid_t fsid, bool dirty)
-  {
-    stayDirty[fsid] = dirty;
   }
 
   //----------------------------------------------------------------------------
@@ -391,6 +404,35 @@ public:
   //----------------------------------------------------------------------------
   virtual bool TrimDB();
 
+  //----------------------------------------------------------------------------
+  //! Return's the syncing flag (if we sync, all files on disk are flagge as
+  //! orphans until the MGM meta data has been verified and when this flag is
+  //! set, we don't report orphans!
+  //----------------------------------------------------------------------------
+  virtual bool
+  IsSyncing(eos::common::FileSystem::fsid_t fsid)
+  {
+    return isSyncing[fsid];
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return's the dirty flag indicating a non-clean shutdown
+  //----------------------------------------------------------------------------
+  virtual bool
+  IsDirty(eos::common::FileSystem::fsid_t fsid)
+  {
+    return isDirty[fsid];
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set the stay dirty flag indicating a non completed bootup
+  //----------------------------------------------------------------------------
+  virtual void
+  StayDirty(eos::common::FileSystem::fsid_t fsid, bool dirty)
+  {
+    stayDirty[fsid] = dirty;
+  }
+
   // That is all we need for meta data handling
 
   //----------------------------------------------------------------------------
@@ -550,7 +592,4 @@ public:
   }
 };
 
-
 EOSFSTNAMESPACE_END
-
-#endif

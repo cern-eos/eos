@@ -16,10 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FMD_HH__
-#define __EOSFST_FMD_HH__
-#include "fst/FmdBase.pb.h"
+#pragma once
 #include "fst/Namespace.hh"
+#include "fst/FmdBase.pb.h"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
@@ -105,4 +104,3 @@ public:
 };
 
 EOSFSTNAMESPACE_END
-#endif

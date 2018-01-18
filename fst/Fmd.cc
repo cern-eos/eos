@@ -115,12 +115,16 @@ std::unique_ptr<XrdOucEnv>
 FmdHelper::FmdToEnv()
 {
   std::ostringstream serializedStream;
-  serializedStream << "id=" << mProtoFmd.fid() << "&cid=" << mProtoFmd.cid() << "&ctime=" << mProtoFmd.ctime();
-  serializedStream << "&ctime_ns=" << mProtoFmd.ctime_ns() << "&mtime=" << mProtoFmd.mtime() << "&mtime_ns=" << mProtoFmd.mtime_ns();
-  serializedStream << "&size=" << mProtoFmd.size() << "&checksum=" << mProtoFmd.checksum() << "&lid=" << mProtoFmd.lid();
-  serializedStream << "&uid=" << mProtoFmd.uid() << "&gid=" << mProtoFmd.gid() << '&';
-
-  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(serializedStream.str().c_str()));
+  serializedStream << "id=" << mProtoFmd.fid() << "&cid=" << mProtoFmd.cid() <<
+                   "&ctime=" << mProtoFmd.ctime();
+  serializedStream << "&ctime_ns=" << mProtoFmd.ctime_ns() << "&mtime=" <<
+                   mProtoFmd.mtime() << "&mtime_ns=" << mProtoFmd.mtime_ns();
+  serializedStream << "&size=" << mProtoFmd.size() << "&checksum=" <<
+                   mProtoFmd.checksum() << "&lid=" << mProtoFmd.lid();
+  serializedStream << "&uid=" << mProtoFmd.uid() << "&gid=" << mProtoFmd.gid() <<
+                   '&';
+  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
+                                      serializedStream.str().c_str()));
 }
 
 EOSFSTNAMESPACE_END

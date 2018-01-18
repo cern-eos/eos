@@ -24,17 +24,227 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
+#include "common/FileId.hh"
 #include "common/SymKeys.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/Fmd.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-/*----------------------------------------------------------------------------*/
 
 using namespace eos::common;
 
-/* File handling */
+//------------------------------------------------------------------------------
+//! Convert an FST env representation to an Fmd struct
+//!
+//! @param env env representation
+//! @param fmd reference to Fmd struct
+//!
+//! @return true if successful otherwise false
+//------------------------------------------------------------------------------
+bool
+EnvFstToFmd(XrdOucEnv& env, struct eos::fst::Fmd& fmd)
+{
+  // Check that all tags are present
+  if (!env.Get("id") ||
+      !env.Get("cid") ||
+      !env.Get("ctime") ||
+      !env.Get("ctime_ns") ||
+      !env.Get("mtime") ||
+      !env.Get("mtime_ns") ||
+      !env.Get("size") ||
+      !env.Get("lid") ||
+      !env.Get("uid") ||
+      !env.Get("gid")) {
+    return false;
+  }
+
+  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+
+  if (env.Get("checksum")) {
+    fmd.set_checksum(env.Get("checksum"));
+
+    if (fmd.checksum() == "none") {
+      fmd.set_checksum("");
+    }
+  } else {
+    fmd.set_checksum("");
+  }
+
+  return true;
+}
+
+
+//------------------------------------------------------------------------------
+//! Return a remote file attribute
+//!
+//! @param manager host:port of the server to contact
+//! @param key extended attribute key to get
+//! @param path file path to read attributes from
+//! @param attribute reference where to store the attribute value
+//------------------------------------------------------------------------------
+int
+GetRemoteAttribute(const char* manager, const char* key,
+                   const char* path, XrdOucString& attribute)
+{
+  if ((!key) || (!path)) {
+    return EINVAL;
+  }
+
+  int rc = 0;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  XrdOucString fmdquery = "/?fst.pcmd=getxattr&fst.getxattr.key=";
+  fmdquery += key;
+  fmdquery += "&fst.getxattr.path=";
+  fmdquery += path;
+  XrdOucString address = "root://";
+  address += manager;
+  address += "//dummy";
+  XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("error=URL is not valid: %s", address.c_str());
+    return EINVAL;
+  }
+
+  std::unique_ptr<XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
+
+  if (!fs) {
+    eos_static_err("error=failed to get new FS object");
+    return EINVAL;
+  }
+
+  arg.FromString(fmdquery.c_str());
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (status.IsOK()) {
+    rc = 0;
+    eos_static_debug("got attribute meta data from server %s for key=%s path=%s"
+                     " attribute=%s", manager, key, path, response->GetBuffer());
+  } else {
+    rc = ECOMM;
+    eos_static_err("Unable to retrieve meta data from server %s for key=%s path=%s",
+                   manager, key, path);
+  }
+
+  if (rc) {
+    delete response;
+    return EIO;
+  }
+
+  if (!strncmp(response->GetBuffer(), "ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_info("Unable to retrieve meta data on remote server %s for key=%s "
+                    "path=%s", manager, key, path);
+    delete response;
+    return ENODATA;
+  }
+
+  attribute = response->GetBuffer();
+  delete response;
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//! Return Fmd from a remote filesystem
+//!
+//! @param manager host:port of the server to contact
+//! @param shexfid hex string of the file id
+//! @param sfsid string of filesystem id
+//! @param fmd reference to the Fmd struct to store Fmd
+//------------------------------------------------------------------------------
+int
+GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
+                        const char* sfsid, struct eos::fst::Fmd& fmd)
+{
+  if ((!manager) || (!shexfid) || (!sfsid)) {
+    return EINVAL;
+  }
+
+  int rc = 0;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  XrdOucString fmdquery = "/?fst.pcmd=getfmd&fst.getfmd.fid=";
+  fmdquery += shexfid;
+  fmdquery += "&fst.getfmd.fsid=";
+  fmdquery += sfsid;
+  XrdOucString address = "root://";
+  address += manager;
+  address += "//dummy";
+  XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("error=URL is not valid: %s", address.c_str());
+    return EINVAL;
+  }
+
+  std::unique_ptr<XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
+
+  if (!fs) {
+    eos_static_err("error=failed to get new FS object");
+    return EINVAL;
+  }
+
+  arg.FromString(fmdquery.c_str());
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (status.IsOK()) {
+    rc = 0;
+    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",
+                     manager, shexfid, sfsid);
+  } else {
+    rc = ECOMM;
+    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",
+                   manager, shexfid, sfsid);
+  }
+
+  if (rc) {
+    delete response;
+    return EIO;
+  }
+
+  if (!strncmp(response->GetBuffer(), "ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_info("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",
+                    manager, shexfid, sfsid);
+    delete response;
+    return ENODATA;
+  }
+
+  // get the remote file meta data into an env hash
+  XrdOucEnv fmdenv(response->GetBuffer());
+
+  if (!EnvFstToFmd(fmdenv, fmd)) {
+    int envlen;
+    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    delete response;
+    return EIO;
+  }
+
+  // very simple check
+  if (fmd.fid() != eos::common::FileId::Hex2Fid(shexfid)) {
+    eos_static_err("Uups! Received wrong meta data from remote server - fid "
+                   "is %lu instead of %lu !", fmd.fid(),
+                   eos::common::FileId::Hex2Fid(shexfid));
+    delete response;
+    return EIO;
+  }
+
+  delete response;
+  return 0;
+}
+
 
 /* Get file information */
 int
@@ -670,11 +880,10 @@ com_file(char* arg1)
             if ((option.find("%checksumattr") != STR_NPOS)) {
               checksumattribute = "";
 
-              if ((retc = eos::fst::gFmdClient.GetRemoteAttribute(
-                            newresult->Get(repurl.c_str()),
-                            "user.eos.checksum",
-                            newresult->Get(repfstpath.c_str()),
-                            checksumattribute))) {
+              if ((retc = GetRemoteAttribute(newresult->Get(repurl.c_str()),
+                                             "user.eos.checksum",
+                                             newresult->Get(repfstpath.c_str()),
+                                             checksumattribute))) {
                 if (!silent) {
                   fprintf(stderr, "error: unable to retrieve extended attribute from %s [%d]\n",
                           newresult->Get(repurl.c_str()), retc);
@@ -709,10 +918,9 @@ com_file(char* arg1)
             // Free memory
             delete stat_info;
 
-            if ((retc = eos::fst::gFmdClient.GetRemoteFmdSqlite(
-                          newresult->Get(repurl.c_str()),
-                          newresult->Get(repfid.c_str()),
-                          newresult->Get(repfsid.c_str()), fmd))) {
+            if ((retc = GetRemoteFmdFromLocalDb(newresult->Get(repurl.c_str()),
+                                                newresult->Get(repfid.c_str()),
+                                                newresult->Get(repfsid.c_str()), fmd))) {
               if (!silent) {
                 fprintf(stderr, "error: unable to retrieve file meta data from %s [%d]\n",
                         newresult->Get(repurl.c_str()), retc);

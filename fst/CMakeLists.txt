@@ -332,7 +332,6 @@ set(XRDEOSFST_SRCS
   # File metadata interface
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
-  FmdClient.cc         FmdClient.hh
 
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
@@ -418,7 +417,7 @@ add_executable(eos-compute-blockxs
 add_executable(eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdDbMap.cc
-  FmdClient.cc           tools/ScanXS.cc
+  tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})

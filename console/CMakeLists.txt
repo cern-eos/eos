@@ -123,7 +123,6 @@ set_target_properties(
 
 add_executable(
   eos
-  ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
   # @TODO (esindril) Add the table formatter in common
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
