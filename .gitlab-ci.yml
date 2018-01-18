@@ -374,6 +374,7 @@ eos_dockerimage_commit:
     - branches
   except:
     - beryl_aquamarine
+
     - tags
 
 eos_dockerimage_tag:
