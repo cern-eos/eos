@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0
@@ -269,5 +268,3 @@ Storage::ScrubFs(const char* path, unsigned long long free,
 }
 
 EOSFSTNAMESPACE_END
-
-

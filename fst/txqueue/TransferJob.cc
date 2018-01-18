@@ -26,6 +26,7 @@
 #include "common/StringConversion.hh"
 #include "common/ShellCmd.hh"
 #include "fst/txqueue/TransferJob.hh"
+#include "fst/txqueue/TransferQueue.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "mgm/txengine/TransferEngine.hh"

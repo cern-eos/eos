@@ -32,7 +32,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/http/HttpHandler.hh"
-#include "common/http/s3/S3Response.hh"
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -42,6 +41,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+class S3Response;
 #define XML_V1_UTF8 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 
 class S3Handler : virtual public eos::common::HttpHandler
@@ -269,30 +269,7 @@ public:
                      std::string errorCode,
                      std::string errorMessage,
                      std::string resource,
-                     std::string requestId)
-
-  {
-    eos::common::HttpResponse *response = new eos::common::S3Response();
-    response->SetResponseCode(responseCode);
-
-    std::string result = XML_V1_UTF8;
-    result += "<Error><Code>";
-    result += errorCode;
-    result += "</Code>";
-    result += "<Message>";
-    result += errorMessage;
-    result += "</Message>";
-    result += "<Resource>";
-    result += resource;
-    result += "</Resource>";
-    result += "<RequestId>";
-    result += requestId;
-    result += "</RequestId>";
-    result += "</Error>";
-
-    response->SetBody(result);
-    return response;
-  }
+                     std::string requestId);
 
   /**
    * Extract a subdomain name from the given hostname.
@@ -308,4 +285,3 @@ public:
 EOSCOMMONNAMESPACE_END
 
 #endif
-

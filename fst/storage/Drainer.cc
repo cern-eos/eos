@@ -23,6 +23,8 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/txqueue/TransferJob.hh"
+#include "fst/txqueue/TransferQueue.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

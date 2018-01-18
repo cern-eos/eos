@@ -28,12 +28,13 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdCl/XrdClFile.hh>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+class FileIo;
 
 //------------------------------------------------------------------------------
 //! Header information present at the start of each stripe file

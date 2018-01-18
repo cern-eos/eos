@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/txqueue/TransferQueue.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 

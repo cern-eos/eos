@@ -139,5 +139,3 @@ Storage::MgmSyncer()
 }
 
 EOSFSTNAMESPACE_END
-
-

@@ -26,7 +26,6 @@
 
 /* ------------------------------------------------------------------------- */
 #include "fst/Namespace.hh"
-#include "fst/txqueue/TransferQueue.hh"
 #include "common/TransferJob.hh"
 /* ------------------------------------------------------------------------ */
 #include "Xrd/XrdJob.hh"
@@ -37,6 +36,8 @@
 
 
 EOSFSTNAMESPACE_BEGIN
+
+class TransferQueue;
 
 class TransferJob : public XrdJob
 {
@@ -57,7 +58,7 @@ private:
   pthread_t mDoItThread; // the id of the thread running the DoIt function
   XrdSysMutex mCancelMutex; // protects the canceled variable
   bool mCanceled; // this indicates that the thread should
-  
+
 public:
 
   TransferJob (TransferQueue* queue, eos::common::TransferJob* cjob, int bw, int timeout = 7200);

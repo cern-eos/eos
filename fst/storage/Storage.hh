@@ -25,25 +25,25 @@
 #define __EOSFST_STORAGE_HH__
 
 #include "fst/Namespace.hh"
-#include "fst/Config.hh"
-#include "fst/storage/FileSystem.hh"
 #include "common/Logging.hh"
-#include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
-#include "common/TransferQueue.hh"
-#include "fst/Deletion.hh"
-#include "fst/Verify.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
-#include "mq/XrdMqSharedObject.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include <vector>
 #include <list>
 #include <queue>
 #include <map>
 
+namespace eos { namespace common {
+  class TransferQueue;
+} }
+
 EOSFSTNAMESPACE_BEGIN
+
+class Verify;
+class Deletion;
+class FileSystem;
 
 //------------------------------------------------------------------------------
 //! Class Storage

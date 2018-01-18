@@ -27,11 +27,13 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
-#include "fst/layout/Layout.hh"
 #include "fst/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+class XrdFstOfsFile;
+class Layout;
 
 using eos::common::LayoutId;
 

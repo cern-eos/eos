@@ -28,6 +28,7 @@
 #include "common/StringTokenizer.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "XrdOss/XrdOssApi.hh"

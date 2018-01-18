@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "fst/txqueue/TransferMultiplexer.hh"
+#include "fst/txqueue/TransferQueue.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/Logging.hh"
 #include <cstdio>

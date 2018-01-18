@@ -33,8 +33,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
@@ -99,7 +97,7 @@ public:
    */
   const std::string
   GetUrl (bool orig=false);
-  
+
   /**
    * @return the client request query string (GET parameters)
    */
@@ -138,13 +136,13 @@ public:
    */
   std::string
   ToString();
-  
+
   /**
    * Add the eos HTTP application CGI query
    */
   void
   AddEosApp () { mRequestQuery += "&eos.app=http"; }
- 
+
 };
 
 /*----------------------------------------------------------------------------*/

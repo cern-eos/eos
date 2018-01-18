@@ -30,20 +30,19 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
-#include "fst/checksum/CheckSum.hh"
-#include "fst/XrdFstOssFile.hh"
 #include "common/Logging.hh"
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOss.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucStream.hh"
 /*----------------------------------------------------------------------------*/
+
+class XrdOucStream;
 
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declaration
 class XrdFstOssFile;
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOss
@@ -51,7 +50,7 @@ class XrdFstOssFile;
 class XrdFstOss : public XrdOss, public eos::common::LogId
 {
   friend class XrdFstOssFile;
-  
+
 public:
 
   int mFdFence; ///< smalest file FD number allowed
@@ -113,7 +112,7 @@ public:
   //--------------------------------------------------------------------------
   int Configure(const char* configfn, XrdSysError& eroute);
 
-  
+
   //--------------------------------------------------------------------------
   //! Unlink a file
   //!
@@ -295,7 +294,7 @@ private:
   short mPrQSize; ///< preread maximum allowed
 
   //--------------------------------------------------------------------------
-  //! Delete link 
+  //! Delete link
   //!
   //! @param path the path of the link
   //! @param statbuff info about the target file
@@ -337,4 +336,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif // __EOSFST_FSTOSS_HH__
-

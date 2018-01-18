@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
+#include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -79,5 +80,3 @@ Storage::Cleaner()
 }
 
 EOSFSTNAMESPACE_END
-
-

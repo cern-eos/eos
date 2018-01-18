@@ -36,10 +36,7 @@
 #include "common/http/HttpResponse.hh"
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
-#include <map>
 
 #ifdef EOS_MICRO_HTTPD
 #include <microhttpd.h>
@@ -139,8 +136,8 @@ public:
    */
   static HttpResponse*
   HttpHead (off_t length, std::string name);
-  
-  
+
+
   /**
    * Get an HTTP data response object containing an HTML data page inside the
    * body.
@@ -204,7 +201,7 @@ public:
   static void
   StaticCompleteHandler (void                  *cls,
 			 struct MHD_Connection *connection,
-			 void **con_cls, 
+			 void **con_cls,
 			 enum MHD_RequestTerminationCode toe);
 
   /**
@@ -272,7 +269,7 @@ public:
 
   void
   CleanupConnections();
-   
+
 #endif
 };
 

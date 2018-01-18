@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Deletion.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

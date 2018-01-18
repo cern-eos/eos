@@ -25,18 +25,13 @@
 #define __EOSFST_FILESYSTEM_HH__
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
-#include "fst/ScanDir.hh"
 #include "fst/io/FileIoPlugin.hh"
-#include "fst/txqueue/TransferQueue.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
 #include "common/Logging.hh"
-#include "common/Statfs.hh"
 #include "common/FileSystem.hh"
-#include "common/RWMutex.hh"
 #include "common/StringConversion.hh"
 
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>
 #include <list>
@@ -45,7 +40,14 @@
 
 /*----------------------------------------------------------------------------*/
 
+namespace eos { namespace common {
+  class Statfs;
+} }
+
 EOSFSTNAMESPACE_BEGIN
+
+class TransferQueue;
+class ScanDir;
 
 /*----------------------------------------------------------------------------*/
 class FileSystem : public eos::common::FileSystem, eos::common::LogId
