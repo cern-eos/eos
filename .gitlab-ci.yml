@@ -372,9 +372,9 @@ eos_dockerimage_commit:
     - eos_rpm_cc7
   only:
     - branches
-    - master
+  except:
     - beryl_aquamarine
-    - centralized_drain
+    - tags
 
 eos_dockerimage_tag:
   stage: build:dockerimage
