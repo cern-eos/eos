@@ -422,7 +422,7 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  XrdOucString dbfilename;
+  std::string dbfilename;
   gFmdDbMapHandler.CreateDBFileName(mMetaDir.c_str(), dbfilename);
 
   // Attach to the local DB

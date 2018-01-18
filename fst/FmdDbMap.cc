@@ -21,10 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Namespace.hh"
-#include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/DbMap.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -257,8 +254,7 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
 // Set a new DB file for a filesystem id
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
-                           XrdOucString option)
+FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid)
 {
   bool isattached = false;
   {
@@ -277,7 +273,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid,
   }
 
   eos::common::RWMutexWriteLock lock(Mutex);
-  FmdSqliteWriteLock vlock(fsid);
+  FsWriteLock vlock(fsid);
 
   if (!isattached) {
     mDbMap[fsid] = new eos::common::DbMap();
@@ -421,7 +417,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
   if (mDbMap.count(fsid)) {
     Fmd valfmd;
     {
-      FmdSqliteLockRead(fsid);
+      FsLockRead(fsid);
       bool entryexist = ExistFmd(fid, fsid);
 
       if (mDbMap.count(fsid) && entryexist) {
@@ -429,7 +425,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
         FmdHelper* fmd = new FmdHelper();
 
         if (!fmd) {
-          FmdSqliteUnLockRead(fsid);
+          FsUnlockRead(fsid);
           return 0;
         }
 
@@ -443,7 +439,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
                    " in meta data block (%llu)", fid, (unsigned long) fsid,
                    fmd->mProtoFmd.fid());
           delete fmd;
-          FmdSqliteUnLockRead(fsid);
+          FsUnlockRead(fsid);
           return 0;
         }
 
@@ -453,7 +449,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
                    "mismatch in meta data block (%llu)", fid,
                    (unsigned long) fsid, fmd->mProtoFmd.fsid());
           delete fmd;
-          FmdSqliteUnLockRead(fsid);
+          FsUnlockRead(fsid);
           return 0;
         }
 
@@ -480,7 +476,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
                        fid, (unsigned long) fsid, fmd->mProtoFmd.size(),
                        fmd->mProtoFmd.disksize(), fmd->mProtoFmd.mgmsize());
               delete fmd;
-              FmdSqliteUnLockRead(fsid);
+              FsUnlockRead(fsid);
               return 0;
             }
 
@@ -497,14 +493,14 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
                        fmd->mProtoFmd.filecxerror(),
                        fmd->mProtoFmd.blockcxerror());
               delete fmd;
-              FmdSqliteUnLockRead(fsid);
+              FsUnlockRead(fsid);
               return 0;
             }
           }
         }
 
         // Return the new entry
-        FmdSqliteUnLockRead(fsid);
+        FsUnlockRead(fsid);
         return fmd;
       }
     }
@@ -514,8 +510,8 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
       struct timeval tv;
       struct timezone tz;
       gettimeofday(&tv, &tz);
-      FmdSqliteUnLockRead(fsid);
-      FmdSqliteWriteLock lock(fsid); // --> (return)
+      FsUnlockRead(fsid);
+      FsWriteLock lock(fsid); // --> (return)
       valfmd.set_uid(uid);
       valfmd.set_gid(gid);
       valfmd.set_lid(layoutid);
@@ -550,7 +546,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
     } else {
       eos_warning("unable to get fmd for fid %llu on fs %lu - record not found",
                   fid, (unsigned long) fsid);
-      FmdSqliteUnLockRead(fsid);
+      FsUnlockRead(fsid);
       return 0;
     }
   } else {
@@ -570,7 +566,7 @@ FmdDbMapHandler::DeleteFmd(eos::common::FileId::fileid_t fid,
   bool rc = true;
   eos_static_info("");
   eos::common::RWMutexReadLock lock(Mutex);
-  FmdSqliteWriteLock wlock(fsid);
+  FsWriteLock wlock(fsid);
   bool entryexist = ExistFmd(fid, fsid);
 
   if (entryexist) {
@@ -609,7 +605,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
   if (lockit) {
     // ---->
     Mutex.LockRead();
-    FmdSqliteLockWrite(fsid);
+    FsLockWrite(fsid);
   }
 
   if (mDbMap.count(fsid)) {
@@ -617,7 +613,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 
     // update in-memory
     if (lockit) {
-      FmdSqliteUnLockWrite(fsid);
+      FsUnlockWrite(fsid);
       Mutex.UnLockRead(); // <----
     }
 
@@ -627,7 +623,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
              (unsigned long) fsid);
 
     if (lockit) {
-      FmdSqliteUnLockWrite(fsid);
+      FsUnlockWrite(fsid);
       Mutex.UnLockRead(); // <----
     }
   }
@@ -647,7 +643,7 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
                                 bool flaglayouterror)
 {
   eos::common::RWMutexReadLock lock(Mutex);
-  FmdSqliteWriteLock vlock(fsid);
+  FsWriteLock vlock(fsid);
   eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu "
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
             (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime,
@@ -703,7 +699,7 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
                                int layouterror, std::string locations)
 {
   eos::common::RWMutexReadLock lock(Mutex);
-  FmdSqliteWriteLock wlock(fsid);
+  FsWriteLock wlock(fsid);
   eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
 
@@ -757,7 +753,7 @@ bool
 FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock lock(Mutex);
-  FmdSqliteWriteLock wlock(fsid);
+  FsWriteLock wlock(fsid);
 
   if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
@@ -801,7 +797,7 @@ bool
 FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock lock(Mutex);
-  FmdSqliteWriteLock vlock(fsid);
+  FsWriteLock vlock(fsid);
 
   if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
@@ -1104,7 +1100,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   }
 
   XrdOucString consolestring = "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&"
-                               "mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&mgm.dumpmd.option=m&mgm.fsid=";
+                               "mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&"
+                               "mgm.dumpmd.option=m&mgm.fsid=";
   consolestring += (int) fsid;
   XrdOucString url = "root://";
   url += manager;
@@ -1335,7 +1332,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
-    FmdSqliteReadLock vlock(fsid);
+    FsReadLock vlock(fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
@@ -1421,7 +1418,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
 
   if (!IsSyncing(fsid)) {
     {
-      FmdSqliteReadLock vlock(fsid);
+      FsReadLock vlock(fsid);
 
       if (!mDbMap.count(fsid)) {
         return true;
@@ -1490,7 +1487,7 @@ FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
 
   // Erase the hash entry
   if (mDbMap.count(fsid)) {
-    FmdSqliteWriteLock vlock(fsid);
+    FsWriteLock vlock(fsid);
 
     // Delete in the in-memory hash
     if (!mDbMap[fsid]->clear()) {
@@ -1550,7 +1547,7 @@ FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
   std::string str_xs;
   eos::Buffer xs = file->getChecksum();
   uint8_t size = xs.size();
-  
+
   for (uint8_t i = 0; i < size; i++) {
     char hx[3];
     hx[0] = 0;
@@ -1558,11 +1555,11 @@ FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
              *(unsigned char*)(xs.getDataPtr() + i));
     str_xs += static_cast<char*>(hx);
   }
-  
+
   fmd.set_mgmchecksum(str_xs);
   std::string slocations;
   auto locations = file->getLocations();
-  
+
   for (const auto& loc : locations) {
     slocations += loc;
     slocations += " ";
@@ -1571,7 +1568,7 @@ FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
   if (!slocations.empty()) {
     slocations.pop_back();
   }
-  
+
   fmd.set_locations(slocations);
   return true;
 }

@@ -23,12 +23,9 @@
 #pragma once
 #include "fst/Namespace.hh"
 #include "fst/Fmd.hh"
-#include "common/Logging.hh"
-#include "common/FileId.hh"
-#include "common/FileSystem.hh"
-#include "common/LayoutId.hh"
 #include "common/DbMap.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include "common/FileId.hh"
+#include "common/LayoutId.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -45,7 +42,6 @@ EOSFSTNAMESPACE_BEGIN
 class FmdDbMapHandler : public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Convert an FST env representation to an Fmd struct
   //!
@@ -97,9 +93,9 @@ public:
     SetLogId("CommonFmdDbMapHandler");
     lvdboption.CacheSizeMb = 0;
     lvdboption.BloomFilterNbits = 0;
-    FmdSqliteMutexMap.set_deleted_key(
+    FsMutexMap.set_deleted_key(
       std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 2);
-    FmdSqliteMutexMap.set_empty_key(
+    FsMutexMap.set_empty_key(
       std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 1);
   }
 
@@ -115,7 +111,7 @@ public:
   //! Create a new changelog filename in 'dir' (the fsid suffix is not added!)
   //----------------------------------------------------------------------------
   virtual const char*
-  CreateDBFileName(const char* cldir, XrdOucString& clname)
+  CreateDBFileName(const char* cldir, std::string& clname)
   {
     clname = cldir;
     clname += "/";
@@ -128,11 +124,10 @@ public:
   //!
   //! @param dbfilename path to the sqlite db file
   //! @param fsid filesystem id identified by this file
-  //! @param option  - not used.
   //!
   //! @return true if successfull false if failed
   //----------------------------------------------------------------------------
-  virtual bool SetDBFile(const char* dbfile, int fsid, XrdOucString option = "");
+  virtual bool SetDBFile(const char* dbfile, int fsid);
 
   //----------------------------------------------------------------------------
   //! Shutdown an open DB file
@@ -439,84 +434,84 @@ public:
   //! Hash map protecting each filesystem map in FmdSqliteMap
   //----------------------------------------------------------------------------
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>
-  FmdSqliteMutexMap;
+  FsMutexMap;
 
   //----------------------------------------------------------------------------
   //! Mutex protecting the previous map
   //----------------------------------------------------------------------------
-  eos::common::RWMutex FmdSqliteMutexMapMutex;
+  eos::common::RWMutex FsMutexMapMutex;
 
-  inline void _FmdSqliteLock(const eos::common::FileSystem::fsid_t& fsid,
-                             bool write)
+  inline void
+  _FsLock(const eos::common::FileSystem::fsid_t& fsid, bool write)
   {
-    FmdSqliteMutexMapMutex.LockRead();
+    FsMutexMapMutex.LockRead();
 
-    if (FmdSqliteMutexMap.count(fsid)) {
+    if (FsMutexMap.count(fsid)) {
       if (write) {
-        FmdSqliteMutexMap[fsid].LockWrite();
+        FsMutexMap[fsid].LockWrite();
       } else {
-        FmdSqliteMutexMap[fsid].LockRead();
+        FsMutexMap[fsid].LockRead();
       }
 
-      FmdSqliteMutexMapMutex.UnLockRead();
+      FsMutexMapMutex.UnLockRead();
     } else {
-      FmdSqliteMutexMapMutex.UnLockRead();
-      FmdSqliteMutexMapMutex.LockWrite();
+      FsMutexMapMutex.UnLockRead();
+      FsMutexMapMutex.LockWrite();
 
       if (write) {
-        FmdSqliteMutexMap[fsid].LockWrite();
+        FsMutexMap[fsid].LockWrite();
       } else {
-        FmdSqliteMutexMap[fsid].LockRead();
+        FsMutexMap[fsid].LockRead();
       }
 
-      FmdSqliteMutexMapMutex.UnLockWrite();
+      FsMutexMapMutex.UnLockWrite();
     }
   }
 
-  inline void _FmdSqliteUnLock(const eos::common::FileSystem::fsid_t& fsid,
-                               bool write)
+  inline void
+  _FsUnlock(const eos::common::FileSystem::fsid_t& fsid, bool write)
   {
-    FmdSqliteMutexMapMutex.LockRead();
+    FsMutexMapMutex.LockRead();
 
-    if (FmdSqliteMutexMap.count(fsid)) {
+    if (FsMutexMap.count(fsid)) {
       if (write) {
-        FmdSqliteMutexMap[fsid].UnLockWrite();
+        FsMutexMap[fsid].UnLockWrite();
       } else {
-        FmdSqliteMutexMap[fsid].UnLockRead();
+        FsMutexMap[fsid].UnLockRead();
       }
 
-      FmdSqliteMutexMapMutex.UnLockRead();
+      FsMutexMapMutex.UnLockRead();
     } else {
       // This should NEVER happen as the entry should be in the map because
       // mutex #i should have been locked at some point.
-      FmdSqliteMutexMapMutex.UnLockRead();
-      FmdSqliteMutexMapMutex.LockWrite();
+      FsMutexMapMutex.UnLockRead();
+      FsMutexMapMutex.LockWrite();
 
       if (write) {
-        FmdSqliteMutexMap[fsid].UnLockWrite();
+        FsMutexMap[fsid].UnLockWrite();
       } else {
-        FmdSqliteMutexMap[fsid].UnLockRead();
+        FsMutexMap[fsid].UnLockRead();
       }
 
-      FmdSqliteMutexMapMutex.UnLockWrite();
+      FsMutexMapMutex.UnLockWrite();
     }
   }
 
-  inline void FmdSqliteLockRead(const eos::common::FileSystem::fsid_t& fsid)
+  inline void FsLockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
-    _FmdSqliteLock(fsid, false);
+    _FsLock(fsid, false);
   }
-  inline void FmdSqliteLockWrite(const eos::common::FileSystem::fsid_t& fsid)
+  inline void FsLockWrite(const eos::common::FileSystem::fsid_t& fsid)
   {
-    _FmdSqliteLock(fsid, true);
+    _FsLock(fsid, true);
   }
-  inline void FmdSqliteUnLockRead(const eos::common::FileSystem::fsid_t& fsid)
+  inline void FsUnlockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
-    _FmdSqliteUnLock(fsid, false);
+    _FsUnlock(fsid, false);
   }
-  inline void FmdSqliteUnLockWrite(const eos::common::FileSystem::fsid_t& fsid)
+  inline void FsUnlockWrite(const eos::common::FileSystem::fsid_t& fsid)
   {
-    _FmdSqliteUnLock(fsid, true);
+    _FsUnlock(fsid, true);
   }
 
   //----------------------------------------------------------------------------
@@ -561,34 +556,41 @@ extern FmdDbMapHandler gFmdDbMapHandler;
 //------------------------------------------------------------------------------
 //! DB read lock per fsid
 //------------------------------------------------------------------------------
-class FmdSqliteReadLock
+class FsReadLock
 {
+private:
   eos::common::FileSystem::fsid_t mFsId;
+
 public:
-  FmdSqliteReadLock(const eos::common::FileSystem::fsid_t& fsid) : mFsId(fsid)
+  FsReadLock(const eos::common::FileSystem::fsid_t& fsid) :
+    mFsId(fsid)
   {
-    gFmdDbMapHandler.FmdSqliteLockRead(mFsId);
+    gFmdDbMapHandler.FsLockRead(mFsId);
   }
-  ~FmdSqliteReadLock()
+
+  ~FsReadLock()
   {
-    gFmdDbMapHandler.FmdSqliteUnLockRead(mFsId);
+    gFmdDbMapHandler.FsUnlockRead(mFsId);
   }
 };
 
 //------------------------------------------------------------------------------
 //! DB write lock per fsid
 //------------------------------------------------------------------------------
-class FmdSqliteWriteLock
+class FsWriteLock
 {
+private:
   eos::common::FileSystem::fsid_t mFsId;
+
 public:
-  FmdSqliteWriteLock(const eos::common::FileSystem::fsid_t& fsid) : mFsId(fsid)
+  FsWriteLock(const eos::common::FileSystem::fsid_t& fsid) : mFsId(fsid)
   {
-    gFmdDbMapHandler.FmdSqliteLockWrite(mFsId);
+    gFmdDbMapHandler.FsLockWrite(mFsId);
   }
-  ~FmdSqliteWriteLock()
+
+  ~FsWriteLock()
   {
-    gFmdDbMapHandler.FmdSqliteUnLockWrite(mFsId);
+    gFmdDbMapHandler.FsUnlockWrite(mFsId);
   }
 };
 
