@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.9 Citrine``
+===================
+
+2018-01-18
+
+Bug
++++
+
+* [EOS-2228] Crash around forceRefreshSched related to pFsId2FsPtr
+
+New Feature
++++++++++++
+
+* Filter out xrdcl.secuid/xrdcl.secgid tags on the FSTs to avoid triggering a
+  bug on the xrootd client implementation
+
+Improvements
+++++++++++++
+
+* [EOS-2253] Small writes should be aggregated with the journal
+* Refactoring of the includes to speed up compilation
+
+
 ``v4.2.8 Citrine``
 ===================
 
