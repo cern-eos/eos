@@ -21,11 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
-#include "mq/XrdMqMessage.hh"
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
 #include <fstream>
 #include <list>
 #include <memory>
+#include "gtest/gtest.h"
+#include "mq/XrdMqMessage.hh"
 
 // RSA private and public keys used for testing
 static std::string rsa_private_key =

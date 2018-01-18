@@ -25,6 +25,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/FsView.hh"
 #include "mgm/IConfigEngine.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 using namespace eos::common;
 using namespace eos::mgm;

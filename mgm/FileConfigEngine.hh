@@ -26,9 +26,7 @@
 
 #include "mgm/IConfigEngine.hh"
 #include "common/DbMap.hh"
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 EOSMGMNAMESPACE_BEGIN
 

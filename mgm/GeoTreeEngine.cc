@@ -23,6 +23,7 @@
 
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/FileSystem.hh"
 #include <iostream>
 #include <fstream>
@@ -3150,13 +3151,13 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
       } else {
         filesystem = it_fs->second;
       }
-      
+
     }
 
     if (!filesystem) {
       eos_err("update : Invalid FileSystem Entry, skipping this update");
       pTreeMapMutex.UnLockRead();
-      continue;   
+      continue;
     }
     eos::common::FileSystem::fs_snapshot_t fs;
     filesystem->SnapShotFileSystem(fs, true);

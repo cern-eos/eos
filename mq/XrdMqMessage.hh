@@ -32,13 +32,7 @@
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdSys/XrdSysLogger.hh>
-#include <openssl/rsa.h>
 #include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/x509.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
 
 #define XMQHEADER                "xrdmqmessage.header"
 #define XMQBODY                  "xrdmqmessage.body"

@@ -26,6 +26,10 @@
 #include "common/FileId.hh"
 #include <stdio.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 

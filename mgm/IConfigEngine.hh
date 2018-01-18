@@ -28,7 +28,6 @@
 #include "common/Logging.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 //------------------------------------------------------------------------------
 //! @brief Interface Class responsible to handle configuration (load, save,

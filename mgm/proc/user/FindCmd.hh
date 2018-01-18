@@ -22,10 +22,9 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/IProcCommand.hh"
 #include "mgm/Namespace.hh"
 #include "common/ConsoleRequest.pb.h"
-#include "common/Find.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 

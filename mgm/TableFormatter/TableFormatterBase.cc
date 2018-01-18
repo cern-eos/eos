@@ -23,6 +23,8 @@
 
 #include "TableFormatterBase.hh"
 
+EOSMGMNAMESPACE_BEGIN
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -521,3 +523,5 @@ void TableFormatterBase::Style(TableFormatterStyle style)
   }
   }
 }
+
+EOSMGMNAMESPACE_END

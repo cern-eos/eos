@@ -30,7 +30,6 @@
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
 #include "common/RWMutex.hh"
-#include "mq/XrdMqTiming.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 

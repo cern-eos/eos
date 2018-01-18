@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/Report.hh"
 #include "common/Path.hh"
 #include "mgm/Iostat.hh"

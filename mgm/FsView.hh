@@ -30,13 +30,11 @@
 #include "mgm/Converter.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
-#include <cfloat>
 #include "XrdOuc/XrdOucString.hh"
 #ifndef __APPLE__
 #include <sys/vfs.h>
@@ -60,6 +58,7 @@ struct GeoTreeNode;
 struct GeoTreeLeaf;
 struct GeoTreeElement;
 class GeoTree;
+class TableFormatterBase;
 
 //------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree

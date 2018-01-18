@@ -33,6 +33,8 @@
 #include <XrdClient/XrdClientEnv.hh>
 #include <mq/XrdMqMessage.hh>
 
+class XrdMqMessage;
+
 //------------------------------------------------------------------------------
 //! Class XrdMqClient
 //------------------------------------------------------------------------------

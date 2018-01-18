@@ -24,16 +24,17 @@
 #include <mq/XrdMqMessage.hh>
 #include <sys/time.h>
 #include <uuid/uuid.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <libgen.h>
 #include <stdint.h>
 #include <iostream>
 #include <sstream>
-#include <algorithm>
-#include <vector>
+#include <openssl/rsa.h>
+#include <openssl/objects.h>
+#include <openssl/x509.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
 
 EVP_PKEY*    XrdMqMessage::PrivateKey = 0;
 XrdOucString XrdMqMessage::PublicKeyDirectory = "";

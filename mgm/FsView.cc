@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <math.h>
-#include <unordered_set>
+#include <cfloat>
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"

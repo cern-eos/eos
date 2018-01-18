@@ -24,6 +24,7 @@
 #include <algorithm>
 #include "HealthCommand.hh"
 #include "common/StringTokenizer.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
 {
@@ -126,7 +127,7 @@ void HealthCommand::DeadNodesCheck()
   std::istringstream splitter(ret);
   std::string format_s = !m_monitoring ? "s" : "os";
   std::string format_ss = !m_monitoring ? "-s" : "os";
-  TableFormatterBase table;
+  eos::mgm::TableFormatterBase table;
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -172,7 +173,7 @@ void HealthCommand::TooFullForDrainingCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "+l" : "ol";
   std::string unit = !m_monitoring ? "B" : "";
-  TableFormatterBase table;
+  eos::mgm::TableFormatterBase table;
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -241,7 +242,7 @@ void HealthCommand::PlacementContentionCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "l" : "ol";
   std::string unit = !m_monitoring ? "%" : "";
-  TableFormatterBase table;
+  eos::mgm::TableFormatterBase table;
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -327,7 +328,7 @@ void HealthCommand::PlacementContentionCheck()
   m_output << table.GenerateTable(HEADER).c_str();
   //! Summary
   avg /= m_group_data.size();
-  TableFormatterBase table_summ;
+  eos::mgm::TableFormatterBase table_summ;
 
   if (!m_monitoring) {
     table_summ.SetHeader({

@@ -27,16 +27,13 @@
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
-#include "common/RWMutex.hh"
 #include "common/StringConversion.hh"
 #include "mq/XrdMqRWMutex.hh"
 #include <string>
 #include <map>
 #include <vector>
 #include <set>
-#include <queue>
-#include <sys/time.h>
-#include <sys/types.h>
+#include <deque>
 #include <regex.h>
 #include "mgm/TableFormatter/TableCell.hh"
 #include <atomic>

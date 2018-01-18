@@ -25,11 +25,9 @@
 #include <cmath>
 #include <map>
 #include <sys/types.h>
-#include <sys/stat.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-#include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -912,4 +910,3 @@ RaidDpLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
 }
 
 EOSFSTNAMESPACE_END
-

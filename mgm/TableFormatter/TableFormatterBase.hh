@@ -24,7 +24,10 @@
 #ifndef __TABLE__FORMATTER__HH__
 #define __TABLE__FORMATTER__HH__
 
+#include "mgm/Namespace.hh"
 #include "TableCell.hh"
+
+EOSMGMNAMESPACE_BEGIN
 
 class TableFormatterBase
 {
@@ -124,4 +127,7 @@ private:
   std::string mBorderSep [4];
   std::string mBorderBody [7];
 };
+
+EOSMGMNAMESPACE_END
+
 #endif // __TABLE__FORMATTER__HH__

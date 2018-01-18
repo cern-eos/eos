@@ -35,9 +35,6 @@
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 #include <sys/types.h>
