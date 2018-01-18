@@ -205,6 +205,8 @@ namespace XrdCl
 
     // ---------------------------------------------------------------------- //
     XRootDStatus WaitOpen();
+    
+    int WaitOpen(fuse_req_t); // waiting interrupts
 
     // ---------------------------------------------------------------------- //
     bool IsOpening();
@@ -442,6 +444,7 @@ namespace XrdCl
       mTotalBytes = 0;
       mTotalReadAheadHitBytes  = 0;
       mAttached = 0;
+      mSelfDestruction.store(false, std::memory_order_seq_cst);      
     }
 
     void Collect()
@@ -455,7 +458,25 @@ namespace XrdCl
           it->second->ReadCondVar().WaitMS(25);
       }
     }
+    
+    bool HasReadsInFlight()
+    {
+      // needs ReadCondVar locked
+      for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
+      {
+        XrdSysCondVarHelper llLock(it->second->ReadCondVar());
+	if (!it->second->done())
+	  return true;
+      }
+      return false;
+    }
 
+    bool HasWritesInFlight()
+    {
+      // needs WriteCondVar locked
+      return ChunkMap().size()?true:false;
+    }
+    
     void DropReadAhead()
     {
       WaitWrite();
@@ -857,6 +878,18 @@ namespace XrdCl
       return mUrl;
     }
 
+    void flag_selfdestructionTS()
+    {
+      mSelfDestruction.store(true, std::memory_order_seq_cst);      
+    }
+
+    bool should_selfdestroy() 
+    {
+      return mSelfDestruction.load();
+    }
+
+    void CheckSelfDestruction();
+
   private:
     OPEN_STATE open_state;
     struct timespec open_state_time;
@@ -897,6 +930,8 @@ namespace XrdCl
     OpenFlags::Flags mFlags;
     Access::Mode mMode;
     uint16_t mTimeout;
+    
+    std::atomic<bool> mSelfDestruction;
   } ;
 }
 

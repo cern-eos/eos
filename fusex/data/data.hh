@@ -125,7 +125,7 @@ public:
     // IO recovery functions
     int TryRecovery(fuse_req_t req, bool is_write);
 
-    int recover_read_open(fuse_req_t req);
+    int recover_ropen(fuse_req_t req);
     int recover_read(fuse_req_t reqa);
 
 

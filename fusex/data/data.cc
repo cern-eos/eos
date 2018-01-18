@@ -610,6 +610,20 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     return EINTR;
   }
 
+  if (mReadErrorStack.size() > 128)
+  {
+    std::string stack_dump;
+    // we give up recovery if to many recoveries took place
+    for (auto it = mReadErrorStack.begin(); it != mReadErrorStack.end(); ++it)
+    {
+      stack_dump += "\n";
+      stack_dump += *it;
+    }
+    eos_err("giving up recovery - error-stack:%s", stack_dump.c_str());
+    return EREMOTEIO;
+  }
+
+
   if (iswrite)
   {
     // recover write failures
@@ -634,7 +648,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     switch (proxy->stateTS()) {
     case XrdCl::Proxy::FAILED:
       mReadErrorStack.push_back("open-failed");
-      return recover_read_open(req);
+      return recover_ropen(req);
       
     case XrdCl::Proxy::OPENED:
       mReadErrorStack.push_back("read-failed");
@@ -650,7 +664,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::recover_read_open(fuse_req_t req)
+data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::Proxy* proxy = mFile->xrdioro(req);
@@ -684,14 +698,19 @@ data::datax::recover_read_open(fuse_req_t req)
     XrdCl::Proxy* newproxy = new XrdCl::Proxy();
     newproxy->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     // wait this time for completion
-    newproxy->WaitOpen();
+    
+    if (fuse_req_interrupted(req) || (newproxy->WaitOpen(req)==EINTR))
+    {
+      eos_warning("request interrupted");
+      return EINTR;
+    }
     
     // replace the proxy object
     mFile->set_xrdioro(req, newproxy);
-    // clean the previous
-    delete proxy;
-    
-    
+
+    // once all callbacks are there, this object can destroy itself since we don't track it anymore
+    proxy->flag_selfdestructionTS();
+
     if (newproxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !
     {
       eos_warning("recover reopened file successfully");
@@ -729,6 +748,7 @@ data::datax::recover_read_open(fuse_req_t req)
       }
       break;
     }
+    break;
   }
   return EREMOTEIO;
 }
@@ -749,11 +769,8 @@ data::datax::recover_read(fuse_req_t req)
     return EINTR;
   }
   
-  // destroy the file
-  delete proxy;
-
   // re-open the file
-  int reopen = recover_read_open(req);
+  int reopen = recover_ropen(req);
 
   if (!reopen)
   {
@@ -1116,8 +1133,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   }
 
   // read the missing part remote
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
-                          req) : mFile->xrdiorw(req);
+  XrdCl::Proxy* proxy = mFile->xrdioro(req);
 
   XrdCl::XRootDStatus status;
   eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
@@ -1125,7 +1141,25 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   if (proxy) {
     if (proxy->IsOpening())
     {
-      proxy->WaitOpen();
+      status = proxy->WaitOpen();
+    }
+
+    if (mFile->has_xrdiorw(req)) {
+      if (!status.IsOK())
+      {
+	// call recovery for an open
+	if (TryRecovery(req, false))
+	{
+	  errno = XrdCl::Proxy::status2errno (status);
+	  eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	  return -1;
+	}
+	else 
+	{
+	  // get the new proxy object, the recovery might exchange the file object
+	  proxy = mFile->xrdioro(req);
+	}
+      }
     }
 
     if (mFile->has_xrdiorw(req)) {
@@ -1134,15 +1168,9 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       {
 	status = wproxy->WaitWrite();
       }
-    }
-
-    if (!status.IsOK())
-    {
-      // call recovery for an open-read
-      if (TryRecovery(req, false))
+      if (!status.IsOK())
       {
 	errno = XrdCl::Proxy::status2errno (status);
-	
 	eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
 	return -1;
       }
@@ -1152,11 +1180,12 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     int recovery = 0;
 
     do {
+      proxy = mFile->xrdioro(req); // recovery might change the proxy object
       status = proxy->Read(offset + br + jr,
 			   count - br - jr,
 			   (char*) buf + br + jr,
 			   bytesRead);
-    } while (!status.IsOK() && (recovery = TryRecovery(req, false)));
+    } while (!status.IsOK() && (!(recovery = TryRecovery(req, false))));
 
     if (recovery)
     {
