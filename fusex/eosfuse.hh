@@ -220,6 +220,17 @@ public:
       int no_xattr;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
+    
+    typedef struct recovery {
+      int read;
+      int write;
+      int read_open;
+      int write_open;
+      int read_open_noserver;
+      size_t read_open_noserver_retrywindow;
+    } recovery_t; 
+
+    recovery_t recovery;
     options_t options;
     CredentialConfig auth;
   } cfg_t;

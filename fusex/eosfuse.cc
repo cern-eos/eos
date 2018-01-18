@@ -468,6 +468,42 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       XrdCl::DefaultEnv::ReInitializeLogging();
     }
 
+    // recovery setting
+    if (!root["recovery"].isMember("read"))
+    {
+      root["recovery"]["read"] = 1;
+    }
+
+    if (!root["recovery"].isMember("read-open"))
+    {
+      root["recovery"]["read-open"] = 1;
+    }
+
+    if (!root["recovery"].isMember("read-open"))
+    {
+      root["recovery"]["read-open"] = 1;
+    }
+
+    if (!root["recovery"].isMember("read-open-noserver"))
+    {
+      root["recovery"]["read-open-noserver"] = 1;
+    }
+
+    if (!root["recovery"].isMember("read-open-noserver-retrywindow"))
+    {
+      root["recovery"]["read-open-noserver-retrywindow"] = 86400;
+    }
+
+    if (!root["recovery"].isMember("write"))
+    {
+      root["recovery"]["write"] = 1;
+    }
+
+    if (!root["recovery"].isMember("write-open"))
+    {
+      root["recovery"]["write-open"] = 1;
+    }
+
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
@@ -504,6 +540,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     {
       disable_xattr();
     }
+
+    config.recovery.read = root["recovery"]["read"].asInt();
+    config.recovery.read_open = root["recovery"]["read-open"].asInt();
+    config.recovery.read_open_noserver = root["recovery"]["read-open-noserver"].asInt();
+    config.recovery.read_open_noserver_retrywindow = root["recovery"]["read-open-noserver-retrywindow"].asInt();
+    config.recovery.write = root["recovery"]["write"].asInt();
+    config.recovery.write_open = root["recovery"]["write-open"].asInt();
+
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -1147,6 +1191,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       cconfig.total_file_cache_size,
 		       cconfig.location.c_str(),
 		       cconfig.journal.c_str());
+    eos_static_warning("read-recovery          := enabled:%d ropen:%d ropen-noserv:%d ropen-noserv-window:%u",
+		       config.recovery.read,
+		       config.recovery.read_open,
+		       config.recovery.read_open_noserver,
+		       config.recovery.read_open_noserver_retrywindow);
+    eos_static_warning("write-recovery         := enabled:%d wopen:%d",
+		       config.recovery.write,
+		       config.recovery.write_open);
 
     std::string xrdcl_option_string;
     std::string xrdcl_option_loglevel;

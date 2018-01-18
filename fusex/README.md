@@ -70,7 +70,24 @@ You also need to define a local cache directory (location) where small files are
 
 ```
 
-You can modify some of the XrdCl variables:
+The available read-ahead strategies are 'dynamic', 'static' or 'none'. Dynamic read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits.
+
+You also need to define a local cache directory (location) where small files are cached and an optional journal directory to improve the write speed (journal).
+
+```
+  "cache" : {
+    "type" : "disk",
+    "size-mb" : 1000,
+    "location" : "/var/eos/fusex/cache/",
+    "journal" : "/var/eos/fusex/journal/",
+    "read-ahead-strategy" : "dynamic",
+    "read-ahead-bytes-nominal" : 1048576,
+    "read-ahead-bytes-max" : 8388608
+  }
+
+```
+
+You can modify some of the XrdCl variables, however it is recommended not to change these:
 
 ```
   "xrdcl" : {
@@ -84,9 +101,6 @@ You can modify some of the XrdCl variables:
     "LogLevel" : "None"
   }
 ```
-
-The available read-ahead strategies are 'dynamic', 'static' or 'none'. Dynamic read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits.
-
 
 The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 

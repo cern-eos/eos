@@ -201,6 +201,9 @@ namespace XrdCl
                            uint16_t         timeout);
 
     // ---------------------------------------------------------------------- //
+    XRootDStatus ReOpenAsync();
+
+    // ---------------------------------------------------------------------- //
     XRootDStatus WaitOpen();
 
     // ---------------------------------------------------------------------- //
@@ -311,9 +314,19 @@ namespace XrdCl
       return state();
     }
 
+    XRootDStatus read_state()
+    {
+      return XReadState;
+    }
+
     XRootDStatus write_state()
     {
       return XWriteState;
+    }
+
+    XRootDStatus opening_state()
+    {
+      return XOpenState;
     }
 
     void set_state(OPEN_STATE newstate, XRootDStatus* xs=0)
@@ -336,6 +349,11 @@ namespace XrdCl
     double state_age()
     {
       return ((double) eos::common::Timing::GetAgeInNs(&open_state_time, 0) / 1000000000.0);
+    }
+
+    void set_readstate(XRootDStatus* xs)
+    {
+      XReadState = *xs;
     }
 
     void set_writestate(XRootDStatus* xs)
@@ -851,6 +869,7 @@ namespace XrdCl
     chunk_map XWriteAsyncChunks;
     chunk_rmap XReadAsyncChunks;
 
+    XRootDStatus XReadState;
     XRootDStatus XWriteState;
 
     std::deque<write_handler> XWriteQueue;
@@ -875,6 +894,9 @@ namespace XrdCl
     uint64_t mIno;
 
     std::string mUrl;
+    OpenFlags::Flags mFlags;
+    Access::Mode mMode;
+    uint16_t mTimeout;
   } ;
 }
 

@@ -42,6 +42,7 @@
 #include <map>
 #include <set>
 #include <atomic>
+#include <deque>
 #include <exception>
 #include <stdexcept>
 #include <thread>
@@ -120,6 +121,14 @@ public:
     void WaitPrefetch(fuse_req_t req, bool lock = true);
     void WaitOpen();
 
+
+    // IO recovery functions
+    int TryRecovery(fuse_req_t req, bool is_write);
+
+    int recover_read_open(fuse_req_t req);
+    int recover_read(fuse_req_t reqa);
+
+
     // ref counting for this object
 
     void attach()
@@ -164,6 +173,7 @@ public:
     size_t mAttached;
     metad::shared_md mMd;
     XrdCl::Proxy::read_handler mPrefetchHandler;
+    std::deque<std::string> mReadErrorStack;
 
     bufferllmanager::shared_buffer buffer;
     bool mWaitForOpen;

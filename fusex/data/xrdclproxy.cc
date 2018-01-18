@@ -237,6 +237,9 @@ XrdCl::Proxy::Read( uint64_t  offset,
       bytesRead+=rbytes_read;
     }
   }
+
+  set_readstate(&status);
+
   if (status.IsOK())
   {
 
@@ -259,6 +262,9 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   mUrl = url;
+  mFlags = flags;
+  mMode = mode;
+  mTimeout = timeout;
 
   if ( state() == OPENING )
   {
@@ -371,6 +377,29 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
   delete status;
   if (response) delete response;
 }
+
+/* -------------------------------------------------------------------------- */
+XRootDStatus 
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::ReOpenAsync()
+/* -------------------------------------------------------------------------- */
+{
+  if (mUrl.length())
+  {
+    return OpenAsync(mUrl, mFlags, mMode, mTimeout);
+  }
+  else
+  {
+    XRootDStatus status(XrdCl::stError,
+			suRetry,
+			XrdCl::errUninitialized,
+			"never opened before"
+			);
+    set_state_TS(FAILED, &status);
+    return status;
+  }
+}
+
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
