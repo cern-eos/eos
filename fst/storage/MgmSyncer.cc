@@ -118,7 +118,8 @@ Storage::MgmSyncer()
           break;
         }
       } else {
-        // if there was still a reference, we can just discard this check since the other write open will trigger a new entry in the queue
+        // if there was still a reference, we can just discard this check
+        // since the other write open will trigger a new entry in the queue
         gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
         gOFS.WrittenFilesQueue.pop();
       }

@@ -35,8 +35,10 @@
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "qclient/QClient.hh"
 #include <sys/mman.h>
 #include <queue>
+#include <memory>
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
@@ -362,6 +364,7 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
+  std::unique_ptr<qclient::QClient> pQcl; ///< Qclient object
 
 private:
   HttpServer* mHttpd; ///< Embedded http server
@@ -389,7 +392,7 @@ private:
   //! A vector map pointing from tpc key => tpc information for reads, [0]
   //! are readers [1] are writers
   std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap;
-  XrdSysMutex TpcMapMutex; //< Mutex protecting the Tpc map
+  XrdSysMutex TpcMapMutex; ///< Mutex protecting the Tpc map
 };
 
 //------------------------------------------------------------------------------

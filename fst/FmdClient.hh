@@ -23,6 +23,7 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "fst/Fmd.hh"
+#include "namespace/interface/IFileMD.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -58,6 +59,16 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Convert namespace file metadata to an Fmd struct
+  //!
+  //! @param file namespace file metadata object
+  //! @param fmd reference to Fmd struct
+  //!
+  //! @return true if successful otherwise false
+  //----------------------------------------------------------------------------
+  bool NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from an mgm

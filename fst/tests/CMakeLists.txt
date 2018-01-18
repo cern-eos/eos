@@ -25,7 +25,10 @@ set(CMAKE_CXX_STANDARD 11)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${OPENSSL_INCLUDE_DIRS})
+  ${OPENSSL_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 add_executable(
   eos-fst-test main.cc

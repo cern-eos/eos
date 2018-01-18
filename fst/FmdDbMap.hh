@@ -31,6 +31,9 @@
 #include "common/LayoutId.hh"
 #include "common/DbMap.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -335,6 +338,17 @@ public:
                             const char* manager);
 
   //----------------------------------------------------------------------------
+  //! Resync all meta data from QuarkdDB
+  //!
+  //! @param qcl qclient object
+  //! @param fsid filesystem id
+  //!
+  //! @return true if successfull, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool ResyncAllFromQdb(qclient::QClient* qcl,
+                                eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Get inconsistency statistics
   //!
   //! @param fsid file system id
@@ -486,8 +500,18 @@ private:
   std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
   std::map<eos::common::FileSystem::fsid_t, bool> stayDirty;
   std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
-};
 
+  //----------------------------------------------------------------------------
+  //! Get file metadata info from QuarkDB
+  //!
+  //! @param qcl qclient object
+  //! @param fid file id
+  //!
+  //! @return file metadata object
+  //----------------------------------------------------------------------------
+  std::unique_ptr<eos::FileMD>
+  GetFmdFromQdb(qclient::QClient* qcl, eos::IFileMD::id_t id) const;
+};
 
 extern FmdDbMapHandler gFmdDbMapHandler;
 

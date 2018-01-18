@@ -28,8 +28,11 @@
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include <fst/io/FileIoPluginCommon.hh>
+#include "fst/io/FileIoPluginCommon.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "namespace/utils/StringConvertion.hh"
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
@@ -374,7 +377,6 @@ FmdDbMapHandler::DeleteFmd(eos::common::FileId::fileid_t fid,
 
   return rc;
 }
-
 
 //------------------------------------------------------------------------------
 // Commit modified Fmd record to the DB file
@@ -979,6 +981,103 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 
   isSyncing[fsid] = false;
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Resync all meta data from QuarkdDB
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
+                                  eos::common::FileSystem::fsid_t fsid)
+{
+  if (!ResetMgmInformation(fsid)) {
+    eos_err("failed to reset the mgm information before resyncing");
+    return false;
+  }
+
+  std::string cursor = "0";
+  long long count = 1000000;
+  std::pair<std::string, std::vector<std::string>> reply;
+  qclient::QSet qset(*qcl,  eos::keyFilesystemFiles(fsid));
+  std::unordered_set<eos::IFileMD::id_t> file_ids;
+
+  do {
+    reply = qset.sscan(cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem : reply.second) {
+      file_ids.insert(std::stoull(elem));
+    }
+  } while (cursor != "0");
+
+  eos_debug("resyncing %llu files for file_system %llu", file_ids.size(), fsid);
+  uint64_t num_files = 0;
+
+  for (const auto& id : file_ids) {
+    eos_debug("resyncing fid=%llu", id);
+    ++num_files;
+    auto file = GetFmdFromQdb(qcl, id);
+    struct Fmd ns_fmd;
+    FmdHelper::Reset(ns_fmd);
+    NsFileMDToFmd(file.get(), ns_fmd);
+    FmdHelper* local_fmd = GetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
+                                  ns_fmd.gid(), ns_fmd.lid(), true, true);
+    ns_fmd.set_layouterror(FmdHelper::LayoutError(ns_fmd, fsid));
+
+    if (local_fmd) {
+      // check if it exists on disk
+      if (local_fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) {
+        ns_fmd.set_layouterror(ns_fmd.layouterror() |
+                               eos::common::LayoutId::kMissing);
+        eos_warning("found missing replica for fid=%08llx on fsid=%lu",
+                    ns_fmd.fid(), (unsigned long) fsid);
+      }
+
+      if (!UpdateFromMgm(fsid, ns_fmd.fid(), ns_fmd.cid(), ns_fmd.lid(),
+                         ns_fmd.mgmsize(), ns_fmd.mgmchecksum(), ns_fmd.uid(),
+                         ns_fmd.gid(), ns_fmd.ctime(), ns_fmd.ctime_ns(),
+                         ns_fmd.mtime(), ns_fmd.mtime_ns(),
+                         ns_fmd.layouterror(), ns_fmd.locations())) {
+        eos_err("failed to update fid %llu", id);
+      }
+
+      delete local_fmd;
+    } else {
+      eos_err("failed to get/create local fid %llu", id);
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get file metadata info from QuarkDB
+//------------------------------------------------------------------------------
+std::unique_ptr<eos::FileMD>
+FmdDbMapHandler::GetFmdFromQdb(qclient::QClient* qcl,
+                               eos::IFileMD::id_t id) const
+{
+  std::string blob;
+
+  try {
+    std::string sid = stringify(id);
+    qclient::QHash bucket_map(*qcl, eos::FileMDSvc::getBucketKey(id));
+    blob = bucket_map.hget(sid);
+  } catch (std::runtime_error& qdb_err) {
+    eos_err("msg=\"file id=%llu not found, qclient exception\"", id);
+    return nullptr;
+  }
+
+  if (blob.empty()) {
+    eos_err("msg=\"file id=%llu not found\"", id);
+    return nullptr;
+  }
+
+  std::unique_ptr<eos::FileMD> file(new eos::FileMD(0, nullptr));
+  eos::Buffer ebuff;
+  ebuff.putData(blob.c_str(), blob.length());
+  file->deserialize(ebuff);
+  return file;
 }
 
 //------------------------------------------------------------------------------

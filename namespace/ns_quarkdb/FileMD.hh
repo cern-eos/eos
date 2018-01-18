@@ -27,7 +27,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "FileMd.pb.h"
+#include "namespace/ns_quarkdb/FileMd.pb.h"
 #include <stdint.h>
 #include <sys/time.h>
 

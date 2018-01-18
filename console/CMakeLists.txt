@@ -27,7 +27,10 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIRS})
+  ${OPENSSL_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 if (BUILD_TESTS)
   add_subdirectory(tests)

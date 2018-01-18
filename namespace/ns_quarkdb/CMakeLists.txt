@@ -22,14 +22,14 @@
 # ************************************************************************
 
 include_directories(
+ ${CMAKE_BINARY_DIR}
  ${CMAKE_SOURCE_DIR}
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
- ${XROOTD_INCLUDE_DIR}
- ${CMAKE_CURRENT_BINARY_DIR}) # for the generated proto files
+ ${XROOTD_INCLUDE_DIR})
 
 
 if(BUILD_TESTS)
@@ -103,6 +103,25 @@ target_link_libraries(
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+add_library(
+  EosNsQuarkdb-Shared SHARED
+  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>)
+
+target_link_libraries(
+  EosNsQuarkdb-Shared PUBLIC
+  EosNsCommon
+  eosCommon
+  EosCrc32c-Static
+  qclient
+  bz2
+  rocksdb
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${XROOTD_UTILS_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb-Static library
 #-------------------------------------------------------------------------------
@@ -139,7 +158,7 @@ if (Linux)
 endif()
 
 install(
-  TARGETS EosNsQuarkdb
+  TARGETS EosNsQuarkdb EosNsQuarkdb-Shared
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

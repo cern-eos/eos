@@ -32,8 +32,8 @@
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "ContainerMd.pb.h"
-#include "FileMd.pb.h"
+#include "namespace/ns_quarkdb/ContainerMd.pb.h"
+#include "namespace/ns_quarkdb/FileMd.pb.h"
 #include "common/RWMutex.hh"
 #include <cstdint>
 

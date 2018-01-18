@@ -30,7 +30,10 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/common/ulib/
-  ${KINETIC_INCLUDE_DIR})
+  ${KINETIC_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 add_subdirectory(benchmark)
 

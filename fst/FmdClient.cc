@@ -102,6 +102,55 @@ FmdClient::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
   return true;
 }
 
+//----------------------------------------------------------------------------
+//! Convert namespace file metadata to an Fmd struct
+//----------------------------------------------------------------------------
+bool
+FmdClient::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
+{
+  fmd.set_fid(file->getId());
+  fmd.set_cid(file->getContainerId());
+  eos::IFileMD::ctime_t ctime;
+  eos::IFileMD::ctime_t mtime;
+  (void) file->getCTime(ctime);
+  (void) file->getMTime(mtime);
+  fmd.set_ctime(ctime.tv_sec);
+  fmd.set_ctime_ns(ctime.tv_nsec);
+  fmd.set_mtime(mtime.tv_sec);
+  fmd.set_mtime_ns(mtime.tv_nsec);
+  fmd.set_mgmsize(file->getSize());
+  fmd.set_lid(file->getLayoutId());
+  fmd.set_uid(file->getCUid());
+  fmd.set_gid(file->getCGid());
+  std::string str_xs;
+  eos::Buffer xs = file->getChecksum();
+  uint8_t size = xs.size();
+
+  for (uint8_t i = 0; i < size; i++) {
+    char hx[3];
+    hx[0] = 0;
+    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
+             *(unsigned char*)(xs.getDataPtr() + i));
+    str_xs += static_cast<char*>(hx);
+  }
+
+  fmd.set_mgmchecksum(str_xs);
+  std::string slocations;
+  auto locations = file->getLocations();
+
+  for (const auto& loc : locations) {
+    slocations += loc;
+    slocations += " ";
+  }
+
+  if (!slocations.empty()) {
+    slocations.pop_back();
+  }
+
+  fmd.set_locations(slocations);
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Return Fmd from MGM
 //------------------------------------------------------------------------------

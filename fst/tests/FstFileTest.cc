@@ -299,8 +299,8 @@ DeleteFlagTest()
   }
 
   // Send the delete command using Fcntl
-  Buffer arg;
-  Buffer* response;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response;
   arg.FromString("delete");
   status = mFile->Fcntl(arg, response);
   assert(status.IsOK());

@@ -46,7 +46,10 @@ include_directories(
   ${DAVIX_INCLUDE_DIR}
   ${KINETICIO_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
+  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 #-------------------------------------------------------------------------------
 # Add tests if not on MacOSX
@@ -186,6 +189,10 @@ target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
+
+# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
+# buffer files are generated when we try to build these libraries
+add_dependencies(EosFstIo EosNsQuarkdb-Shared)
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
@@ -354,6 +361,8 @@ target_compile_definitions(XrdEosFst-Shared PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst PRIVATE
+   qclient
+   EosNsQuarkdb-Shared
    eosCommonServer
    EosFstIo-Static
    eosCapability-Static
@@ -370,6 +379,8 @@ target_link_libraries(XrdEosFst PRIVATE
    ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Shared PUBLIC
+  qclient
+  EosNsQuarkdb-Shared
   eosCommonServer
   EosFstIo-Static
   eosCapability-Static
@@ -444,6 +455,7 @@ target_link_libraries(eos-adler32 PRIVATE
 target_link_libraries(eos-scan-fs PRIVATE
   eosCommonServer
   EosFstIo-Static
+  EosNsQuarkdb-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${DAVIX_LIBRARIES}

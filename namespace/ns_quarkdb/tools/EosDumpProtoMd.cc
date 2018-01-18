@@ -17,8 +17,8 @@
  ************************************************************************/
 
 #include "EosDumpProtoMd.hh"
-#include "ContainerMd.pb.h"
-#include "FileMd.pb.h"
+#include "namespace/ns_quarkdb/ContainerMd.pb.h"
+#include "namespace/ns_quarkdb/FileMd.pb.h"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/utils/DataHelper.hh"

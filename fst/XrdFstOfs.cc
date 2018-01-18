@@ -46,6 +46,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
+#include "qclient/Members.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -110,7 +111,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), mHttpd(0),
+  eos::common::LogId(), mHostName(NULL), pQcl(nullptr), mHttpd(0),
   Simulate_IO_read_error(false), Simulate_IO_write_error(false),
   Simulate_XS_read_error(false), Simulate_XS_write_error(false),
   Simulate_FMD_open_error(false)
@@ -450,6 +451,28 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             NoGo = 1;
           } else {
             eos::fst::Config::gConfig.FstMetaLogDir = val;
+          }
+        }
+
+        if (!strcmp("qdbcluster", var)) {
+          std::string qdb_cluster;
+
+          while ((val = Config.GetWord())) {
+            qdb_cluster += val;
+            qdb_cluster += " ";
+          }
+
+          Eroute.Say("=====> fstofs.qdbcluster : ", qdb_cluster.c_str());
+          ::qclient::Members qdb_members;
+
+          if (!qdb_cluster.empty()) {
+            if (!qdb_members.parse(qdb_cluster)) {
+              Eroute.Emsg("Config", "failed to parse qdbcluster members");
+              NoGo = 1;
+            } else {
+              pQcl.reset(new ::qclient::QClient(qdb_members, true,
+              {true, std::chrono::seconds(60)}));
+            }
           }
         }
       }

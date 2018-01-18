@@ -28,7 +28,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "ContainerMd.pb.h"
+#include "namespace/ns_quarkdb/ContainerMd.pb.h"
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN
