@@ -21,10 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "authz/XrdCapability.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
+#include "fst/storage/FileSystem.hh"
+#include "fst/http/HttpServer.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -39,6 +42,7 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysDNS.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"

@@ -30,6 +30,7 @@
 #include "common/RWMutex.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
+#include "fst/txqueue/TransferMultiplexer.hh"
 #include <vector>
 #include <list>
 #include <queue>

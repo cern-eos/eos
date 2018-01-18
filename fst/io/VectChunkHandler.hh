@@ -28,10 +28,12 @@
 #ifndef __EOS_FST_VECTCHUNKHANDLER_HH__
 #define __EOS_FST_VECTCHUNKHANDLER_HH__
 
-#include "fst/io/AsyncMetaHandler.hh"
+#include "fst/Namespace.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 EOSFSTNAMESPACE_BEGIN
+
+class AsyncMetaHandler;
 
 //------------------------------------------------------------------------------
 //! Class holding information about an asynchronous vector request

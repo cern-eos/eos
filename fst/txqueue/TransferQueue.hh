@@ -28,11 +28,8 @@
 #include "fst/Namespace.hh"
 #include "common/TransferQueue.hh"
 /* ------------------------------------------------------------------------- */
-#include "Xrd/XrdScheduler.hh"
 /* ------------------------------------------------------------------------- */
 #include <string>
-#include <deque>
-#include <cstring>
 #include <pthread.h>
 
 /* ------------------------------------------------------------------------- */
@@ -42,7 +39,6 @@ EOSFSTNAMESPACE_BEGIN
 class TransferQueue
 {
 private:
-  //  std::deque <std::string> queue;
   eos::common::TransferQueue** mQueue;
   std::string mName;
 
@@ -145,4 +141,3 @@ public:
 
 EOSFSTNAMESPACE_END
 #endif
-

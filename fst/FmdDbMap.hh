@@ -26,13 +26,11 @@
 #include "fst/Namespace.hh"
 #include "fst/FmdClient.hh"
 #include "common/Logging.hh"
-#include "common/SymKeys.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "common/DbMap.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70

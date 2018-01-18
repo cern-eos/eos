@@ -30,14 +30,13 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
-#include "fst/checksum/CheckSum.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOss.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOssFile using blockxs information

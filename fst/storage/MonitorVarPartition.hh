@@ -28,6 +28,7 @@
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "fst/Namespace.hh"
+#include "fst/storage/FileSystem.hh"
 #include <unistd.h>
 #include <sys/statvfs.h>
 #include <string>

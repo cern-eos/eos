@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
+#include "common/SymKeys.hh"
 #include "fst/FmdDbMap.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/

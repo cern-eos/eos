@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <string>
 #include <deque>
-#include <ldap.h>
 
 /*----------------------------------------------------------------------------*/
 

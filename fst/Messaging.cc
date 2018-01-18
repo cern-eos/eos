@@ -21,10 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "authz/XrdCapability.hh"
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
+
 
 EOSFSTNAMESPACE_BEGIN
 

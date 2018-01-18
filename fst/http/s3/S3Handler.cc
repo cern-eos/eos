@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/http/s3/S3Handler.hh"
+#include "fst/http/HttpServer.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/s3/S3Response.hh"
 #include "common/Logging.hh"

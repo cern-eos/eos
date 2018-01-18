@@ -25,6 +25,7 @@
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/Logging.hh"
+#include "Xrd/XrdScheduler.hh"
 #include <cstdio>
 
 EOSFSTNAMESPACE_BEGIN

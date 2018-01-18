@@ -28,7 +28,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -46,12 +45,12 @@ public:
   XrdOucString FstConfigQueueWildcard; // our configuration queue match name
   XrdOucString FstNodeConfigQueue; // our queue holding this node's configuration settings
   XrdOucString FstHostPort; // <host>:<port>
-  XrdOucString Manager; // <host>:<port> 
+  XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
   XrdOucString KeyTabAdler; // adler string of the keytab file
-  XrdSysMutex Mutex; // lock for dynamic updates like 'Manager' 
+  XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   static Config gConfig;
 
   Config ()

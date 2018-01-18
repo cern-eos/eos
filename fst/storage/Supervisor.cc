@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/storage/FileSystem.hh"
+
 
 /*----------------------------------------------------------------------------*/
 
@@ -103,5 +105,3 @@ Storage::Supervisor()
 }
 
 EOSFSTNAMESPACE_END
-
-

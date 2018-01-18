@@ -26,6 +26,7 @@
 #include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/io/VectChunkHandler.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -991,7 +992,7 @@ void
 XrdIo::CleanReadCache()
 {
   fileWaitAsyncIO();
-  
+
   if (mQueueBlocks.empty()) {
     for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
       mQueueBlocks.push(new ReadaheadBlock(mBlocksize));

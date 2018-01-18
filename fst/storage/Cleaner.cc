@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
+#include "fst/storage/FileSystem.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

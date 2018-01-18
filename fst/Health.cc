@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "Health.hh"
+#include "fst/storage/FileSystem.hh"
 #include "common/ShellCmd.hh"
 
 EOSFSTNAMESPACE_BEGIN

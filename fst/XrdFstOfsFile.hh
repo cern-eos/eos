@@ -25,20 +25,22 @@
 #ifndef __EOSFST_FSTOFSFILE_HH__
 #define __EOSFST_FSTOFSFILE_HH__
 
-#include <sys/types.h>
+// #include <sys/types.h>
 #include <numeric>
-#include <cmath>
+// #include <cmath>
 #include "common/Logging.hh"
-#include "common/SecEntity.hh"
+// #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/FmdDbMap.hh"
 #include "XrdOfs/XrdOfs.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
+// #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+// #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+class XrdOucEnv;
 
 EOSFSTNAMESPACE_BEGIN;
 
@@ -610,6 +612,3 @@ public:
 EOSFSTNAMESPACE_END
 
 #endif
-
-
-

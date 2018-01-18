@@ -24,6 +24,7 @@
 
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "fst/io/local/LocalIo.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

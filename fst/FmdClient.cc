@@ -17,7 +17,6 @@
  ************************************************************************/
 
 #include "fst/FmdClient.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

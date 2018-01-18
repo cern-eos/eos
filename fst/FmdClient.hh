@@ -22,7 +22,6 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
-#include "common/FileSystem.hh"
 #include "fst/Fmd.hh"
 
 #ifdef __APPLE__

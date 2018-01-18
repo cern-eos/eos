@@ -25,6 +25,8 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/kinetic/KineticIo.hh"
+#include "fst/io/local/LocalIo.hh"
+
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
 #endif

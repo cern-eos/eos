@@ -29,19 +29,15 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
 #include "fst/Messaging.hh"
-#include "fst/http/HttpServer.hh"
-#include "authz/XrdCapability.hh"
-#include "common/SymKeys.hh"
+// #include "fst/http/HttpServer.hh"
+// #include "authz/XrdCapability.hh"
 #include "common/Logging.hh"
-#include "common/StringConversion.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+// #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "Xrd/XrdScheduler.hh"
 #include <sys/mman.h>
 #include <queue>
 
@@ -56,11 +52,15 @@
 #define ENOKEY 126
 #endif
 
+class XrdOucEnv;
+class XrdScheduler;
+
 EOSFSTNAMESPACE_BEGIN
 
 // Forward declarations
 class ReplicaParLayout;
 class RaidMetaLayout;
+class HttpServer;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs

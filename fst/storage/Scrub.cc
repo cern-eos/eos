@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "fst/storage/Storage.hh"
+#include "fst/storage/FileSystem.hh"
+#include <fcntl.h>
 
 #ifdef __APPLE__
 #define O_DIRECT 0

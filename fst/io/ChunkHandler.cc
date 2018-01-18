@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
 
 EOSFSTNAMESPACE_BEGIN

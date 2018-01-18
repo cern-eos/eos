@@ -1,6 +1,7 @@
 #include "console/ConsoleMain.hh"
 #include "fst/io/kinetic/KineticIo.hh"
 #include "common/StringTokenizer.hh"
+#include "common/SymKeys.hh"
 #define EOS
 extern int com_space(char*);
 

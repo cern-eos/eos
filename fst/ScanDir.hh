@@ -25,15 +25,11 @@
 #define __EOSFST_SCANDIR_HH__
 
 #include <pthread.h>
-#include "fst/Load.hh"
 #include "fst/Namespace.hh"
-#include "fst/FmdDbMap.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/io/FileIo.hh"
-#include <syslog.h>
 
 #include <sys/syscall.h>
 #ifndef __APPLE__
@@ -41,6 +37,9 @@
 #endif
 
 EOSFSTNAMESPACE_BEGIN
+
+class Load;
+class FileIo;
 
 class ScanDir : eos::common::LogId
 {

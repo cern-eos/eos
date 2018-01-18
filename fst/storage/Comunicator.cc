@@ -25,6 +25,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/kinetic/KineticIo.hh"
+#include "fst/storage/FileSystem.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -497,5 +498,3 @@ Storage::Communicator()
 }
 
 EOSFSTNAMESPACE_END
-
-

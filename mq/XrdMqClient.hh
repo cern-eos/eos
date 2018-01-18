@@ -30,7 +30,6 @@
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClFileSystem.hh>
-#include <XrdClient/XrdClientEnv.hh>
 #include <mq/XrdMqMessage.hh>
 
 class XrdMqMessage;

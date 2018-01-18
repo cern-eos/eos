@@ -25,8 +25,8 @@
 #define __EOSFST_HEALTH_HH__
 
 #include "fst/Namespace.hh"
-#include "fst/storage/FileSystem.hh"
 #include <mutex>
+#include <map>
 
 EOSFSTNAMESPACE_BEGIN
 

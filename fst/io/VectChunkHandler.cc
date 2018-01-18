@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "fst/io/VectChunkHandler.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
