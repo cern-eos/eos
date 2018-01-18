@@ -376,7 +376,6 @@ eos_dockerimage_commit:
     - beryl_aquamarine
     - tags
 
-
 eos_dockerimage_tag:
   stage: build:dockerimage
   tags:
