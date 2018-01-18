@@ -875,14 +875,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-  fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
   if ((!fMd) || gOFS.Simulate_FMD_open_error) {
     if (!gOFS.Simulate_FMD_open_error) {
       // Get the layout object
       if (gFmdDbMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str())) {
         eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
-        fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+        fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
       } else {
         eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid,
                 fileid);

@@ -181,10 +181,10 @@ Messaging::Process(XrdMqMessage* newmessage)
       if (!fid) {
         eos_warning("deleting fmd for fsid=%lu fid=%llu", (unsigned long) fsid,
                     (unsigned long long) fid);
-        gFmdDbMapHandler.DeleteFmd(fid, fsid);
+        gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {
         FmdHelper* fMd = 0;
-        fMd = gFmdDbMapHandler.GetFmd(fid, fsid, 0, 0, 0, 0, true);
+        fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, 0, 0, 0, 0, true);
 
         if (fMd) {
           // force a resync of meta data from the MGM

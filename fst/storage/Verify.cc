@@ -100,8 +100,9 @@ Storage::Verify()
                                             verifyfile->localPrefix.c_str(), fstPath);
     {
       FmdHelper* fMd = 0;
-      fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0,
-                                    true);
+      fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
+                                         0,
+                                         true);
 
       if (fMd) {
         // force a resync of meta data from the MGM
@@ -130,8 +131,8 @@ Storage::Verify()
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
     FmdHelper* fMd = 0;
-    fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                  verifyfile->commitFmd, true);
+    fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
+                                       verifyfile->commitFmd, true);
     bool localUpdate = false;
 
     if (!fMd) {

@@ -210,7 +210,7 @@ FileSystem::CleanTransactions()
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
           FmdHelper* fMd = 0;
-          fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+          fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
           if (fMd) {
             size_t valid_loc;

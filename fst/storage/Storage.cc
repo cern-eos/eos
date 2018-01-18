@@ -422,11 +422,8 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  std::string dbfilename;
-  gFmdDbMapHandler.CreateDBFileName(mMetaDir.c_str(), dbfilename);
-
   // Attach to the local DB
-  if (!gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid)) {
+  if (!gFmdDbMapHandler.SetDBFile(mMetaDir.c_str(), fsid)) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
                  "for details");

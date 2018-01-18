@@ -350,7 +350,7 @@ ScanDir::CheckFile(const char* filepath)
             if (fid && !errno) {
               // check if we have this file in the local DB, if not, we
               // resync first the disk and then the mgm meta data
-              FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, false,
+              FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, false,
                                true);
               bool orphaned = false;
 
@@ -377,7 +377,7 @@ ScanDir::CheckFile(const char* filepath)
                 eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
                 bool resynced = false;
                 resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
-                fmd = gFmdDbMapHandler.GetFmd(fid, fsId, 0, 0, 0, false, true);
+                fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, 0, false, true);
 
                 if (resynced && fmd) {
                   if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
@@ -401,7 +401,7 @@ ScanDir::CheckFile(const char* filepath)
                     }
 
                     // remove the entry from the FMD database
-                    gFmdDbMapHandler.DeleteFmd(fid, fsId);
+                    gFmdDbMapHandler.LocalDeleteFmd(fid, fsId);
                   }
 
                   delete fmd;

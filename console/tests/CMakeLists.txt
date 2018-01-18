@@ -32,7 +32,6 @@ add_definitions(-DBUILD_TESTS)
 #-------------------------------------------------------------------------------
 add_library(
   EosConsoleTests SHARED
-  ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 

@@ -1239,7 +1239,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  if (!gFmdDbMapHandler.DeleteFmd(fid, fsid)) {
+  if (!gFmdDbMapHandler.LocalDeleteFmd(fid, fsid)) {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
     return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
   }
@@ -1346,7 +1346,8 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
+      FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, 0, 0, 0, false,
+                       true);
 
       if (!fmd) {
         eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
