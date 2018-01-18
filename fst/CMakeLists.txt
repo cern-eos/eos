@@ -182,10 +182,6 @@ add_library(EosFstIo-Objects OBJECT
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
   layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
-# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
-# buffer files are generated when we try to build these libraries
-add_dependencies(EosFstIo-Objects EosNsQuarkdb-Shared)
-
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -344,6 +340,11 @@ set(XRDEOSFST_SRCS
   io/local/LocalIo.cc  io/local/LocalIo.hh)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
+
+# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
+# buffer files are generated when we try to build these libraries
+add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
+
 set_target_properties(
   XrdEosFst-Objects
   PROPERTIES
