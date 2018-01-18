@@ -343,13 +343,8 @@ Storage::Publish()
                                              (mFsVect[i]->GetLongLong("stat.statfs.files") -
                                               mFsVect[i]->GetLongLong("stat.statfs.ffree")) *
                                              mFsVect[i]->GetLongLong("stat.statfs.bsize"));
-          {
-            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-            FsWriteLock vlock(fsid);
-            success &= mFsVect[i]->SetLongLong("stat.usedfiles",
-                                               (long long)(gFmdDbMapHandler.mDbMap.count(fsid) ?
-                                                   gFmdDbMapHandler.mDbMap[fsid]->size() : 0));
-          }
+          success &= mFsVect[i]->SetLongLong("stat.usedfiles",
+                                             gFmdDbMapHandler.GetNumFiles(fsid));
           success &= mFsVect[i]->SetString("stat.boot",
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
           success &= mFsVect[i]->SetString("stat.geotag", lNodeGeoTag.c_str());

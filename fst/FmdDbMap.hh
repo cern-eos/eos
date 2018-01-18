@@ -90,13 +90,12 @@ public:
   //----------------------------------------------------------------------------
   FmdDbMapHandler()
   {
+    using eos::common::FileSystem;
     SetLogId("CommonFmdDbMapHandler");
     lvdboption.CacheSizeMb = 0;
     lvdboption.BloomFilterNbits = 0;
-    FsMutexMap.set_deleted_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 2);
-    FsMutexMap.set_empty_key(
-      std::numeric_limits<eos::common::FileSystem::fsid_t>::max() - 1);
+    mFsMtxMap.set_deleted_key(std::numeric_limits<FileSystem::fsid_t>::max() - 2);
+    mFsMtxMap.set_empty_key(std::numeric_limits<FileSystem::fsid_t>::max() - 1);
   }
 
   //----------------------------------------------------------------------------
@@ -428,75 +427,6 @@ public:
     stayDirty[fsid] = dirty;
   }
 
-  // That is all we need for meta data handling
-
-  //----------------------------------------------------------------------------
-  //! Hash map protecting each filesystem map in FmdSqliteMap
-  //----------------------------------------------------------------------------
-  google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>
-  FsMutexMap;
-
-  //----------------------------------------------------------------------------
-  //! Mutex protecting the previous map
-  //----------------------------------------------------------------------------
-  eos::common::RWMutex FsMutexMapMutex;
-
-  inline void
-  _FsLock(const eos::common::FileSystem::fsid_t& fsid, bool write)
-  {
-    FsMutexMapMutex.LockRead();
-
-    if (FsMutexMap.count(fsid)) {
-      if (write) {
-        FsMutexMap[fsid].LockWrite();
-      } else {
-        FsMutexMap[fsid].LockRead();
-      }
-
-      FsMutexMapMutex.UnLockRead();
-    } else {
-      FsMutexMapMutex.UnLockRead();
-      FsMutexMapMutex.LockWrite();
-
-      if (write) {
-        FsMutexMap[fsid].LockWrite();
-      } else {
-        FsMutexMap[fsid].LockRead();
-      }
-
-      FsMutexMapMutex.UnLockWrite();
-    }
-  }
-
-  inline void
-  _FsUnlock(const eos::common::FileSystem::fsid_t& fsid, bool write)
-  {
-    FsMutexMapMutex.LockRead();
-
-    if (FsMutexMap.count(fsid)) {
-      if (write) {
-        FsMutexMap[fsid].UnLockWrite();
-      } else {
-        FsMutexMap[fsid].UnLockRead();
-      }
-
-      FsMutexMapMutex.UnLockRead();
-    } else {
-      // This should NEVER happen as the entry should be in the map because
-      // mutex #i should have been locked at some point.
-      FsMutexMapMutex.UnLockRead();
-      FsMutexMapMutex.LockWrite();
-
-      if (write) {
-        FsMutexMap[fsid].UnLockWrite();
-      } else {
-        FsMutexMap[fsid].UnLockRead();
-      }
-
-      FsMutexMapMutex.UnLockWrite();
-    }
-  }
-
   inline void FsLockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsLock(fsid, false);
@@ -524,19 +454,100 @@ public:
       ShutdownDB(it->first);
     }
 
-    eos::common::RWMutexWriteLock lock(Mutex);
+    eos::common::RWMutexWriteLock lock(mMapMutex);
     mDbMap.clear();
   }
 
-  std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
-  eos::common::RWMutex Mutex;//< Mutex protecting the Fmd handler
+  //----------------------------------------------------------------------------
+  //! Get number of files on file system
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return number of files
+  //----------------------------------------------------------------------------
+  long long GetNumFiles(eos::common::FileSystem::fsid_t fsid);
 
 private:
+
+  std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
+  eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
   eos::common::LvDbDbMapInterface::Option lvdboption;
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
   std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
   std::map<eos::common::FileSystem::fsid_t, bool> stayDirty;
   std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
+  ///! Map containing mutexes for each file system id
+  google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>
+  mFsMtxMap;
+  eos::common::RWMutex mFsMtxMapMutex; ///< Mutex protecting the previous map
+
+  //----------------------------------------------------------------------------
+  //! Lock mutex corresponding to the given file systemd id
+  //!
+  //! @param fsid file system id
+  //! @param write if true lock for write, otherwise lock for read
+  //----------------------------------------------------------------------------
+  inline void
+  _FsLock(const eos::common::FileSystem::fsid_t& fsid, bool write)
+  {
+    mFsMtxMapMutex.LockRead();
+
+    if (mFsMtxMap.count(fsid)) {
+      if (write) {
+        mFsMtxMap[fsid].LockWrite();
+      } else {
+        mFsMtxMap[fsid].LockRead();
+      }
+
+      mFsMtxMapMutex.UnLockRead();
+    } else {
+      mFsMtxMapMutex.UnLockRead();
+      mFsMtxMapMutex.LockWrite();
+
+      if (write) {
+        mFsMtxMap[fsid].LockWrite();
+      } else {
+        mFsMtxMap[fsid].LockRead();
+      }
+
+      mFsMtxMapMutex.UnLockWrite();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Unlock mutex corresponding to the given file systemd id
+  //!
+  //! @param fsid file system id
+  //! @param write if true lock for write, otherwise lock for read
+  //----------------------------------------------------------------------------
+  inline void
+  _FsUnlock(const eos::common::FileSystem::fsid_t& fsid, bool write)
+  {
+    mFsMtxMapMutex.LockRead();
+
+    if (mFsMtxMap.count(fsid)) {
+      if (write) {
+        mFsMtxMap[fsid].UnLockWrite();
+      } else {
+        mFsMtxMap[fsid].UnLockRead();
+      }
+
+      mFsMtxMapMutex.UnLockRead();
+    } else {
+      // This should NEVER happen as the entry should be in the map because
+      // mutex #i should have been locked at some point.
+      mFsMtxMapMutex.UnLockRead();
+      mFsMtxMapMutex.LockWrite();
+
+      if (write) {
+        mFsMtxMap[fsid].UnLockWrite();
+      } else {
+        mFsMtxMap[fsid].UnLockRead();
+      }
+
+      mFsMtxMapMutex.UnLockWrite();
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Get file metadata info from QuarkDB

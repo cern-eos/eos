@@ -259,7 +259,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid)
   bool isattached = false;
   {
     // First check if DB is already open - in this case we first do a shutdown
-    eos::common::RWMutexReadLock lock(Mutex);
+    eos::common::RWMutexReadLock lock(mMapMutex);
 
     if (mDbMap.count(fsid)) {
       isattached = true;
@@ -272,7 +272,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid)
     }
   }
 
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexWriteLock lock(mMapMutex);
   FsWriteLock vlock(fsid);
 
   if (!isattached) {
@@ -347,7 +347,7 @@ FmdDbMapHandler::SetDBFile(const char* dbfileprefix, int fsid)
 bool
 FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexWriteLock lock(mMapMutex);
   eos_info("%s DB shutdown for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
@@ -378,7 +378,7 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 bool
 FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexWriteLock lock(mMapMutex);
   eos_info("%s DB mark clean for fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
 
@@ -412,7 +412,7 @@ FmdDbMapHandler::GetFmd(eos::common::FileId::fileid_t fid,
     return 0;
   }
 
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
 
   if (mDbMap.count(fsid)) {
     Fmd valfmd;
@@ -565,7 +565,7 @@ FmdDbMapHandler::DeleteFmd(eos::common::FileId::fileid_t fid,
 {
   bool rc = true;
   eos_static_info("");
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock wlock(fsid);
   bool entryexist = ExistFmd(fid, fsid);
 
@@ -604,7 +604,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 
   if (lockit) {
     // ---->
-    Mutex.LockRead();
+    mMapMutex.LockRead();
     FsLockWrite(fsid);
   }
 
@@ -614,7 +614,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
     // update in-memory
     if (lockit) {
       FsUnlockWrite(fsid);
-      Mutex.UnLockRead(); // <----
+      mMapMutex.UnLockRead(); // <----
     }
 
     return res;
@@ -624,7 +624,7 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 
     if (lockit) {
       FsUnlockWrite(fsid);
-      Mutex.UnLockRead(); // <----
+      mMapMutex.UnLockRead(); // <----
     }
   }
 
@@ -642,7 +642,7 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
                                 bool filecxerror, bool blockcxerror,
                                 bool flaglayouterror)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock vlock(fsid);
   eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu "
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
@@ -698,7 +698,7 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
                                unsigned long long mtime_ns,
                                int layouterror, std::string locations)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock wlock(fsid);
   eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
@@ -752,7 +752,7 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
 bool
 FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock wlock(fsid);
 
   if (mDbMap.count(fsid)) {
@@ -796,7 +796,7 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 bool
 FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock vlock(fsid);
 
   if (mDbMap.count(fsid)) {
@@ -1294,7 +1294,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, size_t>& statistics,
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
 
   if (!mDbMap.count(fsid)) {
     return false;
@@ -1414,7 +1414,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
   eos_static_info("");
   eos::common::FileId::fileid_t fid;
   std::vector<eos::common::FileId::fileid_t> delvector;
-  eos::common::RWMutexReadLock rd_lock(Mutex);
+  eos::common::RWMutexReadLock rd_lock(mMapMutex);
 
   if (!IsSyncing(fsid)) {
     {
@@ -1483,7 +1483,7 @@ bool
 FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
 {
   bool rc = true;
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexWriteLock lock(mMapMutex);
 
   // Erase the hash entry
   if (mDbMap.count(fsid)) {
@@ -1525,7 +1525,7 @@ FmdDbMapHandler::TrimDB()
 }
 
 //----------------------------------------------------------------------------
-//! Convert namespace file metadata to an Fmd struct
+// Convert namespace file metadata to an Fmd struct
 //----------------------------------------------------------------------------
 bool
 FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
@@ -1571,6 +1571,22 @@ FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
 
   fmd.set_locations(slocations);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Get number of flies on file system
+//------------------------------------------------------------------------------
+long long
+FmdDbMapHandler::GetNumFiles(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexReadLock lock(gFmdDbMapHandler.mMapMutex);
+  FsWriteLock vlock(fsid);
+
+  if (gFmdDbMapHandler.mDbMap.count(fsid)) {
+    return gFmdDbMapHandler.mDbMap[fsid]->size();
+  } else {
+    return 0ll;
+  }
 }
 
 EOSFSTNAMESPACE_END
