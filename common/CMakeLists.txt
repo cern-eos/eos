@@ -81,7 +81,7 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 # eosCommon library
 #-------------------------------------------------------------------------------
 set(EOSCOMMON_SRCS
-  Fmd.cc
+  #Fmd.cc
   Mapping.cc
   ClockGetTime.cc
   Statfs.cc

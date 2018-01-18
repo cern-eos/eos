@@ -29,7 +29,6 @@
 #include <numeric>
 #include <cmath>
 #include "common/Logging.hh"
-#include "common/Fmd.hh"
 #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"

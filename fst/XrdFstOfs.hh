@@ -33,7 +33,6 @@
 #include "authz/XrdCapability.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/Fmd.hh"
 #include "common/StringConversion.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
