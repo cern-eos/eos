@@ -330,6 +330,8 @@ set(XRDEOSFST_SRCS
   txqueue/TransferQueue.cc
 
   # File metadata interface
+  ${FMDBASE_SRCS}
+  ${FMDBASE_HDRS}
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
 
