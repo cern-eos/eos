@@ -22,6 +22,7 @@
 #include "fst/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
+#include "common/Logging.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

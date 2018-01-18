@@ -39,7 +39,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <set>
@@ -48,6 +47,8 @@
 #include <google/dense_hash_map>
 
 /*----------------------------------------------------------------------------*/
+
+class XrdSecEntity;
 
 EOSCOMMONNAMESPACE_BEGIN
 

@@ -23,7 +23,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include <string.h>
 /*----------------------------------------------------------------------------*/
+
 
 /* Clear the terminal screen */
 int
@@ -33,7 +35,7 @@ com_clear (char *arg) {
     fprintf(stdout,"'[eos] clear' is equivalent to the interactive shell command to clear the screen.\n");
     return (0);
   }
-  
+
   int rc = system("clear");
-  return (rc); 
+  return (rc);
 }

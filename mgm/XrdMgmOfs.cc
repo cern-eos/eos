@@ -33,6 +33,7 @@
 #include "common/http/OwnCloud.hh"
 #include "common/plugin_manager/Plugin.hh"
 #include "common/ZMQ.hh"
+#include "common/JeMallocHandler.hh"
 #include "namespace/Constants.hh"
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
@@ -176,7 +177,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr.get()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr.get()),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),
-  mSubmitterTid(0)
+  mSubmitterTid(0),
+  mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;

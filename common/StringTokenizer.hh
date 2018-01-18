@@ -25,7 +25,6 @@
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include <string>
-#include <list>
 #include <vector>
 #include <sstream>
 #include <stdio.h>

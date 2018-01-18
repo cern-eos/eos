@@ -24,6 +24,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include <iomanip>
+#include <map>
 
 //------------------------------------------------------------------------------
 // Quota System listing, configuration and manipulation

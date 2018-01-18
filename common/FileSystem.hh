@@ -27,11 +27,8 @@
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
-#include "common/Statfs.hh"
-#include "common/TransferQueue.hh"
+#include <sys/vfs.h>
 #include "mq/XrdMqSharedObject.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include <string>
 #include <stdint.h>
 

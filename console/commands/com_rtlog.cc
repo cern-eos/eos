@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 
 /* Retrieve realtime log output */

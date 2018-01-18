@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/SymKeys.hh"
+#include <unistd.h>
+#include <fcntl.h>
 /*----------------------------------------------------------------------------*/
 
 /* Get the server version*/

@@ -27,8 +27,10 @@
 #include "mgm/Master.hh"
 #include "mq/XrdMqMessage.hh"
 #include "common/GlobalConfig.hh"
+#include "common/LinuxStat.hh"
 #include <sstream>
 #include <fcntl.h>
+#include <dirent.h>
 
 EOSMGMNAMESPACE_BEGIN
 

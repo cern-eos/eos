@@ -58,6 +58,7 @@
 #include "common/CommentLog.hh"
 #include "common/ZMQ.hh"
 #include "common/Path.hh"
+#include "common/JeMallocHandler.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -322,12 +323,12 @@ XrdMgmOfs::InitializeFileView()
 
 void XrdMgmOfs::StartHeapProfiling(int sig)
 {
-  if (!gOFS->mJeMallocHandler.CanProfile()) {
+  if (!gOFS->mJeMallocHandler->CanProfile()) {
     eos_static_crit("cannot run heap profiling");
     return;
   }
 
-  if (gOFS->mJeMallocHandler.StartProfiling()) {
+  if (gOFS->mJeMallocHandler->StartProfiling()) {
     eos_static_warning("started jemalloc heap profiling");
   } else {
     eos_static_warning("failed to start jemalloc heap profiling");
@@ -336,12 +337,12 @@ void XrdMgmOfs::StartHeapProfiling(int sig)
 
 void XrdMgmOfs::StopHeapProfiling(int sig)
 {
-  if (!gOFS->mJeMallocHandler.CanProfile()) {
+  if (!gOFS->mJeMallocHandler->CanProfile()) {
     eos_static_crit("cannot run heap profiling");
     return;
   }
 
-  if (gOFS->mJeMallocHandler.StopProfiling()) {
+  if (gOFS->mJeMallocHandler->StopProfiling()) {
     eos_static_warning("stopped jemalloc heap profiling");
   } else {
     eos_static_warning("failed to stop jemalloc heap profiling");
@@ -350,12 +351,12 @@ void XrdMgmOfs::StopHeapProfiling(int sig)
 
 void XrdMgmOfs::DumpHeapProfile(int sig)
 {
-  if (!gOFS->mJeMallocHandler.ProfRunning()) {
+  if (!gOFS->mJeMallocHandler->ProfRunning()) {
     eos_static_crit("profiling is not running");
     return;
   }
 
-  if (gOFS->mJeMallocHandler.DumpProfile()) {
+  if (gOFS->mJeMallocHandler->DumpProfile()) {
     eos_static_warning("dumped heap profile");
   } else {
     eos_static_warning("failed to sum heap profile");
@@ -430,17 +431,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // configure heap profiling if any
-  if (mJeMallocHandler.JeMallocLoaded()) {
+  if (mJeMallocHandler->JeMallocLoaded()) {
     eos_warning("jemalloc is loaded!");
     Eroute.Say("jemalloc is loaded!");
 
-    if (mJeMallocHandler.CanProfile()) {
-      Eroute.Say(mJeMallocHandler.ProfRunning() ?
+    if (mJeMallocHandler->CanProfile()) {
+      Eroute.Say(mJeMallocHandler->ProfRunning() ?
                  "jemalloc heap profiling enabled and running" :
                  "jemalloc heap profiling enabled and NOT running");
       eos_warning("jemalloc heap profiling enabled and %srunning. will start "
                   "running on signal 40 and will stop running on signal 41",
-                  mJeMallocHandler.ProfRunning() ? "" : "NOT ");
+                  mJeMallocHandler->ProfRunning() ? "" : "NOT ");
     } else {
       eos_warning("jemalloc heap profiling is disabled");
       Eroute.Say("jemalloc heap profiling is disabled");

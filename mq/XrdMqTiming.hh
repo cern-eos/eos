@@ -25,6 +25,7 @@
 #define __MQ__TIMING__HH__
 
 #include <sys/time.h>
+#include <string.h>
 
 class XrdMqTiming
 {

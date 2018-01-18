@@ -24,6 +24,7 @@
 #include "common/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
+#include "common/TransferQueue.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
 

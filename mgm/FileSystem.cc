@@ -95,16 +95,16 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status, bool ce
 /*
  * @brief Set the configuration status of this filesystem
  * @return true if successfull otherwise false
- * 
+ *
  * Depending on the given status this routine also manages drain jobs on the
  * underlying filesystem.
  */
 /*----------------------------------------------------------------------------*/
 {
-  //this is specific for distribured drain implementation 
+  //this is specific for distribured drain implementation
   if (!centraldrain ) {
     //----------------------------------------------------------------
-    // catch any status change from/to 'drain' or 'draindead' 
+    // catch any status change from/to 'drain' or 'draindead'
     //----------------------------------------------------------------
 
     // check the current status
@@ -125,7 +125,7 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status, bool ce
       {
         mDrainJobMutex.UnLock();
       }
-    } 
+    }
 
     if ((status == kDrain) || (status == kDrainDead))
     {
@@ -166,7 +166,7 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status, bool ce
         SetDrainStatus(eos::common::FileSystem::kNoDrain);
       }
     }
-  } 
+  }
   return eos::common::FileSystem::SetConfigStatus(status);
 }
 
@@ -194,4 +194,3 @@ FileSystem::SetString (const char* key, const char* str, bool broadcast)
 }
 
 EOSMGMNAMESPACE_END
-

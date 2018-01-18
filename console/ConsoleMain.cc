@@ -37,6 +37,8 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdCl/XrdClFile.hh"
 #include <setjmp.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #ifdef __APPLE__
 #define ENONET 64

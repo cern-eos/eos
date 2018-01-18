@@ -102,14 +102,12 @@
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/LinuxStat.hh"
-#include "common/JeMallocHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
-#include <dirent.h>
 #include <chrono>
 #include <mutex>
 
@@ -136,6 +134,7 @@ namespace eos
 namespace common
 {
   class CommentLog;
+  class JeMallocHandler;
 }
 }
 
@@ -299,10 +298,6 @@ public:
           XrdOucErrInfo& out_error,
           eos::common::Mapping::VirtualIdentity& vid,
           const char* opaque = 0);
-
-  enum eFSCTL {
-    kFsctlMgmOfsOffset = 40000
-  };
 
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
@@ -1446,13 +1441,6 @@ public:
   ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
   Drainer* DrainerEngine; ///< Drainer management thread
 
-  //! Map storing the modification times of directories, they are either
-  //! directly inserted from directory/file creation or they are set from
-  //! a directory listing.
-  XrdSysMutex MgmDirectoryModificationTimeMutex;
-  google::sparse_hash_map<unsigned long long, struct timespec>
-    MgmDirectoryModificationTime;
-
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   //! LRU object running the LRU policy engine
@@ -1482,8 +1470,10 @@ private:
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
   pthread_t mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
-  std::list<std::string> mPendingBkps; ///< Backup jobs queue
-  eos::common::JeMallocHandler mJeMallocHandler; //< manage heap profiling
+  std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
+
+  //! Manage heap profiling
+  std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with

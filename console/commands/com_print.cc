@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 
 /* Print out help for ARG, or for all of the commands if ARG is

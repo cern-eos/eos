@@ -23,6 +23,8 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
+#include <fcntl.h>
+#include <unistd.h>
 
 /* Change working directory &*/
 int

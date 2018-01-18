@@ -25,25 +25,8 @@
 #include "XrdOuc/XrdOucString.hh"
 
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <signal.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <string>
-#include <iostream>
 #include <vector>
-#include <fstream>
-#include <list>
-#include <deque>
-#include <map>
 #include <math.h>
 
 class XrdOucEnv;
