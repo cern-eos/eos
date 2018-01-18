@@ -110,6 +110,8 @@ add_library(
   commands/com_whoami.cc
   commands/com_who.cc)
 
+add_dependencies(EosConsoleCommands-Objects EosFstIo-Objects)
+
 target_compile_definitions(
   EosConsoleCommands-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
