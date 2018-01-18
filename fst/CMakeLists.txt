@@ -335,9 +335,17 @@ set(XRDEOSFST_SRCS
   # EosFstIo interface
   io/local/LocalIo.cc  io/local/LocalIo.hh)
 
-add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
+add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
+set_target_properties(
+  XrdEosFst-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE
+)
+target_compile_definitions(XrdEosFst-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst-Shared SHARED ${XRDEOSFST_SRCS})
+add_library(XrdEosFst MODULE $<TARGET_OBJECTS:XrdEosFst-Objects>)
+add_library(XrdEosFst-Shared SHARED $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
