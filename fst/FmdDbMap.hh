@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file FmdHelper.hh
+//! @file FmdDbMap.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -24,13 +24,13 @@
 #define __EOSFST_FmdLEVELDB_HH__
 
 #include "fst/Namespace.hh"
+#include "fst/FmdClient.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "common/DbMap.hh"
-#include "fst/FmdHandler.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -43,7 +43,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class handling many Fmd changelog files at a time
 //------------------------------------------------------------------------------
-class FmdDbMapHandler : public FmdHandler
+class FmdDbMapHandler : public FmdClient
 {
 public:
   //----------------------------------------------------------------------------
@@ -66,6 +66,47 @@ public:
   virtual ~FmdDbMapHandler()
   {
     Shutdown();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Create a new changelog filename in 'dir' (the fsid suffix is not added!)
+  //----------------------------------------------------------------------------
+  virtual const char*
+  CreateDBFileName(const char* cldir, XrdOucString& clname)
+  {
+    clname = cldir;
+    clname += "/";
+    clname += "fmd";
+    return clname.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return's the syncing flag (if we sync, all files on disk are flagge as
+  //! orphans until the MGM meta data has been verified and when this flag is
+  //! set, we don't report orphans!
+  //----------------------------------------------------------------------------
+  virtual bool
+  IsSyncing(eos::common::FileSystem::fsid_t fsid)
+  {
+    return isSyncing[fsid];
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return's the dirty flag indicating a non-clean shutdown
+  //----------------------------------------------------------------------------
+  virtual bool
+  IsDirty(eos::common::FileSystem::fsid_t fsid)
+  {
+    return isDirty[fsid];
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set the stay dirty flag indicating a non completed bootup
+  //----------------------------------------------------------------------------
+  virtual void
+  StayDirty(eos::common::FileSystem::fsid_t fsid, bool dirty)
+  {
+    stayDirty[fsid] = dirty;
   }
 
   //----------------------------------------------------------------------------
@@ -444,6 +485,9 @@ public:
 private:
   eos::common::LvDbDbMapInterface::Option lvdboption;
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
+  std::map<eos::common::FileSystem::fsid_t, bool> isDirty;
+  std::map<eos::common::FileSystem::fsid_t, bool> stayDirty;
+  std::map<eos::common::FileSystem::fsid_t, bool> isSyncing;
 };
 
 
