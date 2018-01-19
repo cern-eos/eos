@@ -66,45 +66,18 @@ std::string DbLogT::getDbFile() const {
   return pDb->getDbFile();
 }
 
-int DbLogT::getAll(TlogentryVec* retvec, size_t nmax, Tlogentry* startafter,
-             RegexBranch regex) const {
-  if (regex.hasError()) {
-    return -1;
-  }
+int DbLogT::getAll(TlogentryVec* retvec, size_t nmax, Tlogentry* startafter) const {
 
   int startsize = retvec->size();
   RWMutexReadLock lock(pMutex);
   pDb->getAll(retvec, nmax, startafter);
-
-  if (regex.isBlank()) {
-    return retvec->size() - startsize;
-  }
-
-  RegexPredicate rmpred(regex);
-  TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
-                                    rmpred);
-  retvec->erase(newend, retvec->end());
   return retvec->size() - startsize;
 }
 
-int DbLogT::getTail(int nentries, TlogentryVec* retvec,
-              RegexBranch regex) const {
-  if (regex.hasError()) {
-    return -1;
-  }
-
+int DbLogT::getTail(int nentries, TlogentryVec* retvec) const {
   int startsize = retvec->size();
   RWMutexReadLock lock(pMutex);
   pDb->getTail(nentries, retvec);
-
-  if (regex.isBlank()) {
-    return retvec->size() - startsize;
-  }
-
-  RegexPredicate rmpred(regex);
-  TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
-                                  rmpred);
-  retvec->erase(newend, retvec->end());
   return retvec->size() - startsize;
 }
 

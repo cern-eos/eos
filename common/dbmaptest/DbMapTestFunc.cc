@@ -209,20 +209,6 @@ main()
   google::protobuf::TextFormat::PrintToString(fmdout, &printstuff);
   std::cout << printstuff << std::endl;
   std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl;
-  // testing RegexBranch
-  RegexBranch rb = (RegexAtom("key", "k.*") ||
-                    RegexAtom("comment", "comment.*")) && !RegexAtom("timestampstr", "2014.*");
-  RegexBranch rberror = (RegexAtom("key", "k.*") ||
-                         RegexAtom("comment", "/\\^[[nt.*")) && !RegexAtom("timestampstr", "2014.*");
-  DbMapTypes::Tlogentry le;
-  le.key = "key.le";
-  le.value = "value.le";
-  le.seqid = "100";
-  le.comment = "comment.le";
-  le.timestampstr = "2013-06-11 10:38:16#000000009";
-  cout << " result of HasError " << rb.hasError() << endl;
-  cout << " result of corrupted HasError " << rberror.hasError() << endl;
-  cout << " result of REGEX " << rb.eval(le) << endl;
   // some fillings
   pthread_t threads[NUM_THREADS];
   int rc;
@@ -308,27 +294,6 @@ main()
   int totalcount = 0;
   // writer=TestMap_no_slice key=k1 value=v1 comment=r1
   retvec.clear();
-  dbl_no_slice.getAll(&retvec, 0, NULL, RegexAtom("writer", "TestMap_no_slice") &&
-                      RegexAtom("key", "k1") && RegexAtom("value", "v1"));
-  totalcount += retvec.size();
-  //cout<<retvec.size()<<endl;
-  assert(retvec.size() == 1);
-  // writer=TestMap_no_slice key=k2 value=v2 comment=r2
-  retvec.clear();
-  dbl_no_slice.getAll(&retvec, 0, NULL, RegexAtom("writer", "TestMap_no_slice") &&
-                      RegexAtom("key", "k2") && RegexAtom("value", "v2"));
-  totalcount += retvec.size();
-  //cout<<retvec.size()<<endl;
-  assert(retvec.size() == 1);
-  retvec.clear();
-  dbl_no_slice.getAll(&retvec, 0, NULL,
-                      RegexAtom("writer", "NewName_no_slice") &&
-                      RegexAtom("key", "KeySeq-thread[ ]#[0-" STRING(NUM_THREADS) "]")
-                      && RegexAtom("value", "ValSeq-thread[ ]#[0-" STRING(NUM_THREADS) "]"));
-  totalcount += retvec.size();
-  //cout<<retvec.size()<<endl;
-  assert(retvec.size() == 100 * NUM_THREADS * 2);
-  retvec.clear();
   dbl_no_slice.getAll(&retvec);
   //cout<<retvec.size()<<endl;
   assert((int)retvec.size() == totalcount + 3);
@@ -364,23 +329,6 @@ main()
 #define arch_testloop(pattern,count,detailedoutput) retvec.clear(); arch_loop { int c=(*it)->getAll(&retvec,0,NULL,pattern); if(detailedoutput) cout<<(*it)->getDbFile()<<" : "<<c<<endl; } if(detailedoutput) cout<< "total : " << retvec.size()<<endl; assert(retvec.size()==count);
   // the content of /tmp/testlog.db (including all the archive volumes) should be
   // writer=TestMap key=k1 value=v1 comment=r1
-  arch_testloop(RegexAtom("writer", "TestMap") && RegexAtom("key", "k1") &&
-                RegexAtom("value", "v1"), 1, true);
-  // writer=TestMap key=k2 value=v2 comment=r2
-  arch_testloop(RegexAtom("writer", "TestMap") && RegexAtom("key", "k2") &&
-                RegexAtom("value", "v2"), 1, true);
-  // writer=TestMap key=Key[1-3] value=Value[1-3]
-  arch_testloop(RegexAtom("key", "Key[1-3]") &&
-                RegexAtom("value", "Value[1-3]"), 2 * 3 * NUM_THREADS, true);
-  // once in archives (or current db) and once in testlog_x.db
-  //                key=KeyN value=ValueN comment=thread #P  with N={1,2,3} and P=[1,NUM_THREADS] // only in the archives (or current db)
-  arch_testloop(
-    RegexAtom("writer", "TestMap") &&
-    RegexAtom("key", "KeySeq-thread[ ]#[0-" STRING(NUM_THREADS) "]") &&
-    RegexAtom("value", "ValSeq-thread[ ]#[0-" STRING(NUM_THREADS) "]"),
-    100 * NUM_THREADS * 2, true);
-  //                check there is nothing else
-  arch_testloop(RegexAtom("key", ".*"), 206 * NUM_THREADS + 2 + 3, true);
   // +2 for k1 and k2 +1 for the deletion +1 for the binary, +1 for the protobuf
   // at this point, we need to consider only the current dblog and its archives to check the time ranges cohenrency
   dblogs.clear();
