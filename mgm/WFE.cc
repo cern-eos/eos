@@ -34,6 +34,7 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 

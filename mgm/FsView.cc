@@ -24,6 +24,10 @@
 #include <cfloat>
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/FsView.hh"
+#include "mgm/GeoBalancer.hh"
+#include "mgm/Balancer.hh"
+#include "mgm/GroupBalancer.hh"
+#include "mgm/Converter.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #ifndef EOSMGMFSVIEWTEST
@@ -877,6 +881,199 @@ LongLongAggregator::deepAggregate(
   // might be usefull for some more advanced statistics requiring using the
   // whole distribution at each depth e.g median
   return false;
+}
+
+//----------------------------------------------------------------------------
+// Constructor
+// @param name name of the space to construct
+//----------------------------------------------------------------------------
+FsSpace::FsSpace(const char* name) {
+  mName = name;
+  mType = "spaceview";
+#ifndef EOSMGMFSVIEWTEST
+  mBalancer = new Balancer(name);
+  mConverter = new Converter(name);
+  mGroupBalancer = new GroupBalancer(name);
+  mGeoBalancer = new GeoBalancer(name);
+
+  if (!gDisableDefaults) {
+    // Set default balancing variables
+    // Disable balancing by default
+    if (GetConfigMember("balancer") == "") {
+      SetConfigMember("balancer", "off", true, "/eos/*/mgm");
+    }
+
+    // Set deviation treshold
+    if (GetConfigMember("balancer.threshold") == "") {
+      SetConfigMember("balancer.threshold", "20", true, "/eos/*/mgm");
+    }
+
+    // Set balancing rate per balancing stream
+    if (GetConfigMember("balancer.node.rate") == "") {
+      SetConfigMember("balancer.node.rate", "25", true, "/eos/*/mgm");
+    }
+
+    // Set parallel balancing streams per node
+    if (GetConfigMember("balancer.node.ntx") == "") {
+      SetConfigMember("balancer.node.ntx", "2", true, "/eos/*/mgm");
+    }
+
+    // Set drain rate per drain stream
+    if (GetConfigMember("drain.node.rate") == "") {
+      SetConfigMember("drainer.node.rate", "25", true, "/eos/*/mgm");
+    }
+
+    // Set parallel draining streams per node
+    if (GetConfigMember("drainer.node.ntx") == "") {
+      SetConfigMember("drainer.node.ntx", "2", true, "/eos/*/mgm");
+    }
+
+    // Set the grace period before drain start on opserror to 1 day
+    if (GetConfigMember("graceperiod") == "") {
+      SetConfigMember("graceperiod", "86400", true, "/eos/*/mgm");
+    }
+
+    // Set the time for a drain by default to 1 day
+    if (GetConfigMember("drainperiod") == "") {
+      SetConfigMember("drainperiod", "86400", true, "/eos/*/mgm");
+    }
+
+    // Set the scan interval by default to 1 week
+    if (GetConfigMember("scaninterval") == "") {
+      SetConfigMember("scaninterval", "604800", true, "/eos/*/mgm");
+    }
+
+    // Disable quota by default
+    if (GetConfigMember("quota") == "") {
+      SetConfigMember("quota", "off", true, "/eos/*/mgm");
+    }
+
+    // Set the group modulo to 0
+    if (GetConfigMember("groupmod") == "") {
+      SetConfigMember("groupmod", "0", true, "/eos/*/mgm");
+    }
+
+    // Set the group size to 0
+    if (GetConfigMember("groupsize") == "") {
+      SetConfigMember("groupsize", "0", true, "/eos/*/mgm");
+    }
+
+    // Disable converter by default
+    if (GetConfigMember("converter") == "") {
+      SetConfigMember("converter", "off", true, "/eos/*/mgm");
+    }
+
+    // Set two converter streams by default
+    if (GetConfigMember("converter.ntx") == "") {
+      SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+    }
+
+    if (GetConfigMember("groupbalancer") == "") {
+      SetConfigMember("groupbalancer", "off", true, "/eos/*/mgm");
+    }
+
+    // Set the groupbalancer max number of scheduled files by default
+    if (GetConfigMember("groupbalancer.ntx") == "") {
+      SetConfigMember("groupbalancer.ntx", "10", true, "/eos/*/mgm");
+    }
+
+    // Set the groupbalancer threshold by default
+    if (GetConfigMember("groupbalancer.threshold") == "") {
+      SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
+    }
+
+    if (GetConfigMember("geobalancer") == "") {
+      SetConfigMember("geobalancer", "off", true, "/eos/*/mgm");
+    }
+
+    // Set the geobalancer max number of scheduled files by default
+    if (GetConfigMember("geobalancer.ntx") == "") {
+      SetConfigMember("geobalancer.ntx", "10", true, "/eos/*/mgm");
+    }
+
+    // Set the geobalancer threshold by default
+    if (GetConfigMember("geobalancer.threshold") == "") {
+      SetConfigMember("geobalancer.threshold", "5", true, "/eos/*/mgm");
+    }
+
+    // Disable lru by default
+    if (GetConfigMember("lru") == "") {
+      SetConfigMember("converter", "off", true, "/eos/*/mgm");
+    }
+
+    // Set one week lru interval by default
+    if (GetConfigMember("lru.interval") == "604800") {
+      SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+    }
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+// Stop function stopping threads before destruction
+//----------------------------------------------------------------------------
+void FsSpace::Stop() {
+#ifndef EOSMGMFSVIEWTEST
+
+  if (mBalancer) {
+    mBalancer->Stop();
+  }
+
+  if (mConverter) {
+    mConverter->Stop();
+  }
+
+  if (mGroupBalancer) {
+    mGroupBalancer->Stop();
+  }
+
+  if (mGeoBalancer) {
+    mGeoBalancer->Stop();
+  }
+#endif
+}
+
+//----------------------------------------------------------------------------
+// Synchronously join threads before destruction
+//----------------------------------------------------------------------------
+void FsSpace::Join() {
+#ifndef EOSMGMFSVIEWTEST
+
+  if (mGroupBalancer) {
+    mGroupBalancer->Join();
+  }
+
+  if (mGeoBalancer) {
+    mGeoBalancer->Join();
+  }
+
+#endif
+}
+
+FsSpace::~FsSpace() {
+#ifndef EOSMGMFSVIEWTEST
+
+  if (mBalancer) {
+    delete mBalancer;
+  }
+
+  if (mConverter) {
+    delete mConverter;
+  }
+
+  if (mGroupBalancer) {
+    delete mGroupBalancer;
+  }
+
+  if (mGeoBalancer) {
+    delete mGeoBalancer;
+  }
+
+  mBalancer = nullptr;
+  mConverter = nullptr;
+  mGroupBalancer = nullptr;
+  mGeoBalancer = nullptr;
+#endif
 }
 
 //------------------------------------------------------------------------------

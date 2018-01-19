@@ -32,7 +32,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/http/HttpHandler.hh"
-// #include "common/http/HttpResponse.hh"
 #include "common/http/MimeTypes.hh"
 
 #include "fst/Namespace.hh"

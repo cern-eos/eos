@@ -29,6 +29,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IView.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
+#include "common/FileId.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdJob.hh"

@@ -26,11 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
-#include "common/Logging.hh"
 #include "common/FileId.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include <google/sparse_hash_map>
-#include <google/sparse_hash_set>
 #include <sys/types.h>
 #include <string>
 #include <stdarg.h>
