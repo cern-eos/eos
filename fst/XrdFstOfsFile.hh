@@ -33,7 +33,6 @@
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucEnv;
 

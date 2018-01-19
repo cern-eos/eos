@@ -383,8 +383,111 @@ public:
 };
 
 /*------------    DbMap and DbLog TEMPLATE IMPLEMENTATIONS     ---------------*/
-template<class TDbMapInterface, class TDbLogInterface> class
-  DbLogT; // the definition of this template comes later in the same file
+
+
+//------------------------------------------------------------------------------
+//! This class is a logging container which store snapshots of entries of DbMap.
+//! It provides some reading facilities.
+//! Writing to this class must be done via the TDbMap class.
+//------------------------------------------------------------------------------
+class DbLogT : public eos::common::LogId
+{
+  using TDbMapInterface = LvDbDbMapInterface;
+  using TDbLogInterface = LvDbDbLogInterface;
+
+  friend class DbMapT;
+  // db is a pointer to the db manager of the data
+  // the TDbMapInterface is not supposed to be thread-safe. So db must be protected by a lock.
+  TDbLogInterface* pDb;
+  mutable RWMutex pMutex;
+public:
+  // typedefs
+  typedef DbMapTypes::Tkey Tkey;
+  typedef DbMapTypes::Tval Tval;
+  typedef DbMapTypes::TvalSlice TvalSlice;
+  typedef DbMapTypes::Tlogentry Tlogentry;
+  typedef DbMapTypes::TlogentryVec TlogentryVec;
+  typedef std::pair<Tkey, Tval> Tkeyval;
+  typedef std::map<Tkey, Tval> Tmap;
+  typedef std::vector<Tkeyval> Tlist;
+  typedef typename TDbLogInterface::Option Toption;
+
+  // ------------------------------------------------------------------------
+  /// constr , destr
+  // ------------------------------------------------------------------------
+  DbLogT();
+
+  DbLogT(const std::string dbfile, int volumeduration = -1, int createperm = 0,
+         Toption* option = NULL);
+
+  ~DbLogT();
+
+  bool setDbFile(const std::string& dbname, int volumeduration = -1,
+                 int createperm = 0, Toption* option = NULL);
+
+  // ------------------------------------------------------------------------
+  //! Check if the underlying db is properly opened
+  //! @return true if the underlying db is open, false otherzise
+  // ------------------------------------------------------------------------
+  bool isOpen();
+
+  // ------------------------------------------------------------------------
+  //! Get the name of the underlying db file
+  //! @return the name of the underlying dbfile
+  // ------------------------------------------------------------------------
+  std::string getDbFile() const;
+
+  // ------------------------------------------------------------------------
+  //! Get all the entries of the DbLog optionally by block and optionally matching a regexp
+  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
+  //! @param[in] nmax maximum number of elements to get at once
+  //! @param[in,out] startafter before execution : position at which the search is to be started
+  //!                           after  execution : position at which the search has to start at the next iteration
+  //! @param[in] regex the regular expression the entries need to match
+  //! @return the number of entries appended to the result vector retvec
+  // ------------------------------------------------------------------------
+  int getAll(TlogentryVec* retvec, size_t nmax = 0, Tlogentry* startafter = NULL,
+             RegexBranch regex = RegexBranch()) const;
+
+  // ------------------------------------------------------------------------
+  //! Get the latest entries of the DbLog optionally matching a regexp
+  //! @param[in] nentries maximum number of elements to run the search on starting from the end
+  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
+  //! @param[in] regex the regular expression the entries need to match
+  //! @return the number of entries appended to the result vector retvec
+  // ------------------------------------------------------------------------
+  int getTail(int nentries, TlogentryVec* retvec,
+              RegexBranch regex = RegexBranch()) const;
+
+  // ------------------------------------------------------------------------
+  //! Clear the content of the DbLog
+  //! @return false if an error occurs, true otherwise
+  // ------------------------------------------------------------------------
+  bool clear();
+
+  // ------------------------------------------------------------------------
+  //! Compactify a DbLog in place i.e. reduce the set of changes to the minimum equivalent set of changes.
+  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
+  //! @return a pair containing first the number of entries before the compactation
+  //!                           and second the number of entries after the compactation
+  // ------------------------------------------------------------------------
+  std::pair<int, int> compactify();
+
+  // ------------------------------------------------------------------------
+  //! Compactify a DbLog to another db file i.e. reduce the set of changes to the minimum equivalent set of changes.
+  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
+  //! @param[in] dbname the name of the db file to write the compacted version of the DbLog
+  //! @return a pair containing first the number of entries before the compactation
+  //!                           and second the number of entries after the compactation
+  // ------------------------------------------------------------------------
+  std::pair<int, int> compactifyTo(const string& dbname) const;
+
+  // ------------------------------------------------------------------------
+  //! Get the underlying db system
+  //! @return a string containing the name of the underlying db system
+  // ------------------------------------------------------------------------
+  static std::string getDbType();
+};
 
 /*----------------------------------------------------------------------------*/
 //! this class is like a map its content lays in a db or in memory or both.
@@ -394,10 +497,12 @@ template<class TDbMapInterface, class TDbLogInterface> class
 //! a time stamp (a size_t), a string representation of the timestamp, a sequence id ( an integer ).
 //! Any modification to the content data can be logged thanks to the DbLog Class.
 /*----------------------------------------------------------------------------*/
-template<class TDbMapInterface, class TDbLogInterface>
 class DbMapT : public eos::common::LogId
 {
 public:
+  using TDbMapInterface = LvDbDbMapInterface;
+  using TDbLogInterface = LvDbDbLogInterface;
+
   // typedefs
   typedef DbMapTypes::Tkey Tkey;
   typedef DbMapTypes::Tval Tval;
@@ -906,7 +1011,7 @@ public:
   //! @param[in] dblog an existing DbLog. This DbLog instance is not destroyed when the DbMap is destroyed.
   //! @return true if the dbname was attached, false otherwise (it maybe because the file is already attached to this DbMap)
   // ------------------------------------------------------------------------
-  bool attachLog(DbLogT<TDbMapInterface, TDbLogInterface>* dblog)
+  bool attachLog(DbLogT* dblog)
   {
     RWMutexWriteLock lock(pMutex);
     return pDb->attachDbLog(dblog->pDb);
@@ -930,7 +1035,7 @@ public:
   //! @param[in] dblog an existing DbLog. This DbLog instance is not destroyed.
   //! @return true if the dbname was successfully detached, false otherwise (it may be because the file has already been detached)
   // ------------------------------------------------------------------------
-  bool detachLog(DbLogT<TDbMapInterface, TDbLogInterface>* dblog)
+  bool detachLog(DbLogT* dblog)
   {
     RWMutexWriteLock lock(pMutex);
     return pDb->detachDbLog(dblog->pDb);
@@ -1309,7 +1414,7 @@ public:
   //! @param[in] dblogint a pointer to an existing dblog
   //! @return -1 if any error occurs, otherwise the number of replayed changes.
   // ------------------------------------------------------------------------
-  int loadDbLog(const DbLogT<TDbMapInterface, TDbLogInterface>* dblogint)
+  int loadDbLog(const DbLogT* dblogint)
   {
     const int blocksize = 1000;
     DbMapTypes::Tlogentry entry;
@@ -1350,7 +1455,7 @@ public:
   //! @param[in] dblogint a pointer to an existing dblog. This object is never destroyed by the DbMap.
   //! @return -1 if any error occurs, otherwise the number of replayed changes.
   // ------------------------------------------------------------------------
-  int loadAndattachDbLog(DbLogT<TDbMapInterface, TDbLogInterface>* dblogint)
+  int loadAndattachDbLog(DbLogT* dblogint)
   {
     int count = loadDbLog(dblogint);
 
@@ -1368,7 +1473,7 @@ public:
   // ------------------------------------------------------------------------
   int loadDbLog(const std::string& dbname)
   {
-    DbLogT<TDbMapInterface, TDbLogInterface> dblg(dbname);
+    DbLogT dblg(dbname);
     return loadDbLog(&dblg);
   }
 
@@ -1406,224 +1511,17 @@ public:
 };
 
 //------------------------------------------------------------------------------
-//! This class is a logging container which store snapshots of entries of DbMap.
-//! It provides some reading facilities.
-//! Writing to this class must be done via the TDbMap class.
-//------------------------------------------------------------------------------
-template<class TDbMapInterface, class TDbLogInterface>
-class DbLogT : public eos::common::LogId
-{
-  friend class DbMapT<TDbMapInterface, TDbLogInterface>;
-  // db is a pointer to the db manager of the data
-  // the TDbMapInterface is not supposed to be thread-safe. So db must be protected by a lock.
-  TDbLogInterface* pDb;
-  mutable RWMutex pMutex;
-public:
-  // typedefs
-  typedef DbMapTypes::Tkey Tkey;
-  typedef DbMapTypes::Tval Tval;
-  typedef DbMapTypes::TvalSlice TvalSlice;
-  typedef DbMapTypes::Tlogentry Tlogentry;
-  typedef DbMapTypes::TlogentryVec TlogentryVec;
-  typedef std::pair<Tkey, Tval> Tkeyval;
-  typedef std::map<Tkey, Tval> Tmap;
-  typedef std::vector<Tkeyval> Tlist;
-  typedef typename TDbLogInterface::Option Toption;
-
-  // ------------------------------------------------------------------------
-  /// constr , destr
-  // ------------------------------------------------------------------------
-  DbLogT()
-  {
-    pDb = new TDbLogInterface();
-    pMutex.SetBlocking(true);
-  }
-
-  DbLogT(const std::string dbfile, int volumeduration = -1, int createperm = 0,
-         Toption* option = NULL)
-  {
-    pDb = new TDbLogInterface(dbfile, volumeduration, createperm, option);
-  };
-  ~DbLogT()
-  {
-    RWMutexWriteLock lock(pMutex);
-    delete pDb;
-  }
-  bool setDbFile(const std::string& dbname, int volumeduration = -1,
-                 int createperm = 0, Toption* option = NULL)
-  {
-    RWMutexWriteLock lock(pMutex);
-    return pDb->setDbFile(dbname, volumeduration, createperm, (void*)option);
-  }
-
-  // ------------------------------------------------------------------------
-  //! Check if the underlying db is properly opened
-  //! @return true if the underlying db is open, false otherzise
-  // ------------------------------------------------------------------------
-  bool isOpen()
-  {
-    return pDb->isOpen();
-  }
-
-  // ------------------------------------------------------------------------
-  //! Get the name of the underlying db file
-  //! @return the name of the underlying dbfile
-  // ------------------------------------------------------------------------
-  std::string getDbFile() const
-  {
-    RWMutexWriteLock lock(pMutex);
-    return pDb->getDbFile();
-  }
-
-  // ------------------------------------------------------------------------
-  //! Get all the entries of the DbLog optionally by block and optionally matching a regexp
-  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
-  //! @param[in] nmax maximum number of elements to get at once
-  //! @param[in,out] startafter before execution : position at which the search is to be started
-  //!                           after  execution : position at which the search has to start at the next iteration
-  //! @param[in] regex the regular expression the entries need to match
-  //! @return the number of entries appended to the result vector retvec
-  // ------------------------------------------------------------------------
-  int getAll(TlogentryVec* retvec, size_t nmax = 0, Tlogentry* startafter = NULL,
-             RegexBranch regex = RegexBranch()) const
-  {
-    if (regex.hasError()) {
-      return -1;
-    }
-
-    int startsize = retvec->size();
-    RWMutexReadLock lock(pMutex);
-    pDb->getAll(retvec, nmax, startafter);
-
-    if (regex.isBlank()) {
-      return retvec->size() - startsize;
-    }
-
-    RegexPredicate rmpred(regex);
-    TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
-                                    rmpred);
-    retvec->erase(newend, retvec->end());
-    return retvec->size() - startsize;
-  }
-
-  // ------------------------------------------------------------------------
-  //! Get the latest entries of the DbLog optionally matching a regexp
-  //! @param[in] nentries maximum number of elements to run the search on starting from the end
-  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
-  //! @param[in] regex the regular expression the entries need to match
-  //! @return the number of entries appended to the result vector retvec
-  // ------------------------------------------------------------------------
-  int getTail(int nentries, TlogentryVec* retvec,
-              RegexBranch regex = RegexBranch()) const
-  {
-    if (regex.hasError()) {
-      return -1;
-    }
-
-    int startsize = retvec->size();
-    RWMutexReadLock lock(pMutex);
-    pDb->getTail(nentries, retvec);
-
-    if (regex.isBlank()) {
-      return retvec->size() - startsize;
-    }
-
-    RegexPredicate rmpred(regex);
-    TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
-                                    rmpred);
-    retvec->erase(newend, retvec->end());
-    return retvec->size() - startsize;
-  }
-
-  // ------------------------------------------------------------------------
-  //! Clear the content of the DbLog
-  //! @return false if an error occurs, true otherwise
-  // ------------------------------------------------------------------------
-  bool clear()
-  {
-    RWMutexReadLock lock(pMutex);
-    return pDb->clear();
-  }
-
-  // ------------------------------------------------------------------------
-  //! Compactify a DbLog in place i.e. reduce the set of changes to the minimum equivalent set of changes.
-  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
-  //! @return a pair containing first the number of entries before the compactation
-  //!                           and second the number of entries after the compactation
-  // ------------------------------------------------------------------------
-  std::pair<int, int> compactify()
-  {
-    std::pair<int, int> retval;
-    DbMapT<TDbMapInterface, TDbLogInterface> dbmap, dbmap2;
-    retval.second = 0;
-    retval.first = dbmap.loadDbLog(this);
-    this->clear();
-    dbmap2.attachLog(this);
-    const DbMapTypes::Tkey* key;
-    const DbMapTypes::Tval* val;
-    dbmap2.beginSetSequence();
-
-    for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
-      if (dbmap2.set(*key, *val)) {
-        retval.second++;
-      }
-    }
-
-    dbmap2.endSetSequence();
-    return retval;
-  }
-
-  // ------------------------------------------------------------------------
-  //! Compactify a DbLog to another db file i.e. reduce the set of changes to the minimum equivalent set of changes.
-  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
-  //! @param[in] dbname the name of the db file to write the compacted version of the DbLog
-  //! @return a pair containing first the number of entries before the compactation
-  //!                           and second the number of entries after the compactation
-  // ------------------------------------------------------------------------
-  std::pair<int, int> compactifyTo(const string& dbname) const
-  {
-    std::pair<int, int> retval;
-    DbMapT<TDbMapInterface, TDbLogInterface> dbmap, dbmap2;
-    retval.first = dbmap.loadDbLog(this);
-    dbmap2.attachLog(dbname);
-    const DbMapTypes::Tkey* key;
-    const DbMapTypes::Tval* val;
-    dbmap2.beginSetSequence();
-
-    for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
-      if (dbmap2.set(*key, *val)) {
-        retval.second++;
-      }
-    }
-
-    dbmap2.endSetSequence();
-    return retval;
-  }
-
-  // ------------------------------------------------------------------------
-  //! Get the underlying db system
-  //! @return a string containing the name of the underlying db system
-  // ------------------------------------------------------------------------
-  static std::string getDbType()
-  {
-    return TDbLogInterface::getDbType();
-  }
-};
-
-
-//------------------------------------------------------------------------------
 //! DEFAULT DbMap and DbLog IMPLEMENTATIONS
 //------------------------------------------------------------------------------
-typedef DbMapT<LvDbDbMapInterface, LvDbDbLogInterface> DbMap;
-typedef DbLogT<LvDbDbMapInterface, LvDbDbLogInterface> DbLog;
+typedef DbMapT DbMap;
+typedef DbLogT DbLog;
 
 
 //------------------------------------------------------------------------------
 //! Display helpers
 //------------------------------------------------------------------------------
-template<class DbMapInterface, class DbLogInterface>
-std::ostream& operator << (std::ostream& os,
-                           const DbMapT<DbMapInterface, DbLogInterface>& map)
+inline std::ostream& operator << (std::ostream& os,
+                           const DbMapT& map)
 {
   const DbMapTypes::Tkey* key;
   const DbMapTypes::Tval* val;
@@ -1638,4 +1536,3 @@ std::ostream& operator << (std::ostream& os,
 EOSCOMMONNAMESPACE_END
 
 #endif
-

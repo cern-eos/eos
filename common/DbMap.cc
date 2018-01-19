@@ -25,21 +25,136 @@
 #include "common/Namespace.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
-/*-------------------- EXPLICIT INSTANTIATIONS -------------------------------*/
-template class DbMapT<LvDbDbMapInterface, LvDbDbLogInterface>;
-template class DbLogT<LvDbDbMapInterface, LvDbDbLogInterface>;
-/*----------------------------------------------------------------------------*/
 
 /*-------------- IMPLEMENTATIONS OF STATIC MEMBER VARIABLES ------------------*/
-template<class A, class B> set<string> DbMapT<A, B>::gNames;
-template<class A, class B> eos::common::RWMutex DbMapT<A, B>::gNamesMutex;
-template<class A, class B> eos::common::RWMutex DbMapT<A, B>::gTimeMutex;
-template<class A, class B> bool DbMapT<A, B>::gInitialized = false;
-template<class A, class B> size_t DbMapT<A, B>::pDbIterationChunkSize = 10000;
+set<string> DbMapT::gNames;
+eos::common::RWMutex DbMapT::gNamesMutex;
+eos::common::RWMutex DbMapT::gTimeMutex;
+bool DbMapT::gInitialized = false;
+size_t DbMapT::pDbIterationChunkSize = 10000;
 
 /*----------------------------------------------------------------------------*/
-typedef DbMapT<LvDbDbMapInterface, LvDbDbLogInterface> DbMapLeveldb;
-typedef DbLogT<LvDbDbLogInterface, LvDbDbLogInterface> DbLogLeveldb;
+typedef DbMapT DbMapLeveldb;
+
+DbLogT::DbLogT() {
+  pDb = new TDbLogInterface();
+  pMutex.SetBlocking(true);
+}
+
+DbLogT::DbLogT(const std::string dbfile, int volumeduration, int createperm,
+         Toption* option) {
+  pDb = new TDbLogInterface(dbfile, volumeduration, createperm, option);
+}
+
+DbLogT::~DbLogT() {
+  RWMutexWriteLock lock(pMutex);
+  delete pDb;
+}
+
+bool DbLogT::setDbFile(const std::string& dbname, int volumeduration,
+                 int createperm, Toption* option) {
+  RWMutexWriteLock lock(pMutex);
+  return pDb->setDbFile(dbname, volumeduration, createperm, (void*)option);
+}
+
+bool DbLogT::isOpen() {
+  return pDb->isOpen();
+}
+
+std::string DbLogT::getDbFile() const {
+  RWMutexWriteLock lock(pMutex);
+  return pDb->getDbFile();
+}
+
+int DbLogT::getAll(TlogentryVec* retvec, size_t nmax, Tlogentry* startafter,
+             RegexBranch regex) const {
+  if (regex.hasError()) {
+    return -1;
+  }
+
+  int startsize = retvec->size();
+  RWMutexReadLock lock(pMutex);
+  pDb->getAll(retvec, nmax, startafter);
+
+  if (regex.isBlank()) {
+    return retvec->size() - startsize;
+  }
+
+  RegexPredicate rmpred(regex);
+  TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
+                                    rmpred);
+  retvec->erase(newend, retvec->end());
+  return retvec->size() - startsize;
+}
+
+int DbLogT::getTail(int nentries, TlogentryVec* retvec,
+              RegexBranch regex) const {
+  if (regex.hasError()) {
+    return -1;
+  }
+
+  int startsize = retvec->size();
+  RWMutexReadLock lock(pMutex);
+  pDb->getTail(nentries, retvec);
+
+  if (regex.isBlank()) {
+    return retvec->size() - startsize;
+  }
+
+  RegexPredicate rmpred(regex);
+  TlogentryVec::iterator newend = std::remove_if(retvec->begin(), retvec->end(),
+                                  rmpred);
+  retvec->erase(newend, retvec->end());
+  return retvec->size() - startsize;
+}
+
+bool DbLogT::clear() {
+  RWMutexReadLock lock(pMutex);
+  return pDb->clear();
+}
+
+std::pair<int, int> DbLogT::compactify() {
+  std::pair<int, int> retval;
+  DbMapT dbmap, dbmap2;
+  retval.second = 0;
+  retval.first = dbmap.loadDbLog(this);
+  this->clear();
+  dbmap2.attachLog(this);
+  const DbMapTypes::Tkey* key;
+  const DbMapTypes::Tval* val;
+  dbmap2.beginSetSequence();
+
+  for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
+    if (dbmap2.set(*key, *val)) {
+      retval.second++;
+    }
+  }
+
+  dbmap2.endSetSequence();
+  return retval;
+}
+
+std::pair<int, int> DbLogT::compactifyTo(const string& dbname) const {
+  std::pair<int, int> retval;
+  DbMapT dbmap, dbmap2;
+  retval.first = dbmap.loadDbLog(this);
+  dbmap2.attachLog(dbname);
+  const DbMapTypes::Tkey* key;
+  const DbMapTypes::Tval* val;
+  dbmap2.beginSetSequence();
+
+  for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
+    if (dbmap2.set(*key, *val)) {
+      retval.second++;
+    }
+  }
+
+  dbmap2.endSetSequence();
+  return retval;
+}
+
+std::string DbLogT::getDbType() {
+  return TDbLogInterface::getDbType();
+}
 
 EOSCOMMONNAMESPACE_END
-

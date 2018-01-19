@@ -28,6 +28,7 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "fst/FmdDbMap.hh"
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
