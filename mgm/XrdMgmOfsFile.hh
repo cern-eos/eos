@@ -53,13 +53,13 @@
 #include "mgm/Messaging.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 USE_EOSMGMNAMESPACE
 
 //! Forward declaration
 class XrdSfsAio;
+class XrdSecEntity;
 
 //------------------------------------------------------------------------------
 //! Class implementing files and operations

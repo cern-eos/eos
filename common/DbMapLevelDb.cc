@@ -24,7 +24,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/DbMapLevelDb.hh"
 /*----------------------------------------------------------------------------*/
-#ifndef EOS_SQLITE_DBMAP
 /*----------------------------------------------------------------------------*/
 #include <memory>
 #include <sys/stat.h>
@@ -1263,5 +1262,3 @@ LvDbDbMapInterface::detachDbLog(const string& dbname)
 }
 
 EOSCOMMONNAMESPACE_END
-
-#endif

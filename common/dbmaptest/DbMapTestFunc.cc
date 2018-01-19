@@ -266,11 +266,6 @@ main()
   // some printings
   //cout << "Content of the dbm is : \n" << dbm;
   //cout << "Content of the dbm_no_slice is : \n" << dbm_no_slice;
-  cout << "Number of reads for dbm : " << dbm.getReadCount() <<
-       "\tnumber of writes for dbm : " << dbm.getWriteCount() << endl;
-  cout << "Number of reads for dbm_no_slice : " << dbm_no_slice.getReadCount() <<
-       "\tnumber of writes for dbm_no_slice : " << dbm_no_slice.getWriteCount()
-       << endl;
   dbm.detachLog("/tmp/testlog.db");
   dbm_no_slice.detachLog("/tmp/testlog_no_slice.db");
   DbLog dbl("/tmp/testlog.db");

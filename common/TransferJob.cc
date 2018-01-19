@@ -21,7 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/StringConversion.hh"
 #include "common/TransferJob.hh"
+#include "Xrd/XrdJob.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include <vector>
 
 EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------

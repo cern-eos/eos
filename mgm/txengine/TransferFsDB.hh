@@ -29,7 +29,6 @@
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/sqlite/sqlite3.h"
-#include "XrdSys/XrdSysPthread.hh"
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN

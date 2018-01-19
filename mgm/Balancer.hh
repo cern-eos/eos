@@ -26,11 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "common/FileSystem.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include <vector>
 #include <string>
-#include <deque>
 #include <cstring>
 
 

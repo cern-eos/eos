@@ -23,10 +23,10 @@
 
 /**
  * @file   TransferJob.hh
- * 
+ *
  * @brief  Base class for transfer jobs.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_TRANSFERJOB_HH__
@@ -34,14 +34,14 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
+
+class XrdOucEnv;
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -53,7 +53,7 @@ class TransferJob {
 private:
   XrdOucEnv* mJob;             //< Description of a transfer
   XrdOucString mEncodedEnv;    //< Encoded string version of a transfer
-  
+
 public:
   // ---------------------------------------------------------------------------
   //! Concstructor
@@ -69,7 +69,7 @@ public:
   //! Returns a 'sealed' env string - e.g. & is forbidden in the messaging framework and therefore replaced
   // ---------------------------------------------------------------------------
   const char* GetSealed();
-  
+
   // ---------------------------------------------------------------------------
   //! Factory function for a transferjob
   // ---------------------------------------------------------------------------
@@ -78,13 +78,13 @@ public:
   // ---------------------------------------------------------------------------
   //! Return XrdOucEnv repesentation of a transfer job
   // ---------------------------------------------------------------------------
-  XrdOucEnv* GetEnv() ; 
+  XrdOucEnv* GetEnv() ;
 
   // ---------------------------------------------------------------------------
   //! Function to replace the contents of a transfer job.
   //! This is used to replace the job content with a decoded capability.
   // ---------------------------------------------------------------------------
-  void Replace(const char* description); 
+  void Replace(const char* description);
 
   // ---------------------------------------------------------------------------
   //! Print the job details into out

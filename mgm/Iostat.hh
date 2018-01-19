@@ -27,9 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mq/XrdMqClient.hh"
 #include "common/Logging.hh"
-#include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/Report.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/sparse_hash_map>
 #include <sys/types.h>
@@ -38,6 +36,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+namespace eos { namespace common {
+  class Report;
+}}
 
 EOSMGMNAMESPACE_BEGIN
 

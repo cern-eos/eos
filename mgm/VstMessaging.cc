@@ -32,6 +32,7 @@
 #include "common/RWMutex.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "XrdSys/XrdSysDNS.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

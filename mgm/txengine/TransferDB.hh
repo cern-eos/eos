@@ -28,7 +28,6 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 /*----------------------------------------------------------------------------*/
@@ -36,7 +35,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 class TransferDB {
-  
+
 public:
 
   typedef std::map< std::string, std::string > transfer_t;

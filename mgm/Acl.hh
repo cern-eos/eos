@@ -22,15 +22,14 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/proc/ProcCommand.hh"
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
 #include <sys/types.h>
 #include <string>
 
 #define	P_OK	8		/* Test for workflow permission.  */
+
+class XrdOucErrInfo;
 
 EOSMGMNAMESPACE_BEGIN
 

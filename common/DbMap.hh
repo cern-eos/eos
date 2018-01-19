@@ -266,7 +266,6 @@ private:
   // ------------------------------------------------------------------------
   //! this are the counters of 'set' and 'get' calls to this instance
   // ------------------------------------------------------------------------
-  mutable size_t pSetCounter, pGetCounter;
   mutable size_t pNestedSetSeq;
 
 protected:
@@ -389,7 +388,6 @@ protected:
     }
 
     if (pDb->setEntry(key, val)) {
-      AtomicInc(pSetCounter);
       return true;
     } else {
       return false;
@@ -504,28 +502,6 @@ public:
     } else {
       return pMap.count(key.ToString());
     }
-  }
-
-  // ------------------------------------------------------------------------
-  /// counters
-  // ------------------------------------------------------------------------
-
-  // ------------------------------------------------------------------------
-  //! Get the number of reads in the DbMap
-  //! @return the number of reads in the DbMap
-  // ------------------------------------------------------------------------
-  size_t getReadCount() const
-  {
-    return pGetCounter;
-  }
-
-  // ------------------------------------------------------------------------
-  //! Get the number of writes in the DbMap
-  //! @return the number of writes in the DbMap
-  // ------------------------------------------------------------------------
-  size_t getWriteCount() const
-  {
-    return pSetCounter;
   }
 
   // ------------------------------------------------------------------------
@@ -697,7 +673,7 @@ public:
   //----------------------------------------------------------------------------
   DbMapT():
     pUseMap(true), pUseSeqId(true), pIterating(false), pItThreadId(0),
-    pSetSequence(false), pSetCounter(0), pGetCounter(0), pNestedSetSeq(0)
+    pSetSequence(false), pNestedSetSeq(0)
   {
     pDb = new TDbMapInterface();
     char buffer[32];
@@ -814,7 +790,6 @@ public:
         *keyOut = &pIt->first;
         *valOut = &pIt->second;
         Tval valdb;
-        AtomicInc(pGetCounter);
         pIt++;
         return true;
       } else {
@@ -1005,7 +980,6 @@ public:
     RWMutexReadLock lock(pMutex);
 
     if (doGet(key, val)) {
-      AtomicInc(pGetCounter);
       return true;
     }
 

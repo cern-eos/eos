@@ -39,7 +39,6 @@
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #ifndef EOS_SQLITE_DBMAP
 #include "leveldb/db.h"
 #endif

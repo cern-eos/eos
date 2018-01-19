@@ -25,7 +25,6 @@
 //! @brief  XRootD error to errno translation
 //------------------------------------------------------------------------
 #pragma once
-#include "XProtocol/XProtocol.hh"
 #include "common/Namespace.hh"
 
 EOSCOMMONNAMESPACE_BEGIN

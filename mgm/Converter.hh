@@ -26,15 +26,13 @@
 
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "common/FileSystem.hh"
 #include "common/FileId.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "Xrd/XrdScheduler.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
-#include <vector>
+#include "Xrd/XrdJob.hh"
 #include <string>
-#include <deque>
 #include <cstring>
+
+class XrdScheduler;
 
 EOSMGMNAMESPACE_BEGIN
 

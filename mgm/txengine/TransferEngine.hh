@@ -27,7 +27,6 @@
 #include "mgm/Namespace.hh"
 #include "mgm/txengine/TransferDB.hh"
 #include "common/Mapping.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN

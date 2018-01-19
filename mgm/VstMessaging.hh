@@ -28,7 +28,6 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "common/Logging.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

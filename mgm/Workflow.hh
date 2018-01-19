@@ -27,8 +27,6 @@
 #include "common/FileId.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IView.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include <sys/types.h>
 
 EOSMGMNAMESPACE_BEGIN

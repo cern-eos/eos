@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/ZMQ.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 

@@ -22,11 +22,11 @@
  ************************************************************************/
 
 /**
- * @file   Report.hh 
+ * @file   Report.hh
  *
  * @brief  Class to store file transaction reports.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_REPORT__
@@ -41,6 +41,9 @@
 #include <vector>
 #include <string>
 /*----------------------------------------------------------------------------*/
+
+class XrdOucEnv;
+class XrdOucString;
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -78,7 +81,7 @@ public:
   unsigned long long rvb_min;   ///< readv min bytes
   unsigned long long rvb_max;   ///< readv max bytes
   unsigned long long rvb_sum;   ///< total readv bytes requested
-  double             rvb_sigma; ///< sigma readv bytes 
+  double             rvb_sigma; ///< sigma readv bytes
   unsigned long long rs_op;     ///< number of single read op from readv req.
   unsigned long long rsb_min;   ///< single read min bytes
   unsigned long long rsb_max;   ///< single read max bytes
@@ -89,7 +92,7 @@ public:
   unsigned long      rc_sum;    ///< total number of reads from readv req.
   double             rc_sigma;  ///< sigma number of reads from read req.
   unsigned long long wb;       //< bytes written
-  unsigned long long wb_min;   //< bytes written min 
+  unsigned long long wb_min;   //< bytes written min
   unsigned long long wb_max;   //< bytes written max
   double             wb_sigma; //< bytes written sigma
   unsigned long long sfwdb;  //< seeked bytes forward
@@ -118,7 +121,7 @@ public:
   std::string sec_app;     //< auth application
 
   // ---------------------------------------------------------------------------
-  //! Constructor by report env 
+  //! Constructor by report env
   // ---------------------------------------------------------------------------
   Report(XrdOucEnv &report);
 
@@ -138,4 +141,3 @@ public:
 EOSCOMMONNAMESPACE_END
 
 #endif
-

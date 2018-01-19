@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;

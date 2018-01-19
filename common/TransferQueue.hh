@@ -23,10 +23,10 @@
 
 /**
  * @file   TransferQueue.hh
- * 
+ *
  * @brief  Base class for transfer queues.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_TRANSFERQUEUE_HH__
@@ -34,8 +34,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-#include "common/StringConversion.hh"
-#include "common/FileSystem.hh"
 #include "common/TransferJob.hh"
 #include "mq/XrdMqRWMutex.hh"
 #include "mq/XrdMqSharedObject.hh"

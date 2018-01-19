@@ -23,9 +23,9 @@
 
 /**
  * @file   CloExec.hh
- * 
+ *
  * @brief  Class setting filedescriptor flags to CLOEXEC
- *  
+ *
  */
 
 #ifndef __EOSCOMMON__CLOEXEC__HH
@@ -41,7 +41,7 @@ EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
 //! @brief Static Class to set a filedescriptor flag to CLOEXEC
-//! 
+//!
 //! Example
 //! \code eos::common::CloExec::Set(fd); \endcode
 /*----------------------------------------------------------------------------*/
@@ -49,7 +49,7 @@ class CloExec {
 public:
 
     // ---------------------------------------------------------------------------
-    //! Set CLOEXEC on a single fd. 
+    //! Set CLOEXEC on a single fd.
     // ---------------------------------------------------------------------------
 
     static int Set(int fd) {
@@ -58,16 +58,6 @@ public:
             return fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
         } else {
             return -1;
-        }
-    }
-
-    // ---------------------------------------------------------------------------
-    //! Set CLOEXEC on all used file descriptors.
-    // ---------------------------------------------------------------------------
-
-    static void All() {
-        for (size_t i = getdtablesize(); i-- > 3;) {
-            eos::common::CloExec::Set(i);
         }
     }
 };
