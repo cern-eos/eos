@@ -1705,14 +1705,14 @@ XrdFstOfs::GetFsidToMountpointMappingFromMgm()
   std::string output(env.Get("mgm.proc.stdout"));
   map<FileSystem::fsid_t, string> mapping;
 
-  for(auto& fstLine : eos::common::StringTokenizer::split(output, '\n')) {
+  for(auto& fstLine : eos::common::StringTokenizer::split<std::list<std::string>>(output, '\n')) {
     std::string id, path;
-    for(auto& fstField : eos::common::StringTokenizer::split(fstLine, ' ')) {
+    for(auto& fstField : eos::common::StringTokenizer::split<std::list<std::string>>(fstLine, ' ')) {
       if (fstField.find("id=") == 0) {
-        id = eos::common::StringTokenizer::split(fstField, '=')[1];
+        id = eos::common::StringTokenizer::split<std::vector<std::string>>(fstField, '=')[1];
       }
       else if (fstField.find("path=") == 0) {
-        path = eos::common::StringTokenizer::split(fstField, '=')[1];
+        path = eos::common::StringTokenizer::split<std::vector<std::string>>(fstField, '=')[1];
       }
     }
 

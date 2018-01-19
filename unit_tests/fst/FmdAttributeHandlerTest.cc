@@ -23,9 +23,8 @@
  ************************************************************************/
 
 #include "fst/FmdAttributeHandler.hh"
-#include "fst/io/local/FsIo.hh"
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 using namespace eos;
 using namespace eos::fst;

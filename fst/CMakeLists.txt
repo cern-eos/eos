@@ -466,7 +466,7 @@ target_link_libraries(eos-file-fmdattribute-scan PRIVATE
 
 target_link_libraries(
   eos-fst-fmd-train PRIVATE
-  XrdEosFst-Static)
+  XrdEosFst-Shared)
 
 install(
   PROGRAMS

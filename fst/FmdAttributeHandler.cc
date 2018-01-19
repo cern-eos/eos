@@ -136,7 +136,7 @@ FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t f
     }
 
     // define layout errors
-    fmd.set_layouterror(FmdHelper::LayoutError(fsid, fmd.lid(), fmd.locations()));
+    fmd.set_layouterror(FmdHelper::LayoutError(fmd, fsid));
 
     try {
       CreateFileAndSetFmd(fileIo, fmd);
@@ -216,19 +216,19 @@ FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const ch
     std::unique_ptr<XrdOucEnv> env{new XrdOucEnv(dumpentry.c_str())};
 
     if (env != nullptr) {
-      struct Fmd fMd;
-      FmdHelper::Reset(fMd);
+      struct Fmd fmd;
+      FmdHelper::Reset(fmd);
 
-      if (mFmdClient->EnvMgmToFmdSqlite(*env, fMd)) {
-        fMd.set_layouterror(FmdHelper::LayoutError(fsid, fMd.lid(), fMd.locations()));
+      if (mFmdClient->EnvMgmToFmd(*env, fmd)) {
+        fmd.set_layouterror(FmdHelper::LayoutError(fmd, fsid));
 
-        XrdOucString filePath = FullPathOfFile(fMd.fid(), fsid, env.get());
+        XrdOucString filePath = FullPathOfFile(fmd.fid(), fsid, env.get());
 
         try {
           FsIo fsIo{filePath.c_str()};
-          CreateFileAndSetFmd(&fsIo, fMd);
+          CreateFileAndSetFmd(&fsIo, fmd);
         } catch (...) {
-          eos_err("failed to get/create fmd for fid=%08llx", fMd.fid());
+          eos_err("failed to get/create fmd for fid=%08llx", fmd.fid());
           return false;
         }
 

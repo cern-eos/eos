@@ -1561,13 +1561,6 @@ private:
   void StopArchiveSubmitter();
 
   //------------------------------------------------------------------------------
-  //! Cast a change message to all fusex clients
-  //!
-  //! @param inode input innode
-  //------------------------------------------------------------------------------
-  void FuseXCast(uint64_t inode);
-
-  //------------------------------------------------------------------------------
   //! @brief Creates file with specified size reserved if not present
   //! @param filePath path of the file
   //! @param size size to be reserved

@@ -53,22 +53,15 @@ set(COMMON_UT_SRCS
   common/ThreadPoolTest.cc
   common/RWMutexTest.cc)
 
-set(FST_UT_SRCS
+set(UT_FST_SRCS
   #fst/XrdFstOssFileTest.cc
   fst/XrdFstOfsFileTest.cc
-  fst/HealthTest.cc)
-
-set(FST_UT_SRCS
-  fst/XrdFstOssFileTest.cc
-  fst/FmdAttributeHandlerTest.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
-  ${CMAKE_SOURCE_DIR}/fst/tests/TestEnv.cc
-  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc)
+  fst/HealthTest.cc
+  fst/FmdAttributeHandlerTest.cc)
 
 set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})
 
-set(UT_FST_SRCS ${FST_UT_SRCS})
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
 set(EOS_UT_RPATH

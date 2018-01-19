@@ -715,24 +715,15 @@ ScanDir::ThreadProc(void)
           XrdSysTimer sleeper;
           sleeper.Wait(1000);
         }
-      } else {
-        // Call the ghost entry clean-up function
-        if (bgThread) {
-          eos_notice("Directory: %s fsid=%d - cleaning ghost entries", dirPath.c_str(),
-                     fsId);
-          gFmdDbMapHandler.RemoveGhostEntries(dirPath.c_str(), fsId);
-          XrdSysTimer sleeper;
-          sleeper.Wait(60 * 1000);
-        }
       }
     }
 
     if (bgThread) {
       XrdSysThread::CancelPoint();
     }
-  } while (1);
+  } while (true);
 
-  return NULL;
+  return nullptr;
 }
 
 /*----------------------------------------------------------------------------*/

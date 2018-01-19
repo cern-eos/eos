@@ -64,8 +64,8 @@ public:
   void Report(XrdOucString& out, XrdOucString option, const XrdOucString& selection);
 
 private:
-  using InconsistencyMap = std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>>>;
-  eos::common::ExpiryCache<InconsistencyMap> cache{std::chrono::seconds(20)};
+  using InconsistencyMap = std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::set<eos::common::FileId::fileid_t>, std::time_t>>>;
+  eos::common::ExpiryCache<InconsistencyMap> cache{std::chrono::seconds(300)};
 
   static InconsistencyMap* RetrieveInconsistencies();
 

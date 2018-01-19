@@ -61,7 +61,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return false;
   }
 
-  auto inconsistencies = cache.getCachedObject(true, RetrieveInconsistencies);
+  auto inconsistencies = cache.getCachedObject(false, RetrieveInconsistencies);
 
   if (option.beginswith("checksum")) {
     out += "# repair checksum ------------------------------------------------"
@@ -531,9 +531,9 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            "-------------------------\n";
 
     // Loop over all filesystems
-    for (const auto& efsmapit : (*mInconsistencies)["d_mem_sz_diff"]) {
+    for (const auto& efsmapit : inconsistencies["d_mem_sz_diff"]) {
       // Loop over all fids
-      for (const auto& fid : efsmapit.second) {
+      for (const auto& fid : efsmapit.second.first) {
         std::string path;
         std::shared_ptr<eos::IFileMD> fmd;
         {
@@ -564,12 +564,12 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
               if (FsView::gFsView.mIdView.count(fsid) != 0) {
                 fileSystem = FsView::gFsView.mIdView[fsid];
-                const auto& inconsistentsOnFs = (*mInconsistencies)["d_mem_sz_diff"][fsid];
-                auto found = inconsistentsOnFs.find(fid);
+                const auto& inconsistentsOnFs = inconsistencies["d_mem_sz_diff"][fsid];
+                auto found = inconsistentsOnFs.first.find(fid);
 
                 if (fileSystem != nullptr &&
                     fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
-                    found == inconsistentsOnFs.end()) {
+                    found == inconsistentsOnFs.first.end()) {
                   replicaAvailable = true;
                   break;
                 }
@@ -628,23 +628,22 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 Fsck::InconsistencyMap*
 Fsck::RetrieveInconsistencies() {
   auto inconPtr =
-    new std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>>>{};
+    new std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::pair<std::set<eos::common::FileId::fileid_t>, std::time_t>>>{};
 
   eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
   for(auto& inconsistency : XrdMgmOfs::MgmFsckDirs) {
-    std::map<eos::common::FileSystem::fsid_t, std::pair<std::list<eos::common::FileId::fileid_t>, std::time_t>> inconsistentFilesMap;
+    std::map<eos::common::FileSystem::fsid_t, std::pair<std::set<eos::common::FileId::fileid_t>, std::time_t>> inconsistentFilesMap;
 
     std::string incContPath = std::string(gOFS->MgmProcFsckPath.c_str()) + "/" + inconsistency;
     auto container = gOFS->eosView->getContainer(incContPath);
     for(auto fsidIt = container->subcontainersBegin(); fsidIt != container->subcontainersEnd(); ++fsidIt) {
       auto fsidContainer =  gOFS->eosView->getContainer(incContPath + "/" + fsidIt->first);
-      auto fidList = std::list<eos::common::FileId::fileid_t>{};
+      auto fidSet = std::set<eos::common::FileId::fileid_t>{};
       for(auto fidIt = fsidContainer->filesBegin(); fidIt != fsidContainer->filesEnd(); ++fidIt) {
-        cerr << "inconsistency: " << inconsistency << ", fsid:" << fsidIt->first << ", fid:" << fidIt->first << endl;
-        fidList.emplace_back(stoull(fidIt->first));
+        fidSet.insert(stoull(fidIt->first));
       }
-      inconsistentFilesMap[stoull(fsidIt->first)] = std::make_pair(std::move(fidList), std::time(nullptr));
+      inconsistentFilesMap[stoull(fsidIt->first)] = std::make_pair(std::move(fidSet), std::time(nullptr));
     }
 
     (*inconPtr)[inconsistency] = std::move(inconsistentFilesMap);

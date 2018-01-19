@@ -163,10 +163,10 @@ public:
 
   //! Constructor to create the handler object
   //! @param fmdClient pointer to the @see FmdClient object, default value is the globally available client object
-  FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), FmdClient* fmdClient = &gFmdClient)
+  explicit FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), FmdClient* fmdClient = &gFmdClient)
     : mFmdClient(fmdClient), mCompressor(compressor) {}
 
-  virtual ~FmdAttributeHandler() {};
+  ~FmdAttributeHandler() override {};
 
   FmdAttributeHandler(FmdAttributeHandler&) = delete;
 
