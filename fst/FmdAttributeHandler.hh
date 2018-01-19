@@ -166,7 +166,7 @@ public:
   explicit FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), FmdClient* fmdClient = &gFmdClient)
     : mFmdClient(fmdClient), mCompressor(compressor) {}
 
-  ~FmdAttributeHandler() override {};
+  ~FmdAttributeHandler() override = default;
 
   FmdAttributeHandler(FmdAttributeHandler&) = delete;
 
