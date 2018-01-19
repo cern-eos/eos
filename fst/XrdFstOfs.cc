@@ -46,7 +46,6 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
-#include "qclient/Members.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -61,6 +60,10 @@
 #include <sstream>
 #include <attr/xattr.h>
 #include <thread>
+
+#ifdef HAVE_FST_WITH_QUARKDB
+#include "qclient/Members.hh"
+#endif
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;

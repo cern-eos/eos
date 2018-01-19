@@ -32,6 +32,10 @@
 #include "fst/Fmd.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 
+#ifdef __APPLE__
+#define ECOMM 70
+#endif
+
 //------------------------------------------------------------------------------
 //! Convert an FST env representation to an Fmd struct
 //!

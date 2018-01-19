@@ -27,14 +27,17 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "namespace/utils/StringConvertion.hh"
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+
+#ifdef HAVE_FST_WITH_QUARKD
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#endif
 
 EOSFSTNAMESPACE_BEGIN
 
