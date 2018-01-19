@@ -1047,7 +1047,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                                  layOut->GetLocalReplicaPath()));
 
     if (isRW) {
-      if (Path.beginswith("/replicate:")) {
+      if (Path.beginswith("/replicate:") || Path.beginswith("/fusex-open")) {
         if (capOpaque->Get("mgm.path")) {
           XrdOucString unsealedpath = capOpaque->Get("mgm.path");
           XrdOucString sealedpath = path;
@@ -1199,7 +1199,9 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
-             , this->logId, Path.c_str(), this->vid.uid, this->vid.gid, tIdent.c_str()
+             , this->logId
+	     , capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):Path.c_str()
+	     , this->vid.uid, this->vid.gid, tIdent.c_str()
              , gOFS.mHostName, lid, fileid, fsid
              , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
              , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
