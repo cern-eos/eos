@@ -27,10 +27,15 @@
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
-#include <sys/vfs.h>
 #include "mq/XrdMqSharedObject.hh"
 #include <string>
 #include <stdint.h>
+#ifndef __APPLE__
+#include <sys/vfs.h>
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 
 EOSCOMMONNAMESPACE_BEGIN;
 
