@@ -100,6 +100,7 @@ $CpuMHz = undef;	# Cpu Speed when taking the speed for KSI2k
         'ip' => 1,                      # will produce <ifname>_ip params for each physical interface
 	'ipv6' => 1,                    # will produce <ifname>_ipv6 params for each physical interface
 	'kernel_version' => 1,
+	'eos_rpm_version' => 1,
 	'platform' => 1,
 	'os_type' => 1,
         'cpu_MHz' => 1,
