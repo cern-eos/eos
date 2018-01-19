@@ -341,9 +341,11 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
-# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
-# buffer files are generated when we try to build these libraries
-add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
+if (BUILD_FST_WITH_QUARKDB)
+  # Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
+  # buffer files are generated when we try to build these libraries
+  add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
+endif()
 
 set_target_properties(
   XrdEosFst-Objects
@@ -364,7 +366,6 @@ target_compile_definitions(XrdEosFst-Shared PUBLIC
 
 target_link_libraries(XrdEosFst PRIVATE
    qclient
-   EosNsQuarkdb-Shared
    eosCommonServer
    EosFstIo-Static
    eosCapability-Static
@@ -382,7 +383,6 @@ target_link_libraries(XrdEosFst PRIVATE
 
 target_link_libraries(XrdEosFst-Shared PUBLIC
   qclient
-  EosNsQuarkdb-Shared
   eosCommonServer
   EosFstIo-Static
   eosCapability-Static
@@ -398,6 +398,11 @@ target_link_libraries(XrdEosFst-Shared PUBLIC
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (BUILD_FST_WITH_QUARKDB)
+  target_link_libraries(XrdEosFst PRIVATE EosNsQuarkdb-Shared)
+  target_link_libraries(XrdEosFst-Shared PUBLIC EosNsQuarkdb-Shared)
+endif ()
 
 install(TARGETS EosFstOss XrdEosFst
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -455,6 +460,10 @@ target_link_libraries(eos-scan-fs PRIVATE
   ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (BUILD_FST_WITH_QUARKDB)
+  target_link_libraries(eos-scan-fs PRIVATE EosNsQuarkdb-Shared)
+endif ()
 
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 

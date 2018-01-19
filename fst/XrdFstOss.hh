@@ -25,16 +25,12 @@
 #ifndef __EOSFST_FSTOSS_HH__
 #define __EOSFST_FSTOSS_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOss.hh"
-/*----------------------------------------------------------------------------*/
 
 class XrdOucStream;
 
@@ -59,13 +55,13 @@ public:
   //--------------------------------------------------------------------------
   //! Constuctor
   //--------------------------------------------------------------------------
-  XrdFstOss ();
+  XrdFstOss();
 
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~XrdFstOss ();
+  virtual ~XrdFstOss();
 
 
   //--------------------------------------------------------------------------
@@ -76,7 +72,7 @@ public:
   //! @return new oss file object
   //!
   //--------------------------------------------------------------------------
-  virtual XrdOssDF* newFile (const char* tident);
+  virtual XrdOssDF* newFile(const char* tident);
 
 
   //--------------------------------------------------------------------------
@@ -87,7 +83,7 @@ public:
   //! @return new oss directory object
   //!
   //--------------------------------------------------------------------------
-  virtual XrdOssDF* newDir (const char* tident);
+  virtual XrdOssDF* newDir(const char* tident);
 
 
   //--------------------------------------------------------------------------
@@ -98,7 +94,7 @@ public:
   //!
   //! @return 0 upon success, -errno otherwise
   //--------------------------------------------------------------------------
-  int Init (XrdSysLogger* lp, const char* configfn);
+  int Init(XrdSysLogger* lp, const char* configfn);
 
 
   //--------------------------------------------------------------------------
@@ -123,7 +119,7 @@ public:
   //! @return XrdOssOK upon success, -errno otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual int Unlink (const char* path, int opts = 0, XrdOucEnv* ep = 0);
+  virtual int Unlink(const char* path, int opts = 0, XrdOucEnv* ep = 0);
 
 
   //--------------------------------------------------------------------------
@@ -136,7 +132,7 @@ public:
   //! @return XrdOssOK upon success and (-errno) upon failure.
   //!
   //--------------------------------------------------------------------------
-  virtual int Chmod (const char*, mode_t mode, XrdOucEnv* eP = 0);
+  virtual int Chmod(const char*, mode_t mode, XrdOucEnv* eP = 0);
 
 
   //--------------------------------------------------------------------------
@@ -154,11 +150,11 @@ public:
   //! @return XrdOssOK upon success and (-errno) otherwise.
   //!
   //--------------------------------------------------------------------------
-  virtual int Create (const char* tident,
-                      const char* path,
-                      mode_t mode,
-                      XrdOucEnv& env,
-                      int opts = 0);
+  virtual int Create(const char* tident,
+                     const char* path,
+                     mode_t mode,
+                     XrdOucEnv& env,
+                     int opts = 0);
 
 
   //--------------------------------------------------------------------------
@@ -172,10 +168,10 @@ public:
   //! @return XrdOssOK upon success and (-errno) otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual int Mkdir (const char* path,
-                     mode_t mode,
-                     int mkpath = 0,
-                     XrdOucEnv* eP = 0);
+  virtual int Mkdir(const char* path,
+                    mode_t mode,
+                    int mkpath = 0,
+                    XrdOucEnv* eP = 0);
 
 
   //--------------------------------------------------------------------------
@@ -187,9 +183,9 @@ public:
   //!
   //! @return XrdOssOK upon success and (-errno) otherwise
   //--------------------------------------------------------------------------
-  virtual int Remdir (const char* path,
-                      int opts = 0,
-                      XrdOucEnv* eP = 0);
+  virtual int Remdir(const char* path,
+                     int opts = 0,
+                     XrdOucEnv* eP = 0);
 
 
   //--------------------------------------------------------------------------
@@ -202,10 +198,10 @@ public:
   //!
   //! @return XrdOssOK upon success and -errno otherwise
   //--------------------------------------------------------------------------
-  int Rename (const char* oldname,
-              const char* newname,
-              XrdOucEnv* old_env,
-              XrdOucEnv* new_env);
+  int Rename(const char* oldname,
+             const char* newname,
+             XrdOucEnv* old_env,
+             XrdOucEnv* new_env);
 
 
   //--------------------------------------------------------------------------
@@ -219,10 +215,10 @@ public:
   //! @return XrdOssOK upon success and (-errno) otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual int Stat (const char* path,
-                    struct stat* buff,
-                    int opts = 0,
-                    XrdOucEnv* eP = 0);
+  virtual int Stat(const char* path,
+                   struct stat* buff,
+                   int opts = 0,
+                   XrdOucEnv* eP = 0);
 
 
   //--------------------------------------------------------------------------
@@ -235,9 +231,9 @@ public:
   //! @return XrdOssOK upon success and (-errno) otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (const char* path,
-                        unsigned long long size,
-                        XrdOucEnv* eP = 0);
+  virtual int Truncate(const char* path,
+                       unsigned long long size,
+                       XrdOucEnv* eP = 0);
 
 
   //--------------------------------------------------------------------------
@@ -250,9 +246,9 @@ public:
   //! @return mutex for accessing the blockxs object
   //!
   //--------------------------------------------------------------------------
-  XrdSysRWLock* AddMapping (const std::string& fileName,
-                            CheckSum*& blockXs,
-                            bool isRW);
+  XrdSysRWLock* AddMapping(const std::string& fileName,
+                           CheckSum*& blockXs,
+                           bool isRW);
 
 
   //--------------------------------------------------------------------------
@@ -264,8 +260,8 @@ public:
   //! @return pair containing the the boockxs obj and its corresponding mutex
   //!
   //--------------------------------------------------------------------------
-  std::pair<XrdSysRWLock*, CheckSum*> GetXsObj (const std::string& fileName,
-                                                bool isRW);
+  std::pair<XrdSysRWLock*, CheckSum*> GetXsObj(const std::string& fileName,
+      bool isRW);
 
 
   //--------------------------------------------------------------------------
@@ -275,7 +271,7 @@ public:
   //! @param force mark if removal is to be forced
   //!
   //--------------------------------------------------------------------------
-  void DropXs (const std::string& fileName, bool force = false);
+  void DropXs(const std::string& fileName, bool force = false);
 
 
 private:
@@ -302,7 +298,7 @@ private:
   //! @return XrdOssOK if successful and (-errno) otherwise
   //!
   //--------------------------------------------------------------------------
-  int BreakLink (const char* local_path, struct stat& statbuff);
+  int BreakLink(const char* local_path, struct stat& statbuff);
 
 
   //--------------------------------------------------------------------------
@@ -329,7 +325,7 @@ private:
   //! @return 0 upon success or !0 upon failure.
   //!
   //--------------------------------------------------------------------------
-  int xprerd(XrdOucStream &Config, XrdSysError &Eroute);
+  int xprerd(XrdOucStream& Config, XrdSysError& Eroute);
 
 };
 

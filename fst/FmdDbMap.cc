@@ -79,6 +79,7 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
   return true;
 }
 
+#ifdef HAVE_FST_WITH_QUARKDB
 //----------------------------------------------------------------------------
 // Convert namespace file metadata to an Fmd struct
 //----------------------------------------------------------------------------
@@ -127,6 +128,7 @@ FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
   fmd.set_locations(slocations);
   return true;
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Return Fmd from MGM doing getfmd command
@@ -1227,6 +1229,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   return true;
 }
 
+#ifdef HAVE_FST_WITH_QUARKDB
 //------------------------------------------------------------------------------
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
@@ -1323,6 +1326,7 @@ FmdDbMapHandler::GetFmdFromQdb(qclient::QClient* qcl,
   file->deserialize(ebuff);
   return file;
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Remove ghost entries - entries which are neither on disk nor at the MGM

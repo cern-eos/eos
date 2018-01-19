@@ -27,8 +27,10 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#ifdef HAVE_FST_WITH_QUARKDB
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#endif
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -52,6 +54,7 @@ public:
   //----------------------------------------------------------------------------
   static bool EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd);
 
+#ifdef HAVE_FST_WITH_QUARKDB
   //----------------------------------------------------------------------------
   //! Convert namespace file metadata to an Fmd struct
   //!
@@ -61,6 +64,7 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   static bool NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd);
+#endif
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -280,6 +284,7 @@ public:
   bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                     const char* manager);
 
+#ifdef HAVE_FST_WITH_QUARKDB
   //----------------------------------------------------------------------------
   //! Resync all meta data from QuarkdDB
   //!
@@ -290,6 +295,7 @@ public:
   //----------------------------------------------------------------------------
   bool ResyncAllFromQdb(qclient::QClient* qcl,
                         eos::common::FileSystem::fsid_t fsid);
+#endif
 
   //----------------------------------------------------------------------------
   //! Remove ghost entries - entries which are neither on disk nor ath the MGM
@@ -543,6 +549,7 @@ private:
                              sval, "") == 0;
   }
 
+#ifdef HAVE_FST_WITH_QUARKDB
   //----------------------------------------------------------------------------
   //! Get file metadata info from QuarkDB
   //!
@@ -553,6 +560,7 @@ private:
   //----------------------------------------------------------------------------
   std::unique_ptr<eos::FileMD>
   GetFmdFromQdb(qclient::QClient* qcl, eos::IFileMD::id_t id) const;
+#endif
 };
 
 extern FmdDbMapHandler gFmdDbMapHandler;

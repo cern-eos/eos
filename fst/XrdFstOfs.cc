@@ -111,7 +111,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), pQcl(nullptr), mHttpd(0),
+  eos::common::LogId(), mHostName(NULL), mHttpd(0),
   Simulate_IO_read_error(false), Simulate_IO_write_error(false),
   Simulate_XS_read_error(false), Simulate_XS_write_error(false),
   Simulate_FMD_open_error(false)
@@ -454,6 +454,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+#ifdef HAVE_FST_WITH_QUARKDB
+
         if (!strcmp("qdbcluster", var)) {
           std::string qdb_cluster;
 
@@ -475,6 +477,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             }
           }
         }
+
+#endif
       }
     }
 

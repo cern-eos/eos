@@ -30,10 +30,15 @@ option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 option(BUILD_TESTS "Build CppUnit tests" OFF)
 option(BUILD_QUARKDB_NAMESPACE "Build the quarkdb namespace" ON)
+option(BUILD_FST_WITH_QUARKDB "Build FST with quarkdb support" OFF)
 
 # Add definition if compiling with quarkdb/qclient support
 if (BUILD_QUARKDB_NAMESPACE)
   add_definitions(-DHAVE_QCLIENT)
+endif ()
+
+if (BUILD_FST_WITH_QUARKDB)
+  add_definitions(-DHAVE_FST_WITH_QUARKDB)
 endif ()
 
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
