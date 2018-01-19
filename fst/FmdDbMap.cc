@@ -563,7 +563,6 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       struct timeval tv;
       struct timezone tz;
       gettimeofday(&tv, &tz);
-      FsUnlockRead(fsid);
       FsWriteLock lock(fsid); // --> (return)
       valfmd.set_uid(uid);
       valfmd.set_gid(gid);
