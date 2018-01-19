@@ -1276,7 +1276,7 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += "&mgm.path=";
   {
     // an '&' will create a failure on the FST
-    XrdOucString safepath = path;
+    XrdOucString safepath = spath.c_str();
     while (safepath.replace("&", "#AND#"))
     {
     }

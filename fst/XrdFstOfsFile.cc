@@ -1160,7 +1160,7 @@ XrdFstOfsFile::open (const char* path,
 
     if (attr && isRW)
     {
-      if (Path.beginswith("/replicate:"))
+      if ( Path.beginswith("/replicate:") || ( Path.beginswith("/fusex-open")))
       {
         if (capOpaque->Get("mgm.path"))
         {
@@ -1377,7 +1377,7 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
              "wb_sigma=%.02f&sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&nrc=%lu&nwc=%lu&nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&rt=%.02f&wt=%.02f&"
              "osize=%llu&csize=%llu&%s"
              , this->logId
-             , Path.c_str()
+	     , capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):Path.c_str()
              , this->vid.uid
              , this->vid.gid
              , tIdent.c_str()
