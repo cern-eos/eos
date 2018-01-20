@@ -67,6 +67,7 @@ add_library(
   commands/com_file.cc
   commands/com_find.cc
   commands/com_fs.cc
+  commands/com_newfs.cc
   commands/com_fsck.cc
   commands/com_fuse.cc
   commands/com_fusex.cc
