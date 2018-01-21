@@ -1606,7 +1606,7 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
-        google::protobuf::MapPair<std::string,std::string> id("CTA_ArchiveFileId", std::to_string(mFid));
+        google::protobuf::MapPair<std::string,std::string> cxAttrMap("CTA_ArchiveFileId", std::to_string(mFid));
 
         if (event == "sync::delete") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
@@ -1630,7 +1630,7 @@ WFE::Job::DoIt(bool issync)
             }
             else {
               notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
-              *(notification->mutable_file()->mutable_lpath()) = fullpath;
+              notification->mutable_file()->set_lpath(fullpath);
               notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
               notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
 
@@ -1647,8 +1647,31 @@ WFE::Job::DoIt(bool issync)
             return EAGAIN;
           }
         }
+        else if (event == "closew") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
+          notification->mutable_wf()->mutable_instance()->set_name("eoscta");
+          notification->mutable_file()->set_lpath(fullpath);
+          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+          notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
+          notification->mutable_file()->mutable_cks()->set_value(std::string{fmd->getChecksum().getDataPtr()});
+          notification->mutable_file()->set_size(fmd->getSize());
 
-        notification->mutable_file()->mutable_xattr()->insert(id);
+          char fxidBuffer[1024];
+          StringConversion::FastUnsignedToAsciiHex(mFid, fxidBuffer);
+          std::string fxidString{fxidBuffer};
+
+          std::ostringstream srcStream;
+          srcStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << fxidString;
+
+          std::ostringstream reportStream;
+          reportStream << "eosQuery://" << gOFS->HostName << "eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
+          reportStream << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+
+          notification->mutable_transport()->set_report_url(reportStream.str());
+        }
+
+        notification->mutable_file()->mutable_xattr()->insert(cxAttrMap);
 
         eos_static_info("request:\n%s", notification->DebugString().c_str());
 
