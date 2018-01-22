@@ -29,6 +29,7 @@
 #include <iostream>
 #include <chrono>
 #include <qclient/AssistedThread.hh>
+#include <inttypes.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -72,7 +73,7 @@ MetadataFlusher::~MetadataFlusher()
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
-    eos_static_info("id=%s total-pending=%d enqueued=%d acknowledged=%d",
+    eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64  " acknowledged=%" PRId64,
                     id.c_str(),
                     backgroundFlusher.size(),
                     backgroundFlusher.getEnqueuedAndClear(),
@@ -155,19 +156,19 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
     targetIndex = backgroundFlusher.getEndingIndex() - 1;
   }
 
-  eos_static_info("starting-index=%d ending-index=%d msg=\"waiting until "
-                  "queue item %d has been acknowledged..\"",
+  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"waiting until "
+                  "queue item %" PRId64 " has been acknowledged..\"",
                   backgroundFlusher.getStartingIndex(),
                   backgroundFlusher.getEndingIndex(), targetIndex);
 
   while (!backgroundFlusher.waitForIndex(targetIndex, std::chrono::seconds(1))) {
-    eos_static_warning("starting-index=%d ending-index=%d msg=\"queue item "
-                       "%d has not been acknowledged yet..\"",
+    eos_static_warning("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"queue item "
+                       "%" PRId64 " has not been acknowledged yet..\"",
                        backgroundFlusher.getStartingIndex(),
                        backgroundFlusher.getEndingIndex(), targetIndex);
   }
 
-  eos_static_info("starting-index=%d ending-index=%d msg=\"queue item %d "
+  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"queue item %" PRId64
                   "has been acknowledged\"", backgroundFlusher.getStartingIndex(),
                   backgroundFlusher.getEndingIndex(), targetIndex);
 }
