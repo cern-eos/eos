@@ -691,13 +691,15 @@ ContainerMD::deserialize(Buffer& buffer)
   pDirsMap.setKey(pDirsKey);
 
   // Grab the files and subcontainers
+  constexpr int64_t count = 2000000;
+
   if (pQcl) {
     try {
       std::string cursor = "0";
       std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
 
       do {
-        reply = pFilesMap.hscan(cursor);
+        reply = pFilesMap.hscan(cursor, count);
         cursor = reply.first;
 
         for (const auto& elem : reply.second) {
@@ -709,7 +711,7 @@ ContainerMD::deserialize(Buffer& buffer)
       cursor = "0";
 
       do {
-        reply = pDirsMap.hscan(cursor);
+        reply = pDirsMap.hscan(cursor, count);
         cursor = reply.first;
 
         for (const auto& elem : reply.second) {

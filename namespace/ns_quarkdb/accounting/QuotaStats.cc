@@ -125,7 +125,7 @@ QuotaNode::meld(const IQuotaNode* node)
                       QuotaStats::KeyQuotaUidMap(std::to_string(impl_node->getId())));
   std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
   std::string cursor = "0";
-  long long count = 300;
+  constexpr int64_t count = 2000000;
 
   do {
     reply = hmap.hscan(cursor, count);
@@ -167,7 +167,7 @@ QuotaNode::meld(const IQuotaNode* node)
 void QuotaNode::updateFromBackend()
 {
   std::string cursor = "0";
-  long long count = 300;
+  constexpr int64_t count = 2000000;
   std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
   qclient::QHash uid_map(*pQcl, pQuotaUidKey);
   qclient::QHash gid_map(*pQcl, pQuotaGidKey);
