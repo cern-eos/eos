@@ -204,7 +204,7 @@ XrdMgmOfs::FsConfigListener()
                 oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
               }
 
-              if (fs && oldgeotag != newgeotag) {
+              if (fs && (oldgeotag != newgeotag)) {
                 eos_warning("Received a geotag change for fsid %lu new geotag is "
                           "%s, old geotag was %s ", (unsigned long)fsid,
                           newgeotag.c_str(), oldgeotag.c_str());
