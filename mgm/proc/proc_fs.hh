@@ -104,7 +104,7 @@ int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_dropdeletion(std::string& id, XrdOucString& stdOut,
+int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                          XrdOucString& stdErr, std::string& tident,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 

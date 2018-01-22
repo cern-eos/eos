@@ -73,7 +73,7 @@ FsHelper::ParseCommand(const char* arg)
   option = tokenizer.GetToken();
   std::string cmd = (option ? option : "");
 
-  if (cmd == "stat") {
+  if (cmd == "add") {
     eos::console::FsProto_AddProto* add = ns->mutable_add();
 
     if (!(option = tokenizer.GetToken())) {
@@ -392,8 +392,8 @@ FsHelper::ParseCommand(const char* arg)
         return std::isalpha(c);
         })
         != soption.end()) {
-          // This contiains at least one alphabetic char therefore it must be
-          // a hostname, append any othre required info
+          // This contains at least one alphabetic char therefore it must be
+          // a hostname, append any other required info
           bool has_port = false;
           auto pos = soption.find(':');
 
@@ -422,7 +422,7 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
-  } else if (cmd == "rm") {
+  } else if (cmd == "status") {
     using eos::console::FsProto_StatusProto;
     FsProto_StatusProto* status = ns->mutable_status();
 

@@ -52,6 +52,8 @@ message FsProto {
     DisplayMode display = 2;
     bool ShowFid = 3;
     bool ShowPath = 4;
+    bool ShowSize = 5;
+    bool ShowStoreTime = 6;
   }
 
   message MvProto {

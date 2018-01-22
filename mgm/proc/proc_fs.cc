@@ -437,7 +437,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     rnodename.erase(0, 5);
     size_t dpos;
 
-    if ((dpos = rnodename.find(".")) != std::string::npos) {
+    if ((dpos = rnodename.find('.')) != std::string::npos) {
       rnodename.erase(dpos);
     }
 
@@ -1196,7 +1196,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 // Clean unlinked files from filesystem
 //-------------------------------------------------------------------------------
 int
-proc_fs_dropdeletion(std::string& id, XrdOucString& stdOut,
+proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                      XrdOucString& stdErr, std::string& tident,
                      eos::common::Mapping::VirtualIdentity& vid_in)
 {
