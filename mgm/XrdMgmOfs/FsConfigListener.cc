@@ -194,30 +194,24 @@ XrdMgmOfs::FsConfigListener()
                       "queue %s which is not registered ", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
-            fs = FsView::gFsView.mIdView[fsid];
+            if (FsView::gFsView.mIdView.count(fsid)) {
+              fs = FsView::gFsView.mIdView[fsid];
 
-            if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+              if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
               // check if the change notification is an actual change in the geotag
-              FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
-              static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
-              oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
-            }
-
-            if (oldgeotag != newgeotag) {
-              eos_warning("Received a geotag change for fsid %lu new geotag is "
-                          "%s, old geotag was %s ", (unsigned long)fsid,
-                          newgeotag.c_str(), oldgeotag.c_str());
-              FsView::gFsView.ViewMutex.UnLockRead();
-              eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
-              eos::common::FileSystem::fs_snapshot snapshot;
-
-              if (FsView::gFsView.mIdView.count(fsid)) {
-                fs = FsView::gFsView.mIdView[fsid];
+                FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+                static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
+                oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
               }
 
-              if (fs) {
+              if (fs && oldgeotag != newgeotag) {
+                eos_warning("Received a geotag change for fsid %lu new geotag is "
+                          "%s, old geotag was %s ", (unsigned long)fsid,
+                          newgeotag.c_str(), oldgeotag.c_str());
+                FsView::gFsView.ViewMutex.UnLockRead();
+                eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
+                eos::common::FileSystem::fs_snapshot snapshot;
                 fs->SnapShotFileSystem(snapshot);
-
                 // Update node view tree structure
                 if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
                   FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
@@ -268,7 +262,9 @@ XrdMgmOfs::FsConfigListener()
                                    (unsigned long)fsid, space->mName.c_str());
                   }
                 }
-              }
+              } else {
+                FsView::gFsView.ViewMutex.UnLockRead();
+                }
             } else {
               FsView::gFsView.ViewMutex.UnLockRead();
             }
