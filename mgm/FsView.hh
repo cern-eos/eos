@@ -798,7 +798,7 @@ public:
   bool UnRegisterGroup(const char* groupname);
 
   //! Mutex protecting all ...View variables
-  eos::common::RWMutex ViewMutex;
+  eos::common::RWMutexR ViewMutex;
 
   //! Map translating a space name to a set of group objects
   std::map<std::string, std::set<FsGroup*> > mSpaceGroupView;
