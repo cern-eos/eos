@@ -261,6 +261,14 @@ Fsck::Check(void)
 
       for (auto it = FsView::gFsView.mIdView.cbegin();
            it != FsView::gFsView.mIdView.cend(); ++it) {
+
+	// protect against illegal 0 filesystem pointer
+	if (!it->second)
+	{
+	  eos_crit("found illegal pointer in filesystem view");
+	  continue;
+	}
+
         eos::common::FileSystem::fsid_t fsid = it->first;
         eos::common::FileSystem::fsactive_t fsactive = it->second->GetActiveStatus();
         eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
