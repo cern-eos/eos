@@ -833,6 +833,32 @@ XrdCl::Proxy::WaitWrite()
 }
 
 /* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::WaitWrite(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  // this waits for all writes to come back and checks for interrupts inbetween
+  // this assumes a file is in OPENED state
+  {
+    XrdSysCondVarHelper lLock(WriteCondVar());
+
+    while ( ChunkMap().size() )
+    {
+      if (fuse_req_interrupted(req))
+      {
+	return EINTR;
+      }
+
+      eos_debug("     [..] map-size=%lu", ChunkMap().size());
+      WriteCondVar().WaitMS(1000);
+    }
+    eos_debug(" [..] map-size=%lu", ChunkMap().size());
+  }
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::OutstandingWrites()

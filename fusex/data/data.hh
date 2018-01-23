@@ -126,8 +126,8 @@ public:
     int TryRecovery(fuse_req_t req, bool is_write);
 
     int recover_ropen(fuse_req_t req);
-    int recover_read(fuse_req_t reqa);
-
+    int recover_read(fuse_req_t req);
+    int recover_write(fuse_req_t req);
 
     // ref counting for this object
 

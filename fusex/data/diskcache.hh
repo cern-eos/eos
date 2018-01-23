@@ -63,6 +63,8 @@ public:
 
   virtual int rescue(std::string& location) override;
 
+  virtual int recovery_location(std::string& location) override;
+
   virtual off_t prefetch_size() override
   {
     return sMaxSize;

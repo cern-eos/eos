@@ -252,9 +252,21 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       }
 
       if (journal_recovery) {
-	eos_err("journal-flushing failed");
-	errno = EREMOTEIO ;
-	return -1;
+	if (TryRecovery(req, true))
+	{
+	  eos_err("journal-flushing recovery failed");
+	  errno = EREMOTEIO ;
+	  return -1;
+	} 
+	else 
+	{
+	  if (journalflush(req))
+	  {
+	    eos_err("journal-flushing failed");
+	    errno = EREMOTEIO ;
+	    return -1;
+	  }
+	}
       } else {
 	// truncate the journal
 	if (mFile->journal()->reset()) {
@@ -629,6 +641,22 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     // recover write failures
     if (!EosFuse::Instance().Config().recovery.write) // might be disabled
       return EREMOTEIO; 
+
+    if (!mFile->has_xrdiorw(req))
+    {
+      eos_crit("no proxy object");
+      return EFAULT;
+    }
+    
+    XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+
+    switch (proxy->stateTS()) {    
+    case XrdCl::Proxy::FAILED:
+    case XrdCl::Proxy::OPENED:
+      return recover_write(req);
+      
+    default: break;
+    }
   }
   else
   {
@@ -694,6 +722,34 @@ data::datax::recover_ropen(fuse_req_t req)
     
     XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
     XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
+
+    // retrieve the 'tried' information to apply this for the file-reopening to exclude already knowns 'bad' locations
+    std::string slasturl;
+    proxy->GetProperty("LastURL", slasturl);
+
+    XrdCl::URL lasturl(slasturl);
+    XrdCl::URL newurl(mRemoteUrlRO);
+
+    XrdCl::URL::ParamsMap last_cgi = lasturl.GetParams();
+    XrdCl::URL::ParamsMap new_cgi = newurl.GetParams();
+
+    std::string last_host = lasturl.GetHostName();
+
+    if ( (lasturl.GetHostName()  != newurl.GetHostName()) ||
+	 (lasturl.GetPort() != newurl.GetPort()) )
+    {
+      eos_warning("applying exclusion list: tried=%s,%s",last_host.c_str(), new_cgi["tried"].c_str());
+      new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
+      newurl.SetParams(new_cgi);
+      mRemoteUrlRO = newurl.GetURL();
+    }
+    else 
+    {
+      new_cgi.erase("tried");
+      newurl.SetParams(new_cgi);
+      mRemoteUrlRO = newurl.GetURL();
+    }
+
     // issue a new open 
     XrdCl::Proxy* newproxy = new XrdCl::Proxy();
     newproxy->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
@@ -744,6 +800,10 @@ data::datax::recover_ropen(fuse_req_t req)
 	    return EINTR;
 	  }
 	}
+	// empty the tried= CGI tag
+	new_cgi.erase("tried");
+	newurl.SetParams(new_cgi);
+	mRemoteUrlRO = newurl.GetURL();
 	continue;
       }
       break;
@@ -780,6 +840,195 @@ data::datax::recover_read(fuse_req_t req)
   }
 
   return reopen;
+}
+
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+data::datax::recover_write(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  eos_debug("");
+  XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+
+  // try to open this file for reading
+  XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
+  XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
+
+  std::unique_ptr<XrdCl::Proxy> newproxy(new XrdCl::Proxy());
+
+  XrdCl::XRootDStatus status = newproxy->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
+
+  if (fuse_req_interrupted(req) || (newproxy->WaitOpen(req)==EINTR))
+  {
+    eos_warning("request interrupted");
+    return EINTR;
+  }
+
+  status = newproxy->state();
+
+  bool recover_from_file_cache = false;
+
+  if (!status.IsOK())
+  {
+    // check if the file has been created here and is still complete in the local caches
+    if ( (mFlags & O_CREAT) &&
+	 (mSize <= mFile->file()->prefetch_size()) &&
+	 (mSize == (ssize_t)mFile->file()->size()) )
+    {
+      eos_debug("recover from file cache");
+      // this file can be recovered from the file start cache
+      recover_from_file_cache = true;
+    }
+    else 
+    {
+      // we cannot do anything about it and let the operation fail
+      eos_warning("write recovery impossible");
+      return EREMOTEIO;
+    }
+  }
+
+  
+  if (mFile->file())
+  {
+    std::string stagefile;
+    mFile->file()->recovery_location(stagefile);
+    off_t off = 0 ;
+    uint32_t size = 1*1024*1024;
+    
+    bufferllmanager::shared_buffer buffer = sBufferManager.get_buffer(size);
+    
+    void* buf = (void*)buffer->ptr();
+    
+    // open local stagefile
+    int fd = ::open(stagefile.c_str(), O_CREAT | O_RDWR, S_IRWXU);
+    ::unlink (stagefile.c_str());
+    
+    if (fd < 0) 
+    {
+      sBufferManager.put_buffer(buffer);
+      eos_crit("failed to open local stagefile %s", stagefile.c_str());
+      return EREMOTEIO;
+    }
+    
+    if (recover_from_file_cache)
+    {
+      eos_debug("recovering from local start cache into stage file %s", stagefile.c_str());
+      // recover file from the local start cache
+      if (mFile->file()->pread(buf, mFile->file()->size(),0) < 0)
+      {
+	sBufferManager.put_buffer(buffer);
+	close(fd);
+	eos_crit("unable to read file for recovery from local file cache");
+	return EIO;
+      }
+    }
+    else
+    {
+      eos_debug("recovering from remote file into stage file %s", stagefile.c_str());
+      // download all into local stagefile
+      uint32_t bytesRead=0;
+      do {
+	status = newproxy->Read(off, size, buf, bytesRead);
+	
+	if (!status.IsOK())
+	{
+	  sBufferManager.put_buffer(buffer);
+	  eos_warning("failed to read remote file for recovery");
+	  ::close(fd);
+	  return EREMOTEIO;
+	}
+	else
+	{
+	  off += bytesRead;
+	}
+	ssize_t wr = ::write(fd, buf, bytesRead);
+	if (wr != bytesRead)
+	{
+	  sBufferManager.put_buffer(buffer);
+	  eos_crit("failed to write to local stage file %s", stagefile.c_str());
+	  ::close(fd);
+	  return EREMOTEIO;
+	}
+      } while (bytesRead>0);
+    }
+    
+    // upload into identical inode using the drop & replace option (repair flag)
+    XrdCl::Proxy* uploadproxy = new XrdCl::Proxy();
+    
+    XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
+    XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
+      XrdCl::Access::UX;
+    
+    // add the repair flag to drop existing locations and select new ones
+    mRemoteUrlRW += "&eos.repair=1";
+    
+    eos_warning("re-opening with repair flag for recovery %s", mRemoteUrlRW.c_str());
+    XrdCl::XRootDStatus status = newproxy->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
+    
+    if (fuse_req_interrupted(req) || (newproxy->WaitOpen(req)==EINTR))
+    {
+      sBufferManager.put_buffer(buffer);
+      ::close(fd);
+      delete uploadproxy;
+      eos_warning("request interrupted");
+      return EINTR;
+    }      
+    
+    if (!status.IsOK())
+    {
+      sBufferManager.put_buffer(buffer);
+      ::close(fd);
+      delete uploadproxy;
+      eos_crit("re-opening with repair flag failed");
+      return EREMOTEIO;
+    }
+    
+    off_t upload_offset=0;
+    ssize_t nr = 0;
+    
+    do {
+      nr = ::pread(fd, buf, size, upload_offset);
+      if (nr < 0)
+      {
+	sBufferManager.put_buffer(buffer);
+	eos_crit("failed to read from local stagefile");
+	::close(fd);
+	return EREMOTEIO;
+      }
+      
+      // send asynchronous upstream writes
+      XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(size, upload_offset, 0);
+      uploadproxy->ScheduleWriteAsync(buf, handler);
+      
+    } while (nr>0);
+    
+    // collect the writes to verify everything is alright now
+    uploadproxy->WaitWrite(req);
+    uploadproxy->WaitWrite();
+    
+    if ( !uploadproxy->write_state().IsOK())
+    {
+      sBufferManager.put_buffer(buffer);
+      eos_crit("got failure when collecting outstanding writes from the upload proxy");
+      ::close(fd);
+      delete uploadproxy;
+      return EREMOTEIO;
+    }
+    
+    sBufferManager.put_buffer(buffer);
+
+    eos_notice("finished write recovery successfully");
+    
+    // replace the proxy object
+    mFile->set_xrdiorw(req, uploadproxy);
+    
+    // once all callbacks are there, this object can destroy itself since we don't track it anymore
+    proxy->flag_selfdestructionTS();
+  }
+
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1033,20 +1282,47 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
       if (!status.IsOK())
       {
-	errno = XrdCl::Proxy::status2errno (status);
-	eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
-	// TODO: we can recover this later
-	return -1;
+	if (TryRecovery(req, true))
+	{
+	  errno = XrdCl::Proxy::status2errno (status);
+	  eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	  return -1;
+	}
+	else 
+	{
+	  // re-send the write again
+	  XrdCl::Proxy::write_handler handler =
+	    mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+	  XrdCl::XRootDStatus status =
+	    mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+	}
       }
 
       // make sure all writes were successfull
       status = mFile->xrdiorw(req)->WaitWrite();
       if (!status.IsOK())
       {
-	errno = XrdCl::Proxy::status2errno (status);
-	eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
-	// TODO: we can recover this later
-	return -1;
+	if (TryRecovery(req, true))
+	{
+	  errno = XrdCl::Proxy::status2errno (status);
+	  eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	  return -1;
+	}
+	else
+	{
+	  // re-send the write again                                                                                                                                          
+	  XrdCl::Proxy::write_handler handler =
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+	  XrdCl::XRootDStatus status =
+            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+	  status = mFile->xrdiorw(req)->WaitWrite();
+	  if (!status.IsOK())
+	  {
+	    errno = XrdCl::Proxy::status2errno (status);
+	    eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
+	    return -1;
+	  }
+	}
       }
     }
   }

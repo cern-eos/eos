@@ -223,6 +223,8 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
     XRootDStatus WaitWrite();
 
+    int WaitWrite(fuse_req_t); // waiting interrupts
+
     // ---------------------------------------------------------------------- //
     bool IsWaitWrite();
 

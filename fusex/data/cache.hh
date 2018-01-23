@@ -83,6 +83,11 @@ public:
   {
     return 0;
   }
+
+  virtual int recovery_location(std::string& location)
+  {
+    return 0;
+  }
 } ;
 
 
