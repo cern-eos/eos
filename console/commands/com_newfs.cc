@@ -296,6 +296,8 @@ FsHelper::ParseCommand(const char* arg)
             dumpmd->set_showfid(true);
           } else if (soption == "--path") {
             dumpmd->set_showpath(true);
+          } else if (soption == "--size") {
+            dumpmd->set_showsize(true);
           } else if (soption == "-s") {
             dumpmd->set_display(FsProto_DumpMdProto::SILENT);
           } else if (soption == "-m") {

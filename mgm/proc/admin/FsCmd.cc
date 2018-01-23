@@ -382,12 +382,6 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string
     if (!retc) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
     }
-
-    if (dumpmdProto.showstoretime()) {
-      // store the time of this dump
-      XrdSysMutexHelper lock(gOFS->DumpmdTimeMapMutex);
-      gOFS->DumpmdTimeMap[strtoul(fsidst.c_str(), nullptr, 10)] = time(nullptr);
-    }
   } else {
     retc = EPERM;
     stdErr = "error: you have to take role 'root' or connect via 'sss' "
