@@ -1686,23 +1686,23 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_info("request:\n%s", notification->DebugString().c_str());
 
-//        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
-//
-//        cta::xrd::Response response;
-//        auto future = cta_service.Send(request, response);
-//
-//        future.get();
-//
-//        switch(response.type())
-//        {
-//          case cta::xrd::Response::RSP_SUCCESS:
-//            retc = 0;
-//            eos_static_info("response:\n%s", response.DebugString().c_str());
-//            break;
-//          default:
-//            retc = EINVAL;
-//            eos_static_err("response:\n%s", response.DebugString().c_str());
-//        }
+        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
+
+        cta::xrd::Response response;
+        auto future = cta_service.Send(request, response);
+
+        future.get();
+
+        switch(response.type())
+        {
+          case cta::xrd::Response::RSP_SUCCESS:
+            retc = 0;
+            eos_static_info("response:\n%s", response.DebugString().c_str());
+            break;
+          default:
+            retc = EINVAL;
+            eos_static_err("response:\n%s", response.DebugString().c_str());
+        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
