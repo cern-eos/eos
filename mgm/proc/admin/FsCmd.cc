@@ -106,12 +106,12 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
   auto listFormat = FsView::GetFileSystemFormat(displayModeString);
 
   if (!lsProto.brief()) {
-    if (format.find('S') != std::string::npos) {
-      format.replace(format.find('S'), 1, "s");
+    if (lsProto.silent()) {
+      format = "s";
     }
 
-    if (listFormat.find('S') != std::string::npos) {
-      listFormat.replace(listFormat.find('S'), 1, "s");
+    if (lsProto.silent()) {
+      listFormat = "s";
     }
   }
 
@@ -396,7 +396,22 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string
 
 std::string
 eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode mode) {
-  return "";
+  switch (mode) {
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_LONG:
+      return "l";
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_MONITOR:
+      return "m";
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_DRAIN:
+      return "d";
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_ERROR:
+      return "e";
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_FSCK:
+      return "fsck";
+    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_IO:
+      return "io";
+    default:
+      return "";
+  }
 }
 
 std::string
