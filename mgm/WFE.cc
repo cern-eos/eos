@@ -1653,19 +1653,25 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_lpath(fullpath);
           notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
           notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
-          notification->mutable_file()->mutable_cks()->set_value(std::string{fmd->getChecksum().getDataPtr()});
-          notification->mutable_file()->set_size(fmd->getSize());
 
-          char fxidBuffer[1024];
-          StringConversion::FastUnsignedToAsciiHex(mFid, fxidBuffer);
-          std::string fxidString{fxidBuffer};
+          notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
+          std::string checksum;
+          for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+            checksum += (fmd->getChecksum().getDataPadded(i));
+          }
+          notification->mutable_file()->mutable_cks()->set_value(checksum);
+
+          notification->mutable_file()->set_size(fmd->getSize());
+          notification->mutable_file()->set_fid(mFid);
+
+          auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
 
           std::ostringstream srcStream;
           srcStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << fxidString;
+          notification->mutable_transport()->set_dst_url(srcStream.str());
 
           std::ostringstream reportStream;
-          reportStream << "eosQuery://" << gOFS->HostName << "eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
+          reportStream << "eosQuery://" << gOFS->HostName << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
           reportStream << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
 
           notification->mutable_transport()->set_report_url(reportStream.str());
@@ -1686,6 +1692,7 @@ WFE::Job::DoIt(bool issync)
         {
           case cta::xrd::Response::RSP_SUCCESS:
             retc = 0;
+            eos_static_info("response:\n%s", response.DebugString().c_str());
             break;
           default:
             retc = EINVAL;

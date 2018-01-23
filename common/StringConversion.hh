@@ -583,6 +583,37 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * @param u templated unsigned number to be converted in hexadecimal
+   *
+   * @return the hex number as string
+   */
+  // ---------------------------------------------------------------------------
+  template <typename UnsignedType> static std::string
+  FastUnsignedToAsciiHex(UnsignedType u)
+  {
+    std::ostringstream oss;
+    if (!u) {
+      oss << '0';
+      return oss.str();
+    }
+
+    const int size = 2 * sizeof(UnsignedType);
+
+    bool hasChars = false;
+    for (int j = 1; j <= size; j++) {
+      int digit = (u >> ((size - j) << 2)) & 15;
+
+      if (hasChars || digit != 0) {
+        oss << pHex2AsciiLkup[digit];
+        hasChars = true;
+      }
+    }
+
+    return oss.str();
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
    * @param the buffer to read the ascii representation from.
    * @param templated unsigned pointer to write the result to
    * @param templated len to parse in the buffer (go until null character)
