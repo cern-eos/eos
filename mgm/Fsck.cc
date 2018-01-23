@@ -265,7 +265,7 @@ Fsck::Check(void)
 	// protect against illegal 0 filesystem pointer
 	if (!it->second)
 	{
-	  eos_crit("found illegal pointer in filesystem view");
+	  eos_static_crit("found illegal pointer in filesystem view");
 	  continue;
 	}
 
