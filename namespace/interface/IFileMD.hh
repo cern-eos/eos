@@ -389,14 +389,15 @@ public:
   //----------------------------------------------------------------------------
   virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
 
-private:
   //----------------------------------------------------------------------------
-  //! Make copy constructor and assignment operator private to avoid "slicing"
+  //! Delete copy constructor and assignment operator to avoid "slicing"
   //! when dealing with derived classes.
   //----------------------------------------------------------------------------
-  IFileMD(const IFileMD& other);
+  IFileMD(const IFileMD& other) = delete;
 
-  IFileMD& operator=(const IFileMD& other);
+  IFileMD& operator=(const IFileMD& other) = delete;
+
+private:
 
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
