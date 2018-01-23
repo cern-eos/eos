@@ -1606,7 +1606,7 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
-        google::protobuf::MapPair<std::string,std::string> cxAttrMap("CTA_ArchiveFileId", std::to_string(mFid));
+        google::protobuf::MapPair<std::string,std::string> archiveFileIdPair("CTA_ArchiveFileId", std::to_string(mFid));
 
         if (event == "sync::delete") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
@@ -1655,11 +1655,13 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
 
           notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
-          std::string checksum;
+          std::ostringstream checksum;
           for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-            checksum += (fmd->getChecksum().getDataPadded(i));
+            char hb[4];
+            sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+            checksum << hb;
           }
-          notification->mutable_file()->mutable_cks()->set_value(checksum);
+          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
 
           notification->mutable_file()->set_size(fmd->getSize());
           notification->mutable_file()->set_fid(mFid);
@@ -1668,36 +1670,39 @@ WFE::Job::DoIt(bool issync)
 
           std::ostringstream srcStream;
           srcStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << fxidString;
-          notification->mutable_transport()->set_dst_url(srcStream.str());
+          notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
 
           std::ostringstream reportStream;
           reportStream << "eosQuery://" << gOFS->HostName << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
           reportStream << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
 
           notification->mutable_transport()->set_report_url(reportStream.str());
+
+          google::protobuf::MapPair<std::string,std::string> storageClassPair("CTA_StorageClass", "single");
+          notification->mutable_file()->mutable_xattr()->insert(storageClassPair);
         }
 
-        notification->mutable_file()->mutable_xattr()->insert(cxAttrMap);
+        notification->mutable_file()->mutable_xattr()->insert(archiveFileIdPair);
 
         eos_static_info("request:\n%s", notification->DebugString().c_str());
 
-        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
-
-        cta::xrd::Response response;
-        auto future = cta_service.Send(request, response);
-
-        future.get();
-
-        switch(response.type())
-        {
-          case cta::xrd::Response::RSP_SUCCESS:
-            retc = 0;
-            eos_static_info("response:\n%s", response.DebugString().c_str());
-            break;
-          default:
-            retc = EINVAL;
-            eos_static_err("response:\n%s", response.DebugString().c_str());
-        }
+//        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
+//
+//        cta::xrd::Response response;
+//        auto future = cta_service.Send(request, response);
+//
+//        future.get();
+//
+//        switch(response.type())
+//        {
+//          case cta::xrd::Response::RSP_SUCCESS:
+//            retc = 0;
+//            eos_static_info("response:\n%s", response.DebugString().c_str());
+//            break;
+//          default:
+//            retc = EINVAL;
+//            eos_static_err("response:\n%s", response.DebugString().c_str());
+//        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
