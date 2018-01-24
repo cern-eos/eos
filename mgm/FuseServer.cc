@@ -103,21 +103,26 @@ FuseServer::Clients::MonitorHeartBeat()
       XrdSysMutexHelper lLock(this);
       struct timespec tsnow;
       eos::common::Timing::GetTimeSpec(tsnow);
-      for (auto it = map().begin(); it != map().end(); ++it)
-      {
-        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() + (((int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns())*1.0 / 1000000000.0);
+
+      for (auto it = map().begin(); it != map().end(); ++it) {
+        double last_heartbeat = tsnow.tv_sec - it->second.heartbeat().clock() + (((
+                                  int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns()) * 1.0 /
+                                1000000000.0);
+
         if (last_heartbeat > mHeartBeatWindow) {
           if (last_heartbeat > mHeartBeatOfflineWindow) {
-	    if (last_heartbeat > mHeartBeatRemoveWindow) {
-	      evictmap[it->second.heartbeat().uuid()] = it->first;
-	      it->second.set_state(Client::EVICTED);
-	    } else {
-	      // drop locks once
-	      if (it->second.state() != Client::OFFLINE)
-		gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
-	      it->second.set_state(Client::OFFLINE);
-	    }
-	  } else {
+            if (last_heartbeat > mHeartBeatRemoveWindow) {
+              evictmap[it->second.heartbeat().uuid()] = it->first;
+              it->second.set_state(Client::EVICTED);
+            } else {
+              // drop locks once
+              if (it->second.state() != Client::OFFLINE) {
+                gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+              }
+
+              it->second.set_state(Client::OFFLINE);
+            }
+          } else {
             it->second.set_state(Client::VOLATILE);
           }
         } else {
@@ -818,8 +823,9 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       }
 
       // skip identical client mounts, the have it anyway!
-      if (cap->clientuuid() == refcap->clientuuid())
+      if (cap->clientuuid() == refcap->clientuuid()) {
         continue;
+      }
 
       if (cap->id() && !clients_sent.count(cap->clientuuid())) {
         gOFS->zMQ->gFuseServer.Client().SendMD(md,
@@ -882,10 +888,15 @@ FuseServer::Caps::Print(std::string option, std::string filter)
       snprintf(ahex, sizeof(ahex), "%08lx", (unsigned long) cap->mode());
       match += ahex;
       match += " v:";
-      if ( (cap->vtime() - now) >  0)
-	match += eos::common::StringConversion::GetSizeString(astring, (unsigned long long) cap->vtime() - now);
-      else
-	match += eos::common::StringConversion::GetSizeString(astring, (unsigned long long) 0);
+
+      if ((cap->vtime() - now) >  0) {
+        match += eos::common::StringConversion::GetSizeString(astring,
+                 (unsigned long long) cap->vtime() - now);
+      } else {
+        match += eos::common::StringConversion::GetSizeString(astring,
+                 (unsigned long long) 0);
+      }
+
       match += "\n";
 
       if (filter.size() &&
@@ -1457,15 +1468,18 @@ FuseServer::FillContainerCAP(uint64_t id,
     dir.mutable_capability()->set_mode(0xff | S_IFDIR);
   } else  {
     if (vid->sudoer) {
-      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK ; // chown + chmod permission + all the rest
+      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
+              ; // chown + chmod permission + all the rest
     }
 
     if (vid->uid == (uid_t) dir.uid()) {
-      if (dir.mode() & S_IRUSR)
+      if (dir.mode() & S_IRUSR) {
         mode |= R_OK | M_OK | SU_OK;
+      }
 
-      if (dir.mode() & S_IWUSR)
+      if (dir.mode() & S_IWUSR) {
         mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+      }
 
       if (dir.mode() & S_IXUSR) {
         mode |= X_OK;
@@ -1649,7 +1663,6 @@ FuseServer::Caps::shared_cap
 FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
 {
   errno = 0 ;
-
   FuseServer::Caps::shared_cap cap = Cap().Get(md.authid());
 
   // no cap - go away
@@ -1673,8 +1686,7 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
     uint64_t now = (uint64_t) time(NULL);
 
     // leave some margin for revoking
-    if (cap->vtime() <= (now + 60))
-    {
+    if (cap->vtime() <= (now + 60)) {
       // cap expired !
       errno = ETIMEDOUT;
       return 0;
@@ -1719,135 +1731,128 @@ FuseServer::Header(const std::string& response)
 
 /*----------------------------------------------------------------------------*/
 bool
-FuseServer::ValidatePERM(const eos::fusex::md & md, const std::string& mode, 
-			 eos::common::Mapping::VirtualIdentity * vid, 
-			 bool take_lock)
+FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
+                         eos::common::Mapping::VirtualIdentity* vid,
+                         bool take_lock)
 {
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
   //   permissions on the fly again
   // -------------------------------------------------------------------------------------------------------------
   eos_static_info("vid=%x mode=%s", vid, mode.c_str());
-  if (!vid)
+
+  if (!vid) {
     return false;
+  }
 
   std::string path;
-
   shared_ptr<eos::IContainerMD> cmd;
-  uint64_t clock=0;
-
+  uint64_t clock = 0;
   bool r_ok = false;
   bool w_ok = false;
   bool x_ok = false;
   bool d_ok = false;
-
-  
   eos::common::RWMutexReadLock rd_ns_lock;
 
   if (take_lock) {
     rd_ns_lock.Grab(gOFS->eosViewRWMutex);
   }
 
-  try
-  {
-    if (S_ISDIR(md.mode()))
+  try {
+    if (S_ISDIR(md.mode())) {
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
-    else
+    } else {
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
+    }
 
     path = gOFS->eosView->getUri(cmd.get());
-
     // for performance reasons we implement a seperate access control check here, because
     // we want to avoid another id=path translation and unlock lock of the namespace
-
     eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
 
-    if (cmd->access(vid->uid, vid->gid, R_OK))
+    if (cmd->access(vid->uid, vid->gid, R_OK)) {
       r_ok = true;
+    }
 
-    if (cmd->access(vid->uid, vid->gid, W_OK))
-    {
+    if (cmd->access(vid->uid, vid->gid, W_OK)) {
       w_ok = true;
       d_ok = true;
     }
 
-    if (cmd->access(vid->uid, vid->gid, X_OK))
+    if (cmd->access(vid->uid, vid->gid, X_OK)) {
       x_ok = true;
+    }
 
     // ACL and permission check
     Acl acl(attrmap, *vid);
     eos_static_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
-		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-		    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-		    acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+                    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+                    acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+                    acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
     // browse permission by ACL
-    if (acl.HasAcl())
-    {
-      if (acl.CanWrite())
-      {
-	w_ok = true;
-	d_ok = true;
+    if (acl.HasAcl()) {
+      if (acl.CanWrite()) {
+        w_ok = true;
+        d_ok = true;
       }
 
       // write-once excludes updates
-      if (!(acl.CanWrite() || acl.CanWriteOnce()))
-	w_ok = false;
+      if (!(acl.CanWrite() || acl.CanWriteOnce())) {
+        w_ok = false;
+      }
 
       // deletion might be overwritten/forbidden
-      if (acl.CanNotDelete())
-	d_ok = false;
+      if (acl.CanNotDelete()) {
+        d_ok = false;
+      }
 
       // the r/x are added to the posix permissions already set
-      if (acl.CanRead())
-	r_ok |= true;
-      if (acl.CanBrowse())
-	x_ok |= true;
-      if (!acl.IsMutable())
-      {
-	w_ok = d_ok = false;
+      if (acl.CanRead()) {
+        r_ok |= true;
+      }
+
+      if (acl.CanBrowse()) {
+        x_ok |= true;
+      }
+
+      if (!acl.IsMutable()) {
+        w_ok = d_ok = false;
       }
     }
-    if (take_lock)
-      gOFS->eosViewRWMutex.UnLockRead();
-  }
-  catch (eos::MDException &e)
-  {
-    eos_static_err("failed to get directory inode ino=%16x",md.md_pino());
-    if (take_lock)
-      gOFS->eosViewRWMutex.UnLockRead();
+  } catch (eos::MDException& e) {
+    eos_static_err("failed to get directory inode ino=%16x", md.md_pino());
     return false;
   }
 
   std::string accperm;
   accperm == "R";
-  if (r_ok)
+
+  if (r_ok) {
     accperm += "R";
-  if (w_ok)
-  {
+  }
+
+  if (w_ok) {
     accperm += "WCKNV";
   }
-  if (d_ok)
-  {
+
+  if (d_ok) {
     accperm += "D";
   }
 
-  if (accperm.find(mode) != std::string::npos)
-  {
+  if (accperm.find(mode) != std::string::npos) {
     eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s",
-		   md.md_pino(),
-		   mode.c_str(),
-		   accperm.c_str()
-		   );
+                    md.md_pino(),
+                    mode.c_str(),
+                    accperm.c_str()
+                   );
     return true;
-  }
-  else
-  {
+  } else {
     eos_static_err("reject access to ino=%16x request-mode=%s granted-mode=%s",
-		   md.md_pino(),
-		   mode.c_str(),
-		   accperm.c_str()
-		   );
+                   md.md_pino(),
+                   mode.c_str(),
+                   accperm.c_str()
+                  );
     return false;
   }
 }
@@ -2057,15 +2062,13 @@ FuseServer::HandleMD(const std::string& id,
       std::string perm = "W";
 
       // a CAP might have gone or timedout, let's check again the permissions
-      if ( ((errno == ENOENT) ||
-	    (errno == EINVAL) ||
-	    (errno == ETIMEDOUT)) &&
-	   ValidatePERM(md, perm, vid)) {
-	// this can pass on ... permissions are fine
-      }
-      else
-      {
-	return EPERM;
+      if (((errno == ENOENT) ||
+           (errno == EINVAL) ||
+           (errno == ETIMEDOUT)) &&
+          ValidatePERM(md, perm, vid)) {
+        // this can pass on ... permissions are fine
+      } else {
+        return EPERM;
       }
     }
 
@@ -2093,14 +2096,15 @@ FuseServer::HandleMD(const std::string& id,
 
       try {
         if (md.md_ino() && exclusive) {
-	  eos_static_err("ino=%lx exists", (long) md.md_ino());
+          eos_static_err("ino=%lx exists", (long) md.md_ino());
           return EEXIST;
         }
 
         if (md.md_ino()) {
           if (md.implied_authid().length()) {
             // this is a create on top of an existing inode
-	    eos_static_err("ino=%lx exists implied=%s", (long) md.md_ino(), md.implied_authid().c_str());
+            eos_static_err("ino=%lx exists implied=%s", (long) md.md_ino(),
+                           md.implied_authid().c_str());
             return EEXIST;
           }
 
@@ -2111,50 +2115,49 @@ FuseServer::HandleMD(const std::string& id,
 
           if (cmd->getParentId() != md.md_pino()) {
             // this indicates a directory move
-	    {
-	      // we have to check that we have write permission on the source parent
-	      eos::fusex::md source_md;
-	      source_md.set_md_pino(cmd->getParentId());
-	      source_md.set_mode(S_IFDIR);
-	      std::string perm = "W";
-	      
-	      if (!ValidatePERM(source_md, perm, vid, false))
-	      {
-		eos_static_err("source-ino=%lx no write permission on source directory to do mv ino=%lx", 
-			       cmd->getParentId(), 
-			       md.md_ino());
-		return EPERM;
-	      }
-	    }
+            {
+              // we have to check that we have write permission on the source parent
+              eos::fusex::md source_md;
+              source_md.set_md_pino(cmd->getParentId());
+              source_md.set_mode(S_IFDIR);
+              std::string perm = "W";
 
+              if (!ValidatePERM(source_md, perm, vid, false)) {
+                eos_static_err("source-ino=%lx no write permission on source directory to do mv ino=%lx",
+                               cmd->getParentId(),
+                               md.md_ino());
+                return EPERM;
+              }
+            }
             op = MOVE;
-
-	    // create a broadcast md object with the authid of the source directory, the target is the standard authid for notification
-	    mv_md.set_authid(md.mv_authid());
-
+            // create a broadcast md object with the authid of the source directory, the target is the standard authid for notification
+            mv_md.set_authid(md.mv_authid());
             eos_static_info("moving %lx => %lx", cmd->getParentId(), md.md_pino());
             cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
             cpcmd->removeContainer(cmd->getName());
             gOFS->eosView->updateContainerStore(cpcmd.get());
             cmd->setName(md.name());
+            std::shared_ptr<eos::IContainerMD> exist_target_cmd;
 
-	    std::shared_ptr<eos::IContainerMD> exist_target_cmd;
-	    try {
-	      // if the target exists, we have to remove it
-	      exist_target_cmd = pcmd->findContainer(md.name());
-	      if (exist_target_cmd) {
-		if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
-		  // that is a fatal error we have to fail that rename
-		  eos_static_err("ino=%lx target exists and is not empty", (long) md.md_ino());
-		  return ENOTEMPTY;
-		}
-		// remove it via the directory service
-		gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
-		pcmd->removeContainer(md.name());
-	      }
-	    } catch ( eos::MDException &e ) {
-	      // it might not exist, that is fine
-	    }
+            try {
+              // if the target exists, we have to remove it
+              exist_target_cmd = pcmd->findContainer(md.name());
+
+              if (exist_target_cmd) {
+                if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
+                  // that is a fatal error we have to fail that rename
+                  eos_static_err("ino=%lx target exists and is not empty", (long) md.md_ino());
+                  return ENOTEMPTY;
+                }
+
+                // remove it via the directory service
+                gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
+                pcmd->removeContainer(md.name());
+              }
+            } catch (eos::MDException& e) {
+              // it might not exist, that is fine
+            }
+
             pcmd->addContainer(cmd.get());
             gOFS->eosView->updateContainerStore(pcmd.get());
           }
@@ -2182,7 +2185,7 @@ FuseServer::HandleMD(const std::string& id,
 
           if (exclusive && pcmd->findContainer(md.name())) {
             // O_EXCL set on creation -
-	    eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
+            eos_static_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
             return EEXIST;
           }
 
@@ -2258,9 +2261,10 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
 
         // broadcast this update around
-        switch ( op ) {
+        switch (op) {
         case MOVE:
-	  Cap().BroadcastRelease(mv_md);
+          Cap().BroadcastRelease(mv_md);
+
         case UPDATE:
         case CREATE:
         case RENAME:
@@ -2529,17 +2533,14 @@ FuseServer::HandleMD(const std::string& id,
       std::string perm = "D";
 
       // a CAP might have gone or timedout, let's check again the permissions
-      if ( ((errno == ENOENT) ||
-	    (errno == EINVAL) ||
-	    (errno == ETIMEDOUT)) &&
-	   ValidatePERM(md, perm, vid))
-      {
-	// this can pass on ... permissions are fine
-      }
-      else
-      {
-	eos_static_err("ino=%lx delete has wrong cap");
-	return EPERM;
+      if (((errno == ENOENT) ||
+           (errno == EINVAL) ||
+           (errno == ETIMEDOUT)) &&
+          ValidatePERM(md, perm, vid)) {
+        // this can pass on ... permissions are fine
+      } else {
+        eos_static_err("ino=%lx delete has wrong cap");
+        return EPERM;
       }
     }
 
