@@ -36,11 +36,6 @@ message FsProto {
     uint64 Fsid = 1;
   }
 
-  message DropFilesProto {
-    int64 Fsid = 1;
-    bool Force = 2;
-  }
-
   message DumpMdProto {
     enum DisplayMode {
       DEFAULT = 0;
@@ -99,7 +94,6 @@ message FsProto {
     BootProto boot = 2;
     ConfigProto config = 3;
     DropDeletionProto dropdel = 4;
-    DropFilesProto dropfiles = 5;
     DumpMdProto dumpmd = 6;
     MvProto mv = 7;
     LsProto ls = 8;

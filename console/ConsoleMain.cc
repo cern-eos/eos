@@ -66,6 +66,7 @@ extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
 extern int com_fs(char*);
+extern int com_newfs(char*);
 extern int com_fsck(char*);
 extern int com_fuse(char*);
 extern int com_fusex(char*);

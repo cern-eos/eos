@@ -62,6 +62,8 @@ private:
 
   int DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string& out, std::string& err);
 
+  int Status(const eos::console::FsProto::StatusProto& statusProto, std::string& out, std::string& err);
+
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode mode);
 
   std::string GetTident();

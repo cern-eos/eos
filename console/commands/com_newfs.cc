@@ -241,35 +241,6 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  } else if (cmd == "dropfiles") {
-    using eos::console::FsProto_DropFilesProto;
-    FsProto_DropFilesProto* dropfiles = ns->mutable_dropfiles();
-
-    if (!(option = tokenizer.GetToken())) {
-      return false;
-    } else {
-      soption = option;
-
-      try {
-        uint64_t fsid = std::stoull(soption);
-        dropfiles->set_fsid(fsid);
-      } catch (const std::exception& e) {
-        std::cerr << "error: fsid needs to be numeric" << std::endl;
-        return false;
-      }
-
-      // Parse -f optional flag
-      if ((option = tokenizer.GetToken())) {
-        soption = option;
-
-        if (soption != "-f") {
-          std::cerr << "error: unknown option: " << soption << std::endl;
-          return false;
-        }
-
-        dropfiles->set_force(true);
-      }
-    }
   } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;
     FsProto_DumpMdProto* dumpmd = ns->mutable_dumpmd();
@@ -492,7 +463,7 @@ FsHelper::ParseCommand(const char* arg)
 }
 
 //------------------------------------------------------------------------------
-// Fs command entrypoint
+// Fs command entry point
 //------------------------------------------------------------------------------
 int com_newfs(char* arg)
 {

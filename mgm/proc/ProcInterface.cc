@@ -21,14 +21,11 @@
  ************************************************************************/
 
 #include "ProcInterface.hh"
-#include "common/ConsoleRequest.pb.h"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FindCmd.hh"
+#include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/DrainCmd.hh"
-#include <iostream>
-#include <fstream>
-#include <json/json.h>
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -191,6 +188,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kFind:
     cmd.reset(new FindCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kFs:
+    cmd.reset(new FsCmd(std::move(req), vid));
     break;
 
   default:
