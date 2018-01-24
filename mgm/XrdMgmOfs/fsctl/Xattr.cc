@@ -127,7 +127,6 @@
                          e.getErrno(), e.getMessage().str().c_str());
         XrdOucString response = "setxattr: retc=2"; //error ENOENT
         error.setErrInfo(response.length() + 1, response.c_str());
-        gOFS->eosViewRWMutex.UnLockRead();
         return SFS_DATA;
       }
     }
