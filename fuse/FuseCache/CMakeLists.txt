@@ -23,16 +23,30 @@
 
 include_directories(${XROOTD_INCLUDE_DIRS})
 
-#-------------------------------------------------------------------------------
-# FuseCache library
-#-------------------------------------------------------------------------------
 add_library(
-  FuseCache SHARED
+  FuseCache-Objects OBJECT
+
   FuseWriteCache.cc  FuseWriteCache.hh
   CacheEntry.cc      CacheEntry.hh
   FileAbstraction.cc FileAbstraction.hh
   LayoutWrapper.cc   LayoutWrapper.hh
-  ../xrdutils.cc     ../xrdutils.hh)
+  ../xrdutils.cc     ../xrdutils.hh
+)
+
+set_target_properties(
+  FuseCache-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE
+)
+
+target_compile_definitions(
+  FuseCache-Objects PUBLIC
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
+)
+
+#-------------------------------------------------------------------------------
+# FuseCache library
+#-------------------------------------------------------------------------------
+add_library(FuseCache SHARED $<TARGET_OBJECTS:FuseCache-Objects> )
 
 target_link_libraries(
   FuseCache PUBLIC
@@ -53,12 +67,7 @@ set_target_properties(
   MACOSX_RPATH TRUE)
 
 if (Linux)
-  add_library(
-    FuseCache-Static STATIC
-    FuseWriteCache.cc  FuseWriteCache.hh
-    CacheEntry.cc      CacheEntry.hh
-    FileAbstraction.cc FileAbstraction.hh
-    LayoutWrapper.cc LayoutWrapper.hh)
+  add_library(FuseCache-Static STATIC $<TARGET_OBJECTS:FuseCache-Objects> )
 
   target_link_libraries(
     FuseCache-Static PUBLIC
