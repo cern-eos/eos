@@ -24,7 +24,6 @@
 #ifndef __EOSCOMMON_FILESYSTEM_HH__
 #define __EOSCOMMON_FILESYSTEM_HH__
 
-#include "mgm/TableFormatter/TableCell.hh"
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
 #include "mq/XrdMqSharedObject.hh"

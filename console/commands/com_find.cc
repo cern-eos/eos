@@ -28,6 +28,7 @@
 #include "common/Logging.hh"
 #include "common/Find.pb.h"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <dirent.h>
 /*----------------------------------------------------------------------------*/
 

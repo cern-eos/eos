@@ -20,6 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "DrainCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -68,7 +69,7 @@ DrainCmd::ProcessRequest()
     }
   } else if (drain.op() == DrainProto::STATUS) {
     XrdOucString status;
-    if (!gOFS->DrainerEngine->GetDrainStatus(atoi(drain.fsid().c_str()), status, stdErr)) { 
+    if (!gOFS->DrainerEngine->GetDrainStatus(atoi(drain.fsid().c_str()), status, stdErr)) {
       reply.set_std_err(stdErr.c_str());
       reply.set_retc(EINVAL);
     } else {

@@ -30,6 +30,7 @@
 #include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include <pwd.h>
 #include <grp.h>

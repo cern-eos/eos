@@ -35,6 +35,7 @@
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqTiming.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include <setjmp.h>
 #include <readline/readline.h>

@@ -34,6 +34,7 @@
 #include "common/ZMQ.hh"
 #include "mgm/ZMQ.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <iomanip>
 
 EOSMGMNAMESPACE_BEGIN

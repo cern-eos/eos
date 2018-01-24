@@ -33,7 +33,6 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdSys/XrdSysPlatform.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/XrdFstOssFile.hh"

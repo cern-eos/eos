@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Stat.hh"

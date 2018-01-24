@@ -26,6 +26,7 @@
 #include "mq/XrdMqStringConversion.hh"
 #include "common/Logging.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>

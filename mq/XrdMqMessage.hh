@@ -27,7 +27,6 @@
 #include <memory>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucHash.hh>
-#include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucStream.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysPthread.hh>

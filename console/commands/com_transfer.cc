@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucEnv.hh"
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include "mq/XrdMqMessage.hh"

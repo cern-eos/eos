@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/CommentLog.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 

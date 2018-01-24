@@ -39,6 +39,8 @@
 
 #define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
 
+class XrdOucEnv;
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------

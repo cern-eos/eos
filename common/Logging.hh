@@ -49,7 +49,6 @@
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSec/XrdSecEntity.hh"

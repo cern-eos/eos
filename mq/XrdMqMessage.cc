@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include <mq/XrdMqMessage.hh>
+#include "XrdOuc/XrdOucEnv.hh"
 #include <sys/time.h>
 #include <uuid/uuid.h>
 #include <fcntl.h>

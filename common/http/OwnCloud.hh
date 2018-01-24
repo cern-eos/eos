@@ -39,7 +39,7 @@
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-
+#include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>

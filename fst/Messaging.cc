@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "authz/XrdCapability.hh"
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"

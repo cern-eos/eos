@@ -26,7 +26,6 @@
 #define __EOSFST_FSTOFSFILE_HH__
 
 #include <numeric>
-#include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/FmdDbMap.hh"

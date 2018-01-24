@@ -29,6 +29,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/FmdDbMap.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
@@ -99,6 +100,56 @@ enum {
 };
 
 EOSFSTNAMESPACE_BEGIN
+
+
+/*----------------------------------------------------------------------------*/
+ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
+  eos::fst::Load* fstload, bool bgthread, long int testinterval,
+  int ratebandwidth, bool setchecksum) :
+
+  fstLoad(fstload), fsId(fsid), dirPath(dirpath), testInterval(testinterval),
+  setChecksum(setchecksum), rateBandwidth(ratebandwidth), forcedScan(false)
+{
+  thread = 0;
+  noNoChecksumFiles = noScanFiles = 0;
+  noCorruptFiles = noTotalFiles = SkippedFiles = 0;
+  durationScan = 0;
+  totalScanSize = bufferSize = 0;
+  buffer = 0;
+  bgThread = bgthread;
+  alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(),
+                      _PC_REC_XFER_ALIGN);
+  size_t palignment = alignment;
+
+  if (alignment > 0) {
+    bufferSize = 256 * alignment;
+
+    if (posix_memalign((void**) &buffer, palignment, bufferSize)) {
+      buffer = 0;
+      fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",
+              dirPath.c_str());
+      return;
+    }
+
+#ifdef __APPLE__
+    palignment = 0;
+#endif
+  } else {
+    fprintf(stderr, "error: OS does not provide alignment\n");
+
+    if (!bgthread) {
+      exit(-1);
+    }
+
+    return;
+  }
+
+  if (bgthread) {
+    openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
+    XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void*>(this),
+                      XRDSYSTHREAD_HOLD, "ScanDir Thread");
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 ScanDir::~ScanDir()

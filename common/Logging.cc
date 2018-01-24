@@ -244,4 +244,6 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   return rptr;
 }
 
+
+
 EOSCOMMONNAMESPACE_END
