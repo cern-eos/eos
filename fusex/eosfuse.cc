@@ -3414,7 +3414,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     lock.l_start = 0;
     lock.l_len = -1;
     lock.l_pid = fuse_req_ctx(req)->pid;
-    rc = Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+    rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
   }
 
   fuse_reply_err(req, rc);
