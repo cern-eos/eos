@@ -616,7 +616,7 @@ int
 /* -------------------------------------------------------------------------- */
 data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 {
-  if (fuse_req_interrupted(req))
+  if (req && fuse_req_interrupted(req))
   {
     eos_warning("request interrupted");
     return EINTR;
@@ -640,7 +640,11 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
   {
     // recover write failures
     if (!EosFuse::Instance().Config().recovery.write) // might be disabled
+    {
+      eos_warning("write recovery disabled");
       return EREMOTEIO; 
+    }
+
 
     if (!mFile->has_xrdiorw(req))
     {
@@ -650,12 +654,15 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     
     XrdCl::Proxy* proxy = mFile->xrdiorw(req);
 
+    eos_debug("");
     switch (proxy->stateTS()) {    
     case XrdCl::Proxy::FAILED:
     case XrdCl::Proxy::OPENED:
+    case XrdCl::Proxy::WAITWRITE:
       return recover_write(req);
-      
-    default: break;
+
+    default:
+      eos_crit("default action");
     }
   }
   else
@@ -860,7 +867,7 @@ data::datax::recover_write(fuse_req_t req)
 
   XrdCl::XRootDStatus status = newproxy->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
 
-  if (fuse_req_interrupted(req) || (newproxy->WaitOpen(req)==EINTR))
+  if ( (req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req)==EINTR))
   {
     eos_warning("request interrupted");
     return EINTR;
@@ -1792,28 +1799,43 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 {
                   std::string msg;
-
                   if (fit->second->HadFailures(msg)) {
-                    // ---------------------------------------------------------
-                    // we really have to avoid this to happen, but
-                    // we can put everything we have cached in a save place for
-                    // manual recovery and tag the error message
-                    // ---------------------------------------------------------
-                    std::string file_rescue_location;
-                    std::string journal_rescue_location;
-                    int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
-                               file_rescue_location) : 0 ;
-                    int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
-                               journal_rescue_location) : 0;
-
-		    if (!dt || !jt) {
-		      eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
-				      (*it)->id(),
-				      msg.c_str(),
-				      (!dt) ? file_rescue_location.c_str() : "<none>",
-				      (!jt) ? journal_rescue_location.c_str() : "<none>");
+		    bool recovery_failed = false;
+		    if (!(*it)->TryRecovery(0, true)) {
+		      if ((*it)->journalflush(fit->first))
+		      {
+			recovery_failed = true;
+		      }
 		    }
-                  }
+		    else 
+		    {
+		      eos_static_err("ino:%16lx recovery failed", (*it)->id());
+		      recovery_failed = true;
+		    }
+
+		    if (recovery_failed)
+		    {
+		      // ---------------------------------------------------------
+		      // we really have to avoid this to happen, but
+		      // we can put everything we have cached in a save place for
+		      // manual recovery and tag the error message
+		      // ---------------------------------------------------------
+		      std::string file_rescue_location;
+		      std::string journal_rescue_location;
+		      int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
+										     file_rescue_location) : 0 ;
+		      int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
+											   journal_rescue_location) : 0;
+		      
+		      if (!dt || !jt) {
+			eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
+					(*it)->id(),
+					msg.c_str(),
+					(!dt) ? file_rescue_location.c_str() : "<none>",
+					(!jt) ? journal_rescue_location.c_str() : "<none>");
+		      }
+		    }
+		  }
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
                                   fit->second->IsClosed());
