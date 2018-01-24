@@ -23,6 +23,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "authz/XrdCapability.hh"
+#include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"

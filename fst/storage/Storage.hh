@@ -129,13 +129,6 @@ public:
   //----------------------------------------------------------------------------
   void PushVerification(eos::fst::Verify* entry);
 
-  //----------------------------------------------------------------------------
-  //! Wait until configuration queue is defined
-  //!
-  //! @param node_cfg_queue configuration queue for our FST
-  //----------------------------------------------------------------------------
-  void WaitConfigQueue(std::string& nodeconfigqueue);
-
 protected:
   eos::common::RWMutex mFsMutex; ///< Mutex protecting acccess to the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems

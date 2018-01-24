@@ -128,9 +128,8 @@ Storage::Communicator()
             // This is the configuration entry and we should store it to have
             // access to it since it's name depends on the instance name and
             // we don't know (yet)
-            Config::gConfig.FstNodeConfigQueue = queue;
-            eos_static_info("storing config queue name <%s>",
-                            Config::gConfig.FstNodeConfigQueue.c_str());
+            Config::gConfig.setFstNodeConfigQueue(queue);
+            eos_static_info("storing config queue name <%s>", queue.c_str());
           } else {
             eos_static_info("no action on creation of subject <%s> - we are <%s>",
                             event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
@@ -198,7 +197,7 @@ Storage::Communicator()
           queue.erase(dpos);
         }
 
-        if (queue == Config::gConfig.FstNodeConfigQueue) {
+        if (queue == Config::gConfig.getFstNodeConfigQueue()) {
           if (key == "symkey") {
             gOFS.ObjectManager.HashMutex.LockRead();
             // we received a new symkey

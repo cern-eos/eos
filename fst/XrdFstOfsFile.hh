@@ -29,6 +29,7 @@
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/FmdDbMap.hh"
+#include "fst/storage/Storage.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucString.hh"

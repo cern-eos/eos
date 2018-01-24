@@ -23,11 +23,29 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Config.hh"
+#include "common/Logging.hh"
+#include <thread>
+#include <chrono>
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 Config Config::gConfig;
 /*----------------------------------------------------------------------------*/
+
+XrdOucString& Config::getFstNodeConfigQueue(const std::string &location) {
+
+  while(!configQueueInitialized) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    eos_static_info("Waiting for config queue in %s ... ", location.c_str());
+  }
+
+  return FstNodeConfigQueue;
+}
+
+void Config::setFstNodeConfigQueue(const XrdOucString& value) {
+  FstNodeConfigQueue = value;
+  configQueueInitialized = true;
+}
 
 EOSFSTNAMESPACE_END

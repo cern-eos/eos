@@ -289,4 +289,3 @@ Messaging::Process(XrdMqMessage* newmessage)
 }
 
 EOSMGMNAMESPACE_END
-

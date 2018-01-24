@@ -33,17 +33,9 @@ void
 Storage::Cleaner()
 {
   eos_static_info("Start Cleaner ...");
-  std::string nodeconfigqueue = "";
-  const char* val = 0;
 
   // we have to wait that we know our node config queue
-  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
-    eos_static_info("Snoozing ...");
-  }
-
-  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Cleaner").c_str();
 
   while (1) {
     eos_static_notice("msg=\"cleaning transactions\"");

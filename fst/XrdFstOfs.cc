@@ -27,6 +27,8 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/storage/FileSystem.hh"
+#include "fst/storage/Storage.hh"
+#include "fst/Messaging.hh"
 #include "fst/http/HttpServer.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"

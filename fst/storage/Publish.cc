@@ -87,15 +87,10 @@ Storage::Publish()
 
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
-  // Wait before publishing
-  XrdSysTimer sleeper;
-  sleeper.Snooze(3);
 
-  while (!eos::fst::Config::gConfig.FstNodeConfigQueue.length()) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
-    eos_static_info("Snoozing ...");
-  }
+  // The following line acts as a barrier that prevents progress
+  // until the config queue becomes known.
+  eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
 
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -411,7 +406,8 @@ Storage::Publish()
           gOFS.ObjectManager.HashMutex.LockRead();
           // we received a new symkey
           XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
-                                    Config::gConfig.FstNodeConfigQueue.c_str(), "hash");
+                                    Config::gConfig.getFstNodeConfigQueue("Publish").c_str(),
+                                    "hash");
 
           if (hash) {
             hash->Set("stat.sys.kernel", eos::fst::Config::gConfig.KernelVersion.c_str());

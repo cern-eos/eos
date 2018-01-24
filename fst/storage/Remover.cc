@@ -32,17 +32,7 @@ void
 Storage::Remover()
 {
   static time_t lastAskedForDeletions = 0;
-  std::string nodeconfigqueue = "";
-  const char* val = 0;
-
-  // we have to wait that we know our node config queue
-  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
-    eos_static_info("Snoozing ...");
-  }
-
-  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
   std::unique_ptr<Deletion> to_del {};
 
   // Thread that unlinks stored files

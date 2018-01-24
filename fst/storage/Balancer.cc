@@ -298,7 +298,6 @@ Storage::Balancer()
 
 {
   eos_static_info("Start Balancer ...");
-  std::string nodeconfigqueue = "";
   unsigned long long nparalleltx = 0;
   unsigned long long ratetx = 0;
   unsigned long long nscheduled = 0;
@@ -308,10 +307,11 @@ Storage::Balancer()
   time_t last_config_update = 0;
   bool noBalancer = 0;
   XrdSysTimer sleeper;
+
   // ---------------------------------------------------------------------------
   // wait for our configuration queue to be set
   // ---------------------------------------------------------------------------
-  WaitConfigQueue(nodeconfigqueue);
+  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer").c_str();
 
   while (1) {
     time_t now = time(NULL);

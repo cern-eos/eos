@@ -29,6 +29,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+#include <atomic>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -43,7 +44,6 @@ public:
   XrdOucString FstQueueWildcard; // our queue match name
   XrdOucString FstGwQueueWildcard; // our gateway queue match name
   XrdOucString FstConfigQueueWildcard; // our configuration queue match name
-  XrdOucString FstNodeConfigQueue; // our queue holding this node's configuration settings
   XrdOucString FstHostPort; // <host>:<port>
   XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
@@ -61,6 +61,13 @@ public:
   }
 
   ~Config () { }
+
+  XrdOucString& getFstNodeConfigQueue(const std::string &location = "");
+  void setFstNodeConfigQueue(const XrdOucString &value);
+
+private:
+  XrdOucString FstNodeConfigQueue; // our queue holding this node's configuration settings
+  std::atomic<bool> configQueueInitialized = { false };
 };
 
 EOSFSTNAMESPACE_END

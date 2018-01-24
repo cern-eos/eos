@@ -30,24 +30,6 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Wait until the configuration queue is defined
-//------------------------------------------------------------------------------
-void
-Storage::WaitConfigQueue(std::string& nodeconfigqueue)
-
-{
-  const char* val = 0;
-
-  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str())) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
-    eos_static_info("Snoozing ...");
-  }
-
-  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
-}
-
-//------------------------------------------------------------------------------
 // Get the number of parallel transfers and transfer rate settings
 //------------------------------------------------------------------------------
 void
@@ -285,7 +267,7 @@ Storage::Drainer()
   bool noDrainer = false;
   time_t last_config_update = 0;
   XrdSysTimer sleeper;
-  WaitConfigQueue(nodeconfigqueue);
+  nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue().c_str();
 
   while (true) {
     time_t now = time(NULL);

@@ -26,9 +26,9 @@
 
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/storage/Storage.hh"
+// #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
-#include "fst/Messaging.hh"
+// #include "fst/Messaging.hh"
 #include "common/Logging.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
@@ -38,6 +38,7 @@
 #include <sys/mman.h>
 #include <queue>
 #include <memory>
+#include <chrono>
 #ifdef HAVE_FST_WITH_QUARKDB
 #include "qclient/QClient.hh"
 #endif
@@ -62,6 +63,8 @@ EOSFSTNAMESPACE_BEGIN
 class ReplicaParLayout;
 class RaidMetaLayout;
 class HttpServer;
+class Storage;
+class Messaging;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs
