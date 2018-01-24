@@ -400,6 +400,10 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
            isRW, mMd->size(),
            isRW ? mRemoteUrlRW.c_str() : mRemoteUrlRO.c_str());
 
+
+  // store the currently known size here
+  mSize = mMd->size();
+
   if (flags & O_SYNC) {
     mFile->disable_caches();
   }
