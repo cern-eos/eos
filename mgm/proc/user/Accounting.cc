@@ -91,6 +91,12 @@ ProcCommand::Accounting()
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
       for (const auto& space : FsView::gFsView.mIdView) {
+	if (!space.second)
+	{
+	  eos_static_crit("found illegal pointer in filesystem view");
+	  continue;
+	}
+
         capacity += space.second->GetLongLong("stat.statfs.capacity");
         used += space.second->GetLongLong("stat.statfs.usedbytes");
       }
