@@ -887,7 +887,8 @@ LongLongAggregator::deepAggregate(
 // Constructor
 // @param name name of the space to construct
 //----------------------------------------------------------------------------
-FsSpace::FsSpace(const char* name) {
+FsSpace::FsSpace(const char* name)
+{
   mName = name;
   mType = "spaceview";
 #ifndef EOSMGMFSVIEWTEST
@@ -1006,13 +1007,15 @@ FsSpace::FsSpace(const char* name) {
       SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
     }
   }
+
 #endif
 }
 
 //----------------------------------------------------------------------------
 // Stop function stopping threads before destruction
 //----------------------------------------------------------------------------
-void FsSpace::Stop() {
+void FsSpace::Stop()
+{
 #ifndef EOSMGMFSVIEWTEST
 
   if (mBalancer) {
@@ -1030,13 +1033,15 @@ void FsSpace::Stop() {
   if (mGeoBalancer) {
     mGeoBalancer->Stop();
   }
+
 #endif
 }
 
 //----------------------------------------------------------------------------
 // Synchronously join threads before destruction
 //----------------------------------------------------------------------------
-void FsSpace::Join() {
+void FsSpace::Join()
+{
 #ifndef EOSMGMFSVIEWTEST
 
   if (mGroupBalancer) {
@@ -1050,7 +1055,8 @@ void FsSpace::Join() {
 #endif
 }
 
-FsSpace::~FsSpace() {
+FsSpace::~FsSpace()
+{
 #ifndef EOSMGMFSVIEWTEST
 
   if (mBalancer) {
@@ -2169,7 +2175,7 @@ FsView::Reset()
     for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
       it->second->Stop();
 
-      if(getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
+      if (getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
         it->second->Join();
       }
     }
@@ -2231,26 +2237,6 @@ FsView::FindByQueuePath(std::string& queuepath)
   }
 
   return 0;
-}
-
-//------------------------------------------------------------------------------
-// Check if hostname is among the list of nodes
-//------------------------------------------------------------------------------
-bool
-FsView::IsKnownNode(const std::string& hostname) const
-{
-  eos::common::RWMutexReadLock view_rd_lock(FsView::gFsView.ViewMutex);
-
-  for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
-    // Getting hostname from node name (/eos/<hostname>:<port>/fst)
-    std::string known_host = it->first.substr(5, it->first.find(':') - 5);
-
-    if (known_host == hostname) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 #ifndef EOSMGMFSVIEWTEST

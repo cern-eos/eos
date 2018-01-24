@@ -840,15 +840,6 @@ public:
   FileSystem* FindByQueuePath(std::string& queuepath);
 
   //----------------------------------------------------------------------------
-  //! Check if hostname is among the list of nodes
-  //!
-  //! @param hostname
-  //!
-  //! @return true if hostname is in the list of known nodes, otherwise false
-  //----------------------------------------------------------------------------
-  bool IsKnownNode(const std::string& hostname) const;
-
-  //----------------------------------------------------------------------------
   //! Create a filesystem mapping
   //----------------------------------------------------------------------------
   eos::common::FileSystem::fsid_t CreateMapping(std::string fsuuid);
