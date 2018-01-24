@@ -61,6 +61,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
+#include <stdint.h>
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <map>
 #include <vector>
