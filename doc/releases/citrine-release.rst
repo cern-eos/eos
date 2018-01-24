@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.10 Citrine``
+===================
+
+2018-01-24
+
+Bug
++++
+
+* [EOS-2264] Fix possible insertion of an empty FS in FSView
+* [EOS-2258] If FST has qdb cluster configuration then to the dumpmd directly against QuarkDB
+
+
+Improvements
+++++++++++++
+
+* Refactoring of includes to speed up compilation, various build improvements
+* avoid to call IsKnownNode to discover if an FST talks to the MGM, rely on sss + daemon user
+* use (again) a reader-preferring mutex for the filesystem view
+
+
 ``v4.2.9 Citrine``
 ===================
 
