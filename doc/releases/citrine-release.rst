@@ -25,7 +25,7 @@ Bug
 
 * [EOS-2264] Fix possible insertion of an empty FS in FSView
 * [EOS-2258] If FST has qdb cluster configuration then to the dumpmd directly against QuarkDB
-
+* [EOS-2277] fixes 'fake' truncation failing eu-strip in rpm builds of eos
 
 Improvements
 ++++++++++++
