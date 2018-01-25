@@ -202,7 +202,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     // Check permissions in case of user attributes
     if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
-        && (!vid.sudoer)) {
+        && (!vid.sudoer && vid.uid)) {
       errno = EPERM;
     } else {
       XrdOucString val64 = value;
@@ -245,8 +245,8 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       fmd = gOFS->eosView->getFile(path);
 
       // Check permissions in case of user attributes
-      if (fmd && Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
-          && (!vid.sudoer)) {
+      if (fmd && !Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
+          && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
         XrdOucString val64 = value;
