@@ -93,8 +93,12 @@ protected:
 
   //----------------------------------------------------------------------------
   //! Generate monitoring output
+  //!
+  //! @param selections filter the output
+  //!
+  //! @return true if there is smth to display, otherwise false
   //----------------------------------------------------------------------------
-  bool GenerateMonitoring();
+  bool GenerateMonitoring(const TableString& selections = TableString());
 
   //----------------------------------------------------------------------------
   //! Generate table header

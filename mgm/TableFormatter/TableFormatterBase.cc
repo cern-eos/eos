@@ -45,7 +45,7 @@ std::string TableFormatterBase::GenerateTable(TableFormatterStyle style,
   // Generate monitoring information in line (option "-m")
   if (!mHeader.empty() &&
       std::get<2>(mHeader[0]).find("o") != std::string::npos) {
-    body_exist = GenerateMonitoring();
+    body_exist = GenerateMonitoring(selections);
   }
 
   // Generate classic table (with/without second table)
@@ -58,7 +58,7 @@ std::string TableFormatterBase::GenerateTable(TableFormatterStyle style,
 
   // Generate string (e.g.second table)
   if (mHeader.empty()) {
-    body_exist = GenerateBody();
+    body_exist = GenerateBody(selections);
   }
 
   if (body_exist) {
@@ -71,20 +71,43 @@ std::string TableFormatterBase::GenerateTable(TableFormatterStyle style,
 //------------------------------------------------------------------------------
 // Generate monitoring output
 //------------------------------------------------------------------------------
-bool TableFormatterBase::GenerateMonitoring()
+bool TableFormatterBase::GenerateMonitoring(const TableString& selections)
 {
   bool body_exist = false;
 
   for (auto& row : mData) {
     if (!row.empty()) {
+      std::ostringstream tmp_sink;
+
       for (size_t i = 0, size = row.size(); i < size; ++i) {
         if (!row[i].Empty()) {
-          mSink << std::get<0>(mHeader[i]) << "=" << row[i] << " ";
-          body_exist = true;
+          tmp_sink << std::get<0>(mHeader[i]) << "=" << row[i] << " ";
         }
       }
 
-      mSink << "\n";
+      std::string str_sink = tmp_sink.str();
+
+      // Apply selection filter
+      if (selections.empty()) {
+        mSink << str_sink << std::endl;
+        body_exist = true;
+      } else {
+        bool filter_out = false;
+
+        for (const auto& filter : selections) {
+          if (str_sink.find(filter) == std::string::npos) {
+            filter_out = true;
+            break;
+          }
+        }
+
+        if (filter_out) {
+          continue;
+        } else {
+          mSink << str_sink << std::endl;
+          body_exist = true;
+        }
+      }
     }
   }
 
