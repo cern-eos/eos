@@ -94,10 +94,10 @@ message FsProto {
     BootProto boot = 2;
     ConfigProto config = 3;
     DropDeletionProto dropdel = 4;
-    DumpMdProto dumpmd = 6;
-    MvProto mv = 7;
-    LsProto ls = 8;
-    RmProto rm = 9;
-    StatusProto status = 10;
+    DumpMdProto dumpmd = 5;
+    MvProto mv = 6;
+    LsProto ls = 7;
+    RmProto rm = 8;
+    StatusProto status = 9;
   }
 }
