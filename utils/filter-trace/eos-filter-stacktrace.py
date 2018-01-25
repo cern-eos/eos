@@ -224,6 +224,22 @@ class XrdSleeperFilter:
             self.eliminations += 1
             return True
 
+        if ("poll" in thread.getFrame(0) and
+            "XrdLink::Recv" in thread.getFrame(1) and
+            "XrdXrootdProtocol::getData" in thread.getFrame(2) and
+            "XrdXrootdProtocol::Process" in thread.getFrame(3) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("do_futex_wait.constprop.1" in thread.getFrame(0) and
+            "__new_sem_wait_slow.constprop.0" in thread.getFrame(1) and
+            "sem_wait" in thread.getFrame(2) and
+            "Wait" in thread.getFrame(3) and
+            "mainAccept" in thread.getFrame(4) ):
+
+            self.eliminations += 1
+            return True
 
         return False
 
@@ -397,6 +413,14 @@ class BackgroundSleeperFilter:
 
         if ("pthread_cond_wait" in thread.getFrame(0) and
             "XrdSysCondVar::Wait" in thread.getFrame(1) and
+            "Wait" in thread.getFrame(2) and
+            "XrdMgmOfs::FsConfigListener" in thread.getFrame(3) and
+            "XrdMgmOfs::StartMgmFsConfigListener" in thread.getFrame(4) ):
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "XrdSysCondVar::Wait" in thread.getFrame(1) and
             "XrdMgmOfs::FsConfigListener" in thread.getFrame(2) and
             "XrdMgmOfs::StartMgmFsConfigListener" in thread.getFrame(3) ):
             self.eliminations += 1
@@ -413,6 +437,26 @@ class BackgroundSleeperFilter:
             "XrdSysCondVar::Wait" in thread.getFrame(1) and
             "Wait" in thread.getFrame(2) and
             "XrdMqSharedObjectChangeNotifier::SomListener" in thread.getFrame(3) ):
+            self.eliminations += 1
+            return True
+
+        if ("nanosleep" in thread.getFrame(0) and
+            "XrdSysTimer::Snooze" in thread.getFrame(1) and
+            "eos::mgm::Recycle::Recycler" in thread.getFrame(2) ):
+            self.eliminations += 1
+            return True
+
+        if ("nanosleep" in thread.getFrame(0) and
+            "XrdSysTimer::Snooze" in thread.getFrame(1) and
+            "eos::mgm::WFE::WFEr" in thread.getFrame(2) ):
+            self.eliminations += 1
+            return True
+
+        if ("nanosleep" in thread.getFrame(0) and
+            "XrdSysTimer::Wait" in thread.getFrame(1) and
+            "XrdMqSharedObjectManager::FileDumper" in thread.getFrame(2) and
+            "XrdMqSharedObjectManager::StartHashDumper" in thread.getFrame(3) ):
+
             self.eliminations += 1
             return True
 
@@ -461,7 +505,7 @@ class ThreadStack:
 
         currentLine = ""
         for line in self.text[1:]:
-            match = re.search(r'^#(\d+)  ', line)
+            match = re.search(r'^#([0-9]+)[ ]+', line)
 
             # Frame spans two lines
             if not match:

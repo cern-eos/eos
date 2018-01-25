@@ -123,3 +123,41 @@ def test_parseStackTrace():
 
     assert trace.getThread(0).getFrame(3) != trace.getThread(1).getFrame(3)
     assert trace.getThread(1).getFrame(3) == "#3  0x00007f8059d27344 in XrdXrootdProtocol::do_Qopaque (this=0x7f7fb26dd600, qopt=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdXrootd/XrdXrootdXeq.cc:1779"
+
+def test_parseThreadStack3():
+
+    trace = stackfilter.StackTrace([
+        "Thread 4 (Thread 0x7fd9fd5ed700 (LWP 200301)):\n",
+        "#0  0x00007fdab647f945 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0\n",
+        "#1  0x00007fdab68bf12d in XrdSysCondVar::Wait (this=this@entry=0x7fd9fd5e93c8) at /usr/src/debug/xrootd/xrootd/src/XrdSys/XrdSysPthread.cc:106\n",
+        "#2  0x00007fdaad0588c8 in WaitForResponse (this=0x7fd9fd5e93b0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClMessageUtils.hh:94\n",
+        "#3  WaitForStatus (handler=0x7fd9fd5e93b0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClMessageUtils.hh:151\n",
+        "#4  XrdCl::File::Close (this=this@entry=0x7fd9fd5e9a40, timeout=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClFile.cc:150\n",
+        "#5  0x00007fdaad0839c2 in XrdCl::ThirdPartyCopyJob::Run (this=0x7fda71c3ae00, progress=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClThirdPartyCopyJob.cc:374\n",
+        "#6  0x00007fdaad09792c in XrdCl::TPFallBackCopyJob::Run (this=0x7fda71c3d140, progress=0x0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClTPFallBackCopyJob.cc:86\n",
+        "#7  0x00007fdaad068c47 in (anonymous namespace)::QueuedCopyJob::Run (this=this@entry=0x7fd9fd5eac00) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClCopyProcess.cc:84\n",
+        "#8  0x00007fdaad069e3a in XrdCl::CopyProcess::Run (this=this@entry=0x7fd9fd5eb380, progress=progress@entry=0x0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClCopyProcess.cc:361\n",
+        "#9  0x00007fdaae8dd772 in eos::mgm::ConverterJob::DoIt (this=0x7fda82014350) at ../../mgm/Converter.cc:215\n",
+        "#10 0x00007fdab68ff53f in XrdScheduler::Run (this=0x7fda96f8d3c0) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:357\n",
+        "#11 0x00007fdab68ff689 in XrdStartWorking (carg=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:87\n",
+        "#12 0x00007fdab68bf0f7 in XrdSysThread_Xeq (myargs=0x7fda83c0fc80) at /usr/src/debug/xrootd/xrootd/src/XrdSys/XrdSysPthread.cc:86\n",
+        "#13 0x00007fdab647be25 in start_thread () from /lib64/libpthread.so.0\n",
+        "#14 0x00007fdab578134d in clone () from /lib64/libc.so.6\n",
+    ])
+
+    assert trace.getNumberOfThreads() == 1
+    assert trace.getThread(0).getFrame(0) == "#0  0x00007fdab647f945 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0"
+    assert trace.getThread(0).getFrame(1) == "#1  0x00007fdab68bf12d in XrdSysCondVar::Wait (this=this@entry=0x7fd9fd5e93c8) at /usr/src/debug/xrootd/xrootd/src/XrdSys/XrdSysPthread.cc:106"
+    assert trace.getThread(0).getFrame(2) == "#2  0x00007fdaad0588c8 in WaitForResponse (this=0x7fd9fd5e93b0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClMessageUtils.hh:94"
+    assert trace.getThread(0).getFrame(3) == "#3  WaitForStatus (handler=0x7fd9fd5e93b0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClMessageUtils.hh:151"
+    assert trace.getThread(0).getFrame(4) == "#4  XrdCl::File::Close (this=this@entry=0x7fd9fd5e9a40, timeout=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClFile.cc:150"
+    assert trace.getThread(0).getFrame(5) == "#5  0x00007fdaad0839c2 in XrdCl::ThirdPartyCopyJob::Run (this=0x7fda71c3ae00, progress=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClThirdPartyCopyJob.cc:374"
+    assert trace.getThread(0).getFrame(6) == "#6  0x00007fdaad09792c in XrdCl::TPFallBackCopyJob::Run (this=0x7fda71c3d140, progress=0x0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClTPFallBackCopyJob.cc:86"
+    assert trace.getThread(0).getFrame(7) == "#7  0x00007fdaad068c47 in (anonymous namespace)::QueuedCopyJob::Run (this=this@entry=0x7fd9fd5eac00) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClCopyProcess.cc:84"
+    assert trace.getThread(0).getFrame(8) == "#8  0x00007fdaad069e3a in XrdCl::CopyProcess::Run (this=this@entry=0x7fd9fd5eb380, progress=progress@entry=0x0) at /usr/src/debug/xrootd/xrootd/src/XrdCl/XrdClCopyProcess.cc:361"
+    assert trace.getThread(0).getFrame(9) == "#9  0x00007fdaae8dd772 in eos::mgm::ConverterJob::DoIt (this=0x7fda82014350) at ../../mgm/Converter.cc:215"
+    assert trace.getThread(0).getFrame(10) == "#10 0x00007fdab68ff53f in XrdScheduler::Run (this=0x7fda96f8d3c0) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:357"
+    assert trace.getThread(0).getFrame(11) == "#11 0x00007fdab68ff689 in XrdStartWorking (carg=<optimized out>) at /usr/src/debug/xrootd/xrootd/src/Xrd/XrdScheduler.cc:87"
+    assert trace.getThread(0).getFrame(12) == "#12 0x00007fdab68bf0f7 in XrdSysThread_Xeq (myargs=0x7fda83c0fc80) at /usr/src/debug/xrootd/xrootd/src/XrdSys/XrdSysPthread.cc:86"
+    assert trace.getThread(0).getFrame(13) == "#13 0x00007fdab647be25 in start_thread () from /lib64/libpthread.so.0"
+    assert trace.getThread(0).getFrame(14) == "#14 0x00007fdab578134d in clone () from /lib64/libc.so.6"
