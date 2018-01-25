@@ -86,8 +86,6 @@ private:
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
-  std::string GetTident();
-
   static unsigned int mConcurrents;
   static std::mutex mConcurrentMutex;
 };

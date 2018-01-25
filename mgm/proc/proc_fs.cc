@@ -121,7 +121,7 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 int
 proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
                XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
-               XrdOucString& stdErr, std::string& tident,
+               XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in, size_t& entries)
 {
   entries = 0;
@@ -262,10 +262,11 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
 //------------------------------------------------------------------------------
 int
 proc_fs_config(std::string& identifier, std::string& key, std::string& value,
-               XrdOucString& stdOut, XrdOucString& stdErr, std::string& tident,
+               XrdOucString& stdOut, XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;
+  const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = atoi(identifier.c_str());
 
   if (!identifier.length() || !key.length() || !value.length()) {
@@ -334,9 +335,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           nodename.erase(dpos);
         }
 
-        if ((vid_in.uid != 0) && ((vid_in.prot != "sss") ||
-                                  tident.compare(0, tident.length(), nodename,
-                                      0, tident.length()))) {
+        if ((vid_in.uid != 0) &&
+            ((vid_in.prot != "sss") ||
+             vid_hostname.compare(0, vid_hostname.length(),
+                                  nodename, 0, vid_hostname.length()))) {
           stdErr = "error: filesystems can only be configured as 'root' or "
                    "from the server mounting them using sss protocol\n";
           retc = EPERM;
@@ -418,10 +420,11 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 int
 proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             std::string& mountpoint, std::string& space, std::string& configstatus,
-            XrdOucString& stdOut, XrdOucString& stdErr, std::string& tident,
+            XrdOucString& stdOut, XrdOucString& stdErr,
             eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;
+  const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
 
   if ((!nodename.length()) || (!mountpoint.length()) || (!space.length()) ||
@@ -445,10 +448,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     FsView::gFsView.ViewMutex.LockWrite();
 
     // Rough check that the filesystem is added from a host with the same
-    // tident ... anyway we should have configured 'sss' security
+    // hostname ... anyway we should have configured 'sss' security
     if ((vid_in.uid != 0) &&
-        ((vid_in.prot != "sss") || tident.compare(0, rnodename.length(),
-            rnodename, 0, rnodename.length()))) {
+        ((vid_in.prot != "sss") ||
+         vid_hostname.compare(0, vid_hostname.length(),
+                              rnodename, 0, vid_hostname.length()))) {
       stdErr += "error: filesystems can only be added as 'root' or from the "
                 "server mounting them using sss protocol\n";
       retc = EPERM;
@@ -649,7 +653,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 //------------------------------------------------------------------------------
 int
 proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
-           XrdOucString& stdErr, std::string& tident,
+           XrdOucString& stdErr,
            eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;
@@ -1104,10 +1108,11 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 //------------------------------------------------------------------------------
 int
 proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
-           XrdOucString& stdOut, XrdOucString& stdErr, std::string& tident,
+           XrdOucString& stdOut, XrdOucString& stdErr,
            eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;
+  const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = 0;
 
   if (id.length()) {
@@ -1139,8 +1144,9 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     }
 
     if ((vid_in.uid != 0) &&
-        ((vid_in.prot != "sss") || tident.compare(0, tident.length(), nodename,
-            0, tident.length()))) {
+        ((vid_in.prot != "sss") ||
+         vid_hostname.compare(0, vid_hostname.length(),
+                              nodename, 0, vid_hostname.length()))) {
       stdErr = "error: filesystems can only be removed as 'root' or from the"
                " server mounting them using sss protocol\n";
       retc = EPERM;
@@ -1197,7 +1203,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 //-------------------------------------------------------------------------------
 int
 proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
-                     XrdOucString& stdErr, std::string& tident,
+                     XrdOucString& stdErr,
                      eos::common::Mapping::VirtualIdentity& vid_in)
 {
   int retc = 0;

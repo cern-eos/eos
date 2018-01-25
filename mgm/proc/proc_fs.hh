@@ -55,8 +55,7 @@ enum class MvOpType {
 //------------------------------------------------------------------------------
 int proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
                    XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
-                   XrdOucString& stdErr, std::string& tident,
-                   eos::common::Mapping::VirtualIdentity& vid_in,
+                   XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid_in,
                    size_t& entries);
 
 //------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ int proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
 //------------------------------------------------------------------------------
 int proc_fs_config(std::string& identifier, std::string& key,
                    std::string& value,
-                   XrdOucString& stdOut, XrdOucString& stdErr, std::string& tident,
+                   XrdOucString& stdOut, XrdOucString& stdErr,
                    eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
@@ -73,7 +72,7 @@ int proc_fs_config(std::string& identifier, std::string& key,
 int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
-                XrdOucString& stdErr, std::string& tident,
+                XrdOucString& stdErr,
                 eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
@@ -84,13 +83,12 @@ int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 //! @param id
 //! @param stdOut normal output string
 //! @param stdErr error output string
-//! @param tident identity of the client
 //! @param vid_in virtual identify of the client
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
 int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
-               XrdOucString& stdOut, XrdOucString& stdErr, std::string& tident,
+               XrdOucString& stdOut, XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
@@ -99,13 +97,12 @@ int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 //! @param id id of the filesystem
 //! @param stdOut normal output string
 //! @param stdErr error output string
-//! @param tident identity of the client
 //! @param vid_in virtual identify of the client
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
 int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
-                         XrdOucString& stdErr, std::string& tident,
+                         XrdOucString& stdErr,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
@@ -145,7 +142,7 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
-               XrdOucString& stdErr, std::string& tident,
+               XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in);
 
 

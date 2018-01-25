@@ -63,13 +63,6 @@ ProcCommand::Fs()
   }
 
   if (mAdminCmd) {
-    std::string tident = pVid->tident.c_str();
-    size_t addpos = 0;
-
-    if ((addpos = tident.find("@")) != std::string::npos) {
-      tident.erase(0, addpos + 1);
-    }
-
     if (mSubCmd == "add") {
       std::string sfsid = (pOpaque->Get("mgm.fs.fsid")) ? pOpaque->Get("mgm.fs.fsid")
                           : "0";
@@ -84,7 +77,7 @@ ProcCommand::Fs()
       std::string configstatus = (pOpaque->Get("mgm.fs.configstatus")) ?
                                  pOpaque->Get("mgm.fs.configstatus") : "";
       retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus,
-                         stdOut, stdErr, tident, *pVid);
+                         stdOut, stdErr, *pVid);
     }
 
     if (mSubCmd == "mv") {
@@ -93,7 +86,7 @@ ProcCommand::Fs()
                              pOpaque->Get("mgm.fs.id") : "");
         std::string space = (pOpaque->Get("mgm.space") ?
                              pOpaque->Get("mgm.space") : "");
-        retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, *pVid);
+        retc = proc_fs_mv(sfsid, space, stdOut, stdErr, *pVid);
       } else {
         retc = EPERM;
         stdErr = "error: you have to take role 'root' to execute this command";
@@ -118,7 +111,7 @@ ProcCommand::Fs()
         XrdOucString dt = pOpaque->Get("mgm.dumpmd.storetime");
         size_t entries = 0;
         retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
-                              tident, *pVid, entries);
+                              *pVid, entries);
 
         if (!retc) {
           gOFS->MgmStats.Add("DumpMd", pVid->uid, pVid->gid, entries);
@@ -143,7 +136,7 @@ ProcCommand::Fs()
                         "";
       std::string value = (pOpaque->Get("mgm.fs.value")) ?
                           pOpaque->Get("mgm.fs.value") : "";
-      retc = proc_fs_config(identifier, key, value, stdOut, stdErr, tident, *pVid);
+      retc = proc_fs_config(identifier, key, value, stdOut, stdErr, *pVid);
     }
 
     if (mSubCmd == "rm") {
@@ -153,13 +146,13 @@ ProcCommand::Fs()
                                pOpaque->Get("mgm.fs.mountpoint") : "";
       std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
       eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-      retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, *pVid);
+      retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, *pVid);
     }
 
     if (mSubCmd == "dropdeletion") {
       std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
       eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-      retc = proc_fs_dropdeletion(id, stdOut, stdErr, tident, *pVid);
+      retc = proc_fs_dropdeletion(id, stdOut, stdErr, *pVid);
     }
   }
 

@@ -408,7 +408,6 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
   if (skey.beginswith("fs:")) {
     XrdOucString stdOut;
     XrdOucString stdErr;
-    std::string tident;
     std::string id;
     eos::common::Mapping::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
@@ -421,7 +420,7 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     nodename.erase(spos3);
     mountpoint.erase(0, spos3);
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
+    proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, rootvid);
   } else  if (skey.beginswith("map:")) {
     skey.erase(0, 4);
     eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
