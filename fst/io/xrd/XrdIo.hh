@@ -263,6 +263,9 @@ public:
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
+  //! @note The buffer given by the user is not neccessarily populated with
+  //!       any meaningful data when this function returns. The user should call
+  //!       fileWaitAsyncIO to enforce this guarantee.
   //----------------------------------------------------------------------------
   int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
                         XrdSfsXferSize length, bool readahead = false,

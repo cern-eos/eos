@@ -96,8 +96,8 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 XrdIo::XrdIo(std::string path) :
   FileIo(path, "XrdIo"),
   mDoReadahead(false),
-  mNumRdAheadBlocks( InitNumRdAheadBlocks() ),
-  mDefaultBlocksize( InitBlocksize() ),
+  mNumRdAheadBlocks(InitNumRdAheadBlocks()),
+  mDefaultBlocksize(InitBlocksize()),
   mBlocksize(mDefaultBlocksize),
   mXrdFile(NULL),
   mMetaHandler(new AsyncMetaHandler()),
@@ -450,6 +450,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
           if (sh->GetRespLength() == 0) {
             // The request got a response but it read 0 bytes
             eos_warning("response contains 0 bytes");
+            done_read = true;
             break;
           }
 

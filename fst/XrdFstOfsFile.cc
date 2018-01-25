@@ -2655,7 +2655,7 @@ XrdFstOfsFile::sync()
       mTpcInfo.Engage();
       return SFS_STARTED;
     } else if (tpc_state == kTpcDone) {
-      eos_info("msg=\"tpc already finisehd -> 2nd sync\"");
+      eos_info("msg=\"tpc already finished -> 2nd sync\"");
       return SFS_OK;
     } else if (tpc_state == kTpcEnabled) {
       SetTpcState(kTpcRun);
@@ -2663,7 +2663,14 @@ XrdFstOfsFile::sync()
                                            XrdFstOfsFile::StartDoTpcTransfer,
                                            static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                                            "TPC Transfer Thread");
-      return SFS_OK;
+
+      if (mTpcInfo.SetCB(&error)) {
+        return SFS_ERROR;
+      }
+
+      error.setErrCode(cbWaitTime);
+      mTpcInfo.Engage();
+      return SFS_STARTED;
     } else {
       eos_err("msg=\"unknown tpc state\"");
       return SFS_ERROR;
