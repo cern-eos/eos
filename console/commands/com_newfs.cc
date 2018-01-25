@@ -629,6 +629,7 @@ void com_fs_help()
       << "    --io       : IO output format" << std::endl
       << "    --fsck     : display filesystem check statistics" << std::endl
       << "    -d|--drain : display filesystems in drain or draindead status"
+      << std::endl
       << "                 along with drain progress and statistics" << std::endl
       << "    -s         : silent mode" << std::endl
       << "    [matchlist]" << std::endl
@@ -664,6 +665,7 @@ void com_fs_help()
       << "    <identifier> can be: " << std::endl
       << "       <fsid> : filesystem id" << std::endl
       << "       [<host>] <mountpoint> : if host is not specified then it's"
+      << std::endl
       << "       considered localhost" << std::endl
       << "    -l : list all files which are at risk and offline files"
       << std::endl
@@ -672,7 +674,7 @@ void com_fs_help()
       << "    fs ls --io -> list all filesystems with IO statistics" << std::endl
       << "    fs boot *  -> send boot request to all filesystems" << std::endl
       << "    fs dumpmd 100 -path -> dump all logical path names on filesystem"
-      << "      100" << std::endl
+      << " 100" << std::endl
       << "    fs mv 100 default.0 -> move filesystem 100 to scheduling group"
       << std::endl
       << "      defalut.0" << std::endl;
