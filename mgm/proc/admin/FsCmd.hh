@@ -68,7 +68,9 @@ private:
 
   std::string GetTident();
 
-  static XrdSysSemaphore mSemaphore;
+  static unsigned int mConcurrents;
+
+  static std::mutex mConcurrentMutex;
 };
 
 EOSMGMNAMESPACE_END

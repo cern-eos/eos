@@ -32,7 +32,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{100};
+unsigned int eos::mgm::FsCmd::mConcurrents = 0;
+std::mutex eos::mgm::FsCmd::mConcurrentMutex{};
 
 eos::console::ReplyProto
 eos::mgm::FsCmd::ProcessRequest() {
@@ -374,20 +375,22 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string
 
     auto tident = GetTident();
 
-    try {
-      mSemaphore.Wait();
-    } catch (...) {
-      err = "Cannot take protecting semaphore, cannot dump md.";
-      return EAGAIN;
+    {
+      std::lock_guard<std::mutex> lock(mConcurrentMutex);
+      if (mConcurrents >= 100) {
+        return SFS_DATA;
+      }
+      else {
+        mConcurrents++;
+      }
     }
 
-    try {
-      retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
-                            tident, mVid, entries);
-    } catch (...) {
-      try {
-        mSemaphore.Post();
-      } catch (...) {}
+    retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
+                          tident, mVid, entries);
+
+    {
+      std::lock_guard<std::mutex> lock(mConcurrentMutex);
+      mConcurrents--;
     }
 
     if (!retc) {
