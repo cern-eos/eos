@@ -103,17 +103,20 @@ int
 FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
            std::string& err)
 {
-  std::string sfsid = std::to_string(addProto.fsid());
+  std::string sfsid = addProto.manual() ? std::to_string(addProto.fsid()) : "0";
   std::string uuid = addProto.uuid();
   std::string nodename = (addProto.nodequeue().empty() ? addProto.hostport() :
                           addProto.nodequeue());
   std::string mountpoint = addProto.mountpoint();
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
+
+  XrdOucString outLocal, errLocal;
   retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus,
-                     stdOut, stdErr, mVid);
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+                     outLocal, errLocal, mVid);
+
+  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -124,6 +127,7 @@ int
 FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
             std::string& err)
 {
+  std::ostringstream outStream, errStream;
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     std::string node = (bootProto.id_case() ==
                         eos::console::FsProto::BootProto::kNodeQueue ?
@@ -138,7 +142,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
       // boot all filesystems
       if (mVid.uid == 0) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        stdOut += "success: boot message send to";
+        outStream << "success: boot message send to";
 
         for (const auto id : FsView::gFsView.mIdView) {
           if ((id.second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
@@ -157,26 +161,26 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
             }
 
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);
-            stdOut += " ";
-            stdOut += id.second->GetString("host").c_str();
-            stdOut += ":";
-            stdOut += id.second->GetString("path").c_str();
+            outStream << " ";
+            outStream << id.second->GetString("host").c_str();
+            outStream << ":";
+            outStream << id.second->GetString("path").c_str();
           }
         }
       } else {
         retc = EPERM;
-        stdErr = "error: you have to take role 'root' to execute this command";
+        errStream << "error: you have to take role 'root' to execute this command";
       }
     } else {
       if (node.length()) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mNodeView.count(node)) {
-          stdErr = "error: cannot boot node - no node with name=";
-          stdErr += node.c_str();
+          errStream << "error: cannot boot node - no node with name=";
+          errStream << node.c_str();
           retc = ENOENT;
         } else {
-          stdOut += "success: boot message send to";
+          outStream << "success: boot message send to";
           eos::mgm::BaseView::const_iterator it;
 
           for (it = FsView::gFsView.mNodeView[node]->begin();
@@ -198,10 +202,10 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
 
               auto now = time(nullptr);
               fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
-              stdOut += " ";
-              stdOut += fs->GetString("host").c_str();
-              stdOut += ":";
-              stdOut += fs->GetString("path").c_str();
+              outStream << " ";
+              outStream << fs->GetString("host").c_str();
+              outStream << ":";
+              outStream << fs->GetString("path").c_str();
             }
           }
         }
@@ -211,7 +215,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (FsView::gFsView.mIdView.count(fsid)) {
-          stdOut += "success: boot message send to";
+          outStream << "success: boot message send to";
           FileSystem* fs = FsView::gFsView.mIdView[fsid];
 
           if (fs) {
@@ -225,25 +229,25 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
             }
 
             fs->SetLongLong("bootsenttime", (unsigned long long) time(nullptr));
-            stdOut += " ";
-            stdOut += fs->GetString("host").c_str();
-            stdOut += ":";
-            stdOut += fs->GetString("path").c_str();
+            outStream << " ";
+            outStream << fs->GetString("host").c_str();
+            outStream << ":";
+            outStream << fs->GetString("path").c_str();
           }
         } else {
-          stdErr = "error: cannot boot filesystem - no filesystem with fsid=";
-          stdErr += fsids.c_str();
+          errStream << "error: cannot boot filesystem - no filesystem with fsid=";
+          errStream << fsids.c_str();
           retc = ENOENT;
         }
       }
     }
   } else {
     retc = EPERM;
-    stdErr = "error: you have to take role 'root' to execute this command";
+    errStream << "error: you have to take role 'root' to execute this command";
   }
 
-  out = stdOut.c_str();
-  err = stdOut.c_str();
+  out = outStream.str();
+  err = errStream.str();
   return retc;
 }
 
@@ -275,9 +279,12 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto,
     break;
   }
 
-  retc = proc_fs_config(identifier, key, value, stdOut, stdErr, mVid);
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+  XrdOucString outLocal, errLocal;
+
+  retc = proc_fs_config(identifier, key, value, outLocal, errLocal, mVid);
+
+  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -289,11 +296,14 @@ FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
                     dropdelProto,
                     std::string& out, std::string& err)
 {
+  XrdOucString outLocal, errLocal;
+
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), stdOut, stdErr,
+  retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal, errLocal,
                               mVid);
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+
+  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -305,6 +315,8 @@ int
 FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
               std::string& out, std::string& err)
 {
+  XrdOucString outLocal, errLocal;
+
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     {
       // Stall if the namespace is still booting
@@ -331,7 +343,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
     }
 
     try {
-      retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
+      retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, outLocal, errLocal,
                             mVid, entries);
     } catch (...) {
       try {
@@ -344,12 +356,12 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
     }
   } else {
     retc = EPERM;
-    stdErr = "error: you have to take role 'root' or connect via 'sss' "
+    errLocal = "error: you have to take role 'root' or connect via 'sss' "
              "to execute this command";
   }
 
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -385,9 +397,13 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out,
   if (mVid.uid == 0) {
     std::string source = mvProto.src();
     std::string dest = mvProto.dst();
-    retc = proc_fs_mv(source, dest, stdOut, stdErr, mVid);
-    out = stdOut.c_str();
-    err = stdErr.c_str();
+
+    XrdOucString outLocal, errLocal;
+
+    retc = proc_fs_mv(source, dest, outLocal, errLocal, mVid);
+
+    out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+    err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   } else {
     retc = EPERM;
     err = "error: you have to take role 'root' to execute this command";
@@ -415,10 +431,12 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
     mountpoint = hostmountpoint.substr(splitAt + 4);
   }
 
+  XrdOucString outLocal, errLocal;
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, mVid);
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+  retc = proc_fs_rm(nodename, mountpoint, id, outLocal, errLocal, mVid);
+
+  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -429,6 +447,8 @@ int
 FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
               std::string& out, std::string& err)
 {
+  std::ostringstream outStream, errStream;
+
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     std::string fsids = statusProto.id_case() ==
                         eos::console::FsProto::StatusProto::kFsid
@@ -495,9 +515,9 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
         FileSystem* fs = FsView::gFsView.mIdView[fsid];
 
         if (fs) {
-          stdOut += dotted_line.c_str();
-          stdOut += "# FileSystem Variables\n";
-          stdOut += dotted_line.c_str();
+          outStream << dotted_line.c_str();
+          outStream << "# FileSystem Variables\n";
+          outStream << dotted_line.c_str();
           std::vector<std::string> keylist;
           fs->GetKeys(keylist);
           std::sort(keylist.begin(), keylist.end());
@@ -506,13 +526,13 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
             char line[1024];
             snprintf(line, sizeof(line) - 1, "%-32s := %s\n", key.c_str(),
                      fs->GetString(key.c_str()).c_str());
-            stdOut += line;
+            outStream << line;
           }
 
           if (riskanalysis) {
-            stdOut += dotted_line.c_str();
-            stdOut += "# Risk Analysis\n";
-            stdOut += dotted_line.c_str();
+            outStream << dotted_line.c_str();
+            outStream << "# Risk Analysis\n";
+            outStream << dotted_line.c_str();
             // get some statistics about the filesystem
             //-------------------------------------------
             unsigned long long nfids = 0;
@@ -598,26 +618,26 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
               char line[1024];
               snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "number of files",
                        eos::common::StringConversion::GetSizeString(sizestring, nfids), 100.0);
-              stdOut += line;
+              outStream << line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files healthy",
                        eos::common::StringConversion::GetSizeString(sizestring, nfids_healthy),
                        nfids ? (100.0 * nfids_healthy) / nfids : 100.0);
-              stdOut += line;
+              outStream << line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files at risk",
                        eos::common::StringConversion::GetSizeString(sizestring, nfids_risky),
                        nfids ? (100.0 * nfids_risky) / nfids : 100.0);
-              stdOut += line;
+              outStream << line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n",
                        "files inaccessible", eos::common::StringConversion::GetSizeString(sizestring,
                            nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
-              stdOut += line;
+              outStream << line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s\n", "files pending deletion",
                        eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
-              stdOut += line;
-              stdOut += dotted_line.c_str();
+              outStream << line;
+              outStream << dotted_line.c_str();
 
               if (listfile) {
-                stdOut += filelisting;
+                outStream << filelisting;
               }
             } catch (eos::MDException& e) {
               errno = e.getErrno();
@@ -629,21 +649,21 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
           retc = 0;
         }
       } else {
-        stdErr = "error: cannot find filesystem - no filesystem with fsid=";
-        stdErr += fsids.c_str();
+        errStream << "error: cannot find filesystem - no filesystem with fsid=";
+        errStream << fsids.c_str();
         retc = ENOENT;
       }
     } else {
-      stdErr = "error: cannot find a matching filesystem";
+      errStream << "error: cannot find a matching filesystem";
       retc = ENOENT;
     }
   } else {
     retc = EPERM;
-    stdErr = "error: you have to take role 'root' to execute this command or connect via sss";
+    errStream << "error: you have to take role 'root' to execute this command or connect via sss";
   }
 
-  out = stdOut.c_str();
-  err = stdErr.c_str();
+  out = outStream.str();
+  err = errStream.str();
   return retc;
 }
 

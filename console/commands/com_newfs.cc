@@ -102,8 +102,8 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
 
-      // Parse uuid
-      if (!(option = tokenizer.GetToken())) {
+      // Parse uuid, but only if the manual was not set
+      if (add->manual() && !(option = tokenizer.GetToken())) {
         std::cerr << "error: missing uuid" << std::endl;
         return false;
       }
