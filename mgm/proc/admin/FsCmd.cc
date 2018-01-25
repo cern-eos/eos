@@ -35,65 +35,61 @@ EOSMGMNAMESPACE_BEGIN
 unsigned int eos::mgm::FsCmd::mConcurrents = 0;
 std::mutex eos::mgm::FsCmd::mConcurrentMutex{};
 
+//------------------------------------------------------------------------------
+// Method implementing the specific behaviour of the command executed by the
+// asynchronous thread
+//------------------------------------------------------------------------------
 eos::console::ReplyProto
-eos::mgm::FsCmd::ProcessRequest() {
+eos::mgm::FsCmd::ProcessRequest()
+{
   eos::console::ReplyProto reply;
   eos::console::FsProto fs = mReqProto.fs();
-
   const auto& subCmdCase = fs.subcmd_case();
+
   if (subCmdCase == eos::console::FsProto::SubcmdCase::kAdd) {
     std::string out, err;
     reply.set_retc(Add(fs.add(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kBoot) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kBoot) {
     std::string out, err;
     reply.set_retc(Boot(fs.boot(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kConfig) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kConfig) {
     std::string out, err;
     reply.set_retc(Config(fs.config(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
     std::string out, err;
     reply.set_retc(DropDeletion(fs.dropdel(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
     std::string out, err;
     reply.set_retc(DumpMd(fs.dumpmd(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kMv) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kMv) {
     std::string out, err;
     reply.set_retc(Mv(fs.mv(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
     reply.set_std_out(List(fs.ls()));
     reply.set_retc(0);
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kRm) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kRm) {
     std::string out, err;
     reply.set_retc(Rm(fs.rm(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else if (subCmdCase == eos::console::FsProto::SubcmdCase::kStatus) {
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kStatus) {
     std::string out, err;
     reply.set_retc(Status(fs.status(), out, err));
     reply.set_std_out(std::move(out));
     reply.set_std_err(std::move(err));
-  }
-  else {
+  } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
   }
@@ -101,12 +97,14 @@ eos::mgm::FsCmd::ProcessRequest() {
   return reply;
 }
 
+//------------------------------------------------------------------------------
+// List subcommand
+//------------------------------------------------------------------------------
 std::string
 eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 {
   std::string output;
   std::string format;
-
   auto displayModeString = DisplayModeToString(lsProto.display());
   auto listFormat = FsView::GetFileSystemFormat(displayModeString);
 
@@ -121,48 +119,57 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
   }
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintSpaces(output, format, listFormat, 0, lsProto.matchlist().c_str(),
-                              displayModeString);
+  FsView::gFsView.PrintSpaces(output, format, listFormat, 0,
+                              lsProto.matchlist().c_str(), displayModeString);
   return output;
 }
 
+//------------------------------------------------------------------------------
+// Config subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto, std::string& out, std::string& err) {
+FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto,
+              std::string& out, std::string& err)
+{
   auto key = configProto.key();
   auto value = configProto.value();
-
   std::string identifier;
+
   switch (configProto.id_case()) {
-    case eos::console::FsProto::ConfigProto::IdCase::kHostPortPath:
-      identifier = configProto.hostportpath();
-      break;
-    case eos::console::FsProto::ConfigProto::IdCase::kUuid:
-      identifier = configProto.uuid();
-      break;
-    case eos::console::FsProto::ConfigProto::IdCase::kFsid:
-      identifier = std::to_string(configProto.fsid());
-      break;
-    default:
-      break;
+  case eos::console::FsProto::ConfigProto::kHostPortPath:
+    identifier = configProto.hostportpath();
+    break;
+
+  case eos::console::FsProto::ConfigProto::kUuid:
+    identifier = configProto.uuid();
+    break;
+
+  case eos::console::FsProto::ConfigProto::kFsid:
+    identifier = std::to_string(configProto.fsid());
+    break;
+
+  default:
+    break;
   }
 
   std::string tident = GetTident();
-
   retc = proc_fs_config(identifier, key, value, stdOut, stdErr, tident, mVid);
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Mv subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out, std::string& err) {
+FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out,
+          std::string& err)
+{
   if (mVid.uid == 0) {
     std::string source = mvProto.src();
     std::string dest = mvProto.dst();
-
     std::string tident = GetTident();
-
     retc = proc_fs_mv(source, dest, stdOut, stdErr, tident, mVid);
     out = stdOut.c_str();
     err = stdErr.c_str();
@@ -174,13 +181,19 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out, std::
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Rm subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out, std::string& err) {
+FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
+          std::string& err)
+{
   std::string nodename = "";
   std::string mountpoint = "";
-  std::string id = rmProto.id_case() == eos::console::FsProto::RmProto::IdCase::kFsid ? std::to_string(rmProto.fsid()) : "";
+  std::string id = (rmProto.id_case() == eos::console::FsProto::RmProto::kFsid ?
+                    std::to_string(rmProto.fsid()) : "");
 
-  if (rmProto.id_case() == eos::console::FsProto::RmProto::IdCase::kNodeQueue) {
+  if (rmProto.id_case() == eos::console::FsProto::RmProto::kNodeQueue) {
     const auto& hostmountpoint = rmProto.nodequeue();
     auto splitAt = hostmountpoint.find_first_of("/fst");
     nodename = hostmountpoint.substr(0, splitAt + 4);
@@ -188,53 +201,66 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out, std::
   }
 
   std::string tident = GetTident();
-
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
   retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, mVid);
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Dropdeletion subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto& dropdelProto, std::string& out,
-                    std::string& err) {
+FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
+                    dropdelProto,
+                    std::string& out, std::string& err)
+{
   auto tident = GetTident();
-
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), stdOut, stdErr, tident, mVid);
+  retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), stdOut, stdErr,
+                              tident, mVid);
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Add subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out, std::string& err) {
+FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
+           std::string& err)
+{
   std::string sfsid = std::to_string(addProto.fsid());
   std::string uuid = addProto.uuid();
-  std::string nodename = addProto.nodequeue().empty() ? addProto.hostport() : addProto.nodequeue();
+  std::string nodename = (addProto.nodequeue().empty() ? addProto.hostport() :
+                          addProto.nodequeue());
   std::string mountpoint = addProto.mountpoint();
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
-
   auto tident = GetTident();
   retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus,
                      stdOut, stdErr, tident, mVid);
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Boot subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out, std::string& err) {
+FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
+            std::string& err)
+{
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
-    std::string node = bootProto.id_case() == eos::console::FsProto::BootProto::IdCase::kNodeQueue ? bootProto.nodequeue() :
-                       "";
-    std::string fsids = bootProto.id_case() == eos::console::FsProto::BootProto::IdCase::kFsid ? std::to_string(bootProto.fsid()) :
-                        "";
+    std::string node = (bootProto.id_case() ==
+                        eos::console::FsProto::BootProto::kNodeQueue ?
+                        bootProto.nodequeue() : "");
+    std::string fsids = (bootProto.id_case() ==
+                         eos::console::FsProto::BootProto::kFsid ?
+                         std::to_string(bootProto.fsid()) : "");
     bool forcemgmsync = bootProto.syncmgm();
     eos::common::FileSystem::fsid_t fsid = std::stoi(fsids);
 
@@ -281,7 +307,6 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
           retc = ENOENT;
         } else {
           stdOut += "success: boot message send to";
-
           eos::mgm::BaseView::const_iterator it;
 
           for (it = FsView::gFsView.mNodeView[node]->begin();
@@ -349,12 +374,16 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
 
   out = stdOut.c_str();
   err = stdOut.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Dumpmd subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string& out, std::string& err) {
+FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
+              std::string& out, std::string& err)
+{
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     {
       // Stall if the namespace is still booting
@@ -365,29 +394,25 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string
         return gOFS->Stall(errInfo, 60, "Namespace is still booting");
       }
     }
-
     std::string fsidst = std::to_string(dumpmdProto.fsid());
-    XrdOucString option = dumpmdProto.display() == eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
+    XrdOucString option = dumpmdProto.display() ==
+                          eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
     XrdOucString dp = dumpmdProto.showpath() ? "1" : "0";
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-
     auto tident = GetTident();
-
     {
       std::lock_guard<std::mutex> lock(mConcurrentMutex);
+
       if (mConcurrents >= 100) {
         return SFS_DATA;
-      }
-      else {
+      } else {
         mConcurrents++;
       }
     }
-
     retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
                           tident, mVid, entries);
-
     {
       std::lock_guard<std::mutex> lock(mConcurrentMutex);
       mConcurrents--;
@@ -404,20 +429,25 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto, std::string
 
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Status subcommand
+//------------------------------------------------------------------------------
 int
-FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string& out, std::string& err) {
+FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
+              std::string& out, std::string& err)
+{
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
-    std::string fsids = statusProto.id_case() == eos::console::FsProto::StatusProto::IdCase::kFsid
-                        ? std::to_string(statusProto.fsid())
-                        : "";
-
+    std::string fsids = statusProto.id_case() ==
+                        eos::console::FsProto::StatusProto::kFsid
+                        ? std::to_string(statusProto.fsid()) : "";
     std::string node;
     std::string mount;
-    if (statusProto.id_case() == eos::console::FsProto::StatusProto::IdCase::kHostMountpoint) {
+
+    if (statusProto.id_case() ==
+        eos::console::FsProto::StatusProto::kHostMountpoint) {
       const auto& hostmountpoint = statusProto.hostmountpoint();
       auto slashAt = hostmountpoint.find_first_of('/');
       node = hostmountpoint.substr(0, slashAt);
@@ -467,15 +497,17 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string
     }
 
     if (fsid) {
+      const std::string dotted_line =
+        "# ------------------------------------------------------------------------------------\n";
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
       if (FsView::gFsView.mIdView.count(fsid)) {
         FileSystem* fs = FsView::gFsView.mIdView[fsid];
 
         if (fs) {
-          stdOut += "# ------------------------------------------------------------------------------------\n";
+          stdOut += dotted_line.c_str();
           stdOut += "# FileSystem Variables\n";
-          stdOut += "# ....................................................................................\n";
+          stdOut += dotted_line.c_str();
           std::vector<std::string> keylist;
           fs->GetKeys(keylist);
           std::sort(keylist.begin(), keylist.end());
@@ -488,9 +520,9 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string
           }
 
           if (riskanalysis) {
-            stdOut += "# ....................................................................................\n";
+            stdOut += dotted_line.c_str();
             stdOut += "# Risk Analysis\n";
-            stdOut += "# ....................................................................................\n";
+            stdOut += dotted_line.c_str();
             // get some statistics about the filesystem
             //-------------------------------------------
             unsigned long long nfids = 0;
@@ -587,12 +619,12 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string
               stdOut += line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n",
                        "files inaccessible", eos::common::StringConversion::GetSizeString(sizestring,
-                                                                                          nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
+                           nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
               stdOut += line;
               snprintf(line, sizeof(line) - 1, "%-32s := %10s\n", "files pending deletion",
                        eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
               stdOut += line;
-              stdOut += "# ------------------------------------------------------------------------------------\n";
+              stdOut += dotted_line.c_str();
 
               if (listfile) {
                 stdOut += filelisting;
@@ -604,7 +636,6 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string
             }
           }
 
-          //-------------------------------------------
           retc = 0;
         }
       } else {
@@ -623,32 +654,44 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto, std::string
 
   out = stdOut.c_str();
   err = stdErr.c_str();
-
   return retc;
 }
 
+
+//------------------------------------------------------------------------------
+// Convert display mode flags to strings
+//------------------------------------------------------------------------------
 std::string
-eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode mode) {
+eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
+                                     mode)
+{
   switch (mode) {
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_LONG:
-      return "l";
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_MONITOR:
-      return "m";
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_DRAIN:
-      return "d";
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_ERROR:
-      return "e";
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_FSCK:
-      return "fsck";
-    case eos::console::FsProto::LsProto::DisplayMode::FsProto_LsProto_DisplayMode_IO:
-      return "io";
-    default:
-      return "";
+  case eos::console::FsProto::LsProto::LONG:
+    return "l";
+
+  case eos::console::FsProto::LsProto::MONITOR:
+    return "m";
+
+  case eos::console::FsProto::LsProto::DRAIN:
+    return "d";
+
+  case eos::console::FsProto::LsProto::ERROR:
+    return "e";
+
+  case eos::console::FsProto::LsProto::FSCK:
+    return "fsck";
+
+  case eos::console::FsProto::LsProto::IO:
+    return "io";
+
+  default:
+    return "";
   }
 }
 
 std::string
-FsCmd::GetTident() {
+FsCmd::GetTident()
+{
   std::string tident = mVid.tident.c_str();
   size_t addpos = 0;
 

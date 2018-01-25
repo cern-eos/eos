@@ -52,7 +52,7 @@ public:
   virtual ~NsCmd() = default;
 
   //----------------------------------------------------------------------------
-  //! Method implementing the specific behvior of the command executed by the
+  //! Method implementing the specific behaviour of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() override;

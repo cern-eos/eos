@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-
 #include "FindCmd.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
@@ -35,14 +33,18 @@
 EOSMGMNAMESPACE_BEGIN
 
 
+//------------------------------------------------------------------------------
+// Method implementing the specific behaviour of the command executed by the
+// asynchronous thread
+//------------------------------------------------------------------------------
 eos::console::ReplyProto
-eos::mgm::FindCmd::ProcessRequest() {
+eos::mgm::FindCmd::ProcessRequest()
+{
   eos::console::ReplyProto reply;
 
   if (!OpenTemporaryOutputFiles()) {
     std::ostringstream error;
     error << "error: cannot write find result files on MGM" << std::endl;
-
     reply.set_retc(EIO);
     reply.set_std_err(error.str());
     return reply;
@@ -65,7 +67,6 @@ eos::mgm::FindCmd::ProcessRequest() {
   auto& permission = findRequest.permission();
   auto& notpermission = findRequest.notpermission();
   auto stripes = findRequest.layoutstripes();
-
   bool silent = findRequest.silent();
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
@@ -99,16 +100,14 @@ eos::mgm::FindCmd::ProcessRequest() {
   bool purge_atomic = purgeversion == "atomic";
   bool printxurl = findRequest.xurl();
   bool layoutstripes = findRequest.dolayoutstripes();
-
   bool nofiles = findRequest.directories() && !findRequest.files();
   bool nodirs = findRequest.files();
   bool dirs = findRequest.directories();
-
   auto max_version = 999999ul;
   time_t selectoldertime = (time_t) olderthan;
   time_t selectyoungertime = (time_t) youngerthan;
 
-  if(!purge_atomic) {
+  if (!purge_atomic) {
     try {
       max_version = std::stoul(purgeversion);
       purge = true;
@@ -121,7 +120,6 @@ eos::mgm::FindCmd::ProcessRequest() {
   XrdOucString url = "root://";
   url += gOFS->MgmOfsAlias;
   url += "/";
-
   // this hash is used to calculate the balance of the found files over the filesystems involved
   google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
   google::dense_hash_map<std::string, unsigned long long> spacebalance;
@@ -133,15 +131,15 @@ eos::mgm::FindCmd::ProcessRequest() {
   schedulinggroupbalance.set_empty_key("");
   sizedistribution.set_empty_key(-1);
   sizedistributionn.set_empty_key(-1);
-
   eos::common::Path cPath(spath.c_str());
-  bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() || findRequest.files());
+  bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() ||
+                   findRequest.files());
   static eos::common::RWMutex deepQueryMutex;
-  static std::unique_ptr<std::map<std::string, std::set<std::string>>> globalfound;
+  static std::unique_ptr<std::map<std::string, std::set<std::string>>>
+  globalfound;
   eos::common::RWMutexWriteLock deepQueryMutexGuard;
-
   std::unique_ptr<std::map<std::string, std::set<std::string>>> localfound;
-  std::map<std::string, std::set<std::string>> *found = nullptr;
+  std::map<std::string, std::set<std::string>>* found = nullptr;
   XrdOucErrInfo errInfo;
 
   if (deepquery) {
@@ -195,6 +193,7 @@ eos::mgm::FindCmd::ProcessRequest() {
   }
 
   errInfo.clear();
+
   if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, (*found),
                   attributekey.length() ? attributekey.c_str() : nullptr,
                   attributevalue.length() ? attributevalue.c_str() : nullptr,
@@ -303,6 +302,7 @@ eos::mgm::FindCmd::ProcessRequest() {
               errInfo.clear();
               gOFS->_attr_get(fspath.c_str(), errInfo, mVid, nullptr,
                               attributekey.c_str(), attr);
+
               if (attributevalue != std::string(attr.c_str())) {
                 selected = false;
               }
@@ -348,13 +348,14 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
               }
 
-              if(!mixed) {
+              if (!mixed) {
                 selected = false;
               }
             }
 
             if (selectrepdiff &&
-                fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId() + 1)) {
+                fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(
+                  fmd->getLayoutId() + 1)) {
               selected = false;
             }
 
@@ -373,8 +374,7 @@ eos::mgm::FindCmd::ProcessRequest() {
 
                   ofstdoutStream << fspath << std::endl;
                 }
-              }
-              else {
+              } else {
                 if (!purge_atomic && !layoutstripes) {
                   if (!printfileinfo) {
                     if (!printcounter) {
@@ -404,7 +404,6 @@ eos::mgm::FindCmd::ProcessRequest() {
 
                       if (printfs) {
                         ofstdoutStream << " fsid=";
-
                         eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
                         eos::IFileMD::LocationVector::const_iterator lociter;
 
@@ -493,14 +492,13 @@ eos::mgm::FindCmd::ProcessRequest() {
                         for (unsigned int i = 0;
                              i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
                           ofstdoutStream << std::right << setfill('0') << std::setw(2)
-                                         << (unsigned char) (fmd->getChecksum().getDataPadded(i));
+                                         << (unsigned char)(fmd->getChecksum().getDataPadded(i));
                         }
                       }
 
                       if (printctime) {
                         eos::IFileMD::ctime_t ctime;
                         fmd->getCTime(ctime);
-
                         ofstdoutStream << " ctime=" << (unsigned long long) ctime.tv_sec;
                         ofstdoutStream << '.' << (unsigned long long) ctime.tv_nsec;
                       }
@@ -508,7 +506,6 @@ eos::mgm::FindCmd::ProcessRequest() {
                       if (printmtime) {
                         eos::IFileMD::ctime_t mtime;
                         fmd->getMTime(mtime);
-
                         ofstdoutStream << " mtime=" << (unsigned long long) mtime.tv_sec;
                         ofstdoutStream << '.' << (unsigned long long) mtime.tv_nsec;
                       }
@@ -521,8 +518,7 @@ eos::mgm::FindCmd::ProcessRequest() {
                         ofstdoutStream << " nunlink=" << fmd->getNumUnlinkedLocation();
                       }
                     }
-                  }
-                  else {
+                  } else {
                     // print fileinfo -m
                     this->PrintFileInfoMinusM(fspath, errInfo);
                   }
@@ -533,11 +529,13 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
 
                 // Do the purge if needed
-                if (purge_atomic && fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
+                if (purge_atomic &&
+                    fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
                   ofstdoutStream << "# found atomic " << fspath << std::endl;
                   struct stat buf;
 
-                  if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr, nullptr)) &&
+                  if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr,
+                                    nullptr)) &&
                       ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
                     time_t now = time(nullptr);
 
@@ -565,23 +563,25 @@ eos::mgm::FindCmd::ProcessRequest() {
                     constexpr uint32_t size = 512;
                     auto bytesRead = 0ul;
                     char buffer[size];
+
                     do {
                       bytesRead = fileCmd.read(offset, buffer, size);
-                      for(auto i = 0u; i < bytesRead; i++) {
+
+                      for (auto i = 0u; i < bytesRead; i++) {
                         outputStream << buffer[i];
                       }
+
                       offset += bytesRead;
                     } while (bytesRead == size);
 
                     fileCmd.close();
-
                     XrdOucEnv env(outputStream.str().c_str());
+
                     if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
                       if (!silent) {
                         ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
                       }
-                    }
-                    else {
+                    } else {
                       ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
                     }
                   }
@@ -660,7 +660,6 @@ eos::mgm::FindCmd::ProcessRequest() {
     for (auto& foundit : *found) {
       // Filtering the directories
       bool selected = true;
-
       eos::common::RWMutexReadLock eosViewMutexGuard;
       eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IContainerMD> mCmd;
@@ -692,7 +691,9 @@ eos::mgm::FindCmd::ProcessRequest() {
 
       if (searchpermission || searchnotpermission) {
         struct stat buf;
-        if (gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr, nullptr) == 0) {
+
+        if (gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr,
+                        nullptr) == 0) {
           std::ostringstream flagOstr;
           flagOstr << std::oct << buf.st_mode;
           auto flagStr = flagOstr.str();
@@ -705,8 +706,7 @@ eos::mgm::FindCmd::ProcessRequest() {
           if (searchnotpermission && permString == notpermission) {
             selected = false;
           }
-        }
-        else {
+        } else {
           selected = false;
         }
       }
@@ -740,7 +740,8 @@ eos::mgm::FindCmd::ProcessRequest() {
           (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
         struct stat buf;
 
-        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr, nullptr)) &&
+        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr,
+                          nullptr)) &&
             ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
           ofstdoutStream << "# purging " << foundit.first;
           gOFS->PurgeVersion(foundit.first.c_str(), errInfo, max_version);
@@ -759,7 +760,8 @@ eos::mgm::FindCmd::ProcessRequest() {
             mCmd = gOFS->eosView->getContainer(foundit.first);
             childfiles = mCmd->getNumFiles();
             childdirs = mCmd->getNumContainers();
-            ofstdoutStream << foundit.first << " ndir=" << childdirs << " nfiles=" << childfiles << std::endl;
+            ofstdoutStream << foundit.first << " ndir=" << childdirs << " nfiles=" <<
+                           childfiles << std::endl;
           } catch (eos::MDException& e) {
             eos_debug("caught exception %d %s\n", e.getErrno(),
                       e.getMessage().str().c_str());
@@ -779,7 +781,8 @@ eos::mgm::FindCmd::ProcessRequest() {
                 }
 
                 if (!printcounter) {
-                  ofstdoutStream << printkey << "=" << std::left << std::setw(32) << attr << " path=";
+                  ofstdoutStream << printkey << "=" << std::left << std::setw(
+                                   32) << attr << " path=";
                 }
               }
             }
@@ -830,7 +833,8 @@ eos::mgm::FindCmd::ProcessRequest() {
   }
 
   if (printcounter) {
-    ofstdoutStream << "nfiles=" << filecounter << " ndirectories=" << dircounter << std::endl;
+    ofstdoutStream << "nfiles=" << filecounter << " ndirectories=" << dircounter <<
+                   std::endl;
   }
 
   if (calcbalance) {
@@ -838,19 +842,25 @@ eos::mgm::FindCmd::ProcessRequest() {
 
     for (const auto& it : filesystembalance) {
       ofstdoutStream << "fsid=" << it.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) << eos::common::StringConversion::GetReadableSizeString(sizestring, it.second,"B");
+      ofstdoutStream << std::left << std::setw(12) <<
+                     eos::common::StringConversion::GetReadableSizeString(sizestring, it.second,
+                         "B");
       ofstdoutStream << " \tnbytes=" << it.second << std::endl;
     }
 
     for (const auto& its : spacebalance) {
       ofstdoutStream << "space=" << its.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) << eos::common::StringConversion::GetReadableSizeString(sizestring, its.second,"B");
+      ofstdoutStream << std::left << std::setw(12) <<
+                     eos::common::StringConversion::GetReadableSizeString(sizestring, its.second,
+                         "B");
       ofstdoutStream << " \tnbytes=" << its.second << std::endl;
     }
 
     for (const auto& itg : schedulinggroupbalance) {
       ofstdoutStream << "sched=" << itg.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) << eos::common::StringConversion::GetReadableSizeString(sizestring, itg.second,"B");
+      ofstdoutStream << std::left << std::setw(12) <<
+                     eos::common::StringConversion::GetReadableSizeString(sizestring, itg.second,
+                         "B");
       ofstdoutStream << " \tnbytes=" << itg.second << std::endl;
     }
 
@@ -872,15 +882,20 @@ eos::mgm::FindCmd::ProcessRequest() {
       XrdOucString sizestring4;
       unsigned long long avgsize = (sizedistributionn[itsd.first]
                                     ? itsd.second / sizedistributionn[itsd.first] : 0);
-      ofstdoutStream << "sizeorder=" << std::right << setfill('0') << std::setw(2) << itsd.first;
+      ofstdoutStream << "sizeorder=" << std::right << setfill('0') << std::setw(
+                       2) << itsd.first;
       ofstdoutStream << " \trange=[ " << setfill(' ') << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(sizestring1, lowerlimit, "B");
+      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
+                       sizestring1, lowerlimit, "B");
       ofstdoutStream << " ... " << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(sizestring2, upperlimit, "B") << " ]";
+      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
+                       sizestring2, upperlimit, "B") << " ]";
       ofstdoutStream << " volume=" << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(sizestring3, itsd.second, "B");
+      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
+                       sizestring3, itsd.second, "B");
       ofstdoutStream << " \tavgsize=" << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(sizestring4, avgsize, "B");
+      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
+                       sizestring4, avgsize, "B");
       ofstdoutStream << " \tnbytes=" << itsd.second;
       ofstdoutStream << " \t avgnbytes=" << avgsize;
       ofstdoutStream << " \t nfiles=" << sizedistributionn[itsd.first];
@@ -890,7 +905,6 @@ eos::mgm::FindCmd::ProcessRequest() {
   if (!CloseTemporaryOutputFiles()) {
     std::ostringstream error;
     error << "error: cannot save find result files on MGM" << std::endl;
-
     reply.set_retc(EIO);
     reply.set_std_err(error.str());
     return reply;
@@ -899,7 +913,9 @@ eos::mgm::FindCmd::ProcessRequest() {
   return reply;
 }
 
-void FindCmd::PrintFileInfoMinusM(const std::string &path, XrdOucErrInfo &errInfo) {
+void FindCmd::PrintFileInfoMinusM(const std::string& path,
+                                  XrdOucErrInfo& errInfo)
+{
   // print fileinfo -m
   ProcCommand Cmd;
   XrdOucString lStdOut = "";
