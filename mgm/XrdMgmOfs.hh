@@ -121,20 +121,20 @@ class XrdAccAuthorize;
 
 namespace eos
 {
-  class IFsView;
-  class IFileMDSvc;
-  class IContainerMDSvc;
-  class IView;
-  class IFileMDChangeListener;
-  class IContainerMDChangeListener;
+class IFsView;
+class IFileMDSvc;
+class IContainerMDSvc;
+class IView;
+class IFileMDChangeListener;
+class IContainerMDChangeListener;
 }
 
 namespace eos
 {
 namespace common
 {
-  class CommentLog;
-  class JeMallocHandler;
+class CommentLog;
+class JeMallocHandler;
 }
 }
 
@@ -171,8 +171,8 @@ class RequestProto;
 
 namespace zmq
 {
-  class socket_t;
-  class context_t;
+class socket_t;
+class context_t;
 }
 
 //------------------------------------------------------------------------------
@@ -297,7 +297,7 @@ public:
           XrdSfsFileExistence& exists_flag,
           XrdOucErrInfo& out_error,
           eos::common::Mapping::VirtualIdentity& vid,
-          const char* opaque = 0);
+          const char* opaque = 0, bool take_lock = true);
 
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
@@ -617,7 +617,7 @@ public:
   // check access permissions by vid
   // ---------------------------------------------------------------------------
   int _access(const char*, int mode, XrdOucErrInfo&,
-	      eos::common::Mapping::VirtualIdentity &vid, const char*, bool lock=true);
+              eos::common::Mapping::VirtualIdentity& vid, const char*, bool lock = true);
 
   // ---------------------------------------------------------------------------
   // define access permissions by vid for a file/directory
@@ -1404,7 +1404,7 @@ public:
 
   //! Mgm Namespace Statistics
   std::unique_ptr<Stat> MgmStatsPtr;
-  Stat &MgmStats;
+  Stat& MgmStats;
   std::unique_ptr<Iostat> IoStats; ///<  Mgm IO Statistics
 
   //! Mgm IO Report store path by default is /var/tmp/eos/report
@@ -1416,7 +1416,7 @@ public:
 
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;
-  Fsck &FsCheck;
+  Fsck& FsCheck;
 
   //! Map remembering 'healing' inodes
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
@@ -1424,7 +1424,7 @@ public:
 
   //!  Master/Slave configuration/failover class
   std::unique_ptr<Master> MasterPtr;
-  Master &MgmMaster;
+  Master& MgmMaster;
 
   //! Map storing the last time of a filesystem dump, this information is used
   //! to track filesystems which have not been checked decentral by an FST.
@@ -1445,11 +1445,11 @@ public:
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> LRUPtr;
-  LRU &LRUd;
+  LRU& LRUd;
 
   //! WFE object running the WFE engine
   std::unique_ptr<WFE> WFEPtr;
-  WFE &WFEd;
+  WFE& WFEd;
 
   //!  Egroup refresh object running asynchronous Egroup fetch thread
   std::unique_ptr<Egroup> EgroupRefresh;

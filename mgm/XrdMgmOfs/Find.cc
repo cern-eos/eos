@@ -105,7 +105,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       if (cmd) {
         if (!permok) {
           // check-out for ACLs
-          permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "", false) ? false : true;
+          permok = _access(Path.c_str(), R_OK | X_OK, out_error, vid, "",
+                           false) ? false : true;
         }
 
         if (!permok) {
@@ -247,7 +248,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     if (!found.size()) {
       XrdSfsFileExistence file_exists;
 
-      if (((_exists(Path.c_str(), file_exists, out_error, vid, 0)) == SFS_OK) &&
+      if (((_exists(Path.c_str(), file_exists, out_error, vid,
+                    0, take_lock)) == SFS_OK) &&
           (file_exists == XrdSfsFileExistIsFile)) {
         eos::common::Path cPath(Path.c_str());
         found[cPath.GetParentPath()].insert(cPath.GetName());
@@ -260,7 +262,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   XrdSfsFileExistence dir_exists;
 
   if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,
-                0)) == SFS_OK)
+                0, take_lock)) == SFS_OK)
       && (dir_exists == XrdSfsFileExistIsDirectory)) {
     eos::common::Path cPath(found_dirs[0][0].c_str());
     (void) found[found_dirs[0][0].c_str()].size();

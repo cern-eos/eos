@@ -196,7 +196,7 @@ XrdMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
                    eos::common::Mapping::VirtualIdentity& vid,
-                   const char* ininfo)
+                   const char* ininfo, bool take_lock)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
@@ -221,7 +221,11 @@ XrdMgmOfs::_exists(const char* path,
   // try if that is directory
   {
     // -------------------------------------------------------------------------
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock;
+
+    if (take_lock) {
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+    }
 
     try {
       cmd = gOFS->eosView->getContainer(path, false);
@@ -237,8 +241,12 @@ XrdMgmOfs::_exists(const char* path,
   if (!cmd) {
     // try if that is a file
     // -------------------------------------------------------------------------
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
+    eos::common::RWMutexReadLock ns_rd_lock;
+
+    if (take_lock) {
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+    }
 
     try {
       fmd = gOFS->eosView->getFile(path, false);
