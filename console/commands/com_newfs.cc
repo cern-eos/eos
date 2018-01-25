@@ -606,7 +606,7 @@ void com_fs_help()
       << "    drop all files on the filesystem" << std::endl
       << "    -f : unlinks/removes files from the namespace (you have to remove"
       << std::endl
-      <<  "        the files from disk" << std::endl
+      <<  "        the files from disk) " << std::endl
       << std::endl
       << "  fs dumpmd <fsid> [--fid] [--path] [-s|-m]"  << std::endl
       << "    dump all file metadata on this filesystem in query format" << std::endl
@@ -670,13 +670,13 @@ void com_fs_help()
       << "    -l : list all files which are at risk and offline files"
       << std::endl
       << "    -r : show risk analysis" << std::endl
-      << "    Examples: " << std::endl
-      << "    fs ls --io -> list all filesystems with IO statistics" << std::endl
-      << "    fs boot *  -> send boot request to all filesystems" << std::endl
-      << "    fs dumpmd 100 -path -> dump all logical path names on filesystem"
-      << " 100" << std::endl
-      << "    fs mv 100 default.0 -> move filesystem 100 to scheduling group"
       << std::endl
-      << "      defalut.0" << std::endl;
+      << "  Examples: " << std::endl
+      << "  fs ls --io -> list all filesystems with IO statistics" << std::endl
+      << "  fs boot *  -> send boot request to all filesystems" << std::endl
+      << "  fs dumpmd 100 -path -> dump all logical path names on filesystem"
+      << " 100" << std::endl
+      << "  fs mv 100 default.0 -> move filesystem 100 to scheduling group"
+      << " defalut.0" << std::endl;
   std::cerr << oss.str() << std::endl;
 }
