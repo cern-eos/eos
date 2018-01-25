@@ -15,6 +15,32 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.11 Citrine``
+===================
+
+2018-01-25
+
+Bug
++++
+
+* [EOS-2264] - Fix possible insertion of an empty FS in FSView
+* [EOS-2270] - FSCK crashed booting namespace
+* [EOS-2271] - EOSPUBLIC deadlocked
+* [EOS-2261] - "eos node ls <node>" with the monitoring flag does not apply the node filter
+* [EOS-2267] - EOSPublic has crashed while recusively setting ACLs
+* [EOS-2268] - Third party copying (on the same instance) fails with big files
+
+Improvement
++++++++++++
+
+* [EOS-2283] - Double unlock in CITRINE code
+
+Task
+++++
+
+* [EOS-2244] - Understand EOSATLAS configuration issue
+
+
 ``v4.2.10 Citrine``
 ===================
 
