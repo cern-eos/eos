@@ -451,8 +451,8 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     // hostname ... anyway we should have configured 'sss' security
     if ((vid_in.uid != 0) &&
         ((vid_in.prot != "sss") ||
-         vid_hostname.compare(0, vid_hostname.length(),
-                              rnodename, 0, vid_hostname.length()))) {
+         vid_hostname.compare(0, rnodename.length(),
+                              rnodename, 0, rnodename.length()))) {
       stdErr += "error: filesystems can only be added as 'root' or from the "
                 "server mounting them using sss protocol\n";
       retc = EPERM;
