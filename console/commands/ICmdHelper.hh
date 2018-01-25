@@ -36,7 +36,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ICmdHelper():
-    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false)
+    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false), mIsSilent(false)
   {
     if (json) {
       mReq.set_format(eos::console::RequestProto::JSON);
@@ -78,4 +78,5 @@ protected:
   MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
   bool mIsAdmin; ///< If true execute as admin, otherwise as user
   bool mHighlight; ///< If true apply text highlighting to output
+  bool mIsSilent; ///< If true execute command but don't display anything
 };

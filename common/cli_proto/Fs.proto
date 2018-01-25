@@ -39,8 +39,7 @@ message FsProto {
   message DumpMdProto {
     enum DisplayMode {
       DEFAULT = 0;
-      SILENT  = 1;
-      MONITOR = 2;
+      MONITOR = 1;
     }
 
     uint64 Fsid = 1;
@@ -67,9 +66,8 @@ message FsProto {
    }
 
    DisplayMode display = 1;
-   bool Silent = 2;
-   bool Brief = 3;
-   string Matchlist = 4;
+   bool Brief = 2;
+   string Matchlist = 3;
   }
 
   message RmProto {

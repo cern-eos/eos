@@ -270,7 +270,7 @@ FsHelper::ParseCommand(const char* arg)
           } else if (soption == "--size") {
             dumpmd->set_showsize(true);
           } else if (soption == "-s") {
-            dumpmd->set_display(FsProto_DumpMdProto::SILENT);
+            mIsSilent = true;
           } else if (soption == "-m") {
             dumpmd->set_display(FsProto_DumpMdProto::MONITOR);
           }
@@ -302,32 +302,34 @@ FsHelper::ParseCommand(const char* arg)
     using eos::console::FsProto_LsProto;
     FsProto_LsProto* ls = ns->mutable_ls();
 
-    while (true) {
-      soption = option;
+    if ((option = tokenizer.GetToken())) {
+      while (true) {
+        soption = option;
 
-      if (soption == "-m") {
-        ls->set_display(FsProto_LsProto::MONITOR);
-      } else if (soption == "-l") {
-        ls->set_display(FsProto_LsProto::LONG);
-      } else if (soption == "-e") {
-        ls->set_display(FsProto_LsProto::ERROR);
-      } else if (soption == "--io") {
-        ls->set_display(FsProto_LsProto::IO);
-      } else if (soption == "--fsck") {
-        ls->set_display(FsProto_LsProto::FSCK);
-      } else if ((soption == "-d") || (soption == "--drain")) {
-        ls->set_display(FsProto_LsProto::DRAIN);
-      } else if (soption == "-s") {
-        ls->set_silent(true);
-      } else if ((soption == "-b") || (soption == "--brief")) {
-        ls->set_brief(true);
-      } else {
-        // This needs to be the matchlist
-        ls->set_matchlist(soption);
-      }
+        if (soption == "-m") {
+          ls->set_display(FsProto_LsProto::MONITOR);
+        } else if (soption == "-l") {
+          ls->set_display(FsProto_LsProto::LONG);
+        } else if (soption == "-e") {
+          ls->set_display(FsProto_LsProto::ERROR);
+        } else if (soption == "--io") {
+          ls->set_display(FsProto_LsProto::IO);
+        } else if (soption == "--fsck") {
+          ls->set_display(FsProto_LsProto::FSCK);
+        } else if ((soption == "-d") || (soption == "--drain")) {
+          ls->set_display(FsProto_LsProto::DRAIN);
+        } else if (soption == "-s") {
+          mIsSilent = true;
+        } else if ((soption == "-b") || (soption == "--brief")) {
+          ls->set_brief(true);
+        } else {
+          // This needs to be the matchlist
+          ls->set_matchlist(soption);
+        }
 
-      if (!(option = tokenizer.GetToken())) {
-        break;
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
       }
     }
   } else if (cmd == "rm") {
@@ -469,15 +471,15 @@ int com_newfs(char* arg)
     return EINVAL;
   }
 
-  FsHelper ns;
+  FsHelper fs;
 
-  if (!ns.ParseCommand(arg)) {
+  if (!fs.ParseCommand(arg)) {
     com_fs_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = ns.Execute();
+  global_retc = fs.Execute();
   return global_retc;
 }
 

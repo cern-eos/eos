@@ -65,7 +65,7 @@ ICmdHelper::Execute()
       std::cerr << mMgmExec.GetError() << std::endl;
     }
   } else {
-    if (mMgmExec.GetResult().size()) {
+    if (!mIsSilent && mMgmExec.GetResult().size()) {
       if (mHighlight) {
         TextHighlight(mMgmExec.GetResult());
       }

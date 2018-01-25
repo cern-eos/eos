@@ -360,12 +360,11 @@ std::string
 eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 {
   std::string output;
-  std::string format;
   auto displayModeString = DisplayModeToString(lsProto.display());
   auto listFormat = FsView::GetFileSystemFormat(displayModeString);
 
   if (!lsProto.brief()) {
-    if (lsProto.silent()) {
+    if (listFormat.find('S') != std::string::npos) {
       listFormat.replace(listFormat.find('S'), 1, "s");
     }
   }
