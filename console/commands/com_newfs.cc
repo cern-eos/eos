@@ -302,36 +302,32 @@ FsHelper::ParseCommand(const char* arg)
     using eos::console::FsProto_LsProto;
     FsProto_LsProto* ls = ns->mutable_ls();
 
-    if (!(option = tokenizer.GetToken())) {
-      return false;
-    } else {
-      while (true) {
-        soption = option;
+    while (true) {
+      soption = option;
 
-        if (soption == "-m") {
-          ls->set_display(FsProto_LsProto::MONITOR);
-        } else if (soption == "-l") {
-          ls->set_display(FsProto_LsProto::LONG);
-        } else if (soption == "-e") {
-          ls->set_display(FsProto_LsProto::ERROR);
-        } else if (soption == "--io") {
-          ls->set_display(FsProto_LsProto::IO);
-        } else if (soption == "--fsck") {
-          ls->set_display(FsProto_LsProto::FSCK);
-        } else if ((soption == "-d") || (soption == "--drain")) {
-          ls->set_display(FsProto_LsProto::DRAIN);
-        } else if (soption == "-s") {
-          ls->set_silent(true);
-        } else if ((soption == "-b") || (soption == "--brief")) {
-          ls->set_brief(true);
-        } else {
-          // This needs to be the matchlist
-          ls->set_matchlist(soption);
-        }
+      if (soption == "-m") {
+        ls->set_display(FsProto_LsProto::MONITOR);
+      } else if (soption == "-l") {
+        ls->set_display(FsProto_LsProto::LONG);
+      } else if (soption == "-e") {
+        ls->set_display(FsProto_LsProto::ERROR);
+      } else if (soption == "--io") {
+        ls->set_display(FsProto_LsProto::IO);
+      } else if (soption == "--fsck") {
+        ls->set_display(FsProto_LsProto::FSCK);
+      } else if ((soption == "-d") || (soption == "--drain")) {
+        ls->set_display(FsProto_LsProto::DRAIN);
+      } else if (soption == "-s") {
+        ls->set_silent(true);
+      } else if ((soption == "-b") || (soption == "--brief")) {
+        ls->set_brief(true);
+      } else {
+        // This needs to be the matchlist
+        ls->set_matchlist(soption);
+      }
 
-        if (!(option = tokenizer.GetToken())) {
-          break;
-        }
+      if (!(option = tokenizer.GetToken())) {
+        break;
       }
     }
   } else if (cmd == "rm") {

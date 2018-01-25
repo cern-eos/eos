@@ -366,16 +366,12 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 
   if (!lsProto.brief()) {
     if (lsProto.silent()) {
-      format = "s";
-    }
-
-    if (lsProto.silent()) {
-      listFormat = "s";
+      listFormat.replace(listFormat.find('S'), 1, "s");
     }
   }
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintSpaces(output, format, listFormat, 0,
+  FsView::gFsView.PrintSpaces(output, "", listFormat, 0,
                               lsProto.matchlist().c_str(), displayModeString);
   return output;
 }
