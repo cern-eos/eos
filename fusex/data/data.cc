@@ -284,9 +284,21 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   {
     if (proxy->stateTS() == XrdCl::Proxy::FAILED)
     {
-      eos_err("remote open failed - returning EREMOTEIO");
-      errno = EREMOTEIO;
-      return -1;
+      if (TryRecovery(req, true))
+      {
+	eos_err("remote open failed - returning EREMOTEIO");
+	errno = EREMOTEIO;
+	return -1;
+      }
+      else
+      {
+	if (journalflush(req))
+	{
+	  eos_err("journal-flushing failed");
+	  errno = EREMOTEIO ;
+	  return -1;
+	}
+      }
     }
   }
 
@@ -890,9 +902,9 @@ data::datax::recover_write(fuse_req_t req)
     }
     else 
     {
-      // we cannot do anything about it and let the operation fail
-      eos_warning("write recovery impossible");
-      return EREMOTEIO;
+      // we have to recover this from remote
+      eos_debug("recover from remote file");
+      recover_from_file_cache = false;
     }
   }
 
@@ -938,7 +950,8 @@ data::datax::recover_write(fuse_req_t req)
       uint32_t bytesRead=0;
       do {
 	status = newproxy->Read(off, size, buf, bytesRead);
-	
+
+	eos_debug("off=%lu bytesread=%u", off, bytesRead);
 	if (!status.IsOK())
 	{
 	  sBufferManager.put_buffer(buffer);
@@ -964,6 +977,8 @@ data::datax::recover_write(fuse_req_t req)
     // upload into identical inode using the drop & replace option (repair flag)
     XrdCl::Proxy* uploadproxy = new XrdCl::Proxy();
     
+    uploadproxy->inherit_attached(proxy);
+
     XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
     XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
       XrdCl::Access::UX;
@@ -972,9 +987,9 @@ data::datax::recover_write(fuse_req_t req)
     mRemoteUrlRW += "&eos.repair=1";
     
     eos_warning("re-opening with repair flag for recovery %s", mRemoteUrlRW.c_str());
-    XrdCl::XRootDStatus status = newproxy->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
+    XrdCl::XRootDStatus status = uploadproxy->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
     
-    if (fuse_req_interrupted(req) || (newproxy->WaitOpen(req)==EINTR))
+    if (fuse_req_interrupted(req) || (uploadproxy->WaitOpen(req)==EINTR))
     {
       sBufferManager.put_buffer(buffer);
       ::close(fd);
@@ -983,7 +998,7 @@ data::datax::recover_write(fuse_req_t req)
       return EINTR;
     }      
     
-    if (!status.IsOK())
+    if (!status.IsOK() || (uploadproxy->state()!= XrdCl::Proxy::OPENED))
     {
       sBufferManager.put_buffer(buffer);
       ::close(fd);
@@ -1005,15 +1020,17 @@ data::datax::recover_write(fuse_req_t req)
 	return EREMOTEIO;
       }
       
-      // send asynchronous upstream writes
-      XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(size, upload_offset, 0);
-      uploadproxy->ScheduleWriteAsync(buf, handler);
-      
+      if (nr)
+      {
+	// send asynchronous upstream writes
+	XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr, upload_offset, 0);
+	uploadproxy->ScheduleWriteAsync(buf, handler);
+	upload_offset += nr;
+      }
     } while (nr>0);
     
     // collect the writes to verify everything is alright now
     uploadproxy->WaitWrite(req);
-    uploadproxy->WaitWrite();
     
     if ( !uploadproxy->write_state().IsOK())
     {

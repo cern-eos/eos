@@ -62,6 +62,8 @@ XrdCl::Proxy::Read( uint64_t  offset,
   eos_debug("offset=%lu size=%u", offset, size);
   XRootDStatus status = WaitOpen();
 
+  bytesRead = 0;
+
   if (!status.IsOK())
     return status;
 
@@ -623,7 +625,7 @@ XrdCl::Proxy::IsClosed()
 {
   XrdSysCondVarHelper lLock(OpenCondVar());
   eos_debug("state=%d", state());
-  return ( (state () == CLOSED) || (state () == CLOSEFAILED) ) ? true : false;
+  return ( (state () == CLOSED) || (state () == CLOSEFAILED) || (state () == FAILED) ) ? true : false;
 }
 
 bool
