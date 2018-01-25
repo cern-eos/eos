@@ -43,6 +43,21 @@ class ExclusionFilter:
 
         return False
 
+class BlockedOnLockFilter:
+    def __init__(self):
+        self.eliminations = 0
+        self.description = "threads blocked on acquiring some lock"
+
+        self.readLockFilter = ExclusionFilter("pthread_rwlock_rdlock")
+        self.writeLockFilter = ExclusionFilter("pthread_rwlock_wrlock")
+
+    def check(self, thread):
+        if self.readLockFilter.check(thread) or self.writeLockFilter.check(thread):
+            self.eliminations += 1
+            return True
+
+        return False
+
 class ZmqFilter:
     def __init__(self):
         self.eliminations = 0
@@ -237,6 +252,15 @@ class XrdSleeperFilter:
             "sem_wait" in thread.getFrame(2) and
             "Wait" in thread.getFrame(3) and
             "mainAccept" in thread.getFrame(4) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("do_futex_wait.constprop.1" in thread.getFrame(0) and
+            "__new_sem_wait_slow.constprop.0" in thread.getFrame(1) and
+            "sem_wait" in thread.getFrame(2) and
+            "Wait" in thread.getFrame(3) and
+            "XrdPosixFile::DelayedDestroy" in thread.getFrame(4) ):
 
             self.eliminations += 1
             return True
@@ -593,6 +617,9 @@ def build_filters(args):
     if not args.want_rocksdb_sleepers:
         filters += [RocksLevelDBFilter()]
 
+    if args.hide_blocked_on_locks:
+        filters += [BlockedOnLockFilter()]
+
     if args.exclusions:
         for excl in args.exclusions:
             print(excl)
@@ -641,6 +668,7 @@ def getargs():
 
 
     group = parser.add_argument_group('Custom filters', '')
+    group.add_argument('--hide-blocked-on-locks', dest='hide_blocked_on_locks', action='store_true', help="Hide threads blocked on acquiring a lock.")
     group.add_argument('--exclude', dest='exclusions', nargs='+', help="Exclude threads whose stacktraces contain the passed string. You can pass multiple arguments.")
 
     args = parser.parse_args()
