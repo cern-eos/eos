@@ -32,8 +32,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-unsigned int eos::mgm::FsCmd::mConcurrents = 0;
-std::mutex eos::mgm::FsCmd::mConcurrentMutex{};
+XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{100};
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
@@ -323,20 +322,21 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-    {
-      std::lock_guard<std::mutex> lock(mConcurrentMutex);
 
-      if (mConcurrents >= 100) {
-        return SFS_DATA;
-      } else {
-        mConcurrents++;
-      }
+    try {
+      mSemaphore.Wait();
+    } catch (...) {
+      err = "Cannot take protecting semaphore, cannot dump md.";
+      return EAGAIN;
     }
-    retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
-                          mVid, entries);
-    {
-      std::lock_guard<std::mutex> lock(mConcurrentMutex);
-      mConcurrents--;
+
+    try {
+      retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr,
+                            mVid, entries);
+    } catch (...) {
+      try {
+        mSemaphore.Post();
+      } catch (...) {}
     }
 
     if (!retc) {

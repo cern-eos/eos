@@ -86,8 +86,7 @@ private:
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
-  static unsigned int mConcurrents;
-  static std::mutex mConcurrentMutex;
+  static XrdSysSemaphore mSemaphore;
 };
 
 EOSMGMNAMESPACE_END
