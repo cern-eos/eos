@@ -111,6 +111,23 @@ class QClientFilter:
             self.eliminations += 1
             return True
 
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("qclient::BackgroundFlusher::monitorAckReception").check(thread) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("qclient::BackgroundFlusher::processPipeline").check(thread) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("qclient::BackgroundFlusher::main").check(thread) ):
+            self.eliminations += 1
+            return True
+
         return False
 
 class XrdSleeperFilter:
@@ -199,6 +216,15 @@ class XrdSleeperFilter:
             self.eliminations += 1
             return True
 
+        if ("epoll_wait" in thread.getFrame(0) and
+            "XrdSys::IOEvents::PollE::Begin" in thread.getFrame(1) and
+            "XrdSys::IOEvents::BootStrap::Start" in thread.getFrame(2) and
+            "XrdSysThread_Xeq" in thread.getFrame(3) ):
+
+            self.eliminations += 1
+            return True
+
+
         return False
 
 class BackgroundSleeperFilter:
@@ -250,7 +276,7 @@ class BackgroundSleeperFilter:
              return True
 
         if ( "nanosleep" in thread.getFrame(0) and
-             "XrdSysTimer::Snooze" in thread.getFrame(1) and
+             "XrdSysTimer::Wait" in thread.getFrame(1) and
              "eos::mgm::GeoBalancer::GeoBalance" in thread.getFrame(2) ):
 
              self.eliminations += 1
@@ -259,6 +285,13 @@ class BackgroundSleeperFilter:
         if ( "nanosleep" in thread.getFrame(0) and
              "XrdSysTimer::Snooze" in thread.getFrame(1) and
              "eos::mgm::GroupBalancer::GroupBalance" in thread.getFrame(2) ):
+
+             self.eliminations += 1
+             return True
+
+        if ( "nanosleep" in thread.getFrame(0) and
+             "XrdSysTimer::Snooze" in thread.getFrame(1) and
+             "eos::mgm::Balancer::Balance" in thread.getFrame(2) ):
 
              self.eliminations += 1
              return True
@@ -318,6 +351,91 @@ class BackgroundSleeperFilter:
 
              self.eliminations += 1
              return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("eos::MetadataFlusher::queueSizeMonitoring").check(thread) ):
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "XrdSysCondVar::Wait" in thread.getFrame(1) and
+            "eos::mgm::Egroup::Refresh" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            "XrdSysCondVar::WaitMS" in thread.getFrame(1) and
+            "XrdSysCondVar::Wait" in thread.getFrame(2) and
+            "eos::common::LvDbDbLogInterface::archiveThread" in thread.getFrame(3) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pause" in thread.getFrame(0) and
+            "eos::common::HttpServer::Run" in thread.getFrame(1) and
+            "XrdSysThread_Xeq" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "eos::common::ConcurrentQueue" in thread.getFrame(1) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("eos::common::ThreadPool::ThreadPool").check(thread) ):
+            self.eliminations += 1
+            return True
+
+        if ("nanosleep" in thread.getFrame(0) and
+            "XrdSysTimer::Wait" in thread.getFrame(1) and
+            "eos::mgm::Messaging::Listen" in thread.getFrame(2) ):
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "XrdSysCondVar::Wait" in thread.getFrame(1) and
+            "XrdMgmOfs::FsConfigListener" in thread.getFrame(2) and
+            "XrdMgmOfs::StartMgmFsConfigListener" in thread.getFrame(3) ):
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            "XrdSysCondVar::WaitMS" in thread.getFrame(1) and
+            "XrdSysCondVar::Wait" in thread.getFrame(2) and
+            "eos::mgm::Converter::Convert" in thread.getFrame(3) ):
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "XrdSysCondVar::Wait" in thread.getFrame(1) and
+            "Wait" in thread.getFrame(2) and
+            "XrdMqSharedObjectChangeNotifier::SomListener" in thread.getFrame(3) ):
+            self.eliminations += 1
+            return True
+
+        return False
+
+class RocksLevelDBFilter:
+    def __init__(self):
+        self.eliminations = 0
+        self.description = "rocksdb/leveldb sleeping background threads"
+
+    def check(self, thread):
+        if thread.getNumberOfFrames() <= 3:
+            return False
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "std::condition_variable::wait" in thread.getFrame(1) and
+            "rocksdb::ThreadPoolImpl::Impl::BGThread" in thread.getFrame(2) and
+            "rocksdb::ThreadPoolImpl::Impl::BGThreadWrapper" in thread.getFrame(3) ):
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "leveldb::(anonymous namespace)::PosixEnv::BGThreadWrapper" in thread.getFrame(1) ):
+            return True
 
         return False
 
@@ -428,6 +546,9 @@ def build_filters(args):
     if not args.want_mgm_sleepers:
         filters += [BackgroundSleeperFilter()]
 
+    if not args.want_rocksdb_sleepers:
+        filters += [RocksLevelDBFilter()]
+
     if args.exclusions:
         for excl in args.exclusions:
             print(excl)
@@ -469,9 +590,10 @@ def getargs():
     group = parser.add_argument_group('Built-in filters enabled by default', 'A certain number of filters are enabled by default to greatly reduce the initial noise, pass these flags to disable them. Only sleeping threads will be filtered out - if some poller, for example, is doing work at the time of capturing the stacktrace, it will be shown by default, unless you filter it out manually using a custom filter.')
     group.add_argument('--show-zmq-pollers', dest='want_zmq', action='store_true', help="Show sleeping ZMQ background threads.")
     group.add_argument('--show-microhttpd-pollers', dest='want_mhd', action='store_true', help="Show sleeping MicroHttpd background threads.")
-    group.add_argument('--show-qclient-pollers', dest='want_qcl', action='store_true', help="Show QClient sleeping background threads.")
-    group.add_argument('--show-xrd-threads', dest='want_xrd_sleepers', action='store_true', help="Show XRootD background sleeping threads.")
-    group.add_argument('--show-background-mgm-threads', dest='want_mgm_sleepers', action='store_true', help="Show MGM background sleeping threads. (Balancer, GroupBalancer, GeoGalancer, Converter)")
+    group.add_argument('--show-qclient-pollers', dest='want_qcl', action='store_true', help="Show sleeping QClient background threads.")
+    group.add_argument('--show-xrd-threads', dest='want_xrd_sleepers', action='store_true', help="Show sleeping XRootD background threads.")
+    group.add_argument('--show-background-mgm-threads', dest='want_mgm_sleepers', action='store_true', help="Show sleeping MGM background threads. (Balancer, GroupBalancer, GeoGalancer, Converter, etc)")
+    group.add_argument('--show-rocksdb-threads', dest='want_rocksdb_sleepers', action='store_true', help="Show sleeping rocksdb / leveldb background threads.")
 
 
     group = parser.add_argument_group('Custom filters', '')
