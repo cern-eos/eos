@@ -28,7 +28,7 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then echo "credential directory is not ready" >&2; exit 1; fi
   if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
 }
 
@@ -139,7 +139,7 @@ function GetDefaultKrb5CredFile
   fi
   NCRED=$(klist -l | tail -n +3 | wc -l)
   if [[ "$NCRED" != "1" ]]; then
-  return; 
+  return;
   fi
   CREDTAG=$(klist -l | tail -1 | awk '{print $2}')
 }
@@ -196,7 +196,7 @@ function GetSymlinkBaseNameSession
 function CheckSessionLeader
 {
   if test ! -n SUT ; then
-    echo "the session leader for the current session is not alive" >&2; 
+    echo "the session leader for the current session is not alive" >&2;
     exit 1;
   fi
 }
@@ -240,8 +240,8 @@ function GetActiveLinkedSessions
   ActiveLinkedSessions=""
   UnactiveLinkedSessions=""
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}_*)
-  if [[ "X$FILELIST" = "X" ]]; then return ; fi              
-  for LINK in `echo $FILELIST` ; 
+  if [[ "X$FILELIST" = "X" ]]; then return ; fi
+  for LINK in `echo $FILELIST` ;
   do
     local lSID=`ls $LINK | grep -oh "sid[0-9]*" | cut -c 4-`
     local lSUT=`ls $LINK | grep -oh "sst[0-9]*" | cut -c 4-`
@@ -263,15 +263,15 @@ function ShowUserGlob
   ShowHeaderGlob
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
   #echo "FILELIST=$FILELIST"
-  local NOTHING="" 
+  local NOTHING=""
   for LINK in `echo $FILELIST` ;
   do
     # don't show lock files !
-    [[ $LINK =~ .*\.lock ]] && continue 
+    [[ $LINK =~ .*\.lock ]] && continue
     ShowGlob $LINK ;
-    NOTHING="FALSE" 
+    NOTHING="FALSE"
   done
-  if [[ "X$NOTHING" = "X" ]]; then echo "[none]"; return ; fi  
+  if [[ "X$NOTHING" = "X" ]]; then echo "[none]"; return ; fi
   echo
 }
 
@@ -281,7 +281,7 @@ function ShowSession
   # if no session leader alive, nothing to show
   if [[ "X$SUT" = "X" ]]; then return ; fi
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
-  if [[ "X$FILELIST" != "X" ]]; then 
+  if [[ "X$FILELIST" != "X" ]]; then
     ShowHeader
     for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
     echo
@@ -291,7 +291,7 @@ function ShowSession
   FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
   if [[ "X$FILELIST" = "X" ]]; then
     echo "The current session is not bound to any credentials"
-    return 
+    return
   fi
   ShowUserGlob
 }
@@ -303,7 +303,7 @@ function ShowUser
   ShowUserGlob
   ShowHeader
   local FILELIST=$(shopt -s nullglob; echo ${ActiveLinkedSessions})
-  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi              
+  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi
   for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
   echo
 }
@@ -316,8 +316,8 @@ function LinkSession
   if [[ "$AUTHTYPE" == "krb5" && "${CREDISFILE}" != "0" ]]; then
   local EXTENSION="krk5"
   fi
-  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  
-  echo "could not find automatically a credential file" 
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then
+  echo "could not find automatically a credential file"
   exit 1
   fi
   SymlinkName="${SymlinkBaseNameSession}.${EXTENSION}"
@@ -341,19 +341,51 @@ function LinkUserGlob
   if [[ "$AUTHTYPE" == "krb5" && "${CREDISFILE}" != "0" ]]; then
   local EXTENSION="krk5"
   fi
-  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  
-  echo "could not find automatically a credential file" 
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then
+  echo "could not find automatically a credential file"
   exit 1
   fi
   SymlinkPathName="${SymlinkBaseNameUser}.${EXTENSION}"
   SymlinkName=$(basename $SymlinkPathName)
   if [[ "${CREDISFILE}" = "0" ]]; then
-    # if we are linking a file as user-global credentials, copy it to the store first
-    cp -f $CREDTAG /var/run/eosd/credentials/store/$SymlinkName 
+    # Create a temporary file
+    TEMP_FILE=$(mktemp /var/run/eosd/credentials/store/temp-XXXXXXXXXXX)
+
     if [ $? -ne 0 ]; then
-      echo "Error copying credentials" >&2
+      echo "Could not create temporary file inside /var/run/eosd/credentials/store, something is wrong with the credential store." >&2
+      exit 1
     fi
+
+    # Ensure permissions are sane, should never fail
+    chmod 0600 "${TEMP_FILE}"
+    if [ $? -ne 0 ]; then
+      echo "Could not chmod ${TEMP_FILE}, something is wrong in the credential store." >&2
+      stat "${TEMP_FILE}" >&2
+      rm -f ${TEMP_FILE}
+      exit 1
+    fi
+
+    # Replace contents of temporary file, should never fail
+    cp -f "${CREDTAG}" "${TEMP_FILE}"
+    if [ $? -ne 0 ]; then
+      echo "Could not replace contents of ${TEMP_FILE}, something is wrong in the credential store." >&2
+      stat "${TEMP_FILE}" >&2
+      rm -f ${TEMP_FILE}
+      exit 1
+    fi
+
+    # Atomically replace CFILE with TEMP_FILE
     CFILE="/var/run/eosd/credentials/store/$SymlinkName"
+    mv -f --no-target-directory "${TEMP_FILE}" "${CFILE}"
+
+    if [ $? -ne 0 ]; then
+      echo "Could not replace ${CFILE} with ${TEMP_FILE}, something is wrong in the credential store." >&2
+      stat "${TEMP_FILE}" >&2
+      stat "${CFILE}" >&2
+
+      rm -f ${TEMP_FILE}
+      exit 1
+    fi
   fi
   #echo "ln -sf $CFILE $SymlinkPathName"
   # create the symlink and then rename it so the overwrite is atomic
