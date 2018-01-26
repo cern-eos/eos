@@ -37,7 +37,7 @@ message FsProto {
   }
 
   message DropFilesProto {
-    int64 Fsid = 1;
+    uint64 Fsid = 1;
     bool Force = 2;
   }
 
