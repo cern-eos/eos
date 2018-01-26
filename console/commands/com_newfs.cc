@@ -451,7 +451,6 @@ FsHelper::ParseCommand(const char* arg)
 
           oss << "/fst" << mountpoint;
           rm->set_nodequeue(oss.str());
-          cerr << "nodequeue:" << rm->nodequeue() << endl;
         }
         else {
           // This needs to be an fsid
@@ -484,13 +483,13 @@ FsHelper::ParseCommand(const char* arg)
           if ((soption.find('.') != std::string::npos) &&
               (soption.find('/') == std::string::npos)) {
             // Check for mountpoint
-            if (!(option = tokenizer.GetToken())) {
+            if (!(option = tokenizer.GetToken()) || (option[0] != '/')) {
               std::cerr << "error: no mountpoint specified" << std::endl;
               return false;
             }
 
-            oss << soption << option;
-            status->set_hostmountpoint(oss.str());
+            oss << "/eos/" << soption << "/fst" << option;
+            status->set_nodequeue(oss.str());
           } else if (soption[0] == '/') {
             // This is a mountpoint append the local hostname
             char hostname[255];
@@ -600,6 +599,7 @@ void com_fs_help()
       << "    boot filesystem identified by <fsid> or all filesystems on a node"
       << std::endl
       << "    identified by <node-queue> or all filesystems registered"
+      << std::endl
       << "    --syncmgm    : for MGM resynchronization during the booting" <<
       std::endl
       << std::endl
@@ -654,9 +654,9 @@ void com_fs_help()
       << std::endl
       << "  fs dropfiles <fsid> [-f]" << std::endl
       << "    drop all files on the filesystem" << std::endl
-      << "    -f : unlinks/removes files from the namespace (you have to remove"
+      << "    -f : unlink/remove files from the namespace (you have to remove"
       << std::endl
-      <<  "        the files from disk) " << std::endl
+      <<  "        the files from disk)" << std::endl
       << std::endl
       << "  fs dumpmd <fsid> [--fid] [--path] [-s|-m]"  << std::endl
       << "    dump all file metadata on this filesystem in query format" << std::endl
