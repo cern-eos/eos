@@ -381,6 +381,7 @@ FsHelper::ParseCommand(const char* arg)
 
           oss << "/fst";
           rm->set_nodequeue(oss.str());
+          cerr << "nodequeue:" << rm->nodequeue() << endl;
         }
         else {
           // This needs to be an fsid
@@ -505,7 +506,7 @@ void com_fs_help()
       << std::endl
       << "                   it is preferable to use the host:port syntax" <<
       std::endl
-      << "    <host>       : FQDN of host where filesystme is mounter" << std::endl
+      << "    <host>       : FQDN of host where filesystem is mounter" << std::endl
       << "    <port>       : FST XRootD port number [usually 1095]" << std::endl
       << "    <mountponit> : local path of the mounted filesystem e.g /data/" <<
       std::endl
@@ -519,7 +520,7 @@ void com_fs_help()
       << "  fs boot <fsid>|<node-queue>|* [--syncmgm]" << std::endl
       << "    boot filesystem identified by <fsid> or all filesystems on a node"
       << std::endl
-      << "    identifyued by <node-queue> or all filesystems registerd"
+      << "    identified by <node-queue> or all filesystems registered"
       << "    --syncmgm    : for MGM resynchronization during the booting" <<
       std::endl
       << std::endl
@@ -622,7 +623,7 @@ void com_fs_help()
       << "    dst_grp   : destination scheduling group" << std::endl
       << "    dst_space : destination space - best match scheduling group"
       << std::endl
-      << "                is auto-slected" << std::endl
+      << "                is auto-selected" << std::endl
       << std::endl
       << "  fs rm <fsid>|<node-queue>|<mountpoint>|<hostname>" << std::endl
       << "    remove filesystem by various identifiers" << std::endl

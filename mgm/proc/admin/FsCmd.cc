@@ -134,7 +134,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
                         bootProto.nodequeue() : "");
     std::string fsids = (bootProto.id_case() ==
                          eos::console::FsProto::BootProto::kFsid ?
-                         std::to_string(bootProto.fsid()) : "");
+                         std::to_string(bootProto.fsid()) : "0");
     bool forcemgmsync = bootProto.syncmgm();
     eos::common::FileSystem::fsid_t fsid = std::stoi(fsids);
 
