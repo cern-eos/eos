@@ -53,6 +53,8 @@ eos::mgm::FsCmd::ProcessRequest()
     reply.set_retc(Config(fs.config()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
     reply.set_retc(DropDeletion(fs.dropdel()));
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropfiles) {
+    reply.set_retc(DropFiles(fs.dropfiles()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
     reply.set_retc(DumpMd(fs.dumpmd()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
@@ -629,6 +631,11 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
   mOut = outStream.str();
   mErr = errStream.str();
   return retc;
+}
+
+int
+FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
+  return 0;
 }
 
 //------------------------------------------------------------------------------

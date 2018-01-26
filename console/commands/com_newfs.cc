@@ -269,6 +269,8 @@ FsHelper::ParseCommand(const char* arg)
 
         dropfiles->set_force(true);
       }
+
+      mNeedsConfirmation = true;
     }
   } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;
@@ -554,6 +556,11 @@ int com_newfs(char* arg)
 
   if (!fs.ParseCommand(arg)) {
     com_fs_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  if (fs.NeedsConfirmation() && !fs.ConfirmOperation()) {
     global_retc = EINVAL;
     return EINVAL;
   }

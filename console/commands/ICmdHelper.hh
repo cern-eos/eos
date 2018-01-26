@@ -66,6 +66,10 @@ public:
   //----------------------------------------------------------------------------
   int Execute();
 
+  bool NeedsConfirmation();
+
+  bool ConfirmOperation();
+
 protected:
   //----------------------------------------------------------------------------
   //! Apply highlighting to text
@@ -79,4 +83,5 @@ protected:
   bool mIsAdmin; ///< If true execute as admin, otherwise as user
   bool mHighlight; ///< If true apply text highlighting to output
   bool mIsSilent; ///< If true execute command but don't display anything
+  bool mNeedsConfirmation {false}; ///< If true it requires a strong user confirmation before executing the command
 };

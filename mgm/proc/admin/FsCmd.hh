@@ -75,6 +75,8 @@ private:
 
   int Status(const eos::console::FsProto::StatusProto& statusProto);
 
+  int DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto);
+
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 

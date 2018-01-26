@@ -113,3 +113,33 @@ ICmdHelper::TextHighlight(std::string& text)
     text = tmp.c_str();
   }
 }
+
+bool
+ICmdHelper::ConfirmOperation() {
+  std::ostringstream out;
+
+  out << "Confirm operation by typing => ";
+  std::string confirmation;
+  for (int i = 0; i < 10; i++) {
+    confirmation += std::to_string((int)(9.0 * rand() / RAND_MAX));
+  }
+  out << confirmation << std::endl << "                               => ";
+
+  std::string userInput;
+  std::cout << out.str();
+  getline(std::cin, userInput);
+
+  if (userInput == confirmation) {
+    std::cout << std::endl << "Operation confirmed" << std::endl;
+    return true;
+  }
+  else {
+    std::cout << std::endl << "Operation not confirmed" << std::endl;
+    return false;
+  }
+}
+
+bool
+ICmdHelper::NeedsConfirmation() {
+  return mNeedsConfirmation;
+}

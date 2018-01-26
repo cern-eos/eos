@@ -1861,6 +1861,9 @@ bool Mapping::IsLocalhost(VirtualIdentity& vid)
       (vid.host == "localhost6.localdomain6")) {
     return true;
   }
+  else {
+    return false;
+  }
 }
 
 // -----------------------------------------------------------------------------
