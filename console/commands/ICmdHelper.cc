@@ -24,8 +24,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <sstream>
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
