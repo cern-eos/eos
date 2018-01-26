@@ -2880,11 +2880,11 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 
       if (!sh) {
         if (ftag == XRDMQSHAREDHASH_BCREQUEST) {
-          error = "bcrequest: don't know this subject";
+          error = "bcrequest: don't know this subject ";
         }
 
         if (ftag == XRDMQSHAREDHASH_DELETE) {
-          error = "delete: don't know this subject";
+          error = "delete: don't know this subject ";
 
           if (subjectlist.size() > 0) {
             error += subjectlist[0].c_str();
@@ -2892,7 +2892,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
         }
 
         if (ftag == XRDMQSHAREDHASH_REMOVE) {
-          error = "remove: don't know this subject";
+          error = "remove: don't know this subject ";
 
           if (subjectlist.size() > 0) {
             error += subjectlist[0].c_str();

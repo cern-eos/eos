@@ -85,7 +85,7 @@ message FsProto {
   message StatusProto {
     oneof id {
       uint64 Fsid = 1;
-      string HostMountpoint = 2;
+      string NodeQueue = 2;
     }
 
     bool LongFormat = 3;

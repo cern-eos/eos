@@ -54,10 +54,11 @@ IProcCommand::open(const char* path, const char* info,
     eos_notice("%s", msg.c_str());
     error->setErrInfo(0, msg.c_str());
     return delay;
+    // @todo (esindril): Investigate how SFS_STARTED would behave in such a case
   } else {
     eos::console::ReplyProto reply = mFuture.get();
 
-    // output is written in file
+    // Output is written in file
     if (!ofstdoutStreamFilename.empty() && !ofstderrStreamFilename.empty()) {
       ifstdoutStream.open(ofstdoutStreamFilename, std::ifstream::in);
       ifstderrStream.open(ofstderrStreamFilename, std::ifstream::in);

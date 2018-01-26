@@ -371,8 +371,31 @@ FsHelper::ParseCommand(const char* arg)
       soption = option;
 
       // Parse nodequeue specification
-      if ((soption[0] == '/') && (soption.find(':') != std::string::npos) &&
+      if ((soption.find("/eos/") == 0) &&
+          (soption.find(':') != std::string::npos) &&
           (soption.find('.') != std::string::npos)) {
+        // Check if it ends in /fst, if not append it
+        std::string search = "/fst";
+
+        if (soption.rfind(search) != soption.length() - search.length()) {
+          soption += "/fst";
+        }
+
+        // Parse the mountpoint and remove any ending /
+        std::string mountpoint;
+
+        if (!(option = tokenizer.GetToken())) {
+          std::cerr << "error: no mountpoint specified" << std::endl;
+          return false;
+        }
+
+        mountpoint = option;
+
+        if (*mountpoint.rbegin() == '/') {
+          mountpoint.pop_back();
+        }
+
+        soption += mountpoint;
         rm->set_nodequeue(soption);
       } else {
         // Parse mountpoint and append any required info
@@ -393,7 +416,25 @@ FsHelper::ParseCommand(const char* arg)
         })
         != soption.end()) {
           // This contains at least one alphabetic char therefore it must be
-          // a hostname, append any other required info
+          // a hostname, parse the mountpoint and construct the node-queue
+          std::string mountpoint;
+
+          if (!(option = tokenizer.GetToken())) {
+            std::cerr << "error: mountpoint missing" << std::endl;
+            return false;
+          }
+
+          mountpoint = option;
+
+          if (mountpoint.empty() || mountpoint[0] != '/') {
+            std::cerr << "error: invalid mountpoint" << std::endl;
+            return false;
+          }
+
+          if (*mountpoint.rbegin() == '/') {
+            mountpoint.pop_back();
+          }
+
           bool has_port = false;
           auto pos = soption.find(':');
 
@@ -408,7 +449,7 @@ FsHelper::ParseCommand(const char* arg)
             oss << ":1095";
           }
 
-          oss << "/fst";
+          oss << "/fst" << mountpoint;
           rm->set_nodequeue(oss.str());
           cerr << "nodequeue:" << rm->nodequeue() << endl;
         }
@@ -459,8 +500,17 @@ FsHelper::ParseCommand(const char* arg)
               return false;
             }
 
-            oss << hostname << soption;
-            status->set_hostmountpoint(oss.str());
+            oss << "/eos/" << hostname << ":1095/fst" << soption;
+            status->set_nodequeue(oss.str());
+          } else if (std::isalpha(soption[0])) {
+            // This is a hostname specification, check for mountpoint
+            if (!(option = tokenizer.GetToken())) {
+              std::cerr << "error: no mountpoint specified" << std::endl;
+              return false;
+            }
+
+            oss << "/eos/" << soption << "/fst" << option;
+            status->set_nodequeue(oss.str());
           } else {
             // This needs to be a fsid
             try {
@@ -477,7 +527,7 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
 
-      if ((status->fsid() == 0) && (status->hostmountpoint().empty())) {
+      if ((status->fsid() == 0) && (status->nodequeue().empty())) {
         std::cerr << "error: fsid or host/mountponint needs to be specified"
                   << std::endl;
         return false;
@@ -523,7 +573,7 @@ void com_fs_help()
       << std::endl
       << "  Options:" << std::endl
       << "  fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] "
-      << "<mountpoint> [<schedgroup>] [<status]" << std::endl
+      << "<mountpoint> [<schedgroup>] [<status>]" << std::endl
       << "    add and assign a filesystem based on the unique identifier of the disk <uuid>"
       << std::endl
       << "    -m|--manual  : add with user specified <fsid> and <schedgroup>"
@@ -617,11 +667,7 @@ void com_fs_help()
       << std::endl
       << "  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]"
       << std::endl
-      << "    list all filesystems in the default output format. <space> is an "
-      << std::endl
-      << "    optional substring match for the space name and can be a comma"
-      << std::endl
-      << "    separated list" << std::endl
+      << "    list filesystems using the default output format" << std::endl
       << "    -m         : monitoring format" << std::endl
       << "    -b|--brief : display hostnames without domain names" << std::endl
       << "    -l         : display parameters in long format" << std::endl
@@ -641,7 +687,7 @@ void com_fs_help()
       << "          e.g. 'fs ls -d drain,bootfailure'" << std::endl
       << "       -> can be a combination of space filter and grep e.g."
       << std::endl
-      << "          'fs ls -l space:default,drain,bootfailure'" << std::endl
+      << "          'fs ls -l default,drain,bootfailure'" << std::endl
       << std::endl
       << "  fs mv <src_fsid|src_grp|src_space> <dst_grp|dst_space>" << std::endl
       << "    move filesystem(s) in different scheduling group or space"
@@ -655,8 +701,10 @@ void com_fs_help()
       << std::endl
       << "                is auto-selected" << std::endl
       << std::endl
-      << "  fs rm <fsid>|<node-queue>|<mountpoint>|<hostname>" << std::endl
-      << "    remove filesystem by various identifiers" << std::endl
+      << "  fs rm <fsid>|<mnt>|<node-queue> <mnt>|<hostname> <mnt>" << std::endl
+      << "    remove filesystem by various identifiers, where <mnt> is the "
+      << std::endl
+      << "    mountpoint" << std::endl
       << std::endl
       << "  fs status [-r] [-l] <identifier>" << std::endl
       << "    return all status variables of a filesystem and calculates"
