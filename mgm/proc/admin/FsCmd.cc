@@ -46,53 +46,31 @@ eos::mgm::FsCmd::ProcessRequest()
   const auto& subCmdCase = fs.subcmd_case();
 
   if (subCmdCase == eos::console::FsProto::SubcmdCase::kAdd) {
-    std::string out, err;
-    reply.set_retc(Add(fs.add(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Add(fs.add()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kBoot) {
-    std::string out, err;
-    reply.set_retc(Boot(fs.boot(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Boot(fs.boot()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kConfig) {
-    std::string out, err;
-    reply.set_retc(Config(fs.config(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Config(fs.config()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
-    std::string out, err;
-    reply.set_retc(DropDeletion(fs.dropdel(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(DropDeletion(fs.dropdel()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
-    std::string out, err;
-    reply.set_retc(DumpMd(fs.dumpmd(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(DumpMd(fs.dumpmd()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
-    reply.set_std_out(List(fs.ls()));
+    mOut = List(fs.ls());
     reply.set_retc(0);
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kMv) {
-    std::string out, err;
-    reply.set_retc(Mv(fs.mv(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Mv(fs.mv()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kRm) {
-    std::string out, err;
-    reply.set_retc(Rm(fs.rm(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Rm(fs.rm()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kStatus) {
-    std::string out, err;
-    reply.set_retc(Status(fs.status(), out, err));
-    reply.set_std_out(std::move(out));
-    reply.set_std_err(std::move(err));
+    reply.set_retc(Status(fs.status()));
   } else {
     reply.set_retc(EINVAL);
-    reply.set_std_err("error: not supported");
+    mErr = "error: not supported";
   }
 
+  reply.set_std_out(mOut);
+  reply.set_std_err(mErr);
   return reply;
 }
 
@@ -100,8 +78,7 @@ eos::mgm::FsCmd::ProcessRequest()
 // Add subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
-           std::string& err)
+FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
 {
   std::string sfsid = addProto.manual() ? std::to_string(addProto.fsid()) : "0";
   std::string uuid = addProto.uuid();
@@ -110,7 +87,7 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
   // If nodequeue is empty then we have the host or even the host and the port
   if (nodequeue.empty()) {
     if (addProto.hostport().empty()) {
-      err = "error: no nodequeue or or hostport specified";
+      mErr = "error: no nodequeue or or hostport specified";
       return EINVAL;
     }
 
@@ -131,8 +108,8 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
   XrdOucString outLocal, errLocal;
   retc = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
                      outLocal, errLocal, mVid);
-  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -140,8 +117,7 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
 // Boot subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
-            std::string& err)
+FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 {
   std::ostringstream outStream, errStream;
 
@@ -263,8 +239,8 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
     errStream << "error: you have to take role 'root' to execute this command";
   }
 
-  out = outStream.str();
-  err = errStream.str();
+  mOut = outStream.str();
+  mErr = errStream.str();
   return retc;
 }
 
@@ -272,8 +248,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
 // Config subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto,
-              std::string& out, std::string& err)
+FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto)
 {
   auto key = configProto.key();
   auto value = configProto.value();
@@ -298,8 +273,8 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto,
 
   XrdOucString outLocal, errLocal;
   retc = proc_fs_config(identifier, key, value, outLocal, errLocal, mVid);
-  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -308,16 +283,14 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto,
 //------------------------------------------------------------------------------
 int
 FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
-                    dropdelProto,
-                    std::string& out, std::string& err)
+                    dropdelProto)
 {
   XrdOucString outLocal, errLocal;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
   retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal,
-                              errLocal,
-                              mVid);
-  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+                              errLocal, mVid);
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -326,8 +299,7 @@ FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
 // Dumpmd subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
-              std::string& out, std::string& err)
+FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
 {
   XrdOucString outLocal, errLocal;
 
@@ -352,7 +324,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
     try {
       mSemaphore.Wait();
     } catch (...) {
-      err = "Cannot take protecting semaphore, cannot dump md.";
+      mErr = "Cannot take protecting semaphore, cannot dump md.";
       return EAGAIN;
     }
 
@@ -374,8 +346,8 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
                "to execute this command";
   }
 
-  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -405,19 +377,18 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 // Mv subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out,
-          std::string& err)
+FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
 {
   if (mVid.uid == 0) {
     std::string source = mvProto.src();
     std::string dest = mvProto.dst();
     XrdOucString outLocal, errLocal;
     retc = proc_fs_mv(source, dest, outLocal, errLocal, mVid);
-    out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-    err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+    mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+    mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   } else {
     retc = EPERM;
-    err = "error: you have to take role 'root' to execute this command";
+    mErr = "error: you have to take role 'root' to execute this command";
   }
 
   return retc;
@@ -427,8 +398,7 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out,
 // Rm subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
-          std::string& err)
+FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
 {
   std::string nodequeue = "";
   std::string mountpoint = "";
@@ -445,8 +415,8 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
   XrdOucString outLocal, errLocal;
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
   retc = proc_fs_rm(nodequeue, mountpoint, id, outLocal, errLocal, mVid);
-  out = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  err = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;
 }
 
@@ -454,8 +424,7 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
 // Status subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
-              std::string& out, std::string& err)
+FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 {
   std::ostringstream outStream, errStream;
 
@@ -497,7 +466,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
 
       if (!fsid) {
         errStream << "error: no such filesystem " << queuepath;
-        err = errStream.str();
+        mErr = errStream.str();
         retc = ENOENT;
         return retc;
       }
@@ -657,8 +626,8 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
               "or connect via sss";
   }
 
-  out = outStream.str();
-  err = errStream.str();
+  mOut = outStream.str();
+  mErr = errStream.str();
   return retc;
 }
 

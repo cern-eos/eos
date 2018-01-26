@@ -59,34 +59,28 @@ private:
   //! Methods implementing individual subcommands
   std::string List(const eos::console::FsProto::LsProto& lsProto);
 
-  int Config(const eos::console::FsProto::ConfigProto& configProto,
-             std::string& out, std::string& err);
+  int Config(const eos::console::FsProto::ConfigProto& configProto);
 
-  int Mv(const eos::console::FsProto::MvProto& mvProto, std::string& out,
-         std::string& err);
+  int Mv(const eos::console::FsProto::MvProto& mvProto);
 
-  int Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
-         std::string& err);
+  int Rm(const eos::console::FsProto::RmProto& rmProto);
 
-  int DropDeletion(const eos::console::FsProto::DropDeletionProto& dropdelProto,
-                   std::string& out, std::string& err);
+  int DropDeletion(const eos::console::FsProto::DropDeletionProto& dropdelProto);
 
-  int Add(const eos::console::FsProto::AddProto& addProto, std::string& out,
-          std::string& err);
+  int Add(const eos::console::FsProto::AddProto& addProto);
 
-  int Boot(const eos::console::FsProto::BootProto& bootProto, std::string& out,
-           std::string& err);
+  int Boot(const eos::console::FsProto::BootProto& bootProto);
 
-  int DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto,
-             std::string& out, std::string& err);
+  int DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto);
 
-  int Status(const eos::console::FsProto::StatusProto& statusProto,
-             std::string& out, std::string& err);
+  int Status(const eos::console::FsProto::StatusProto& statusProto);
 
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
   static XrdSysSemaphore mSemaphore;
+  std::string mOut; ///< Command output string
+  std::string mErr; ///< Command error output string
 };
 
 EOSMGMNAMESPACE_END
