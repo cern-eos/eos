@@ -419,8 +419,8 @@ int
 FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto, std::string& out,
           std::string& err)
 {
-  std::string nodename = "";
-  std::string mountpoint = "";
+  std::string nodename;
+  std::string mountpoint;
   std::string id = (rmProto.id_case() == eos::console::FsProto::RmProto::kFsid ?
                     std::to_string(rmProto.fsid()) : "");
 
