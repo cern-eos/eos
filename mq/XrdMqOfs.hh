@@ -45,20 +45,15 @@
 #include <pwd.h>
 #include <uuid/uuid.h>
 
-#include "XrdClient/XrdClientAdmin.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysSemWait.hh"
-#include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOfs/XrdOfs.hh"
-#include "Xrd/XrdScheduler.hh"
 
+class XrdSecEntity;
 
 // if we have too many messages pending we don't take new ones for the moment
 #define MQOFSMAXMESSAGEBACKLOG 100000

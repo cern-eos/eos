@@ -25,7 +25,7 @@
 /*-----------------------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -42,12 +42,12 @@ int main (int argc, char* argv[]) {
     fprintf(stderr,"usage: xrdcpappend <url>\n");
     exit(EINVAL);
   }
-  
-  
+
+
   int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
 				     O_RDWR,
 				     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
- 
+
   if (fdWrite>=0) {
     char buffer[4096];
     for (size_t i=0; i< sizeof(buffer); i++) {

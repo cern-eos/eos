@@ -23,7 +23,6 @@
 
 #include "mgm/VstView.hh"
 #include "common/StringConversion.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <math.h>
 
 EOSMGMNAMESPACE_BEGIN

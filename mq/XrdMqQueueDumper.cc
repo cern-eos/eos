@@ -26,7 +26,6 @@
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
-#include <XrdClient/XrdClientEnv.hh>
 #include <XrdSys/XrdSysTimer.hh>
 
 int main(int argc, char* argv[])

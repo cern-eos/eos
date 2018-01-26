@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "XrdVersion.hh"
-#include "XrdClient/XrdClientAdmin.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucEnv.hh"

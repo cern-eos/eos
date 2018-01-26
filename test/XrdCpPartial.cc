@@ -25,7 +25,6 @@
 /*-----------------------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 
@@ -38,11 +37,11 @@ int main (int argc, char* argv[]) {
     fprintf(stderr,"usage: xrdcppartial <url>\n");
     exit(EINVAL);
   }
-  
-  
+
+
   int fdRead = XrdPosixXrootd::Open(urlFile.c_str(),0,0);
-				     
- 
+
+
   if (fdRead>=0) {
     char buffer[4096];
     for (size_t i=0; i< sizeof(buffer); i++) {

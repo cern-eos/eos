@@ -25,7 +25,6 @@
 /*-----------------------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 
@@ -50,7 +49,7 @@ int main (int argc, char* argv[]) {
   for (int k=0; k<2; k++) {
     fprintf(stderr,"# RUN   %d ----------------------------------------------------\n", k);
     int fdRead = XrdPosixXrootd::Open(urlFile.c_str(),0,0);
-    
+
     if (fdRead>0) {
       off_t offset = 0;
       size_t nread=0;

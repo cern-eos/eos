@@ -25,7 +25,6 @@
 /*-----------------------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 
@@ -38,15 +37,15 @@ int main (int argc, char* argv[]) {
     fprintf(stderr,"usage: xrdcpabort <url>\n");
     exit(EINVAL);
   }
-  
+
   struct stat buf;
 
   if (!XrdPosixXrootd::Stat(urlFile.c_str(), &buf)) {
     int fdRead = XrdPosixXrootd::Open(urlFile.c_str(),0,0);
-    
+
     if (fdRead>=0) {
       char* buffer = (char*)malloc(256 * 4096);
-      
+
       // download 1000 random chunks
       for (int i=0 ;i< 1000; i++) {
 	off_t offset = (off_t)(buf.st_size * random()/RAND_MAX);

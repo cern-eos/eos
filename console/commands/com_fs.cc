@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <unistd.h>
 #include "console/ConsoleMain.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"

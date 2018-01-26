@@ -28,7 +28,7 @@
 #include <fcntl.h>
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 

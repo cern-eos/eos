@@ -30,9 +30,7 @@
 #define __EOSCOMMON_STRINGCONVERSION__
 
 #include "common/Namespace.hh"
-#include "common/Timing.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "curl/curl.h"
 #include "fmt/format.h"
 #include <string>
 #include <vector>
@@ -45,6 +43,8 @@
 #include <string.h>
 #include <fstream>
 #include <sstream>
+
+typedef void CURL;
 
 EOSCOMMONNAMESPACE_BEGIN
 

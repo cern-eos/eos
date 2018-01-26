@@ -29,7 +29,7 @@
 #include <fcntl.h>
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 
@@ -47,7 +47,7 @@ int main (int argc, char* argv[]) {
 				     O_CREAT|O_RDWR|O_TRUNC,
 				     kXR_ur | kXR_uw | kXR_gw | kXR_gr
 				     | kXR_or );
-  
+
   off_t offset = 0;
   size_t sizeHeader = 4* 1024;
   size_t sizeBuffer = 1024*1024;
@@ -63,15 +63,15 @@ int main (int argc, char* argv[]) {
     offset = 0;
     XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeHeader, offset);
     XrdPosixXrootd::Ftruncate(fdWrite, sizeBuffer * 4 + sizeHeader);
-    
+
     offset = sizeHeader;
     XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeBuffer, offset);
     XrdPosixXrootd::Ftruncate(fdWrite, sizeBuffer * 4 + sizeHeader);
-    
+
     offset = sizeHeader + sizeBuffer;
     XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeBuffer, offset);
     XrdPosixXrootd::Ftruncate(fdWrite, sizeBuffer * 4 + sizeHeader);
-    
+
     offset = sizeHeader + 2 * sizeBuffer;
     XrdPosixXrootd::Pwrite(fdWrite, buffer, sizeBuffer, offset);
     XrdPosixXrootd::Ftruncate(fdWrite, sizeBuffer * 4 + sizeHeader);

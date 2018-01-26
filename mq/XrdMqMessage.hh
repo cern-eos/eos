@@ -28,8 +28,6 @@
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucStream.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSys/XrdSysPthread.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <openssl/evp.h>
 

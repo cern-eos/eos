@@ -28,6 +28,7 @@
 #include "common/ConsoleRequest.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include <future>
+#include <sstream>
 
 //! Forward declarations
 class XrdOucErrInfo;

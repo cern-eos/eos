@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file XrdStress.cc
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class capable of doing a stress test ( read/write operations) on the 
+//! @brief Class capable of doing a stress test ( read/write operations) on the
 //!        files of a directory using either threads or processes.
 //------------------------------------------------------------------------------
 
@@ -25,7 +25,6 @@
 
 /*-----------------------------------------------------------------------------*/
 #include <string>
-#include <pthread.h>
 /*-----------------------------------------------------------------------------*/
 
 #define DELTATIME 10                ///< print statistics every 10 seconds
@@ -99,7 +98,7 @@ class XrdStress
     std::vector<pthread_t>   vectChilds;   ///< vector of childs
     std::vector<std::string> vectFilename; ///< vector of all files used
 
-  
+
     //--------------------------------------------------------------------------
     //! Run test using threads
     //--------------------------------------------------------------------------
@@ -191,4 +190,3 @@ class XrdStress
     static void* RdWrProc( void* arg );
 
 };
-

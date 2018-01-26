@@ -23,8 +23,6 @@
 
 #define TRACE_debug 0xffff
 #include <mq/XrdMqClient.hh>
-#include <mq/XrdMqTiming.hh>
-#include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysTimer.hh>
 #include <stdio.h>
 
@@ -48,7 +46,7 @@ int main (int argc, char* argv[]) {
   if (argc >= 4) {
     sleeper = strtoll(argv[3],0,10);
   }
-    
+
   if (argc >= 5) {
     size = strtoll(argv[4],0,10);
   }
@@ -62,7 +60,7 @@ int main (int argc, char* argv[]) {
   if (!mqc.AddBroker(broker.c_str())) {
     fprintf(stderr,"error: failed to add broker %s\n",broker.c_str());
     exit(-1);
-  } 
+  }
 
   XrdOucString queue = broker;
   int apos = broker.find("//");
@@ -100,7 +98,7 @@ int main (int argc, char* argv[]) {
       fprintf(stderr,"error: failed to send message\n");
     }
     // we exit after maxfeeds messages
-    if (maxfeeds && (feeded >= maxfeeds)) 
+    if (maxfeeds && (feeded >= maxfeeds))
       exit(0);
     XrdSysTimer mySleeper;
     mySleeper.Wait(sleeper/1000);

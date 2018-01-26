@@ -33,7 +33,7 @@
 
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
+#include <XrdCl/XrdClFileSystem.hh>
 #include <XrdOuc/XrdOucString.hh>
 /*-----------------------------------------------------------------------------*/
 
@@ -46,20 +46,20 @@ int main (int argc, char* argv[]) {
     fprintf(stderr,"usage: xrdcpabort <url>\n");
     exit(EINVAL);
   }
-  
+
   int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
 				     O_CREAT|O_RDWR|O_TRUNC,
 				     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
- 
+
   std::map<off_t, off_t> lmap;
   std::vector<off_t> voff;
 
   char* buffer = (char*) malloc(100000000);
-  
+
   for (size_t i=0; i< 100000000; i++) {
     buffer[i] = i%255;
   }
-  
+
   // create 100 pieces
   for (size_t i=0; i<100; i++) {
     off_t offset = (off_t)(100000000.0 * random()/RAND_MAX);
@@ -67,7 +67,7 @@ int main (int argc, char* argv[]) {
     lmap[offset] = 0;
     //    fprintf(stderr,"Chunk %u : %llu\n", (unsigned int) i, (unsigned long long)offset);
   }
-  
+
   std::map<off_t, off_t>::const_iterator it1;
   std::map<off_t, off_t>::const_iterator it2;
   it2=lmap.begin();
@@ -77,8 +77,8 @@ int main (int argc, char* argv[]) {
     //    fprintf(stderr,"%llu %llu\n", it1->first,lmap[it1->first]);
     it2++;
   }
-  
-  
+
+
   if (fdWrite>=0) {
     for (size_t i=0; i< 100 ;i++) {
       //      fprintf(stderr,"Writing %llu %llu\n", voff[i], lmap[voff[i]]);

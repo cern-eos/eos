@@ -32,6 +32,7 @@
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqTiming.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
