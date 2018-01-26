@@ -379,6 +379,7 @@ eos_system_test:
     - sudo ./eos-docker/scripts/shutdown_services.sh
   tags:
     - shell-with-docker
+  allow_failure: true
   dependencies:
     - eos_rpm_cc7
     
