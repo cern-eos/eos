@@ -452,7 +452,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto,
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     std::string fsids = statusProto.id_case() ==
                         eos::console::FsProto::StatusProto::kFsid
-                        ? std::to_string(statusProto.fsid()) : "";
+                        ? std::to_string(statusProto.fsid()) : "0";
     std::string node;
     std::string mount;
 

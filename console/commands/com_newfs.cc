@@ -410,7 +410,7 @@ FsHelper::ParseCommand(const char* arg)
           status->set_riskassesment(true);
         } else {
           // This is a hostname specification
-          if ((soption.find('.') != std::string::npos) ||
+          if ((soption.find('.') != std::string::npos) &&
               (soption.find('/') == std::string::npos)) {
             // Check for mountpoint
             if (!(option = tokenizer.GetToken())) {
