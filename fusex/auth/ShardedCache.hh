@@ -27,6 +27,11 @@
 #include "Utils.hh"
 #include "common/RWMutex.hh"
 #include "misc/AssistedThread.hh"
+
+#ifdef __APPLE__
+#include <cmath>
+#endif
+
 #include <memory>
 #include <vector>
 #include <mutex>

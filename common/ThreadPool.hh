@@ -26,6 +26,10 @@
 #include "common/ConcurrentQueue.hh"
 #include <future>
 
+#ifdef __APPLE__
+#include <cmath>
+#endif
+
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------------
