@@ -21,21 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <sstream>
 #include <iomanip>
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
-/*----------------------------------------------------------------------------*/
-
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 SymKeyStore gSymKeyStore; //< global SymKey store singleton
 XrdSysMutex SymKey::msMutex;
-/*----------------------------------------------------------------------------*/
 
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 //------------------------------------------------------------------------------
@@ -438,6 +433,28 @@ SymKey::DeBase64(std::string& in, std::string& out)
     out.assign(valout, valout_len);
     free(valout);
     return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Serialise a Google Protobuf object and base64 encode the result
+//------------------------------------------------------------------------------
+bool
+SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
+                             std::string& output)
+{
+  size_t sz = msg->ByteSize();
+  std::string buffer(sz , '\0');
+  google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
+
+  if (!msg->SerializeToZeroCopyStream(&aos)) {
+    return false;
+  }
+
+  if (!eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), output)) {
+    return false;
   }
 
   return false;

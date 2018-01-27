@@ -793,14 +793,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   size_t dotpos = vid.host.find(".");
+
   // remove hostname
-  if (dotpos != std::string::npos)
-  {
-    vid.domain=vid.host.substr(dotpos+1);
-  }
-  else
-  {
-    vid.domain="localdomain";
+  if (dotpos != std::string::npos) {
+    vid.domain = vid.host.substr(dotpos + 1);
+  } else {
+    vid.domain = "localdomain";
   }
 
   {
@@ -1140,7 +1138,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   id_pair* id  = 0;
   memset(&passwdinfo, 0, sizeof(passwdinfo));
   eos_static_debug("find in uid cache %s", name);
-
   XrdSysMutexHelper gLock(gPhysicalIdMutex);
 
   // cache short cut's
@@ -1218,10 +1215,8 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
         }
       }
 
-      if (known_tident)
-      {
-        if (gRootSquash && (!id->uid || !id->gid))
-        {
+      if (known_tident) {
+        if (gRootSquash && (!id->uid || !id->gid)) {
           return;
         }
 
@@ -1244,9 +1239,8 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
       gPhysicalIdMutex.UnLock();
       struct passwd* pwbufp = 0;
       {
-        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
-        {
-	  gPhysicalIdMutex.Lock();
+        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+          gPhysicalIdMutex.Lock();
           return;
         }
       }
@@ -1309,7 +1303,6 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   gid_vector* vec = new uid_vector;
   *vec = vid.gid_list;
   gPhysicalGidCache.Add(name, vec, 3600);
-
   return;
 }
 
@@ -1733,7 +1726,7 @@ bool Mapping::IsGid(XrdOucString idstring, gid_t& id)
 // -----------------------------------------------------------------------------
 
 const char* Mapping::ReduceTident(XrdOucString& tident,
-  XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost)
+                                  XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost)
 {
   int dotpos = tident.find(".");
   int addpos = tident.find("@");
@@ -1777,7 +1770,8 @@ std::string Mapping::GidAsString(gid_t gid)
 // -----------------------------------------------------------------------------
 //! Copy function for virtual identities
 // -----------------------------------------------------------------------------
-void Mapping::Copy(Mapping::VirtualIdentity& vidin, Mapping::VirtualIdentity& vidout)
+void Mapping::Copy(Mapping::VirtualIdentity& vidin,
+                   Mapping::VirtualIdentity& vidout)
 {
   vidout.uid = vidin.uid;
   vidout.gid = vidin.gid;
@@ -1810,7 +1804,8 @@ void Mapping::Copy(Mapping::VirtualIdentity& vidin, Mapping::VirtualIdentity& vi
 //------------------------------------------------------------------------------
 //! Function converting vid frin a string representation
 //------------------------------------------------------------------------------
-bool Mapping::VidFromString(Mapping::VirtualIdentity& vid, const char* vidstring)
+bool Mapping::VidFromString(Mapping::VirtualIdentity& vid,
+                            const char* vidstring)
 {
   std::string svid = vidstring;
   std::vector<std::string> tokens;
@@ -1861,9 +1856,8 @@ bool Mapping::IsLocalhost(VirtualIdentity& vid)
       (vid.host == "localhost6.localdomain6")) {
     return true;
   }
-  else {
-    return false;
-  }
+
+  return false;
 }
 
 // -----------------------------------------------------------------------------

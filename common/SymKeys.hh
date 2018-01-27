@@ -31,9 +31,10 @@
 #define __EOSCOMMON_SYMKEYS__HH__
 
 #include "common/Namespace.hh"
-#include <XrdOuc/XrdOucHash.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSys/XrdSysPthread.hh>
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include <google/protobuf/message.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/engine.h>
@@ -168,6 +169,18 @@ public:
   static bool Base64(XrdOucString& in, XrdOucString& out);
 
   static bool Base64(std::string& in, std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Serialise a Google Protobuf object and base64 encode the result
+  //!
+  //! @param msg generic Google Protobuf object
+  //! @param output protobuf serialised and base64 encoded
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool
+  ProtobufBase64Encode(const google::protobuf::Message* msg,
+                       std::string& output);
 
   //----------------------------------------------------------------------------
   //!

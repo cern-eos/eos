@@ -110,6 +110,7 @@ target_link_libraries(eosCommon PUBLIC
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${CURL_LIBRARIES}
+  ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
@@ -165,6 +166,7 @@ target_link_libraries(eosCommon-Static PRIVATE
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
+  ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
@@ -246,7 +248,6 @@ if(NOT CLIENT AND Linux)
   target_link_libraries(dbmaptestfunc PRIVATE
     eosCommonServer
     eosCommon
-    ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
