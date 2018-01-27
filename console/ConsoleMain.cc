@@ -483,7 +483,7 @@ output_result(XrdOucEnv* result, bool highlighting)
 // Execute user command
 //------------------------------------------------------------------------------
 XrdOucEnv*
-client_command(XrdOucString& in, bool is_admin)
+client_command(XrdOucString& in, bool is_admin, std::string* reply)
 {
   if (user_role.length()) {
     in += "&eos.ruid=";
@@ -549,6 +549,12 @@ client_command(XrdOucString& in, bool is_admin)
     }
 
     CommandEnv = new XrdOucEnv(out.c_str());
+
+    // Save the reply string from the server
+    if (reply) {
+      reply->assign(out.c_str());
+    }
+
     return CommandEnv;
   } else {
     std::string errmsg;

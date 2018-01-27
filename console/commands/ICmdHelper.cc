@@ -21,10 +21,8 @@
  ************************************************************************/
 
 #include "console/commands/ICmdHelper.hh"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include <sstream>
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
@@ -38,19 +36,9 @@ ICmdHelper::Execute()
     return EINVAL;
   }
 
-  size_t sz = mReq.ByteSize();
-  std::string buffer(sz , '\0');
-  google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
-
-  if (!mReq.SerializeToZeroCopyStream(&aos)) {
-    std::cerr << "error: failed to serialize ProtocolBuffer request"
-              << std::endl;
-    return EINVAL;
-  }
-
   std::string b64buff;
 
-  if (!eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), b64buff)) {
+  if (eos::common::SymKey::ProtobufBase64Encode(&mReq, b64buff)) {
     std::cerr << "error: failed to base64 encode the request" << std::endl;
     return EINVAL;
   }

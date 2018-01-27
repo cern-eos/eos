@@ -85,11 +85,11 @@ private:
   //----------------------------------------------------------------------------
   //! Command to process the server response
   //!
-  //! @param response incoming data strream
+  //! @param reply incoming data strream
   //!
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
-  int proccess(XrdOucEnv* response);
+  int proccess(const std::string& reply);
 
   std::string mResult; ///< String holding the result
   std::string mError; ///< String holding the error message

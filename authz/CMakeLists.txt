@@ -24,7 +24,8 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${XROOTD_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIRS})
+  ${OPENSSL_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIRS})
   
 
 #-------------------------------------------------------------------------------
@@ -33,6 +34,9 @@ include_directories(
 add_library(
   eosCapability-Static STATIC
   XrdCapability.cc  XrdCapability.hh)
+
+target_link_libraries(eosCapability-Static
+  ${PROTOBUF_LIBRARY})
 
 set_target_properties(
   eosCapability-Static

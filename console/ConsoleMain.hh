@@ -66,7 +66,8 @@ extern XrdOucEnv* CommandEnv;
 //!
 //! @return object containing the server response
 //------------------------------------------------------------------------------
-extern XrdOucEnv* client_command(XrdOucString& in, bool is_admin = false);
+extern XrdOucEnv* client_command(XrdOucString& in, bool is_admin = false,
+                                 std::string* reply = nullptr);
 
 typedef int CFunction(char*);
 //! Structure which contains information on the commands this program

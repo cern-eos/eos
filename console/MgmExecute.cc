@@ -23,42 +23,42 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "MgmExecute.hh"
+#include <memory>
 
 #ifndef BUILD_TESTS
 //------------------------------------------------------------------------------
 // Process MGM response
 //------------------------------------------------------------------------------
-int MgmExecute::proccess(XrdOucEnv* response)
+int MgmExecute::proccess(const std::string& response)
 {
   mErrc = 0;
-  const char* ptr = response->Get("mgm.proc.retc");
-  std::string serrc = (ptr ? ptr : "");
+  std::vector<std::pair<std::string, size_t>> tags {
+    std::make_pair("mgm.proc.stdout=", -1),
+    std::make_pair("&mgm.proc.stderr=", -1),
+    std::make_pair("&mgm.proc.retc=", -1)
+  };
 
+  for (auto& elem : tags) {
+    elem.second = response.find(elem.first);
+  }
+
+  // Parse stdout
+  mResult = response.substr(tags[0].first.length(),
+                            tags[1].second - tags[1].first.length());
+  rstdout = mResult.c_str();
+  // Parse stderr
+  mError = response.substr(tags[1].second + tags[1].first.length(),
+                           tags[2].second - tags[1].first.length());
+  rstderr = mError.c_str();
+
+  // Parse return code
   try {
-    mErrc = std::stoi(serrc);
+    mErrc = std::stoi(response.substr(tags[2].second + tags[2].first.length()));
   } catch (...) {
     rstderr = "error: failed to parse response from server";
     return EINVAL;
   }
 
-  ptr = response->Get("mgm.proc.stdout");
-  rstdout = (ptr ? ptr : "");
-  ptr = response->Get("mgm.proc.stderr");
-  rstderr = (ptr ? ptr : "");
-
-  if (rstderr.length() > 0) {
-    mError = std::string(rstderr.c_str());
-    delete response;
-    return mErrc;
-  }
-
-  mResult = std::string("");
-
-  if (rstdout.length() > 0) {
-    mResult = std::string(rstdout.c_str());
-  }
-
-  delete response;
   return mErrc;
 }
 
@@ -68,13 +68,17 @@ int MgmExecute::proccess(XrdOucEnv* response)
 //------------------------------------------------------------------------------
 int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
 {
+  std::string reply;
   XrdOucString command_xrd = XrdOucString(command);
-  XrdOucEnv* response = client_command(command_xrd, is_admin);
+  // Discard XrdOucEnv response as this is used by the old type of commands and
+  // reply on parsing the string reply
+  std::unique_ptr<XrdOucEnv> response(client_command(command_xrd, is_admin,
+                                      &reply));
 
-  if (response) {
-    return proccess(response);
-  } else {
+  if (reply.empty()) {
     return EIO;
+  } else {
+    return proccess(reply);
   }
 }
 

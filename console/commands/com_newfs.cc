@@ -67,14 +67,14 @@ FsHelper::ParseCommand(const char* arg)
 {
   const char* option;
   std::string soption;
-  eos::console::FsProto* ns = mReq.mutable_fs();
+  eos::console::FsProto* fs = mReq.mutable_fs();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   option = tokenizer.GetToken();
   std::string cmd = (option ? option : "");
 
   if (cmd == "add") {
-    eos::console::FsProto_AddProto* add = ns->mutable_add();
+    eos::console::FsProto_AddProto* add = fs->mutable_add();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -151,7 +151,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "boot") {
     using eos::console::FsProto_BootProto;
-    FsProto_BootProto* boot = ns->mutable_boot();
+    FsProto_BootProto* boot = fs->mutable_boot();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -185,7 +185,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "config") {
     using eos::console::FsProto_ConfigProto;
-    FsProto_ConfigProto* config = ns->mutable_config();
+    FsProto_ConfigProto* config = fs->mutable_config();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -226,7 +226,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "dropdeletion") {
     using eos::console::FsProto_DropDeletionProto;
-    FsProto_DropDeletionProto* dropdel = ns->mutable_dropdel();
+    FsProto_DropDeletionProto* dropdel = fs->mutable_dropdel();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -243,7 +243,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "dropfiles") {
     using eos::console::FsProto_DropFilesProto;
-    FsProto_DropFilesProto* dropfiles = ns->mutable_dropfiles();
+    FsProto_DropFilesProto* dropfiles = fs->mutable_dropfiles();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -274,7 +274,8 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;
-    FsProto_DumpMdProto* dumpmd = ns->mutable_dumpmd();
+    mReq.set_format(eos::console::RequestProto::FUSE);
+    FsProto_DumpMdProto* dumpmd = fs->mutable_dumpmd();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -314,7 +315,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "mv") {
     using eos::console::FsProto_MvProto;
-    FsProto_MvProto* mv = ns->mutable_mv();
+    FsProto_MvProto* mv = fs->mutable_mv();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -331,7 +332,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "ls") {
     using eos::console::FsProto_LsProto;
-    FsProto_LsProto* ls = ns->mutable_ls();
+    FsProto_LsProto* ls = fs->mutable_ls();
 
     if ((option = tokenizer.GetToken())) {
       while (true) {
@@ -365,7 +366,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "rm") {
     using eos::console::FsProto_RmProto;
-    FsProto_RmProto* rm = ns->mutable_rm();
+    FsProto_RmProto* rm = fs->mutable_rm();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -467,7 +468,7 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "status") {
     using eos::console::FsProto_StatusProto;
-    FsProto_StatusProto* status = ns->mutable_status();
+    FsProto_StatusProto* status = fs->mutable_status();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
