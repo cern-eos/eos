@@ -39,6 +39,7 @@ IProcCommand::open(const char* path, const char* info,
                    eos::common::Mapping::VirtualIdentity& vid,
                    XrdOucErrInfo* error)
 {
+  // @todo (esindril): configure delay based on the type of command
   int delay = 5;
 
   if (!mExecRequest) {
@@ -324,9 +325,9 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
   } while (true);
 
   json["result"] = jsonresult;
-  oss << "mgm.proc.retc=" << reply.retc()
+  oss << "mgm.proc.stdout=" << json
       << "&mgm.proc.stderr=" << reply.std_err()
-      << "&mgm.proc.stdout=" << json;
+      << "&mgm.proc.retc=" << reply.retc();
 }
 
 EOSMGMNAMESPACE_END

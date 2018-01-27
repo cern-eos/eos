@@ -32,7 +32,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{100};
+XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{5};
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
@@ -315,7 +315,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
         timer.Snooze(2);
       }
     }
-    std::string fsidst = std::to_string(dumpmdProto.fsid());
+    std::string sfsid = std::to_string(dumpmdProto.fsid());
     XrdOucString option = dumpmdProto.display() ==
                           eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
     XrdOucString dp = dumpmdProto.showpath() ? "1" : "0";
@@ -326,18 +326,16 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     try {
       mSemaphore.Wait();
     } catch (...) {
-      mErr = "Cannot take protecting semaphore, cannot dump md.";
+      mErr = "error: failed while waiting on semaphore, cannot dumpmd";
       return EAGAIN;
     }
 
+    retc = proc_fs_dumpmd(sfsid, option, dp, df, ds, outLocal, errLocal,
+                          mVid, entries);
+
     try {
-      retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, outLocal, errLocal,
-                            mVid, entries);
-    } catch (...) {
-      try {
-        mSemaphore.Post();
-      } catch (...) {}
-    }
+      mSemaphore.Post();
+    } catch (...) {}
 
     if (!retc) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
