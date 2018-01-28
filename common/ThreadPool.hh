@@ -78,6 +78,14 @@ public:
       } while (toContinue);
     };
 
+    for (auto i = 0u; i < threadsMin; i++) {
+      mThreadPool.emplace_back(
+        std::async(std::launch::async, threadPoolFunc)
+      );
+    }
+
+    mThreadCount += threadsMin;
+
     if(threadsMax > threadsMin) {
       auto maintainerThreadFunc = [this, threadPoolFunc, threadsMin, threadsMax,
                                    samplingInterval, samplingNumber, averageWaitingJobsPerNewThread]
@@ -143,14 +151,6 @@ public:
 
       mMaintainerThread.reset(new std::thread(maintainerThreadFunc));
     }
-
-    for (auto i = 0u; i < threadsMin; i++) {
-      mThreadPool.emplace_back(
-        std::async(std::launch::async, threadPoolFunc)
-      );
-    }
-
-    mThreadCount += threadsMin;
   }
 
   //----------------------------------------------------------------------------
