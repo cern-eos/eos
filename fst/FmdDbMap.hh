@@ -549,6 +549,19 @@ private:
                              sval, "") == 0;
   }
 
+  //----------------------------------------------------------------------------
+  //! Execute "fs dumpmd" on the MGM node
+  //!
+  //! @param mgm_host MGM hostname
+  //! @param fsid filesystem id
+  //! @param fn_output file name where output is written
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ExecuteDumpmd(const std::string& mgm_hosst,
+                            eos::common::FileSystem::fsid_t fsid,
+                            std::string& fn_output);
+
 #ifdef HAVE_FST_WITH_QUARKDB
   //----------------------------------------------------------------------------
   //! Get file metadata info from QuarkDB

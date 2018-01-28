@@ -38,7 +38,7 @@ ICmdHelper::Execute()
 
   std::string b64buff;
 
-  if (eos::common::SymKey::ProtobufBase64Encode(&mReq, b64buff)) {
+  if (!eos::common::SymKey::ProtobufBase64Encode(&mReq, b64buff)) {
     std::cerr << "error: failed to base64 encode the request" << std::endl;
     return EINVAL;
   }

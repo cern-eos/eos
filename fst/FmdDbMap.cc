@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "common/Path.hh"
+#include "common/Fs.pb.h"
+#include "common/ConsoleRequest.pb.h"
 #include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
@@ -1144,42 +1146,16 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  XrdOucString consolestring = "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&"
-                               "mgm.subcmd=dumpmd&mgm.dumpmd.storetime=1&"
-                               "mgm.dumpmd.option=m&mgm.fsid=";
-  consolestring += (int) fsid;
-  XrdOucString url = "root://";
-  url += manager;
-  url += "//";
-  url += consolestring;
-  // We run an external command and parse the output
-  char tmpfile[] = "/tmp/efstd.XXXXXX";
-  int tmp_fd = mkstemp(tmpfile);
+  std::string tmpfile;
 
-  if (tmp_fd == -1) {
-    eos_err("failed to create a temporary file");
+  if (!ExecuteDumpmd(manager, fsid, tmpfile)) {
     return false;
-  }
-
-  (void) close(tmp_fd);
-  XrdOucString cmd = "env XrdSecPROTOCOL=sss XRD_STREAMTIMEOUT=600 "
-                     "xrdcp -f -s \"";
-  cmd += url;
-  cmd += "\" ";
-  cmd += tmpfile;
-  int rc = system(cmd.c_str());
-
-  if (WEXITSTATUS(rc)) {
-    eos_err("%s returned %d", cmd.c_str(), WEXITSTATUS(rc));
-    return false;
-  } else {
-    eos_debug("%s executed successfully", cmd.c_str());
   }
 
   // Parse the result and unlink temporary file
   std::ifstream inFile(tmpfile);
   std::string dumpentry;
-  unlink(tmpfile);
+  unlink(tmpfile.c_str());
   unsigned long long cnt = 0;
 
   while (std::getline(inFile, dumpentry)) {
@@ -1583,6 +1559,72 @@ FmdDbMapHandler::GetNumFiles(eos::common::FileSystem::fsid_t fsid)
     return gFmdDbMapHandler.mDbMap[fsid]->size();
   } else {
     return 0ll;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Execute "fs dumpmd" on the MGM node
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
+                               eos::common::FileSystem::fsid_t fsid,
+                               std::string& fn_output)
+{
+  // Create temporary file used as output for the command
+  char tmpfile[] = "/tmp/efstd.XXXXXX";
+  int tmp_fd = mkstemp(tmpfile);
+
+  if (tmp_fd == -1) {
+    eos_static_err("failed to create a temporary file");
+    return false;
+  }
+
+  (void) close(tmp_fd);
+  fn_output = tmpfile;
+  // First try to do the dumpmd using protobuf requests
+  using eos::console::FsProto_DumpMdProto;
+  eos::console::RequestProto request;
+  eos::console::FsProto* fs = request.mutable_fs();
+  FsProto_DumpMdProto* dumpmd = fs->mutable_dumpmd();
+  dumpmd->set_fsid(fsid);
+  dumpmd->set_display(eos::console::FsProto::DumpMdProto::MONITOR);
+  request.set_format(eos::console::RequestProto::FUSE);
+  std::string b64buff;
+  std::ostringstream cmd;
+
+  if (eos::common::SymKey::ProtobufBase64Encode(&request, b64buff)) {
+    cmd << "env XrdSecPROTOCOL=sss xrdcp -f -s \""
+        << "root://" << mgm_host.c_str() << "/"
+        << "/proc/admin/?mgm.cmd.proto=" << b64buff << "\" "
+        << tmpfile;
+    int rc = system(cmd.str().c_str());
+
+    if (WEXITSTATUS(rc)) {
+      eos_static_err("%s returned %d", cmd.str().c_str(), WEXITSTATUS(rc));
+    } else {
+      eos_static_debug("%s executed successfully", cmd.str().c_str());
+      return true;
+    }
+  } else {
+    eos_static_err("msg=\"failed to serialize protobuf request for dumpmd\"");
+  }
+
+  eos_static_info("msg=\"falling back to classic dumpmd command\"");
+  cmd.str("");
+  cmd.clear();
+  cmd << "env XrdSecPROTOCOL=sss XRD_STREAMTIMEOUT=600 xrdcp -f -s \""
+      << "root://" << mgm_host.c_str() << "/"
+      << "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&mgm.subcmd=dumpmd&"
+      << "mgm.dumpmd.option=m&mgm.fsid=" << fsid << "\" "
+      << tmpfile;
+  int rc = system(cmd.str().c_str());
+
+  if (WEXITSTATUS(rc)) {
+    eos_static_err("%s returned %d", cmd.str().c_str(), WEXITSTATUS(rc));
+    return false;
+  } else {
+    eos_static_debug("%s executed successfully", cmd.str().c_str());
+    return true;
   }
 }
 

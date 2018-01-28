@@ -359,8 +359,12 @@ set_target_properties(
 target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst MODULE $<TARGET_OBJECTS:XrdEosFst-Objects>)
-add_library(XrdEosFst-Shared SHARED $<TARGET_OBJECTS:XrdEosFst-Objects>)
+add_library(XrdEosFst MODULE
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:CommonCli-Objects>)
+add_library(XrdEosFst-Shared SHARED
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:CommonCli-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -430,7 +434,8 @@ add_executable(eos-scan-fs
   tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS})
+  ${FMDBASE_HDRS}
+  $<TARGET_OBJECTS:CommonCli-Objects>)
 
 add_executable(eos-adler32
   tools/Adler32.cc
