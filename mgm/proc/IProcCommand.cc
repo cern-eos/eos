@@ -70,6 +70,11 @@ IProcCommand::open(const char* path, const char* info,
 
       if (mReqProto.format() == eos::console::RequestProto::JSON) {
         ConvertToJsonFormat(reply, oss);
+      } else if (mReqProto.format() == eos::console::RequestProto::FUSE) {
+        // @todo (esindril) This format should be dropped and the client should
+        // just parse the stdout reponse. For example the FST dumpmd should do
+        // this.
+        oss << reply.std_out();
       } else {
         oss << "mgm.proc.stdout=" << reply.std_out()
             << "&mgm.proc.stderr=" << reply.std_err()

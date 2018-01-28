@@ -116,7 +116,24 @@ public:
   //----------------------------------------------------------------------------
   virtual int stat(struct stat* buf)
   {
-    // @todo (esindril): impelment for proto commands
+    off_t size = 0;
+
+    if (readStdOutStream) {
+      ifstdoutStream.seekg(0, ifstdoutStream.end);
+      size += ifstdoutStream.tellg();
+      ifstdoutStream.seekg(0, ifstdoutStream.beg);
+      ifstderrStream.seekg(0, ifstderrStream.end);
+      size += ifstderrStream.tellg();
+      ifstderrStream.seekg(0, ifstderrStream.beg);
+      iretcStream.seekg(0, iretcStream.end);
+      size += iretcStream.tellg();
+      iretcStream.seekg(0, iretcStream.beg);
+    } else {
+      size = mTmpResp.length();
+    }
+
+    memset(buf, 0, sizeof(struct stat));
+    buf->st_size = size;
     return SFS_OK;
   }
 
