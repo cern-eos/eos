@@ -457,7 +457,7 @@ SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
     return false;
   }
 
-  return false;
+  return true;
 }
 
 //------------------------------------------------------------------------------
