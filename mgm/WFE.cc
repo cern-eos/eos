@@ -1115,7 +1115,7 @@ WFE::Job::DoIt(bool issync)
             std::string turl = "root://";
             turl += gOFS->MgmOfsAlias.c_str();
             turl += "/";
-            turl += fullpath.c_str();
+            turl += fullpath;
             turl += "?eos.lfn=fxid:";
             turl += hexfid.c_str();
 
@@ -1702,6 +1702,34 @@ WFE::Job::DoIt(bool issync)
 
           google::protobuf::MapPair<std::string,std::string> storageClassPair("CTA_StorageClass", "single");
           notification->mutable_file()->mutable_xattr()->insert(storageClassPair);
+        }
+        else if (event == "archived") {
+          static constexpr auto tapeFsid = 65535u;
+          if (fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1) {
+            eos_static_info("File %s already has a tape copy. Ignoring request.", fullpath.c_str());
+            return SFS_OK;
+          }
+          else {
+            XrdOucErrInfo errInfo;
+            eos::common::Mapping::VirtualIdentity root_vid;
+            eos::common::Mapping::Root(root_vid);
+
+            for(auto location : fmd->getLocations()) {
+              if (location != tapeFsid) {
+                errInfo.clear();
+                if (gOFS->_dropstripe(fullpath.c_str(), errInfo, root_vid, location, true) != 0) {
+                  eos_static_err("Could not delete file replica %s on filesystem %u. Reason: %s",
+                                 fullpath.c_str(), location, errInfo.getErrText());
+                }
+              }
+            }
+
+            if (!fmd->hasLocation(tapeFsid)) {
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              fmd->addLocation(tapeFsid);
+              gOFS->eosView->updateFileStore(fmd.get());
+            }
+          }
         }
 
         eos_static_info("request:\n%s", notification->DebugString().c_str());
