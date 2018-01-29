@@ -389,8 +389,8 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
 int
 FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
 {
-  std::string nodequeue = "";
-  std::string mountpoint = "";
+  std::string nodequeue;
+  std::string mountpoint;
   std::string id = (rmProto.id_case() == eos::console::FsProto::RmProto::kFsid ?
                     std::to_string(rmProto.fsid()) : "");
 
@@ -650,6 +650,8 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
       } else {
         filesDeleted++;
       }
+
+      allFiles++;
     }
 
     std::ostringstream oss;
@@ -701,18 +703,16 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, Xrd
   try {
     mSemaphore.Wait();
   } catch (...) {
-    mErr += "error: failed while waiting on semaphore, cannot dumpmd";
+    mErr = "error: failed while waiting on semaphore, cannot dumpmd";
     return EAGAIN;
   }
 
+  retc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
+                        mVid, entries);
+
   try {
-    retc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
-                          mVid, entries);
-  } catch (...) {
-    try {
-      mSemaphore.Post();
-    } catch (...) {}
-  }
+    mSemaphore.Post();
+  } catch (...) {}
 
   return retc;
 }
