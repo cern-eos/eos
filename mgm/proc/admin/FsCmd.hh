@@ -80,6 +80,10 @@ private:
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
+  int SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, XrdOucString& dp,
+                                   XrdOucString& df, XrdOucString& ds, XrdOucString& out,
+                                   XrdOucString& err, size_t& entries);
+
   static XrdSysSemaphore mSemaphore;
   std::string mOut; ///< Command output string
   std::string mErr; ///< Command error output string

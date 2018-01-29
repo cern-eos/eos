@@ -29,6 +29,7 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -323,19 +324,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
 
-    try {
-      mSemaphore.Wait();
-    } catch (...) {
-      mErr = "error: failed while waiting on semaphore, cannot dumpmd";
-      return EAGAIN;
-    }
-
-    retc = proc_fs_dumpmd(sfsid, option, dp, df, ds, outLocal, errLocal,
-                          mVid, entries);
-
-    try {
-      mSemaphore.Post();
-    } catch (...) {}
+    retc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal, errLocal, entries);
 
     if (!retc) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
@@ -633,7 +622,45 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
 int
 FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
-  return 0;
+  XrdOucString out, err;
+  XrdOucString option = "";
+  XrdOucString showPath = "1";
+  XrdOucString showFid = "0";
+  XrdOucString showSize = "0";
+  auto fsid = std::to_string(dropfilesProto.fsid());
+  size_t entries = 0;
+
+  auto dumpmdRet = SemaphoreProtectedProcDumpmd(fsid, option, showPath, showFid, showSize, out, err, entries);
+  if (dumpmdRet == 0) {
+    out.replace("path=", "");
+
+    XrdOucTokenizer subtokenizer((char*) out.c_str());
+    const char* filePath = nullptr;
+
+    auto filesDeleted = 0u, allFiles = 0u;
+    XrdOucErrInfo errInfo;
+    while ((filePath = subtokenizer.GetLine())) {
+      if ((!strlen(filePath)) || (filePath[0] == '\n')) {
+        continue;
+      }
+
+      errInfo.clear();
+      if (gOFS->_dropstripe(filePath, errInfo, mVid, dropfilesProto.fsid(), dropfilesProto.force()) != 0) {
+        eos_err("Could not delete file replica %s on filesystem %u", filePath, dropfilesProto.fsid());
+      } else {
+        filesDeleted++;
+      }
+    }
+
+    std::ostringstream oss;
+    oss << "Deleted " << filesDeleted << " files out of " << allFiles;
+    mOut = oss.str();
+
+    return SFS_OK;
+  } else {
+    mErr = err.c_str();
+    return dumpmdRet;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -665,6 +692,29 @@ eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
   default:
     return "";
   }
+}
+
+int
+FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, XrdOucString& dp,
+                                    XrdOucString& df, XrdOucString& ds, XrdOucString& out,
+                                    XrdOucString& err, size_t& entries) {
+  try {
+    mSemaphore.Wait();
+  } catch (...) {
+    mErr += "error: failed while waiting on semaphore, cannot dumpmd";
+    return EAGAIN;
+  }
+
+  try {
+    retc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
+                          mVid, entries);
+  } catch (...) {
+    try {
+      mSemaphore.Post();
+    } catch (...) {}
+  }
+
+  return retc;
 }
 
 EOSMGMNAMESPACE_END
