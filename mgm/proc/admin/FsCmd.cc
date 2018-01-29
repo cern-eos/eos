@@ -637,7 +637,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
     XrdOucTokenizer subtokenizer((char*) out.c_str());
     const char* filePath = nullptr;
 
-    auto filesDeleted = 0u, allFiles = 0u;
+    auto filesDeleted = 0u;
     XrdOucErrInfo errInfo;
     while ((filePath = subtokenizer.GetLine())) {
       if ((!strlen(filePath)) || (filePath[0] == '\n')) {
@@ -650,12 +650,10 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
       } else {
         filesDeleted++;
       }
-
-      allFiles++;
     }
 
     std::ostringstream oss;
-    oss << "Deleted " << filesDeleted << " files out of " << allFiles;
+    oss << "Deleted " << filesDeleted << " replicas on filesystem " << fsid << std::endl;
     mOut = oss.str();
 
     return SFS_OK;
@@ -703,7 +701,7 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, Xrd
   try {
     mSemaphore.Wait();
   } catch (...) {
-    mErr = "error: failed while waiting on semaphore, cannot dumpmd";
+    err += "error: failed while waiting on semaphore, cannot dumpmd";
     return EAGAIN;
   }
 
