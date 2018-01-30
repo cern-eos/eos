@@ -366,7 +366,7 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s/fmd.%04d.%s", meta_dir, fsid,
           eos::common::DbMap::getDbType().c_str());
-  eos_info("%s DB is now %s\n", eos::common::DbMap::getDbType().c_str(),
+  eos_info("%s DB is now %s", eos::common::DbMap::getDbType().c_str(),
            fsDBFileName);
   // Store the DB file name
   DBfilename[fsid] = fsDBFileName;
@@ -632,7 +632,7 @@ FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 
   if (LocalExistFmd(fid, fsid)) {
     if (mDbMap[fsid]->remove(eos::common::Slice((const char*)&fid, sizeof(fid)))) {
-      eos_err("unable to delete fid=%08llx from fst table\n", fid);
+      eos_err("unable to delete fid=%08llx from fst table", fid);
       rc = false;
     }
   } else {
@@ -836,7 +836,7 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 
     // The endSetSequence makes it impossible to know which key is faulty
     if (mDbMap[fsid]->endSetSequence() != cpt) {
-      eos_err("unable to update fsid=%lu\n", fsid);
+      eos_err("unable to update fsid=%lu", fsid);
       return false;
     }
   } else {
@@ -878,7 +878,7 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 
     // The endSetSequence makes it impossible to know which key is faulty
     if (mDbMap[fsid]->endSetSequence() != cpt) {
-      eos_err("unable to update fsid=%lu\n", fsid);
+      eos_err("unable to update fsid=%lu", fsid);
       return false;
     }
   } else {
@@ -1524,7 +1524,7 @@ FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
 
     // Delete in the in-memory hash
     if (!mDbMap[fsid]->clear()) {
-      eos_err("unable to delete all from fst table\n");
+      eos_err("unable to delete all from fst table");
       rc = false;
     } else {
       rc = true;
