@@ -1826,7 +1826,7 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   }
 
   std::string accperm;
-  accperm == "R";
+  accperm = "R";
 
   if (r_ok) {
     accperm += "R";
