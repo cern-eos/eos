@@ -284,7 +284,9 @@ ContainerMD::cleanUp()
   // Remove all subcontainers
   for (const auto& elem : mSubcontainers) {
     auto cont = pContSvc->getContainerMD(elem.second);
-    cont->cleanUp();
+    if(cont->getId() != getId()) {
+      cont->cleanUp();
+    }
     pContSvc->removeContainer(cont.get());
   }
 
