@@ -318,6 +318,17 @@ FmdDbMapHandler::FmdDbMapHandler()
   mFsMtxMap.set_empty_key(std::numeric_limits<FileSystem::fsid_t>::max() - 1);
 }
 
+
+//------------------------------------------------------------------------------
+// Get number of file systems
+//------------------------------------------------------------------------------
+uint32_t
+FmdDbMapHandler::GetNumFileSystems() const
+{
+  eos::common::RWMutexReadLock rd_lock(mMapMutex);
+  return mDbMap.size();
+}
+
 //------------------------------------------------------------------------------
 // Set a new DB file for a filesystem id
 //------------------------------------------------------------------------------

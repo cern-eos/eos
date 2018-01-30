@@ -224,10 +224,13 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   if (!(watchdog = fork())) {
     eos::common::SyncAll::AllandClose();
-    XrdSysTimer sleeper;
-    sleeper.Snooze(15);
-    fprintf(stderr, "@@@@@@ 00:00:00 %s",
-            "op=shutdown msg=\"shutdown timedout after 15 seconds\"\n");
+    // Sleep for an amount of time proportional to the number of filesystems
+    // on the current machine
+    std::chrono::seconds timeout(gFmdDbMapHandler.GetNumFileSystems() * 5);
+    std::this_thread::sleep_for(timeout);
+    fprintf(stderr, "@@@@@@ 00:00:00 %s %li %s",
+            "op=shutdown msg=\"shutdown timedout after ", timeout.count(),
+            " seconds\"\n");
     kill(getppid(), 9);
     fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
     kill(getpid(), 9);

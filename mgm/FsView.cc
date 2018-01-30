@@ -4113,8 +4113,7 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
     if (force || (!snapshot.mHeadRoom)) {
       // try to apply the default
       if (GetConfigMember("headroom").length()) {
-        fs->SetString("headroom", GetConfigMember("headroom").c_str())
-        ;
+        fs->SetString("headroom", GetConfigMember("headroom").c_str());
         modified = true;
       }
     }

@@ -405,9 +405,16 @@ public:
   //----------------------------------------------------------------------------
   long long GetNumFiles(eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Get number of file systems
+  //!
+  //! @return number of file systems on the current machine
+  //----------------------------------------------------------------------------
+  uint32_t GetNumFileSystems() const;
+
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
-  eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
+  mutable eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
   eos::common::LvDbDbMapInterface::Option lvdboption;
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
   std::map<eos::common::FileSystem::fsid_t, bool> mIsDirty;
