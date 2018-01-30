@@ -668,7 +668,7 @@ public:
       openr = openw = 0;
     }
 
-    RWMutex mInUse;
+    RWMutexR mInUse;
     XrdSysMutex mlocker;
     size_t openr;
     size_t openw;
@@ -841,7 +841,7 @@ private:
   //             ******* Implementation Translations *******
   //----------------------------------------------------------------------------
   //! Protecting the path/inode translation table
-  eos::common::RWMutex mutex_inode_path;
+  eos::common::RWMutexR mutex_inode_path;
 
   //! Mapping path name to inode
   google::dense_hash_map<std::string, unsigned long long> path2inode;
@@ -859,7 +859,7 @@ private:
   //      ******* Implementation of the directory listing table *******
   //------------------------------------------------------------------------------
   //! Protecting the directory listing table
-  eos::common::RWMutex mutex_dir2inodelist;
+  eos::common::RWMutexR mutex_dir2inodelist;
 
   //! Dir listing map
   std::map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
@@ -879,7 +879,7 @@ private:
   }
 
   //! Protecting the cache entry map
-  eos::common::RWMutex mutex_fuse_cache;
+  eos::common::RWMutexR mutex_fuse_cache;
 
   //! Directory cache
   std::map<unsigned long long, FuseCacheEntry*> inode2cache;
@@ -892,16 +892,16 @@ private:
   //------------------------------------------------------------------------------
 
   //! Map used for associating file descriptors with XrdCl::File objects
-  eos::common::RWMutex rwmutex_fd2fabst;
+  eos::common::RWMutexR rwmutex_fd2fabst;
   google::dense_hash_map<int, shared_ptr<FileAbstraction>> fd2fabst;
 
   //! Counting write open of inodes
-  eos::common::RWMutex rwmutex_inodeopenw;
+  eos::common::RWMutexR rwmutex_inodeopenw;
   std::map<unsigned long long, int> inodeopenw;
 
   //! The count is >0 for RW and <0 for RO
   google::dense_hash_map<int, int> fd2count;
-  eos::common::RWMutex openmutexes[N_OPEN_MUTEXES];
+  eos::common::RWMutexR openmutexes[N_OPEN_MUTEXES];
 
   //! Map <inode, user> to a set of file descriptors - used only in the stat
   //! method  note : the set of file descriptors for one key point to the
@@ -1004,7 +1004,7 @@ private:
   // wise. It is used by recursive rm commands which belong to the same pid in
   // order to decide if his operation is denied or not.
   //------------------------------------------------------------------------------
-  eos::common::RWMutex mMapPidDenyRmMutex;
+  eos::common::RWMutexR mMapPidDenyRmMutex;
   std::map<pid_t, std::pair<time_t, bool> > mMapPidDenyRm;
 
   FuseWriteCache* XFC;

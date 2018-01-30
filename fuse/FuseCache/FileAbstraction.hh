@@ -280,8 +280,7 @@ public:
   //--------------------------------------------------------------------------
   off_t GetMaxWriteOffset();
 
-  eos::common::RWMutex
-  mInUse; ///< we use this look to indicate that someone has a reference to it
+  eos::common::RWMutexR  mInUse; ///< we use this look to indicate that someone has a reference to it
 
 private:
   int mFd; ///< file descriptor used for the block key range
