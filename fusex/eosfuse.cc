@@ -479,11 +479,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["recovery"]["read-open"] = 1;
     }
 
-    if (!root["recovery"].isMember("read-open"))
-    {
-      root["recovery"]["read-open"] = 1;
-    }
-
     if (!root["recovery"].isMember("read-open-noserver"))
     {
       root["recovery"]["read-open-noserver"] = 1;
@@ -502,6 +497,16 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (!root["recovery"].isMember("write-open"))
     {
       root["recovery"]["write-open"] = 1;
+    }
+
+    if (!root["recovery"].isMember("write-open-noserver"))
+    {
+      root["recovery"]["write-open-noserver"] = 1;
+    }
+
+    if (!root["recovery"].isMember("write-open-noserver-retrywindow"))
+    {
+      root["recovery"]["write-open-noserver-retrywindow"] = 86400;
     }
 
     const Json::Value jname = root["name"];
@@ -547,6 +552,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.recovery.read_open_noserver_retrywindow = root["recovery"]["read-open-noserver-retrywindow"].asInt();
     config.recovery.write = root["recovery"]["write"].asInt();
     config.recovery.write_open = root["recovery"]["write-open"].asInt();
+    config.recovery.write_open_noserver = root["recovery"]["write-open-noserver"].asInt();
+    config.recovery.write_open_noserver_retrywindow = root["recovery"]["write-open-noserver-retrywindow"].asInt();
 
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
@@ -1196,9 +1203,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       config.recovery.read_open,
 		       config.recovery.read_open_noserver,
 		       config.recovery.read_open_noserver_retrywindow);
-    eos_static_warning("write-recovery         := enabled:%d wopen:%d",
+    eos_static_warning("write-recovery         := enabled:%d wopen:%d wopen-noserv:%d wopen-noserv-window:%u",
 		       config.recovery.write,
-		       config.recovery.write_open);
+		       config.recovery.write_open,
+		       config.recovery.write_open_noserver,
+		       config.recovery.write_open_noserver_retrywindow);
 
     std::string xrdcl_option_string;
     std::string xrdcl_option_loglevel;

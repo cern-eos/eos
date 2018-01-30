@@ -59,8 +59,12 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-      mPrefetchHandler(0),
-      mWaitForOpen(false), mFlags(0)
+	      mPrefetchHandler(0),
+	      mWaitForOpen(false), 
+	      mSimulateWriteErrorInFlush(false),
+	      mSimulateWriteErrorInFlusher(false),
+	      mFlags(0)
+
     {}
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
@@ -126,8 +130,13 @@ public:
     int TryRecovery(fuse_req_t req, bool is_write);
 
     int recover_ropen(fuse_req_t req);
+    int try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url);
+    int try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url);
     int recover_read(fuse_req_t req);
     int recover_write(fuse_req_t req);
+
+    int begin_flush(fuse_req_t req);
+    int end_flush(fuse_req_t req);
 
     // ref counting for this object
 
@@ -161,6 +170,16 @@ public:
 
     static bufferllmanager sBufferManager;
 
+    bool simulate_write_error_in_flusher() 
+    {
+      return mSimulateWriteErrorInFlusher;
+    }
+
+    bool simulate_write_error_in_flush()
+    {
+      return mSimulateWriteErrorInFlush;
+    }
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -177,8 +196,10 @@ public:
 
     bufferllmanager::shared_buffer buffer;
     bool mWaitForOpen;
+    bool mSimulateWriteErrorInFlush;
+    bool mSimulateWriteErrorInFlusher;
     int mFlags;
-  } ;
+  };
 
   typedef std::shared_ptr<datax> shared_data;
 

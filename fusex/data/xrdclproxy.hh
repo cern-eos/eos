@@ -276,6 +276,13 @@ namespace XrdCl
     bool HadFailures();
 
     // ---------------------------------------------------------------------- //
+    void inherit_attached(XrdCl::Proxy* proxy)
+    {
+      XrdSysMutex mAttachedMutex;
+      mAttached = proxy?proxy->get_attached():1;
+    }
+
+    // ---------------------------------------------------------------------- //
 
     static int status2errno(const XRootDStatus& status)
     {
@@ -874,6 +881,8 @@ namespace XrdCl
     void attach();
     size_t detach();
     bool attached();
+    size_t get_attached();
+
 
     std::string url()
     {

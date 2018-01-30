@@ -227,7 +227,9 @@ public:
       int read_open;
       int write_open;
       int read_open_noserver;
+      int write_open_noserver;
       size_t read_open_noserver_retrywindow;
+      size_t write_open_noserver_retrywindow;
     } recovery_t; 
 
     recovery_t recovery;

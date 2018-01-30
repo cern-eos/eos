@@ -44,7 +44,7 @@ This
     "show-tree-size" : 0,
     "free-md-asap" : 1,
     "cpu-core-affinity" : 1,
-    "no-xattr" : 1, 
+    "no-xattr" : 1 
   },
   "auth" : {
     "shared-mount" : 1,
@@ -83,9 +83,10 @@ You also need to define a local cache directory (location) where small files are
     "read-ahead-strategy" : "dynamic",
     "read-ahead-bytes-nominal" : 1048576,
     "read-ahead-bytes-max" : 8388608
-  }
+  },
 
 ```
+The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 
 You can modify some of the XrdCl variables, however it is recommended not to change these:
 
@@ -99,11 +100,22 @@ You can modify some of the XrdCl variables, however it is recommended not to cha
     "StreamTimeout" : 30,
     "RedirectLimit" : 3,
     "LogLevel" : "None"
-  }
+  },
+
 ```
 
-The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
+The recovery settings are defined in the following section:
 
+```
+   "recovery" : {
+     "read-open" = 1,
+     "read-open-noserver" = 1,
+     "read-open-noserver-retrywindow" = 86400,
+     "write-open" = 1,
+     "write-open-noserver" = 1,
+     "write-open-noserver-retrywindow" = 86400
+   }
+```
 
 Configuration default values and avoiding configuration files
 -------------------------------------------------------------

@@ -575,7 +575,7 @@ XrdCl::Proxy::WaitOpen(fuse_req_t req)
 
   while (state () == OPENING)
   {
-    if (fuse_req_interrupted(req))
+    if (req && fuse_req_interrupted(req))
     {
       return EINTR;
     }
@@ -847,7 +847,7 @@ XrdCl::Proxy::WaitWrite(fuse_req_t req)
 
     while ( ChunkMap().size() )
     {
-      if (fuse_req_interrupted(req))
+      if (req && fuse_req_interrupted(req))
       {
 	return EINTR;
       }
@@ -1021,6 +1021,18 @@ XrdCl::Proxy::attached()
   XrdSysMutexHelper lLock(mAttachedMutex);
 
   return mAttached ? true : false;
+}
+
+/* -------------------------------------------------------------------------- */
+size_t
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::get_attached()
+/* -------------------------------------------------------------------------- */
+{
+
+  XrdSysMutexHelper lLock(mAttachedMutex);
+
+  return mAttached;
 }
 
 /* -------------------------------------------------------------------------- */

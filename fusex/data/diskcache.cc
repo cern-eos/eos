@@ -324,11 +324,18 @@ diskcache::size()
   struct stat buf;
   buf.st_size = 0;
 
-  if (::fstat(fd, &buf)) {
-    throw std::runtime_error("diskcache stat failure");
-  }
+  if (fd>0)
+  {
+    if (::fstat(fd, &buf)) {
+      throw std::runtime_error("diskcache stat failure");
+    }
 
-  return buf.st_size;
+    return buf.st_size;
+  }
+  else
+  {
+    return 0;
+  }  
 }
 
 /* -------------------------------------------------------------------------- */
