@@ -245,7 +245,8 @@ backend::fetchResponse(std::string& requestURL,
 
     std::string lasturl;
     file->GetProperty("LastURL", lasturl);
-    EosFuse::Instance().TrackMgm(lasturl);
+    if (lasturl.length())
+      EosFuse::Instance().TrackMgm(lasturl);
 
     if (!status.IsOK()) {
       // in case of any failure
