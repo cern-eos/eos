@@ -95,15 +95,18 @@ public:
     cmdStr = join(cmd, " ");
   }
 
-  void fillExecutablePath(const std::string &path) {
+  void fillExecutablePath(const std::string& path)
+  {
     executablePath = path;
   }
 
-  void fillRmInfo() {
+  void fillRmInfo()
+  {
     rmInfo = RmInfo(executablePath, cmd);
   }
 
-  bool isEmpty() const {
+  bool isEmpty() const
+  {
     return empty;
   }
 
@@ -147,11 +150,13 @@ public:
     return flags;
   }
 
-  std::string getExecPath() const {
+  std::string getExecPath() const
+  {
     return executablePath;
   }
 
-  const struct RmInfo& getRmInfo() const {
+  const RmInfo& getRmInfo() const
+  {
     return rmInfo;
   }
 
@@ -193,9 +198,9 @@ private:
   std::mutex mtx;
   std::map<pid_t, ProcessInfo> injections;
   std::atomic<bool> useInjectedData {false};
-  static bool parseStat(const std::string &stat, ProcessInfo &ret);
-  static void parseCmdline(const std::string &cmdline, ProcessInfo &ret);
-  static bool parseExec(pid_t pid, ProcessInfo &ret);
+  static bool parseStat(const std::string& stat, ProcessInfo& ret);
+  static void parseCmdline(const std::string& cmdline, ProcessInfo& ret);
+  static bool parseExec(pid_t pid, ProcessInfo& ret);
 };
 
 #endif
