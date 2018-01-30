@@ -418,8 +418,7 @@ eos_unit_test:
     key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
     paths:
     - ccache/
-  dependencies:
-    -
+  dependencies: []
   tags:
     - docker-cc7
 
