@@ -152,8 +152,9 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     retc = EINVAL;
   } else {
     int fsid = atoi(fsidst.c_str());
-    eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
+    eos::common::RWMutexReadLock ns_rd_lock;
+    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -226,6 +227,13 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
                        "code: %d, message: %s", it_fid->getElement(),
                        e.getErrno(), e.getMessage().str().c_str());
       }
+
+      // Release the lock from time to time to let writers progress
+      if (entries % 1024 == 0) {
+        ns_rd_lock.Release();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      }
     }
 
     if (monitor) {
@@ -234,21 +242,28 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
            (it_fid && it_fid->valid()); it_fid->next()) {
         try {
           fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+
+          if (fmd) {
+            entries++;
+            std::string env;
+            fmd->getEnv(env, true);
+            XrdOucString senv = env.c_str();
+            senv.replace("checksum=&", "checksum=none&");
+            stdOut += senv.c_str();
+            stdOut += "&container=-\n";
+
+            // Release the lock from time to time to let writers progress
+            if (entries % 1024 == 0) {
+              ns_rd_lock.Release();
+              std::this_thread::sleep_for(std::chrono::milliseconds(100));
+              ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+            }
+          }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_static_err("Couldn't retrieve meta data for file id: %u. Error "
                          "code: %d, message: %s", it_fid->getElement(),
                          e.getErrno(), e.getMessage().str().c_str());
-        }
-
-        if (fmd) {
-          entries++;
-          std::string env;
-          fmd->getEnv(env, true);
-          XrdOucString senv = env.c_str();
-          senv.replace("checksum=&", "checksum=none&");
-          stdOut += senv.c_str();
-          stdOut += "&container=-\n";
         }
       }
     }
