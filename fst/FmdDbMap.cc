@@ -597,12 +597,12 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       fmd->Replicate(valfmd);
 
       if (Commit(fmd, false)) {
-        eos_debug("returning meta data block for fid %d on fs %d", fid,
+        eos_debug("returning meta data block for fid %llu on fs %d", fid,
                   (unsigned long) fsid);
         // return the mmaped meta data block
         return fmd;
       } else {
-        eos_crit("unable to write new block for fid %d on fs %d - no changelog "
+        eos_crit("unable to write new block for fid %llu on fs %d - no changelog "
                  "db open for writing", fid, (unsigned long) fsid);
         delete fmd;
         return 0;
@@ -652,8 +652,8 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
     return false;
   }
 
-  int fsid = fmd->mProtoFmd.fsid();
-  int fid = fmd->mProtoFmd.fid();
+  uint32_t fsid = fmd->mProtoFmd.fsid();
+  uint64_t fid = fmd->mProtoFmd.fid();
   struct timeval tv;
   struct timezone tz;
   gettimeofday(&tv, &tz);
