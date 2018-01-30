@@ -1566,7 +1566,7 @@ WFE::Job::DoIt(bool issync)
         }
       }
       else if (method == "proto/cta") {
-        static auto archiveidAttrName = "sys.wfe.archiveFileId";
+        static auto archiveidAttrName = "CTA_ArchiveFileId";
         auto event = mActions[0].mEvent;
         auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
@@ -1751,7 +1751,6 @@ WFE::Job::DoIt(bool issync)
             if (response.message_txt().find(archiveFileIdAttr) != std::string::npos) {
               std::string archiveFileId;
               if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId)) {
-                fmd->getAttributes()["CTA_ArchiveFileId"] = response.message_txt().substr(archiveFileIdAttr.size());
                 eos::common::Mapping::VirtualIdentity rootvid;
                 eos::common::Mapping::Root(rootvid);
                 XrdOucErrInfo errInfo;
