@@ -1589,6 +1589,12 @@ WFE::Job::DoIt(bool issync)
           }
         }
 
+        auto eventUpperCase = event;
+        std::transform(eventUpperCase.begin(), eventUpperCase.end(), eventUpperCase.begin(),
+                       [](unsigned char c){ return std::toupper(c); }
+        );
+        eos_static_info("%s %s %s", eventUpperCase.c_str(), fullpath.c_str(), endpoint.c_str());
+
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
 
@@ -1732,7 +1738,7 @@ WFE::Job::DoIt(bool issync)
           }
         }
 
-        eos_static_info("request:\n%s", notification->DebugString().c_str());
+        eos_static_debug("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 
@@ -1745,7 +1751,7 @@ WFE::Job::DoIt(bool issync)
         {
           case cta::xrd::Response::RSP_SUCCESS:
             retc = 0;
-            eos_static_info("response:\n%s", response.DebugString().c_str());
+            eos_static_debug("Response received from CTA frontend:\n%s", response.DebugString().c_str());
 
             static std::string archiveFileIdAttr = "<eos::wfe::path::fxattr:sys.archiveFileId>";
             if (response.message_txt().find(archiveFileIdAttr) != std::string::npos) {
@@ -1762,9 +1768,25 @@ WFE::Job::DoIt(bool issync)
             }
 
             break;
+          case cta::xrd::Response::RSP_ERR_CTA:
+            retc = EINVAL;
+            eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
+            break;
+          case cta::xrd::Response::RSP_ERR_USER:
+            retc = EINVAL;
+            eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
+            break;
+          case cta::xrd::Response::RSP_ERR_PROTOBUF:
+            retc = EINVAL;
+            eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
+            break;
+          case cta::xrd::Response::RSP_INVALID:
+            retc = EINVAL;
+            eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
+            break;
           default:
             retc = EINVAL;
-            eos_static_err("response:\n%s", response.DebugString().c_str());
+            eos_static_err("Response:\n%s", response.DebugString().c_str());
         }
       } else {
         storetime = 0;
