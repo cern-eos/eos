@@ -25,6 +25,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include <algorithm>
 #include <cstdint>
@@ -45,6 +46,8 @@ TEST(HierarchicalView, LoadTest)
       {"qdb_flusher_md", "tests_md"},
       {"qdb_flusher_quota", "tests_quota"}
     };
+
+    eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
     std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
     std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
     std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
@@ -72,6 +75,9 @@ TEST(HierarchicalView, LoadTest)
     ASSERT_TRUE(test != nullptr);
     ASSERT_TRUE(test->findContainer("embed") != nullptr);
     ASSERT_TRUE(embed != nullptr);
+    ASSERT_EQ(root->getId(), 1);
+    ASSERT_NE(test->getId(), 1);
+    ASSERT_NE(embed->getId(), 1);
     ASSERT_TRUE(embed->findContainer("embed1") != nullptr);
     ASSERT_TRUE(embed->findContainer("embed2") != nullptr);
     ASSERT_TRUE(embed->findContainer("embed3") != nullptr);
@@ -118,8 +124,8 @@ TEST(HierarchicalView, LoadTest)
       view->getFile("/test/embed/embed1/file3")};
     std::shared_ptr<eos::IContainerMD> container{
       view->getContainer("/test/embed/embed1")};
-    ASSERT_TRUE(view->getUri(container.get()) == "/test/embed/embed1/");
-    ASSERT_TRUE(view->getUri(file.get()) == "/test/embed/embed1/file3");
+    ASSERT_EQ(view->getUri(container.get()), "/test/embed/embed1/");
+    ASSERT_EQ(view->getUri(file.get()), "/test/embed/embed1/file3");
     ASSERT_THROW(view->getUri((eos::IFileMD*)nullptr), eos::MDException);
     std::shared_ptr<eos::IFileMD> toBeDeleted{
       view->getFile("/test/embed/embed1/file2")};
@@ -248,6 +254,8 @@ TEST(HierarchicalView, QuotaTest)
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };
+
+  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
   std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
@@ -446,6 +454,8 @@ TEST(HierarchicalView, LostContainerTest)
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };
+
+  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
   std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};

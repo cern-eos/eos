@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include <gtest/gtest.h>
 #include <cstdlib>
@@ -110,6 +111,8 @@ TEST(FileSystemView, BasicSanity)
       {"qdb_flusher_md", "tests_md"},
       {"qdb_flusher_quota", "tests_quota"}
     };
+
+    eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
     eos::MetadataFlusher* flusher =
       eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
           qclient::Members::fromString(config["qdb_cluster"]));

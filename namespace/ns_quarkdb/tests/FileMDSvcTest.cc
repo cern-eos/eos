@@ -25,6 +25,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include <cppunit/extensions/HelperMacros.h>
 #include <memory>
 #include <gtest/gtest.h>
@@ -47,6 +48,8 @@ TEST(FileMDSvc, LoadTest)
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };
+
+  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
   eos::MetadataFlusher* flusher =
     eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
         qclient::Members::fromString(config["qdb_cluster"]));
@@ -111,6 +114,8 @@ TEST(FileMDSvc, CheckFileTest)
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };
+
+  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
   std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -91,6 +92,11 @@ HierarchicalView::initialize1()
     pRoot = pContainerSvc->getContainerMD(1);
   } catch (MDException& e) {
     pRoot = pContainerSvc->createContainer();
+    if(pRoot->getId() != 1) {
+      eos_static_crit("Error when creating root '/' path - directory inode is not 1, but %d!", pRoot->getId());
+      std::quick_exit(1);
+    }
+
     pRoot->setName("/");
     pRoot->setParentId(pRoot->getId());
     updateContainerStore(pRoot.get());
