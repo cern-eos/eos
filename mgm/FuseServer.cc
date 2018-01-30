@@ -1628,7 +1628,7 @@ FuseServer::FillContainerCAP(uint64_t id,
     bool has_quota = false;
     long long avail_bytes = 0;
     long long avail_files = 0;
-    eos::IContainerMD::id_t quota_inode;
+    eos::IContainerMD::id_t quota_inode = 0;
 
     if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space)) {
       if (!Quota::QuotaByPath(dir.fullpath().c_str(), dir.capability().uid(),
