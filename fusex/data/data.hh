@@ -68,7 +68,8 @@ public:
     {}
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-      mAttached(0), mMd(md), mPrefetchHandler(0), mWaitForOpen(false), mFlags(0)
+      mAttached(0), mMd(md), mPrefetchHandler(0), mWaitForOpen(false), mSimulateWriteErrorInFlush(false),
+      mSimulateWriteErrorInFlusher(false),mFlags(0)
     {}
 
     virtual ~datax() = default;
