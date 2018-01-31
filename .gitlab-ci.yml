@@ -390,6 +390,18 @@ eos_dockerimage_tag:
   only:
     - tags
 
+eos_prod_dockerimage_tag:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos/eos-prod:${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/projects/eos/Dockerfile
+  dependencies:
+    - eos_rpm_cc7
+
 eos_unit_test:
   stage: test
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
