@@ -21,8 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <exception>
+#include "common/backward-cpp/backward.hpp"
 #include "common/RWMutex.hh"
+#include <exception>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -544,7 +545,13 @@ RWMutex::EnterCheckDeadlock(bool rd_lock)
       // For non-preferred rd lock - since is a re-entrant read lock, if there
       // is any write lock pending then this will deadlock
       if (!mPreferRd && mThreadsWrLock.size()) {
-        fprintf(stderr, "%s Double read lock during write lock\n", __FUNCTION__);
+        using namespace backward;
+        StackTrace st;
+        st.load_here(32);
+        Printer p;
+        p.object = true;
+        p.address = true;
+        p.print(st, std::cerr);
         pthread_mutex_unlock(&mCollectionMutex);
         throw std::runtime_error("double read lock during write lock");
       }
@@ -554,7 +561,13 @@ RWMutex::EnterCheckDeadlock(bool rd_lock)
   } else {
     if (mThreadsWrLock.find(tid) != mThreadsWrLock.end()) {
       // This is a case of double write lock
-      fprintf(stderr, "%s Double write lock\n", __FUNCTION__);
+      using namespace backward;
+      StackTrace st;
+      st.load_here(32);
+      Printer p;
+      p.object = true;
+      p.address = true;
+      p.print(st, std::cerr);
       pthread_mutex_unlock(&mCollectionMutex);
       throw std::runtime_error("double write lock");
     }
