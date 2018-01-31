@@ -47,7 +47,8 @@ set(COMMON_UT_SRCS
   common/TimingTests.cc
   common/MappingTests.cc
   common/SymKeysTests.cc
-  common/ThreadPoolTest.cc)
+  common/ThreadPoolTest.cc
+  common/RWMutexTest.cc)
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
