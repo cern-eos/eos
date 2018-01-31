@@ -272,10 +272,10 @@ HttpHandler::Get(eos::common::HttpRequest* request)
           while (checksum_val[0] == '0') {
             checksum_val.erase(0, 1);
           }
-
-          response->AddHeader("OC-Checksum",
-                              eos::common::OwnCloud::GetChecksumString(checksum_name,
-                                  checksum_val));
+          std::string checksum_string = eos::common::OwnCloud::GetChecksumString(checksum_name,
+                                  checksum_val);
+          response->AddHeader("OC-Checksum", checksum_string);
+          response->AddHeader("Digest", checksum_string);
         }
       }
 

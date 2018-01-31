@@ -344,6 +344,49 @@ XrdMgmOfs::_stat(const char* path,
   }
 }
 
+// ---------------------------------------------------------------------------
+//  get the checksum info of a file
+// ---------------------------------------------------------------------------
+int 
+XrdMgmOfs::_getchecksum(const char* Name,
+           XrdOucErrInfo& error,
+           std::string* xstype,
+           std::string* xs,
+           const XrdSecEntity* client,
+           const char* opaque, 
+           bool follow) 
+{
+    // ---------------------------------------------------------------------------
+    errno = 0;
+    std::shared_ptr<eos::IFileMD> fmd;
+    eos::common::Path cPath(Name);
+
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+              e.getMessage().str().c_str());
+      return errno;
+    }
+
+    if (fmd) {
+      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+      if (cxlen) {
+        *xstype = eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
+        for (unsigned int i = 0; i < cxlen; i++) {
+          char hb[3];
+          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
+                    fmd->getChecksum().getDataPadded(i)) : 0);
+          *xs += hb;
+        }
+      }
+    }
+    return 0;
+}
 //------------------------------------------------------------------------------
 // Stat following links (not existing in EOS - behaves like stat)
 //------------------------------------------------------------------------------

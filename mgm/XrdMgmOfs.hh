@@ -557,6 +557,17 @@ public:
            const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
+  // stat file and get the checksum info
+  // ---------------------------------------------------------------------------
+  int _getchecksum(const char* Name,
+           XrdOucErrInfo& out_error,
+           std::string* xstype,
+           std::string* xs,
+           const XrdSecEntity* client = 0,
+           const char* opaque = 0,
+           bool follow = true
+          );
+  // ---------------------------------------------------------------------------
   // stat file by vid
   // ---------------------------------------------------------------------------
   int _stat(const char* Name,

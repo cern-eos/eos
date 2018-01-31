@@ -274,10 +274,37 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                         url.c_str());
         // HEAD requests on files can return from the MGM without redirection
         response = HttpServer::HttpHead(buf.st_size, basename);
+        
         response->AddHeader("ETag", etag);
         response->AddHeader("Last-Modified",
                             eos::common::Timing::utctime(buf.st_mtime));
-        return response;
+        if (request->GetHeaders().count("want-digest")) {
+          std::string type = request->GetHeaders()["want-digest"];
+          XrdOucString digest ="";
+          eos_static_debug("method=HEAD, path=%s, checksum requested=%s",
+                          url.c_str(), type.c_str());
+          //check if there is a checksum type and checksum
+           
+          std::string xstype = "";
+          std::string xs = "";
+          if (!gOFS->_getchecksum(url.c_str(),
+                           error,
+                           &xstype,
+                           &xs,
+                           &client,
+                           "")) {
+                 //check if the type match what requested
+            if (xstype == type) {
+              eos_static_debug("method=HEAD, path=%s, checksum requested=%s, checksum available=%s",
+                          url.c_str(), type.c_str(), xstype.c_str());
+              digest += xstype.c_str();
+              digest += "=";
+              digest += xs.c_str();
+              response->AddHeader("Digest", digest.c_str());
+            }
+          }
+        }
+       return response;
       }
     }
   }
