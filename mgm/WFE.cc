@@ -1714,7 +1714,6 @@ WFE::Job::DoIt(bool issync)
           static constexpr auto tapeFsid = 65535u;
           if (fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1) {
             eos_static_info("File %s already has a tape copy. Ignoring request.", fullpath.c_str());
-            return SFS_OK;
           }
           else {
             XrdOucErrInfo errInfo;
@@ -1737,6 +1736,8 @@ WFE::Job::DoIt(bool issync)
               gOFS->eosView->updateFileStore(fmd.get());
             }
           }
+
+          return SFS_OK;
         }
 
         static XrdCl::Env* xrootEnv = nullptr;
