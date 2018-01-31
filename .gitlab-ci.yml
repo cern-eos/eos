@@ -397,10 +397,12 @@ eos_prod_dockerimage_tag:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos/eos-prod:${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos/eos-prod:${CI_COMMIT_TAG}
     DOCKER_FILE: eos-docker/projects/eos/Dockerfile
   dependencies:
     - eos_rpm_cc7
+  only:
+    - tags
 
 eos_unit_test:
   stage: test
