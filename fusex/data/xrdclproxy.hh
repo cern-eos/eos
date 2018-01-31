@@ -453,6 +453,7 @@ namespace XrdCl
       mTotalBytes = 0;
       mTotalReadAheadHitBytes  = 0;
       mAttached = 0;
+      mTimeout = 0;
       mSelfDestruction.store(false, std::memory_order_seq_cst);      
     }
 
