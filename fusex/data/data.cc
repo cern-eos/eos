@@ -1327,6 +1327,8 @@ data::datax::recover_write(fuse_req_t req)
       }
     } while (nr>0);
     
+    ::close(fd);
+
     // collect the writes to verify everything is alright now
     uploadproxy->WaitWrite(req);
     
