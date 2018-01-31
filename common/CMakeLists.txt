@@ -21,6 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+add_subdirectory(backward-cpp)
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -113,14 +115,15 @@ target_link_libraries(eosCommon PUBLIC
   ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY})
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${BACKWARD_LIBRARIES})
 
 # !!!!!
 # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
 # use std::atomic and the <atomic> header.
 # !!!!!
 target_compile_definitions(eosCommon PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -DHAVE_ATOMICS=1)
 
 target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
@@ -148,8 +151,8 @@ target_include_directories(eosCommon-Static PUBLIC
 # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
 # use std::atomic and the <atomic> header.
 # !!!!!
-target_compile_definitions(eosCommon-Static
-  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+target_compile_definitions(eosCommon-Static PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -DHAVE_ATOMICS=1)
 
 set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -167,6 +170,7 @@ target_link_libraries(eosCommon-Static PRIVATE
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${PROTOBUF_LIBRARY}
+  ${BACKWARD_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------

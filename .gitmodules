@@ -10,3 +10,7 @@
 [submodule "mgm/cta_interface"]
 	path = mgm/cta_interface
 	url = https://gitlab.cern.ch/eos/xrootd-ssi-protobuf-interface.git
+[submodule "common/backward-cpp"]
+	path = common/backward-cpp
+	url = https://github.com/bombela/backward-cpp.git
+	branch = master

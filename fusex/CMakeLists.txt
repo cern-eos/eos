@@ -21,8 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-add_subdirectory(deps/backward-cpp)
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -97,9 +95,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${ZMQ_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   bz2
-  eosCommon
-  ${BACKWARD_LIBRARIES}
-)
+  eosCommon)
 
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
