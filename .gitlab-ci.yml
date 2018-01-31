@@ -415,8 +415,8 @@ eos_prod_dockerimage_tag:
   dependencies:
     - eos_rpm_cc7
     - eos_clone_docker
-  only:
-    - tags
+  #only:
+  #  - tags
 
 eos_unit_test:
   stage: test
