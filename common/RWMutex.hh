@@ -71,6 +71,8 @@
 #include <execinfo.h>
 #include <limits>
 #include <cmath>
+#include <set>
+#include <thread>
 #endif
 
 #define _MULTI_THREADED
@@ -89,7 +91,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutex(bool preferreader=false);
+  RWMutex(bool preferreader = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -219,6 +221,22 @@ public:
   inline static bool GetOrderCheckingGlobal()
   {
     return sEnableGlobalOrderCheck;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Turn on/off deadlock checking
+  //----------------------------------------------------------------------------
+  inline static void SetDeadlockCheckingGlobal(bool on)
+  {
+    sEnableGlobalDeadlockCheck = on;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the global deadlock check status
+  //----------------------------------------------------------------------------
+  inline static bool GetDeadlockCheckingGlobal()
+  {
+    return sEnableGlobalDeadlockCheck;
   }
 
   //----------------------------------------------------------------------------
@@ -396,6 +414,36 @@ public:
   //----------------------------------------------------------------------------
   void ResetCheckOrder();
 
+  //----------------------------------------------------------------------------
+  //! Enable/disable deadlock check
+  //!
+  //! @param on if true then enable, otherwise disable
+  //----------------------------------------------------------------------------
+  inline void SetDeadlockCheck(bool status)
+  {
+    mEnableDeadlockCheck = status;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check for deadlocks
+  //!
+  //! @param rd_lock true if this is about to take a read lock, otherwise false
+  //! @note it throws an exception if it causes a deadlock
+  //----------------------------------------------------------------------------
+  void EnterCheckDeadlock(bool rd_lock);
+
+  //----------------------------------------------------------------------------
+  //! Exit check for deadlocks
+  //!
+  //! @param rd_lock true if this is about to take a read lock, otherwise false
+  //----------------------------------------------------------------------------
+  void ExitCheckDeadlock(bool rd_lock);
+
+  //----------------------------------------------------------------------------
+  //! Clear the data structures used for detecting deadlocks
+  //----------------------------------------------------------------------------
+  void DropDeadlockCheck();
+
 #ifdef __APPLE__
   static int round(double number);
 #endif
@@ -410,17 +458,9 @@ private:
   struct timespec rlocktime;
   size_t mRdLockCounter;
   size_t mWrLockCounter;
+  bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  static bool staticInitialized;
-  static bool sEnableGlobalTiming;
-  static int sSamplingModulo;
-  static size_t timingCompensation, timingLatency, lockUnlockDuration;
-  static size_t mRdCumulatedWait_static, mWrCumulatedWait_static;
-  static size_t mRdMaxWait_static, mWrMaxWait_static;
-  static size_t mRdMinWait_static, mWrMinWait_static;
-  static size_t mRdLockCounterSample_static, mWrLockCounterSample_static;
-
   std::string mDebugName;
   int mCounter;
   int mSamplingModulo;
@@ -429,6 +469,21 @@ private:
   size_t mRdCumulatedWait, mWrCumulatedWait;
   size_t mRdMaxWait, mWrMaxWait, mRdMinWait, mWrMinWait;
   size_t mRdLockCounterSample, mWrLockCounterSample;
+
+  std::map<std::thread::id, int> mThreadsRdLock; ///< Threads holding a read lock
+  std::set<std::thread::id> mThreadsWrLock; ///< Threads holding a write lock
+  pthread_mutex_t mCollectionMutex; ///< Mutex protecting the sets above
+  bool mEnableDeadlockCheck; ///< Check for deadlocks
+  bool mTransientDeadlockCheck; ///< Enabled by the global flag
+
+  static bool staticInitialized;
+  static bool sEnableGlobalTiming;
+  static int sSamplingModulo;
+  static size_t timingCompensation, timingLatency, lockUnlockDuration;
+  static size_t mRdCumulatedWait_static, mWrCumulatedWait_static;
+  static size_t mRdMaxWait_static, mWrMaxWait_static;
+  static size_t mRdMinWait_static, mWrMinWait_static;
+  static size_t mRdLockCounterSample_static, mWrLockCounterSample_static;
 
   // Actual order checking
   // Pointers referring to a memory location not thread specific so that if the
@@ -459,6 +514,7 @@ private:
   // lock to guarantee unique access to rules management
   static pthread_rwlock_t orderChkMgmLock;
   static bool sEnableGlobalOrderCheck;
+  static bool sEnableGlobalDeadlockCheck;
   static size_t orderCheckingLatency;
 #endif
 };
@@ -542,27 +598,25 @@ private:
   RWMutex* mRdMutex;
 };
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! RW Mutex prefereing the reader
-// ---------------------------------------------------------------------------
-
-class RWMutexR : public RWMutex {
-public: 
+//------------------------------------------------------------------------------
+class RWMutexR : public RWMutex
+{
+public:
   RWMutexR() : RWMutex(true) { }
-  virtual ~RWMutexR(){}
+  virtual ~RWMutexR() {}
 };
 
-
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! RW Mutex prefereing the writerr
-// ---------------------------------------------------------------------------
-
-class RWMutexW : public RWMutex {
-public: 
+//------------------------------------------------------------------------------
+class RWMutexW : public RWMutex
+{
+public:
   RWMutexW() : RWMutex(false) { }
-  virtual ~RWMutexW(){}
+  virtual ~RWMutexW() {}
 };
-
 
 // undefine the timer stuff
 #ifdef EOS_INSTRUMENTED_RWMUTEX

@@ -42,6 +42,7 @@ size_t RWMutex::lockUnlockDuration = 0;
 int RWMutex::sSamplingModulo = (int)(0.01 * RAND_MAX);
 bool RWMutex::staticInitialized = false;
 bool RWMutex::sEnableGlobalTiming = false;
+bool RWMutex::sEnableGlobalDeadlockCheck = false;
 bool RWMutex::sEnableGlobalOrderCheck = false;
 RWMutex::rules_t* RWMutex::rules_static = NULL;
 std::map<unsigned char, std::string>* RWMutex::ruleIndex2Name_static = NULL;
@@ -108,8 +109,8 @@ pthread_rwlock_t RWMutex::orderChkMgmLock;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutex::RWMutex(bool preferreader):
-  mBlocking(false), mRdLockCounter(0), mWrLockCounter(0)
+RWMutex::RWMutex(bool prefer_rd):
+  mBlocking(false), mRdLockCounter(0), mWrLockCounter(0), mPreferRd(prefer_rd)
 {
   int retc = 0;
   // Try to get write lock in 5 seconds, then release quickly and retry
@@ -127,31 +128,35 @@ RWMutex::RWMutex(bool preferreader):
   }
 
   mCounter = 0;
-  ResetTimingStatistics();
   mEnableTiming = false;
   mEnableSampling = false;
+  mEnableDeadlockCheck = false;
+  mTransientDeadlockCheck = false;
   nrules = 0;
+  mCollectionMutex = PTHREAD_MUTEX_INITIALIZER;
+  ResetTimingStatistics();
 #endif
   pthread_rwlockattr_init(&attr);
 #ifndef __APPLE__
 
-  if (preferreader) {
+  if (mPreferRd) {
     // Readers go ahead of writers and are reentrant
     if ((retc = pthread_rwlockattr_setkind_np(&attr,
-					      PTHREAD_RWLOCK_PREFER_WRITER_NP))) {
+                PTHREAD_RWLOCK_PREFER_WRITER_NP))) {
       fprintf(stderr, "%s Failed to set readers priority: %s\n", __FUNCTION__,
-	      strerror(retc));
+              strerror(retc));
       std::terminate();
     }
   } else {
     // Readers don't go ahead of writers!
     if ((retc = pthread_rwlockattr_setkind_np(&attr,
-					      PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
+                PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP))) {
       fprintf(stderr, "%s Failed to set writers priority: %s\n", __FUNCTION__,
-	      strerror(retc));
+              strerror(retc));
       std::terminate();
     }
   }
+
 #endif
 
   if ((retc = pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))) {
@@ -253,6 +258,15 @@ RWMutex::LockRead()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+
+  if (sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = true;
+  }
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    EnterCheckDeadlock(true);
+  }
+
   int retc = 0;
 
   if ((retc = pthread_rwlock_rdlock(&rwlock))) {
@@ -315,12 +329,25 @@ void
 RWMutex::UnLockRead()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    ExitCheckDeadlock(true);
+  }
+
   int retc = 0;
 
   if ((retc = pthread_rwlock_unlock(&rwlock))) {
     fprintf(stderr, "%s Failed to read-unlock: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
+  }
+
+  if (!sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = false;
+
+    if (!mEnableDeadlockCheck) {
+      DropDeadlockCheck();
+    }
   }
 }
 
@@ -332,6 +359,15 @@ RWMutex::LockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+
+  if (sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = true;
+  }
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    EnterCheckDeadlock(false);
+  }
+
   int retc = 0;
 
   if (mBlocking) {
@@ -395,6 +431,11 @@ void
 RWMutex::UnLockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    ExitCheckDeadlock(false);
+  }
+
   int retc = 0;
 
   if ((retc = pthread_rwlock_unlock(&rwlock))) {
@@ -405,6 +446,14 @@ RWMutex::UnLockWrite()
 
   // fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",
   // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+
+  if (!sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = false;
+
+    if (!mEnableDeadlockCheck) {
+      DropDeadlockCheck();
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -476,6 +525,93 @@ RWMutex::round(double number)
   return (number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5));
 }
 #endif
+
+//------------------------------------------------------------------------------
+// Check for deadlocks
+//------------------------------------------------------------------------------
+void
+RWMutex::EnterCheckDeadlock(bool rd_lock)
+{
+  std::thread::id tid = std::this_thread::get_id();
+  pthread_mutex_lock(&mCollectionMutex);
+
+  if (rd_lock) {
+    auto it = mThreadsRdLock.find(tid);
+
+    if (it != mThreadsRdLock.end()) {
+      ++it->second;
+
+      // For non-preferred rd lock - since is a re-entrant read lock, if there
+      // is any write lock pending then this will deadlock
+      if (!mPreferRd && mThreadsWrLock.size()) {
+        fprintf(stderr, "%s Double read lock during write lock\n", __FUNCTION__);
+        pthread_mutex_unlock(&mCollectionMutex);
+        throw std::runtime_error("double read lock during write lock");
+      }
+    } else {
+      mThreadsRdLock.insert(std::make_pair(tid, 1));
+    }
+  } else {
+    if (mThreadsWrLock.find(tid) != mThreadsWrLock.end()) {
+      // This is a case of double write lock
+      fprintf(stderr, "%s Double write lock\n", __FUNCTION__);
+      pthread_mutex_unlock(&mCollectionMutex);
+      throw std::runtime_error("double write lock");
+    }
+
+    mThreadsWrLock.insert(tid);
+  }
+
+  pthread_mutex_unlock(&mCollectionMutex);
+}
+
+//------------------------------------------------------------------------------
+// Helper function to check for deadlocks
+//------------------------------------------------------------------------------
+void
+RWMutex::ExitCheckDeadlock(bool rd_lock)
+{
+  std::thread::id tid = std::this_thread::get_id();
+  pthread_mutex_lock(&mCollectionMutex);
+
+  if (rd_lock) {
+    auto it = mThreadsRdLock.find(tid);
+
+    if (it == mThreadsRdLock.end()) {
+      fprintf(stderr, "%s Extra read unlock\n", __FUNCTION__);
+      pthread_mutex_unlock(&mCollectionMutex);
+      throw std::runtime_error("extra read unlock");
+    }
+
+    if (--it->second == 0) {
+      mThreadsRdLock.erase(it);
+    }
+  } else {
+    auto it = mThreadsWrLock.find(tid);
+
+    if (it == mThreadsWrLock.end()) {
+      fprintf(stderr, "%s Extra write unlock\n", __FUNCTION__);
+      pthread_mutex_unlock(&mCollectionMutex);
+      throw std::runtime_error("extra write unlock");
+    }
+
+    mThreadsWrLock.erase(it);
+  }
+
+  pthread_mutex_unlock(&mCollectionMutex);
+}
+
+//------------------------------------------------------------------------------
+// Clear the data structures used for detecting deadlocks
+//------------------------------------------------------------------------------
+void
+RWMutex::DropDeadlockCheck()
+{
+  pthread_mutex_lock(&mCollectionMutex);
+  mThreadsRdLock.clear();
+  mThreadsWrLock.clear();
+  pthread_mutex_unlock(&mCollectionMutex);
+}
 
 //------------------------------------------------------------------------------
 // Enable sampling of timings
@@ -1186,7 +1322,8 @@ RWMutexReadLock::Grab(RWMutex& mutex)
 }
 
 void
-RWMutexReadLock::Release() {
+RWMutexReadLock::Release()
+{
   if (mRdMutex) {
     mRdMutex->UnLockRead();
     mRdMutex = nullptr;
