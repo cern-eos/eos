@@ -38,6 +38,7 @@
 #include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -1738,6 +1739,20 @@ WFE::Job::DoIt(bool issync)
           }
         }
 
+        static XrdCl::Env* xrootEnv = nullptr;
+        xrootEnv = xrootEnv == nullptr ? XrdCl::DefaultEnv::GetEnv() : xrootEnv;
+        static int requestTimeout = 0;
+        if (xrootEnv != nullptr)
+          xrootEnv->GetInt("RequestTimeout", requestTimeout);
+        static int timeoutResolution = 0;
+        if (xrootEnv != nullptr)
+          xrootEnv->GetInt("TimeoutResolution", timeoutResolution);
+        static int streamTimeout = 0;
+        if (xrootEnv != nullptr)
+          xrootEnv->GetInt("StreamTimeout", streamTimeout);
+
+        eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
+                         timeoutResolution, requestTimeout, streamTimeout);
         eos_static_debug("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
