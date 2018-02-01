@@ -221,6 +221,15 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+
+  if (sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = true;
+  }
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    EnterCheckDeadlock(true);
+  }
+
   int retc = 0;
   struct timespec timeout = {0};
   _clock_gettime(CLOCK_REALTIME, &timeout);
@@ -236,6 +245,11 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 #else
   retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
 #endif
+
+  if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {
+    ExitCheckDeadlock(true);
+  }
+
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
   return retc;
 }
@@ -345,10 +359,10 @@ RWMutex::UnLockRead()
 
   if (!sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = false;
+  }
 
-    if (!mEnableDeadlockCheck) {
-      DropDeadlockCheck();
-    }
+  if (!mEnableDeadlockCheck && !mTransientDeadlockCheck) {
+    DropDeadlockCheck();
   }
 }
 

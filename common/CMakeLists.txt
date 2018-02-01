@@ -123,7 +123,7 @@ target_link_libraries(eosCommon PUBLIC
 # use std::atomic and the <atomic> header.
 # !!!!!
 target_compile_definitions(eosCommon PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -DHAVE_ATOMICS=1)
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW=1 -DHAVE_ATOMICS=1)
 
 target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
@@ -152,7 +152,7 @@ target_include_directories(eosCommon-Static PUBLIC
 # use std::atomic and the <atomic> header.
 # !!!!!
 target_compile_definitions(eosCommon-Static PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -DHAVE_ATOMICS=1)
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW=1 -DHAVE_ATOMICS=1)
 
 set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

@@ -17,6 +17,7 @@ message NsProto {
     bool Sample_rate1  = 4;
     bool Sample_rate10 = 5;
     bool Sample_rate100 = 6;
+    bool Toggle_deadlock = 7;
   }
 
   message CompactProto {
