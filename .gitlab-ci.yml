@@ -415,6 +415,7 @@ eos_prod_dockerimage_tag:
   dependencies:
     - eos_rpm_cc7
     - eos_clone_docker
+  allow_failure: true
   only:
     - tags
 
