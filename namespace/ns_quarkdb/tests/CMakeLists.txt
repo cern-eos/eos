@@ -37,7 +37,10 @@ add_executable(
   Main.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
-  OtherTests.cc)
+  OtherTests.cc
+  TestUtils.cc
+  VariousTests.cc
+)
 
 target_compile_definitions(eos_ns_quarkdb_tests PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 

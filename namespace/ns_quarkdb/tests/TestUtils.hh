@@ -22,7 +22,16 @@
  ************************************************************************/
 #pragma once
 
+#include <gtest/gtest.h>
 #include "Namespace.hh"
+#include "qclient/Members.hh"
+
+namespace eos {
+  class IContainerMDSvc;
+  class IFileMDSvc;
+  class IView;
+}
+
 EOSNSTESTING_BEGIN
 
 //------------------------------------------------------------------------------
@@ -30,20 +39,41 @@ EOSNSTESTING_BEGIN
 //------------------------------------------------------------------------------
 class FlushAllOnDestruction {
 public:
-  FlushAllOnDestruction(const qclient::Members &mbr) : members(mbr) {
-    qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
-    qclient::QClient qcl(members, true, strategy);
-    qcl.exec("FLUSHALL").get();
-  }
-
-  ~FlushAllOnDestruction() {
-    qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
-    qclient::QClient qcl(members, true, strategy);
-    qcl.exec("FLUSHALL").get();
-  }
+  FlushAllOnDestruction(const qclient::Members &mbr);
+  ~FlushAllOnDestruction();
 
 private:
   qclient::Members members;
 };
+
+//------------------------------------------------------------------------------
+//! Test fixture providing generic utilities and initialization / destruction
+//! boilerplate code
+//------------------------------------------------------------------------------
+
+class NsTestsFixture : public ::testing::Test {
+public:
+  NsTestsFixture();
+  ~NsTestsFixture();
+
+  // Lazy initialization.
+  eos::IContainerMDSvc* containerSvc();
+  eos::IFileMDSvc* fileSvc();
+  eos::IView* view();
+
+  void shut_down_everything();
+
+private:
+  void initServices();
+
+  std::map<std::string, std::string> testconfig;
+  std::unique_ptr<eos::ns::testing::FlushAllOnDestruction> guard;
+  std::unique_ptr<eos::IContainerMDSvc> containerSvcPtr;
+  std::unique_ptr<eos::IFileMDSvc> fileSvcPtr;
+  std::unique_ptr<eos::IView> viewPtr;
+};
+
+
+
 
 EOSNSTESTING_END
