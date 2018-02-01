@@ -111,6 +111,8 @@ NsHelper::ParseCommand(const char* arg)
           mutex->set_toggle_timing(true);
         } else if (soption == "--toggleorder") {
           mutex->set_toggle_order(true);
+        } else if (soption == "--toggledeadlock") {
+          mutex->set_toggle_deadlock(true);
         } else if (soption == "--smplrate1") {
           mutex->set_sample_rate1(true);
         } else if (soption == "--smplrate10") {
@@ -298,13 +300,14 @@ void com_ns_help()
       << std::endl
       << "  ns mutex [<option>]" << std::endl
       << "    manage mutex monitoring. Option can be:" << std::endl
-      << "    --toggletiming : toggle the timing" << std::endl
-      << "    --toggleorder  : toggle the order" << std::endl
-      << "    --smplrate1    : set timing sample rate at 1% (default, no slow-down)"
+      << "    --toggletiming   : toggle the timing" << std::endl
+      << "    --toggleorder    : toggle the order" << std::endl
+      << "    --toggledeadlock : toggle deadlock check" << std::endl
+      << "    --smplrate1      : set timing sample rate at 1% (default, no slow-down)"
       << std::endl
-      << "    --smplrate10   : set timing sample rate at 10% (medium slow-down)"
+      << "    --smplrate10     : set timing sample rate at 10% (medium slow-down)"
       << std::endl
-      << "    --smplrate100  : set timing sample rate at 100% (severe slow-down)"
+      << "    --smplrate100    : set timing sample rate at 100% (severe slow-down)"
       << std::endl
       << std::endl
       << "  ns compact off|on <delay> [<interval>] [<type>]" << std::endl

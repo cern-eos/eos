@@ -478,11 +478,27 @@ int
 RWMutex::TimeoutLockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
+  int retc = 0;
+
+  if (sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = true;
+  }
+
+  if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
+    EnterCheckDeadlock(false);
+  }
+
 #ifdef __APPLE__
-  return pthread_rwlock_wrlock(&rwlock);
+  retc =  pthread_rwlock_wrlock(&rwlock);
 #else
-  return pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+  retc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
 #endif
+
+  if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {
+    ExitCheckDeadlock(false);
+  }
+
+  return retc;
 }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
