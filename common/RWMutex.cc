@@ -460,11 +460,13 @@ void
 RWMutex::UnLockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
     ExitCheckDeadlock(false);
   }
 
+#endif
   int retc = 0;
 
   if ((retc = pthread_rwlock_unlock(&rwlock))) {
@@ -475,6 +477,7 @@ RWMutex::UnLockWrite()
 
   // fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",
   // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (!sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = false;
@@ -483,6 +486,8 @@ RWMutex::UnLockWrite()
       DropDeadlockCheck();
     }
   }
+
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -509,11 +514,13 @@ RWMutex::TimeoutLockWrite()
 #else
   retc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
 #endif
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {
     ExitCheckDeadlock(false);
   }
 
+#endif
   return retc;
 }
 
