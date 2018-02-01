@@ -189,7 +189,7 @@ add_library(
 add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+  -DDAEMONUID=${DAEMONUID} -DBACKWARD_HAS_DW=1 -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(
   XrdEosMgm-Objects
@@ -202,7 +202,8 @@ add_library(XrdEosMgm MODULE
   $<TARGET_OBJECTS:EosAuthProto-Objects>)
 
 target_compile_definitions(
-  XrdEosMgm PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+  XrdEosMgm PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 if (MICROHTTPD_FOUND)
   target_compile_definitions(

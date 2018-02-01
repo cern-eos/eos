@@ -77,7 +77,6 @@ xrdmgmofs_shutdown(int sig)
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop transfer engine thread ... ");
   gTransferEngine.Stop();
-
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop statistics thread ... ");
 
@@ -118,7 +117,11 @@ xrdmgmofs_shutdown(int sig)
   }
 
   eos_static_warning("Shutdown:: grab write mutex");
-  gOFS->eosViewRWMutex.TimeoutLockWrite();
+
+  while (gOFS->eosViewRWMutex.TimeoutLockWrite()) {
+    eos_static_warning("Trying to get the wr lock on eosViewRWMutex");
+  }
+
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: set stall rule");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
@@ -150,7 +153,9 @@ xrdmgmofs_shutdown(int sig)
         delete gOFS->eosContainerAccounting;
       }
 
-      gOFS->eosViewRWMutex.TimeoutLockWrite();
+      while (gOFS->eosViewRWMutex.TimeoutLockWrite()) {
+        eos_static_warning("Trying to get the wr lock on eosViewRWMutex");
+      }
 
       if (gOFS->eosFsView) {
         delete gOFS->eosFsView;
@@ -201,17 +206,15 @@ xrdmgmofs_shutdown(int sig)
     FsView::ConfEngine = 0;
   }
 
+  gOFS->eosViewRWMutex.UnLockWrite();
   eos_static_warning("Shutdown complete");
   eos_static_alert("msg=\"shutdown complete\'");
 
-  if(getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
+  if (getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
     eos_static_crit("msg=\"attempting graceful shutdown, expect SEGV\'");
-
     FsView::gFsView.Reset();
     exit(9);
-  }
-  else {
+  } else {
     kill(getpid(), 9);
   }
-
 }
