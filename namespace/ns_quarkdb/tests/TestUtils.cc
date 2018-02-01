@@ -68,6 +68,10 @@ NsTestsFixture::~NsTestsFixture() {
   ContainerMDSvc::OverrideNumberOfBuckets();
 }
 
+qclient::Members NsTestsFixture::getMembers() {
+  return qclient::Members::fromString(testconfig["qdb_cluster"]);
+}
+
 void NsTestsFixture::initServices() {
   if(containerSvcPtr) {
     // Already initialized.
@@ -113,6 +117,13 @@ void NsTestsFixture::shut_down_everything() {
   viewPtr.reset();
   fileSvcPtr.reset();
   containerSvcPtr.reset();
+}
+
+std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
+  qclient::RetryStrategy retryStrategy {true, std::chrono::seconds(60) };
+  return std::unique_ptr<qclient::QClient>(
+    new qclient::QClient(getMembers(), true, retryStrategy)
+  );
 }
 
 EOSNSTESTING_END

@@ -21,18 +21,22 @@
 //! @breif NextInodeProvider tests
 //------------------------------------------------------------------------------
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
+#include "TestUtils.hh"
 #include "Namespace.hh"
 #include <gtest/gtest.h>
 #include <vector>
 
 EOSNSTESTING_BEGIN
 
-TEST(NextInodeProvider, BasicSanity)
+class NextInodeProviderTest : public NsTestsFixture {};
+
+TEST_F(NextInodeProviderTest, BasicSanity)
 {
-  qclient::QClient qcl("localhost", 7778); // TODO make this configurable
+  std::unique_ptr<qclient::QClient> qcl = createQClient();
+
   qclient::QHash myhash;
   myhash.setKey("ns-tests-next-inode-provider");
-  myhash.setClient(qcl);
+  myhash.setClient(*qcl.get());
   myhash.hdel("counter");
   constexpr size_t firstRunLimit = 50000;
   constexpr size_t secondRunLimit = 100000;
@@ -58,7 +62,7 @@ TEST(NextInodeProvider, BasicSanity)
       ASSERT_EQ(inodeProvider.reserve(), i);
     }
   }
-  qcl.del("ns-tests-next-inode-provider");
+  qcl->del("ns-tests-next-inode-provider");
 }
 
 EOSNSTESTING_END

@@ -63,6 +63,12 @@ public:
 
   void shut_down_everything();
 
+  // explicit transfer of ownership
+  std::unique_ptr<qclient::QClient> createQClient();
+
+  // Return test cluster members
+  qclient::Members getMembers();
+
 private:
   void initServices();
 
