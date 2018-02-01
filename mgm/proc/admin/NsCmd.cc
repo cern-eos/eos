@@ -96,6 +96,9 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
       oss <<  orderlatency << " nsec / "
           << int(double(orderlatency) / cycleperiod * 100)
           << "% of the mutex lock/unlock cycle duration)" << std::endl
+          << "deadlock checking is : "
+          << (eos::common::RWMutex::GetDeadlockCheckingGlobal() ? "on" : "off")
+          << std::endl
           << "timing         is : "
           << (FsView::gFsView.ViewMutex.GetTiming() ? "on " : "off")
           << " (estimated timing latency for 1 lock ";
@@ -140,6 +143,16 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
       } else {
         eos::common::RWMutex::SetOrderCheckingGlobal(true);
         oss << "mutex order checking is on" << std::endl;
+      }
+    }
+
+    if (mutex.toggle_deadlock()) {
+      if (eos::common::RWMutex::GetDeadlockCheckingGlobal()) {
+        eos::common::RWMutex::SetDeadlockCheckingGlobal(false);
+        oss << "mutex deadlock checking is off" << std::endl;
+      } else {
+        eos::common::RWMutex::SetDeadlockCheckingGlobal(true);
+        oss << "mutex deadlock checking is on" << std::endl;
       }
     }
 
