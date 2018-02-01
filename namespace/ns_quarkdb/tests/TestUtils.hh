@@ -30,6 +30,7 @@ namespace eos {
   class IContainerMDSvc;
   class IFileMDSvc;
   class IView;
+  class IFsView;
 }
 
 EOSNSTESTING_BEGIN
@@ -60,6 +61,7 @@ public:
   eos::IContainerMDSvc* containerSvc();
   eos::IFileMDSvc* fileSvc();
   eos::IView* view();
+  eos::IFsView* fsview();
 
   void shut_down_everything();
 
@@ -77,6 +79,7 @@ private:
   std::unique_ptr<eos::IContainerMDSvc> containerSvcPtr;
   std::unique_ptr<eos::IFileMDSvc> fileSvcPtr;
   std::unique_ptr<eos::IView> viewPtr;
+  std::unique_ptr<eos::IFsView> fsViewPtr;
 };
 
 

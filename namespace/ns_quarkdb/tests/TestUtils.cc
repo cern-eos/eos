@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 
 EOSNSTESTING_BEGIN
 
@@ -81,17 +82,21 @@ void NsTestsFixture::initServices() {
   containerSvcPtr.reset(new eos::ContainerMDSvc());
   fileSvcPtr.reset(new eos::FileMDSvc());
   viewPtr.reset(new eos::HierarchicalView());
+  fsViewPtr.reset(new eos::FileSystemView());
 
   fileSvcPtr->setContMDService(containerSvcPtr.get());
   containerSvcPtr->setFileMDService(fileSvcPtr.get());
 
   fileSvcPtr->configure(testconfig);
   containerSvcPtr->configure(testconfig);
+  fsViewPtr->configure(testconfig);
 
   viewPtr->setContainerMDSvc(containerSvcPtr.get());
   viewPtr->setFileMDSvc(fileSvcPtr.get());
   viewPtr->configure(testconfig);
   viewPtr->initialize();
+
+  fileSvcPtr->addChangeListener(fsViewPtr.get());
 }
 
 eos::IContainerMDSvc* NsTestsFixture::containerSvc() {
@@ -109,9 +114,18 @@ eos::IView* NsTestsFixture::view() {
   return viewPtr.get();
 }
 
+eos::IFsView* NsTestsFixture::fsview() {
+  initServices();
+  return fsViewPtr.get();
+}
+
 void NsTestsFixture::shut_down_everything() {
   if(viewPtr) {
     viewPtr->finalize();
+  }
+
+  if(fsViewPtr) {
+    fsViewPtr->finalize();
   }
 
   viewPtr.reset();
