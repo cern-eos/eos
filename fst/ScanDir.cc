@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
-//#include "common/FileId.hh"
 #include "common/Path.hh"
 #include "fst/ScanDir.hh"
 #include "fst/Config.hh"
@@ -30,18 +29,9 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdAttributeHandler.hh"
-#include "fst/MgmCommunicator.hh"
-//#include <cstdlib>
-//#include <cstring>
-//#include <sys/stat.h>
-//#include <sys/types.h>
-//#include <sys/time.h>
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #endif
-//#include <syslog.h>
-//#include <unistd.h>
-//#include <fcntl.h>
 
 // ---------------------------------------------------------------------------
 // - we miss ioprio.h and gettid
