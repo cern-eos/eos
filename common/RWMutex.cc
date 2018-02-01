@@ -221,6 +221,7 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = true;
@@ -230,6 +231,7 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
     EnterCheckDeadlock(true);
   }
 
+#endif
   int retc = 0;
   struct timespec timeout = {0};
   _clock_gettime(CLOCK_REALTIME, &timeout);
@@ -245,11 +247,13 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 #else
   retc = pthread_rwlock_timedrdlock(&rwlock, &timeout);
 #endif
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {
     ExitCheckDeadlock(true);
   }
 
+#endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
   return retc;
 }
@@ -273,6 +277,7 @@ RWMutex::LockRead()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = true;
@@ -282,6 +287,7 @@ RWMutex::LockRead()
     EnterCheckDeadlock(true);
   }
 
+#endif
   int retc = 0;
 
   if ((retc = pthread_rwlock_rdlock(&rwlock))) {
@@ -344,11 +350,13 @@ void
 RWMutex::UnLockRead()
 {
   EOS_RWMUTEX_CHECKORDER_UNLOCK;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (mEnableDeadlockCheck || mTransientDeadlockCheck) {
     ExitCheckDeadlock(true);
   }
 
+#endif
   int retc = 0;
 
   if ((retc = pthread_rwlock_unlock(&rwlock))) {
@@ -357,6 +365,8 @@ RWMutex::UnLockRead()
     std::terminate();
   }
 
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+
   if (!sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = false;
   }
@@ -364,6 +374,8 @@ RWMutex::UnLockRead()
   if (!mEnableDeadlockCheck && !mTransientDeadlockCheck) {
     DropDeadlockCheck();
   }
+
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -374,6 +386,7 @@ RWMutex::LockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = true;
@@ -383,6 +396,7 @@ RWMutex::LockWrite()
     EnterCheckDeadlock(false);
   }
 
+#endif
   int retc = 0;
 
   if (mBlocking) {
@@ -479,6 +493,7 @@ RWMutex::TimeoutLockWrite()
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   int retc = 0;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (sEnableGlobalDeadlockCheck) {
     mTransientDeadlockCheck = true;
@@ -488,6 +503,7 @@ RWMutex::TimeoutLockWrite()
     EnterCheckDeadlock(false);
   }
 
+#endif
 #ifdef __APPLE__
   retc =  pthread_rwlock_wrlock(&rwlock);
 #else
