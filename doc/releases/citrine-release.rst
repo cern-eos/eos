@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.2.12 Citrine``
+===================
+
+2018-02-01
+
+Bug
++++
+
+* Fix deadlock observerd in EOSATLAS between gFsView.ViewMutex and pAddRmFsMutex from the
+  scheduling part.
+* Fix bug on the FST realted to the file id value going beyond 2^32-1
+* [EOS-2275] - Possible data race in ThreadPool
+* [EOS-2290] - increase shutdown timeout for the FSTs
+
+New Feature
++++++++++++
+
+* Add skeleton for new "fs" command using protobuf requests
+* Add skeleton for CTA integration
+* Enhance the mutex deadlock detection mechanism
+
+
 ``v4.2.11 Citrine``
 ===================
 
