@@ -64,7 +64,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMDSvc() = default;
+  virtual ~ContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Initizlize the container service
@@ -164,6 +164,11 @@ public:
   //! Get first free container id
   //----------------------------------------------------------------------------
   IContainerMD::id_t getFirstFreeId() override;
+
+  //----------------------------------------------------------------------------
+  //! Override number of buckets
+  //----------------------------------------------------------------------------
+  static void OverrideNumberOfBuckets(uint64_t buckets = 128 * 1024);
 
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;

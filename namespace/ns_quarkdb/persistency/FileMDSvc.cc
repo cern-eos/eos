@@ -31,12 +31,29 @@ EOSNSNAMESPACE_BEGIN
 std::uint64_t FileMDSvc::sNumFileBuckets(1024 * 1024);
 std::chrono::seconds FileMDSvc::sFlushInterval(5);
 
+//----------------------------------------------------------------------------
+//! Override number of buckets
+//----------------------------------------------------------------------------
+void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets) {
+  sNumFileBuckets = buckets;
+}
+
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
     mMetaMap(), mDirtyFidBackend(), mFileCache(10e8), mNumFiles(0ull) {}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FileMDSvc::~FileMDSvc() {
+  if(pFlusher) {
+    pFlusher->synchronize();
+  }
+}
 
 //------------------------------------------------------------------------------
 // Configure the file service

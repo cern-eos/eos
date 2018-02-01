@@ -30,6 +30,13 @@ EOSNSNAMESPACE_BEGIN
 std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 
 //------------------------------------------------------------------------------
+// Override number of container buckets, used in tests.
+//------------------------------------------------------------------------------
+void ContainerMDSvc::OverrideNumberOfBuckets(uint64_t buckets) {
+  sNumContBuckets = buckets;
+}
+
+//------------------------------------------------------------------------------
 // Get container bucket
 //------------------------------------------------------------------------------
 std::string
@@ -47,6 +54,15 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
     mMetaMap(), mContainerCache(10e7), mNumConts(0ull) {}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ContainerMDSvc::~ContainerMDSvc() {
+  if(pFlusher) {
+    pFlusher->synchronize();
+  }
+}
 
 //------------------------------------------------------------------------------
 // Configure the container service
