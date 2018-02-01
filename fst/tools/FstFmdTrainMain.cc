@@ -93,14 +93,11 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  XrdOucString dbfilename;
-  gFmdDbMapHandler.CreateDBFileName(argv[1], dbfilename);
-
   auto fsid = FmdDbMapHandler::GetFsidInMetaDir(argv[1]);
   std::list<Fmd> trainList;
-  gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid[0]);
+  gFmdDbMapHandler.SetDBFile(argv[1], fsid[0]);
   trainList.splice(trainList.end(), gFmdDbMapHandler.RetrieveAllFmd());
-  gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid[1]);
+  gFmdDbMapHandler.SetDBFile(argv[1], fsid[1]);
   trainList.splice(trainList.end(), gFmdDbMapHandler.RetrieveAllFmd());
 
   cout << "training size: " << trainList.size() << endl;

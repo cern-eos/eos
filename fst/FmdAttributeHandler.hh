@@ -22,20 +22,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_FMDATTRIBUTEHANDLER_HH
-#define EOS_FMDATTRIBUTEHANDLER_HH
+#pragma once
 
 #include "fst/Namespace.hh"
 #include "fst/io/FileIo.hh"
 #include "common/compression/ZStandard.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/MgmCommunicator.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
 class FmdAttributeHandler : public eos::common::LogId {
 protected:
   static constexpr auto mFmdAttrName = "user.eos.fmd"; //! file meta data attribute name constant
-  FmdClient* const mFmdClient = nullptr; //! client for meta data operations
+  MgmCommunicator* const mCommunicator = nullptr; //! client for communication with MGM
   eos::common::Compression* const mCompressor = nullptr; //! Compressor object for meta data compression
 
   std::map<eos::common::FileSystem::fsid_t, bool> mIsSyncing;
@@ -163,8 +163,8 @@ public:
 
   //! Constructor to create the handler object
   //! @param fmdClient pointer to the @see FmdClient object, default value is the globally available client object
-  explicit FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), FmdClient* fmdClient = &gFmdClient)
-    : mFmdClient(fmdClient), mCompressor(compressor) {}
+  explicit FmdAttributeHandler(eos::common::Compression* compressor = &(gOFS.fmdCompressor), MgmCommunicator* mgmCommunicator = &gMgmCommunicator)
+    : mCommunicator(mgmCommunicator), mCompressor(compressor) {}
 
   ~FmdAttributeHandler() override = default;
 
@@ -180,5 +180,3 @@ public:
 extern FmdAttributeHandler gFmdAttributeHandler;
 
 EOSFSTNAMESPACE_END
-
-#endif //EOS_FMDATTRIBUTEHANDLER_HH

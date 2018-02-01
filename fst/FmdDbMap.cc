@@ -1644,4 +1644,26 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
   }
 }
 
+std::vector<int>
+FmdDbMapHandler::GetFsidInMetaDir(const char* path) {
+  std::unique_ptr<DIR, decltype(&closedir)> dir(opendir(path), &closedir);
+  if(!dir) {
+    return std::vector<int>();
+  }
+
+  struct dirent *entry = readdir(dir.get());
+
+  std::vector<int> fsidList;
+  while (entry != nullptr)
+  {
+    if (entry->d_type == DT_DIR && std::string(entry->d_name).find_first_of( "0123456789" ) != std::string::npos) {
+      fsidList.emplace_back(std::stoi(FindFirstNumberInString(entry->d_name)));
+    }
+
+    entry = readdir(dir.get());
+  }
+
+  return fsidList;
+}
+
 EOSFSTNAMESPACE_END

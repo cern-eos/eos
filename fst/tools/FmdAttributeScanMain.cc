@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 
   eos::common::ZStandard fmdCompressor;
   fmdCompressor.SetDicts(argv[1]);
-  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gMgmCommunicator};
 
   for(int i = 2; i < argc; i++){
     try {

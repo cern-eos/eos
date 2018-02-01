@@ -24,23 +24,15 @@
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/FmdAttributeHandler.hh"
-#include "fst/Fmd.hh"
-#include "common/FileSystem.hh"
 #include "common/Path.hh"
-#include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
-#include "mq/XrdMqMessaging.hh"
 #include "MonitorVarPartition.hh"
-#include <google/dense_hash_map>
-#include <math.h>
 #include "fst/XrdFstOss.hh"
-#include "XrdSys/XrdSysTimer.hh"
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 

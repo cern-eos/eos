@@ -24,12 +24,13 @@
 #include "FmdAttributeHandler.hh"
 #include "common/Path.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-
+#include "fst/io/local/LocalIo.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include <fts.h>
 
 EOSFSTNAMESPACE_BEGIN
 
-FmdAttributeHandler gFmdAttributeHandler{&(gOFS.fmdCompressor), &gFmdClient};
+FmdAttributeHandler gFmdAttributeHandler{&(gOFS.fmdCompressor), &gMgmCommunicator};
 
 Fmd
 FmdAttributeHandler::FmdAttrGet(FileIo* fileIo) const {
@@ -123,7 +124,7 @@ FmdAttributeHandler::ResyncMgm(FileIo* fileIo, eos::common::FileSystem::fsid_t f
 
   Fmd oldFmd = fmd;
 
-  int rc = mFmdClient->GetMgmFmd(manager, fid, fmd);
+  int rc = mCommunicator->GetMgmFmd(manager, fid, fmd);
 
   if (rc == 0) {
     if (!fmdUpdated) {
@@ -219,7 +220,7 @@ FmdAttributeHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid, const ch
       struct Fmd fmd;
       FmdHelper::Reset(fmd);
 
-      if (mFmdClient->EnvMgmToFmd(*env, fmd)) {
+      if (MgmCommunicator::EnvMgmToFmd(*env, fmd)) {
         fmd.set_layouterror(FmdHelper::LayoutError(fmd, fsid));
 
         XrdOucString filePath = FullPathOfFile(fmd.fid(), fsid, env.get());
@@ -258,7 +259,7 @@ FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_
   if (fid) {
     std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(path));
 
-    if (io.get()) {
+    if (io) {
       struct stat buf;
 
       if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {
@@ -286,11 +287,10 @@ FmdAttributeHandler::ResyncDisk(const char* path, eos::common::FileSystem::fsid_
           XrdOucString envstring = "eos.layout.checksum=";
           envstring += checksumType.c_str();
           XrdOucEnv env(envstring.c_str());
-          int checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
+          auto checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
           eos::common::LayoutId::layoutid_t layoutid = eos::common::LayoutId::GetId(
             eos::common::LayoutId::kPlain, checksumtype);
-          eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-            layoutid, false);
+          eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, false);
 
           if (checksum) {
             if (checksum->SetBinChecksum(checksumVal, checksumLen)) {

@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "fst/FmdAttributeHandler.hh"
+#include "fst/io/local/FsIo.hh"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -91,7 +92,7 @@ public:
   }
 };
 
-class MockFmdClient : public FmdClient {
+class MockMgmCommunicator : public MgmCommunicator {
 public:
   MOCK_METHOD3(GetMgmFmd, int(const char*, eos::common::FileId::fileid_t, struct Fmd&));
 };
@@ -150,24 +151,24 @@ TEST_F(FmdAttributeHandlerTest, TestAttrDeleteWhenNoFilePresent) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmNoData) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(Return(ENODATA));
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(Return(ENODATA));
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, 1, 2, "dummyManager"));
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmError) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(Return(-1));
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(Return(-1));
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, 1, 2, "dummyManager"));
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFilePresent) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, fsid, 2, "dummyManager"));
 
   Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(fileIo);
@@ -183,10 +184,10 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFilePresent) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFileNotPresent) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(nonExistingFileIo, fsid, 2, "dummyManager"));
 
   Fmd newFmd = testFmdAttributeHandler.FmdAttrGet(nonExistingFileIo);
@@ -202,10 +203,10 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFileNotPresent) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpdate) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmUpdatedFmd), Return(0)));
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmUpdatedFmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
 
   testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, 1, 2, "dummyManager"));
@@ -222,10 +223,10 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpdate) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpToDate) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmSameFmd), Return(0)));
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(mgmSameFmd), Return(0)));
 
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
 
   testFmdAttributeHandler.FmdAttrSet(fileIo, fmd);
   EXPECT_TRUE(testFmdAttributeHandler.ResyncMgm(fileIo, 1, 2, "dummyManager"));
@@ -242,11 +243,11 @@ TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithFmdUpToDate) {
 }
 
 TEST_F(FmdAttributeHandlerTest, TestResyncMgmWithBadFile) {
-  MockFmdClient mockFmdClient;
-  EXPECT_CALL(mockFmdClient, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
+  MockMgmCommunicator mockMgmCommunicator;
+  EXPECT_CALL(mockMgmCommunicator, GetMgmFmd(_, _, _)).WillOnce(DoAll(SetArgReferee<2>(fmd), Return(0)));
 
   FsIo badIo("/|this|/is*/a/bad?/<file name>");
-  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockFmdClient};
+  FmdAttributeHandler testFmdAttributeHandler {&mockCompressor, &mockMgmCommunicator};
   EXPECT_FALSE(testFmdAttributeHandler.ResyncMgm(&badIo, 1, 2, "dummyManager"));
 }
 

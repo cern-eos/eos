@@ -321,7 +321,6 @@ set(XRDEOSFST_SRCS
   # File metadata interface
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
-  FmdClient.cc         FmdClient.hh
   FmdAttributeHandler.cc  FmdAttributeHandler.hh
 
   # HTTP interface
@@ -330,7 +329,8 @@ set(XRDEOSFST_SRCS
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
 
   # EosFstIo interface
-  io/local/LocalIo.cc  io/local/LocalIo.hh)
+  io/local/LocalIo.cc  io/local/LocalIo.hh
+  MgmCommunicator.cc MgmCommunicator.hh)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 

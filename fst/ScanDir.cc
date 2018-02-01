@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
-#include "common/FileId.hh"
+//#include "common/FileId.hh"
 #include "common/Path.hh"
 #include "fst/ScanDir.hh"
 #include "fst/Config.hh"
@@ -30,17 +30,18 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdAttributeHandler.hh"
-#include <cstdlib>
-#include <cstring>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/time.h>
+#include "fst/MgmCommunicator.hh"
+//#include <cstdlib>
+//#include <cstring>
+//#include <sys/stat.h>
+//#include <sys/types.h>
+//#include <sys/time.h>
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #endif
-#include <syslog.h>
-#include <unistd.h>
-#include <fcntl.h>
+//#include <syslog.h>
+//#include <unistd.h>
+//#include <fcntl.h>
 
 // ---------------------------------------------------------------------------
 // - we miss ioprio.h and gettid
@@ -467,7 +468,7 @@ ScanDir::CheckFile(const char* filepath) {
               // doesn't do anything.
               if (fmd && !orphaned &&
                   (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
-                gFmdClient.CallAutoRepair(manager.c_str(), fid);
+                gMgmCommunicator.CallAutoRepair(manager.c_str(), fid);
               }
             }
           }

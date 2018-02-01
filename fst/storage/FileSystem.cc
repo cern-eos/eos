@@ -201,27 +201,24 @@ FileSystem::CleanTransactions()
         }
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
-          FmdHelper* fMd = nullptr;
+          std::unique_ptr<FmdHelper> fmdPtr = nullptr;
           try {
             Fmd fmd = gFmdAttributeHandler.FmdAttrGet(fstPath.c_str());
-            fMd = new FmdHelper(fileid, GetId());
-            fMd->Replicate(fmd);
+            fmdPtr.reset(new FmdHelper(fileid, GetId()));
+            fmdPtr->Replicate(fmd);
           } catch (MDException& error) {
-            fMd = nullptr;
+            fmdPtr.reset(nullptr);
           }
 
-          if (fMd) {
+          if (fmdPtr) {
             size_t valid_loc;
-            auto location_set = FmdHelper::GetLocations(fMd->mProtoFmd, valid_loc);
+            auto location_set = FmdHelper::GetLocations(fmdPtr->mProtoFmd, valid_loc);
 
             if (location_set.count(GetId())) {
               // close that transaction and keep the file
               gOFS.Storage->CloseTransaction(GetId(), fileid);
-              delete fMd;
               continue;
             }
-
-            delete fMd;
           }
 
           eos_static_info("action=delete transaction=%llx fstpath=%s",

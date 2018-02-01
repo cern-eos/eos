@@ -1591,7 +1591,7 @@ XrdOucString XrdFstOfs::getLocalPrefix(XrdOucEnv* env, unsigned long fsid) {
 void
 XrdFstOfs::ConvertFmdToFileAttribute(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping)
 {
-  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gMgmCommunicator};
   const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
 
   std::vector<std::future<void>> futures;
@@ -1599,10 +1599,8 @@ XrdFstOfs::ConvertFmdToFileAttribute(std::map<eos::common::FileSystem::fsid_t, s
   for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
     auto future = pool.PushTask<void>(
       [&fmdAttributeHandler, &dbPath, &fsidMapping, fsid] {
-        XrdOucString dbfilename;
         FmdDbMapHandler fmdDbMapHandler;
-        fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
-        fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
+        fmdDbMapHandler.SetDBFile(dbPath, fsid);
 
         XrdOucEnv env;
         env.Put("mgm.fsprefix", fsidMapping[fsid].c_str());
@@ -1634,19 +1632,17 @@ XrdFstOfs::ConvertFmdToFileAttribute(std::map<eos::common::FileSystem::fsid_t, s
 bool
 XrdFstOfs::IsFmdConversionNeeded(std::map<eos::common::FileSystem::fsid_t, std::string>& fsidMapping)
 {
-  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gFmdClient};
+  FmdAttributeHandler fmdAttributeHandler{&fmdCompressor, &gMgmCommunicator};
   const auto dbPath = eos::fst::Config::gConfig.FstMetaLogDir.c_str();
   constexpr size_t maxSampleSizePerFs = 20;
 
-  XrdOucString dbfilename;
   FmdDbMapHandler fmdDbMapHandler;
   XrdOucEnv env;
 
   auto sampleSizeAll = 0u, notFoundAll = 0u;
   for(const auto& fsid : FmdDbMapHandler::GetFsidInMetaDir(dbPath)) {
     env.Put("mgm.fsprefix", fsidMapping[fsid].c_str());
-    fmdDbMapHandler.CreateDBFileName(dbPath, dbfilename);
-    fmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid);
+    fmdDbMapHandler.SetDBFile(dbPath, fsid);
     auto fmdList = fmdDbMapHandler.RetrieveAllFmd();
     if(!fmdList.empty()) {
       auto sampleSize = std::min(maxSampleSizePerFs, fmdList.size());

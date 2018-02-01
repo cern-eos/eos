@@ -171,31 +171,17 @@ public:
 
   //----------------------------------------------------------------------------
   //! Retrieves the fsids present under a database directory
+  //!
+  //! @param path path to the metadata directory
+  //!
+  //! @return vector of fsids metadata was found for
   //----------------------------------------------------------------------------
-  static std::vector<int> GetFsidInMetaDir(const char* path)
-  {
-    std::unique_ptr<DIR, decltype(&closedir)> dir(opendir(path), &closedir);
-    if(!dir) {
-      return std::vector<int>();
-    }
-
-    struct dirent *entry = readdir(dir.get());
-
-    std::vector<int> fsidList;
-    while (entry != nullptr)
-    {
-      if (entry->d_type == DT_DIR && std::string(entry->d_name).find_first_of( "0123456789" ) != std::string::npos) {
-        fsidList.emplace_back(std::stoi(first_numberstring(entry->d_name)));
-      }
-
-      entry = readdir(dir.get());
-    }
-
-    return fsidList;
-  }
+  static std::vector<int> GetFsidInMetaDir(const char* path);
 
   //----------------------------------------------------------------------------
   //! Retrieves all fmd objects from the database
+  //!
+  //! @return list of metadata objects
   //----------------------------------------------------------------------------
   inline std::list<Fmd> RetrieveAllFmd()
   {
@@ -620,7 +606,7 @@ private:
                             eos::common::FileSystem::fsid_t fsid,
                             std::string& fn_output);
 
-  static inline std::string first_numberstring(const std::string & str)
+  static inline std::string FindFirstNumberInString(const std::string& str)
   {
     std::size_t const n = str.find_first_of("0123456789");
     if (n != std::string::npos)
