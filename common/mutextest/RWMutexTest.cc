@@ -229,6 +229,7 @@ main()
   std::cout << " no stats available" << std::endl;
   std::cout << " ------------------------- " << std::endl << std::endl;
   sleep(1);
+  //----------------------------------------------------------------------------
   globmutex.SetBlocking(false);
   RWMutex::SetTimingGlobal(false);
   t = Timing::GetNowInNs();
@@ -243,6 +244,24 @@ main()
   std::cout << " no stats available" << std::endl;
   std::cout << " ------------------------- " << std::endl << std::endl;
   sleep(1);
+  //----------------------------------------------------------------------------
+  globmutex.SetBlocking(true);
+  globmutex.SetDeadlockCheck(true);
+  RWMutex::SetTimingGlobal(false);
+  t = Timing::GetNowInNs();
+  RunThreads(&TestThread);
+  t = Timing::GetNowInNs() - t;
+  std::cout << " ------------------------- " << std::endl;
+  std::cout << " Multithreaded Loop (" << NUM_THREADS
+            << " threads half reading/half writing, blocking mutex, with "
+            << "deadlock check) of size "
+            << double(loopsize) / (int) NUM_THREADS
+            << " without stats took " << t / 1.0e9 << " sec" << " (" << double(loopsize) /
+            (t / 1.0e9) << "Hz" << ")" << std::endl;
+  std::cout << " no stats available" << std::endl;
+  std::cout << " ------------------------- " << std::endl << std::endl;
+  globmutex.SetDeadlockCheck(false);
+  //----------------------------------------------------------------------------
   std::cout << " ------------------------- " << std::endl;
   std::cout << " Native statistics for global mutex" << std::endl;
   std::cout << " ReadLockCount = " << globmutex.GetReadLockCounter() << std::endl;
