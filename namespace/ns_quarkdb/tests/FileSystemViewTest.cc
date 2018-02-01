@@ -287,7 +287,6 @@ TEST(FileSystemView, BasicSanity)
 //------------------------------------------------------------------------------
 TEST(FileSystemView, FileIterator)
 {
-  // Generate a random set
   std::srand(std::time(0));
   std::unordered_set<eos::IFileMD::id_t> input_set;
 
@@ -297,7 +296,9 @@ TEST(FileSystemView, FileIterator)
   }
 
   // Push the set to QuarkDB
-  qclient::QClient qcl("localhost", 7778);
+  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString("localhost:7778"));
+  qclient::RetryStrategy retryStrategy {true, std::chrono::seconds(60) };
+  qclient::QClient qcl("localhost", 7778, true, retryStrategy);
   qclient::AsyncHandler ah;
   const std::string key = "set_iter_test";
   qclient::QSet set(qcl, key);
