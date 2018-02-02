@@ -22,6 +22,16 @@ message FsProto {
     }
   }
 
+  message CloneProto {
+    uint64 SourceId = 1;
+    uint64 TargetId = 2;
+  }
+
+  message CompareProto {
+    uint64 SourceId = 1;
+    uint64 TargetId = 2;
+  }
+
   message ConfigProto {
     string Key = 1;
     string Value = 2;
@@ -95,13 +105,15 @@ message FsProto {
   oneof subcmd {
     AddProto add = 1;
     BootProto boot = 2;
-    ConfigProto config = 3;
-    DropDeletionProto dropdel = 4;
-    DropFilesProto dropfiles = 5;
-    DumpMdProto dumpmd = 6;
-    MvProto mv = 7;
-    LsProto ls = 8;
-    RmProto rm = 9;
-    StatusProto status = 10;
+    CloneProto clone = 3;
+    CompareProto compare = 4;
+    ConfigProto config = 5;
+    DropDeletionProto dropdel = 6;
+    DropFilesProto dropfiles = 7;
+    DumpMdProto dumpmd = 8;
+    MvProto mv = 9;
+    LsProto ls = 10;
+    RmProto rm = 11;
+    StatusProto status = 12;
   }
 }

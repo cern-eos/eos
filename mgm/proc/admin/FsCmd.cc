@@ -30,6 +30,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include <unordered_set>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -50,6 +51,10 @@ eos::mgm::FsCmd::ProcessRequest()
     reply.set_retc(Add(fs.add()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kBoot) {
     reply.set_retc(Boot(fs.boot()));
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kClone) {
+    reply.set_retc(Clone(fs.clone()));
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kCompare) {
+    reply.set_retc(Compare(fs.compare()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kConfig) {
     reply.set_retc(Config(fs.config()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
@@ -631,7 +636,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
   size_t entries = 0;
 
   auto dumpmdRet = SemaphoreProtectedProcDumpmd(fsid, option, showPath, showFid, showSize, out, err, entries);
-  if (dumpmdRet == 0) {
+  if (dumpmdRet == 0 ) {
     out.replace("path=", "");
 
     XrdOucTokenizer subtokenizer((char*) out.c_str());
@@ -661,6 +666,81 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
     mErr = err.c_str();
     return dumpmdRet;
   }
+}
+
+int
+FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto) {
+  XrdOucString out, err;
+  XrdOucString option = "";
+  XrdOucString showPath = "1";
+  XrdOucString showFid = "0";
+  XrdOucString showSize = "0";
+  auto sourceid = std::to_string(compareProto.sourceid());
+  size_t entries = 0;
+
+  std::unordered_set<std::string, Murmur3::MurmurHasher<const std::string&>> sourceHash, targetHash;
+  auto dumpmdRet = SemaphoreProtectedProcDumpmd(sourceid, option, showPath, showFid, showSize, out, err, entries);
+  if (dumpmdRet == 0) {
+    if(out.length() > 0) {
+      std::istringstream iss;
+      iss.str(out.c_str());
+      std::string line;
+      std::getline(iss, line);
+      while (!line.empty()) {
+        sourceHash.insert(line);
+        std::getline(iss, line);
+      }
+    }
+  }
+  else {
+    mErr = "error: Could not dump md for source, cannot compare.";
+    return dumpmdRet;
+  }
+
+  out.hardreset();
+  err.hardreset();
+
+  auto targetid = std::to_string(compareProto.targetid());
+  dumpmdRet = SemaphoreProtectedProcDumpmd(targetid, option, showPath, showFid, showSize, out, err, entries);
+  if (dumpmdRet == 0) {
+    if(out.length() > 0) {
+      std::istringstream iss;
+      iss.str(out.c_str());
+      std::string line;
+      std::getline(iss, line);
+      while (!line.empty()) {
+        targetHash.insert(line);
+        std::getline(iss, line);
+      }
+    }
+  }
+  else {
+    mErr = "error: Could not dump md for target, cannot compare.";
+    return dumpmdRet;
+  }
+
+  std::ostringstream resultStream;
+
+  for (const auto& source : sourceHash) {
+    if (targetHash.find(source) == targetHash.end()) {
+      resultStream << source << " => found in " << sourceid << " - missing in " << targetid << std::endl;
+    }
+  }
+
+  for (const auto& target : targetHash) {
+    if (sourceHash.find(target) == sourceHash.end()) {
+      resultStream << target << " => found in " << targetid << " - missing in " << sourceid << std::endl;
+    }
+  }
+
+  mOut = resultStream.str();
+
+  return SFS_OK;
+}
+
+int
+FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto) {
+  return 0;
 }
 
 //------------------------------------------------------------------------------

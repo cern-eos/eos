@@ -77,6 +77,10 @@ private:
 
   int DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto);
 
+  int Compare(const eos::console::FsProto::CompareProto& compareProto);
+
+  int Clone(const eos::console::FsProto::CloneProto& cloneProto);
+
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
