@@ -1567,11 +1567,13 @@ WFE::Job::DoIt(bool issync)
         }
       }
       else if (method == "proto/cta") {
-        static auto archiveidAttrName = "CTA_ArchiveFileId";
+        static constexpr auto archiveidAttrName = "CTA_ArchiveFileId";
+        static constexpr auto storageClassAttrName = "CTA_StorageClass";
         auto event = mActions[0].mEvent;
         auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
 
         std::shared_ptr<eos::IFileMD> fmd;
+        std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullpath;
         // do meta replacement
         {
@@ -1583,6 +1585,7 @@ WFE::Job::DoIt(bool issync)
               return ENOENT;
             }
             fullpath = gOFS->eosView->getUri(fmd.get());
+            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
           } catch (eos::MDException& e) {
             eos_static_debug("caught exception %d %s\n", e.getErrno(),
                              e.getMessage().str().c_str());
@@ -1621,7 +1624,7 @@ WFE::Job::DoIt(bool issync)
             return ENOENT;
           }
 
-          google::protobuf::MapPair<std::string,std::string> archiveFileIdPair("CTA_ArchiveFileId", archiveFileId);
+          google::protobuf::MapPair<std::string,std::string> archiveFileIdPair(archiveidAttrName, archiveFileId);
           notification->mutable_file()->mutable_xattr()->insert(archiveFileIdPair);
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
@@ -1650,7 +1653,7 @@ WFE::Job::DoIt(bool issync)
                 return ENOENT;
               }
 
-              google::protobuf::MapPair<std::string,std::string> archiveFileIdPair("CTA_ArchiveFileId", archiveFileId);
+              google::protobuf::MapPair<std::string,std::string> archiveFileIdPair(archiveidAttrName, archiveFileId);
               notification->mutable_file()->mutable_xattr()->insert(archiveFileIdPair);
 
               notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
@@ -1707,8 +1710,16 @@ WFE::Job::DoIt(bool issync)
 
           notification->mutable_transport()->set_report_url(reportStream.str());
 
-          google::protobuf::MapPair<std::string,std::string> storageClassPair("CTA_StorageClass", "single");
-          notification->mutable_file()->mutable_xattr()->insert(storageClassPair);
+          try {
+            google::protobuf::MapPair<std::string, std::string> storageClassPair(storageClassAttrName,
+                                                                                 cmd->getAttribute(
+                                                                                   storageClassAttrName));
+            notification->mutable_file()->mutable_xattr()->insert(storageClassPair);
+          } catch (eos::MDException& ex) {
+            eos_static_err("Could not read %s attribute from directory, not sending request. Reason: %s",
+                           storageClassAttrName, ex.getMessage().str().c_str());
+            return ENOENT;
+          }
         }
         else if (event == "archived") {
           static constexpr auto tapeFsid = 65535u;
