@@ -89,7 +89,7 @@ private:
   //!
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
-  int proccess(const std::string& reply);
+  int process(const std::string& reply);
 
   std::string mResult; ///< String holding the result
   std::string mError; ///< String holding the error message

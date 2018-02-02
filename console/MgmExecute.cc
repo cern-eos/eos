@@ -29,7 +29,7 @@
 //------------------------------------------------------------------------------
 // Process MGM response
 //------------------------------------------------------------------------------
-int MgmExecute::proccess(const std::string& response)
+int MgmExecute::process(const std::string& response)
 {
   mErrc = 0;
   std::vector<std::pair<std::string, size_t>> tags {
@@ -44,11 +44,11 @@ int MgmExecute::proccess(const std::string& response)
 
   // Parse stdout
   mResult = response.substr(tags[0].first.length(),
-                            tags[1].second - tags[1].first.length());
+                            tags[1].second - tags[1].first.length() + 1);
   rstdout = mResult.c_str();
   // Parse stderr
   mError = response.substr(tags[1].second + tags[1].first.length(),
-                           tags[2].second - tags[1].first.length());
+                           tags[2].second - (tags[1].second + tags[1].first.length()));
   rstderr = mError.c_str();
 
   // Parse return code
@@ -78,7 +78,7 @@ int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
   if (reply.empty()) {
     return EIO;
   } else {
-    return proccess(reply);
+    return process(reply);
   }
 }
 
