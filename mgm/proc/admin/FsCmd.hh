@@ -88,6 +88,12 @@ private:
                                    XrdOucString& df, XrdOucString& ds, XrdOucString& out,
                                    XrdOucString& err, size_t& entries);
 
+  template <class T, std::size_t N>
+  static constexpr std::size_t SizeOfArray(const T (&array)[N]) noexcept
+  {
+    return N;
+  }
+
   static XrdSysSemaphore mSemaphore;
   std::string mOut; ///< Command output string
   std::string mErr; ///< Command error output string

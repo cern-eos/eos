@@ -637,23 +637,30 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
 
   auto dumpmdRet = SemaphoreProtectedProcDumpmd(fsid, option, showPath, showFid, showSize, out, err, entries);
   if (dumpmdRet == 0 ) {
-    out.replace("path=", "");
-
-    XrdOucTokenizer subtokenizer((char*) out.c_str());
-    const char* filePath = nullptr;
-
     auto filesDeleted = 0u;
-    XrdOucErrInfo errInfo;
-    while ((filePath = subtokenizer.GetLine())) {
-      if ((!strlen(filePath)) || (filePath[0] == '\n')) {
-        continue;
-      }
+    if (out.length() > 0) {
+      XrdOucErrInfo errInfo;
 
-      errInfo.clear();
-      if (gOFS->_dropstripe(filePath, errInfo, mVid, dropfilesProto.fsid(), dropfilesProto.force()) != 0) {
-        eos_err("Could not delete file replica %s on filesystem %u", filePath, dropfilesProto.fsid());
-      } else {
-        filesDeleted++;
+      static constexpr auto pathReplace = "path=";
+      static constexpr auto pathReplaceSize = SizeOfArray("path=") - 1;
+
+      std::istringstream iss;
+      iss.str(out.c_str());
+      std::string filePath;
+      std::getline(iss, filePath);
+      while(!filePath.empty()) {
+        if(filePath.find(pathReplace) == 0) {
+          filePath = filePath.replace(0, pathReplaceSize, "");
+        }
+
+        errInfo.clear();
+        if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(), dropfilesProto.force()) != 0) {
+          eos_err("Could not delete file replica %s on filesystem %u", filePath, dropfilesProto.fsid());
+        } else {
+          filesDeleted++;
+        }
+
+        std::getline(iss, filePath);
       }
     }
 
