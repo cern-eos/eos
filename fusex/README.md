@@ -138,7 +138,7 @@ The *stat* file contains rate and execution average time counting.
 bash> cat /var/log/eos/fusex/fuse.stats
 ALL      Execution Time                   0.00 +- 0.00
 # -----------------------------------------------------------------------------------------------------------
-who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)
+who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms) 
 # -----------------------------------------------------------------------------------------------------------
 ALL        :sum                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
@@ -172,25 +172,32 @@ ALL        setxattr                                    0     0.00     0.00     0
 ALL        statfs                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 ALL        unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-  
-
+ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
 # -----------------------------------------------------------------------------------------------------------
-ALL        inodes              := 4
+ALL        inodes              := 1
 ALL        inodes-todelete     := 0
 ALL        inodes-backlog      := 0
-ALL        inodes-ever         := 4
+ALL        inodes-ever         := 1
 ALL        inodes-ever-deleted := 0
+ALL        inodes-open         := 0
+ALL        inodes-vmap         := 1
+ALL        inodes-caps         := 0
 # -----------------------------------------------------------------------------------------------------------
-ALL        threads             := 14
-ALL        visze               := 815.51 Mb
-All        rss                 := 26.21 Mb
-All        version             := 0.3.212
+ALL        threads             := 17
+ALL        visze               := 336.41 Mb
+All        rss                 := 53.10 Mb
+All        wr-buf-inflight     := 0 b
+All        wr-buf-queued       := 0 b
+All        ra-buf-inflight     := 0 b
+All        ra-buf-queued       := 0 b
+All        rd-buf-inflight     := 0 b
+All        rd-buf-queued       := 0 b
+All        version             := 4.2.11
 ALl        fuseversion         := 28
-All        starttime           := 1490279571
-All        uptime              := 183
-All        instance-url        := 128.142.24.85:1094
+All        starttime           := 1517583072
+All        uptime              := 1
+All        instance-url        := apeters.cern.ch
 # -----------------------------------------------------------------------------------------------------------
-
 ```
 
 Mounting with configuration files
