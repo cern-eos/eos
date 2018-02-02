@@ -655,7 +655,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
 
         errInfo.clear();
         if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(), dropfilesProto.force()) != 0) {
-          eos_err("Could not delete file replica %s on filesystem %u", filePath, dropfilesProto.fsid());
+          eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(), dropfilesProto.fsid());
         } else {
           filesDeleted++;
         }
@@ -747,7 +747,50 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto) {
 
 int
 FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto) {
-  return 0;
+  XrdOucString out, err;
+  XrdOucString option = "";
+  XrdOucString showPath = "1";
+  XrdOucString showFid = "0";
+  XrdOucString showSize = "0";
+  auto sourcefsid = std::to_string(cloneProto.sourceid());
+  size_t entries = 0;
+
+  auto dumpmdRet = SemaphoreProtectedProcDumpmd(sourcefsid, option, showPath, showFid, showSize, out, err, entries);
+  if (dumpmdRet == 0 ) {
+    std::ostringstream outStream;
+
+    if (out.length() > 0) {
+      XrdOucErrInfo errInfo;
+
+      static constexpr auto pathReplace = "path=";
+      static constexpr auto pathReplaceSize = SizeOfArray("path=") - 1;
+
+      std::istringstream iss;
+      iss.str(out.c_str());
+      std::string filePath;
+      std::getline(iss, filePath);
+      while(!filePath.empty()) {
+        if(filePath.find(pathReplace) == 0) {
+          filePath = filePath.replace(0, pathReplaceSize, "");
+        }
+
+        errInfo.clear();
+        if (gOFS->_copystripe(filePath.c_str(), errInfo, mVid, cloneProto.sourceid(), cloneProto.targetid()) == 0) {
+          outStream << "success: replicated stripe from " << cloneProto.sourceid() << " to " << cloneProto.targetid();
+        } else {
+          outStream << "error: unable to replicate stripe from " << cloneProto.sourceid() << " to " << cloneProto.targetid();
+        }
+
+        std::getline(iss, filePath);
+      }
+    }
+
+    mOut = outStream.str();
+    return SFS_OK;
+  } else {
+    mErr = err.c_str();
+    return dumpmdRet;
+  }
 }
 
 //------------------------------------------------------------------------------
