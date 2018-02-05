@@ -668,8 +668,22 @@ void com_fs_help()
       << std::endl
       << "    identified by <node-queue> or all filesystems registered"
       << std::endl
-      << "    --syncmgm    : for MGM resynchronization during the booting" <<
-      std::endl
+      << "    --syncmgm    : for MGM resynchronization during the booting"
+      << std::endl
+      << std::endl
+      << "  fs clone <sourceid> <targetid>" << std::endl
+      << "    replicate files from the source to the target filesystem"
+      << std::endl
+      << "    <sourceid>   : id of the source filesystem" << std::endl
+      << "    <targetid>   : id of the target filesystem" << std::endl
+      << std::endl
+      << std::endl
+      << "  fs compare <sourceid> <targetid>" << std::endl
+      << "    compares and reports which files are present on one filesystem and not on the other"
+      << std::endl
+      << "    <sourceid>   : id of the source filesystem" << std::endl
+      << "    <targetid>   : id of the target filesystem" << std::endl
+      << std::endl
       << std::endl
       << "  fs config <fsid>|<uuid>|<host>:<port> <key>=<value>" << std::endl
       << "    configure the filesystem parameter, where <key> and <value> can be:" <<
