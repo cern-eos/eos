@@ -183,6 +183,36 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
+  } else if (cmd == "clone") {
+    auto* clone = fs->mutable_clone();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+
+      try {
+        auto sourceid = std::stoull(soption);
+        clone->set_sourceid(sourceid);
+      } catch (const std::exception& e) {
+        std::cerr << "error: fsid needs to be numeric" << std::endl;
+        return false;
+      }
+    }
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+
+      try {
+        auto targetid = std::stoull(soption);
+        clone->set_targetid(targetid);
+      } catch (const std::exception& e) {
+        std::cerr << "error: fsid needs to be numeric" << std::endl;
+        return false;
+      }
+    }
   } else if (cmd == "compare") {
     auto* compare = fs->mutable_compare();
 
