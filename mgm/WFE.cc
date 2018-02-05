@@ -1679,7 +1679,7 @@ WFE::Job::DoIt(bool issync)
         }
         else if (event == "closew") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
-          notification->mutable_wf()->mutable_instance()->set_name("eoscta");
+          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullpath);
           notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
           notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
