@@ -85,8 +85,10 @@ ProcCommand::Accounting()
     version << VERSION << "-" << RELEASE;
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
-    auto capacity = Json::UInt64{0};
-    auto used = Json::UInt64{0};
+    auto capacityOnline = Json::UInt64{0};
+    auto usedOnline = Json::UInt64{0};
+    auto capacityOffline = Json::UInt64{0};
+    auto usedOffline = Json::UInt64{0};
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -97,16 +99,27 @@ ProcCommand::Accounting()
           continue;
         }
 
-        capacity += space.second->GetLongLong("stat.statfs.capacity");
-        used += space.second->GetLongLong("stat.statfs.usedbytes");
+        auto status = space.second->GetString("stat.active");
+        if (status == "online") {
+          capacityOnline += space.second->GetLongLong("stat.statfs.capacity");
+          usedOnline += space.second->GetLongLong("stat.statfs.usedbytes");
+        }
+        else if (status == "offline") {
+          capacityOffline += space.second->GetLongLong("stat.statfs.capacity");
+          usedOffline += space.second->GetLongLong("stat.statfs.usedbytes");
+        }
       }
     }
-    root["storageservice"]["storagecapacity"]["online"]["totalsize"] = capacity;
-    root["storageservice"]["storagecapacity"]["online"]["usedsize"] = used;
+
+    root["storageservice"]["storagecapacity"]["online"]["totalsize"] = capacityOnline;
+    root["storageservice"]["storagecapacity"]["online"]["usedsize"] = usedOnline;
+    root["storageservice"]["storagecapacity"]["offline"]["totalsize"] = capacityOffline;
+    root["storageservice"]["storagecapacity"]["offline"]["usedsize"] = usedOffline;
+
     Json::Value storageShare;
     eos::IContainerMD::XAttrMap attributes;
     XrdOucErrInfo errInfo;
-    gOFS->_attr_ls(gOFS->MgmProcPath.c_str(), errInfo, vid, (const char*) 0,
+    gOFS->_attr_ls(gOFS->MgmProcPath.c_str(), errInfo, vid, nullptr,
                    attributes);
 
     for (const auto& attr : attributes) {
