@@ -327,6 +327,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["md-backend.timeout"] = 86400;
       }
 
+      if (!root["options"].isMember("md-backend.put.timeout")) {
+        root["options"]["md-backend.put.timeout"] = 120;
+      }
+
       if (!root["options"].isMember("data-kernelcache")) {
         root["options"]["data-kernelcache"] = 1;
       }
@@ -489,6 +493,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["md-kernelcache.enoent.timeout"].asDouble();
     config.options.md_backend_timeout =
       root["options"]["md-backend.timeout"].asDouble();
+    config.options.md_backend_put_timeout =
+      root["options"]["md-backend.put.timeout"].asDouble();
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
     config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
     config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
@@ -1047,7 +1053,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     mdbackend.init(config.hostport, config.remotemountdir,
-                   config.options.md_backend_timeout);
+                   config.options.md_backend_timeout,
+		   config.options.md_backend_put_timeout);
     mds.init(&mdbackend);
     caps.init(&mdbackend, &mds);
     datas.init();
@@ -1113,10 +1120,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
+                       config.options.md_backend_put_timeout,
                        config.options.data_kernelcache,
                        config.options.mkdir_is_sync,
                        config.options.create_is_sync,

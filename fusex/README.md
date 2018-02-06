@@ -28,6 +28,7 @@ This
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 5,
     "md-backend.timeout" : 86400, 
+    "md-backend.put.timeout" : 120, 
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,

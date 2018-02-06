@@ -40,6 +40,8 @@
 backend::backend()
 /* -------------------------------------------------------------------------- */
 {
+  timeout = 0;
+  put_timeout = 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -51,13 +53,14 @@ backend::~backend()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::init(std::string& _hostport, std::string& _remotemountdir, double& _timeout)
+backend::init(std::string& _hostport, std::string& _remotemountdir, 
+	      double& _timeout, double& _put_timeout)
 /* -------------------------------------------------------------------------- */
 {
   hostport = _hostport;
   mount = _remotemountdir;
   timeout = _timeout;
-
+  put_timeout = _put_timeout;
   if ((mount.length() && (mount.at(mount.length() - 1) == '/'))) {
     mount.erase(mount.length() - 1);
   }
@@ -456,7 +459,7 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
   eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(),
                    prefix.c_str(), mdstream.length());
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
-                                     response);
+                                     response, put_timeout);
   eos_static_info("sync-response");
   eos_static_debug("response-size=%d",
                    response ? response->GetSize() : 0);
@@ -894,10 +897,10 @@ backend::statvfs(fuse_req_t req,
 XrdCl::XRootDStatus
 /* -------------------------------------------------------------------------- */
 backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
-               XrdCl::Buffer& arg, XrdCl::Buffer*& response)
+               XrdCl::Buffer& arg, XrdCl::Buffer*& response, uint16_t rtimeout)
 /* -------------------------------------------------------------------------- */
 {
-  // this function retries queries until the given timeout period has been rechaed
+  // this function retries queries until the given timeout period has been reached
   // it does not proceed if there is an authentication failure
   double total_exec_time_sec = 0;
 
@@ -908,7 +911,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     eos::common::Timing::GetTimeSpec(ts, true);
     XrdCl::XRootDStatus status;
 #ifdef EOSCITRINE
-    status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+    status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, rtimeout);
 #else
     SyncResponseHandler handler;
     fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
