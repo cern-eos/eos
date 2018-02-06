@@ -1770,9 +1770,15 @@ WFE::Job::DoIt(bool issync)
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 
         cta::xrd::Response response;
-        auto future = cta_service.Send(request, response);
 
-        future.get();
+        try {
+          auto future = cta_service.Send(request, response);
+
+          future.get();
+        } catch (std::runtime_error& error) {
+          eos_static_err("Could not send request to CTA frontend. Reason: %s", error.what());
+          return SFS_ERROR;
+        }
 
         switch(response.type())
         {
