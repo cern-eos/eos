@@ -80,6 +80,7 @@ EosFuse::EosFuse()
   config.kernel_cache = 0;
   config.direct_io = 0;
   config.no_access = 0;
+  config.foreground = 0;
 }
 
 EosFuse::~EosFuse() { }
@@ -130,6 +131,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     me.config.is_sync = 1;
   } else {
     me.config.is_sync = 0;
+  }
+
+  if (getenv ("EOS_FUSE_FOREGROUND") && (!strcmp (getenv ("EOS_FUSE_FOREGROUND"), "1"))) {
+    me.config.foreground = 1;
+  } else {
+    me.config.foreground = 0;
   }
 
   if (getenv("EOS_FUSE_MAX_WB_INMEMORY_SIZE")) {
@@ -290,6 +297,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        me.config.entrycachetime);
     eos_static_warning("negative-entry-timeout := %.02f seconds",
                        me.config.neg_entrycachetime);
+    eos_static_warning("foreground             := %s",
+                       me.config.foreground ? "true" : "false" );
     me.fs().log_settings();
     struct fuse_session* se;
     se = fuse_lowlevel_new(&args,
