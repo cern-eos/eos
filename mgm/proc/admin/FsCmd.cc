@@ -636,7 +636,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
   size_t entries = 0;
 
   auto dumpmdRet = SemaphoreProtectedProcDumpmd(fsid, option, showPath, showFid, showSize, out, err, entries);
-  if (dumpmdRet == 0 ) {
+  if (dumpmdRet == 0) {
     auto filesDeleted = 0u;
     if (out.length() > 0) {
       XrdOucErrInfo errInfo;
@@ -756,8 +756,8 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto) {
   size_t entries = 0;
 
   auto dumpmdRet = SemaphoreProtectedProcDumpmd(sourcefsid, option, showPath, showFid, showSize, out, err, entries);
-  if (dumpmdRet == 0 ) {
-    std::ostringstream outStream;
+  if (dumpmdRet == 0) {
+    auto success = 0ul;
 
     if (out.length() > 0) {
       XrdOucErrInfo errInfo;
@@ -776,16 +776,16 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto) {
 
         errInfo.clear();
         if (gOFS->_copystripe(filePath.c_str(), errInfo, mVid, cloneProto.sourceid(), cloneProto.targetid()) == 0) {
-          outStream << "success: replicated stripe from " << cloneProto.sourceid() << " to " << cloneProto.targetid();
-        } else {
-          outStream << "error: unable to replicate stripe from " << cloneProto.sourceid() << " to " << cloneProto.targetid();
+          success++;
         }
 
         std::getline(iss, filePath);
       }
     }
 
-    mOut = outStream.str();
+    std::ostringstream oss;
+    oss << "Successfully replicated " << success << " files." << endl;
+    mOut = oss.str();
     return SFS_OK;
   } else {
     mErr = err.c_str();
