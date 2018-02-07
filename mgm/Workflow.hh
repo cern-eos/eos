@@ -92,6 +92,10 @@ private:
   std::string mEvent;
   std::string mWorkflow;
   std::string mAction;
+
+  inline static bool WfeRecordingEnabled();
+
+  inline static bool WfeEnabled();
 };
 
 EOSMGMNAMESPACE_END

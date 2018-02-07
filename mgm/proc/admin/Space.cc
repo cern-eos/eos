@@ -545,7 +545,7 @@ ProcCommand::Space()
                 (key == "geo.access.policy.write.exact") ||
                 (key == "balancer.threshold")) {
               if ((key == "balancer") || (key == "converter") ||
-                  (key == "autorepair") || (key == "lru") || (key == "wfe") ||
+                  (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
                   (key == "geo.access.policy.read.exact") ||
                   (key == "geo.access.policy.write.exact")) {
@@ -623,7 +623,19 @@ ProcCommand::Space()
                     }
                   }
                 }
-              } else {
+              } else if (key == "wfe") {
+                if ((value != "on") && (value != "off") && (value != "paused")) {
+                  retc = EINVAL;
+                  stdErr = "error: value has to either on, paused or off";
+                } else {
+                  if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+                                                                               "/eos/*/mgm")) {
+                    retc = EIO;
+                    stdErr = "error: cannot set space config value";
+                  }
+                }
+              }
+              else {
                 errno = 0;
                 unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                             value.c_str());

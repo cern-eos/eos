@@ -86,7 +86,7 @@ WFE::Start()
                     static_cast<void*>(this),
                     XRDSYSTHREAD_HOLD,
                     "WFE engine Thread");
-  return (mThread ? true : false);
+  return mThread != 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -103,7 +103,7 @@ WFE::Stop()
   // cancel the asynchronous WFE thread
   if (mThread) {
     XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, 0);
+    XrdSysThread::Join(mThread, nullptr);
   }
 
   mThread = 0;
@@ -172,10 +172,10 @@ WFE::WFEr()
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
       if (FsView::gFsView.mSpaceView.count("default") &&
-          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
-        IsEnabledWFE = true;
-      } else {
+          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "paused")) {
         IsEnabledWFE = false;
+      } else {
+        IsEnabledWFE = true;
       }
 
       if (FsView::gFsView.mSpaceView.count("default")) {
@@ -492,7 +492,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     return -1;
   }
 
-  std::string vids = eos::common::Mapping::VidToString(mVid).c_str();
+  std::string vids = eos::common::Mapping::VidToString(mVid);
 
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
@@ -539,14 +539,14 @@ WFE::Job::Load(std::string path2entry)
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   std::string f = path2entry;
-  f.erase(0, path2entry.rfind("/") + 1);
+  f.erase(0, path2entry.rfind('/') + 1);
   std::string workflow = path2entry;
-  workflow.erase(path2entry.rfind("/"));
-  workflow.erase(0, workflow.rfind("/") + 1);
+  workflow.erase(path2entry.rfind('/'));
+  workflow.erase(0, workflow.rfind('/') + 1);
   std::string q = path2entry;
-  q.erase(q.rfind("/"));
-  q.erase(q.rfind("/"));
-  q.erase(0, q.rfind("/") + 1);
+  q.erase(q.rfind('/'));
+  q.erase(q.rfind('/'));
+  q.erase(0, q.rfind('/') + 1);
   std::string when;
   std::string idevent;
   std::string id;
@@ -742,8 +742,9 @@ WFE::Job::Delete(std::string queue)
                   lError,
                   rootvid,
                   "",
-                  false
-                  , false, true)) {
+                  false,
+                  false,
+                  true)) {
     return SFS_OK;
   } else {
     eos_static_err("msg=\"failed to delete job\" job=\"%s\"", mDescription.c_str());
@@ -789,7 +790,7 @@ WFE::Job::DoIt(bool issync)
         topic += " ) ";
         topic += " ";
         topic += " event=";
-        topic += mActions[0].mEvent.c_str();
+        topic += mActions[0].mEvent;
         topic += " fxid=";
         XrdOucString hexid;
         eos::common::FileId::Fid2Hex(mFid, hexid);
@@ -803,7 +804,7 @@ WFE::Job::DoIt(bool issync)
         do_mail += "\" ";
         do_mail += recipient;
         eos_static_info("shell-cmd=\"%s\"", do_mail.c_str());
-        eos::common::ShellCmd cmd(do_mail.c_str());
+        eos::common::ShellCmd cmd(do_mail);
         eos::common::cmd_status rc = cmd.wait(5);
 
         if (rc.exit_code) {
@@ -835,7 +836,7 @@ WFE::Job::DoIt(bool issync)
         std::string fullpath;
         bool format_error = false;
 
-        if (executable.find("/") == std::string::npos) {
+        if (executable.find('/') == std::string::npos) {
           std::shared_ptr<eos::IFileMD> fmd ;
           std::shared_ptr<eos::IContainerMD> cmd ;
           // do meta replacement
@@ -1765,7 +1766,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
+        eos_static_info("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 

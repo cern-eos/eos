@@ -24,14 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "common/Mapping.hh"
-#include "common/StringConversion.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/WFE.hh"
-/*----------------------------------------------------------------------------*/
-#include <ctime>
-
+#include "mgm/FsView.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -146,14 +142,18 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
 {
   int retc = 0;
   WFE::Job job(mFid, vid);
-  time_t t = time(0);
+  time_t t = time(nullptr);
 
   if (job.IsSync(mEvent)) {
+
     job.AddAction(mAction, mEvent, t, mWorkflow, "s");
     retc = job.Save("s", t);
   } else {
     job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-    retc = job.Save("q", t);
+
+    if (WfeRecordingEnabled()) {
+      retc = job.Save("q", t);
+    }
   }
 
   if (retc) {
@@ -162,8 +162,10 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   }
 
   if (job.IsSync()) {
-    eos_static_info("running synchronous workflow");
-    return job.DoIt(true);
+    if (WfeEnabled()) {
+      eos_static_info("running synchronous workflow");
+      return job.DoIt(true);
+    }
   }
 
   return 0;
@@ -175,4 +177,19 @@ Workflow::Delete()
 {
   return false;
 }
+
+bool
+Workflow::WfeRecordingEnabled() {
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  return FsView::gFsView.mSpaceView.count("default") &&
+         (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") != "off");
+}
+
+bool
+Workflow::WfeEnabled() {
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  return FsView::gFsView.mSpaceView.count("default") &&
+         (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on");
+}
+
 EOSMGMNAMESPACE_END
