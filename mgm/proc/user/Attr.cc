@@ -62,13 +62,12 @@ ProcCommand::Attr()
       while (val.replace("\"", "")) {
       }
 
-      // find everything to be modified
+      // Find everything to be modified i.e. directories only
       std::map<std::string, std::set<std::string> > found;
-      std::map<std::string, std::set<std::string> >::const_iterator foundit;
-      std::set<std::string>::const_iterator fileit;
 
       if (option == "r") {
-        if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found)) {
+        if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found, nullptr,
+                        nullptr, true)) {
           stdErr += "error: unable to search in path";
           retc = errno;
         }
@@ -79,7 +78,7 @@ ProcCommand::Attr()
 
       if (!retc) {
         // apply to  directories starting at the highest level
-        for (foundit = found.begin(); foundit != found.end(); foundit++) {
+        for (auto foundit = found.begin(); foundit != found.end(); foundit++) {
           {
             eos::IContainerMD::XAttrMap map;
             eos::IContainerMD::XAttrMap linkmap;
