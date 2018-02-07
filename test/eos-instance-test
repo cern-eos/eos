@@ -785,6 +785,7 @@ runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 ################################################################################
 # WFE
 ################################################################################
+runtest "### Space     " unix 0 "" eos space config "default space.wfe=on"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Touch     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 | wc -l | grep -w 0"
@@ -799,6 +800,7 @@ runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_I
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep trigger"
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0 2>&1 | grep trigger"
+runtest "### Space     " unix 0 "" eos space config "default space.wfe=off"
 
 ################################################################################
 # ACL
