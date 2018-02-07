@@ -21,17 +21,19 @@
 //! @brief Various namespace tests
 //------------------------------------------------------------------------------
 
+#include <memory>
+#include <gtest/gtest.h>
+
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "TestUtils.hh"
-#include <cppunit/extensions/HelperMacros.h>
-#include <gtest/gtest.h>
-#include <memory>
 
 class VariousTests : public eos::ns::testing::NsTestsFixture {};
+class NamespaceExplorerF : public eos::ns::testing::NsTestsFixture {};
 
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
@@ -70,6 +72,11 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(it->getElement(), file1->getId());
   it->next();
   ASSERT_FALSE(it->valid());
+}
 
+TEST_F(NamespaceExplorerF, BasicSanity) {
+  eos::ExplorationOptions options;
+  options.depthLimit = 3;
 
+  ASSERT_THROW(eos::NamespaceExplorer("", options, qcl()), eos::MDException);
 }

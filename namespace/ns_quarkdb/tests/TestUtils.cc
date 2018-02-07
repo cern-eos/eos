@@ -119,6 +119,13 @@ eos::IFsView* NsTestsFixture::fsview() {
   return fsViewPtr.get();
 }
 
+qclient::QClient& NsTestsFixture::qcl() {
+  if(!qclPtr) {
+    qclPtr = createQClient();
+  }
+  return *qclPtr.get();
+}
+
 void NsTestsFixture::shut_down_everything() {
   if(viewPtr) {
     viewPtr->finalize();

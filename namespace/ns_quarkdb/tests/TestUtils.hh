@@ -71,6 +71,10 @@ public:
   // Return test cluster members
   qclient::Members getMembers();
 
+  // Return default qclient instance. Use if you need just one qclient, and
+  // you're too lazy to call createQClient.
+  qclient::QClient &qcl();
+
 private:
   void initServices();
 
@@ -80,6 +84,8 @@ private:
   std::unique_ptr<eos::IFileMDSvc> fileSvcPtr;
   std::unique_ptr<eos::IView> viewPtr;
   std::unique_ptr<eos::IFsView> fsViewPtr;
+
+  std::unique_ptr<qclient::QClient> qclPtr;
 };
 
 
