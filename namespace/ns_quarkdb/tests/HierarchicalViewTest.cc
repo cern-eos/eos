@@ -38,161 +38,123 @@
 
 #include <vector>
 
-TEST(HierarchicalView, LoadTest)
-{
-  try {
-    std::map<std::string, std::string> config = {
-      {"qdb_cluster", "localhost:7778"},
-      {"qdb_flusher_md", "tests_md"},
-      {"qdb_flusher_quota", "tests_quota"}
-    };
+class HierarchicalViewF : public eos::ns::testing::NsTestsFixture {};
 
-    eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
-    std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
-    std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc()};
-    std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
-    fileSvc->setContMDService(contSvc.get());
-    contSvc->setFileMDService(fileSvc.get());
-    fileSvc->configure(config);
-    contSvc->configure(config);
-    view->setContainerMDSvc(contSvc.get());
-    view->setFileMDSvc(fileSvc.get());
-    view->configure(config);
-    view->initialize();
-    std::shared_ptr<eos::IContainerMD> cont1{
-      view->createContainer("/test/embed/embed1", true)};
-    std::shared_ptr<eos::IContainerMD> cont2{
-      view->createContainer("/test/embed/embed2", true)};
-    std::shared_ptr<eos::IContainerMD> cont3{
-      view->createContainer("/test/embed/embed3", true)};
-    std::shared_ptr<eos::IContainerMD> cont4{
-      view->createContainer("/test/embed/embed4", true)};
-    std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
-    std::shared_ptr<eos::IContainerMD> test{view->getContainer("/test")};
-    std::shared_ptr<eos::IContainerMD> embed{view->getContainer("/test/embed")};
-    ASSERT_TRUE(root != nullptr);
-    ASSERT_TRUE(root->getId() == root->getParentId());
-    ASSERT_TRUE(test != nullptr);
-    ASSERT_TRUE(test->findContainer("embed") != nullptr);
-    ASSERT_TRUE(embed != nullptr);
-    ASSERT_EQ(root->getId(), 1);
-    ASSERT_NE(test->getId(), 1);
-    ASSERT_NE(embed->getId(), 1);
-    ASSERT_TRUE(embed->findContainer("embed1") != nullptr);
-    ASSERT_TRUE(embed->findContainer("embed2") != nullptr);
-    ASSERT_TRUE(embed->findContainer("embed3") != nullptr);
-    ASSERT_TRUE(cont1->getName() ==
-                embed->findContainer("embed1")->getName());
-    ASSERT_TRUE(cont2->getName() ==
-                embed->findContainer("embed2")->getName());
-    ASSERT_TRUE(cont3->getName() ==
-                embed->findContainer("embed3")->getName());
-    view->removeContainer("/test/embed/embed2");
-    ASSERT_TRUE(embed->findContainer("embed2") == nullptr);
-    view->createFile("/test/embed/file1");
-    view->createFile("/test/embed/file2");
-    view->createFile("/test/embed/embed1/file1");
-    view->createFile("/test/embed/embed1/file2");
-    view->createFile("/test/embed/embed1/file3");
-    std::shared_ptr<eos::IFileMD> fileR{
-      view->createFile("/test/embed/embed1/fileR")};
-    ASSERT_TRUE(view->getFile("/test/embed/file1"));
-    ASSERT_TRUE(view->getFile("/test/embed/file2"));
-    ASSERT_TRUE(view->getFile("/test/embed/embed1/file1"));
-    ASSERT_TRUE(view->getFile("/test/embed/embed1/file2"));
-    ASSERT_TRUE(view->getFile("/test/embed/embed1/file3"));
-    // Rename
-    ASSERT_NO_THROW(
-      view->renameContainer(cont4.get(), "embed4.renamed"));
-    ASSERT_TRUE(cont4->getName() == "embed4.renamed");
-    ASSERT_THROW(view->renameContainer(cont4.get(), "embed1"),
-                 eos::MDException);
-    ASSERT_THROW(view->renameContainer(cont4.get(), "embed1/asd"),
-                 eos::MDException);
-    ASSERT_NO_THROW(view->getContainer("/test/embed/embed4.renamed"));
-    ASSERT_NO_THROW(view->renameFile(fileR.get(), "fileR.renamed"));
-    ASSERT_TRUE(fileR->getName() == "fileR.renamed");
-    ASSERT_THROW(view->renameFile(fileR.get(), "file1"),
-                 eos::MDException);
-    ASSERT_THROW(view->renameFile(fileR.get(), "file1/asd"),
-                 eos::MDException);
-    ASSERT_NO_THROW(view->getFile("/test/embed/embed1/fileR.renamed"));
-    ASSERT_THROW(view->renameContainer(root.get(), "rename"),
-                 eos::MDException);
-    // Test the "reverse" lookup
-    std::shared_ptr<eos::IFileMD> file{
-      view->getFile("/test/embed/embed1/file3")};
-    std::shared_ptr<eos::IContainerMD> container{
-      view->getContainer("/test/embed/embed1")};
-    ASSERT_EQ(view->getUri(container.get()), "/test/embed/embed1/");
-    ASSERT_EQ(view->getUri(file.get()), "/test/embed/embed1/file3");
-    ASSERT_THROW(view->getUri((eos::IFileMD*)nullptr), eos::MDException);
-    std::shared_ptr<eos::IFileMD> toBeDeleted{
-      view->getFile("/test/embed/embed1/file2")};
-    toBeDeleted->addLocation(12);
-    // This should not succeed since the file should have a replica
-    ASSERT_THROW(view->removeFile(toBeDeleted.get()), eos::MDException);
-    // We unlink the file - at this point the file should not be attached to the
-    // hierarchy but should still be accessible by id and thus the md pointer
-    // should stay valid
-    view->unlinkFile("/test/embed/embed1/file2");
-    ASSERT_THROW(view->getFile("/test/embed/embed1/file2"),
-                 eos::MDException);
-    ASSERT_TRUE(cont1->findFile("file2") == nullptr);
-    // We remove the replicas and the file but we need to reload the toBeDeleted
-    // pointer
-    eos::IFileMD::id_t id = toBeDeleted->getId();
-    toBeDeleted = view->getFileMDSvc()->getFileMD(id);
-    toBeDeleted->clearUnlinkedLocations();
-    ASSERT_NO_THROW(view->removeFile(toBeDeleted.get()));
-    ASSERT_THROW(view->getFileMDSvc()->getFileMD(id), eos::MDException);
-    view->finalize();
-    view->initialize();
-    ASSERT_TRUE(view->getContainer("/"));
-    ASSERT_TRUE(view->getContainer("/test"));
-    ASSERT_TRUE(view->getContainer("/test/embed"));
-    ASSERT_TRUE(view->getContainer("/test/embed/embed1"));
-    ASSERT_TRUE(view->getFile("/test/embed/file1"));
-    ASSERT_TRUE(view->getFile("/test/embed/file2"));
-    ASSERT_TRUE(view->getFile("/test/embed/embed1/file1"));
-    ASSERT_TRUE(view->getFile("/test/embed/embed1/file3"));
-    ASSERT_NO_THROW(view->getContainer("/test/embed/embed4.renamed"));
-    ASSERT_NO_THROW(view->getFile("/test/embed/embed1/fileR.renamed"));
-    // Cleanup
-    // Unlink files - need to do it in this order since the unlink removes the
-    // file from the container and then getFile by path won't work anymore
-    std::shared_ptr<eos::IFileMD> file1{view->getFile("/test/embed/file1")};
-    std::shared_ptr<eos::IFileMD> file2{view->getFile("/test/embed/file2")};
-    std::shared_ptr<eos::IFileMD> file11{
-      view->getFile("/test/embed/embed1/file1")};
-    std::shared_ptr<eos::IFileMD> file13{
-      view->getFile("/test/embed/embed1/file3")};
-    ASSERT_NO_THROW(view->unlinkFile("/test/embed/file1"));
-    ASSERT_NO_THROW(view->unlinkFile("/test/embed/file2"));
-    ASSERT_NO_THROW(view->unlinkFile("/test/embed/embed1/file1"));
-    ASSERT_NO_THROW(view->unlinkFile("/test/embed/embed1/file3"));
-    ASSERT_NO_THROW(
-      view->unlinkFile("/test/embed/embed1/fileR.renamed"));
-    // Remove files
-    ASSERT_NO_THROW(view->removeFile(
-                      view->getFileMDSvc()->getFileMD(file1->getId()).get()));
-    ASSERT_NO_THROW(view->removeFile(
-                      view->getFileMDSvc()->getFileMD(file2->getId()).get()));
-    ASSERT_NO_THROW(view->removeFile(
-                      view->getFileMDSvc()->getFileMD(file11->getId()).get()));
-    ASSERT_NO_THROW(view->removeFile(
-                      view->getFileMDSvc()->getFileMD(file13->getId()).get()));
-    ASSERT_NO_THROW(view->removeFile(
-                      view->getFileMDSvc()->getFileMD(fileR->getId()).get()));
-    // Remove all containers
-    ASSERT_NO_THROW(view->removeContainer("/test/", true));
-    // Remove the root container
-    ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
-    view->finalize();
-  } catch (eos::MDException& e) {
-    std::cerr << e.getMessage().str() << std::endl;
-    FAIL();
-  }
+TEST_F(HierarchicalViewF, LoadTest)
+{
+  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 = view()->createContainer("/test/embed/embed4", true);
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  std::shared_ptr<eos::IContainerMD> test = view()->getContainer("/test");
+  std::shared_ptr<eos::IContainerMD> embed = view()->getContainer("/test/embed");
+  ASSERT_TRUE(root != nullptr);
+  ASSERT_TRUE(root->getId() == root->getParentId());
+  ASSERT_TRUE(test != nullptr);
+  ASSERT_TRUE(test->findContainer("embed") != nullptr);
+  ASSERT_TRUE(embed != nullptr);
+  ASSERT_EQ(root->getId(), 1);
+  ASSERT_NE(test->getId(), 1);
+  ASSERT_NE(embed->getId(), 1);
+  ASSERT_TRUE(embed->findContainer("embed1") != nullptr);
+  ASSERT_TRUE(embed->findContainer("embed2") != nullptr);
+  ASSERT_TRUE(embed->findContainer("embed3") != nullptr);
+  ASSERT_TRUE(cont1->getName() ==
+              embed->findContainer("embed1")->getName());
+  ASSERT_TRUE(cont2->getName() ==
+              embed->findContainer("embed2")->getName());
+  ASSERT_TRUE(cont3->getName() ==
+              embed->findContainer("embed3")->getName());
+  view()->removeContainer("/test/embed/embed2");
+  ASSERT_TRUE(embed->findContainer("embed2") == nullptr);
+  view()->createFile("/test/embed/file1");
+  view()->createFile("/test/embed/file2");
+  view()->createFile("/test/embed/embed1/file1");
+  view()->createFile("/test/embed/embed1/file2");
+  view()->createFile("/test/embed/embed1/file3");
+  std::shared_ptr<eos::IFileMD> fileR = view()->createFile("/test/embed/embed1/fileR");
+  ASSERT_TRUE(view()->getFile("/test/embed/file1"));
+  ASSERT_TRUE(view()->getFile("/test/embed/file2"));
+  ASSERT_TRUE(view()->getFile("/test/embed/embed1/file1"));
+  ASSERT_TRUE(view()->getFile("/test/embed/embed1/file2"));
+  ASSERT_TRUE(view()->getFile("/test/embed/embed1/file3"));
+  // Rename
+  view()->renameContainer(cont4.get(), "embed4.renamed");
+  ASSERT_TRUE(cont4->getName() == "embed4.renamed");
+  ASSERT_THROW(view()->renameContainer(cont4.get(), "embed1"),
+               eos::MDException);
+  ASSERT_THROW(view()->renameContainer(cont4.get(), "embed1/asd"),
+               eos::MDException);
+  view()->getContainer("/test/embed/embed4.renamed");
+  view()->renameFile(fileR.get(), "fileR.renamed");
+  ASSERT_TRUE(fileR->getName() == "fileR.renamed");
+  ASSERT_THROW(view()->renameFile(fileR.get(), "file1"),
+               eos::MDException);
+  ASSERT_THROW(view()->renameFile(fileR.get(), "file1/asd"),
+               eos::MDException);
+  view()->getFile("/test/embed/embed1/fileR.renamed");
+  ASSERT_THROW(view()->renameContainer(root.get(), "rename"),
+               eos::MDException);
+  // Test the "reverse" lookup
+  std::shared_ptr<eos::IFileMD> file = view()->getFile("/test/embed/embed1/file3");
+  std::shared_ptr<eos::IContainerMD> container = view()->getContainer("/test/embed/embed1");
+  ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
+  ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
+  ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);
+  std::shared_ptr<eos::IFileMD> toBeDeleted = view()->getFile("/test/embed/embed1/file2");
+  toBeDeleted->addLocation(12);
+  // This should not succeed since the file should have a replica
+  ASSERT_THROW(view()->removeFile(toBeDeleted.get()), eos::MDException);
+  // We unlink the file - at this point the file should not be attached to the
+  // hierarchy but should still be accessible by id and thus the md pointer
+  // should stay valid
+  view()->unlinkFile("/test/embed/embed1/file2");
+  ASSERT_THROW(view()->getFile("/test/embed/embed1/file2"),
+               eos::MDException);
+  ASSERT_TRUE(cont1->findFile("file2") == nullptr);
+  // We remove the replicas and the file but we need to reload the toBeDeleted
+  // pointer
+  eos::IFileMD::id_t id = toBeDeleted->getId();
+  toBeDeleted = fileSvc()->getFileMD(id);
+  toBeDeleted->clearUnlinkedLocations();
+  view()->removeFile(toBeDeleted.get());
+  ASSERT_THROW(fileSvc()->getFileMD(id), eos::MDException);
+
+  shut_down_everything();
+
+  ASSERT_TRUE(view()->getContainer("/"));
+  ASSERT_TRUE(view()->getContainer("/test"));
+  ASSERT_TRUE(view()->getContainer("/test/embed"));
+  ASSERT_TRUE(view()->getContainer("/test/embed/embed1"));
+  ASSERT_TRUE(view()->getFile("/test/embed/file1"));
+  ASSERT_TRUE(view()->getFile("/test/embed/file2"));
+  ASSERT_TRUE(view()->getFile("/test/embed/embed1/file1"));
+  ASSERT_TRUE(view()->getFile("/test/embed/embed1/file3"));
+  view()->getContainer("/test/embed/embed4.renamed");
+  view()->getFile("/test/embed/embed1/fileR.renamed");
+
+  // Cleanup
+  // Unlink files - need to do it in this order since the unlink removes the
+  // file from the container and then getFile by path won't work anymore
+  std::shared_ptr<eos::IFileMD> file1 = view()->getFile("/test/embed/file1");
+  std::shared_ptr<eos::IFileMD> file2 = view()->getFile("/test/embed/file2");
+  std::shared_ptr<eos::IFileMD> file11 = view()->getFile("/test/embed/embed1/file1");
+  std::shared_ptr<eos::IFileMD> file13 = view()->getFile("/test/embed/embed1/file3");
+
+  view()->unlinkFile("/test/embed/file1");
+  view()->unlinkFile("/test/embed/file2");
+  view()->unlinkFile("/test/embed/embed1/file1");
+  view()->unlinkFile("/test/embed/embed1/file3");
+  view()->unlinkFile("/test/embed/embed1/fileR.renamed");
+  // Remove files
+  view()->removeFile(fileSvc()->getFileMD(file1->getId()).get());
+  view()->removeFile(fileSvc()->getFileMD(file2->getId()).get());
+  view()->removeFile(fileSvc()->getFileMD(file11->getId()).get());
+  view()->removeFile(fileSvc()->getFileMD(file13->getId()).get());
+  view()->removeFile(fileSvc()->getFileMD(fileR->getId()).get());
+  // Remove all containers
+  view()->removeContainer("/test/", true);
 }
 
 //------------------------------------------------------------------------------
@@ -446,37 +408,13 @@ TEST(HierarchicalView, QuotaTest)
   ASSERT_NO_THROW(view->finalize());
 }
 
-TEST(HierarchicalView, LostContainerTest)
+TEST_F(HierarchicalViewF, LostContainerTest)
 {
-  // Initializer
-  std::map<std::string, std::string> config = {
-    {"qdb_cluster", "localhost:7778"},
-    {"qdb_flusher_md", "tests_md"},
-    {"qdb_flusher_quota", "tests_quota"}
-  };
-
-  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
-  std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
-  std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
-  std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
-  fileSvc->setContMDService(contSvc.get());
-  fileSvc->configure(config);
-  contSvc->configure(config);
-  contSvc->setFileMDService(fileSvc.get());
-  view->setContainerMDSvc(contSvc.get());
-  view->setFileMDSvc(fileSvc.get());
-  view->configure(config);
-  view->initialize();
-  std::shared_ptr<eos::IContainerMD> cont1{
-    view->createContainer("/test/embed/embed1", true)};
-  std::shared_ptr<eos::IContainerMD> cont2{
-    view->createContainer("/test/embed/embed2", true)};
-  std::shared_ptr<eos::IContainerMD> cont3{
-    view->createContainer("/test/embed/embed3", true)};
-  std::shared_ptr<eos::IContainerMD> cont4{
-    view->createContainer("/test/embed/embed1/embedembed", true)};
-  std::shared_ptr<eos::IContainerMD> cont5{
-    view->createContainer("/test/embed/embed3.conflict", true)};
+  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 = view()->createContainer("/test/embed/embed1/embedembed", true);
+  std::shared_ptr<eos::IContainerMD> cont5 = view()->createContainer("/test/embed/embed3.conflict", true);
 
   // Create some files
   for (int i = 0; i < 1000; ++i) {
@@ -492,24 +430,24 @@ TEST(HierarchicalView, LostContainerTest)
     s5 << "/test/embed/embed3.conflict/file" << i;
     std::ostringstream s6;
     s6 << "/test/embed/embed2/conflict_file" << i;
-    view->createFile(s1.str());
-    view->createFile(s2.str());
-    view->createFile(s3.str());
-    view->createFile(s4.str());
-    view->createFile(s5.str());
-    view->createFile(s6.str());
-    std::shared_ptr<eos::IFileMD> file{view->getFile(s6.str())};
+    view()->createFile(s1.str());
+    view()->createFile(s2.str());
+    view()->createFile(s3.str());
+    view()->createFile(s4.str());
+    view()->createFile(s5.str());
+    view()->createFile(s6.str());
+    std::shared_ptr<eos::IFileMD> file = view()->getFile(s6.str());
 
     if (i != 0) {
-      ASSERT_THROW(view->renameFile(file.get(), "conflict_file"),
+      ASSERT_THROW(view()->renameFile(file.get(), "conflict_file"),
                    eos::MDException);
     } else {
-      ASSERT_NO_THROW(view->renameFile(file.get(), "conflict_file"));
+      view()->renameFile(file.get(), "conflict_file");
     }
   }
 
   // Trying to remove a non-empty container should result in an exception
-  ASSERT_THROW(view->getContainerMDSvc()->removeContainer(cont1.get()),
+  ASSERT_THROW(view()->getContainerMDSvc()->removeContainer(cont1.get()),
                eos::MDException);
   // Trying to rename a container to an already existing one should result in
   // an exception
@@ -537,23 +475,17 @@ TEST(HierarchicalView, LostContainerTest)
     }
 
     for (auto && elem : paths) {
-      std::shared_ptr<eos::IFileMD> file{view->getFile(elem)};
-      ASSERT_NO_THROW(view->unlinkFile(elem));
-      ASSERT_NO_THROW(view->removeFile(
-                        view->getFileMDSvc()->getFileMD(file->getId()).get()));
+      std::shared_ptr<eos::IFileMD> file = view()->getFile(elem);
+      view()->unlinkFile(elem);
+      view()->removeFile(fileSvc()->getFileMD(file->getId()).get());
     }
   }
 
   // Remove the conflict_file
   std::string path = "test/embed/embed2/conflict_file";
-  std::shared_ptr<eos::IFileMD> file{view->getFile(path)};
-  ASSERT_NO_THROW(view->unlinkFile(path));
-  ASSERT_NO_THROW(
-    view->removeFile(view->getFileMDSvc()->getFileMD(file->getId()).get()));
+  std::shared_ptr<eos::IFileMD> file = view()->getFile(path);
+  view()->unlinkFile(path);
+  view()->removeFile(fileSvc()->getFileMD(file->getId()).get());
   // Remove all containers
-  ASSERT_NO_THROW(view->removeContainer("/test/", true));
-  // Remove the root container
-  std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
-  ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
-  ASSERT_NO_THROW(view->finalize());
+  view()->removeContainer("/test/", true);
 }
