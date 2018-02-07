@@ -53,4 +53,4 @@ fi
 
 export EOS_MGM_URL
 export XrdSecPROTOCOL=sss
-eos $*
+eos -r 0 0 "$@"
