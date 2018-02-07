@@ -751,14 +751,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                        " of file ", capOpaque->Env(envlen));
     }
 
-    // File does not exist, keep the create lfag
-    isCreation = true;
-    openSize = 0;
-    // Used to indicate if a file was written in the meanwhile by someone else
-    updateStat.st_mtime = 0;
-    open_mode |= SFS_O_CREAT;
-    create_mode |= SFS_O_MKPTH;
-    eos_debug("adding creation flag because of %d %d", retc, errno);
+    if (isRW) {
+      // File does not exist, keep the create lfag
+      isCreation = true;
+      openSize = 0;
+      // Used to indicate if a file was written in the meanwhile by someone else
+      updateStat.st_mtime = 0;
+      open_mode |= SFS_O_CREAT;
+      create_mode |= SFS_O_MKPTH;
+      eos_debug("adding creation flag because of %d %d", retc, errno);
+    } else {
+      // The open will fail but the client will get a recoverable error,
+      // therefore it will try to read again from the other replicas.
+      eos_warning("open for read, local file does not exists");
+    }
   } else {
     eos_debug("removing creation flag because of %d %d", retc, errno);
 
@@ -1200,8 +1206,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
              , this->logId
-	     , capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):Path.c_str()
-	     , this->vid.uid, this->vid.gid, tIdent.c_str()
+             , capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : Path.c_str()
+             , this->vid.uid, this->vid.gid, tIdent.c_str()
              , gOFS.mHostName, lid, fileid, fsid
              , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
              , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
