@@ -31,6 +31,7 @@ namespace eos {
   class IFileMDSvc;
   class IView;
   class IFsView;
+  class MetadataFlusher;
 }
 
 EOSNSTESTING_BEGIN
@@ -75,6 +76,10 @@ public:
   // you're too lazy to call createQClient.
   qclient::QClient &qcl();
 
+  // Return flushers
+  eos::MetadataFlusher* mdFlusher();
+  eos::MetadataFlusher* quotaFlusher();
+
 private:
   void initServices();
 
@@ -86,6 +91,11 @@ private:
   std::unique_ptr<eos::IFsView> fsViewPtr;
 
   std::unique_ptr<qclient::QClient> qclPtr;
+
+  // No ownership
+  eos::MetadataFlusher* mdFlusherPtr = nullptr;
+  eos::MetadataFlusher* quotaFlusherPtr = nullptr;
+
 };
 
 

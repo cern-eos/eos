@@ -26,7 +26,6 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
-#include <cppunit/extensions/HelperMacros.h>
 #include <memory>
 #include <gtest/gtest.h>
 

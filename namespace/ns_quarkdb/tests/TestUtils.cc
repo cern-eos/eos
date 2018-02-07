@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 
 EOSNSTESTING_BEGIN
 
@@ -126,6 +127,20 @@ qclient::QClient& NsTestsFixture::qcl() {
   return *qclPtr.get();
 }
 
+eos::MetadataFlusher* NsTestsFixture::mdFlusher() {
+  if(!mdFlusherPtr) {
+    mdFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_md"], getMembers());
+  }
+  return mdFlusherPtr;
+}
+
+eos::MetadataFlusher* NsTestsFixture::quotaFlusher() {
+  if(!quotaFlusherPtr) {
+    quotaFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_quota"], getMembers());
+  }
+  return quotaFlusherPtr;
+}
+
 void NsTestsFixture::shut_down_everything() {
   if(viewPtr) {
     viewPtr->finalize();
@@ -138,6 +153,10 @@ void NsTestsFixture::shut_down_everything() {
   viewPtr.reset();
   fileSvcPtr.reset();
   containerSvcPtr.reset();
+  qclPtr.reset();
+
+  mdFlusherPtr = nullptr;
+  quotaFlusherPtr = nullptr;
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
