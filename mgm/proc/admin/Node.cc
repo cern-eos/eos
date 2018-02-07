@@ -257,7 +257,7 @@ ProcCommand::Node()
   }
 
   if (mSubCmd == "rm") {
-    if (pVid->uid == 0) {
+    if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                              "";
 
@@ -339,7 +339,7 @@ ProcCommand::Node()
   }
 
   if (mSubCmd == "config") {
-    if (pVid->uid == 0) {
+    if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string identifier = (pOpaque->Get("mgm.node.name")) ?
                                pOpaque->Get("mgm.node.name") : "";
       std::string key = (pOpaque->Get("mgm.node.key")) ? pOpaque->Get("mgm.node.key")
@@ -517,7 +517,7 @@ ProcCommand::Node()
   }
 
   if (mSubCmd == "register") {
-    if (pVid->uid == 0) {
+    if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       XrdOucString registernode = pOpaque->Get("mgm.node.name");
       XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
       XrdOucString space2register = pOpaque->Get("mgm.node.space2register");
