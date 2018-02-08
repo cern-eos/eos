@@ -1748,7 +1748,7 @@ XrdFstOfsFile::close ()
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
 
-    if ((viaDelete || writeDelete || remoteDelete) && (isCreation || IsChunkedUpload()))
+    if ((viaDelete || writeDelete || remoteDelete) && ((isCreation || IsChunkedUpload()) && (!mFusex)))
     {
       // It is closed by the constructor e.g. no proper close
       // or the specified checksum does not match the computed one
@@ -2231,7 +2231,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if ( deleteOnClose && (isInjection || isCreation || IsChunkedUpload()) )
+    if ( deleteOnClose && (isInjection || isCreation || IsChunkedUpload()) && (!mFusex))
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
