@@ -768,7 +768,6 @@ EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
   eos::common::Timing timing(__func__);
   EosFuse& me = instance();
   filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
-
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
 
@@ -795,7 +794,6 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos::common::Timing timing(__func__);
   EosFuse& me = instance();
   filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
-
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
 
@@ -1264,8 +1262,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     return;
   }
 
-  filesystem::fd_user_info* info = (struct filesystem::fd_user_info*) calloc(1,
-                                   sizeof(struct filesystem::fd_user_info));
+  filesystem::fd_user_info* info = (filesystem::fd_user_info*) calloc(1,
+                                   sizeof(filesystem::fd_user_info));
   info->fd = res;
   info->uid = fuse_req_ctx(req)->uid;
   info->gid = fuse_req_ctx(req)->gid;
@@ -1389,8 +1387,8 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char* name,
     }
 
     // Update file information structure
-    filesystem::fd_user_info* info = (struct filesystem::fd_user_info*) calloc(1,
-                                     sizeof(struct filesystem::fd_user_info));
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) calloc(1,
+                                     sizeof(filesystem::fd_user_info));
     info->fd = res;
     info->uid = fuse_req_ctx(req)->uid;
     info->gid = fuse_req_ctx(req)->gid;
@@ -1462,7 +1460,7 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                    (unsigned long long) ino, size, (unsigned long long) off);
 
   if (fi && fi->fh) {
-    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
     char* buf = me.fs().attach_rd_buff(thread_id(), size);
     eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
@@ -1495,7 +1493,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
 
   if (fi && fi->fh) {
-    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
     eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
                      (long long) off, (long long) buf, (long long) info->fd);
@@ -1529,7 +1527,7 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   errno = 0;
 
   if (fi && fi->fh) {
-    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
     int fd = info->fd;
     eos_static_debug("inode=%lld fh=%lld",
                      (long long) ino, (long long) fd);
@@ -1571,7 +1569,7 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
 
   if (fi && fi->fh) {
-    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
     eos_static_debug("inode=%lld fh=%lld",
                      (long long) ino, (long long) info->fd);
 
@@ -1613,7 +1611,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   errno = 0;
 
   if (fi && fi->fh) {
-    struct filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
     int err_flush = me.fs().flush(info->fd, fuse_req_ctx(req)->uid,
                                   fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid);
 
