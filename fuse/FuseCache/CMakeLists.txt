@@ -38,6 +38,8 @@ set_target_properties(
   POSITION_INDEPENDENT_CODE TRUE
 )
 
+add_dependencies(FuseCache-Objects EosFstIo)
+
 target_compile_definitions(
   FuseCache-Objects PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
