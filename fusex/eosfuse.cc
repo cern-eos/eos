@@ -1837,6 +1837,35 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
   }
 }
 
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
+/* -------------------------------------------------------------------------- */
+{
+  eos_static_debug("");
+  int rc = 0;
+  fuse_id id(req);
+  // retrieve cap
+  cap::shared_cap pcap = Instance().caps.acquire(req, ino,
+                         S_IFDIR | X_OK | R_OK, true);
+  XrdSysMutexHelper cLock(pcap->Locker());
+
+  if (pcap->errc()) {
+    rc = pcap->errc();
+  } else {
+    // retrieve md
+    std::string authid = pcap->authid();
+    cLock.UnLock();
+    md = Instance().mds.get(req, ino, authid, true);
+  }
+  return rc;
+}
+
+
+
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -1851,20 +1880,13 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   Track::Monitor mon(__func__, Instance().Tracker(), ino);
   int rc = 0;
   fuse_id id(req);
-  // retrieve cap
-  cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                         S_IFDIR | X_OK | R_OK, true);
-  XrdSysMutexHelper cLock(pcap->Locker());
 
-  if (pcap->errc()) {
-    rc = pcap->errc();
-  } else {
-    // retrieve md
-    std::string authid = pcap->authid();
-    cLock.UnLock();
-    metad::shared_md md = Instance().mds.get(req, ino, authid, true);
+  metad::shared_md md;
+  rc = listdir(req, ino , md);
+
+  if (!rc)
+  {
     XrdSysMutexHelper mLock(md->Locker());
-
     if (!md->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : md->err();
     } else {
@@ -1927,6 +1949,17 @@ EBADF  Invalid directory stream descriptor fi->fh
     {
       // avoid to have more than one md object locked at a time
       XrdSysMutexHelper mLock(pmd->Locker());
+      // make sure, the meta-data object contains listing information (it might have been invalidated by a callback)
+      do {
+	if (pmd->type() == pmd->MDLS)
+	  break;
+	pmd->Locker().UnLock();
+	// refresh the listing
+	eos_static_warning("refresh listing int=%16lx", ino);
+	rc = listdir(req, ino , pmd);
+	pmd->Locker().Lock();
+      } while ((!rc) && (pmd->type() != pmd->MDLS));
+
       pmd_mode = pmd->mode();
       pmd_id = pmd->id();
       auto pmap = pmd->local_children();
@@ -1942,6 +1975,8 @@ EBADF  Invalid directory stream descriptor fi->fh
         }
       }
     }
+
+
     // only one readdir at a time
     XrdSysMutexHelper lLock(md->items_lock);
     auto it = pmd_children.begin();
@@ -1971,7 +2006,8 @@ EBADF  Invalid directory stream descriptor fi->fh
       metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "" , true, 0, 0,
                               true);
 
-      if (ppmd && (ppmd->id() == pmd->pid())) {
+      // don't add a '..' at root
+      if ((cino>1) && ppmd && (ppmd->id() == pmd->pid())) {
         fuse_ino_t cino = 0;
         mode_t mode = 0;
         {
