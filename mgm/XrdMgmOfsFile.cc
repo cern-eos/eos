@@ -974,6 +974,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	    gOFS->eosView->updateContainerStore(cmd);
 	    gOFS->FuseXCast(cmd->getId());
+	    gOFS->FuseXCast(cmd->getParentId());
           }
           catch (eos::MDException &e)
           {
@@ -1236,6 +1237,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
 	gOFS->FuseXCast(cmd->getId());
+	gOFS->FuseXCast(cmd->getParentId());
 
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
