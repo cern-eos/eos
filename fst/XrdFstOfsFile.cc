@@ -28,6 +28,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/SecEntity.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
@@ -3018,6 +3019,28 @@ XrdFstOfsFile::FilterTags(const std::string& opaque,
   }
 
   return new_opaque;
+}
+
+//------------------------------------------------------------------------------
+// Return current mtime while open
+//------------------------------------------------------------------------------
+time_t
+XrdFstOfsFile::GetMtime()
+{
+  if (fMd) {
+    return fMd->mProtoFmd.mtime();
+  } else {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Return FMD checksum
+//------------------------------------------------------------------------------
+std::string
+XrdFstOfsFile::GetFmdChecksum()
+{
+  return fMd->mProtoFmd.checksum();
 }
 
 EOSFSTNAMESPACE_END

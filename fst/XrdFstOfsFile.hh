@@ -28,8 +28,8 @@
 #include <numeric>
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "fst/FmdDbMap.hh"
 #include "fst/storage/Storage.hh"
+#include "common/FileId.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -44,6 +44,7 @@ EOSFSTNAMESPACE_BEGIN;
 // Forward declaration
 class Layout;
 class CheckSum;
+class FmdHelper;
 
 //------------------------------------------------------------------------------
 //! Class
@@ -114,15 +115,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return current mtime while open
   //--------------------------------------------------------------------------
-
-  time_t GetMtime()
-  {
-    if (fMd) {
-      return fMd->mProtoFmd.mtime();
-    } else {
-      return 0;
-    }
-  }
+  time_t GetMtime();
 
   //--------------------------------------------------------------------------
   //!
@@ -334,10 +327,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return FMD checksum
   //--------------------------------------------------------------------------
-  std::string GetFmdChecksum()
-  {
-    return fMd->mProtoFmd.checksum();
-  }
+  std::string GetFmdChecksum();
 
   //--------------------------------------------------------------------------
   //! Check for chunked upload flag
