@@ -1766,7 +1766,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_info("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
+        eos_static_debug("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
 
         XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
 
@@ -1789,13 +1789,14 @@ WFE::Job::DoIt(bool issync)
 
             static std::string archiveFileIdAttr = "<eos::wfe::path::fxattr:sys.archiveFileId>";
             if (response.message_txt().find(archiveFileIdAttr) != std::string::npos) {
+              auto newArchiveFileId = response.message_txt().substr(archiveFileIdAttr.size());
               std::string archiveFileId;
-              if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId)) {
+              if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId) || archiveFileId != newArchiveFileId) {
                 eos::common::Mapping::VirtualIdentity rootvid;
                 eos::common::Mapping::Root(rootvid);
                 XrdOucErrInfo errInfo;
                 if (gOFS->_attr_set(fullpath.c_str(), errInfo, rootvid,
-                                    nullptr, archiveidAttrName, response.message_txt().substr(archiveFileIdAttr.size()).c_str()) != 0) {
+                                    nullptr, archiveidAttrName, newArchiveFileId.c_str()) != 0) {
                   eos_static_err("Could not set archive ID attribute for file %s. Reason: %s", fullpath.c_str(), errInfo.getErrText());
                 }
               }
