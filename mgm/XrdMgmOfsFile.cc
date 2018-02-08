@@ -1424,7 +1424,8 @@ XrdMgmOfsFile::open (const char *inpath,
                                   unavailfs);
 
 
-    if ( (retc == ENETUNREACH) && (!fmd->getSize()) && (!bookingsize))
+    if ( ( (retc == ENETUNREACH) || (retc == EROFS) ) && 
+	 ((!fmd->getSize()) && (!bookingsize)) || (isRepair) )
     {
       const char* containertag = 0;
       if (attrmap.count("user.tag"))
