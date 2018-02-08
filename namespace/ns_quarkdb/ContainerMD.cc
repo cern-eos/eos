@@ -677,10 +677,10 @@ ContainerMD::serialize(Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Deserialize from buffer
+// Deserialize from buffer, without reloading the container's children
 //------------------------------------------------------------------------------
 void
-ContainerMD::deserialize(Buffer& buffer)
+ContainerMD::deserializeProtobuf(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
 {
   uint32_t cksum_expected = 0;
   uint32_t obj_size = 0;
@@ -703,12 +703,19 @@ ContainerMD::deserialize(Buffer& buffer)
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
-  if (!mCont.ParseFromZeroCopyStream(&ais)) {
+  if (!proto.ParseFromZeroCopyStream(&ais)) {
     MDException ex(EIO);
     ex.getMessage() << "Failed while deserializing buffer";
     throw ex;
   }
+}
 
+//------------------------------------------------------------------------------
+// Load children
+//------------------------------------------------------------------------------
+void
+ContainerMD::loadChildren()
+{
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pFilesMap.setKey(pFilesKey);
@@ -750,6 +757,16 @@ ContainerMD::deserialize(Buffer& buffer)
       throw e;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Deserialize from buffer
+//------------------------------------------------------------------------------
+void
+ContainerMD::deserialize(Buffer& buffer)
+{
+  deserializeProtobuf(buffer, mCont);
+  loadChildren();
 }
 
 //------------------------------------------------------------------------------

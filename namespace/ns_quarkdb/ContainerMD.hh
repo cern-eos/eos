@@ -366,7 +366,17 @@ public:
   void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
+  //! Deserialize a protobuf
+  //----------------------------------------------------------------------------
+  static void deserializeProtobuf(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
+
+  //----------------------------------------------------------------------------
+  //! Load children of container
+  //----------------------------------------------------------------------------
+  void loadChildren();
+
+  //----------------------------------------------------------------------------
+  //! Deserialize the class to a buffer and load its children
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer) override;
 
