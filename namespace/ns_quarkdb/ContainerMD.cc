@@ -24,6 +24,7 @@
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "common/Assert.hh"
@@ -694,29 +695,8 @@ ContainerMD::loadChildren()
 
   if (pQcl) {
     try {
-      std::string cursor = "0";
-      std::pair<std::string, std::unordered_map<std::string, std::string>> reply;
-
-      do {
-        reply = pFilesMap.hscan(cursor, count);
-        cursor = reply.first;
-
-        for (const auto& elem : reply.second) {
-          mFiles.insert(std::make_pair(elem.first, std::stoull(elem.second)));
-        }
-      } while (cursor != "0");
-
-      // Get the subcontainers
-      cursor = "0";
-
-      do {
-        reply = pDirsMap.hscan(cursor, count);
-        cursor = reply.first;
-
-        for (const auto& elem : reply.second) {
-          mSubcontainers.insert(std::make_pair(elem.first, std::stoull(elem.second)));
-        }
-      } while (cursor != "0");
+      MetadataFetcher::getFilesInContainer(*pQcl, mCont.id(), mFiles);
+      MetadataFetcher::getSubContainers(*pQcl, mCont.id(), mSubcontainers);
     } catch (std::runtime_error& qdb_err) {
       MDException e(ENOENT);
       e.getMessage()  << __FUNCTION__  << " Container #" << mCont.id()

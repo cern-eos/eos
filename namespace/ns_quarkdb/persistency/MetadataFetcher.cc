@@ -108,14 +108,18 @@ eos::ns::ContainerMdProto MetadataFetcher::getContainerFromId(qclient::QClient &
   return proto;
 }
 
-std::string MetadataFetcher::keySubcontainers(id_t id) {
+std::string MetadataFetcher::keySubContainers(id_t id) {
   return SSTR(id << constants::sMapDirsSuffix);
+}
+
+std::string MetadataFetcher::keySubFiles(id_t id) {
+  return SSTR(id << constants::sMapFilesSuffix);
 }
 
 id_t MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID) {
   redisReplyPtr reply = qcl.exec(
     "HGET",
-    keySubcontainers(parentID),
+    keySubContainers(parentID),
     name
   ).get();
 
@@ -140,6 +144,20 @@ id_t MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, const std::s
   return strtoll(reply->str, nullptr, 10);
 }
 
+void MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap) {
+  qclient::QHash hash(qcl, keySubFiles(container));
 
+  for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
+    fileMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
+  }
+}
+
+void MetadataFetcher::getSubContainers(qclient::QClient &qcl, id_t container, IContainerMD::ContainerMap &containerMap) {
+  qclient::QHash hash(qcl, keySubContainers(container));
+
+  for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
+    containerMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
+  }
+}
 
 EOSNSNAMESPACE_END
