@@ -853,6 +853,7 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             gOFS->FuseXCast(cmd->getId());
+	    gOFS->FuseXCast(cmd->getParentId());
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1049,6 +1050,7 @@ XrdMgmOfsFile::open(const char* inpath,
         ctime.tv_nsec = ext_ctime_nsec;
         fmd->setCTime(ctime);
       }
+<<<<<<< HEAD
 
       try {
         gOFS->eosView->updateFileStore(fmd.get());
@@ -1066,6 +1068,33 @@ XrdMgmOfsFile::open(const char* inpath,
           if (ns_quota) {
             ns_quota->addFile(fmd.get());
           }
+=======
+      try
+      {
+        gOFS->eosView->updateFileStore(fmd);
+	gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+
+	eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	cmd->setMTimeNow();
+	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	gOFS->eosView->updateContainerStore(cmd);
+	gOFS->FuseXCast(cmd->getId());
+	gOFS->FuseXCast(cmd->getParentId());
+
+	if (isCreation || (!fmd->getNumLocation())) 
+	{
+	  std::string uri = gOFS->eosView->getUri(fmd);
+	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+	  if (space)
+	  {
+	    eos::QuotaNode* quotanode = 0;
+	    quotanode = space->GetQuotaNode();
+	    if (quotanode)
+	    {
+	      quotanode->addFile(fmd);
+	    }
+	  }
+>>>>>>> 2a43e38... MGM: broadcast change of the parent mtime when a file is added
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
