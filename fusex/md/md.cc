@@ -261,13 +261,12 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     return ENOENT;
   }
 
-  if (!md->deleted()) {
-    return 0;
-  }
-
   if (has_flush(ino))
     return 0;
 
+  if (pmd->cap_count())
+    return 0;
+  
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);
@@ -519,6 +518,7 @@ metad::get(fuse_req_t req,
   if (ino) {
     if (!mdmap.retrieveTS(ino, md)) {
       md = std::make_shared<mdx>();
+      md->set_md_ino(inomap.backward(ino));
     }
 
     if ( EOS_LOGS_DEBUG ) {
@@ -1457,9 +1457,10 @@ void
 metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
 {
-  std::vector<std::string> delete_child_dir;
+  eos_static_debug("id=%16x", md->id());
   std::vector<std::string> inval_entry_name;
-  std::map<std::string,fuse_ino_t> erase_entry_inodes;
+  std::vector<fuse_ino_t> inval_files;
+  std::vector<fuse_ino_t> inval_dirs;
 
   for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it)
   {
@@ -1475,51 +1476,54 @@ metad::cleanup(shared_md md)
 	if (!in_flush && !EosFuse::Instance().datas.has(cmd->id()))
 	{
 	  // clean-only entries, which are not in the flush queue and not open
-	  //mdmap.eraseTS(it->second);
-	  erase_entry_inodes[it->first] = it->second;
+	  inval_files.push_back(it->second);
 	}
       }
       else
       {
 	if (!in_flush)
 	{
-	  delete_child_dir.push_back(it->first);
-	  if (EOS_LOGS_DEBUG)
-	    eos_static_debug("adding ino to forgetlist %016x", cmd->id());
-	  EosFuse::Instance().caps.forgetlist.add(cmd->id());
+	  inval_dirs.push_back(it->second);
 	}
       }
     }
     inval_entry_name.push_back(it->first);
   }
-  // remove the listing type
-  md->set_type(md->MD);
-  md->set_creator(false);
-  md->cap_count_reset();
-  // hide child directories
-  for (auto it = delete_child_dir.begin(); it != delete_child_dir.end(); ++it)
-  {
-    md->local_children().erase(*it);
-  }
+
+  md->Locker().UnLock();
 
   if (EosFuse::Instance().Config().options.md_kernelcache)
   {
-    // no mutex lock when invalidating entries
-    md->Locker().UnLock();
     for (auto it = inval_entry_name.begin(); it != inval_entry_name.end(); ++it)
     {
       kernelcache::inval_entry(md->id(), *it);
-      auto iit = erase_entry_inodes.find(*it);
-      // now remove from the map to avoid that we have a race condition before we actually did the kernal upcall
-      if (iit != erase_entry_inodes.end()) {
-	mdmap.eraseTS(iit->second);
-	stats().inodes_dec();
-      }
     }
-    md->Locker().Lock();
   }
+
+  md->Locker().Lock();
+  md->set_type(md->MD);
+  md->set_creator(false);
+  md->cap_count_reset();
   md->set_nchildren(md->local_children().size());
   md->get_todelete().clear();
+  md->Locker().UnLock();
+
+  if ( ( EosFuse::Instance().Config().options.data_kernelcache ) || 
+       ( EosFuse::Instance().Config().options.md_kernelcache ) )
+  {
+    
+    for (auto it = inval_files.begin(); it != inval_files.end(); ++it) {
+      //      kernelcache::inval_inode(*it, true);
+      forget(0, *it, 0);
+    } 
+    /*
+    for (auto it = inval_dirs.begin(); it != inval_dirs.end(); ++it) {
+      kernelcache::inval_inode(*it, false);
+    }
+    */
+  }
+  
+
   EosFuse::Instance().caps.forgetlist.add(md->id());
 }
 
@@ -1534,7 +1538,7 @@ metad::cleanup(fuse_ino_t ino, bool force)
   {
     if (mdmap.retrieveTS(ino, md))
     {
-      XrdSysMutexHelper cmLock(md->Locker());
+      md->Locker().Lock();
       return cleanup(md);
     }
   }
@@ -2292,6 +2296,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   }
                 } while (1);
 
+		eos_static_debug("");
                 fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
                 {
                   shared_md md;
@@ -2317,39 +2322,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     }
 
 		    cleanup(md);
-                    md->Locker().UnLock();
 
 		    if (EOS_LOGS_DEBUG)
 		      eos_static_debug("%s", dump_md(md).c_str());
-
-                    if (EosFuse::Instance().Config().options.md_kernelcache) {
-                      for (auto it = children_copy.begin(); it != children_copy.end(); ++it) {
-                        shared_md child_md;
-
-                        if (mdmap.retrieveTS(it->second, child_md)) {
-                          // we know this inode
-                          mode_t mode;
-                          {
-                            XrdSysMutexHelper mLock(md->Locker());
-                            mode = md->mode();
-                          }
-
-                          // avoid any locks while doing this
-                          if (EosFuse::Instance().Config().options.data_kernelcache) {
-                            if (!S_ISDIR(mode)) {
-                              kernelcache::inval_inode(it->second, true);
-                            } else {
-                              kernelcache::inval_inode(it->second, false);
-                            }
-                          }
-			  // drop the entry stats
-			  kernelcache::inval_entry(ino, it->first);
-                        }
-                      }
-
-                      eos_static_info("invalidated direct children ino=%016lx cap-cnt=%d", ino,
-                                      md->cap_count());
-                    }
                   }
                 }
               }
@@ -2465,6 +2440,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		    eos_static_err("missing quota node for pino=%16x and clientid=%s",
 				   pino, md->clientid().c_str());
 		  }
+
+		  // possibly invalidate kernel cache for parent
+		  if (EosFuse::Instance().Config().options.md_kernelcache)
+		  {
+		    eos_static_info("invalidate md cache for ino=%016lx", pino);
+		    kernelcache::inval_inode(pino, false);
+		  }
+
 		} else {
 		  eos_static_err("missing parent mapping pino=%16x for ino%16x",
 				 md_pino,
