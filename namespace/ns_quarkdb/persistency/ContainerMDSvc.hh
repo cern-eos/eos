@@ -201,6 +201,15 @@ private:
   //----------------------------------------------------------------------------
   void ComputeNumberOfContainers();
 
+  //----------------------------------------------------------------------------
+  //! Get a mutex for the current container id
+  //!
+  //! @param id container id
+  //!
+  //! @return std::mutex object
+  //----------------------------------------------------------------------------
+  std::mutex& GetShardMutex(IContainerMD::id_t id);
+
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
   ListenerList pListeners;   ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;  ///< Quota view
@@ -211,6 +220,12 @@ private:
   NextInodeProvider mInodeProvider; ///< Provide next free inode
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
   std::atomic<uint64_t> mNumConts; ///< Total number of containers
+  //! Collection of mutexes used to sync retrieving the metadata and contents
+  //! of a container from the backend. Without this in case of large containers
+  //! we might end up retrieving the same info several times. The memory used
+  //! in Linux is 40 bytes/std::mutex => ~40 kb
+  std::vector<std::mutex> mShardMutexes;
+  constexpr static uint64_t mNumMutexes = 1023; ///< Number of shards
 };
 
 EOSNSNAMESPACE_END

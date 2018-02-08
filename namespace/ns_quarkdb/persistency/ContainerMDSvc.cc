@@ -32,7 +32,8 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 //------------------------------------------------------------------------------
 // Override number of container buckets, used in tests.
 //------------------------------------------------------------------------------
-void ContainerMDSvc::OverrideNumberOfBuckets(uint64_t buckets) {
+void ContainerMDSvc::OverrideNumberOfBuckets(uint64_t buckets)
+{
   sNumContBuckets = buckets;
 }
 
@@ -53,13 +54,15 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
-    mMetaMap(), mContainerCache(10e7), mNumConts(0ull) {}
+    mMetaMap(), mContainerCache(10e7), mNumConts(0ull),
+    mShardMutexes(mNumMutexes + 1) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ContainerMDSvc::~ContainerMDSvc() {
-  if(pFlusher) {
+ContainerMDSvc::~ContainerMDSvc()
+{
+  if (pFlusher) {
     pFlusher->synchronize();
   }
 }
@@ -160,12 +163,15 @@ ContainerMDSvc::SafetyCheck()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get the container metadata information
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 {
+  // Do everything under lock to avoid submitting multiple requests for the
+  // same entry if it's big or backend is slow
+  std::lock_guard<std::mutex> lock(GetShardMutex(id));
   // Check first in cache
   std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
 
@@ -389,6 +395,16 @@ ContainerMDSvc::ComputeNumberOfContainers()
   (void) ah.Wait();
   auto resp = ah.GetResponses();
   mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
+}
+
+//----------------------------------------------------------------------------
+//! Get a mutex for the current container id
+//----------------------------------------------------------------------------
+std::mutex&
+ContainerMDSvc::GetShardMutex(IContainerMD::id_t id)
+{
+  id = id & mNumMutexes;
+  return mShardMutexes[id];
 }
 
 EOSNSNAMESPACE_END
