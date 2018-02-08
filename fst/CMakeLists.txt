@@ -185,6 +185,8 @@ add_library(EosFstIo-Objects OBJECT
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+add_dependencies(EosFstIo-Objects EosNsQuarkdb-Shared)
+
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
