@@ -77,10 +77,6 @@ eos_rpm_fedora_rawhide:
     - mkdir fcrawhide_artifacts
     - cp -R build/SRPMS fcrawhide_artifacts
     - cp -R build/RPMS fcrawhide_artifacts
-  cache:
-    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
-    paths:
-    - ccache/
   artifacts:
     expire_in: 1 day
     paths:
@@ -112,10 +108,6 @@ eos_rpm_fedora_26:
     - mkdir fcold_artifacts
     - cp -R build/SRPMS fcold_artifacts
     - cp -R build/RPMS fcold_artifacts
-  cache:
-    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
-    paths:
-    - ccache/
   artifacts:
     expire_in: 1 day
     paths:
@@ -145,10 +137,6 @@ eos_deb_ubuntu_artful:
     - ccache -s
     - mkdir artful
     - cp deb_packages/*.deb artful
-  cache:
-    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
-    paths:
-    - ccache/
   artifacts:
     expire_in: 1 day
     paths:
@@ -330,10 +318,6 @@ eos_unit_test:
     - export LD_LIBRARY_PATH=./common/:./mq/:./auth_plugin/:./fst/
     - ccache -s
     - ./unit_tests/eos-unit-tests
-  cache:
-    key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
-    paths:
-    - ccache/
   tags:
     - docker-cc7
   except:
