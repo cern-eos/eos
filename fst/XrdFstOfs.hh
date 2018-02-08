@@ -28,7 +28,6 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/Config.hh"
 #include "common/Logging.hh"
-#include "fst/FmdDbMap.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "XrdOfs/XrdOfs.hh"

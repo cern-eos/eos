@@ -30,15 +30,20 @@
 #include "common/RWMutex.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
 #include <vector>
 #include <list>
 #include <queue>
 #include <map>
 
-namespace eos { namespace common {
-  class TransferQueue;
-} }
+namespace eos
+{
+namespace common
+{
+class TransferQueue;
+}
+}
 
 EOSFSTNAMESPACE_BEGIN
 
