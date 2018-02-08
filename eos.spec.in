@@ -69,6 +69,7 @@ BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
 
 %if %{?_with_server:1}%{!?_with_server:0}
+BuildRequires: eos-rocksdb
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
@@ -88,7 +89,6 @@ BuildRequires: libevent2, libevent2-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 BuildRequires: libevent, libevent-devel
-BuildRequires: eos-rocksdb
 BuildRequires: bzip2-devel
 Requires: bzip2
 %endif
@@ -120,7 +120,7 @@ scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCM
 %endif
 %else
 %if 0%{?rhel} == 6 || 0%{?el6} == 1
-scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_QUARKDB_NAMESPACE=OFF"
+scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFUSEXCLIENT=1
 %endif

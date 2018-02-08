@@ -35,14 +35,14 @@ include_directories(
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIR}
   ${LIBEVENT_INCLUDE_DIRS}
-  ./
-)
+  ${BZ2_INCLUDE_DIRS}
+  ./)
 
 find_package(RocksDB)
 
 if(ROCKSDB_FOUND)
   set(SOURCES_IF_ROCKSDB_WAS_FOUND kv/RocksKV.cc kv/RocksKV.hh)
-  set(LIBRARIES_IF_ROCKSDB_WAS_FOUND ${ROCKSDB_LIBRARY} bz2)
+  set(LIBRARIES_IF_ROCKSDB_WAS_FOUND ${ROCKSDB_LIBRARY} ${BZ2_LIBRARY})
   set(FLAGS_IF_ROCKSDB_WAS_FOUND "-DROCKSDB_FOUND")
   set(TEST_SOURCES_IF_ROCKSDB_WAS_FOUND rocks-kv.cc)
 endif()
@@ -94,7 +94,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${LIBEVENT_LIBRARIES}
   ${ZMQ_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-  bz2
+  ${BZ2_LIBRARY}
   eosCommon)
 
 #-------------------------------------------------------------------------------

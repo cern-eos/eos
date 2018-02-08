@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifdef HAVE_QCLIENT
-
 #include "mgm/RedisConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
@@ -784,5 +782,3 @@ RedisConfigEngine::getTimeStamp(XrdOucString& out)
 }
 
 EOSMGMNAMESPACE_END
-
-#endif // HAVE_QCLIENT

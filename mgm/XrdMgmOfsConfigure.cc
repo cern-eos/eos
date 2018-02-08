@@ -51,9 +51,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
-#ifdef HAVE_QCLIENT
 #include "mgm/RedisConfigEngine.hh"
-#endif
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
 #include "common/ZMQ.hh"
@@ -1399,17 +1397,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the config engine
   if (MgmOfsConfigEngineType == "file") {
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
-  }
-
-#ifdef HAVE_QCLIENT
-  else if (MgmOfsConfigEngineType == "redis") {
+  } else if (MgmOfsConfigEngineType == "redis") {
     ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
                                        MgmOfsConfigEngineRedisHost.c_str(),
                                        MgmOfsConfigEngineRedisPort);
-  }
-
-#endif
-  else {
+  } else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());
     NoGo = 1;

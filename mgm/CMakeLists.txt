@@ -52,14 +52,6 @@ if(BUILD_TESTS)
 endif()
 
 #-------------------------------------------------------------------------------
-# XrdEosMgm-Objects library
-#-------------------------------------------------------------------------------
-set(QDB_CLIENT "")
-if (BUILD_QUARKDB_NAMESPACE)
-  set(QDB_CLIENT ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
-endif()
-
-#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FUSEX_SRCS FUSEX_HDRS fusex.proto)
@@ -72,6 +64,9 @@ add_library(
   EosMgmProto-Objects OBJECT
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
+#-------------------------------------------------------------------------------
+# XrdEosMgm-Objects library
+#-------------------------------------------------------------------------------
 add_library(
   XrdEosMgm-Objects OBJECT
   Access.cc
@@ -179,8 +174,8 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
-  ${FUSEX_SRCS}
-  ${QDB_CLIENT})
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc
+  ${FUSEX_SRCS})
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto-Objects so we guarantee that the protocol
@@ -212,6 +207,7 @@ endif()
 
 target_link_libraries(
   XrdEosMgm PUBLIC
+  qclient
   eosCommon
   eosCommonServer
   EosNsCommon
@@ -232,12 +228,6 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
-
-if (BUILD_QUARKDB_NAMESPACE)
-target_link_libraries(
-  XrdEosMgm PUBLIC
-  qclient)
-endif()
 
 install(
   TARGETS XrdEosMgm
@@ -271,7 +261,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
-if(BUILD_QUARKDB_NAMESPACE AND Linux)
+if(Linux)
   add_library(XrdEosMgm-Shared SHARED
     $<TARGET_OBJECTS:XrdEosMgm-Objects>
     $<TARGET_OBJECTS:CommonCli-Objects>
