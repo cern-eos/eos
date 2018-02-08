@@ -23,6 +23,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "common/Assert.hh"
@@ -677,40 +678,6 @@ ContainerMD::serialize(Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Deserialize from buffer, without reloading the container's children
-//------------------------------------------------------------------------------
-void
-ContainerMD::deserializeProtobuf(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
-{
-  uint32_t cksum_expected = 0;
-  uint32_t obj_size = 0;
-  size_t sz = sizeof(cksum_expected);
-  const char* ptr = buffer.getDataPtr();
-  (void) memcpy(&cksum_expected, ptr, sz);
-  ptr += sz;
-  (void) memcpy(&obj_size, ptr, sz);
-  size_t msg_size = buffer.getSize();
-  uint32_t align_size = msg_size - 2 * sz;
-  ptr += sz; // now pointing to the serialized object
-  uint32_t cksum_computed = DataHelper::computeCRC32C((void*)ptr, align_size);
-  cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
-
-  if (cksum_expected != cksum_computed) {
-    MDException ex(EIO);
-    ex.getMessage() << "FileMD object checksum missmatch";
-    throw ex;
-  }
-
-  google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
-
-  if (!proto.ParseFromZeroCopyStream(&ais)) {
-    MDException ex(EIO);
-    ex.getMessage() << "Failed while deserializing buffer";
-    throw ex;
-  }
-}
-
-//------------------------------------------------------------------------------
 // Load children
 //------------------------------------------------------------------------------
 void
@@ -765,9 +732,17 @@ ContainerMD::loadChildren()
 void
 ContainerMD::deserialize(Buffer& buffer)
 {
-  deserializeProtobuf(buffer, mCont);
+  Serialization::deserializeContainer(buffer, mCont);
   loadChildren();
 }
+
+void
+ContainerMD::initialize(eos::ns::ContainerMdProto &&proto)
+{
+  mCont = std::move(proto);
+  loadChildren();
+}
+
 
 //------------------------------------------------------------------------------
 // Get map copy of the extended attributes

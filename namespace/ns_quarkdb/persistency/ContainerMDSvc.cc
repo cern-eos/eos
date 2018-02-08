@@ -17,11 +17,13 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "common/Assert.hh"
 #include <memory>
 #include <numeric>
 
@@ -190,34 +192,18 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   }
 
   // If not in cache, then get it from the KV backend
-  std::string blob;
+  std::shared_ptr<ContainerMD> retval = std::make_shared<ContainerMD>(
+    0, pFileSvc, this
+  );
 
-  try {
-    std::string sid = stringify(id);
-    qclient::QHash bucket_map(*pQcl, getBucketKey(id));
-    blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << id << " not found";
-    throw e;
-  }
-
-  if (blob.empty()) {
-    MDException e(ENOENT);
-    e.getMessage()  << __FUNCTION__ << " Container #" << id << " not found";
-    throw e;
-  }
-
-  cont.reset(new ContainerMD(0, pFileSvc, static_cast<IContainerMDSvc*>(this)));
-  eos::Buffer ebuff;
-  ebuff.putData(blob.c_str(), blob.length());
-  cont->deserialize(ebuff);
+  retval->initialize(MetadataFetcher::getContainerFromId(*pQcl, id));
+  eos_assert(retval->getId() == id);
 
   if (clock) {
     *clock = cont->getClock();
   }
 
-  return mContainerCache.put(cont->getId(), cont);
+  return mContainerCache.put(retval->getId(), retval);
 }
 
 //----------------------------------------------------------------------------

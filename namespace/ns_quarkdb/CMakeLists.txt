@@ -67,7 +67,9 @@ add_library(
   ${NS_PROTO_SRCS}       ${NS_PROTO_HDRS}
   persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
   persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
+  persistency/MetadataFetcher.cc     persistency/MetadataFetcher.hh
   persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
+  persistency/Serialization.cc       persistency/Serialization.hh
   explorer/NamespaceExplorer.cc      explorer/NamespaceExplorer.hh
   flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh
   views/HierarchicalView.cc          views/HierarchicalView.hh

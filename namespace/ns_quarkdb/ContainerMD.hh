@@ -366,11 +366,6 @@ public:
   void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
-  //! Deserialize a protobuf
-  //----------------------------------------------------------------------------
-  static void deserializeProtobuf(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
-
-  //----------------------------------------------------------------------------
   //! Load children of container
   //----------------------------------------------------------------------------
   void loadChildren();
@@ -379,6 +374,11 @@ public:
   //! Deserialize the class to a buffer and load its children
   //----------------------------------------------------------------------------
   void deserialize(Buffer& buffer) override;
+
+  //----------------------------------------------------------------------------
+  //! Initialize, and load children
+  //----------------------------------------------------------------------------
+  void initialize(eos::ns::ContainerMdProto &&proto);
 
   //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
