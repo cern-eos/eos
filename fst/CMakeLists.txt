@@ -46,14 +46,10 @@ include_directories(
   ${DAVIX_INCLUDE_DIR}
   ${KINETICIO_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
-
-if (BUILD_FST_WITH_QUARKDB)
-  include_directories(
-    ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
-    ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-    ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
-endif()
+  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 #-------------------------------------------------------------------------------
 # Add tests if not on MacOSX
@@ -345,11 +341,9 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
-if (BUILD_FST_WITH_QUARKDB)
-  # Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
-  # buffer files are generated when we try to build these libraries
-  add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
-endif()
+# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
+# buffer files are generated when we try to build these libraries
+add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
 
 set_target_properties(
   XrdEosFst-Objects
@@ -376,6 +370,7 @@ target_link_libraries(XrdEosFst PRIVATE
    eosCommonServer
    EosFstIo-Static
    eosCapability-Static
+   EosNsQuarkdb-Shared
    ${Z_LIBRARY}
    ${UUID_LIBRARIES}
    ${ATTR_LIBRARIES}
@@ -392,6 +387,7 @@ target_link_libraries(XrdEosFst-Shared PUBLIC
   eosCommonServer
   EosFstIo-Static
   eosCapability-Static
+  EosNsQuarkdb-Shared
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -404,11 +400,6 @@ target_link_libraries(XrdEosFst-Shared PUBLIC
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-if (BUILD_FST_WITH_QUARKDB)
-  target_link_libraries(XrdEosFst PRIVATE EosNsQuarkdb-Shared)
-  target_link_libraries(XrdEosFst-Shared PUBLIC EosNsQuarkdb-Shared)
-endif ()
 
 install(TARGETS EosFstOss XrdEosFst
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -461,15 +452,12 @@ target_link_libraries(eos-adler32 PRIVATE
 target_link_libraries(eos-scan-fs PRIVATE
   eosCommonServer
   EosFstIo-Static
+  EosNsQuarkdb-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-if (BUILD_FST_WITH_QUARKDB)
-  target_link_libraries(eos-scan-fs PRIVATE EosNsQuarkdb-Static)
-endif ()
 
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
