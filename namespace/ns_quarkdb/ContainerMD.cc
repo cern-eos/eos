@@ -25,6 +25,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+#include "common/Assert.hh"
 #include <sys/stat.h>
 #include <algorithm>
 
@@ -35,12 +36,34 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
-  : IContainerMD(), pContSvc(cont_svc), pFileSvc(file_svc),
+  : IContainerMD(),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
   mCont.set_id(id);
   mCont.set_mode(040755);
+
+  if(!cont_svc && !file_svc) {
+    // "Standalone" ContainerMD, without associated container service.
+    // Don't call functions which might modify metadata..
+    // This is a hack, it would be probably cleaner to remove the services
+    // from this class altogether.
+    return;
+  }
+
+  setServices(file_svc, cont_svc);
+}
+
+//------------------------------------------------------------------------------
+// Set namespace services
+//------------------------------------------------------------------------------
+void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc) {
+  eos_assert(pFileSvc == nullptr && pContSvc == nullptr);
+  eos_assert(file_svc != nullptr && cont_svc != nullptr);
+
+  pFileSvc = file_svc;
+  pContSvc = cont_svc;
+
   ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {

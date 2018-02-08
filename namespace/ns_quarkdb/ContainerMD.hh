@@ -54,7 +54,7 @@ public:
     pQcl(nullptr), mClock(1) {}
 
   //----------------------------------------------------------------------------
-  //! Desstructor
+  //! Destructor
   //----------------------------------------------------------------------------
   virtual ~ContainerMD() {};
 
@@ -72,6 +72,11 @@ public:
   //! Assignment operator
   //----------------------------------------------------------------------------
   ContainerMD& operator=(const ContainerMD& other);
+
+  //----------------------------------------------------------------------------
+  //! Set services
+  //----------------------------------------------------------------------------
+  void setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -382,16 +387,16 @@ public:
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
 private:
-  eos::ns::ContainerMdProto mCont; ///< Protobuf container representation
-  IContainerMDSvc* pContSvc;  ///< Container metadata service
-  IFileMDSvc* pFileSvc;       ///< File metadata service
-  MetadataFlusher* pFlusher; ///< Metadata flusher object
-  qclient::QClient* pQcl;     ///< QClient object
-  std::string pFilesKey;      ///< Map files key
-  std::string pDirsKey;       ///< Map dir key
-  qclient::QHash pFilesMap;   ///< Map holding info about files
-  qclient::QHash pDirsMap;    ///< Map holding info about subcontainers
-  uint64_t mClock; ///< Value tracking changes
+  eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
+  IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
+  IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
+  MetadataFlusher* pFlusher;            ///< Metadata flusher object
+  qclient::QClient* pQcl;               ///< QClient object
+  std::string pFilesKey;                ///< Map files key
+  std::string pDirsKey;                 ///< Map dir key
+  qclient::QHash pFilesMap;             ///< Map holding info about files
+  qclient::QHash pDirsMap;              ///< Map holding info about subcontainers
+  uint64_t mClock;                      ///< Value tracking changes
 };
 
 EOSNSNAMESPACE_END
