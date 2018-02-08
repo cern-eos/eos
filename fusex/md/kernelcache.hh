@@ -34,16 +34,18 @@ class kernelcache
 public:
   static void inval_inode(fuse_ino_t inode, bool isfile=false)
   {
+    eos_static_debug("begin: ino=%08llx", inode);
     int rc = fuse_lowlevel_notify_inval_inode( EosFuse::Instance().Channel(),
 					       inode, isfile?0:-1, 0 );
-    
-    eos_static_debug("ino=%08llx rc=%d", inode, rc);
+   
+    eos_static_debug("end: ino=%08llx rc=%d", inode, rc);
   }
   static void inval_entry(fuse_ino_t parent_inode, const std::string name)
   {
+    eos_static_debug("begin: ino=%08llx name=%s", parent_inode, name.c_str());
     int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Channel(),
              parent_inode, name.c_str(), name.length());
-    eos_static_debug("ino=%08llx name=%s rc=%d", parent_inode, name.c_str(), rc);
+    eos_static_debug("end: ino=%08llx name=%s rc=%d", parent_inode, name.c_str(), rc);
   }
 } ;
 #endif /* FUSE_KERNCALCACHE_HH_ */
