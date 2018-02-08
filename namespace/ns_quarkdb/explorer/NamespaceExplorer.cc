@@ -18,26 +18,38 @@
 
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/utils/PathProcessor.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <memory>
 #include <numeric>
+
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 EOSNSNAMESPACE_BEGIN
 
 NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOptions &opts, qclient::QClient &qclient)
 : path(pth), options(opts), qcl(qclient) {
 
-  eos::PathProcessor::splitPath(currentPos.path, path);
+  std::vector<std::string> pathParts;
 
-  if(currentPos.path.empty()) {
+  eos::PathProcessor::splitPath(pathParts, path);
+
+  if(pathParts.empty()) {
     MDException e(EINVAL);
     e.getMessage() << "Empty path provided";
     throw e;
   }
 
-  // TODO: Everything
+  SearchNode root;
+  root.container = MetadataFetcher::getContainerFromId(qcl, 1);
+  state.nodes.push_back(root);
 
-  for(size_t i = 0; i < currentPos.path.size(); i++) {
+  for(size_t i = 0; i < pathParts.size(); i++) {
+    id_t parentID = state.nodes.back().container.id();
+    id_t nextId = MetadataFetcher::getContainerIDFromName(qcl, pathParts[i], parentID);
+
+    SearchNode next;
+    next.container = MetadataFetcher::getContainerFromId(qcl, nextId);
+    state.nodes.push_back(next);
   }
 }
 

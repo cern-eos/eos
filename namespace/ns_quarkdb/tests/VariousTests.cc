@@ -27,10 +27,13 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "TestUtils.hh"
+
+using namespace eos;
 
 class VariousTests : public eos::ns::testing::NsTestsFixture {};
 class NamespaceExplorerF : public eos::ns::testing::NsTestsFixture {};
@@ -72,11 +75,33 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(it->getElement(), file1->getId());
   it->next();
   ASSERT_FALSE(it->valid());
+
+  // Create some subdirectories
+  std::shared_ptr<eos::IContainerMD> subdir1 = view()->createContainer("/eos/subdir1", true);
+  std::shared_ptr<eos::IContainerMD> subdir2 = view()->createContainer("/eos/subdir2", true);
+  std::shared_ptr<eos::IContainerMD> subdir3 = view()->createContainer("/eos/subdir3", true);
+
+  ASSERT_LT(subdir1->getId(), subdir2->getId());
+  ASSERT_LT(subdir2->getId(), subdir3->getId());
+  mdFlusher()->synchronize();
+
+  ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir1", 2));
+  ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir2", 2));
+  ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir3", 2));
 }
 
 TEST_F(NamespaceExplorerF, BasicSanity) {
-  eos::ExplorationOptions options;
-  options.depthLimit = 3;
+  populateDummyData1();
+
+  ExplorationOptions options;
+  options.depthLimit = 999;
 
   ASSERT_THROW(eos::NamespaceExplorer("", options, qcl()), eos::MDException);
+  NamespaceExplorer explorer("/eos/d1/", options, qcl());
+
+  SearchState searchState = explorer.getSearchState();
+  ASSERT_EQ(searchState.nodes.size(), 3);
+  ASSERT_EQ(searchState.nodes[0].container.id(), 1);
+  ASSERT_EQ(searchState.nodes[1].container.id(), 2);
+  ASSERT_EQ(searchState.nodes[2].container.id(), 3);
 }

@@ -112,7 +112,7 @@ TEST(FileSystemView, BasicSanity)
       {"qdb_flusher_quota", "tests_quota"}
     };
 
-    eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
+    eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
     eos::MetadataFlusher* flusher =
       eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
           qclient::Members::fromString(config["qdb_cluster"]));
@@ -296,7 +296,7 @@ TEST(FileSystemView, FileIterator)
   }
 
   // Push the set to QuarkDB
-  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString("localhost:7778"));
+  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString("localhost:7778"));
   qclient::RetryStrategy retryStrategy {true, std::chrono::seconds(60) };
   qclient::QClient qcl("localhost", 7778, true, retryStrategy);
   qclient::AsyncHandler ah;

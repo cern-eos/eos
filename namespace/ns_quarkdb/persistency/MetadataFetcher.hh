@@ -39,9 +39,14 @@ EOSNSNAMESPACE_BEGIN
 class MetadataFetcher {
 public:
   static eos::ns::ContainerMdProto getContainerFromId(qclient::QClient &qcl, id_t id);
+  static id_t getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
+
 
 private:
   static std::string extractString(redisReplyPtr &reply, id_t forId);
+  static int64_t extractInteger(redisReplyPtr &reply);
+
+  static std::string keySubcontainers(id_t id);
 
 };
 

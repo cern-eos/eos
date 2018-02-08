@@ -43,11 +43,14 @@ struct NamespaceItem {
   std::string item;
 };
 
-// Represents a node in the namespace, including a stack of paths and a stack
-// of ContainerMDs.
-struct NamespaceNode {
-  std::vector<std::string> path;
-  std::vector<eos::ContainerMD> containers;
+// Represents a node in the search tree, including any unexplored children.
+struct SearchNode {
+  eos::ns::ContainerMdProto container;
+  std::queue<id_t> unexploredChildContainers;
+};
+
+struct SearchState {
+  std::vector<SearchNode> nodes;
 };
 
 
@@ -72,10 +75,10 @@ public:
   bool fetch(NamespaceItem &result);
 
   //----------------------------------------------------------------------------
-  //! Get current position.
+  //! Get current search state.
   //----------------------------------------------------------------------------
-  NamespaceNode getCurrentPos() {
-    return currentPos;
+  SearchState getSearchState() {
+    return state;
   }
 
 private:
@@ -83,7 +86,7 @@ private:
   ExplorationOptions options;
   qclient::QClient &qcl;
 
-  NamespaceNode currentPos;
+  SearchState state;
 };
 
 EOSNSNAMESPACE_END

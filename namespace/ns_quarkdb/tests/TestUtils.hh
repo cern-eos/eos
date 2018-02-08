@@ -26,6 +26,8 @@
 #include "Namespace.hh"
 #include "qclient/Members.hh"
 
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
+
 namespace eos {
   class IContainerMDSvc;
   class IFileMDSvc;
@@ -39,10 +41,10 @@ EOSNSTESTING_BEGIN
 //------------------------------------------------------------------------------
 //! Class FlushAllOnDestruction
 //------------------------------------------------------------------------------
-class FlushAllOnDestruction {
+class FlushAllOnConstruction {
 public:
-  FlushAllOnDestruction(const qclient::Members &mbr);
-  ~FlushAllOnDestruction();
+  FlushAllOnConstruction(const qclient::Members &mbr);
+  ~FlushAllOnConstruction();
 
 private:
   qclient::Members members;
@@ -80,11 +82,14 @@ public:
   eos::MetadataFlusher* mdFlusher();
   eos::MetadataFlusher* quotaFlusher();
 
+  // Populate namespace with dummy test data.
+  void populateDummyData1();
+
 private:
   void initServices();
 
   std::map<std::string, std::string> testconfig;
-  std::unique_ptr<eos::ns::testing::FlushAllOnDestruction> guard;
+  std::unique_ptr<eos::ns::testing::FlushAllOnConstruction> guard;
   std::unique_ptr<eos::IContainerMDSvc> containerSvcPtr;
   std::unique_ptr<eos::IFileMDSvc> fileSvcPtr;
   std::unique_ptr<eos::IView> viewPtr;

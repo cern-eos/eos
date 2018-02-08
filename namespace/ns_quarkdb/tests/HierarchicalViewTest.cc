@@ -217,7 +217,7 @@ TEST(HierarchicalView, QuotaTest)
     {"qdb_flusher_quota", "tests_quota"}
   };
 
-  eos::ns::testing::FlushAllOnDestruction guard(qclient::Members::fromString(config["qdb_cluster"]));
+  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
   std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};

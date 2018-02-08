@@ -31,24 +31,43 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::string MetadataFetcher::extractString(redisReplyPtr &reply, id_t forId) {
+int64_t MetadataFetcher::extractInteger(redisReplyPtr &reply) {
   if(!reply) {
     MDException e(EINVAL);
-    std::cerr << "throwing 1!" << std::endl;
     e.getMessage() << "Received null response from qclient, metadata backend not available?";
     throw e;
   }
 
   if(reply->type == REDIS_REPLY_NIL) {
     MDException e(ENOENT);
-    std::cerr << "throwing 2!" << std::endl;
+    e.getMessage() << "Not found";
+    throw e;
+  }
+
+  if(reply->type != REDIS_REPLY_STRING) {
+    MDException e(EINVAL);
+    e.getMessage() << "Received unexpected reply type when contacting metadata backend";
+    throw e;
+  }
+
+  return strtoll(reply->str, nullptr, 10);
+}
+
+std::string MetadataFetcher::extractString(redisReplyPtr &reply, id_t forId) {
+  if(!reply) {
+    MDException e(EINVAL);
+    e.getMessage() << "Received null response from qclient, metadata backend not available?";
+    throw e;
+  }
+
+  if(reply->type == REDIS_REPLY_NIL) {
+    MDException e(ENOENT);
     e.getMessage() << "Container #" << forId << " not found";
     throw e;
   }
 
   if(reply->type != REDIS_REPLY_STRING) {
     MDException e(EINVAL);
-    std::cerr << "throwing 3!" << std::endl;
     e.getMessage() << "Received unexpected reply type when contacting metadata backend";
     throw e;
   }
@@ -88,6 +107,39 @@ eos::ns::ContainerMdProto MetadataFetcher::getContainerFromId(qclient::QClient &
   Serialization::deserializeContainer(ebuff, proto);
   return proto;
 }
+
+std::string MetadataFetcher::keySubcontainers(id_t id) {
+  return SSTR(id << constants::sMapDirsSuffix);
+}
+
+id_t MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID) {
+  redisReplyPtr reply = qcl.exec(
+    "HGET",
+    keySubcontainers(parentID),
+    name
+  ).get();
+
+  if(!reply) {
+    MDException e(EINVAL);
+    e.getMessage() << "Received null response from qclient when retrieving child ID with name " << name << " of #" << parentID << ", metadata backend not available?";
+    throw e;
+  }
+
+  if(reply->type == REDIS_REPLY_NIL) {
+    MDException e(ENOENT);
+    e.getMessage() << "Not found: Child container with name " << name << " of #" << parentID;
+    throw e;
+  }
+
+  if(reply->type != REDIS_REPLY_STRING) {
+    MDException e(EINVAL);
+    e.getMessage() << "Received unexpected reply type when contacting metadata backend to retrieve child container with name " << name << " of #" << parentID;
+    throw e;
+  }
+
+  return strtoll(reply->str, nullptr, 10);
+}
+
 
 
 EOSNSNAMESPACE_END

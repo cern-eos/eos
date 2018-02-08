@@ -33,20 +33,14 @@
 
 EOSNSTESTING_BEGIN
 
-FlushAllOnDestruction::FlushAllOnDestruction(const qclient::Members &mbr)
+FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
 : members(mbr) {
   qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
   qclient::QClient qcl(members, true, strategy);
   qcl.exec("FLUSHALL").get();
 }
 
-FlushAllOnDestruction::~FlushAllOnDestruction() {
-    qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
-    qclient::QClient qcl(members, true, strategy);
-    qcl.exec("FLUSHALL").get();
-  }
-
-
+FlushAllOnConstruction::~FlushAllOnConstruction() { }
 
 NsTestsFixture::NsTestsFixture() {
   FileMDSvc::OverrideNumberOfBuckets(128);
@@ -59,7 +53,7 @@ NsTestsFixture::NsTestsFixture() {
     {"qdb_flusher_quota", "tests_quota"}
   };
 
-  guard.reset(new eos::ns::testing::FlushAllOnDestruction(qclient::Members::fromString(testconfig["qdb_cluster"])));
+  guard.reset(new eos::ns::testing::FlushAllOnConstruction(qclient::Members::fromString(testconfig["qdb_cluster"])));
 }
 
 NsTestsFixture::~NsTestsFixture() {
@@ -165,5 +159,20 @@ std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
     new qclient::QClient(getMembers(), true, retryStrategy)
   );
 }
+
+void NsTestsFixture::populateDummyData1() {
+  view()->createContainer("/eos/d1/d2/d3/d4/d5/d6/d7/d8/", true);
+  view()->createContainer("/eos/d1/d2-1/", true);
+  view()->createContainer("/eos/d1/d2-2/", true);
+  view()->createContainer("/eos/d1/d2-3/", true);
+  view()->createContainer("/eos/d1/d2/d3-1/", true);
+  view()->createContainer("/eos/d1/d2/d3-2/", true);
+  view()->createContainer("/eos/d2/d3-1", true);
+  view()->createContainer("/eos/d2/d3-2", true);
+  view()->createContainer("/eos/d3/", true);
+  mdFlusher()->synchronize();
+}
+
+
 
 EOSNSTESTING_END
