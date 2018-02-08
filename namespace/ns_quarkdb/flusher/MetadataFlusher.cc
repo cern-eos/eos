@@ -29,6 +29,7 @@
 #include <iostream>
 #include <chrono>
 #include <qclient/AssistedThread.hh>
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 EOSNSNAMESPACE_BEGIN
