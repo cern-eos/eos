@@ -62,10 +62,7 @@
 #include <sstream>
 #include <attr/xattr.h>
 #include <thread>
-
-#ifdef HAVE_FST_WITH_QUARKDB
 #include "qclient/Members.hh"
-#endif
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -462,8 +459,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
-#ifdef HAVE_FST_WITH_QUARKDB
-
         if (!strcmp("qdbcluster", var)) {
           std::string qdb_cluster;
 
@@ -485,8 +480,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             }
           }
         }
-
-#endif
       }
     }
 

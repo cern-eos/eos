@@ -37,9 +37,7 @@
 #include <queue>
 #include <memory>
 #include <chrono>
-#ifdef HAVE_FST_WITH_QUARKDB
 #include "qclient/QClient.hh"
-#endif
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
@@ -367,9 +365,7 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
-#ifdef HAVE_FST_WITH_QUARKDB
   std::unique_ptr<qclient::QClient> pQcl; ///< Qclient object
-#endif
 
 private:
   HttpServer* mHttpd; ///< Embedded http server
