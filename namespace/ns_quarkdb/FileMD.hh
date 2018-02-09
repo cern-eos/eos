@@ -321,16 +321,7 @@ public:
   //! Test the unlinkedlocation
   //----------------------------------------------------------------------------
   bool
-  hasUnlinkedLocation(location_t location) override
-  {
-    for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
-      if (mFile.unlink_locations()[i] == location) {
-        return true;
-      }
-    }
-
-    return false;
-  }
+  hasUnlinkedLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get number of unlinked locations

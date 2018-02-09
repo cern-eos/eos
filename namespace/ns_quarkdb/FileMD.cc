@@ -392,4 +392,15 @@ FileMD::getAttributes() const
   return xattrs;
 }
 
+bool
+FileMD::hasUnlinkedLocation(IFileMD::location_t location) {
+  for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
+    if (mFile.unlink_locations()[i] == location) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 EOSNSNAMESPACE_END
