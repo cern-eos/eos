@@ -1160,8 +1160,8 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
     if ((vid_in.uid != 0) &&
         ((vid_in.prot != "sss") ||
-         vid_hostname.compare(0, vid_hostname.length(),
-                              nodename, 0, vid_hostname.length()))) {
+         vid_hostname.compare(0, nodename.length(),
+                              nodename, 0, nodename.length()))) {
       stdErr = "error: filesystems can only be removed as 'root' or from the"
                " server mounting them using sss protocol\n";
       retc = EPERM;
