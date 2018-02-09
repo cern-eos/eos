@@ -3959,14 +3959,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   metad::shared_md md;
   md = Instance().mds.get(req, ino);
 
-  // retrieve the appropriate cap
-  if (S_ISDIR(md->mode())) {
-    pcap = Instance().caps.acquire(req, ino,
-                                   SA_OK, true);
-  } else {
-    pcap = Instance().caps.acquire(req, md->pid(),
-                                   SA_OK, true);
-  }
+  pcap = Instance().caps.acquire(req, md->pid(),
+				 R_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
