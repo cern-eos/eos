@@ -287,8 +287,7 @@ public:
         shared_cap cap = mCaps[id];
         uint64_t now = (uint64_t) time(NULL);
 
-        // leave some margin for revoking
-        if (cap->vtime() <= (now + 60))
+        if ((cap->vtime()+10) <= now)
         {
           mCaps.erase(id);
           mInodeCaps[cap->id()].erase(id);
