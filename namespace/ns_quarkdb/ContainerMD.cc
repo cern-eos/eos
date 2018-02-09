@@ -45,7 +45,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   mCont.set_id(id);
   mCont.set_mode(040755);
 
-  if(!cont_svc && !file_svc) {
+  if (!cont_svc && !file_svc) {
     // "Standalone" ContainerMD, without associated container service.
     // Don't call functions which might modify metadata..
     // This is a hack, it would be probably cleaner to remove the services
@@ -59,13 +59,12 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Set namespace services
 //------------------------------------------------------------------------------
-void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc) {
+void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
+{
   eos_assert(pFileSvc == nullptr && pContSvc == nullptr);
   eos_assert(file_svc != nullptr && cont_svc != nullptr);
-
   pFileSvc = file_svc;
   pContSvc = cont_svc;
-
   ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {
@@ -309,9 +308,11 @@ ContainerMD::cleanUp()
   // Remove all subcontainers
   for (const auto& elem : mSubcontainers) {
     auto cont = pContSvc->getContainerMD(elem.second);
-    if(cont->getId() != getId()) {
+
+    if (cont->getId() != getId()) {
       cont->cleanUp();
     }
+
     pContSvc->removeContainer(cont.get());
   }
 
@@ -690,9 +691,6 @@ ContainerMD::loadChildren()
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
   pDirsMap.setKey(pDirsKey);
 
-  // Grab the files and subcontainers
-  constexpr int64_t count = 2000000;
-
   if (pQcl) {
     try {
       MetadataFetcher::getFilesInContainer(*pQcl, mCont.id(), mFiles);
@@ -717,7 +715,7 @@ ContainerMD::deserialize(Buffer& buffer)
 }
 
 void
-ContainerMD::initialize(eos::ns::ContainerMdProto &&proto)
+ContainerMD::initialize(eos::ns::ContainerMdProto&& proto)
 {
   mCont = std::move(proto);
   loadChildren();
