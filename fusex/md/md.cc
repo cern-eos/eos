@@ -273,10 +273,6 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   stat.inodes_dec();
   inomap.erase_bwd(ino);
 
-  if (EOS_LOGS_DEBUG)
-    eos_static_debug("adding ino to forgetlist %016x", ino);
-  EosFuse::Instance().caps.forgetlist.add(ino);
-
   return 0;
 }
 
@@ -1522,9 +1518,6 @@ metad::cleanup(shared_md md)
     }
     */
   }
-  
-
-  EosFuse::Instance().caps.forgetlist.add(md->id());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2076,14 +2069,9 @@ metad::mdcflush(ThreadAssistant& assistant)
 
             {
 	      if (EOS_LOGS_DEBUG)
-		eos_static_debug("adding ino to forgetlist %016x", removeentry);
-	      EosFuse::Instance().caps.forgetlist.add(removeentry);
+		eos_static_debug("calling forget function %016x", removeentry);
 
-              XrdSysMutexHelper mmLock(mdmap);
-              mdmap.retrieve(md->pid(), pmd);
-              mdmap.erase(removeentry);
-	      inomap.erase_bwd(removeentry);
-              stat.inodes_dec();
+	      forget(0, removeentry, 0);
             }
             {
               if (pmd) {
@@ -2327,7 +2315,15 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		      eos_static_debug("%s", dump_md(md).c_str());
                   }
                 }
-              }
+	      }
+	      else
+	      {
+		// there might have been several caps and the first has wiped already the MD,
+		// still we want to remove the cap entry
+                std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
+		eos_static_debug("");
+                fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
+	      }
             }
 
             if (rsp.type() == rsp.MD) {
