@@ -21,7 +21,7 @@
  ************************************************************************/
 
 #pragma once
-#include "common/ConsoleRequest.pb.h"
+#include "proto/ConsoleRequest.pb.h"
 #include "console/MgmExecute.hh"
 
 //------------------------------------------------------------------------------

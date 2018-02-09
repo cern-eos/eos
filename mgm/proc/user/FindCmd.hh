@@ -24,7 +24,7 @@
 #pragma once
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/Namespace.hh"
-#include "common/ConsoleRequest.pb.h"
+#include "proto/ConsoleRequest.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 

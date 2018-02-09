@@ -18,7 +18,7 @@
 
 #pragma once
 #include "fst/Namespace.hh"
-#include "fst/FmdBase.pb.h"
+#include "proto/FmdBase.pb.h"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
 

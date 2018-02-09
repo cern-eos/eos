@@ -23,7 +23,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
-#include "common/Acl.pb.h"
+#include "proto/Acl.pb.h"
 #include <unordered_map>
 
 EOSMGMNAMESPACE_BEGIN

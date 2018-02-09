@@ -1,0 +1,32 @@
+syntax="proto3";
+package eos.console;
+
+import "Acl.proto";
+import "Ns.proto";
+import "Drain.proto";
+import "Find.proto";
+import "Fs.proto";
+
+//------------------------------------------------------------------------------
+// Request message sent to the server
+//------------------------------------------------------------------------------
+message RequestProto {
+  // Types of output format supported
+  enum FormatType {
+    DEFAULT = 0;
+    FUSE    = 1;
+    JSON    = 2;
+    HTTP    = 3;
+  }
+
+  FormatType format = 1;
+
+  // Actual request data object
+  oneof command {
+    AclProto acl     = 2;
+    NsProto  ns      = 3;
+    DrainProto drain = 4;
+    FindProto find   = 5;
+    FsProto fs       = 6;
+  }
+}

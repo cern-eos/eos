@@ -17,20 +17,15 @@
  ************************************************************************/
 
 #include "EosDumpProtoMd.hh"
-#include "namespace/ns_quarkdb/ContainerMd.pb.h"
-#include "namespace/ns_quarkdb/FileMd.pb.h"
+#include "proto/ContainerMd.pb.h"
+#include "proto/FileMd.pb.h"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "common/StringTokenizer.hh"
-#include "google/protobuf/util/json_util.h"
-#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include <getopt.h>
-#include <iostream>
 
 int main(int argc, char* argv[])
 {

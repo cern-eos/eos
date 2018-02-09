@@ -23,7 +23,6 @@
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
-#include "common/Fs.pb.h"
 #include <unistd.h>
 #include <algorithm>
 

@@ -23,7 +23,6 @@
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
-#include "common/Ns.pb.h"
 
 void com_ns_help();
 

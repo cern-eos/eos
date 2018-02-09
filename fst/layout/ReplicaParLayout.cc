@@ -22,8 +22,6 @@
  ************************************************************************/
 
 #include "fst/layout/ReplicaParLayout.hh"
-#include "fst/io/FileIoPlugin.hh"
-#include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfs.hh"
 
 EOSFSTNAMESPACE_BEGIN

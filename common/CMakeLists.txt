@@ -35,35 +35,6 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for the CLI
-#-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS cli_proto/Acl.proto)
-PROTOBUF_GENERATE_CPP(NS_SRCS NS_HDRS cli_proto/Ns.proto)
-PROTOBUF_GENERATE_CPP(DRAIN_SRCS DRAIN_HDRS cli_proto/Drain.proto)
-PROTOBUF_GENERATE_CPP(FIND_SRCS FIND_HDRS cli_proto/Find.proto)
-PROTOBUF_GENERATE_CPP(FS_SRCS FS_HDRS cli_proto/Fs.proto)
-PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS cli_proto/ConsoleRequest.proto)
-PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS cli_proto/ConsoleReply.proto)
-
-set(CLI_PROTO_SRCS
-  ${NS_SRCS} ${ACL_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} ${REQ_SRCS} ${REP_SRCS}
-  ${FS_SRCS})
-
-set(CLI_PROTO_HDRS
-  ${NS_HDRS} ${ACL_HDRS} ${DRAIN_HDRS} ${FIND_HDRS} ${REQ_HDRS} ${REP_HDRS}
-  ${FS_HDRS})
-
-set_source_files_properties(
-  ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
-  PROPERTIES GENERATED 1)
-
-add_library(CommonCli-Objects OBJECT
-  ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
-
-set_target_properties(CommonCli-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
-#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)

@@ -1,0 +1,16 @@
+syntax="proto3";
+package eos.console;
+
+message AclProto {
+  enum OpType {
+    NONE   = 0;
+    LIST   = 1;
+    MODIFY = 2;
+  }
+
+  OpType op      = 1;
+  bool recursive = 2;
+  bool sys_acl   = 3;
+  string rule    = 5;
+  string path    = 6;
+}

@@ -107,6 +107,7 @@ if (NOT TARGET fmt)
   set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif ()
 
+add_subdirectory(proto)
 add_subdirectory(common)
 add_subdirectory(misc)
 add_subdirectory(authz)

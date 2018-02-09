@@ -23,8 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/commands/ICmdHelper.hh"
-#include "console/ConsoleMain.hh"
-#include "common/Drain.pb.h"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/

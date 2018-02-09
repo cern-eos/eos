@@ -1,0 +1,69 @@
+syntax="proto3";
+package eos.console;
+
+message NsProto {
+  message StatProto {
+    bool Groupids   = 1;
+    bool Monitor    = 2;
+    bool NumericIds = 3;
+    bool Reset      = 4;
+    bool Summary    = 5;
+  }
+
+  message MutexProto {
+    bool List = 1;
+    bool Toggle_timing = 2;
+    bool Toggle_order  = 3;
+    bool Sample_rate1  = 4;
+    bool Sample_rate10 = 5;
+    bool Sample_rate100 = 6;
+    bool Toggle_deadlock = 7;
+  }
+
+  message CompactProto {
+    enum CompactType {
+      FILES        = 0;
+      DIRS         = 1;
+      ALL          = 2;
+      FILES_REPAIR = 3;
+      DIRS_REPAIR  = 4;
+      ALL_REPAIR   = 5;
+   }
+
+   bool On = 1;
+   CompactType type = 2;
+   int64 Delay    = 3;
+   int64 Interval = 4;
+  }
+
+  message MasterProto {
+    enum OpType {
+      NONE      = 0;
+      LOG       = 1;
+      LOG_CLEAR = 2;
+      DISABLE   = 3;
+      ENABLE    = 4;
+    }
+
+    OpType op = 1;
+    string Host = 2;
+  }
+
+  message TreeSizeProto {
+    uint32 depth = 1;
+
+    oneof container {
+      string path = 2;
+      string cid  = 3;
+      string cxid = 4;
+    }
+  }
+
+  oneof subcmd {
+    StatProto stat       = 1;
+    MutexProto mutex     = 2;
+    CompactProto compact = 3;
+    MasterProto master   = 4;
+    TreeSizeProto tree   = 5;
+  }
+}

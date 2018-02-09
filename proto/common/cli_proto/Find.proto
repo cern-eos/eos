@@ -1,0 +1,56 @@
+syntax="proto3";
+package eos.console;
+
+message FindProto {
+    bool Files = 1;
+    bool Directories = 2;
+    bool Zerosizefiles = 3;
+    bool Count = 4;
+    bool Balance = 5;
+    bool Onehourold = 6;
+    bool Stripediff = 7;
+    bool Faultyacl = 8;
+    bool Xurl = 9;
+    bool Childcount = 10;
+    bool Silent = 11;
+    bool Mixedgroups = 12;
+    bool Size = 13;
+    bool Fs = 14;
+    bool Checksum= 15;
+    bool Ctime = 16;
+    bool Mtime = 17;
+    bool Fid = 18;
+    bool Nrep = 19;
+    bool Online = 20;
+    bool Fileinfo = 21;
+    bool Nunlink = 22;
+    bool PrintUid = 23;
+    bool PrintGid = 24;
+    bool SearchUid = 25;
+    bool SearchNotUid = 26;
+    bool SearchGid = 27;
+    bool SearchNotGid = 28;
+    bool SearchPermission = 29;
+    bool SearchNotPermission = 30;
+    bool Hosts = 31;
+    bool Partition= 32;
+    bool DoLayoutstripes = 33;
+
+    uint64 Layoutstripes = 34;
+    uint64 Maxdepth = 35;
+    uint64 Youngerthan = 36;
+    uint64 Olderthan = 37;
+    uint64 Uid = 38;
+    uint64 Gid = 39;
+    uint64 NotUid = 40;
+    uint64 NotGid = 41;
+
+    string Purge = 42;
+    string Path = 43;
+    string Name = 44;
+    string AttributeKey = 45;
+    string AttributeValue = 46;
+    string Printkey = 47;
+    string Permission = 48;
+    string NotPermission = 49;
+}

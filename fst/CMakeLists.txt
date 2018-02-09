@@ -67,18 +67,6 @@ if(BUILD_XRDCL_RAIN_PLUGIN)
 endif()
 
 #-------------------------------------------------------------------------------
-# Generate protocol buffer files used in several targets and make them visible
-# at the global scope
-#-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS FmdBase.proto)
-set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
-set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
-set_source_files_properties(
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
-  PROPERTIES GENERATED TRUE)
-
-#-------------------------------------------------------------------------------
 # gf-complete static library
 #-------------------------------------------------------------------------------
 set(GFCOMPLETE_SRCS
@@ -152,9 +140,6 @@ target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 # EosFstIo-Objects library
 #-------------------------------------------------------------------------------
 add_library(EosFstIo-Objects OBJECT
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
-
   # File IO interface
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
@@ -185,12 +170,15 @@ add_library(EosFstIo-Objects OBJECT
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_dependencies(EosFstIo-Objects EosNsQuarkdb-Shared)
+add_dependencies(EosFstIo-Objects EosNsQuarkdbProto-Objects)
 
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-add_library(EosFstIo SHARED $<TARGET_OBJECTS:EosFstIo-Objects>)
+add_library(EosFstIo SHARED
+  $<TARGET_OBJECTS:EosFstIo-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:CommonCli-Objects>)
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
@@ -229,7 +217,10 @@ endif()
 #-------------------------------------------------------------------------------
 # EosFstIo-Static library
 #-------------------------------------------------------------------------------
-add_library(EosFstIo-Static STATIC $<TARGET_OBJECTS:EosFstIo-Objects>)
+add_library(EosFstIo-Static STATIC
+  $<TARGET_OBJECTS:EosFstIo-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:CommonCli-Objects>)
 
 target_link_libraries(EosFstIo-Static PUBLIC
   eosCommon-Static
@@ -328,8 +319,8 @@ set(XRDEOSFST_SRCS
   txqueue/TransferQueue.cc
 
   # File metadata interface
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
+#  ${FMDBASE_SRCS}
+#  ${FMDBASE_HDRS}
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
 
@@ -345,7 +336,8 @@ add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
 # Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
 # buffer files are generated when we try to build these libraries
-add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
+#add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
+add_dependencies(XrdEosFst-Objects EosFstProto-Objects)
 
 set_target_properties(
   XrdEosFst-Objects
@@ -425,10 +417,7 @@ add_executable(eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdDbMap.cc
   tools/ScanXS.cc
-  checksum/Adler.cc      checksum/CheckSum.cc
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  checksum/Adler.cc      checksum/CheckSum.cc)
 
 add_executable(eos-adler32
   tools/Adler32.cc

@@ -22,7 +22,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "common/Ns.pb.h"
+#include "proto/Ns.pb.h"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <list>

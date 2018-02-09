@@ -60,7 +60,8 @@ add_executable(
   testhmacsha256
   TestHmacSha256.cc
   ${CMAKE_SOURCE_DIR}/common/SymKeys.hh
-  ${CMAKE_SOURCE_DIR}/common/SymKeys.cc)
+  ${CMAKE_SOURCE_DIR}/common/SymKeys.cc
+	$<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>)
 
 add_executable(
   eoschecksumbench

@@ -24,8 +24,8 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
-#include "common/ConsoleReply.pb.h"
-#include "common/ConsoleRequest.pb.h"
+#include "proto/ConsoleReply.pb.h"
+#include "proto/ConsoleRequest.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include <future>
 #include <sstream>

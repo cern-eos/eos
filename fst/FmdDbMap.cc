@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "common/Path.hh"
-#include "common/Fs.pb.h"
-#include "common/ConsoleRequest.pb.h"
+#include "proto/Fs.pb.h"
+#include "proto/ConsoleRequest.pb.h"
 #include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"

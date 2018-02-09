@@ -27,10 +27,8 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
-#include "common/Find.pb.h"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include <dirent.h>
 /*----------------------------------------------------------------------------*/
 
 extern int com_file(char*);

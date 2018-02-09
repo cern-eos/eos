@@ -36,18 +36,6 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif(BUILD_TESTS)
 
-#-------------------------------------------------------------------------------
-# Generate all protocol buffer files
-#-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS proto/FileMd.proto)
-PROTOBUF_GENERATE_CPP(CMD_SRCS CMD_HDRS proto/ContainerMd.proto)
-set(NS_PROTO_SRCS ${FMD_SRCS} ${CMD_SRCS})
-set(NS_PROTO_HDRS ${FMD_HDRS} ${CMD_HDRS})
-set_source_files_properties(
- ${NS_PROTO_SRCS}
- ${NS_PROTO_HDRS}
- PROPERTIES GENERATED 1)
-
 #-----------------------------------------------------------------------------
 # Build qclient static library
 #-----------------------------------------------------------------------------
@@ -64,7 +52,6 @@ add_library(
   BackendClient.cc       BackendClient.hh
   LRU.hh
 
-  ${NS_PROTO_SRCS}       ${NS_PROTO_HDRS}
   persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
   persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
   persistency/MetadataFetcher.cc     persistency/MetadataFetcher.hh
@@ -89,6 +76,7 @@ set_target_properties(
 add_library(
   EosNsQuarkdb MODULE
   $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
 target_link_libraries(
@@ -108,7 +96,8 @@ target_link_libraries(
 
 add_library(
   EosNsQuarkdb-Shared SHARED
-  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>)
+  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>)
 
 target_link_libraries(
   EosNsQuarkdb-Shared PUBLIC
@@ -132,6 +121,7 @@ if (Linux)
   add_library(
     EosNsQuarkdb-Static STATIC
     $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
     NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
   target_link_libraries(
@@ -171,11 +161,10 @@ install(
 #-------------------------------------------------------------------------------
 add_executable(eos_ns_convert
   tools/ConvertMemToKV.cc
-  ${NS_PROTO_SRCS}
-  ${NS_PROTO_HDRS}
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>)
 
 target_link_libraries(eos_ns_convert
   jemalloc
@@ -187,8 +176,8 @@ target_link_libraries(eos_ns_convert
 
 add_executable(eos_dump_proto_md
   tools/EosDumpProtoMd.cc
-  ${NS_PROTO_SRCS}
-  ${NS_PROTO_HDRS})
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+  )
 
 target_link_libraries(eos_dump_proto_md
   EosCrc32c-Static

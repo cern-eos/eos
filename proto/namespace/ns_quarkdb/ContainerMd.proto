@@ -1,0 +1,20 @@
+syntax = "proto3";
+package eos.ns;
+
+//------------------------------------------------------------------------------
+// Container metadata protocol buffer object
+//------------------------------------------------------------------------------
+message ContainerMdProto {
+  uint64 id = 1;
+  uint64 parent_id = 2;
+  uint64 uid = 3;
+  uint64 gid = 4;
+  int64 tree_size = 6;
+  uint32 mode = 5;
+  uint32 flags = 7;
+  bytes name = 8;
+  bytes ctime = 9;  // change time
+  bytes mtime = 10; // modification time
+  bytes stime = 11; // sync time
+  map<string, bytes> xattrs = 12;
+}

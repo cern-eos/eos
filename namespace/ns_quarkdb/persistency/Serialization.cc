@@ -22,13 +22,12 @@
 //------------------------------------------------------------------------------
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/utils/DataHelper.hh"
-#include "namespace/ns_quarkdb/ContainerMd.pb.h"
-#include "namespace/ns_quarkdb/FileMd.pb.h"
+#include "proto/ContainerMd.pb.h"
+#include "proto/FileMd.pb.h"
 
 EOSNSNAMESPACE_BEGIN
 

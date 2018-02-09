@@ -111,7 +111,7 @@ add_library(
   commands/com_whoami.cc
   commands/com_who.cc)
 
-add_dependencies(EosConsoleCommands-Objects EosFstIo-Objects)
+add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)
 
 target_compile_definitions(
   EosConsoleCommands-Objects PUBLIC

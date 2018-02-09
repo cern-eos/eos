@@ -27,8 +27,8 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/FileMd.pb.h"
-#include <stdint.h>
+#include "proto/FileMd.pb.h"
+#include <cstdint>
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN

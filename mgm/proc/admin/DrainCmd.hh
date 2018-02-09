@@ -22,7 +22,7 @@
 
 #pragma once
 #include "mgm/proc/ProcCommand.hh"
-#include "common/Drain.pb.h"
+#include "proto/Drain.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
