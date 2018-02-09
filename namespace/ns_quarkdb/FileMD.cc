@@ -18,6 +18,7 @@
 
 #include <sstream>
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/utils/DataHelper.hh"
@@ -274,37 +275,21 @@ FileMD::serialize(eos::Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
+// Initialize from protobuf contents
+//------------------------------------------------------------------------------
+void
+FileMD::initialize(eos::ns::FileMdProto &&proto)
+{
+  mFile = std::move(proto);
+}
+
+//------------------------------------------------------------------------------
 // Deserialize from buffer
 //------------------------------------------------------------------------------
 void
 FileMD::deserialize(const eos::Buffer& buffer)
 {
-  uint32_t cksum_expected = 0;
-  uint32_t obj_size = 0;
-  size_t sz = sizeof(cksum_expected);
-  const char* ptr = buffer.getDataPtr();
-  (void) memcpy(&cksum_expected, ptr, sz);
-  ptr += sz;
-  (void) memcpy(&obj_size, ptr, sz);
-  size_t msg_size = buffer.getSize();
-  uint32_t align_size = msg_size - 2 * sz;
-  ptr += sz; // now pointing to the serialized object
-  uint32_t cksum_computed = DataHelper::computeCRC32C((void*)ptr, align_size);
-  cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
-
-  if (cksum_expected != cksum_computed) {
-    MDException ex(EIO);
-    ex.getMessage() << "FileMD object checksum missmatch";
-    throw ex;
-  }
-
-  google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
-
-  if (!mFile.ParseFromZeroCopyStream(&ais)) {
-    MDException ex(EIO);
-    ex.getMessage() << "Failed while deserializing buffer";
-    throw ex;
-  }
+  Serialization::deserializeFile(buffer, mFile);
 }
 
 //------------------------------------------------------------------------------

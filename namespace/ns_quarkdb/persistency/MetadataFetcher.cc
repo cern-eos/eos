@@ -96,15 +96,38 @@ eos::ns::ContainerMdProto MetadataFetcher::getContainerFromId(qclient::QClient &
     throw e;
   }
 
-  std::shared_ptr<eos::ContainerMD> cont = std::make_shared<eos::ContainerMD>(
-    0, nullptr, nullptr
-  );
-
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
 
   eos::ns::ContainerMdProto proto;
   Serialization::deserializeContainer(ebuff, proto);
+  return proto;
+}
+
+eos::ns::FileMdProto MetadataFetcher::getFileFromId(qclient::QClient &qcl, id_t id) {
+  std::string blob;
+
+  try {
+    std::string sid = SSTR(id);
+    qclient::QHash bucket_map(qcl, FileMDSvc::getBucketKey(id));
+    blob = bucket_map.hget(sid);
+  } catch (std::runtime_error& qdb_err) {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << id << " not found";
+    throw e;
+  }
+
+  if (blob.empty()) {
+    MDException e(ENOENT);
+    e.getMessage()  << __FUNCTION__ << " File #" << id << " not found";
+    throw e;
+  }
+
+  eos::Buffer ebuff;
+  ebuff.putData(blob.c_str(), blob.length());
+
+  eos::ns::FileMdProto proto;
+  Serialization::deserializeFile(ebuff, proto);
   return proto;
 }
 

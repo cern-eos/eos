@@ -563,6 +563,11 @@ public:
   void serialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
+  //! Initialize from protobuf contents
+  //----------------------------------------------------------------------------
+  void initialize(eos::ns::FileMdProto &&proto);
+
+  //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
   void deserialize(const Buffer& buffer) override;

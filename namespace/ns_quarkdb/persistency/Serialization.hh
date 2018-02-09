@@ -26,6 +26,7 @@
 
 namespace eos { namespace ns {
   class ContainerMdProto;
+  class FileMdProto;
 }}
 
 EOSNSNAMESPACE_BEGIN
@@ -34,6 +35,11 @@ class Buffer;
 
 class Serialization {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Deserialize a FileMD protobuf
+  //----------------------------------------------------------------------------
+  static void deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize a ContainerMD protobuf

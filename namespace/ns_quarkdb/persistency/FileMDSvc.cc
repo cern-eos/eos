@@ -23,6 +23,7 @@
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <numeric>
 
@@ -182,34 +183,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   }
 
   // If not in cache, then get info from KV store
-  std::string blob;
-
-  try {
-    std::string sid = stringify(id);
-    qclient::QHash bucket_map(*pQcl, getBucketKey(id));
-    blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << __FUNCTION__ << " File #" << id << " not found";
-    throw e;
-  }
-
-  if (blob.empty()) {
-    MDException e(ENOENT);
-    e.getMessage() << __FUNCTION__ << " File #" << id << " not found";
-    throw e;
-  }
-
-  file = std::make_shared<FileMD>(0, this);
-  eos::Buffer ebuff;
-  ebuff.putData(blob.c_str(), blob.length());
-  file->deserialize(ebuff);
-
-  if (clock) {
-    *clock = file->getClock();
-  }
-
-  return mFileCache.put(file->getId(), file);
+  std::shared_ptr<FileMD> retval = std::make_shared<FileMD>(0, this);
+  retval->initialize(MetadataFetcher::getFileFromId(*pQcl, id));
+  return mFileCache.put(retval->getId(), retval);
 }
 
 //------------------------------------------------------------------------------
