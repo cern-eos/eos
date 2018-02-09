@@ -1240,7 +1240,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     }
   } while (cursor != "0");
 
-  eos_debug("resyncing %llu files for file_system %llu", file_ids.size(), fsid);
+  eos_info("resyncing %llu files for file_system %llu", file_ids.size(), fsid);
   uint64_t num_files = 0;
 
   for (const auto& id : file_ids) {
