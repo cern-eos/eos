@@ -170,6 +170,12 @@ void NsTestsFixture::populateDummyData1() {
   view()->createContainer("/eos/d2/d3-1", true);
   view()->createContainer("/eos/d2/d3-2", true);
   view()->createContainer("/eos/d3/", true);
+
+  view()->createFile("/eos/d1/f1", true);
+  view()->createFile("/eos/d1/f2", true);
+  view()->createFile("/eos/d1/f3", true);
+  view()->createFile("/eos/d1/f4", true);
+  view()->createFile("/eos/d1/f5", true);
   mdFlusher()->synchronize();
 }
 

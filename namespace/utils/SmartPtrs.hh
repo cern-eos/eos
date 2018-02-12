@@ -55,33 +55,6 @@ namespace eos
     private:
       int pFD;
   };
-
-  //----------------------------------------------------------------------------
-  //! Helper class for freeing malloced pointers when they are out of scope
-  //----------------------------------------------------------------------------
-  class CSmartPtr
-  {
-    public:
-      CSmartPtr( void *ptr = 0 ): pPtr( ptr ) {}
-
-      ~CSmartPtr()
-      {
-        if( pPtr != 0 )
-          free( pPtr );
-      }
-
-      void grab( void *ptr )
-      {
-        pPtr = ptr;
-      }
-
-      void release()
-      {
-        pPtr = 0;
-      }
-    private:
-      void *pPtr;
-  };
 }
 
 #endif // EOS_NS_CHANGE_LOG_FILE_HH

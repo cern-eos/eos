@@ -40,11 +40,13 @@ public:
   //! Deserialize a FileMD protobuf
   //----------------------------------------------------------------------------
   static void deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto);
+  static std::exception_ptr deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize a ContainerMD protobuf
   //----------------------------------------------------------------------------
   static void deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
+  static std::exception_ptr deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
 
 };
 

@@ -184,7 +184,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 
   // If not in cache, then get info from KV store
   std::shared_ptr<FileMD> retval = std::make_shared<FileMD>(0, this);
-  retval->initialize(MetadataFetcher::getFileFromId(*pQcl, id));
+  retval->initialize(MetadataFetcher::getFileFromId(*pQcl, id).get());
   return mFileCache.put(retval->getId(), retval);
 }
 

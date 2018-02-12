@@ -29,6 +29,10 @@
 #include <cerrno>
 #include <cstring>
 
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
+#define THROW_MDEXCEPTION(err, msg) { eos::MDException __md___exception____(err); __md___exception____.getMessage() << msg; throw __md___exception____; }
+#define MAKE_MDEXCEPTION(err, msg) makeMDException(err, SSTR(msg))
+
 namespace eos
 {
   //----------------------------------------------------------------------------
@@ -104,6 +108,14 @@ namespace eos
       int                 pErrorNo;
       mutable char       *pTmpMessage;
   };
+
+  inline std::exception_ptr makeMDException(int err, const std::string &msg) {
+    MDException exc(err);
+    exc.getMessage() << msg;
+
+    // Inefficient, copies the string twice, fix.
+    return std::make_exception_ptr<MDException>(exc);
+  }
 }
 
 #endif // EOS_NS_MD_EXCEPTION_HH

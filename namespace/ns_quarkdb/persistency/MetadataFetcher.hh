@@ -39,7 +39,7 @@ EOSNSNAMESPACE_BEGIN
 
 class MetadataFetcher {
 public:
-  static eos::ns::FileMdProto getFileFromId(qclient::QClient &qcl, id_t id);
+  static std::future<eos::ns::FileMdProto> getFileFromId(qclient::QClient &qcl, id_t id);
   static eos::ns::ContainerMdProto getContainerFromId(qclient::QClient &qcl, id_t id);
   static id_t getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
   static void getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap);

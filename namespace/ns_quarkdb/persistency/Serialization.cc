@@ -31,8 +31,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
-void
-Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto)
+std::exception_ptr
+Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto)
 {
   uint32_t cksum_expected = 0;
   uint32_t obj_size = 0;
@@ -48,22 +48,20 @@ Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    MDException ex(EIO);
-    ex.getMessage() << "FileMD object checksum missmatch";
-    throw ex;
+    return MAKE_MDEXCEPTION(EIO, "FileMD object checksum missmatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    MDException ex(EIO);
-    ex.getMessage() << "Failed while deserializing buffer";
-    throw ex;
+    return MAKE_MDEXCEPTION(EIO, "Failed while deserializing buffer");
   }
+
+  return {};
 }
 
-void
-Serialization::deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
+std::exception_ptr
+Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
 {
   uint32_t cksum_expected = 0;
   uint32_t obj_size = 0;
@@ -79,18 +77,26 @@ Serialization::deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdPr
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    MDException ex(EIO);
-    ex.getMessage() << "ContainerMD object checksum missmatch";
-    throw ex;
+    return MAKE_MDEXCEPTION(EIO, "ContainerMD object checksum missmatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    MDException ex(EIO);
-    ex.getMessage() << "Failed while deserializing buffer";
-    throw ex;
+    return MAKE_MDEXCEPTION(EIO, "Failed while deserializing buffer");
   }
+
+  return {};
+}
+
+void Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto) {
+  std::exception_ptr exc = deserializeFileNoThrow(buffer, proto);
+  if(exc) std::rethrow_exception(exc);
+}
+
+void Serialization::deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto) {
+  std::exception_ptr exc = deserializeContainerNoThrow(buffer, proto);
+  if(exc) std::rethrow_exception(exc);
 }
 
 
