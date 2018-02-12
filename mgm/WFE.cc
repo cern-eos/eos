@@ -1567,16 +1567,16 @@ WFE::Job::DoIt(bool issync)
           Move(mActions[0].mQueue, "g", storetime);
         }
       }
-      else if (method == "proto/cta") {
-        static constexpr auto archiveidAttrName = "CTA_ArchiveFileId";
-        static constexpr auto storageClassAttrName = "CTA_StorageClass";
+      else if (method == "proto") {
         auto event = mActions[0].mEvent;
-        auto endpoint = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ')[0];
+        auto params = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ');
+        auto hostPort = params[0];
+        auto endPoint = std::string{"/"} + params[1];
 
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
-        std::string fullpath;
-        // do meta replacement
+        std::string fullPath;
+
         {
           eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
@@ -1585,7 +1585,7 @@ WFE::Job::DoIt(bool issync)
             if (fmd == nullptr) {
               return ENOENT;
             }
-            fullpath = gOFS->eosView->getUri(fmd.get());
+            fullPath = gOFS->eosView->getUri(fmd.get());
             cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
           } catch (eos::MDException& e) {
             eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -1598,7 +1598,7 @@ WFE::Job::DoIt(bool issync)
         std::transform(eventUpperCase.begin(), eventUpperCase.end(), eventUpperCase.begin(),
                        [](unsigned char c){ return std::toupper(c); }
         );
-        eos_static_info("%s %s %s", eventUpperCase.c_str(), fullpath.c_str(), endpoint.c_str());
+        eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(), hostPort.c_str());
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
@@ -1615,18 +1615,29 @@ WFE::Job::DoIt(bool issync)
           group_name = "nobody";
         }
 
+        auto collectAttributes = [&notification, &fmd, &cmd] {
+          for (const auto& fileAttrPair: fmd->getAttributes()) {
+            if (fileAttrPair.first.find("sys.") == 0 || fileAttrPair.first.find("user.") == 0)
+              continue;
+
+            google::protobuf::MapPair<std::string,std::string> attr(fileAttrPair.first, fileAttrPair.second);
+            notification->mutable_file()->mutable_xattr()->insert(attr);
+          }
+
+          for (const auto& dirAttrPair: cmd->getAttributes()) {
+            if (dirAttrPair.first.find("sys.") == 0 || dirAttrPair.first.find("user.") == 0)
+              continue;
+
+            google::protobuf::MapPair<std::string,std::string> attr(dirAttrPair.first, dirAttrPair.second);
+            notification->mutable_file()->mutable_xattr()->insert(attr);
+          }
+        };
+
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
         if (event == "sync::delete") {
-          std::string archiveFileId;
-          if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId)) {
-            eos_static_err("Couldn't get archive ID of file %s, cannot prepare.", fullpath.c_str());
-            return ENOENT;
-          }
-
-          google::protobuf::MapPair<std::string,std::string> archiveFileIdPair(archiveidAttrName, archiveFileId);
-          notification->mutable_file()->mutable_xattr()->insert(archiveFileIdPair);
+          collectAttributes();
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
         }
@@ -1634,32 +1645,25 @@ WFE::Job::DoIt(bool issync)
           struct stat buf;
           XrdOucErrInfo errInfo;
 
-          // Check if we have a disk replica and if not, it's on tape
-          if (gOFS->_stat(fullpath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
+          // Check if we have a disk replica and if not, whether it's on tape
+          if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
             auto onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) > 0;
             auto onTape = buf.st_mode & EOS_TAPE_MODE_T;
 
             if (onDisk) {
-              eos_static_info("File %s is already on disk, nothing to prepare.", fullpath.c_str());
+              eos_static_info("File %s is already on disk, nothing to prepare.", fullPath.c_str());
               return SFS_OK;
             }
             else if (!onTape) {
-              eos_static_err("File %s is not on disk nor on tape, cannot prepare it.", fullpath.c_str());
+              eos_static_err("File %s is not on disk nor on tape, cannot prepare it.", fullPath.c_str());
               return EINVAL;
             }
             else {
-              std::string archiveFileId;
-              if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId)) {
-                eos_static_err("Couldn't get archive ID of file %s, cannot prepare.", fullpath.c_str());
-                return ENOENT;
-              }
-
-              google::protobuf::MapPair<std::string,std::string> archiveFileIdPair(archiveidAttrName, archiveFileId);
-              notification->mutable_file()->mutable_xattr()->insert(archiveFileIdPair);
+              collectAttributes();
 
               notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
 
-              notification->mutable_file()->set_lpath(fullpath);
+              notification->mutable_file()->set_lpath(fullPath);
               notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
               notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
               notification->mutable_file()->mutable_owner()->set_username(user_name);
@@ -1668,7 +1672,7 @@ WFE::Job::DoIt(bool issync)
               char buffer[1024];
               StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
               std::ostringstream destStream;
-              destStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << std::string{buffer};
+              destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << std::string{buffer};
               destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=CTA_retrieve";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
@@ -1681,7 +1685,7 @@ WFE::Job::DoIt(bool issync)
         else if (event == "closew") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
-          notification->mutable_file()->set_lpath(fullpath);
+          notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
           notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
           notification->mutable_file()->mutable_owner()->set_username(user_name);
@@ -1702,7 +1706,7 @@ WFE::Job::DoIt(bool issync)
           auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
 
           std::ostringstream srcStream;
-          srcStream << "root://" << gOFS->HostName << "/" << fullpath << "?eos.lfn=fxid:" << fxidString;
+          srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << fxidString;
           notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
 
           std::ostringstream reportStream;
@@ -1711,21 +1715,24 @@ WFE::Job::DoIt(bool issync)
 
           notification->mutable_transport()->set_report_url(reportStream.str());
 
-          try {
-            google::protobuf::MapPair<std::string, std::string> storageClassPair(storageClassAttrName,
-                                                                                 cmd->getAttribute(
-                                                                                   storageClassAttrName));
-            notification->mutable_file()->mutable_xattr()->insert(storageClassPair);
-          } catch (eos::MDException& ex) {
-            eos_static_err("Could not read %s attribute from directory, not sending request. Reason: %s",
-                           storageClassAttrName, ex.getMessage().str().c_str());
-            return ENOENT;
-          }
+          collectAttributes();
+        }
+        else if (event == "sync::openw") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
+          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+          notification->mutable_file()->set_lpath(fullPath);
+          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+          notification->mutable_file()->mutable_owner()->set_username(user_name);
+          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
+          notification->mutable_file()->set_fid(mFid);
+
+          collectAttributes();
         }
         else if (event == "archived") {
           static constexpr auto tapeFsid = 65535u;
           if (fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1) {
-            eos_static_info("File %s already has a tape copy. Ignoring request.", fullpath.c_str());
+            eos_static_info("File %s already has a tape copy. Ignoring request.", fullPath.c_str());
           }
           else {
             XrdOucErrInfo errInfo;
@@ -1735,9 +1742,9 @@ WFE::Job::DoIt(bool issync)
             for(auto location : fmd->getLocations()) {
               if (location != tapeFsid) {
                 errInfo.clear();
-                if (gOFS->_dropstripe(fullpath.c_str(), errInfo, root_vid, location, true) != 0) {
+                if (gOFS->_dropstripe(fullPath.c_str(), errInfo, root_vid, location, true) != 0) {
                   eos_static_err("Could not delete file replica %s on filesystem %u. Reason: %s",
-                                 fullpath.c_str(), location, errInfo.getErrText());
+                                 fullPath.c_str(), location, errInfo.getErrText());
                 }
               }
             }
@@ -1766,43 +1773,42 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to CTA frontend:\n%s", notification->DebugString().c_str());
+        eos_static_debug("Request sent to outside service:\n%s", notification->DebugString().c_str());
 
-        XrdSsiPbServiceType cta_service(endpoint, "/ctafrontend");
+        XrdSsiPbServiceType service(hostPort, endPoint);
 
         cta::xrd::Response response;
 
         try {
-          auto future = cta_service.Send(request, response);
+          auto future = service.Send(request, response);
 
           future.get();
         } catch (std::runtime_error& error) {
-          eos_static_err("Could not send request to CTA frontend. Reason: %s", error.what());
+          eos_static_err("Could not send request to outside service. Reason: %s", error.what());
           return SFS_ERROR;
         }
 
         switch(response.type())
         {
-          case cta::xrd::Response::RSP_SUCCESS:
+          case cta::xrd::Response::RSP_SUCCESS: {
             retc = 0;
-            eos_static_debug("Response received from CTA frontend:\n%s", response.DebugString().c_str());
+            eos_static_debug("Response received from outside service:\n%s", response.DebugString().c_str());
 
-            static std::string archiveFileIdAttr = "<eos::wfe::path::fxattr:sys.archiveFileId>";
-            if (response.message_txt().find(archiveFileIdAttr) != std::string::npos) {
-              auto newArchiveFileId = response.message_txt().substr(archiveFileIdAttr.size());
-              std::string archiveFileId;
-              if (!gOFS->_attr_get(mFid, archiveidAttrName, archiveFileId) || archiveFileId != newArchiveFileId) {
-                eos::common::Mapping::VirtualIdentity rootvid;
-                eos::common::Mapping::Root(rootvid);
-                XrdOucErrInfo errInfo;
-                if (gOFS->_attr_set(fullpath.c_str(), errInfo, rootvid,
-                                    nullptr, archiveidAttrName, newArchiveFileId.c_str()) != 0) {
-                  eos_static_err("Could not set archive ID attribute for file %s. Reason: %s", fullpath.c_str(), errInfo.getErrText());
-                }
+            // Set all attributes for file from response
+            eos::common::Mapping::VirtualIdentity rootvid;
+            eos::common::Mapping::Root(rootvid);
+            XrdOucErrInfo errInfo;
+            for (const auto& attrPair : response.xattr()) {
+              errInfo.clear();
+              if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
+                                  nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
+                eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
+                               attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(), errInfo.getErrText());
               }
             }
 
             break;
+          }
           case cta::xrd::Response::RSP_ERR_CTA:
             retc = EINVAL;
             eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
