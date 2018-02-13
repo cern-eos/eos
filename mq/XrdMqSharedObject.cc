@@ -793,8 +793,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 {
   std::vector<std::string> formattoken;
   XrdMqStringConversion::Tokenize(format, formattoken, "|");
-  TableRow row;
-  table_mq_data.push_back(row);
+  table_mq_data.emplace_back();
 
   for (unsigned int i = 0; i < formattoken.size(); ++i) {
     std::vector<std::string> tagtoken;
@@ -816,7 +815,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
       if (formattags.count("key")) {
         if ((format.find("s")) != std::string::npos) {
           table_mq_data.back().push_back(
-            TableCell(Get(formattags["key"].c_str()).c_str(), format));
+            TableCell(Get(formattags["key"].c_str()), format));
         }
 
         if ((format.find("S")) != std::string::npos) {
