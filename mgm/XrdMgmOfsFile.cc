@@ -2384,6 +2384,7 @@ XrdMgmOfsFile::open(const char* inpath,
       eos_info("msg=\"no workflow defined for delete\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+      rcode = errno;
     }
   }
 
