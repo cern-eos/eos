@@ -1074,12 +1074,13 @@ ProcCommand::File()
                 char conversiontagfile[1024];
 
                 if (option == "rewrite") {
-                  stdOut += "info: rewriting file with identical layout id\n";
-                  // we just rewrite the file as it was
-                  char hexlayout[17];
-                  snprintf(hexlayout, sizeof(hexlayout) - 1, "%08llx",
-                           (long long) layoutid);
-                  layout = hexlayout;
+                  if (layout.length() == 0) {
+                    stdOut += "info: rewriting file with identical layout id\n";
+                    char hexlayout[17];
+                    snprintf(hexlayout, sizeof(hexlayout) - 1, "%08llx",
+                             (long long) layoutid);
+                    layout = hexlayout;
+                  }
 
                   // get the space this file is currently hosted
                   if (!fsid) {
