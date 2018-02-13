@@ -196,6 +196,10 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
+  if (pUnlinkedFiles.size() <= location) {
+    return false;
+  }
+
   pUnlinkedFiles[location].clear();
   return true;
 }

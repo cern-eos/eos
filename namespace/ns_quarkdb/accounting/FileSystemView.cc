@@ -393,11 +393,12 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   auto it = pUnlinkedFiles.find(location);
 
-  if (it != pUnlinkedFiles.end()) {
-    it->second.clear();
-    it->second.resize(0);
+  if (it == pUnlinkedFiles.end()) {
+    return false;
   }
 
+  it->second.clear();
+  it->second.resize(0);
   std::string key = keyFilesystemUnlinked(location);
   pFlusher->del(key);
   return true;
