@@ -25,8 +25,6 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "common/Timing.hh"
-#include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/ZMQ.hh"
@@ -34,7 +32,6 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsFile.hh"
-#include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Policy.hh"
@@ -46,24 +43,11 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/FsView.hh"
 #include "mgm/Master.hh"
 #include "authz/XrdCapability.hh"
-#include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -2023,7 +2007,7 @@ XrdMgmOfsFile::open(const char* inpath,
       if (selection_diff > 0) {
         unavailfs.push_back(0);
 
-        for (int i = 0; i < selection_diff; i++) {
+        for (auto i = 0ul; i < selection_diff; i++) {
           selectedfs.push_back(0);
           eos_info("msg=\"adding fsid=0 as missing filesystem\"");
         }

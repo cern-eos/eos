@@ -407,13 +407,13 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       return SFS_ERROR;
     }
 
-    eos::IContainerMD::XAttrMap map;
+    eos::IContainerMD::XAttrMap attributes;
 
     if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
-                 nullptr, map) == 0) {
+                 nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
 
-      for (auto& attrEntry : map) {
+      for (auto& attrEntry : attributes) {
         foundPrepareTag |= attrEntry.first.find("sys.workflow.sync::prepare") == 0;
       }
 
