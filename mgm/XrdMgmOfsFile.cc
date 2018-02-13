@@ -618,9 +618,9 @@ XrdMgmOfsFile::open(const char* inpath,
         ownerkey += ":";
 
         if (vid.prot == "gsi") {
-          ownerkey += vid.dn.c_str();
+          ownerkey += vid.dn;
         } else {
-          ownerkey += vid.uid_string.c_str();
+          ownerkey += vid.uid_string;
         }
 
         if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos) {
@@ -1245,7 +1245,7 @@ XrdMgmOfsFile::open(const char* inpath,
     acsargs.forcedfsid = forcedFsId;
     acsargs.forcedspace = space.c_str();
     acsargs.fsindex = &fsIndex;
-    acsargs.isRW = isPioReconstruct ? false : isRW;;
+    acsargs.isRW = isPioReconstruct ? false : isRW;
     acsargs.lid = layoutId;
     acsargs.inode = (ino64_t) fmd->getId();
     acsargs.locationsfs = &selectedfs;
@@ -1315,20 +1315,20 @@ XrdMgmOfsFile::open(const char* inpath,
     std::stringstream strstr;
     strstr << "\nselectedfs are : ";
 
-    for (auto it = selectedfs.begin(); it != selectedfs.end(); it++) {
-      strstr << *it << "  ";
+    for (const auto& it : selectedfs) {
+      strstr << it << "  ";
     }
 
     strstr << "\nproxys are : ";
 
-    for (auto it = proxys.begin(); it != proxys.end(); it++) {
-      strstr << *it << "  ";
+    for (const auto& it : proxys) {
+      strstr << it << "  ";
     }
 
     strstr << "\nfirewallentrypoints are : ";
 
-    for (auto it = firewalleps.begin(); it != firewalleps.end(); it++) {
-      strstr << *it << "  ";
+    for (const auto& it : firewalleps) {
+      strstr << it << "  ";
     }
 
     strstr << "  and retc=" << retc;
@@ -1604,8 +1604,8 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd->unlinkAllLocations();
             }
 
-            for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-              fmd->addLocation(selectedfs[i]);
+            for (auto& fsid : selectedfs) {
+              fmd->addLocation(fsid);
             }
 
             fmd->setChecksum(cx);
@@ -1642,8 +1642,8 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd->unlinkAllLocations();
             }
 
-            for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-              fmd->addLocation(selectedfs[i]);
+            for (auto& fsid : selectedfs) {
+              fmd->addLocation(fsid);
             }
 
             gOFS->eosView->updateFileStore(fmd.get());
@@ -1719,12 +1719,12 @@ XrdMgmOfsFile::open(const char* inpath,
   if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex)) {
     // Do this with forwarding proxy syntax only if the firewall entrypoint is
     // different from the endpoint
-    if (firewalleps[fsIndex].size() &&
+    if (!(firewalleps[fsIndex].empty()) &&
         ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
-         (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
+         (firewalleps[fsIndex] != filesystem->GetString("hostport")))) {
       // Build the URL for the forwarding proxy and must have the following
       // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-      auto idx = firewalleps[fsIndex].rfind(":");
+      auto idx = firewalleps[fsIndex].rfind(':');
 
       if (idx != std::string::npos) {
         targethost = firewalleps[fsIndex].substr(0, idx).c_str();
@@ -1753,7 +1753,7 @@ XrdMgmOfsFile::open(const char* inpath,
         targethost  = filesystem->GetString("host").c_str();
         targetport  = atoi(filesystem->GetString("port").c_str());
       } else { // we have a proxy to use
-        auto idx = proxys[fsIndex].rfind(":");
+        auto idx = proxys[fsIndex].rfind(':');
 
         if (idx != std::string::npos) {
           targethost = proxys[fsIndex].substr(0, idx).c_str();
@@ -1980,20 +1980,20 @@ XrdMgmOfsFile::open(const char* inpath,
         std::stringstream strstr;
         strstr << "\nselectedfs are : ";
 
-        for (auto it = selectedfs.begin(); it != selectedfs.end(); it++) {
-          strstr << *it << "  ";
+        for (const auto& it : selectedfs) {
+          strstr << it << "  ";
         }
 
         strstr << "\nproxys are : ";
 
-        for (auto it = proxys.begin(); it != proxys.end(); it++) {
-          strstr << *it << "  ";
+        for (const auto& it : proxys) {
+          strstr << it << "  ";
         }
 
         strstr << "\nfirewallentrypoints are : ";
 
-        for (auto it = firewalleps.begin(); it != firewalleps.end(); it++) {
-          strstr << *it << "  ";
+        for (const auto& it : firewalleps) {
+          strstr << it << "  ";
         }
 
         strstr << "  and retc=" << retc;
@@ -2014,7 +2014,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       // add fsid=0 filesystems to the selection vector if it has less than the nominal replica
-      int selection_diff = (eos::common::LayoutId::GetStripeNumber(
+      auto selection_diff = (eos::common::LayoutId::GetStripeNumber(
                               fmd->getLayoutId()) + 1) - selectedfs.size();
       eos_info("selection-diff=%d %d/%d", selection_diff,
                (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
@@ -2051,7 +2051,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       if (replace) {
-        if (!PioReplacementFsList.size()) {
+        if (PioReplacementFsList.empty()) {
           // if we don't have found any filesystem to be used as a replacement
           return Emsg(epname,
                       error,
@@ -2091,12 +2091,12 @@ XrdMgmOfsFile::open(const char* inpath,
 
           // Set the FST gateway if this is available otherwise the actual FST
           if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex) &&
-              firewalleps[fsIndex].size() &&
+              !(firewalleps[fsIndex].empty()) &&
               ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
-               (firewalleps[fsIndex] != filesystem->GetString("hostport").c_str()))) {
+               (firewalleps[fsIndex] != filesystem->GetString("hostport")))) {
             // Build the URL for the forwarding proxy and must have the following
             // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-            auto idx = firewalleps[fsIndex].rfind(":");
+            auto idx = firewalleps[fsIndex].rfind(':');
 
             if (idx != std::string::npos) {
               targethost = firewalleps[fsIndex].substr(0, idx).c_str();
@@ -2123,7 +2123,7 @@ XrdMgmOfsFile::open(const char* inpath,
             if ((proxys.size() > fsIndex) && !proxys[fsIndex].empty())  {
               // We have a proxy to use
               (void) proxys[fsIndex].c_str();
-              auto idx = proxys[fsIndex].rfind(":");
+              auto idx = proxys[fsIndex].rfind(':');
 
               if (idx != std::string::npos) {
                 targethost = proxys[fsIndex].substr(0, idx).c_str();

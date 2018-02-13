@@ -404,7 +404,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
     eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
     EXEC_TIMING_END("IdMap");
     std::string header_host = headers["host"];
-    size_t pos = header_host.find(":");
+    size_t pos = header_host.find(':');
 
     // remove the port if present
     if (pos != std::string::npos) {

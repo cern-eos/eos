@@ -456,9 +456,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
   }
 
-  pptr = pargs.paths;
-  optr = pargs.oinfo;
-
   for (auto& pathPair : pathsWithPrepare) {
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
     eos_info("path=\"%s\"", prep_path.c_str());
