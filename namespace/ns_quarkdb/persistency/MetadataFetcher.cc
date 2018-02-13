@@ -31,55 +31,43 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::string describeRedisReply(redisReplyPtr &reply) {
-  std::stringstream ss;
-
-  if(reply->type == REDIS_REPLY_NIL) {
-    return "(nil)";
-  }
-  else if(reply->type == REDIS_REPLY_STRING) {
-    return SSTR("\"" << std::string(reply->str, reply->len) << "\"");
-  }
-  else {
-    return SSTR("could not determine response type, fix me pls");
-  }
-
-  // .... TODO! And move inside QClient, as these utilities are useful to everyone!
-}
-
-
 // This class should become the one and only codepath to retrieve a file
 // protomd from QuarkDB! (and be backed by individual tests targeting just this
 // class)
 class FileMdFetcher : public qclient::QCallback {
 public:
-  FileMdFetcher(qclient::QClient &qcl, id_t d) : id(d) {
+  FileMdFetcher() {}
+
+  std::future<eos::ns::FileMdProto> initialize(qclient::QClient &qcl, id_t d) {
+    std::future<eos::ns::FileMdProto> fut = promise.get_future();
+    id = d;
+
+    // There's a particularly evil race condition here: From the point we call
+    // execCB and onwards, we must assume that the callback has arrived,
+    // and *this has been destroyed already.
+    // Not safe to access member variables after execCB, so we fetch the future
+    // beforehand.
+
     qcl.execCB(
       this,
       "HGET", FileMDSvc::getBucketKey(id), SSTR(id)
     );
-  }
 
-  // You can only call this _once_ !
-  std::future<eos::ns::FileMdProto> getFuture() {
-    return promise.get_future();
+    // fut is a stack object, safe to access.
+    return fut;
   }
 
   virtual void handleResponse(redisReplyPtr &&reply) {
     if(!reply) {
-      return set_exception(MAKE_MDEXCEPTION(EFAULT, "QuarkDB backend not available!"));
+      return set_exception(make_mdexception(EFAULT, "QuarkDB backend not available!"));
     }
 
     if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
-      return set_exception(
-        MAKE_MDEXCEPTION(ENOENT, "File with id #" << id << " not found")
-      );
+      return set_exception(make_mdexception(ENOENT, "File with id #" << id << " not found"));
     }
 
     if(reply->type != REDIS_REPLY_STRING) {
-      return set_exception(
-        MAKE_MDEXCEPTION(EFAULT, "Received unexpected response type: " << describeRedisReply(reply))
-      );
+      return set_exception(make_mdexception(EFAULT, "Received unexpected response when fetching file #" << id << ": " << qclient::describeRedisReply(reply)));
     }
 
     eos::Buffer ebuff;
@@ -92,7 +80,7 @@ public:
       return set_exception(exc);
     }
 
-    // If we've made it this far, it's a success!
+    // If we've made it this far, it's a success
     return set_value(proto);
   }
 
@@ -113,8 +101,8 @@ private:
 };
 
 std::future<eos::ns::FileMdProto> MetadataFetcher::getFileFromId(qclient::QClient &qcl, id_t id) {
-  FileMdFetcher *fetcher = new FileMdFetcher(qcl, id);
-  return fetcher->getFuture();
+  FileMdFetcher *fetcher = new FileMdFetcher();
+  return fetcher->initialize(qcl, id);
 }
 
 int64_t MetadataFetcher::extractInteger(redisReplyPtr &reply) {

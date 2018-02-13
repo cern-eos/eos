@@ -30,8 +30,8 @@
 #include <cstring>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
-#define THROW_MDEXCEPTION(err, msg) { eos::MDException __md___exception____(err); __md___exception____.getMessage() << msg; throw __md___exception____; }
-#define MAKE_MDEXCEPTION(err, msg) makeMDException(err, SSTR(msg))
+#define throw_mdexception(err, msg) { eos::MDException __md___exception____(err); __md___exception____.getMessage() << msg; throw __md___exception____; }
+#define make_mdexception(err, msg) makeMDException(err, SSTR(msg))
 
 namespace eos
 {

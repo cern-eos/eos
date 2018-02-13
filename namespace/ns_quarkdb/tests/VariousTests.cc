@@ -37,6 +37,7 @@ using namespace eos;
 
 class VariousTests : public eos::ns::testing::NsTestsFixture {};
 class NamespaceExplorerF : public eos::ns::testing::NsTestsFixture {};
+class FileMDFetching : public eos::ns::testing::NsTestsFixture {};
 
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
@@ -90,6 +91,39 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir3", 2));
 }
 
+TEST_F(FileMDFetching, CorruptionTest) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file1->getId(), 1);
+
+  shut_down_everything();
+
+  qcl().exec("HSET", FileMDSvc::getBucketKey(1), "1", "chicken_chicken_chicken_chicken").get();
+
+  try {
+    MetadataFetcher::getFileFromId(qcl(), 1).get();
+    FAIL();
+  }
+  catch(const MDException &exc) {
+    ASSERT_STREQ(exc.what(), "FileMD object checksum mismatch");
+  }
+
+  shut_down_everything();
+
+  qcl().exec("DEL", FileMDSvc::getBucketKey(1)).get();
+  qcl().exec("SADD", FileMDSvc::getBucketKey(1), "zzzz").get();
+
+  try {
+    MetadataFetcher::getFileFromId(qcl(), 1).get();
+    FAIL();
+  }
+  catch(const MDException &exc) {
+    ASSERT_STREQ(exc.what(), "Received unexpected response when fetching file #1: (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
+  }
+}
+
 TEST_F(NamespaceExplorerF, BasicSanity) {
   populateDummyData1();
 
@@ -104,4 +138,8 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_EQ(searchState.nodes[0].container.id(), 1);
   ASSERT_EQ(searchState.nodes[1].container.id(), 2);
   ASSERT_EQ(searchState.nodes[2].container.id(), 3);
+
+  // NamespaceItem item;
+  // ASSERT_TRUE(explorer.fetch(item));
+  // ASSERT_EQ(item.fileMd.name(), "f1");
 }

@@ -48,13 +48,13 @@ Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return MAKE_MDEXCEPTION(EIO, "FileMD object checksum missmatch");
+    return make_mdexception(EIO, "FileMD object checksum mismatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return MAKE_MDEXCEPTION(EIO, "Failed while deserializing buffer");
+    return make_mdexception(EIO, "Failed while deserializing FileMD buffer");
   }
 
   return {};
@@ -77,13 +77,13 @@ Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::Contai
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return MAKE_MDEXCEPTION(EIO, "ContainerMD object checksum missmatch");
+    return make_mdexception(EIO, "ContainerMD object checksum missmatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return MAKE_MDEXCEPTION(EIO, "Failed while deserializing buffer");
+    return make_mdexception(EIO, "Failed while deserializing ContainerMD buffer");
   }
 
   return {};
