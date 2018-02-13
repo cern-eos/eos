@@ -25,13 +25,14 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "proto/FileMd.pb.h"
 #include <string>
 #include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
 class ContainerMDSvc;
-class FileMdSvc;
+class FileMDSvc;
 class HierarchicalView;
 
 struct ExplorationOptions {
@@ -40,7 +41,11 @@ struct ExplorationOptions {
 
 struct NamespaceItem {
   // A simple string for now, we can extend this later.
-  std::string item;
+  std::string fullPath;
+
+  // Only one of these are actually filled out.
+  eos::ns::FileMdProto fileMd;
+  eos::ns::ContainerMdProto containerMd;
 };
 
 // Represents a node in the search tree, including any unexplored children.
@@ -51,6 +56,9 @@ struct SearchNode {
 
 struct SearchState {
   std::vector<SearchNode> nodes;
+  IContainerMD::FileMap pendingFileIds;
+
+  std::queue<eos::ns::FileMdProto> filesToGive;
 };
 
 
@@ -82,6 +90,8 @@ public:
   }
 
 private:
+  void populatePendingItems(id_t container);
+
   std::string path;
   ExplorationOptions options;
   qclient::QClient &qcl;

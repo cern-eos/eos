@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "common/Assert.hh"
 #include <memory>
 #include <numeric>
 
@@ -40,7 +41,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
   }
 
   SearchNode root;
-  root.container = MetadataFetcher::getContainerFromId(qcl, 1);
+  root.container = MetadataFetcher::getContainerFromId(qcl, 1).get();
   state.nodes.push_back(root);
 
   for(size_t i = 0; i < pathParts.size(); i++) {
@@ -48,13 +49,32 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
     id_t nextId = MetadataFetcher::getContainerIDFromName(qcl, pathParts[i], parentID);
 
     SearchNode next;
-    next.container = MetadataFetcher::getContainerFromId(qcl, nextId);
+    next.container = MetadataFetcher::getContainerFromId(qcl, nextId).get();
     state.nodes.push_back(next);
   }
+
+  // state.pendingFileIds.set_deleted_key("");
+  // state.pendingFileIds.set_empty_key("##_EMPTY_##");
+  // populatePendingItems(state.nodes.back().container.id());
 }
 
-bool NamespaceExplorer::fetch(NamespaceItem &item) {
+// void NamespaceExplorer::populatePendingItems(id_t container) {
+//   eos_assert(state.pendingFileIds.empty());
+//   MetadataFetcher::getFilesInContainer(qcl, container, state.pendingFileIds);
+//
+//   for(auto it = state.pendingFileIds.begin(); it != state.pendingFileIds.end(); it++) {
+//     state.filesToGive.push(MetadataFetcher::getFileFromId(qcl, it->second).get());
+//   }
+// }
 
+bool NamespaceExplorer::fetch(NamespaceItem &item) {
+  if(!state.filesToGive.empty()) {
+    item.fileMd = state.filesToGive.front();
+    state.filesToGive.pop();
+    return true;
+  }
+
+  return false;
 }
 
 EOSNSNAMESPACE_END

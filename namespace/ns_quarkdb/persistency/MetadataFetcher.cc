@@ -31,9 +31,6 @@
 
 EOSNSNAMESPACE_BEGIN
 
-// This class should become the one and only codepath to retrieve a file
-// protomd from QuarkDB! (and be backed by individual tests targeting just this
-// class)
 class FileMdFetcher : public qclient::QCallback {
 public:
   FileMdFetcher() {}
@@ -59,15 +56,15 @@ public:
 
   virtual void handleResponse(redisReplyPtr &&reply) {
     if(!reply) {
-      return set_exception(make_mdexception(EFAULT, "QuarkDB backend not available!"));
+      return set_exception(EFAULT, "QuarkDB backend not available!");
     }
 
     if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
-      return set_exception(make_mdexception(ENOENT, "File with id #" << id << " not found"));
+      return set_exception(ENOENT, "Empty response");
     }
 
     if(reply->type != REDIS_REPLY_STRING) {
-      return set_exception(make_mdexception(EFAULT, "Received unexpected response when fetching file #" << id << ": " << qclient::describeRedisReply(reply)));
+      return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
     }
 
     eos::Buffer ebuff;
@@ -75,9 +72,9 @@ public:
 
     eos::ns::FileMdProto proto;
 
-    std::exception_ptr exc = Serialization::deserializeFileNoThrow(ebuff, proto);
-    if(exc) {
-      return set_exception(exc);
+    Serialization::Status status = Serialization::deserializeFileNoThrow(ebuff, proto);
+    if(!status.ok()) {
+      return set_exception(EIO, status.getError());
     }
 
     // If we've made it this far, it's a success
@@ -91,8 +88,10 @@ private:
     delete this; // harakiri
   }
 
-  void set_exception(std::exception_ptr exc) {
-    promise.set_exception(exc);
+  void set_exception(int err, const std::string &msg) {
+    promise.set_exception(
+      make_mdexception(err, "Error while fetching FileMD #" << id << " protobuf from QDB: " << msg)
+    );
     delete this; // harakiri
   }
 
@@ -100,82 +99,82 @@ private:
   std::promise<eos::ns::FileMdProto> promise;
 };
 
+class ContainerMdFetcher : public qclient::QCallback {
+public:
+  ContainerMdFetcher() {}
+
+  std::future<eos::ns::ContainerMdProto> initialize(qclient::QClient &qcl, id_t d) {
+    std::future<eos::ns::ContainerMdProto> fut = promise.get_future();
+    id = d;
+
+    // There's a particularly evil race condition here: From the point we call
+    // execCB and onwards, we must assume that the callback has arrived,
+    // and *this has been destroyed already.
+    // Not safe to access member variables after execCB, so we fetch the future
+    // beforehand.
+
+    qcl.execCB(
+      this,
+      "HGET", ContainerMDSvc::getBucketKey(id), SSTR(id)
+    );
+
+    // fut is a stack object, safe to access.
+    return fut;
+  }
+
+  virtual void handleResponse(redisReplyPtr &&reply) {
+    if(!reply) {
+      return set_exception(EFAULT, "QuarkDB backend not available!");
+    }
+
+    if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
+      return set_exception(ENOENT, "Empty response");
+    }
+
+    if(reply->type != REDIS_REPLY_STRING) {
+      return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+    }
+
+    eos::Buffer ebuff;
+    ebuff.putData(reply->str, reply->len);
+
+    eos::ns::ContainerMdProto proto;
+
+    Serialization::Status status = Serialization::deserializeContainerNoThrow(ebuff, proto);
+    if(!status.ok()) {
+      return set_exception(EIO, status.getError());
+    }
+
+    // If we've made it this far, it's a success
+    return set_value(proto);
+  }
+
+private:
+
+  void set_value(const eos::ns::ContainerMdProto &proto) {
+    promise.set_value(proto);
+    delete this; // harakiri
+  }
+
+  void set_exception(int err, const std::string &msg) {
+    promise.set_exception(
+      make_mdexception(err, "Error while fetching ContainerMD #" << id << " protobuf from QDB: " << msg)
+    );
+    delete this; // harakiri
+  }
+
+  id_t id;
+  std::promise<eos::ns::ContainerMdProto> promise;
+};
+
 std::future<eos::ns::FileMdProto> MetadataFetcher::getFileFromId(qclient::QClient &qcl, id_t id) {
   FileMdFetcher *fetcher = new FileMdFetcher();
   return fetcher->initialize(qcl, id);
 }
 
-int64_t MetadataFetcher::extractInteger(redisReplyPtr &reply) {
-  if(!reply) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received null response from qclient, metadata backend not available?";
-    throw e;
-  }
-
-  if(reply->type == REDIS_REPLY_NIL) {
-    MDException e(ENOENT);
-    e.getMessage() << "Not found";
-    throw e;
-  }
-
-  if(reply->type != REDIS_REPLY_STRING) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received unexpected reply type when contacting metadata backend";
-    throw e;
-  }
-
-  return strtoll(reply->str, nullptr, 10);
-}
-
-std::string MetadataFetcher::extractString(redisReplyPtr &reply, id_t forId) {
-  if(!reply) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received null response from qclient, metadata backend not available?";
-    throw e;
-  }
-
-  if(reply->type == REDIS_REPLY_NIL) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << forId << " not found";
-    throw e;
-  }
-
-  if(reply->type != REDIS_REPLY_STRING) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received unexpected reply type when contacting metadata backend";
-    throw e;
-  }
-
-  return std::string(reply->str, reply->len);
-}
-
-// TODO: We should return std::future<eos::ns::ContainerMDProto> here...
-// But std::future has no continuations. :( Find a solution.
-eos::ns::ContainerMdProto MetadataFetcher::getContainerFromId(qclient::QClient &qcl, id_t id) {
-  std::string blob;
-
-  try {
-    std::string sid = SSTR(id);
-    qclient::QHash bucket_map(qcl, ContainerMDSvc::getBucketKey(id));
-    blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& qdb_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container #" << id << " not found";
-    throw e;
-  }
-
-  if (blob.empty()) {
-    MDException e(ENOENT);
-    e.getMessage()  << __FUNCTION__ << " Container #" << id << " not found";
-    throw e;
-  }
-
-  eos::Buffer ebuff;
-  ebuff.putData(blob.c_str(), blob.length());
-
-  eos::ns::ContainerMdProto proto;
-  Serialization::deserializeContainer(ebuff, proto);
-  return proto;
+std::future<eos::ns::ContainerMdProto> MetadataFetcher::getContainerFromId(qclient::QClient &qcl, id_t id) {
+  ContainerMdFetcher *fetcher = new ContainerMdFetcher();
+  return fetcher->initialize(qcl, id);
 }
 
 std::string MetadataFetcher::keySubContainers(id_t id) {

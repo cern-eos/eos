@@ -31,7 +31,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::exception_ptr
+Serialization::Status
 Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto)
 {
   uint32_t cksum_expected = 0;
@@ -48,19 +48,19 @@ Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return make_mdexception(EIO, "FileMD object checksum mismatch");
+    return Status("FileMD object checksum mismatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return make_mdexception(EIO, "Failed while deserializing FileMD buffer");
+    return Status("Failed while deserializing FileMD buffer");
   }
 
   return {};
 }
 
-std::exception_ptr
+Serialization::Status
 Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
 {
   uint32_t cksum_expected = 0;
@@ -77,26 +77,26 @@ Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::Contai
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return make_mdexception(EIO, "ContainerMD object checksum missmatch");
+    return Status("ContainerMD object checksum mismatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return make_mdexception(EIO, "Failed while deserializing ContainerMD buffer");
+    return Status("Failed while deserializing ContainerMD buffer");
   }
 
   return {};
 }
 
 void Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto) {
-  std::exception_ptr exc = deserializeFileNoThrow(buffer, proto);
-  if(exc) std::rethrow_exception(exc);
+  Status status = deserializeFileNoThrow(buffer, proto);
+  status.throwIfNotOk();
 }
 
 void Serialization::deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto) {
-  std::exception_ptr exc = deserializeContainerNoThrow(buffer, proto);
-  if(exc) std::rethrow_exception(exc);
+  Status status = deserializeContainerNoThrow(buffer, proto);
+  status.throwIfNotOk();
 }
 
 

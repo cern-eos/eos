@@ -196,7 +196,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
     0, pFileSvc, this
   );
 
-  retval->initialize(MetadataFetcher::getContainerFromId(*pQcl, id));
+  retval->initialize(MetadataFetcher::getContainerFromId(*pQcl, id).get());
   eos_assert(retval->getId() == id);
 
   if (clock) {

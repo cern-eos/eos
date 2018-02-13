@@ -23,6 +23,7 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
+#include "namespace/MDException.hh"
 
 namespace eos { namespace ns {
   class ContainerMdProto;
@@ -36,17 +37,33 @@ class Buffer;
 class Serialization {
 public:
 
+  class Status {
+  public:
+    Status(const std::string &error = "") : err(error) { }
+    bool ok() { return err.empty(); }
+    std::string getError() { return err; }
+
+    void throwIfNotOk() {
+      if(!ok()) {
+        throw_mdexception(EIO, err);
+      }
+    }
+  private:
+    std::string err;
+  };
+
+
   //----------------------------------------------------------------------------
   //! Deserialize a FileMD protobuf
   //----------------------------------------------------------------------------
   static void deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto);
-  static std::exception_ptr deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto);
+  static Status deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize a ContainerMD protobuf
   //----------------------------------------------------------------------------
   static void deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
-  static std::exception_ptr deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
+  static Status deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
 
 };
 
