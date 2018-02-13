@@ -844,7 +844,7 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             gOFS->FuseXCast(cmd->getId());
-	    gOFS->FuseXCast(cmd->getParentId());
+	          gOFS->FuseXCast(cmd->getParentId());
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -2177,7 +2177,7 @@ XrdMgmOfsFile::open(const char* inpath,
       if ((proxys.size() > i) && !proxys[i].empty()) {
         std::string fsprefix = repfilesystem->GetPath();
 
-        if (fsprefix.size()) {
+        if (!fsprefix.empty()) {
           XrdOucString s = "mgm.fsprefix";
           s += (int) i;
           s += "=";
@@ -2329,9 +2329,7 @@ XrdMgmOfsFile::open(const char* inpath,
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(),
            ecode);
 
-  if (capabilityenv) {
-    delete capabilityenv;
-  }
+  delete capabilityenv;
 
   if (attrmap.count("sys.force.atime")) {
     // -------------------------------------------------------------------------
@@ -2340,7 +2338,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // we only update the atime if the current atime is older than the age
     // value given by the attribute
     // -------------------------------------------------------------------------
-    const char* app = 0;
+    const char* app = nullptr;
 
     if (!(app = openOpaque->Get("eos.app")) ||
         (
@@ -2351,7 +2349,7 @@ XrdMgmOfsFile::open(const char* inpath,
        ) {
       // we are supposed to update the change time with the access since this
       // is any kind of external access
-      time_t now = time(NULL);
+      time_t now = time(nullptr);
       XrdOucString sage = attrmap["sys.force.atime"].c_str();
       time_t age = eos::common::StringConversion::GetSizeFromString(sage);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -2374,6 +2372,18 @@ XrdMgmOfsFile::open(const char* inpath,
         eos_warning("msg=\"failed to update access time\" path=\"%s\" ec=%d emsg=\"%s\"\n",
                     path, e.getErrno(), e.getMessage().str().c_str());
       }
+    }
+  }
+
+  // Also trigger synchronous open-write workflow event if it's defined
+  if(isRW) {
+    errno = 0;
+    int ret_wfe = 0;
+    workflow.SetFile(path, fileId);
+    if ((ret_wfe = workflow.Trigger("sync::openw", "default", vid) < 0) && errno == ENOKEY) {
+      eos_info("msg=\"no workflow defined for delete\"");
+    } else {
+      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
     }
   }
 

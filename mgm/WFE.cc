@@ -1588,8 +1588,8 @@ WFE::Job::DoIt(bool issync)
             fullPath = gOFS->eosView->getUri(fmd.get());
             cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
           } catch (eos::MDException& e) {
-            eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                             e.getMessage().str().c_str());
+            eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
+                           e.getMessage().str().c_str());
             return e.getErrno();
           }
         }
@@ -1682,6 +1682,18 @@ WFE::Job::DoIt(bool issync)
             return EAGAIN;
           }
         }
+        else if (event == "sync::openw") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
+          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+          notification->mutable_file()->set_lpath(fullPath);
+          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+          notification->mutable_file()->mutable_owner()->set_username(user_name);
+          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
+          notification->mutable_file()->set_fid(mFid);
+
+          collectAttributes();
+        }
         else if (event == "closew") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
@@ -1714,18 +1726,6 @@ WFE::Job::DoIt(bool issync)
           reportStream << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
 
           notification->mutable_transport()->set_report_url(reportStream.str());
-
-          collectAttributes();
-        }
-        else if (event == "sync::openw") {
-          notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
-          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
-          notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          notification->mutable_file()->mutable_owner()->set_username(user_name);
-          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
-          notification->mutable_file()->set_fid(mFid);
 
           collectAttributes();
         }
