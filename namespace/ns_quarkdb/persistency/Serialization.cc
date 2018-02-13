@@ -31,8 +31,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
-Serialization::Status
-Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto)
+MDStatus
+Serialization::deserializeNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto)
 {
   uint32_t cksum_expected = 0;
   uint32_t obj_size = 0;
@@ -48,20 +48,20 @@ Serialization::deserializeFileNoThrow(const Buffer& buffer, eos::ns::FileMdProto
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return Status("FileMD object checksum mismatch");
+    return MDStatus(EIO, "FileMD object checksum mismatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return Status("Failed while deserializing FileMD buffer");
+    return MDStatus(EIO, "Failed while deserializing FileMD buffer");
   }
 
   return {};
 }
 
-Serialization::Status
-Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
+MDStatus
+Serialization::deserializeNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto)
 {
   uint32_t cksum_expected = 0;
   uint32_t obj_size = 0;
@@ -77,25 +77,25 @@ Serialization::deserializeContainerNoThrow(const Buffer& buffer, eos::ns::Contai
   cksum_computed = DataHelper::finalizeCRC32C(cksum_computed);
 
   if (cksum_expected != cksum_computed) {
-    return Status("ContainerMD object checksum mismatch");
+    return MDStatus(EIO, "ContainerMD object checksum mismatch");
   }
 
   google::protobuf::io::ArrayInputStream ais(ptr, obj_size);
 
   if (!proto.ParseFromZeroCopyStream(&ais)) {
-    return Status("Failed while deserializing ContainerMD buffer");
+    return MDStatus(EIO, "Failed while deserializing ContainerMD buffer");
   }
 
   return {};
 }
 
 void Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto) {
-  Status status = deserializeFileNoThrow(buffer, proto);
+  MDStatus status = deserializeNoThrow(buffer, proto);
   status.throwIfNotOk();
 }
 
 void Serialization::deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto) {
-  Status status = deserializeContainerNoThrow(buffer, proto);
+  MDStatus status = deserializeNoThrow(buffer, proto);
   status.throwIfNotOk();
 }
 

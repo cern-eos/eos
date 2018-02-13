@@ -31,6 +31,22 @@
 
 EOSNSNAMESPACE_BEGIN
 
+MDStatus ensureStringReply(redisReplyPtr &reply) {
+  if(!reply) {
+    return MDStatus(EFAULT, "QuarkDB backend not available!");
+  }
+
+  if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
+    return MDStatus(ENOENT, "Empty response");
+  }
+
+  if(reply->type != REDIS_REPLY_STRING) {
+    return MDStatus(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+  }
+
+  return MDStatus();
+}
+
 class FileMdFetcher : public qclient::QCallback {
 public:
   FileMdFetcher() {}
@@ -55,16 +71,9 @@ public:
   }
 
   virtual void handleResponse(redisReplyPtr &&reply) {
-    if(!reply) {
-      return set_exception(EFAULT, "QuarkDB backend not available!");
-    }
-
-    if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
-      return set_exception(ENOENT, "Empty response");
-    }
-
-    if(reply->type != REDIS_REPLY_STRING) {
-      return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+    MDStatus status = ensureStringReply(reply);
+    if(!status.ok()) {
+      return set_exception(status.getErrno(), status.getError());
     }
 
     eos::Buffer ebuff;
@@ -72,7 +81,7 @@ public:
 
     eos::ns::FileMdProto proto;
 
-    Serialization::Status status = Serialization::deserializeFileNoThrow(ebuff, proto);
+    status = Serialization::deserializeNoThrow(ebuff, proto);
     if(!status.ok()) {
       return set_exception(EIO, status.getError());
     }
@@ -123,16 +132,9 @@ public:
   }
 
   virtual void handleResponse(redisReplyPtr &&reply) {
-    if(!reply) {
-      return set_exception(EFAULT, "QuarkDB backend not available!");
-    }
-
-    if(reply->type == REDIS_REPLY_NIL || (reply->type == REDIS_REPLY_STRING && reply->len == 0) ) {
-      return set_exception(ENOENT, "Empty response");
-    }
-
-    if(reply->type != REDIS_REPLY_STRING) {
-      return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+    MDStatus status = ensureStringReply(reply);
+    if(!status.ok()) {
+      return set_exception(status.getErrno(), status.getError());
     }
 
     eos::Buffer ebuff;
@@ -140,7 +142,7 @@ public:
 
     eos::ns::ContainerMdProto proto;
 
-    Serialization::Status status = Serialization::deserializeContainerNoThrow(ebuff, proto);
+    status = Serialization::deserializeNoThrow(ebuff, proto);
     if(!status.ok()) {
       return set_exception(EIO, status.getError());
     }

@@ -116,6 +116,31 @@ namespace eos
     // Inefficient, copies the string twice, fix.
     return std::make_exception_ptr<MDException>(exc);
   }
+
+  //----------------------------------------------------------------------------
+  //! Metadata operation status
+  //----------------------------------------------------------------------------
+  class MDStatus {
+  public:
+    MDStatus() : localerrno(0) {}
+
+    MDStatus(int localerrn, const std::string &error)
+    : localerrno(localerrn), err(error) { }
+
+    bool ok() { return err.empty(); }
+    std::string getError() { return err; }
+    int getErrno() { return localerrno; }
+
+    void throwIfNotOk() {
+      if(!ok()) {
+        throw_mdexception(localerrno, err);
+      }
+    }
+  private:
+    int localerrno;
+    std::string err;
+  };
+
 }
 
 #endif // EOS_NS_MD_EXCEPTION_HH
