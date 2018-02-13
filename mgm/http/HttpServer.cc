@@ -26,18 +26,9 @@
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
-#include "common/http/ProtocolHandler.hh"
-#include "common/http/HttpRequest.hh"
-#include "common/StringConversion.hh"
-#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetAddr.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
-#include <sstream>
-#include <sys/socket.h>
 #include <netdb.h>
 
 /*----------------------------------------------------------------------------*/

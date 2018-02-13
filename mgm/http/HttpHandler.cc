@@ -25,14 +25,10 @@
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -268,7 +264,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       isfile = true;
 
       if (isHEAD) {
-        std::string basename = url.substr(url.rfind("/") + 1);
+        std::string basename = url.substr(url.rfind('/') + 1);
         eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
                         buf.st_size,
                         url.c_str());
@@ -285,8 +281,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                           url.c_str(), type.c_str());
           //check if there is a checksum type and checksum
            
-          std::string xstype = "";
-          std::string xs = "";
+          std::string xstype;
+          std::string xs;
           if (!gOFS->_getchecksum(url.c_str(),
                            error,
                            &xstype,
@@ -497,7 +493,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         char gidlimit[16];
         // try to translate with password database
         int terrc = 0;
-        std::string username = "";
+        std::string username;
         username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
 
         if (!terrc) {
@@ -507,7 +503,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         }
 
         // try to translate with password database
-        std::string groupname = "";
+        std::string groupname;
         groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
 
         if (!terrc) {
@@ -690,7 +686,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
           }
 
           offset += nread;
-        } while (1);
+        } while (true);
 
         file->close();
         response = new eos::common::PlainHttpResponse();
@@ -876,7 +872,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           if (file->error.getErrInfo() == 1094) {
             // MGM redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
-                                                redirection_cgi.c_str(),
+                                                redirection_cgi,
                                                 8000, false);
           } else {
             if (isOcChunked) {
@@ -885,7 +881,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
 
             // FST redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
-                                                redirection_cgi.c_str(),
+                                                redirection_cgi,
                                                 8001, false);
           }
         } else if (rc == SFS_ERROR) {
@@ -910,7 +906,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       }
 
       std::string rurl = file->error.getErrText();
-      rurl.erase(0, rurl.find("?") + 1);
+      rurl.erase(0, rurl.find('?') + 1);
       XrdOucEnv env(rurl.c_str());
       char* etag = env.Get("mgm.etag");
 
