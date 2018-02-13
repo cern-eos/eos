@@ -200,7 +200,7 @@ WFE::WFEr()
       // -------------------------------------------------------------------------
       // do a find
       // -------------------------------------------------------------------------
-      eos_static_info("msg=\"start WFE scan\"");
+      eos_static_debug("msg=\"start WFE scan\"");
       // -------------------------------------------------------------------------
       // find all directories defining an WFE policy
       // -------------------------------------------------------------------------
@@ -232,7 +232,7 @@ WFE::WFEr()
       }
 
       for (size_t i = 0; i < 4; ++i) {
-        eos_static_info("query-path=%s", queries[i].c_str());
+        eos_static_debug("query-path=%s", queries[i].c_str());
         gOFS->_find(queries[i].c_str(),
                     mError,
                     stdErr,
@@ -248,9 +248,9 @@ WFE::WFEr()
       }
 
       {
-        eos_static_info("msg=\"finished WFE find\" WFE-dirs=%llu %s",
-                        wfedirs.size(), stdErr.c_str()
-                       );
+        eos_static_debug("msg=\"finished WFE find\" WFE-dirs=%llu %s",
+                         wfedirs.size(), stdErr.c_str()
+                        );
         time_t now = time(NULL);
 
         for (auto it = wfedirs.begin(); it != wfedirs.end(); it++) {
@@ -259,8 +259,8 @@ WFE::WFEr()
           // -------------------------------------------------------------------
           if (it->second.size()) {
             for (auto wit = it->second.begin(); wit != it->second.end(); ++wit) {
-              eos_static_info("wfe-dir=\"%s\" wfe-job=\"%s\"", it->first.c_str(),
-                              wit->c_str());
+              eos_static_debug("wfe-dir=\"%s\" wfe-job=\"%s\"", it->first.c_str(),
+                               wit->c_str());
               std::string f = it->first;
               f += *wit;
               Job* job = new Job();
@@ -315,9 +315,9 @@ WFE::WFEr()
       }
 
       EXEC_TIMING_END("WFEFind");
-      eos_static_info("msg=\"finished WFE application\" WFE-dirs=%llu",
-                      wfedirs.size()
-                     );
+      eos_static_debug("msg=\"finished WFE application\" WFE-dirs=%llu",
+                       wfedirs.size()
+                      );
     }
 
     lStopTime = time(NULL);
@@ -326,7 +326,7 @@ WFE::WFEr()
       snoozetime = lWFEInterval - (lStopTime - lStartTime);
     }
 
-    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
+    eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
     time_t snoozeinterval = 1;
@@ -892,8 +892,8 @@ WFE::Job::DoIt(bool issync)
             XrdOucString base64;
             unbase64 = fullpath.c_str();
             eos::common::SymKey::Base64(unbase64, base64);
-
             int cnt = 0;
+
             while (execargs.replace("<eos::wfe::path>", unbase64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -901,6 +901,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::base64:path>", base64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -908,6 +909,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::uid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getCUid()))) {
@@ -917,6 +919,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::gid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getCGid()))) {
@@ -926,6 +929,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::ruid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) mVid.uid))) {
@@ -935,6 +939,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::rgid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) mVid.gid))) {
@@ -944,6 +949,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::username>",
                                     user_name.c_str())) {
               if (++cnt > 16) {
@@ -952,6 +958,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::groupname>",
                                     group_name.c_str())) {
               if (++cnt > 16) {
@@ -960,6 +967,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::rusername>",
                                     mVid.uid_string.c_str())) {
               if (++cnt > 16) {
@@ -968,6 +976,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::rgroupname>",
                                     mVid.gid_string.c_str())) {
               if (++cnt > 16) {
@@ -976,6 +985,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::host>",
                                     mVid.host.c_str())) {
               if (++cnt > 16) {
@@ -984,6 +994,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::sec.app>",
                                     mVid.app.c_str())) {
               if (++cnt > 16) {
@@ -992,6 +1003,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::sec.name>",
                                     mVid.name.c_str())) {
               if (++cnt > 16) {
@@ -1000,6 +1012,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::sec.prot>",
                                     mVid.prot.c_str())) {
               if (++cnt > 16) {
@@ -1008,6 +1021,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::sec.grps>",
                                     mVid.grps.c_str())) {
               if (++cnt > 16) {
@@ -1016,6 +1030,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::instance>",
                                     gOFS->MgmOfsInstanceName)) {
               if (++cnt > 16) {
@@ -1024,6 +1039,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::ctime.s>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
@@ -1033,6 +1049,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::mtime.s>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
@@ -1042,6 +1059,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::ctime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_nsec))) {
@@ -1051,6 +1069,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::mtime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_nsec))) {
@@ -1060,6 +1079,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::ctime>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
@@ -1069,6 +1089,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::mtime>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) ctime.tv_sec))) {
@@ -1078,6 +1099,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::size>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getSize()))) {
@@ -1087,6 +1109,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::cid>",
                                     eos::common::StringConversion::GetSizeString(cv,
                                         (unsigned long long) cfmd->getContainerId()))) {
@@ -1096,6 +1119,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::fid>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mFid))) {
               if (++cnt > 16) {
@@ -1105,8 +1129,8 @@ WFE::Job::DoIt(bool issync)
 
             XrdOucString hexfid;
             eos::common::FileId::Fid2Hex(mFid, hexfid);
-
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::fxid>",
                                     hexfid)) {
               if (++cnt > 16) {
@@ -1120,8 +1144,8 @@ WFE::Job::DoIt(bool issync)
             turl += fullpath;
             turl += "?eos.lfn=fxid:";
             turl += hexfid.c_str();
-
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::turl>",
                                     turl.c_str())) {
               if (++cnt > 16) {
@@ -1131,8 +1155,8 @@ WFE::Job::DoIt(bool issync)
 
             unbase64 = cfmd->getName().c_str();
             eos::common::SymKey::Base64(unbase64, base64);
-
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::name>", unbase64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1140,6 +1164,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::base64:name>", base64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1148,8 +1173,8 @@ WFE::Job::DoIt(bool issync)
 
             unbase64 = cfmd->getLink().c_str();
             eos::common::SymKey::Base64(unbase64, base64);
-
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::link>", unbase64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1157,6 +1182,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::base64:link>", base64.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1164,6 +1190,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::checksum>", checksum.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1171,6 +1198,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::checksumtype>",
                                     eos::common::LayoutId::GetChecksumString(cfmd->getLayoutId()))) {
               if (++cnt > 16) {
@@ -1179,6 +1207,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::event>", mActions[0].mEvent.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1186,6 +1215,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::queue>", mActions[0].mQueue.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1193,6 +1223,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::workflow>",
                                     mActions[0].mWorkflow.c_str())) {
               if (++cnt > 16) {
@@ -1201,6 +1232,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::vpath>", mWorkflowPath.c_str())) {
               if (++cnt > 16) {
                 break;
@@ -1208,8 +1240,8 @@ WFE::Job::DoIt(bool issync)
             }
 
             time_t now = time(NULL);
-
             cnt = 0;
+
             while (execargs.replace("<eos::wfe::now>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) now))) {
               if (++cnt > 16) {
@@ -1218,8 +1250,8 @@ WFE::Job::DoIt(bool issync)
             }
 
             int xstart = 0;
-
             cnt = 0;
+
             while ((xstart = execargs.find("<eos::wfe::fxattr:")) != STR_NPOS) {
               if (++cnt > 256) {
                 break;
@@ -1262,8 +1294,8 @@ WFE::Job::DoIt(bool issync)
             }
 
             xstart = 0;
-
             cnt = 0;
+
             while ((xstart = execargs.find("<eos::wfe::cxattr:")) != STR_NPOS) {
               if (++cnt > 256) {
                 break;
@@ -1328,6 +1360,7 @@ WFE::Job::DoIt(bool issync)
               }
 
               cnt = 0;
+
               while (file_metadata.replace("\"", "'")) {
                 if (++cnt > 16) {
                   break;
@@ -1353,6 +1386,7 @@ WFE::Job::DoIt(bool issync)
               }
 
               cnt = 0;
+
               while (container_metadata.replace("\"", "'")) {
                 if (++cnt > 16) {
                   break;
@@ -1392,8 +1426,8 @@ WFE::Job::DoIt(bool issync)
               eos_static_info("shell-cmd-stderr=%s", outerr.c_str());
               // scan for result tags referencing the trigger path
               xstart = 0;
-
               cnt = 0;
+
               while ((xstart = outerr.find("<eos::wfe::path::fxattr:", xstart)) != STR_NPOS) {
                 if (++cnt > 256) {
                   break;
@@ -1496,8 +1530,8 @@ WFE::Job::DoIt(bool issync)
 
               // scan for result tags referencing the workflow path
               xstart = 0;
-
               cnt = 0;
+
               while ((xstart = outerr.find("<eos::wfe::vpath::fxattr:",
                                            xstart)) != STR_NPOS) {
                 if (++cnt > 256) {
@@ -1566,25 +1600,25 @@ WFE::Job::DoIt(bool issync)
                          mDescription.c_str());
           Move(mActions[0].mQueue, "g", storetime);
         }
-      }
-      else if (method == "proto") {
+      } else if (method == "proto") {
         auto event = mActions[0].mEvent;
-        auto params = eos::common::StringTokenizer::split<std::vector<std::string>>(args, ' ');
+        auto params = eos::common::StringTokenizer::split<std::vector<std::string>>
+                      (args, ' ');
         auto hostPort = params[0];
         auto endPoint = std::string{"/"} + params[1];
-
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullPath;
-
         {
           eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
+
             if (fmd == nullptr) {
               return ENOENT;
             }
+
             fullPath = gOFS->eosView->getUri(fmd.get());
             cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
           } catch (eos::MDException& e) {
@@ -1593,92 +1627,101 @@ WFE::Job::DoIt(bool issync)
             return e.getErrno();
           }
         }
-
         auto eventUpperCase = event;
-        std::transform(eventUpperCase.begin(), eventUpperCase.end(), eventUpperCase.begin(),
-                       [](unsigned char c){ return std::toupper(c); }
-        );
-        eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(), hostPort.c_str());
-
+        std::transform(eventUpperCase.begin(), eventUpperCase.end(),
+                       eventUpperCase.begin(),
+        [](unsigned char c) {
+          return std::toupper(c);
+        }
+                      );
+        eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(),
+                        hostPort.c_str());
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
-
         int errc = 0;
         auto user_name  = Mapping::UidToUserName(mVid.uid, errc);
+
         if (errc) {
           user_name = "nobody";
         }
 
         errc = 0;
         auto group_name = Mapping::GidToGroupName(mVid.gid, errc);
+
         if (errc) {
           group_name = "nobody";
         }
 
         auto collectAttributes = [&notification, &fmd, &cmd] {
-          for (const auto& fileAttrPair: fmd->getAttributes()) {
-            if (fileAttrPair.first.find("sys.") == 0 || fileAttrPair.first.find("user.") == 0)
+          for (const auto& fileAttrPair : fmd->getAttributes())
+          {
+            if (fileAttrPair.first.find("sys.") == 0 ||
+            fileAttrPair.first.find("user.") == 0) {
               continue;
+            }
 
-            google::protobuf::MapPair<std::string,std::string> attr(fileAttrPair.first, fileAttrPair.second);
+            google::protobuf::MapPair<std::string, std::string> attr(fileAttrPair.first,
+                fileAttrPair.second);
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
 
-          for (const auto& dirAttrPair: cmd->getAttributes()) {
-            if (dirAttrPair.first.find("sys.") == 0 || dirAttrPair.first.find("user.") == 0)
+          for (const auto& dirAttrPair : cmd->getAttributes())
+          {
+            if (dirAttrPair.first.find("sys.") == 0 ||
+                dirAttrPair.first.find("user.") == 0) {
               continue;
+            }
 
-            google::protobuf::MapPair<std::string,std::string> attr(dirAttrPair.first, dirAttrPair.second);
+            google::protobuf::MapPair<std::string, std::string> attr(dirAttrPair.first,
+                dirAttrPair.second);
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
-
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
         if (event == "sync::delete") {
           collectAttributes();
-
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
-        }
-        else if (event == "sync::prepare") {
+        } else if (event == "sync::prepare") {
           struct stat buf;
           XrdOucErrInfo errInfo;
 
           // Check if we have a disk replica and if not, whether it's on tape
-          if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
-            auto onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) > 0;
+          if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
+                          false) == 0) {
+            auto onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 :
+                           buf.st_nlink) > 0;
             auto onTape = buf.st_mode & EOS_TAPE_MODE_T;
 
             if (onDisk) {
-              eos_static_info("File %s is already on disk, nothing to prepare.", fullPath.c_str());
+              eos_static_info("File %s is already on disk, nothing to prepare.",
+                              fullPath.c_str());
               return SFS_OK;
-            }
-            else if (!onTape) {
-              eos_static_err("File %s is not on disk nor on tape, cannot prepare it.", fullPath.c_str());
+            } else if (!onTape) {
+              eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
+                             fullPath.c_str());
               return EINVAL;
-            }
-            else {
+            } else {
               collectAttributes();
-
               notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
-
               notification->mutable_file()->set_lpath(fullPath);
               notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
               notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
               notification->mutable_file()->mutable_owner()->set_username(user_name);
               notification->mutable_file()->mutable_owner()->set_groupname(group_name);
-
               char buffer[1024];
               StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
               std::ostringstream destStream;
-              destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << std::string{buffer};
-              destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=CTA_retrieve";
+              destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+                         << std::string{buffer};
+              destStream <<
+                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=CTA_retrieve";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
-          }
-          else {
-            eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s", errInfo.getErrText());
+          } else {
+            eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
+                           errInfo.getErrText());
             return EAGAIN;
           }
         }
@@ -1693,56 +1736,58 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_fid(mFid);
 
           collectAttributes();
-        }
-        else if (event == "closew") {
+        } else if (event == "closew") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
-          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+          notification->mutable_wf()->mutable_instance()->set_name(
+            gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
           notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
           notification->mutable_file()->mutable_owner()->set_username(user_name);
           notification->mutable_file()->mutable_owner()->set_groupname(group_name);
-
-          notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
+          notification->mutable_file()->mutable_cks()->set_type(
+            eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
           std::ostringstream checksum;
-          for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+
+          for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+               i++) {
             char hb[4];
             sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
             checksum << hb;
           }
-          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
 
+          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
           notification->mutable_file()->set_size(fmd->getSize());
           notification->mutable_file()->set_fid(mFid);
-
           auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
-
           std::ostringstream srcStream;
-          srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << fxidString;
+          srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+                    << fxidString;
           notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-
           std::ostringstream reportStream;
-          reportStream << "eosQuery://" << gOFS->HostName << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
-          reportStream << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
-
+          reportStream << "eosQuery://" << gOFS->HostName <<
+                       "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
+          reportStream <<
+                       "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
-
           collectAttributes();
-        }
-        else if (event == "archived") {
+        } else if (event == "archived") {
           static constexpr auto tapeFsid = 65535u;
+
           if (fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1) {
-            eos_static_info("File %s already has a tape copy. Ignoring request.", fullPath.c_str());
-          }
-          else {
+            eos_static_info("File %s already has a tape copy. Ignoring request.",
+                            fullPath.c_str());
+          } else {
             XrdOucErrInfo errInfo;
             eos::common::Mapping::VirtualIdentity root_vid;
             eos::common::Mapping::Root(root_vid);
 
-            for(auto location : fmd->getLocations()) {
+            for (auto location : fmd->getLocations()) {
               if (location != tapeFsid) {
                 errInfo.clear();
-                if (gOFS->_dropstripe(fullPath.c_str(), errInfo, root_vid, location, true) != 0) {
+
+                if (gOFS->_dropstripe(fullPath.c_str(), errInfo, root_vid, location,
+                                      true) != 0) {
                   eos_static_err("Could not delete file replica %s on filesystem %u. Reason: %s",
                                  fullPath.c_str(), location, errInfo.getErrText());
                 }
@@ -1762,72 +1807,86 @@ WFE::Job::DoIt(bool issync)
         static XrdCl::Env* xrootEnv = nullptr;
         xrootEnv = xrootEnv == nullptr ? XrdCl::DefaultEnv::GetEnv() : xrootEnv;
         static int requestTimeout = 0;
-        if (xrootEnv != nullptr)
+
+        if (xrootEnv != nullptr) {
           xrootEnv->GetInt("RequestTimeout", requestTimeout);
+        }
+
         static int timeoutResolution = 0;
-        if (xrootEnv != nullptr)
+
+        if (xrootEnv != nullptr) {
           xrootEnv->GetInt("TimeoutResolution", timeoutResolution);
+        }
+
         static int streamTimeout = 0;
-        if (xrootEnv != nullptr)
+
+        if (xrootEnv != nullptr) {
           xrootEnv->GetInt("StreamTimeout", streamTimeout);
+        }
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to outside service:\n%s", notification->DebugString().c_str());
-
+        eos_static_debug("Request sent to outside service:\n%s",
+                         notification->DebugString().c_str());
         XrdSsiPbServiceType service(hostPort, endPoint);
-
         cta::xrd::Response response;
 
         try {
           auto future = service.Send(request, response);
-
           future.get();
         } catch (std::runtime_error& error) {
-          eos_static_err("Could not send request to outside service. Reason: %s", error.what());
+          eos_static_err("Could not send request to outside service. Reason: %s",
+                         error.what());
           return SFS_ERROR;
         }
 
-        switch(response.type())
-        {
-          case cta::xrd::Response::RSP_SUCCESS: {
-            retc = 0;
-            eos_static_debug("Response received from outside service:\n%s", response.DebugString().c_str());
+        switch (response.type()) {
+        case cta::xrd::Response::RSP_SUCCESS: {
+          retc = 0;
+          eos_static_debug("Response received from outside service:\n%s",
+                           response.DebugString().c_str());
+          // Set all attributes for file from response
+          eos::common::Mapping::VirtualIdentity rootvid;
+          eos::common::Mapping::Root(rootvid);
+          XrdOucErrInfo errInfo;
 
-            // Set all attributes for file from response
-            eos::common::Mapping::VirtualIdentity rootvid;
-            eos::common::Mapping::Root(rootvid);
-            XrdOucErrInfo errInfo;
-            for (const auto& attrPair : response.xattr()) {
-              errInfo.clear();
-              if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
-                                  nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
-                eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
-                               attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(), errInfo.getErrText());
-              }
+          for (const auto& attrPair : response.xattr()) {
+            errInfo.clear();
+
+            if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
+                                nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
+              eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
+                             attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(),
+                             errInfo.getErrText());
             }
-
-            break;
           }
-          case cta::xrd::Response::RSP_ERR_CTA:
-            retc = EINVAL;
-            eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
-            break;
-          case cta::xrd::Response::RSP_ERR_USER:
-            retc = EINVAL;
-            eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
-            break;
-          case cta::xrd::Response::RSP_ERR_PROTOBUF:
-            retc = EINVAL;
-            eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
-            break;
-          case cta::xrd::Response::RSP_INVALID:
-            retc = EINVAL;
-            eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
-            break;
-          default:
-            retc = EINVAL;
-            eos_static_err("Response:\n%s", response.DebugString().c_str());
+
+          break;
+        }
+
+        case cta::xrd::Response::RSP_ERR_CTA:
+          retc = EINVAL;
+          eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
+          break;
+
+        case cta::xrd::Response::RSP_ERR_USER:
+          retc = EINVAL;
+          eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
+          break;
+
+        case cta::xrd::Response::RSP_ERR_PROTOBUF:
+          retc = EINVAL;
+          eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
+          break;
+
+        case cta::xrd::Response::RSP_INVALID:
+          retc = EINVAL;
+          eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
+          break;
+
+        default:
+          retc = EINVAL;
+          eos_static_err("Response:\n%s", response.DebugString().c_str());
         }
       } else {
         storetime = 0;
