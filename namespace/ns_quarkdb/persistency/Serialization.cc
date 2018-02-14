@@ -89,6 +89,18 @@ Serialization::deserializeNoThrow(const Buffer& buffer, eos::ns::ContainerMdProt
   return {};
 }
 
+MDStatus
+Serialization::deserializeNoThrow(const Buffer& buffer, int64_t &ret) {
+  char *endptr = NULL;
+  ret = strtoll(buffer.getDataPtr(), &endptr, 10);
+  if(endptr != buffer.getDataPtr() + buffer.getSize() || ret == LLONG_MIN || ret == LONG_LONG_MAX) {
+    return MDStatus(EFAULT, SSTR("Unable to deserialize into int64_t: " << std::string(buffer.getDataPtr(), buffer.getSize())));
+  }
+  return {};
+}
+
+
+
 void Serialization::deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto) {
   MDStatus status = deserializeNoThrow(buffer, proto);
   status.throwIfNotOk();

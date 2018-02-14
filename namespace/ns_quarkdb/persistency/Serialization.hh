@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
+#include "namespace/utils/Buffer.hh"
 
 namespace eos { namespace ns {
   class ContainerMdProto;
@@ -48,6 +49,26 @@ public:
   //----------------------------------------------------------------------------
   static void deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
   static MDStatus deserializeNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
+
+  //----------------------------------------------------------------------------
+  //! Deserialize an int64_t
+  //----------------------------------------------------------------------------
+  static MDStatus deserializeNoThrow(const Buffer& buffer, int64_t &val);
+
+
+  //----------------------------------------------------------------------------
+  //! Deserialize any supported type.
+  //----------------------------------------------------------------------------
+  template<typename T>
+  static MDStatus deserialize(const char* str, size_t len, T& output) {
+    eos::Buffer ebuff;
+    ebuff.putData(str, len);
+
+    eos::ns::FileMdProto proto;
+
+    // Dispatch to appropriate overload
+    return Serialization::deserializeNoThrow(ebuff, output);
+  }
 
 };
 

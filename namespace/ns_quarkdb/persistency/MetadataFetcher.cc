@@ -73,17 +73,13 @@ public:
   virtual void handleResponse(redisReplyPtr &&reply) {
     MDStatus status = ensureStringReply(reply);
     if(!status.ok()) {
-      return set_exception(status.getErrno(), status.getError());
+      return set_exception(status);
     }
 
-    eos::Buffer ebuff;
-    ebuff.putData(reply->str, reply->len);
-
     eos::ns::FileMdProto proto;
-
-    status = Serialization::deserializeNoThrow(ebuff, proto);
+    status = Serialization::deserialize(reply->str, reply->len, proto);
     if(!status.ok()) {
-      return set_exception(EIO, status.getError());
+      return set_exception(status);
     }
 
     // If we've made it this far, it's a success
@@ -97,9 +93,9 @@ private:
     delete this; // harakiri
   }
 
-  void set_exception(int err, const std::string &msg) {
+  void set_exception(const MDStatus &status) {
     promise.set_exception(
-      make_mdexception(err, "Error while fetching FileMD #" << id << " protobuf from QDB: " << msg)
+      make_mdexception(status.getErrno(), "Error while fetching FileMD #" << id << " protobuf from QDB: " << status.getError())
     );
     delete this; // harakiri
   }
@@ -134,17 +130,13 @@ public:
   virtual void handleResponse(redisReplyPtr &&reply) {
     MDStatus status = ensureStringReply(reply);
     if(!status.ok()) {
-      return set_exception(status.getErrno(), status.getError());
+      return set_exception(status);
     }
 
-    eos::Buffer ebuff;
-    ebuff.putData(reply->str, reply->len);
-
     eos::ns::ContainerMdProto proto;
-
-    status = Serialization::deserializeNoThrow(ebuff, proto);
+    status = Serialization::deserialize(reply->str, reply->len, proto);
     if(!status.ok()) {
-      return set_exception(EIO, status.getError());
+      return set_exception(status);
     }
 
     // If we've made it this far, it's a success
@@ -158,15 +150,131 @@ private:
     delete this; // harakiri
   }
 
-  void set_exception(int err, const std::string &msg) {
+  void set_exception(const MDStatus &status) {
     promise.set_exception(
-      make_mdexception(err, "Error while fetching ContainerMD #" << id << " protobuf from QDB: " << msg)
+      make_mdexception(status.getErrno(), "Error while fetching ContainerMD #" << id << " protobuf from QDB: " << status.getError())
     );
     delete this; // harakiri
   }
 
   id_t id;
   std::promise<eos::ns::ContainerMdProto> promise;
+};
+
+struct MapFetcherFileTrait {
+  static std::string getKey(id_t id) {
+    return SSTR(id << constants::sMapFilesSuffix);
+  }
+
+  using ContainerType = IContainerMD::FileMap;
+};
+
+struct MapFetcherContainerTrait {
+  static std::string getKey(id_t id) {
+    return SSTR(id << constants::sMapDirsSuffix);
+  }
+
+  using ContainerType = IContainerMD::ContainerMap;
+};
+
+
+// Fetch maps (ContainerMap, FileMap) of a particular container.
+template<typename Trait>
+class MapFetcher : public qclient::QCallback {
+public:
+  using ContainerType = typename Trait::ContainerType;
+  static constexpr size_t kCount = 250000;
+
+  MapFetcher() {}
+
+  std::future<ContainerType> initialize(qclient::QClient &qcli, id_t trg) {
+    qcl = &qcli;
+
+    contents.set_deleted_key("");
+    contents.set_empty_key("##_EMPTY_##");
+
+    std::future<ContainerType> fut = promise.get_future();
+    target = trg;
+
+    // There's a particularly evil race condition here: From the point we call
+    // execCB and onwards, we must assume that the callback has arrived,
+    // and *this has been destroyed already.
+    // Not safe to access member variables after execCB, so we fetch the future
+    // beforehand.
+
+    qcl->execCB(
+      this,
+      "HSCAN", Trait::getKey(target), "0", "COUNT", SSTR(kCount)
+    );
+
+    // fut is a stack object, safe to access.
+    return fut;
+  }
+
+  virtual void handleResponse(redisReplyPtr &&reply) override {
+    if(!reply) {
+      return set_exception(EFAULT, "QuarkDB backend not available!");
+    }
+
+    if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2 || (reply->element[0]->type != REDIS_REPLY_STRING)
+       || (reply->element[1]->type != REDIS_REPLY_ARRAY) || ( (reply->element[1]->elements % 2) != 0)) {
+      return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+    }
+
+    std::string cursor = std::string(reply->element[0]->str, reply->element[0]->len);
+
+    for(size_t i = 0; i < reply->element[1]->elements; i += 2) {
+      redisReply *element = reply->element[1]->element[i];
+      if(element->type != REDIS_REPLY_STRING) {
+        return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+      }
+
+      std::string filename = std::string(element->str, element->len);
+      element = reply->element[1]->element[i+1];
+
+      if(element->type != REDIS_REPLY_STRING) {
+        return set_exception(EFAULT, SSTR("Received unexpected response: " << qclient::describeRedisReply(reply)));
+      }
+
+      int64_t value;
+      MDStatus st = Serialization::deserialize(element->str, element->len, value);
+      if(!st.ok()) {
+        return set_exception(st);
+      }
+
+      contents[filename] = value;
+    }
+
+    // Fire off next request?
+    if(cursor == "0") {
+      promise.set_value(std::move(contents));
+      delete this;
+      return;
+    }
+
+    qcl->execCB(
+      this,
+      "HSCAN", Trait::getKey(target), cursor, "COUNT", SSTR(kCount)
+    );
+  }
+
+private:
+
+  void set_exception(const MDStatus &status) {
+    return set_exception(status.getErrno(), status.getError());
+  }
+
+  void set_exception(int err, const std::string &msg) {
+    promise.set_exception(
+      make_mdexception(err, SSTR("Error while fetching file/container map for container #" << target << " from QDB: " << msg))
+    );
+    delete this; // harakiri
+  }
+
+  qclient::QClient *qcl;
+  id_t target;
+  ContainerType contents;
+  std::promise<ContainerType> promise;
 };
 
 std::future<eos::ns::FileMdProto> MetadataFetcher::getFileFromId(qclient::QClient &qcl, id_t id) {
@@ -215,20 +323,30 @@ id_t MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, const std::s
   return strtoll(reply->str, nullptr, 10);
 }
 
-void MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap) {
-  qclient::QHash hash(qcl, keySubFiles(container));
-
-  for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
-    fileMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
-  }
+std::future<IContainerMD::FileMap> MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container) {
+  MapFetcher<MapFetcherFileTrait> *fetcher = new MapFetcher<MapFetcherFileTrait>();
+  return fetcher->initialize(qcl, container);
 }
 
-void MetadataFetcher::getSubContainers(qclient::QClient &qcl, id_t container, IContainerMD::ContainerMap &containerMap) {
-  qclient::QHash hash(qcl, keySubContainers(container));
-
-  for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
-    containerMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
-  }
+std::future<IContainerMD::ContainerMap> MetadataFetcher::getSubContainers(qclient::QClient &qcl, id_t container) {
+  MapFetcher<MapFetcherContainerTrait> *fetcher = new MapFetcher<MapFetcherContainerTrait>();
+  return fetcher->initialize(qcl, container);
 }
+
+// void MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap) {
+//   qclient::QHash hash(qcl, keySubFiles(container));
+//
+//   for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
+//     fileMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
+//   }
+// }
+//
+// void MetadataFetcher::getSubContainers(qclient::QClient &qcl, id_t container, IContainerMD::ContainerMap &containerMap) {
+//   qclient::QHash hash(qcl, keySubContainers(container));
+//
+//   for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
+//     containerMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
+//   }
+// }
 
 EOSNSNAMESPACE_END

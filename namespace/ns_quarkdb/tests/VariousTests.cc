@@ -133,7 +133,7 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_THROW(eos::NamespaceExplorer("", options, qcl()), eos::MDException);
   NamespaceExplorer explorer("/eos/d1/", options, qcl());
 
-  SearchState searchState = explorer.getSearchState();
+  SearchState& searchState = explorer.getSearchState();
   ASSERT_EQ(searchState.nodes.size(), 3);
   ASSERT_EQ(searchState.nodes[0].container.id(), 1);
   ASSERT_EQ(searchState.nodes[1].container.id(), 2);

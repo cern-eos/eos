@@ -58,7 +58,8 @@ struct SearchState {
   std::vector<SearchNode> nodes;
   IContainerMD::FileMap pendingFileIds;
 
-  std::queue<eos::ns::FileMdProto> filesToGive;
+  std::queue<std::future<eos::ns::FileMdProto>> filesToGive;
+  std::queue<std::future<eos::ns::ContainerMdProto>> containersToGive;
 };
 
 
@@ -85,7 +86,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current search state.
   //----------------------------------------------------------------------------
-  SearchState getSearchState() {
+  SearchState& getSearchState() {
     return state;
   }
 

@@ -40,6 +40,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
     throw e;
   }
 
+  // This part is synchronous by necessity,
   SearchNode root;
   root.container = MetadataFetcher::getContainerFromId(qcl, 1).get();
   state.nodes.push_back(root);
@@ -53,23 +54,23 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
     state.nodes.push_back(next);
   }
 
-  // state.pendingFileIds.set_deleted_key("");
-  // state.pendingFileIds.set_empty_key("##_EMPTY_##");
-  // populatePendingItems(state.nodes.back().container.id());
+  state.pendingFileIds.set_deleted_key("");
+  state.pendingFileIds.set_empty_key("##_EMPTY_##");
+  populatePendingItems(state.nodes.back().container.id());
 }
 
-// void NamespaceExplorer::populatePendingItems(id_t container) {
-//   eos_assert(state.pendingFileIds.empty());
-//   MetadataFetcher::getFilesInContainer(qcl, container, state.pendingFileIds);
-//
-//   for(auto it = state.pendingFileIds.begin(); it != state.pendingFileIds.end(); it++) {
-//     state.filesToGive.push(MetadataFetcher::getFileFromId(qcl, it->second).get());
-//   }
-// }
+void NamespaceExplorer::populatePendingItems(id_t container) {
+  eos_assert(state.pendingFileIds.empty());
+  state.pendingFileIds = MetadataFetcher::getFilesInContainer(qcl, container).get();
+
+  for(auto it = state.pendingFileIds.begin(); it != state.pendingFileIds.end(); it++) {
+    state.filesToGive.push(MetadataFetcher::getFileFromId(qcl, it->second));
+  }
+}
 
 bool NamespaceExplorer::fetch(NamespaceItem &item) {
   if(!state.filesToGive.empty()) {
-    item.fileMd = state.filesToGive.front();
+    item.fileMd = state.filesToGive.front().get();
     state.filesToGive.pop();
     return true;
   }

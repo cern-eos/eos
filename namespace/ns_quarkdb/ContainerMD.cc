@@ -691,16 +691,12 @@ ContainerMD::loadChildren()
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
   pDirsMap.setKey(pDirsKey);
 
-  if (pQcl) {
-    try {
-      MetadataFetcher::getFilesInContainer(*pQcl, mCont.id(), mFiles);
-      MetadataFetcher::getSubContainers(*pQcl, mCont.id(), mSubcontainers);
-    } catch (std::runtime_error& qdb_err) {
-      MDException e(ENOENT);
-      e.getMessage()  << __FUNCTION__  << " Container #" << mCont.id()
-                      << " failed to get subentries";
-      throw e;
-    }
+  if(pQcl) {
+    std::future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
+    std::future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
+
+    mFiles = std::move(fileMapFut.get());
+    mSubcontainers = std::move(containerMapFut.get());
   }
 }
 
