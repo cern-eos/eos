@@ -333,20 +333,4 @@ std::future<IContainerMD::ContainerMap> MetadataFetcher::getSubContainers(qclien
   return fetcher->initialize(qcl, container);
 }
 
-// void MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap) {
-//   qclient::QHash hash(qcl, keySubFiles(container));
-//
-//   for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
-//     fileMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
-//   }
-// }
-//
-// void MetadataFetcher::getSubContainers(qclient::QClient &qcl, id_t container, IContainerMD::ContainerMap &containerMap) {
-//   qclient::QHash hash(qcl, keySubContainers(container));
-//
-//   for(auto it = hash.getIterator(500000); it.valid(); it.next()) {
-//     containerMap.insert(std::make_pair(it.getKey(), std::stoull(it.getValue())));
-//   }
-// }
-
 EOSNSNAMESPACE_END

@@ -576,10 +576,11 @@ protected:
   uint64_t     pTreeSize;
 #endif
 
-private:
+protected:
   ContainerMap mSubcontainers; //! Directory name to id map
   FileMap mFiles; ///< File name to id map
 
+private:
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;

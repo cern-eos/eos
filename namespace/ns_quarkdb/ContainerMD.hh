@@ -432,6 +432,10 @@ public:
     return mFiles.end();
   }
 
+protected:
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
+
 private:
   //----------------------------------------------------------------------------
   //! Load FileMap
@@ -463,9 +467,6 @@ private:
   qclient::QHash pFilesMap;             ///< Map holding info about files
   qclient::QHash pDirsMap;              ///< Map holding info about subcontainers
   uint64_t mClock;                      ///< Value tracking changes
-
-  ContainerMap mSubcontainers; //! Directory name to id map
-  FileMap mFiles; ///< File name to id map
 
   std::future<ContainerMap> mSubcontainersFuture;
   std::future<FileMap> mFilesFuture;

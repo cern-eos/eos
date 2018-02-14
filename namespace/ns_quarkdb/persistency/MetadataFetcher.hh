@@ -41,13 +41,12 @@ class MetadataFetcher {
 public:
   static std::future<eos::ns::FileMdProto> getFileFromId(qclient::QClient &qcl, id_t id);
   static std::future<eos::ns::ContainerMdProto> getContainerFromId(qclient::QClient &qcl, id_t id);
-  static id_t getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
 
   static std::future<IContainerMD::FileMap> getFilesInContainer(qclient::QClient &qcl, id_t container);
   static std::future<IContainerMD::ContainerMap> getSubContainers(qclient::QClient &qcl, id_t container);
 
-  // static void getFilesInContainer(qclient::QClient &qcl, id_t container, IContainerMD::FileMap &fileMap);
-  // static void getSubContainers(qclient::QClient &qcl, id_t container, IContainerMD::ContainerMap &containerMap);
+  // static std::future<id_t> getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
+  static id_t getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
 
 private:
 
