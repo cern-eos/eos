@@ -2381,7 +2381,7 @@ XrdMgmOfsFile::open(const char* inpath,
     int ret_wfe = 0;
     workflow.SetFile(path, fileId);
     if ((ret_wfe = workflow.Trigger("sync::openw", "default", vid) < 0) && errno == ENOKEY) {
-      eos_info("msg=\"no workflow defined for delete\"");
+      eos_info("msg=\"no workflow defined for sync::openw\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
       if (ret_wfe != 0) {
