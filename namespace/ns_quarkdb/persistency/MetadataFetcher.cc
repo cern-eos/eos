@@ -295,32 +295,70 @@ std::string MetadataFetcher::keySubFiles(id_t id) {
   return SSTR(id << constants::sMapFilesSuffix);
 }
 
-id_t MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID) {
-  redisReplyPtr reply = qcl.exec(
-    "HGET",
-    keySubContainers(parentID),
-    name
-  ).get();
+class IDFromNameFetcher : public qclient::QCallback {
+public:
+  IDFromNameFetcher(bool cont) : container(cont) {}
 
-  if(!reply) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received null response from qclient when retrieving child ID with name " << name << " of #" << parentID << ", metadata backend not available?";
-    throw e;
+  std::future<id_t> initialize(qclient::QClient &qcl, id_t prnt, const std::string &nm) {
+    parentID = prnt;
+    name = nm;
+
+    std::future<id_t> fut = promise.get_future();
+
+    if(container) {
+      qcl.execCB(this, "HGET", SSTR(parentID << constants::sMapDirsSuffix), name);
+    }
+    else {
+      qcl.execCB(this, "HGET", SSTR(parentID << constants::sMapFilesSuffix), name);
+    }
+
+    return fut;
   }
 
-  if(reply->type == REDIS_REPLY_NIL) {
-    MDException e(ENOENT);
-    e.getMessage() << "Not found: Child container with name " << name << " of #" << parentID;
-    throw e;
+  virtual void handleResponse(redisReplyPtr &&reply) override {
+    MDStatus status = ensureStringReply(reply);
+    if(!status.ok()) {
+      return set_exception(status);
+    }
+
+    int64_t retval;
+    status = Serialization::deserialize(reply->str, reply->len, retval);
+    if(!status.ok()) {
+      return set_exception(status);
+    }
+
+    // If we've made it this far, it's a success
+    return set_value(retval);
   }
 
-  if(reply->type != REDIS_REPLY_STRING) {
-    MDException e(EINVAL);
-    e.getMessage() << "Received unexpected reply type when contacting metadata backend to retrieve child container with name " << name << " of #" << parentID;
-    throw e;
+private:
+  std::promise<id_t> promise;
+  bool container;
+
+  id_t parentID;
+  std::string name;
+
+  void set_value(const int64_t retval) {
+    promise.set_value(retval);
+    delete this; // harakiri
   }
 
-  return strtoll(reply->str, nullptr, 10);
+  void set_exception(const MDStatus &status) {
+    promise.set_exception(
+      make_mdexception(status.getErrno(), "Error while fetching Container/File ID out of parent id " << parentID << " and name " << name << ": " << status.getError())
+    );
+    delete this; // harakiri
+  }
+};
+
+std::future<id_t> MetadataFetcher::getContainerIDFromName(qclient::QClient &qcl, id_t parentID, const std::string &name) {
+  IDFromNameFetcher *fetcher = new IDFromNameFetcher(true);
+  return fetcher->initialize(qcl, parentID, name);
+}
+
+std::future<id_t> MetadataFetcher::getFileIDFromName(qclient::QClient &qcl, id_t parentID, const std::string &name) {
+  IDFromNameFetcher *fetcher = new IDFromNameFetcher(false);
+  return fetcher->initialize(qcl, parentID, name);
 }
 
 std::future<IContainerMD::FileMap> MetadataFetcher::getFilesInContainer(qclient::QClient &qcl, id_t container) {

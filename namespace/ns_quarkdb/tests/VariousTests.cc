@@ -86,9 +86,9 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_LT(subdir2->getId(), subdir3->getId());
   mdFlusher()->synchronize();
 
-  ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir1", 2));
-  ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir2", 2));
-  ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), "subdir3", 2));
+  ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir1").get());
+  ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir2").get());
+  ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir3").get());
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {

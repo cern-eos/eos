@@ -68,7 +68,7 @@ int64_t NextInodeProvider::reserve()
     mNextId = mBlockEnd - mStepIncrease + 1;
 
     // Increase step for next round
-    if (mStepIncrease <= 200) {
+    if (mStepIncrease <= 2000) {
       mStepIncrease++;
     }
   }

@@ -47,7 +47,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
 
   for(size_t i = 0; i < pathParts.size(); i++) {
     id_t parentID = state.nodes.back().container.id();
-    id_t nextId = MetadataFetcher::getContainerIDFromName(qcl, pathParts[i], parentID);
+    id_t nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID, pathParts[i]).get();
 
     SearchNode next;
     next.container = MetadataFetcher::getContainerFromId(qcl, nextId).get();

@@ -45,8 +45,8 @@ public:
   static std::future<IContainerMD::FileMap> getFilesInContainer(qclient::QClient &qcl, id_t container);
   static std::future<IContainerMD::ContainerMap> getSubContainers(qclient::QClient &qcl, id_t container);
 
-  // static std::future<id_t> getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
-  static id_t getContainerIDFromName(qclient::QClient &qcl, const std::string &name, id_t parentID);
+  static std::future<id_t> getContainerIDFromName(qclient::QClient &qcl, id_t parentID, const std::string &name);
+  static std::future<id_t> getFileIDFromName(qclient::QClient &qcl, id_t parentID, const std::string &name);
 
 private:
 
