@@ -2380,8 +2380,8 @@ XrdMgmOfsFile::open(const char* inpath,
     errno = 0;
     int ret_wfe = 0;
     workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("mgm.workflow") != nullptr ? openOpaque->Get("mgm.workflow") : "";
-    if ((ret_wfe = workflow.Trigger("sync::openw", workflowType, vid) < 0) && errno == ENOKEY) {
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    if ((ret_wfe = workflow.Trigger("sync::openw", std::string{workflowType}, vid) < 0) && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::openw\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
