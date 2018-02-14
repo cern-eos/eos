@@ -396,7 +396,59 @@ public:
   //----------------------------------------------------------------------------
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the subcontainers map
+  //----------------------------------------------------------------------------
+  eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() override {
+    return mSubcontainers.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the subcontainers map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() override {
+    return mSubcontainers.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() override {
+    return mFiles.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() override {
+    return mFiles.end();
+  }
+
 private:
+  //----------------------------------------------------------------------------
+  //! Load FileMap
+  //----------------------------------------------------------------------------
+  void waitOnFileMap() {
+    if(!pFilesLoaded) {
+      mFiles = std::move(mFilesFuture.get());
+      pFilesLoaded = true;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Load ContainerMap
+  //----------------------------------------------------------------------------
+  void waitOnContainerMap() {
+    if(!pSubContainersLoaded) {
+      mSubcontainers = std::move(mSubcontainersFuture.get());
+      pSubContainersLoaded = true;
+    }
+  }
+
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
@@ -407,6 +459,16 @@ private:
   qclient::QHash pFilesMap;             ///< Map holding info about files
   qclient::QHash pDirsMap;              ///< Map holding info about subcontainers
   uint64_t mClock;                      ///< Value tracking changes
+
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
+
+  std::future<ContainerMap> mSubcontainersFuture;
+  std::future<FileMap> mFilesFuture;
+
+  bool pSubContainersLoaded = true;
+  bool pFilesLoaded = true;
+
 };
 
 EOSNSNAMESPACE_END

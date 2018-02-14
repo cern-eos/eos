@@ -72,10 +72,10 @@ public:
   IContainerMD():
     mIsDeleted(false)
   {
-    mSubcontainers.set_deleted_key("");
-    mFiles.set_deleted_key("");
-    mSubcontainers.set_empty_key("##_EMPTY_##");
-    mFiles.set_empty_key("##_EMPTY_##");
+    // mSubcontainers.set_deleted_key("");
+    // mFiles.set_deleted_key("");
+    // mSubcontainers.set_empty_key("##_EMPTY_##");
+    // mFiles.set_empty_key("##_EMPTY_##");
   }
 
   //----------------------------------------------------------------------------
@@ -316,38 +316,35 @@ public:
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the subcontainers map
   //----------------------------------------------------------------------------
-  inline eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersBegin() const
-  {
-    return mSubcontainers.begin();
-  }
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() = 0;
 
   //----------------------------------------------------------------------------
   //! Get iterator to the end of the subcontainers map
   //----------------------------------------------------------------------------
-  inline eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersEnd() const
-  {
-    return mSubcontainers.end();
-  }
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() = 0;
+  // {
+  //   return mSubcontainers.end();
+  // }
 
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
-  inline eos::IContainerMD::FileMap::const_iterator
-  filesBegin() const
-  {
-    return mFiles.begin();
-  }
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() = 0;
+  // {
+  //   return mFiles.begin();
+  // }
 
   //----------------------------------------------------------------------------
   //! Get iterator to the end of the files map
   //----------------------------------------------------------------------------
-  inline eos::IContainerMD::FileMap::const_iterator
-  filesEnd() const
-  {
-    return mFiles.end();
-  }
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() = 0;
+  // {
+  //   return mFiles.end();
+  // }
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
@@ -362,10 +359,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
   //----------------------------------------------------------------------------
-  virtual uint64_t getClock() const
-  {
-    return 0;
-  }
+  virtual uint64_t getClock() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get env representation of the container object
@@ -391,19 +385,14 @@ public:
     mIsDeleted = true;
   }
 
-protected:
-  ContainerMap mSubcontainers; //! Directory name to id map
-  FileMap mFiles; ///< File name to id map
-
 private:
 
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"
   //! when dealing with derived classes.
   //----------------------------------------------------------------------------
-  IContainerMD(const IContainerMD& other);
-
-  IContainerMD& operator=(const IContainerMD& other);
+  IContainerMD(const IContainerMD& other) = delete;
+  IContainerMD& operator=(const IContainerMD& other) = delete;
 
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };

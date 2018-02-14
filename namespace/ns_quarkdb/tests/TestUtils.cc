@@ -60,8 +60,8 @@ NsTestsFixture::~NsTestsFixture() {
   shut_down_everything();
 
   // Restore default values
-  FileMDSvc::OverrideNumberOfBuckets();
-  ContainerMDSvc::OverrideNumberOfBuckets();
+  // FileMDSvc::OverrideNumberOfBuckets();
+  // ContainerMDSvc::OverrideNumberOfBuckets();
 }
 
 qclient::Members NsTestsFixture::getMembers() {

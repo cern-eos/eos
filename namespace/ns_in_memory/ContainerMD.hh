@@ -524,6 +524,38 @@ public:
     return;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the subcontainers map
+  //----------------------------------------------------------------------------
+  eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() override {
+    return mSubcontainers.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the subcontainers map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() override {
+    return mSubcontainers.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() override {
+    return mFiles.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() override {
+    return mFiles.end();
+  }
+
 protected:
   id_t         pId;
   id_t         pParentId;
@@ -545,6 +577,9 @@ protected:
 #endif
 
 private:
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
+
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;

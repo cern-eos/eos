@@ -42,6 +42,12 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
+
+  mSubcontainers.set_deleted_key("");
+  mFiles.set_deleted_key("");
+  mSubcontainers.set_empty_key("##_EMPTY_##");
+  mFiles.set_empty_key("##_EMPTY_##");
+
   mCont.set_id(id);
   mCont.set_mode(040755);
 
@@ -120,6 +126,8 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
+  waitOnContainerMap();
+
   auto iter = mSubcontainers.find(name);
 
   if (iter == mSubcontainers.end()) {
@@ -149,6 +157,7 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
+  waitOnContainerMap();
   auto it = mSubcontainers.find(name);
 
   if (it == mSubcontainers.end()) {
@@ -169,6 +178,7 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
+  waitOnContainerMap();
   container->setParentId(mCont.id());
   auto ret = mSubcontainers.insert(std::make_pair(container->getName(),
                                    container->getId()));
@@ -194,6 +204,8 @@ ContainerMD::addContainer(IContainerMD* container)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
+  waitOnFileMap();
+
   auto iter = mFiles.find(name);
 
   if (iter == mFiles.end()) {
@@ -223,6 +235,8 @@ ContainerMD::findFile(const std::string& name)
 void
 ContainerMD::addFile(IFileMD* file)
 {
+  waitOnFileMap();
+
   file->setContainerId(mCont.id());
   (void)mFiles.insert(std::make_pair(file->getName(), file->getId()));
   // @todo (esindril): Here we follow the behaviour of the namespace in memory
@@ -249,6 +263,8 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
+  waitOnFileMap();
+
   auto iter = mFiles.find(name);
 
   if (iter != mFiles.end()) {
@@ -279,6 +295,7 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
+  waitOnFileMap();
   return mFiles.size();
 }
 
@@ -288,6 +305,7 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
+  waitOnContainerMap();
   return mSubcontainers.size();
 }
 
@@ -298,6 +316,9 @@ ContainerMD::getNumContainers()
 void
 ContainerMD::cleanUp()
 {
+  waitOnFileMap();
+  waitOnContainerMap();
+
   for (const auto& elem : mFiles) {
     auto file = pFileSvc->getFileMD(elem.second);
     pFileSvc->removeFile(file.get());
@@ -692,11 +713,18 @@ ContainerMD::loadChildren()
   pDirsMap.setKey(pDirsKey);
 
   if(pQcl) {
-    std::future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
-    std::future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
+    pFilesLoaded = false;
+    pSubContainersLoaded = false;
 
-    mFiles = std::move(fileMapFut.get());
-    mSubcontainers = std::move(containerMapFut.get());
+    mFilesFuture = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
+    mSubcontainersFuture = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
+  }
+  else {
+    // I think this case only happens inside some tests.. remove eventually?
+    pFilesLoaded = true;
+    pSubContainersLoaded = true;
+    mFiles.clear();
+    mSubcontainers.clear();
   }
 }
 

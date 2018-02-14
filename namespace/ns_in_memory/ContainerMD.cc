@@ -38,6 +38,11 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
 {
+  mSubcontainers.set_deleted_key("");
+  mFiles.set_deleted_key("");
+  mSubcontainers.set_empty_key("##_EMPTY_##");
+  mFiles.set_empty_key("##_EMPTY_##");
+  
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
   pMTime.tv_sec = 0;
