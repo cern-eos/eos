@@ -340,7 +340,7 @@ XrdMgmOfsFile::open(const char* inpath,
     std::vector<std::string> fsToken;
     eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
 
-    if (openOpaque->Get("eos.pio.recfs") && !fsToken.size()) {
+    if (openOpaque->Get("eos.pio.recfs") && fsToken.empty()) {
       // -----------------------------------------------------------------------
       // if there is a list announced there should be atleast one filesystem
       // mentioned for reconstruction
@@ -825,7 +825,7 @@ XrdMgmOfsFile::open(const char* inpath,
                 eos_info("atomic-path=%s", creation_path.c_str());
               }
 
-              fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
+              fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
               if (ocUploadUuid.length()) {
                 fmd->setFlags(0);
@@ -1210,7 +1210,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
 
-    if (!selectedfs.size()) {
+    if (selectedfs.empty()) {
       // this file has not a single existing replica
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
@@ -1755,7 +1755,7 @@ XrdMgmOfsFile::open(const char* inpath,
     if (!proxys[fsIndex].empty()) {
       std::string fsprefix = filesystem->GetPath();
 
-      if (fsprefix.size()) {
+      if (!(fsprefix.empty())) {
         XrdOucString s = "mgm.fsprefix";
         s += "=";
         s += fsprefix.c_str();
@@ -1860,7 +1860,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // if replacement has been specified try to get new locations for reco.
     // -------------------------------------------------------------------------
 
-    if (isPioReconstruct && PioReconstructFsList.size()) {
+    if (isPioReconstruct && !(PioReconstructFsList.empty())) {
       const char* containertag = 0;
 
       if (attrmap.count("user.tag")) {
@@ -2149,7 +2149,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if ((proxys.size() > i) && !proxys[i].empty()) {
         // We have a proxy to use
-        auto idx = proxys[i].rfind(":");
+        auto idx = proxys[i].rfind(':');
 
         if (idx != std::string::npos) {
           replicahost = proxys[i].substr(0, idx).c_str();
