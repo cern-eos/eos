@@ -401,6 +401,7 @@ public:
   //----------------------------------------------------------------------------
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override {
+    waitOnContainerMap();
     return mSubcontainers.begin();
   }
 
@@ -409,6 +410,7 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override {
+    waitOnContainerMap();
     return mSubcontainers.end();
   }
 
@@ -417,6 +419,7 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override {
+    waitOnFileMap();
     return mFiles.begin();
   }
 
@@ -425,6 +428,7 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override {
+    waitOnFileMap();
     return mFiles.end();
   }
 
