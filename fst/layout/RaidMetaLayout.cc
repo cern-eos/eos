@@ -214,7 +214,7 @@ RaidMetaLayout::Open (const std::string& path,
  {
    if (file->Open(path, flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() , mTimeout ) )
    {
-     eos_err("error=failed to open local ", path.c_str());
+     eos_err("error=failed to open local %s", path.c_str());
      errno = EIO;
      mLastErrMsg = file->GetLastErrMsg();
      delete file;
@@ -298,110 +298,115 @@ RaidMetaLayout::Open (const std::string& path,
    //..........................................................................
    // Open remote stripes
    //..........................................................................
-   for (unsigned int i = 0; i < stripe_urls.size(); i++)
-   {
-     if (i != (unsigned int) mPhysicalStripeIndex)
+   // @note for TPC transfers we open the remote stripes only in the
+   // kTpcSrcRead or kTpcDstSetup stages
+   if ((mOfsFile->tpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
+       (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
+       (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcNone)) {
+     for (unsigned int i = 0; i < stripe_urls.size(); i++) {
+	 if (i != (unsigned int) mPhysicalStripeIndex)
+	   {
+	     eos_info("Open remote stipe i=%i ", i);
+	     int envlen;
+	     const char* val;
+	     XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
+	     XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
+	     stripe_urls[i] += remoteOpenPath.c_str();
+	     stripe_urls[i] += "?";
+
+	     //.......................................................................
+	     // Create the opaque information for the next stripe file
+	     //.......................................................................
+	     if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex")))
+	       {
+		 XrdOucString oldindex = "mgm.replicaindex=";
+		 XrdOucString newindex = "mgm.replicaindex=";
+		 oldindex += val;
+		 newindex += static_cast<int> (i);
+		 remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
+	       }
+	     else
+	       {
+		 remoteOpenOpaque += "&mgm.replicaindex=";
+		 remoteOpenOpaque += static_cast<int> (i);
+	       }
+       
+	     //       if (mStoreRecovery)
+	     //	 remoteOpenOpaque += "&fst.store=1";
+
+	     stripe_urls[i] += remoteOpenOpaque.c_str();
+	     int ret = -1;
+	     FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
+						      mOfsFile, mSecEntity);
+
+	     //.......................................................................
+	     // Set the correct open flags for the stripe
+	     //.......................................................................
+	     if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)))
+	       {
+		 mIsRw = true;
+		 eos_debug( "Write case with flags:%x.", flags);
+	       }
+	     else
+	       {
+		 mode = 0;
+		 eos_debug("Read case with flags=%x.", flags);
+	       }
+
+
+	     //........................................................................
+	     // Doing the actual open
+	     //........................................................................
+	     ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
+
+	     if (ret == SFS_ERROR)
+	       {
+		 eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
+		 mLastErrMsg = file->GetLastErrMsg();
+		 delete file;
+		 file = NULL;
+	       }
+	     else
+	       {
+		 mLastUrl = file->GetLastUrl();
+	       }
+
+	     mStripeFiles.push_back(file);
+	     mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+
+	     //......................................................................
+	     // Read header information for remote files
+	     //......................................................................
+	     hd = mHdrInfo.back();
+	     file = mStripeFiles.back();
+       
+	     if (file && !hd->ReadFromFile(file, mTimeout))
+	       {
+		 eos_warning("reading header failed for remote stripe phyid=%i",
+			     mStripeFiles.size() - 1);
+	       }
+	   }
+       }
+  
+     //..........................................................................
+     // Consistency checks
+     //..........................................................................
+     if (mStripeFiles.size() != mNbTotalFiles)
      {
-       eos_info("Open remote stipe i=%i ", i);
-       int envlen;
-       const char* val;
-       XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
-       XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
-       stripe_urls[i] += remoteOpenPath.c_str();
-       stripe_urls[i] += "?";
-
-       //.......................................................................
-       // Create the opaque information for the next stripe file
-       //.......................................................................
-       if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex")))
-       {
-         XrdOucString oldindex = "mgm.replicaindex=";
-         XrdOucString newindex = "mgm.replicaindex=";
-         oldindex += val;
-         newindex += static_cast<int> (i);
-         remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
-       }
-       else
-       {
-         remoteOpenOpaque += "&mgm.replicaindex=";
-         remoteOpenOpaque += static_cast<int> (i);
-       }
-       
-       //       if (mStoreRecovery)
-       //	 remoteOpenOpaque += "&fst.store=1";
-
-       stripe_urls[i] += remoteOpenOpaque.c_str();
-       int ret = -1;
-       FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
-                                                mOfsFile, mSecEntity);
-
-       //.......................................................................
-       // Set the correct open flags for the stripe
-       //.......................................................................
-       if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)))
-       {
-         mIsRw = true;
-         eos_debug( "Write case with flags:%x.", flags);
-       }
-       else
-       {
-         mode = 0;
-         eos_debug("Read case with flags=%x.", flags);
-       }
-
-
-       //........................................................................
-       // Doing the actual open
-       //........................................................................
-       ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
-
-       if (ret == SFS_ERROR)
-       {
-         eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
-	 mLastErrMsg = file->GetLastErrMsg();
-         delete file;
-         file = NULL;
-       }
-       else
-       {
-         mLastUrl = file->GetLastUrl();
-       }
-
-       mStripeFiles.push_back(file);
-       mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-
-       //......................................................................
-       // Read header information for remote files
-       //......................................................................
-       hd = mHdrInfo.back();
-       file = mStripeFiles.back();
-       
-       if (file && !hd->ReadFromFile(file, mTimeout))
-       {
-         eos_warning("reading header failed for remote stripe phyid=%i",
-                     mStripeFiles.size() - 1);
-       }
+       eos_err("error=number of files opened is different from the one expected");
+       errno = EIO;
+       return SFS_ERROR;
      }
-   }
 
-   //..........................................................................
-   // Consistency checks
-   //..........................................................................
-   if (mStripeFiles.size() != mNbTotalFiles)
-   {
-     eos_err("error=number of files opened is different from the one expected");
-     errno = EIO;
-     return SFS_ERROR;
-   }
-
-   //..........................................................................
-   // Only the head node does the validation of the headers
-   //..........................................................................
-   if (!ValidateHeader())
-   {
-     eos_err("error=headers invalid - can not continue");
-     errno = EIO;
-     return SFS_ERROR;
+     //..........................................................................
+     // Only the head node does the validation of the headers
+     //..........................................................................
+     if (!ValidateHeader())
+     {
+       eos_err("error=headers invalid - can not continue");
+       errno = EIO;
+       return SFS_ERROR;
+     }
    }
  }
 
