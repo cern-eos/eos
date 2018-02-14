@@ -69,14 +69,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IContainerMD():
-    mIsDeleted(false)
-  {
-    // mSubcontainers.set_deleted_key("");
-    // mFiles.set_deleted_key("");
-    // mSubcontainers.set_empty_key("##_EMPTY_##");
-    // mFiles.set_empty_key("##_EMPTY_##");
-  }
+  IContainerMD(): mIsDeleted(false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -324,27 +317,18 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() = 0;
-  // {
-  //   return mSubcontainers.end();
-  // }
 
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() = 0;
-  // {
-  //   return mFiles.begin();
-  // }
 
   //----------------------------------------------------------------------------
   //! Get iterator to the end of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() = 0;
-  // {
-  //   return mFiles.end();
-  // }
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
@@ -359,7 +343,10 @@ public:
   //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
   //----------------------------------------------------------------------------
-  virtual uint64_t getClock() const = 0;
+  virtual uint64_t getClock() const
+  {
+    return 0;
+  }
 
   //----------------------------------------------------------------------------
   //! Get env representation of the container object
