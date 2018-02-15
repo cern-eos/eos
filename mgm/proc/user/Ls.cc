@@ -35,9 +35,21 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Ls()
 {
+  std::ostringstream oss;
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
   eos::common::Path cPath(spath.c_str());
+
+  // Check for globbing, we support a maximum depth of 255
+  if (cPath.GetSubPathSize() > eos::common::Path::MAX_LEVELS) {
+    eos_err("msg=\"path has more than %u levels", eos::common::Path::MAX_LEVELS);
+    oss << "error: path has more than " << eos::common::Path::MAX_LEVELS
+        << " levels";
+    stdErr = oss.str().c_str();
+    retc = E2BIG;
+    return SFS_OK;
+  }
+
   const char* inpath = cPath.GetPath();
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
