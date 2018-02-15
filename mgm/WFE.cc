@@ -23,20 +23,16 @@
 
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "common/Mapping.hh"
-#include "common/RWMutex.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
 #include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
-#include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -135,7 +131,7 @@ WFE::WFEr()
   do {
     XrdSysThread::SetCancelOff();
     {
-      XrdSysMutexHelper(gOFS->InitializationMutex);
+      XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
       if (gOFS->Initialized == gOFS->kBooted) {
         go = true;
@@ -405,13 +401,12 @@ WFE::WFEr()
 }
 
 /*----------------------------------------------------------------------------*/
-int
-/*----------------------------------------------------------------------------*/
 /**
  * @brief store a workflow jobs in the workflow queue
  * @return SFS_OK if success
  */
 /*----------------------------------------------------------------------------*/
+int
 WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
 {
   if (mActions.size() != 1) {
@@ -1407,7 +1402,7 @@ WFE::Job::DoIt(bool issync)
             std::string bashcmd = EOS_WFE_BASH_PREFIX + executable + " " + execargs.c_str();
 
             if (!format_error) {
-              eos::common::ShellCmd cmd(bashcmd.c_str());
+              eos::common::ShellCmd cmd(bashcmd);
               storetime = (time_t) mActions[0].mTime;
               Move(mActions[0].mQueue, "r", storetime, mRetry);
               eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
@@ -1461,7 +1456,7 @@ WFE::Job::DoIt(bool issync)
                     fmd = gOFS->eosFileService->getFileMD(mFid);
                     base64 = value.c_str();
                     eos::common::SymKey::DeBase64(base64, unbase64);
-                    fmd->setAttribute(key.c_str(), unbase64.c_str());
+                    fmd->setAttribute(key, unbase64.c_str());
                     fmd->setMTimeNow();
                     gOFS->eosView->updateFileStore(fmd.get());
                     errno = 0;
@@ -1558,10 +1553,10 @@ WFE::Job::DoIt(bool issync)
                   eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
                   try {
-                    fmd = gOFS->eosView->getFile(mWorkflowPath.c_str());
+                    fmd = gOFS->eosView->getFile(mWorkflowPath);
                     base64 = value.c_str();
                     eos::common::SymKey::DeBase64(base64, unbase64);
-                    fmd->setAttribute(key.c_str(), unbase64.c_str());
+                    fmd->setAttribute(key, unbase64.c_str());
                     fmd->setMTimeNow();
                     gOFS->eosView->updateFileStore(fmd.get());
                     errno = 0;
