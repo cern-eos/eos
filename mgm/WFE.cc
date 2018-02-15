@@ -27,6 +27,7 @@
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
 #include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
