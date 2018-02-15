@@ -441,9 +441,14 @@ private:
   //! Load FileMap
   //----------------------------------------------------------------------------
   void waitOnFileMap() {
+    std::lock_guard<std::mutex> lock(mFilesMtx);
     if(!pFilesLoaded) {
-      mFiles = std::move(mFilesFuture.get());
+      // Attention, there's a trap here: pFilesLoaded must be set to true
+      // before getting the future - if the future throws, we don't want
+      // to call .get() on it again later.
+
       pFilesLoaded = true;
+      mFiles = mFilesFuture.get();
     }
   }
 
@@ -451,9 +456,14 @@ private:
   //! Load ContainerMap
   //----------------------------------------------------------------------------
   void waitOnContainerMap() {
+    std::lock_guard<std::mutex> lock(mSubcontainersMtx);
     if(!pSubContainersLoaded) {
-      mSubcontainers = std::move(mSubcontainersFuture.get());
+      // Attention, there's a trap here: pSubContainersLoaded must be set to true
+      // before getting the future - if the future throws, we don't want
+      // to call .get() on it again later.
+
       pSubContainersLoaded = true;
+      mSubcontainers = mSubcontainersFuture.get();
     }
   }
 
@@ -470,6 +480,9 @@ private:
 
   std::future<ContainerMap> mSubcontainersFuture;
   std::future<FileMap> mFilesFuture;
+
+  std::mutex mSubcontainersMtx;
+  std::mutex mFilesMtx;
 
   bool pSubContainersLoaded = true;
   bool pFilesLoaded = true;

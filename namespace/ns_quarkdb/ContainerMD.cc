@@ -706,6 +706,9 @@ ContainerMD::serialize(Buffer& buffer)
 void
 ContainerMD::loadChildren()
 {
+  std::lock_guard<std::mutex> lock(mFilesMtx);
+  std::lock_guard<std::mutex> lock2(mSubcontainersMtx);
+
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pFilesMap.setKey(pFilesKey);
