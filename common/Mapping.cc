@@ -1146,7 +1146,9 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     XrdOucString sname = name;
     bool use_pw = true;
 
-    if (sname.length() == 8) {
+    if ((sname.length() == 8) &&
+        (vid.prot.c_str()) &&
+        (!vid.prot.beginswith("http"))) {
       // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
       unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
       char rhexid[16];
