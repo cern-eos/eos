@@ -1146,26 +1146,8 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     XrdOucString sname = name;
     bool use_pw = true;
 
-    if ((sname.length() == 8) &&
-        (vid.prot.c_str()) &&
-        (!vid.prot.beginswith("http"))) {
-      // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
-      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
-      char rhexid[16];
+    if (sname.length() == 8) {
       bool known_tident = false;
-      snprintf(rhexid, sizeof(rhexid) - 1, "%08llx", hexid);
-      eos_static_debug("hexname=%s hexid=%llu name=%s", rhexid, hexid, name);
-
-      if (sname == rhexid) {
-        known_tident = true;
-        // that is a hex id
-        XrdOucString suid = sname;
-        suid.erase(4);
-        XrdOucString sgid = sname;
-        sgid.erase(0, 4);
-        id = new id_pair(strtol(suid.c_str(), 0, 16), strtol(sgid.c_str(), 0, 16));
-        eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
-      }
 
       if (sname.beginswith("*")) {
         known_tident = true;
