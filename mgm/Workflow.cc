@@ -106,7 +106,7 @@ Workflow::getCGICloseW(std::string workflow)
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
 
-  if (mAttr && (*mAttr).count(key.c_str())) {
+  if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }
@@ -121,7 +121,7 @@ Workflow::getCGICloseR(std::string workflow)
   std::string cgi;
   std::string key = "sys.workflow.closer." + workflow;
 
-  if (mAttr && (*mAttr).count(key.c_str())) {
+  if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }
@@ -145,7 +145,6 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
   time_t t = time(nullptr);
 
   if (job.IsSync(mEvent)) {
-
     job.AddAction(mAction, mEvent, t, mWorkflow, "s");
     retc = job.Save("s", t);
   } else {

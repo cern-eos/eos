@@ -227,6 +227,10 @@ public:
     eos::common::Mapping::VirtualIdentity mVid;
     std::string mWorkflowPath;
     int mRetry;///! number of retries
+
+  private:
+    void MoveToRetry(std::shared_ptr<eos::IContainerMD>& ccmd);
+    void MoveWithResults(int rcode);
   };
 
   XrdSysCondVar* GetSignal()

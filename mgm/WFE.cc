@@ -599,7 +599,7 @@ WFE::Job::Move(std::string from_queue, std::string to_queue, time_t& when,
                int retry)
 /*----------------------------------------------------------------------------*/
 /**
- * @brief move workflow jobs between qeueus
+ * @brief move workflow jobs between queues
  * @return SFS_OK if success
  */
 /*----------------------------------------------------------------------------*/
@@ -1602,6 +1602,10 @@ WFE::Job::DoIt(bool issync)
                       (args, ' ');
         auto hostPort = params[0];
         auto endPoint = std::string{"/"} + params[1];
+
+        storetime = (time_t) mActions[0].mTime;
+        Move(mActions[0].mQueue, "r", storetime, mRetry);
+
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullPath;
@@ -1610,26 +1614,22 @@ WFE::Job::DoIt(bool issync)
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
-
-            if (fmd == nullptr) {
-              return ENOENT;
-            }
-
             fullPath = gOFS->eosView->getUri(fmd.get());
             cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
           } catch (eos::MDException& e) {
             eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
                            e.getMessage().str().c_str());
-            return e.getErrno();
+            MoveWithResults(ENOENT);
+            return ENOENT;
           }
         }
         auto eventUpperCase = event;
         std::transform(eventUpperCase.begin(), eventUpperCase.end(),
                        eventUpperCase.begin(),
-        [](unsigned char c) {
-          return std::toupper(c);
-        }
-                      );
+                       [](unsigned char c) {
+                         return std::toupper(c);
+                       }
+        );
         eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(),
                         hostPort.c_str());
         cta::xrd::Request request;
@@ -1673,6 +1673,7 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
+
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
@@ -1693,10 +1694,12 @@ WFE::Job::DoIt(bool issync)
             if (onDisk) {
               eos_static_info("File %s is already on disk, nothing to prepare.",
                               fullPath.c_str());
+              MoveWithResults(SFS_OK);
               return SFS_OK;
             } else if (!onTape) {
               eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
                              fullPath.c_str());
+              MoveWithResults(EINVAL);
               return EINVAL;
             } else {
               collectAttributes();
@@ -1778,6 +1781,7 @@ WFE::Job::DoIt(bool issync)
             eos::common::Mapping::VirtualIdentity root_vid;
             eos::common::Mapping::Root(root_vid);
 
+            bool dropFailed = false;
             for (auto location : fmd->getLocations()) {
               if (location != tapeFsid) {
                 errInfo.clear();
@@ -1786,6 +1790,7 @@ WFE::Job::DoIt(bool issync)
                                       true) != 0) {
                   eos_static_err("Could not delete file replica %s on filesystem %u. Reason: %s",
                                  fullPath.c_str(), location, errInfo.getErrText());
+                  dropFailed = true;
                 }
               }
             }
@@ -1795,8 +1800,14 @@ WFE::Job::DoIt(bool issync)
               fmd->addLocation(tapeFsid);
               gOFS->eosView->updateFileStore(fmd.get());
             }
+
+            if (dropFailed) {
+              MoveToRetry(cmd);
+              return EAGAIN;
+            }
           }
 
+          MoveWithResults(SFS_OK);
           return SFS_OK;
         }
 
@@ -1833,12 +1844,13 @@ WFE::Job::DoIt(bool issync)
         } catch (std::runtime_error& error) {
           eos_static_err("Could not send request to outside service. Reason: %s",
                          error.what());
+          MoveWithResults(SFS_ERROR);
           return SFS_ERROR;
         }
 
         switch (response.type()) {
         case cta::xrd::Response::RSP_SUCCESS: {
-          retc = 0;
+          retc = SFS_OK;
           eos_static_debug("Response received from outside service:\n%s",
                            response.DebugString().c_str());
           // Set all attributes for file from response
@@ -1884,6 +1896,8 @@ WFE::Job::DoIt(bool issync)
           retc = EINVAL;
           eos_static_err("Response:\n%s", response.DebugString().c_str());
         }
+
+        MoveWithResults(retc);
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
@@ -1911,6 +1925,45 @@ WFE::Job::DoIt(bool issync)
   }
 
   return retc;
+}
+
+void
+WFE::Job::MoveToRetry(std::shared_ptr<eos::IContainerMD>& ccmd) {
+  int retry = 0, delay = 0;
+  try {
+    std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." +
+                            mActions[0].mWorkflow + ".retry.max";
+    std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." +
+                            mActions[0].mWorkflow + ".retry.delay";
+    eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
+    retry = std::stoi(ccmd->getAttribute(retryattr));
+    delay = std::stoi(ccmd->getAttribute(delayattr));
+  } catch (eos::MDException& e) {
+    MoveWithResults(SFS_ERROR);
+  }
+
+  if (!IsSync() && (mRetry < retry)) {
+    time_t storetime = (time_t) mActions[0].mTime + delay;
+    // can retry
+    Move("r", "e", storetime, ++mRetry);
+    Results("e", EAGAIN , "scheduled for retry", storetime);
+  }
+  else {
+    MoveWithResults(SFS_ERROR);
+  }
+}
+
+void
+WFE::Job::MoveWithResults(int rcode) {
+  time_t storetime = 0;
+  if (rcode == 0) {
+    Move("r", "d", storetime);
+    Results("d", rcode , "moved to done", storetime);
+  }
+  else {
+    Move("r", "f", storetime);
+    Results("f", rcode , "moved to failed", storetime);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
