@@ -249,8 +249,8 @@ com_space(char* arg1)
     in += "&mgm.space=";
     in += spacename;
     ok = true;
-    std::string contents =
-      eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace");
+    std::string contents = eos::common::StringConversion::StringFromShellCmd
+                           ("cat /var/eos/md/stacktrace 2> /dev/null");
   }
 
   if (subcommand == "node-set") {
