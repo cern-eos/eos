@@ -22,7 +22,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-case $1 in
+case ${1#/} in
   -h|--help|-?)
       echo "mount.eos is a private mount(8) wrapper for EOS."
       echo "Don't use it directly!"
@@ -45,14 +45,14 @@ if [ $restricted -eq 1 ]; then
   exit -1;
 fi
 
-if [ -z "$1" ]; then
+if [ -z "${1#/}" ]; then
     echo "error: please provide the name of your FUSE mount !"
     exit -1;
 fi
 
 [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
 
-[ -f /etc/sysconfig/eos.$1 ] && . /etc/sysconfig/eos.$1
+[ -f /etc/sysconfig/eos.${1#/} ] && . /etc/sysconfig/eos.${1#/}
 
 if [ -n "$2" ]; then
     export EOS_FUSE_MOUNTDIR=$2
@@ -90,7 +90,7 @@ export EOS_FUSE_SHOW_SPECIAL_FILES=${EOS_FUSE_SHOW_SPECIAL_FILES-0}
 export EOS_FUSE_SHOW_EOS_ATTRIBUTES=${EOS_FUSE_SHOW_EOS_ATTRIBUTES-0}
 export EOS_FUSE_INLINE_REPAIR=${EOS_FUSE_INLINE_REPAIR-1}
 export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=${EOS_FUSE_MAX_INLINE_REPAIR_SIZE-268435456}
-export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$1}
+export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-${1#/}}
 export EOS_FUSE_ENTRY_CACHE_TIME=${EOS_FUSE_ENTRY_CACHE_TIME-2}
 export EOS_FUSE_ATTR_CACHE_TIME=${EOS_FUSE_ATTR_CACHE_TIME-2}
 export EOS_FUSE_NEG_ENTRY_CACHE_TIME=${EOS_FUSE_NEG_ENTRY_CACHE_TIME-30}
@@ -172,4 +172,4 @@ echo "EOS_FUSE_LOG_PREFIX              : ${EOS_FUSE_LOG_PREFIX}"
 echo "EOS_FUSE_MOUNTDIR                : ${EOS_FUSE_MOUNTDIR}"
 echo "EOS_FUSE_REMOTEDIR               : ${EOS_FUSE_REMOTEDIR}"
 
-${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$1,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR} >& /dev/null 
+${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos${1#/},allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR} >& /dev/null 
