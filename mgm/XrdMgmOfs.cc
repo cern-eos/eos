@@ -42,7 +42,6 @@
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
@@ -64,7 +63,16 @@
 #include "namespace/interface/IFsView.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #ifdef __APPLE__
@@ -155,7 +163,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0), auth_tid(0),
   mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
-  MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr.get()),
+  MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr),
   commentLog(0),
   FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
