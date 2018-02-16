@@ -154,44 +154,47 @@ XrdMgmOfs::InitializeFileView()
         std::shared_ptr<eos::IFileMD> fmd;
 
         try {
-          fmd = eosView->getFile(procpathwhoami.c_str());
           fmd.reset();
+          fmd = eosView->getFile(procpathwhoami.c_str());
         } catch (eos::MDException& e) {
           fmd = eosView->createFile(procpathwhoami.c_str(), 0, 0);
         }
 
         if (fmd) {
           fmd->setSize(4096);
+          fmd->setAttribute("sys.proc", "mgm.cmd=whoami&mgm.format=fuse");
           eosView->updateFileStore(fmd.get());
         }
 
         try {
-          fmd = eosView->getFile(procpathwho.c_str());
           fmd.reset();
+          fmd = eosView->getFile(procpathwho.c_str());
         } catch (eos::MDException& e) {
           fmd = eosView->createFile(procpathwho.c_str(), 0, 0);
         }
 
         if (fmd) {
           fmd->setSize(4096);
+          fmd->setAttribute("sys.proc", "mgm.cmd=who&mgm.format=fuse");
           eosView->updateFileStore(fmd.get());
         }
 
         try {
-          fmd = eosView->getFile(procpathquota.c_str());
           fmd.reset();
+          fmd = eosView->getFile(procpathquota.c_str());
         } catch (eos::MDException& e) {
           fmd = eosView->createFile(procpathquota.c_str(), 0, 0);
         }
 
         if (fmd) {
           fmd->setSize(4096);
+          fmd->setAttribute("sys.proc", "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse");
           eosView->updateFileStore(fmd.get());
         }
 
         try {
-          fmd = eosView->getFile(procpathreconnect.c_str());
           fmd.reset();
+          fmd = eosView->getFile(procpathreconnect.c_str());
         } catch (eos::MDException& e) {
           fmd = eosView->createFile(procpathreconnect.c_str(), 0, 0);
         }
@@ -202,8 +205,8 @@ XrdMgmOfs::InitializeFileView()
         }
 
         try {
-          fmd = eosView->getFile(procpathmaster.c_str());
           fmd.reset();
+          fmd = eosView->getFile(procpathmaster.c_str());
         } catch (eos::MDException& e) {
           fmd = eosView->createFile(procpathmaster.c_str(), 0, 0);
         }
