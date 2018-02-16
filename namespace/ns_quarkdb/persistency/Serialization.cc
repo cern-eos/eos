@@ -91,10 +91,13 @@ Serialization::deserializeNoThrow(const Buffer& buffer, eos::ns::ContainerMdProt
 
 MDStatus
 Serialization::deserializeNoThrow(const Buffer& buffer, int64_t &ret) {
+  // Ensure there's a terminating null byte for strtoll.. :(
+  std::string str(buffer.getDataPtr(), buffer.getSize());
+
   char *endptr = NULL;
-  ret = strtoll(buffer.getDataPtr(), &endptr, 10);
-  if(endptr != buffer.getDataPtr() + buffer.getSize() || ret == LLONG_MIN || ret == LONG_LONG_MAX) {
-    return MDStatus(EFAULT, SSTR("Unable to deserialize into int64_t: " << std::string(buffer.getDataPtr(), buffer.getSize())));
+  ret = strtoll(str.c_str(), &endptr, 10);
+  if(endptr != str.c_str() + str.size() || ret == LLONG_MIN || ret == LONG_LONG_MAX) {
+    return MDStatus(EFAULT, SSTR("Unable to deserialize into int64_t (size = " << str.size() << "): '" << str << "'"));
   }
   return {};
 }

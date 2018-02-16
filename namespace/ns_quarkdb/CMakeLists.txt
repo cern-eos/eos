@@ -29,7 +29,8 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
- ${XROOTD_INCLUDE_DIR})
+ ${XROOTD_INCLUDE_DIR}
+)
 
 
 if(BUILD_TESTS)

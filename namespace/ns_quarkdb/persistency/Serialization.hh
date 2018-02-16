@@ -64,8 +64,6 @@ public:
     eos::Buffer ebuff;
     ebuff.putData(str, len);
 
-    eos::ns::FileMdProto proto;
-
     // Dispatch to appropriate overload
     return Serialization::deserializeNoThrow(ebuff, output);
   }
