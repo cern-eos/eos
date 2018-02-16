@@ -25,8 +25,6 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "common/Timing.hh"
-#include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/SymKeys.hh"
@@ -44,6 +42,7 @@
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
@@ -65,21 +64,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucBuffer.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSfs/XrdSfsAio.hh"
-#include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <memory>
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #ifdef __APPLE__
@@ -172,10 +157,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr.get()),
   commentLog(0),
-  FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr.get()),
-  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr.get()),
-  LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr.get()),
-  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr.get()),
+  FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
+  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
+  LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
+  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
