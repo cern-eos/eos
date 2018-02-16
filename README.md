@@ -15,7 +15,7 @@ protocol, a **POSIX-like FUSE** client or **HTTP(S) & WebDav** protocol.
 ## Documentation
 
 The most up to date documentation can be found at:
-http://eos.readthedocs.org/en/latest/
+http://eos-docs.web.cern.ch/eos-docs/
 
 
 **Doxygent** documentaion of the API is available in the ``./doc`` directory
