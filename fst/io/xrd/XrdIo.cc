@@ -31,6 +31,7 @@
 #include "common/Logging.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClBuffer.hh"
+#include "XrdCl/XrdClConstants.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 // Linux compat for Apple
@@ -173,7 +174,6 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
                 uint16_t timeout)
 {
   const char* val = 0;
-  std::string request;
   std::string lOpaque;
   XrdOucEnv open_opaque(mOpaque.c_str());
 
@@ -193,17 +193,9 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
     }
   }
 
-  request = mFilePath;
-
-  if (opaque.length()) {
-    if ((mFilePath.find("?")) == std::string::npos) {
-      request += "?";
-    } else {
-      request += "&";
-    }
-
-    request += opaque;
-  }
+  // Final path + opaque info used in the open
+  std::string request;
+  ProcessOpaqueInfo(opaque, request);
 
   if (mXrdFile) {
     delete mXrdFile;
@@ -1678,6 +1670,45 @@ XrdIo::DumpConnectionPool()
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Process opaque info
+//------------------------------------------------------------------------------
+void
+XrdIo::ProcessOpaqueInfo(const std::string& opaque, std::string& out) const
+{
+  using namespace std::chrono;
+  // Add extra capability expiration time based on the XRD_STREAMTIMEOUT value
+  uint64_t xrdcl_streamtimeout = XrdCl::DefaultStreamTimeout;
+  std::string env_val;
+
+  if (XrdCl::DefaultEnv::GetEnv()->GetString("StreamTimeout", env_val)) {
+    try {
+      xrdcl_streamtimeout = std::stoull(env_val);
+    } catch (...) {}
+  }
+
+  auto now = system_clock::now();
+  auto valid_sec = time_point_cast<seconds>(now).time_since_epoch().count()
+                   + xrdcl_streamtimeout - 1;
+  std::ostringstream oss;
+  oss << mFilePath;
+
+  // This could already contain opaque info
+  if (mFilePath.find('?') == std::string::npos) {
+    oss << '?';
+  } else {
+    oss << '&';
+  }
+
+  oss << "fst.valid=" << valid_sec;
+
+  if (opaque.length()) {
+    oss << '&' << opaque;
+  }
+
+  out = oss.str();
 }
 
 EOSFSTNAMESPACE_END

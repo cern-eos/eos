@@ -627,6 +627,14 @@ private:
                                  std::vector<std::string>* directories);
 
   //----------------------------------------------------------------------------
+  //! Process opaque info
+  //!
+  //! @param opaque input opaque information
+  //! @param out output containing the path with any additional opaque info
+  //----------------------------------------------------------------------------
+  void ProcessOpaqueInfo(const std::string& opaque, std::string& out) const;
+
+  //----------------------------------------------------------------------------
   //! Disable copy constructor
   //----------------------------------------------------------------------------
   XrdIo(const XrdIo&) = delete;

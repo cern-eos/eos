@@ -570,6 +570,15 @@ private:
   //----------------------------------------------------------------------------
   TpcState_t GetTpcState();
 
+  //----------------------------------------------------------------------------
+  //! Check fst validity to avoid any open replays
+  //!
+  //! @param env_opaque env opaque infomtation
+  //!
+  //! @return true if valid, otherwise false
+  //----------------------------------------------------------------------------
+  bool CheckFstValidity(XrdOucEnv& env_opaque) const;
+
 #ifdef IN_TEST_HARNESS
 public:
 #endif

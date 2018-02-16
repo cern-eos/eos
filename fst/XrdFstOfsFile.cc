@@ -22,7 +22,6 @@
  ************************************************************************/
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
@@ -40,6 +39,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include <math.h>
 #include <fst/io/FileIoPluginCommon.hh>
+#include <chrono>
 
 extern XrdOssSys* XrdOfsOss;
 
@@ -252,6 +252,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // the distinction between an open for write and open for recovery
   store_recovery = false;
   XrdOucEnv tmpOpaque(stringOpaque.c_str());
+
+  if (!CheckFstValidity(tmpOpaque)) {
+    eos_err("msg=\"fst validity expired, avoid open replay\"");
+    return gOFS.Emsg(epname, error, EINVAL, "open - fst validity expired",
+                     Path.c_str());
+  }
 
   if ((val = tmpOpaque.Get("fst.store"))) {
     if (strncmp(val, "1", 1) == 0) {
@@ -1554,7 +1560,8 @@ XrdFstOfsFile::close()
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
 
-    if ((viaDelete || writeDelete || remoteDelete) && ((isCreation || IsChunkedUpload()) && (!mFusex))) {
+    if ((viaDelete || writeDelete || remoteDelete) && ((isCreation ||
+        IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the constructor e.g. no proper close
       // or the specified checksum does not match the computed one
       if (viaDelete) {
@@ -1999,7 +2006,8 @@ XrdFstOfsFile::close()
       }
     }
 
-    if ( deleteOnClose && (isInjection || isCreation || IsChunkedUpload()) && (!mFusex)) {
+    if (deleteOnClose && (isInjection || isCreation || IsChunkedUpload()) &&
+        (!mFusex)) {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
       int retc = gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(),
@@ -3041,6 +3049,33 @@ std::string
 XrdFstOfsFile::GetFmdChecksum()
 {
   return fMd->mProtoFmd.checksum();
+}
+
+//------------------------------------------------------------------------------
+// Check fst validity to avoid any open replays
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::CheckFstValidity(XrdOucEnv& env_opaque) const
+{
+  using namespace std::chrono;
+  char* val;
+
+  if ((val = env_opaque.Get("fst.valid"))) {
+    try {
+      std::string sval = val;
+      int64_t valid_sec = std::stoll(sval);
+      auto now = system_clock::now();
+      auto now_sec = time_point_cast<seconds>(now).time_since_epoch().count();
+
+      if (valid_sec < now_sec) {
+        return false;
+      }
+    } catch (...) {
+      // ignore
+    }
+  }
+
+  return true;
 }
 
 EOSFSTNAMESPACE_END
