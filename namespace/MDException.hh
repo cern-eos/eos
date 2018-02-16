@@ -124,9 +124,7 @@ namespace eos
   public:
     MDStatus() : localerrno(0) {}
 
-    MDStatus(int localerrn, const std::string &error)
-    : localerrno(localerrn), err(error) { }
-
+    MDStatus(int localerrn, const std::string &error);
     bool ok() const { return err.empty(); }
     std::string getError() const { return err; }
     int getErrno() const { return localerrno; }

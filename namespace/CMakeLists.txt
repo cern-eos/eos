@@ -24,11 +24,12 @@
 #-------------------------------------------------------------------------------
 # EosNsCommon-Sources library
 #-------------------------------------------------------------------------------
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR} ${XROOTD_INCLUDE_DIR})
 
 add_library(
   EosNsCommon-Objects OBJECT
 
+  MDException.cc
   MDException.hh
   Constants.cc
 
