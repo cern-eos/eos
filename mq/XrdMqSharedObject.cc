@@ -2653,26 +2653,31 @@ void
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 {
   out = "";
-  XrdMqRWMutexReadLock lock(HashMutex);
+  {
+    XrdMqRWMutexReadLock lock(HashMutex);
 
-  for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
-    out += "===================================================\n";
-    out += it->first.c_str();
-    out += " [ hash=>  ";
-    out += it->second->GetBroadCastQueue();
-    out += " ]\n";
-    out += "---------------------------------------------------\n";
-    it->second->Dump(out);
+    for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
+      out += "===================================================\n";
+      out += it->first.c_str();
+      out += " [ hash=>  ";
+      out += it->second->GetBroadCastQueue();
+      out += " ]\n";
+      out += "---------------------------------------------------\n";
+      it->second->Dump(out);
+    }
   }
+  {
+    XrdMqRWMutexReadLock lock(ListMutex);
 
-  for (auto it = mQueueSubjects.begin(); it != mQueueSubjects.end(); ++it) {
-    out += "===================================================\n";
-    out += it->first.c_str();
-    out += " [ queue=> ";
-    out += it->second.GetBroadCastQueue();
-    out += " ]\n";
-    out += "---------------------------------------------------\n";
-    it->second.Dump(out);
+    for (auto it = mQueueSubjects.begin(); it != mQueueSubjects.end(); ++it) {
+      out += "===================================================\n";
+      out += it->first.c_str();
+      out += " [ queue=> ";
+      out += it->second.GetBroadCastQueue();
+      out += " ]\n";
+      out += "---------------------------------------------------\n";
+      it->second.Dump(out);
+    }
   }
 }
 
