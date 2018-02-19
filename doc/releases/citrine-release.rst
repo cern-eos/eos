@@ -32,6 +32,7 @@ Bug
 * [EOS-2335] - Crash around XrdOucString::insert
 * [EOS-2339] - "eos" shell crash around "eos_console_completion","eos_entry_generator"
 * [EOS-2340] - "eos" crash around "AclHelper::CheckId"
+* [EOS-2337] - autofs-ed fuse mounts not working for mountpoint names with matched entries under "/"
 
 Task
 ++++
