@@ -1736,9 +1736,19 @@ WFE::Job::DoIt(bool issync)
                            errInfo.getErrText());
             return EAGAIN;
           }
-        }
-        else if (event == "sync::openw" || event == "sync::create") { // for the moment, they do the same thing
+        } else if (event == "sync::openw") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
+          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+          notification->mutable_file()->set_lpath(fullPath);
+          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+          notification->mutable_file()->mutable_owner()->set_username(user_name);
+          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
+          notification->mutable_file()->set_fid(mFid);
+
+          collectAttributes();
+        } else if (event == "sync::create") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
