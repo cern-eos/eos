@@ -145,44 +145,47 @@ char* eos_entry_generator(const char* text, int state, bool only_dirs)
     sprintf(buffer, "%s", comarg.c_str());
     com_ls((char*) buffer);
     silent = oldsilent;
-    XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
 
-    do {
-      subtokenizer.GetLine();
-      XrdOucString entry = subtokenizer.GetToken();
+    if (rstdout.c_str()) {
+      XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
 
-      if (entry.length()) {
-        if (entry.endswith('\n')) {
-          entry.erase(entry.length() - 1);
-        }
+      do {
+        subtokenizer.GetLine();
+        XrdOucString entry = subtokenizer.GetToken();
 
-        if (only_dirs && !entry.endswith('/')) {
-          continue;
-        }
-
-        if (rl_completion_type == 63) { // ? - list possible completions
-          // When lising completions we need to return the basename of the
-          // candidates
-          if (basename.empty() ||
-              ((strncmp(basename.c_str(), entry.c_str(), basename.length()) == 0) &&
-               // Exclude exact matches
-               (basename.length() < (size_t)entry.length()))) {
-            entries.push_back(entry.c_str());
+        if (entry.length()) {
+          if (entry.endswith('\n')) {
+            entry.erase(entry.length() - 1);
           }
-        } else if (rl_completion_type == 9) { // TAB - do standard completion
-          // When doing the standard completion we need to return the full path
-          // as given by the user initially (i.e. not including the pwd deduction).
-          if (basename.empty() ||
-              (strncmp(basename.c_str(), entry.c_str(), basename.length()) == 0)) {
-            std::string add_path = dirname;
-            add_path += entry.c_str();
-            entries.push_back(add_path.c_str());
+
+          if (only_dirs && !entry.endswith('/')) {
+            continue;
           }
+
+          if (rl_completion_type == 63) { // ? - list possible completions
+            // When lising completions we need to return the basename of the
+            // candidates
+            if (basename.empty() ||
+                ((strncmp(basename.c_str(), entry.c_str(), basename.length()) == 0) &&
+                 // Exclude exact matches
+                 (basename.length() < (size_t)entry.length()))) {
+              entries.push_back(entry.c_str());
+            }
+          } else if (rl_completion_type == 9) { // TAB - do standard completion
+            // When doing the standard completion we need to return the full path
+            // as given by the user initially (i.e. not including the pwd deduction).
+            if (basename.empty() ||
+                (strncmp(basename.c_str(), entry.c_str(), basename.length()) == 0)) {
+              std::string add_path = dirname;
+              add_path += entry.c_str();
+              entries.push_back(add_path.c_str());
+            }
+          }
+        } else {
+          break;
         }
-      } else {
-        break;
-      }
-    } while (1);
+      } while (1);
+    }
   }
 
   if (index < entries.size()) {
