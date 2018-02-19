@@ -2375,8 +2375,28 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
+  bool shouldWF = openOpaque->Get("eos.noworkflow") != nullptr
+                  ? true : !(std::string{openOpaque->Get("eos.noworkflow")} == std::string{"1"});
+
+  // Also trigger synchronous create workflow event if it's defined
+  if(shouldWF && isCreation) {
+    errno = 0;
+    int ret_wfe = 0;
+    workflow.SetFile(path, fileId);
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    if ((ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid) < 0) && errno == ENOKEY) {
+      eos_info("msg=\"no workflow defined for sync::create\"");
+    } else {
+      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+      if (ret_wfe != 0) {
+        // Error from the workflow
+        rcode = SFS_ERROR;
+      }
+    }
+  }
+
   // Also trigger synchronous open-write workflow event if it's defined
-  if(isRW) {
+  if(shouldWF && isRW) {
     errno = 0;
     int ret_wfe = 0;
     workflow.SetFile(path, fileId);

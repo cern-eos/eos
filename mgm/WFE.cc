@@ -1728,7 +1728,7 @@ WFE::Job::DoIt(bool issync)
               destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
                          << std::string{buffer};
               destStream <<
-                         "&eos.ruid=0&eos.rgid=0&eos.injection=1";
+                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.noworkflow=1";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
           } else {
@@ -1737,7 +1737,7 @@ WFE::Job::DoIt(bool issync)
             return EAGAIN;
           }
         }
-        else if (event == "sync::openw") {
+        else if (event == "sync::openw" || event == "sync::create") { // for the moment, they do the same thing
           notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
@@ -1823,6 +1823,11 @@ WFE::Job::DoIt(bool issync)
           MoveWithResults(SFS_OK);
           return SFS_OK;
         }
+        else {
+          eos_static_err("Unknown event %s for proto workflow", event.c_str());
+          MoveWithResults(SFS_ERROR);
+          return SFS_ERROR;
+        }
 
         static XrdCl::Env* xrootEnv = nullptr;
         xrootEnv = xrootEnv == nullptr ? XrdCl::DefaultEnv::GetEnv() : xrootEnv;
@@ -1846,7 +1851,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to outside service:\n%s",
+        eos_static_info("Request sent to outside service:\n%s",
                          notification->DebugString().c_str());
         XrdSsiPbServiceType service(hostPort, endPoint);
         cta::xrd::Response response;
