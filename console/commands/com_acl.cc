@@ -124,13 +124,14 @@ AclHelper::CheckId(const std::string& id)
   static const std::string allowed_chars =
     "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
 
-  if ((id.at(0) == 'u' && id.at(1) == ':') ||
-      (id.at(0) == 'g' && id.at(1) == ':')) {
-    return id.find_first_not_of(allowed_chars, 2) == std::string::npos;
+  if ((id.length() > 2) &&
+      ((id.at(0) == 'u' && id.at(1) == ':') ||
+       (id.at(0) == 'g' && id.at(1) == ':'))) {
+    return (id.find_first_not_of(allowed_chars, 2) == std::string::npos);
   }
 
-  if (id.find("egroup") == 0 && id.at(6) == ':') {
-    return id.find_first_not_of(allowed_chars, 7) == std::string::npos;
+  if ((id.find("egroup") == 0) && (id.length() > 7) && (id.at(6) == ':')) {
+    return (id.find_first_not_of(allowed_chars, 7) == std::string::npos);
   }
 
   return false;
