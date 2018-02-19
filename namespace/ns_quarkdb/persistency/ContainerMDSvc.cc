@@ -192,18 +192,16 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   }
 
   // If not in cache, then get it from the KV backend
-  std::shared_ptr<ContainerMD> retval = std::make_shared<ContainerMD>(
-    0, pFileSvc, this
-  );
-
-  retval->initialize(MetadataFetcher::getContainerFromId(*pQcl, id).get());
-  eos_assert(retval->getId() == id);
+  cont = std::make_shared<ContainerMD>(0, pFileSvc, this);
+  std::static_pointer_cast<ContainerMD>(cont)->initialize
+  (MetadataFetcher::getContainerFromId(*pQcl, id).get());
+  eos_assert(cont->getId() == id);
 
   if (clock) {
     *clock = cont->getClock();
   }
 
-  return mContainerCache.put(retval->getId(), retval);
+  return mContainerCache.put(cont->getId(), cont);
 }
 
 //----------------------------------------------------------------------------
