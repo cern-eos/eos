@@ -21,13 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#include <cinttypes>
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SecEntity.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
@@ -35,11 +34,7 @@
 #include "fst/storage/FileSystem.hh"
 #include "authz/XrdCapability.hh"
 #include "XrdOss/XrdOssApi.hh"
-#include "XrdOuc/XrdOucIOVec.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
-#include <math.h>
-#include <fst/io/FileIoPluginCommon.hh>
-#include <chrono>
+#include "fst/io/FileIoPluginCommon.hh"
 
 extern XrdOssSys* XrdOfsOss;
 
