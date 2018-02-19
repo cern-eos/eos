@@ -216,7 +216,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so
 # Namespace on Quarkdb requires at least CC7
-%if 0%{distribution} > 6
+%if 0%{distribution} >= 6
 %{_libdir}/libEosNsQuarkdb.so
 %{_libdir}/libEosNsQuarkdb-Shared.so
 %endif
