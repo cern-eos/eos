@@ -16,6 +16,7 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
    ============== ==================================================================================================
    Event          Description
    ============== ==================================================================================================
+   sync::create   event is triggered at the MGM when a file is being created (synchronous event)
    sync::openw    event is triggered at the MGM when a 'file open for write' (synchronous event)
    open           event is triggered at the MGM when a 'file open'
                   - if the return of an open call is ENONET a workflow defined stall time is returned 
