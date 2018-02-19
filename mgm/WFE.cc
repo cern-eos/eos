@@ -1728,7 +1728,7 @@ WFE::Job::DoIt(bool issync)
               destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
                          << std::string{buffer};
               destStream <<
-                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=CTA_retrieve";
+                         "&eos.ruid=0&eos.rgid=0&eos.injection=1";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
           } else {
