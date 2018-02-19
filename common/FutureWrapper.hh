@@ -108,6 +108,7 @@ public:
 private:
   void ensureHasArrived() {
     if(arrived) return;
+    arrived = true;
 
     try {
       obj = fut.get();
@@ -121,7 +122,7 @@ private:
   std::future<T> fut;
   T obj;
 
-  bool arrived;
+  bool arrived = false;
   std::exception_ptr exception;
 };
 
