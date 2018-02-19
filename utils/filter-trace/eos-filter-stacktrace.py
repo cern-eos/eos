@@ -143,6 +143,11 @@ class QClientFilter:
             self.eliminations += 1
             return True
 
+        if ("pthread_cond_timedwait" in thread.getFrame(0) and
+            ExclusionFilter("qclient::CallbackExecutorThread::main").check(thread) ):
+            self.eliminations += 1
+            return True
+
         return False
 
 class XrdSleeperFilter:
