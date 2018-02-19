@@ -1728,7 +1728,7 @@ WFE::Job::DoIt(bool issync)
               destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
                          << std::string{buffer};
               destStream <<
-                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.noworkflow=1";
+                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
           } else {
@@ -1780,7 +1780,7 @@ WFE::Job::DoIt(bool issync)
           reportStream << "eosQuery://" << gOFS->HostName <<
                        "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
           reportStream <<
-                       "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                       "&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
           collectAttributes();
         } else if (event == "archived") {
@@ -1851,7 +1851,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_info("Request sent to outside service:\n%s",
+        eos_static_debug("Request sent to outside service:\n%s",
                          notification->DebugString().c_str());
         XrdSsiPbServiceType service(hostPort, endPoint);
         cta::xrd::Response response;

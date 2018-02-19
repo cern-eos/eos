@@ -42,6 +42,15 @@ Workflow::Trigger(std::string event, std::string workflow,
                   workflow.c_str());
   errno = 0;
 
+  if (workflow == "none" && vid.sudoer) {
+    eos_static_info("\"none\" workflow has been called by sudoer, we are ignoring the event");
+    return 0;
+  }
+
+  if (workflow != "default" && !vid.sudoer) {
+    workflow = "default";
+  }
+
   if ((event == "open")) {
     std::string key = "sys.workflow.";
     key += event;
