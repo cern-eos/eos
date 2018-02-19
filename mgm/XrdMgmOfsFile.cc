@@ -2375,7 +2375,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  bool shouldWF = openOpaque->Get("eos.noworkflow") != nullptr
+  bool shouldWF = openOpaque->Get("eos.noworkflow") == nullptr
                   ? true : !(std::string{openOpaque->Get("eos.noworkflow")} == std::string{"1"});
 
   // Also trigger synchronous create workflow event if it's defined
