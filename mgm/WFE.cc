@@ -1780,7 +1780,7 @@ WFE::Job::DoIt(bool issync)
           reportStream << "eosQuery://" << gOFS->HostName <<
                        "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
           reportStream <<
-                       "&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                       "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
           collectAttributes();
         } else if (event == "archived") {
