@@ -490,12 +490,12 @@ private:
   // thread terminates, this location is still valid. This flag is triggered by
   // the class management and indicates to each thread to reset some thread
   // specific stuff.
-  static __thread bool* orderCheckReset_staticthread;
+  static thread_local bool* orderCheckReset_staticthread;
   // Map containing the previously referenced flag for reset
   static std::map<pthread_t, bool>* threadOrderCheckResetFlags_static;
   // Each unsigned long is used as 64 bit flags to trace the lock status of
   // mutexes for a given rule
-  static __thread unsigned long ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
+  static thread_local unsigned long ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
   // A mutex can be associated to up to EOS_RWMUTEX_ORDER_NRULES and the
   // following array gives the locking rank for "this" RWMutex
   unsigned char rankinrule[EOS_RWMUTEX_ORDER_NRULES];

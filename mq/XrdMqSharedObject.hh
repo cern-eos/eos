@@ -943,7 +943,7 @@ public:
     return tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded);
   }
 
-  static __thread Subscriber* tlSubscriber;
+  static thread_local Subscriber* tlSubscriber;
   void SetShareObjectManager(XrdMqSharedObjectManager* som)
   {
     SOM = som;

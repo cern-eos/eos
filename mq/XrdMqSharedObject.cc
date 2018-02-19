@@ -39,7 +39,7 @@ std::atomic<unsigned long long> XrdMqSharedHash::sSetCounter {0};
 std::atomic<unsigned long long> XrdMqSharedHash::sSetNLCounter = {0};
 std::atomic<unsigned long long> XrdMqSharedHash::sGetCounter = {0};
 
-__thread XrdMqSharedObjectChangeNotifier::Subscriber*
+thread_local XrdMqSharedObjectChangeNotifier::Subscriber*
 XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
 
 //------------------------------------------------------------------------------

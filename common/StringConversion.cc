@@ -869,7 +869,7 @@ void StringConversion::tlInitThreadKey()
   pthread_key_create(&sPthreadKey, StringConversion::tlCurlFree);
 }
 
-__thread CURL* StringConversion::curl = NULL;
+thread_local CURL* StringConversion::curl = NULL;
 pthread_key_t  StringConversion::sPthreadKey;
 pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
 

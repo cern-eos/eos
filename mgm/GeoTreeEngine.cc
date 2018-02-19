@@ -46,9 +46,9 @@ GeoTreeEngine gGeoTreeEngine;
 // of all the sizes otherwise
 const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) +
     FastPlacementTree::sGetMaxDataMemSize();
-__thread void* GeoTreeEngine::tlGeoBuffer = NULL;
+thread_local void* GeoTreeEngine::tlGeoBuffer = NULL;
 pthread_key_t GeoTreeEngine::gPthreadKey;
-__thread const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
+thread_local const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
 const int GeoTreeEngine::sfgId = 1;
 const int GeoTreeEngine::sfgHost = 1 << 1;

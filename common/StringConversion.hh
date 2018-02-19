@@ -714,7 +714,7 @@ private:
   //! Lookup Table for Hex Ascii Conversion
   static char pAscii2HexLkup[256];
   static char pHex2AsciiLkup[16];
-  static __thread CURL* curl;
+  static thread_local CURL* curl;
   //! Thread-local storage management
   static pthread_key_t sPthreadKey;
   static pthread_once_t sTlInit;

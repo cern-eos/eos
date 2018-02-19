@@ -48,8 +48,8 @@ bool RWMutex::sEnableGlobalOrderCheck = false;
 RWMutex::rules_t* RWMutex::rules_static = NULL;
 std::map<unsigned char, std::string>* RWMutex::ruleIndex2Name_static = NULL;
 std::map<std::string, unsigned char>* RWMutex::ruleName2Index_static = NULL;
-__thread bool* RWMutex::orderCheckReset_staticthread = NULL;
-__thread unsigned long
+thread_local bool* RWMutex::orderCheckReset_staticthread = NULL;
+thread_local unsigned long
 RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
 std::map<pthread_t, bool>* RWMutex::threadOrderCheckResetFlags_static = NULL;
 pthread_rwlock_t RWMutex::orderChkMgmLock;

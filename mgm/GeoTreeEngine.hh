@@ -1158,10 +1158,10 @@ protected:
   // => thread local data
   //
   /// Thread local buffer to hold a working copy of a fast structure
-  static __thread void* tlGeoBuffer;
+  static thread_local void* tlGeoBuffer;
   static pthread_key_t gPthreadKey;
   /// Current scheduling group for the current thread
-  static __thread const FsGroup* tlCurrentGroup;
+  static thread_local const FsGroup* tlCurrentGroup;
   //
   // => penalties system
   //

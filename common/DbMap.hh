@@ -298,9 +298,9 @@ protected:
   {
     // this function is thread-safe
     // each thread has its own static variables and update them when needed
-    static __thread char timestr[64];
-    static __thread time_t prevtime = 0;
-    static __thread size_t offset;
+    static thread_local char timestr[64];
+    static thread_local time_t prevtime = 0;
+    static thread_local size_t offset;
     time_t time;
     size_t order;
     now(&time, &order);
