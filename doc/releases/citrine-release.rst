@@ -16,6 +16,47 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.2.13 Citrine``
+===================
+
+2018-02-19
+
+Bug
+++++
+
+* [EOS-2057] - Wrong conversion between IEC and Metric multiples
+* [EOS-2299] - WFE can't be switched off
+* [EOS-2309] - Possible memleak in FuseServer::Caps::BroadcastReleaseFromExternal
+* [EOS-2310] - eosadmin wrapper no longer sends role
+* [EOS-2330] - Usernames with 8 characters are wrongly mapped
+* [EOS-2335] - Crash around XrdOucString::insert
+* [EOS-2339] - "eos" shell crash around "eos_console_completion","eos_entry_generator"
+* [EOS-2340] - "eos" crash around "AclHelper::CheckId"
+
+Task
+++++
+
+* [EOS-2329] - protect MGM against memory exhaustion caused by a globbing ls
+
+Improvement
++++++++++++
+
+* [EOS-2321] - Quota report TiB vs. TB
+* [EOS-2323] - citrine mgm crash
+* [EOS-2336] - Default smart files in the proc filesystem
+
+Configuration Change
+++++++++++++++++++++
+
+* [EOS-2279] - eosfusebind error message at login
+
+Incident
+++++++++
+
+* [EOS-2298] - EOS MGM memory leak
+
+
+
 ``v4.2.12 Citrine``
 ===================
 
