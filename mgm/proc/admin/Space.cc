@@ -89,7 +89,7 @@ ProcCommand::Space()
           snprintf(line, sizeof(line) - 1, fmtstr, keylist[i].c_str(),
                    eos::common::StringConversion::GetReadableSizeString(sizestring,
                        strtoull(FsView::gFsView.mSpaceView[space]->GetConfigMember(
-                                  keylist[i].c_str()).c_str(), 0, 10), "B"));
+                                  keylist[i]).c_str(), 0, 10), "B"));
         } else {
           snprintf(line, sizeof(line) - 1, fmtstr, keylist[i].c_str(),
                    FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str());
