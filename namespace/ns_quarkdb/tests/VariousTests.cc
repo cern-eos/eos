@@ -89,6 +89,12 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir1").get());
   ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir2").get());
   ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir3").get());
+
+  IContainerMD::ContainerMap containerMap = eos::MetadataFetcher::getSubContainers(qcl(), subdir1->getId()).get();
+  IContainerMD::FileMap fileMap = eos::MetadataFetcher::getSubContainers(qcl(), subdir1->getId()).get();
+
+  ASSERT_TRUE(containerMap.empty());
+  ASSERT_TRUE(fileMap.empty());
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
@@ -130,16 +136,68 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ExplorationOptions options;
   options.depthLimit = 999;
 
+  // Empty path
   ASSERT_THROW(eos::NamespaceExplorer("", options, qcl()), eos::MDException);
-  NamespaceExplorer explorer("/eos/d1/", options, qcl());
 
-  SearchState& searchState = explorer.getSearchState();
-  ASSERT_EQ(searchState.nodes.size(), 3);
-  ASSERT_EQ(searchState.nodes[0].container.id(), 1);
-  ASSERT_EQ(searchState.nodes[1].container.id(), 2);
-  ASSERT_EQ(searchState.nodes[2].container.id(), 3);
+  // Invalid path
+  ASSERT_THROW(eos::NamespaceExplorer("/eos/invalid/path", options, qcl()), eos::MDException);
 
-  // NamespaceItem item;
-  // ASSERT_TRUE(explorer.fetch(item));
-  // ASSERT_EQ(item.fileMd.name(), "f1");
+  // Find on single file - weird, but possible
+  NamespaceExplorer explorer("/eos/d2/d3-2/my-file", options, qcl());
+
+  NamespaceItem item;
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/my-file");
+  ASSERT_FALSE(explorer.fetch(item));
+
+  // Find on directory
+  NamespaceExplorer explorer2("/eos/d2", options, qcl());
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/");
+
+  for(size_t i = 1; i <= 3; i++) {
+    ASSERT_TRUE(explorer2.fetch(item));
+    ASSERT_TRUE(item.isFile);
+    ASSERT_EQ(item.fullPath, SSTR("/eos/d2/asdf" << i));
+  }
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/b");
+
+  for(size_t i = 1; i <= 6; i++) {
+    ASSERT_TRUE(explorer2.fetch(item));
+    ASSERT_TRUE(item.isFile);
+    ASSERT_EQ(item.fullPath, SSTR("/eos/d2/zzzzz" << i));
+  }
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-1/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/my-file");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d4/");
+
+  std::stringstream path;
+  path << "/eos/d2/d4/";
+  for(size_t i = 1; i <= 7; i++) {
+    path << i << "/";
+    ASSERT_TRUE(explorer2.fetch(item));
+    ASSERT_FALSE(item.isFile);
+    ASSERT_EQ(item.fullPath, path.str());
+  }
+
+  ASSERT_FALSE(explorer2.fetch(item));
+  ASSERT_FALSE(explorer2.fetch(item));
+  ASSERT_FALSE(explorer2.fetch(item));
 }

@@ -161,6 +161,8 @@ std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
 }
 
 void NsTestsFixture::populateDummyData1() {
+  // Be careful when making changes! Lots of tests depend on this structure,
+  // you should probably create a new dummy dataset.
   view()->createContainer("/eos/d1/d2/d3/d4/d5/d6/d7/d8/", true);
   view()->createContainer("/eos/d1/d2-1/", true);
   view()->createContainer("/eos/d1/d2-2/", true);
@@ -176,6 +178,18 @@ void NsTestsFixture::populateDummyData1() {
   view()->createFile("/eos/d1/f3", true);
   view()->createFile("/eos/d1/f4", true);
   view()->createFile("/eos/d1/f5", true);
+  view()->createFile("/eos/d2/d3-2/my-file", true);
+  view()->createContainer("/eos/d2/d4/1/2/3/4/5/6/7/", true);
+  view()->createFile("/eos/d2/asdf1", true);
+  view()->createFile("/eos/d2/asdf2", true);
+  view()->createFile("/eos/d2/asdf3", true);
+  view()->createFile("/eos/d2/b", true);
+  view()->createFile("/eos/d2/zzzzz1", true);
+  view()->createFile("/eos/d2/zzzzz2", true);
+  view()->createFile("/eos/d2/zzzzz3", true);
+  view()->createFile("/eos/d2/zzzzz4", true);
+  view()->createFile("/eos/d2/zzzzz5", true);
+  view()->createFile("/eos/d2/zzzzz6", true);
   mdFlusher()->synchronize();
 }
 

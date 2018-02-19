@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include "common/FutureWrapper.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "proto/FileMd.pb.h"
@@ -43,32 +44,72 @@ struct NamespaceItem {
   // A simple string for now, we can extend this later.
   std::string fullPath;
 
+  bool isFile;
   // Only one of these are actually filled out.
   eos::ns::FileMdProto fileMd;
   eos::ns::ContainerMdProto containerMd;
 };
 
-// Represents a node in the search tree, including any unexplored children.
-struct SearchNode {
-  eos::ns::ContainerMdProto container;
-  std::queue<id_t> unexploredChildContainers;
+// Represents a node in the search tree.
+class SearchNode {
+public:
+  SearchNode(qclient::QClient &qcl, id_t id, SearchNode *prnt);
+  id_t getID() const;
+
+  // Return false if this node has no more files to output
+  bool fetchChild(eos::ns::FileMdProto &output); // sync, block if not available
+
+  // Handle asynchronous operations - call this as often as possible!
+  void handleAsync();
+
+  // Explicit transfer of ownership
+  std::unique_ptr<SearchNode> expand();
+
+  // Activate
+  void activate();
+
+  // Activate one specific contained child.
+  void activateOne(const std::string &name);
+
+  // Clear children.
+  void prefetchChildren();
+
+  bool isVisited();
+  void visit();
+
+  eos::ns::ContainerMdProto& getContainerInfo();
+
+private:
+  qclient::QClient &qcl;
+  id_t id;
+  SearchNode *parent = nullptr;
+  bool visited = false;
+
+  // First round of asynchronous requests fills out:
+  common::FutureWrapper<eos::ns::ContainerMdProto> containerMd;
+  common::FutureWrapper<IContainerMD::FileMap> fileMap;
+  common::FutureWrapper<IContainerMD::ContainerMap> containerMap;
+
+  // Second and final round fills out:
+  std::deque<std::future<eos::ns::FileMdProto>> pendingFileMds;
+  bool pendingFileMdsLoaded = false;
+
+  std::deque<std::unique_ptr<SearchNode>> children; // expanded containers
+  bool childrenLoaded = false;
+
+  // TODO: Replace this mess with a nice iterator object which provides all
+  // children of a container, fully asynchronous with prefetching.
+
+  void stageFileMds();
+  void stageChildren();
 };
-
-struct SearchState {
-  std::vector<SearchNode> nodes;
-  IContainerMD::FileMap pendingFileIds;
-
-  std::queue<std::future<eos::ns::FileMdProto>> filesToGive;
-  std::queue<std::future<eos::ns::ContainerMdProto>> containersToGive;
-};
-
 
 //------------------------------------------------------------------------------
 //! Class to recursively explore the QuarkDB namespace, starting from some path.
 //! Useful for "Find" commands - no consistency guarantees, if a write is in
 //! the flusher, it might not be seen here.
 //!
-//! This implementation is super slow right now, and synchronous! Simple DFS.
+//! Implemented by simple DFS on the namespace.
 //------------------------------------------------------------------------------
 class NamespaceExplorer {
 public:
@@ -83,21 +124,20 @@ public:
   //----------------------------------------------------------------------------
   bool fetch(NamespaceItem &result);
 
-  //----------------------------------------------------------------------------
-  //! Get current search state.
-  //----------------------------------------------------------------------------
-  SearchState& getSearchState() {
-    return state;
-  }
-
 private:
-  void populatePendingItems(id_t container);
+  std::string buildStaticPath();
+  std::string buildDfsPath();
 
   std::string path;
   ExplorationOptions options;
   qclient::QClient &qcl;
 
-  SearchState state;
+  std::vector<eos::ns::ContainerMdProto> staticPath;
+  eos::ns::FileMdProto lastChunk;
+  bool searchOnFile = false;
+  bool searchOnFileEnded = false;
+
+  std::vector<std::unique_ptr<SearchNode>> dfsPath;
 };
 
 EOSNSNAMESPACE_END
