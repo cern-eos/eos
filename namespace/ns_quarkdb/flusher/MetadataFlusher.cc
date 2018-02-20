@@ -74,7 +74,8 @@ MetadataFlusher::~MetadataFlusher()
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
-    eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64  " acknowledged=%" PRId64,
+    eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64
+                    " acknowledged=%" PRId64,
                     id.c_str(),
                     backgroundFlusher.size(),
                     backgroundFlusher.getEnqueuedAndClear(),
@@ -157,19 +158,22 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
     targetIndex = backgroundFlusher.getEndingIndex() - 1;
   }
 
-  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"waiting until "
+  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64
+                  " msg=\"waiting until "
                   "queue item %" PRId64 " has been acknowledged..\"",
                   backgroundFlusher.getStartingIndex(),
                   backgroundFlusher.getEndingIndex(), targetIndex);
 
   while (!backgroundFlusher.waitForIndex(targetIndex, std::chrono::seconds(1))) {
-    eos_static_warning("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"queue item "
+    eos_static_warning("starting-index=%" PRId64 " ending-index=%" PRId64
+                       " msg=\"queue item "
                        "%" PRId64 " has not been acknowledged yet..\"",
                        backgroundFlusher.getStartingIndex(),
                        backgroundFlusher.getEndingIndex(), targetIndex);
   }
 
-  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64 " msg=\"queue item %" PRId64
+  eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64
+                  " msg=\"queue item %" PRId64
                   "has been acknowledged\"", backgroundFlusher.getStartingIndex(),
                   backgroundFlusher.getEndingIndex(), targetIndex);
 }
@@ -222,8 +226,8 @@ MetadataFlusherFactory::getInstance(const std::string& id,
 //------------------------------------------------------------------------------
 // Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
-FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher_):
-  flusher(flusher_) {}
+FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher):
+  mFlusher(flusher) {}
 
 //------------------------------------------------------------------------------
 // Record network events

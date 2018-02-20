@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -33,19 +33,19 @@
 
 EOSNSNAMESPACE_BEGIN
 
+class MetadataFlusher;
+
 //------------------------------------------------------------------------------
 //! Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
-class MetadataFlusher;
 class FlusherNotifier : public qclient::Notifier
 {
 public:
   FlusherNotifier(MetadataFlusher& flusher);
-
   virtual void eventNetworkIssue(const std::string& err) override;
   virtual void eventUnexpectedResponse(const std::string& err) override;
 private:
-  MetadataFlusher& flusher;
+  MetadataFlusher& mFlusher;
 };
 
 //------------------------------------------------------------------------------
@@ -74,7 +74,8 @@ public:
   //! Methods to stage redis commands for background flushing.
   //----------------------------------------------------------------------------
   template<typename... Args>
-  void exec(const Args... args) {
+  void exec(const Args... args)
+  {
     backgroundFlusher.pushRequest(std::vector<std::string> {args...});
   }
 

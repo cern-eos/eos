@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,112 +21,124 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_COMMON_FUTURE_WRAPPER_HH
-#define EOS_COMMON_FUTURE_WRAPPER_HH
-
+#pragma once
 #include "common/Namespace.hh"
 #include <future>
 
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Wrap a future and its result, allows to transparently use the object without
-// worrying if it has arrived yet. If it hasn't, we block.
-//
-// A lot of times when dealing with std::future, we have to keep track a future
-// object, and the object itself, and whether the future has arrived, so as to
-// avoid caling get() twice...
-//
-// This class takes care of all that transparently.
-//
-// Requires T to have default constructor.
-// If the future arrives armed with an exception, it is re-thrown __every__ time
-// this wrapper is accessed for reading the object! Not just the first one.
+//! Wrap a future and its result, allows to transparently use the object without
+//! worrying if it has arrived yet. If it hasn't, we block.
+//!
+//! A lot of times when dealing with std::future, we have to keep track a future
+//! object, and the object itself, and whether the future has arrived, so as to
+//! avoid caling get() twice...
+//!
+//! This class takes care of all that transparently.
+//!
+//! Requires T to have default constructor.
+//! If the future arrives armed with an exception, it is re-thrown __every__ time
+//! this wrapper is accessed for reading the object! Not just the first one.
 //------------------------------------------------------------------------------
-
 template<typename T>
-class FutureWrapper {
+class FutureWrapper
+{
 public:
 
   //----------------------------------------------------------------------------
-  // Empty constructor
+  //! Empty constructor
   //----------------------------------------------------------------------------
   FutureWrapper() {}
 
   //----------------------------------------------------------------------------
-  // Constructor, takes an existing future object.
+  //! Constructor, takes an existing future object
+  //!
+  //! @param future object to take ownership
   //----------------------------------------------------------------------------
-  FutureWrapper(std::future<T>&& future) : fut(std::move(future)) {}
+  FutureWrapper(std::future<T>&& future) : mFut(std::move(future)) {}
 
   //----------------------------------------------------------------------------
-  // Constructor, takes a promise.
+  //! Constructor, takes a promise
+  //!
+  //! @param promise promise used to get a future
   //----------------------------------------------------------------------------
-  FutureWrapper(std::promise<T> &promise) : fut(promise.get_future()) {}
+  FutureWrapper(std::promise<T>& promise) : mFut(promise.get_future()) {}
 
   //----------------------------------------------------------------------------
-  // Check if accessing the object might block. Exception safe - if the
-  // underlying future is hiding an exception, we don't throw here, but during
-  // first actual access.
+  //! Check if accessing the object might block. Exception safe - if the
+  //! underlying future is hiding an exception, we don't throw here, but during
+  //! first actual access.
   //----------------------------------------------------------------------------
-  bool ready() {
-    if(arrived) return true;
-    return fut.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+  bool ready()
+  {
+    if (mArrived) {
+      return true;
+    }
+
+    return mFut.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
   }
 
   //----------------------------------------------------------------------------
-  // Get a reference to the object itself. Unlike std::future::get, we only
-  // return a reference, not a copy of the object, and you can call this
-  // function as many times as you like.
-  //
-  // Beware of exceptions! They will be propagated from the underlying future.
+  //! Get a reference to the object itself. Unlike std::future::get, we only
+  //! return a reference, not a copy of the object, and you can call this
+  //! function as many times as you like.
+  //!
+  //! @note Beware of exceptions! They will be propagated from the underlying
+  //! future
   //----------------------------------------------------------------------------
-
-  T& get() {
+  T& get()
+  {
     ensureHasArrived();
 
-    if(exception) {
-      throw exception;
+    if (mException) {
+      throw mException;
     }
 
-    return obj;
+    return mObj;
   }
 
   //----------------------------------------------------------------------------
-  // Convenience function, use -> to access members of the underlying object.
-  // Beware of exceptions! They will be propagated from the underlying future.
+  //! Convenience function, use -> to access members of the underlying object
+  //!
+  //! @note  Beware of exceptions! They will be propagated from the underlying
+  //! future.
   //----------------------------------------------------------------------------
-  T* operator->() {
+  T* operator->()
+  {
     ensureHasArrived();
 
-    if(exception) {
-      throw exception;
+    if (mException) {
+      throw mException;
     }
 
-    return &obj;
+    return &mObj;
   }
 
 private:
-  void ensureHasArrived() {
-    if(arrived) return;
-    arrived = true;
+
+  //----------------------------------------------------------------------------
+  //! Method that waits for the underlying future to return
+  //----------------------------------------------------------------------------
+  void ensureHasArrived()
+  {
+    if (mArrived) {
+      return;
+    }
+
+    mArrived = true;
 
     try {
-      obj = fut.get();
-    }
-    catch(...) {
-      exception = std::current_exception();
+      mObj = mFut.get();
+    } catch (...) {
+      mException = std::current_exception();
     }
   }
 
-
-  std::future<T> fut;
-  T obj;
-
-  bool arrived = false;
-  std::exception_ptr exception;
+  std::future<T> mFut;
+  bool mArrived = false;
+  std::exception_ptr mException;
+  T mObj;
 };
 
-
 EOSCOMMONNAMESPACE_END
-
-#endif
