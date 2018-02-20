@@ -1006,6 +1006,21 @@ FsSpace::FsSpace(const char* name)
     if (GetConfigMember("lru.interval") == "604800") {
       SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
     }
+
+    // Set the wfe off by default
+    if (GetConfigMember("wfe") == "") {
+      SetConfigMember("wfe", "off", true, "/eos/*/mgm");
+    }
+
+    // Set the wfe interval by default
+    if (GetConfigMember("wfe.interval") == "") {
+      SetConfigMember("wfe.interval", "10", true, "/eos/*/mgm");
+    }
+
+    // Set the wfe ntx by default
+    if (GetConfigMember("wfe.ntx") == "") {
+      SetConfigMember("wfe.ntx", "1", true, "/eos/*/mgm");
+    }
   }
 
 #endif

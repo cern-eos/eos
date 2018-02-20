@@ -29,9 +29,7 @@
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include <fcntl.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -40,9 +38,9 @@ ProcCommand::Space()
 {
   if (mSubCmd == "ls") {
     {
-      std::string output = "";
-      std::string format = "";
-      std::string mListFormat = "";
+      std::string output;
+      std::string format;
+      std::string mListFormat;
       format = FsView::GetSpaceFormat(std::string(mOutFormat.c_str()));
 
       if ((mOutFormat == "l")) {
@@ -92,7 +90,7 @@ ProcCommand::Space()
                                   keylist[i]).c_str(), 0, 10), "B"));
         } else {
           snprintf(line, sizeof(line) - 1, fmtstr, keylist[i].c_str(),
-                   FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str());
+                   FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i]).c_str());
         }
 
         stdOut += line;
@@ -299,7 +297,7 @@ ProcCommand::Space()
           retc = EINVAL;
         } else {
           {
-            std::string val = "";
+            std::string val;
             bool identical = true;
             // loop over all nodes
             std::map<std::string, FsNode*>::const_iterator it;
@@ -337,7 +335,7 @@ ProcCommand::Space()
     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space")
                             : "";
     XrdOucString option = pOpaque->Get("mgm.option");
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
 
     if ((!option.length()) || (option == "drain")) {
       if (FsView::gFsView.mSpaceView.count(spacename)) {
@@ -363,7 +361,7 @@ ProcCommand::Space()
     }
 
     if ((option == "nsfilemap")) {
-      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      auto* eos_chlog_filesvc =
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc) {
@@ -376,7 +374,7 @@ ProcCommand::Space()
     }
 
     if ((option == "nsdirectorymap")) {
-      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      auto* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
       if (eos_chlog_dirsvc) {
@@ -391,9 +389,9 @@ ProcCommand::Space()
     if ((option == "ns")) {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
-      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      auto* eos_chlog_filesvc =
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      auto* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
       if (eos_chlog_filesvc && eos_chlog_dirsvc) {
@@ -505,7 +503,7 @@ ProcCommand::Space()
         retc = EINVAL;
       } else {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        FileSystem* fs = 0;
+        FileSystem* fs = nullptr;
         // by host:port name
         std::string path = identifier;
 
