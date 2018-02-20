@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/Config.hh"
+#include "fst/Fmd.hh"
 #include "common/Logging.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
