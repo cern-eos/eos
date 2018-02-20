@@ -25,13 +25,12 @@
 #ifndef __EOS_FST_FILEIOPLUGIN_HH__
 #define __EOS_FST_FILEIOPLUGIN_HH__
 
-#include "fst/io/xrd/XrdIo.hh"
-#include "fst/io/rados/RadosIo.hh"
-#include "common/LayoutId.hh"
+#include "fst/Namespace.hh"
+#include <string>
+
+class XrdSecEntity;
 
 EOSFSTNAMESPACE_BEGIN
-
-using eos::common::LayoutId;
 
 //! Forward declaration
 class XrdFstOfsFile;

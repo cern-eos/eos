@@ -26,6 +26,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/kinetic/KineticIo.hh"
 #include "fst/storage/FileSystem.hh"
+#include "common/SymKeys.hh"
 
 /*----------------------------------------------------------------------------*/
 

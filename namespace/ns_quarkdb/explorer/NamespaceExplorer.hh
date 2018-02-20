@@ -25,16 +25,18 @@
 
 #include "common/FutureWrapper.hh"
 #include "namespace/Namespace.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "proto/FileMd.pb.h"
+#include "proto/ContainerMd.pb.h"
+#include "namespace/interface/IContainerMD.hh"
 #include <string>
 #include <vector>
+#include <deque>
+
+namespace qclient {
+  class QClient;
+}
 
 EOSNSNAMESPACE_BEGIN
-
-class ContainerMDSvc;
-class FileMDSvc;
-class HierarchicalView;
 
 struct ExplorationOptions {
   int depthLimit;

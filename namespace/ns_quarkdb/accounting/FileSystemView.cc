@@ -17,6 +17,7 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "common/StringTokenizer.hh"

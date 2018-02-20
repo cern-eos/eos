@@ -23,13 +23,15 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include "qclient/QClient.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/Namespace.hh"
+#include "proto/FileMd.pb.h"
+#include "proto/ContainerMd.pb.h"
+#include <future>
 
-using redisReplyPtr = qclient::redisReplyPtr;
+namespace qclient {
+  class QClient;
+}
 
 EOSNSNAMESPACE_BEGIN
 

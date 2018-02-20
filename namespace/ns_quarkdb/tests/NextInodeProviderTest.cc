@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "TestUtils.hh"
+#include "qclient/QHash.hh"
 #include "Namespace.hh"
 #include <gtest/gtest.h>
 #include <vector>

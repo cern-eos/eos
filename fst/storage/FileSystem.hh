@@ -27,9 +27,12 @@
 #include "fst/Namespace.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
+#include "fst/storage/FileSystem.hh"
+#include "fst/io/FileIo.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
+#include "common/FileId.hh"
 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -48,6 +51,7 @@ EOSFSTNAMESPACE_BEGIN
 
 class TransferQueue;
 class ScanDir;
+class Load;
 
 /*----------------------------------------------------------------------------*/
 class FileSystem : public eos::common::FileSystem, eos::common::LogId

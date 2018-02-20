@@ -25,6 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/ScanDir.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/FmdDbMap.hh"
 
 #ifdef __APPLE__
 #define O_DIRECT 0

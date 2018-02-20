@@ -28,6 +28,7 @@
 #include "common/Timing.hh"
 #include "fst/layout/RaidMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
+#include "fst/layout/HeaderCRC.hh"
 
 // Linux compat for Apple
 #ifdef __APPLE__

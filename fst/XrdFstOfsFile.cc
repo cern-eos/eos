@@ -26,6 +26,7 @@
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SecEntity.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/Layout.hh"

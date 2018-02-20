@@ -35,11 +35,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/protobuf/message.h>
-#include <openssl/rsa.h>
-#include <openssl/x509.h>
-#include <openssl/engine.h>
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
+#include <openssl/sha.h>
 #include <time.h>
 #include <string.h>
 #define EOSCOMMONSYMKEYS_GRACEPERIOD 5
@@ -190,20 +186,7 @@ public:
   //! @param invalidity unix time stamp when the key becomes invalid
   //!
   //----------------------------------------------------------------------------
-  SymKey(const char* inkey, time_t invalidity)
-  {
-    key64 = "";
-    memcpy(key, inkey, SHA_DIGEST_LENGTH);
-    SymKey::Base64Encode(key, SHA_DIGEST_LENGTH, key64);
-    validity = invalidity;
-    SHA_CTX sha1;
-    SHA1_Init(&sha1);
-    SHA1_Update(&sha1, (const char*) inkey, SHA_DIGEST_LENGTH);
-    SHA1_Final((unsigned char*) keydigest, &sha1);
-    XrdOucString skeydigest64 = "";
-    Base64Encode(keydigest, SHA_DIGEST_LENGTH, skeydigest64);
-    strncpy(keydigest64, skeydigest64.c_str(), (SHA_DIGEST_LENGTH * 2) - 1);
-  }
+  SymKey(const char* inkey, time_t invalidity);
 
   //----------------------------------------------------------------------------
   //! Destructor

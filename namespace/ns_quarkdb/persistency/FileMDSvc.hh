@@ -27,6 +27,8 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
+#include "qclient/QHash.hh"
+#include "qclient/QSet.hh"
 
 EOSNSNAMESPACE_BEGIN
 

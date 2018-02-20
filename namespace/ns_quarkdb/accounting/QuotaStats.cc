@@ -24,7 +24,9 @@
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "qclient/QScanner.hh"
+#include "qclient/QHash.hh"
 #include "common/StringTokenizer.hh"
 
 EOSNSNAMESPACE_BEGIN

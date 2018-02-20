@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "fst/Namespace.hh"
+#include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

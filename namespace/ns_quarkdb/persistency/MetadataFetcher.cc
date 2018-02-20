@@ -25,9 +25,12 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "qclient/QClient.hh"
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
+
+using redisReplyPtr = qclient::redisReplyPtr;
 
 EOSNSNAMESPACE_BEGIN
 

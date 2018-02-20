@@ -28,6 +28,7 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/Load.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -87,4 +88,3 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
 }
 
 EOSFSTNAMESPACE_END
-

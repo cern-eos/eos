@@ -28,6 +28,10 @@
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
+namespace qclient {
+  class QClient;
+}
+
 namespace eos {
   class IContainerMDSvc;
   class IFileMDSvc;

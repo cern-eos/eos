@@ -178,13 +178,13 @@ public:
   GetSizeFromString(const char* sizestring);
 
   static unsigned long long
-  GetSizeFromString(XrdOucString sizestring)
+  GetSizeFromString(const XrdOucString &sizestring)
   {
     return GetSizeFromString(sizestring.c_str());
   }
 
   static unsigned long long
-  GetSizeFromString(std::string sizestring)
+  GetSizeFromString(const std::string &sizestring)
   {
     return GetSizeFromString(sizestring.c_str());
   }

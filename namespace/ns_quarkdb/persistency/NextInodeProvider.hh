@@ -22,10 +22,12 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_quarkdb/LRU.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/Namespace.hh"
 #include <mutex>
+
+namespace qclient {
+  class QHash;
+}
 
 EOSNSNAMESPACE_BEGIN
 

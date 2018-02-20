@@ -33,6 +33,7 @@ EOSFSTNAMESPACE_BEGIN
 
 //! Forward declaration
 class PlainLayout;
+class AsyncIoOpenHandler;
 
 //------------------------------------------------------------------------------
 //! Class used for handling asynchronous open responses for this layout

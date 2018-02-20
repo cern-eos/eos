@@ -26,6 +26,7 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "fst/io/xrd/XrdIo.hh"
 
 /*----------------------------------------------------------------------------*/
 

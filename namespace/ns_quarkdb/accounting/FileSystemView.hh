@@ -27,11 +27,14 @@
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "qclient/QClient.hh"
+#include "qclient/QSet.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN
+
+class MetadataFlusher;
 
 //------------------------------------------------------------------------------
 //! File System iterator implementation on top of QuarkDB.

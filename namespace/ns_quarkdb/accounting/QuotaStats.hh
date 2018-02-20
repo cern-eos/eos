@@ -24,7 +24,10 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
+
+namespace qclient {
+  class QClient;
+}
 
 EOSNSNAMESPACE_BEGIN
 

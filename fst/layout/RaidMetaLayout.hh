@@ -29,10 +29,12 @@
 #include <string>
 #include <list>
 #include "fst/layout/Layout.hh"
-#include "fst/layout/HeaderCRC.hh"
-#include "fst/XrdFstOfsFile.hh"
+
+class XrdFstOfsFile;
 
 EOSFSTNAMESPACE_BEGIN
+
+ class HeaderCRC;
 
 //------------------------------------------------------------------------------
 //! Generic class to read/write different RAID-like layout files

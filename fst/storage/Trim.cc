@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/FmdDbMap.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -43,5 +44,3 @@ Storage::Trim()
 }
 
 EOSFSTNAMESPACE_END
-
-

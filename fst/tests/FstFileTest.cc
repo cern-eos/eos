@@ -26,6 +26,7 @@
 #include "fst/layout/RaidMetaLayout.hh"
 #include "fst/checksum/CRC32C.hh"
 #include "fst/layout/RaidDpLayout.hh"
+#include "fst/io/xrd/XrdIo.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 
 EOSFSTTEST_NAMESPACE_BEGIN
