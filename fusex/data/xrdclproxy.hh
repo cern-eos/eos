@@ -38,6 +38,7 @@
 #include <deque>
 #include <queue>
 #include <thread>
+#include <atomic>
 
 // need some redefines for XRootD v3
 #ifndef EOSCITRINE
@@ -163,18 +164,18 @@ namespace XrdCl
       }
     }
 
-    const size_t queued() 
+    const size_t queued()
     {
       XrdSysMutexHelper lLock(this);
       return queued_size;
     }
-    
+
     const size_t inflight()
     {
       XrdSysMutexHelper lLock(this);
       return inflight_size;
     }
-    
+
   private:
     std::queue<shared_buffer> queue;
     size_t max;
@@ -205,7 +206,7 @@ namespace XrdCl
 
     // ---------------------------------------------------------------------- //
     XRootDStatus WaitOpen();
-    
+
     int WaitOpen(fuse_req_t); // waiting interrupts
 
     // ---------------------------------------------------------------------- //
@@ -454,7 +455,7 @@ namespace XrdCl
       mTotalReadAheadHitBytes  = 0;
       mAttached = 0;
       mTimeout = 0;
-      mSelfDestruction.store(false, std::memory_order_seq_cst);      
+      mSelfDestruction.store(false, std::memory_order_seq_cst);
     }
 
     void Collect()
@@ -468,7 +469,7 @@ namespace XrdCl
           it->second->ReadCondVar().WaitMS(25);
       }
     }
-    
+
     bool HasReadsInFlight()
     {
       // needs ReadCondVar locked
@@ -486,7 +487,7 @@ namespace XrdCl
       // needs WriteCondVar locked
       return ChunkMap().size()?true:false;
     }
-    
+
     void DropReadAhead()
     {
       WaitWrite();
@@ -500,7 +501,7 @@ namespace XrdCl
       ChunkRMap().clear();
     }
 
-    
+
     // ---------------------------------------------------------------------- //
 
     virtual ~Proxy()
@@ -794,7 +795,7 @@ namespace XrdCl
                              uint16_t           timeout);
 
     // ---------------------------------------------------------------------- //
-    XRootDStatus ScheduleWriteAsync( 
+    XRootDStatus ScheduleWriteAsync(
  				     const void   *buffer,
 				     write_handler handler
 				     );
@@ -846,7 +847,7 @@ namespace XrdCl
                            uint32_t &bytesRead
                            );
 
-    std::deque<write_handler>& WriteQueue() 
+    std::deque<write_handler>& WriteQueue()
     {
       return XWriteQueue;
     }
@@ -892,10 +893,10 @@ namespace XrdCl
 
     void flag_selfdestructionTS()
     {
-      mSelfDestruction.store(true, std::memory_order_seq_cst);      
+      mSelfDestruction.store(true, std::memory_order_seq_cst);
     }
 
-    bool should_selfdestroy() 
+    bool should_selfdestroy()
     {
       return mSelfDestruction.load();
     }
@@ -942,7 +943,7 @@ namespace XrdCl
     OpenFlags::Flags mFlags;
     Access::Mode mMode;
     uint16_t mTimeout;
-    
+
     std::atomic<bool> mSelfDestruction;
   } ;
 }

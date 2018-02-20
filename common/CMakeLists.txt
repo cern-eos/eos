@@ -202,10 +202,10 @@ endif()
 
 #-------------------------------------------------------------------------------
 # Create helper executables
-#-------------------------------------------------------------------------------i
+#-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-  add_executable(mutextest mutextest/RWMutexTest.cc)
+  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc)
   add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
@@ -218,6 +218,7 @@ if(NOT CLIENT AND Linux)
 
   target_link_libraries(mutextest PRIVATE
     eosCommon
+    eosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(dbmaptestfunc PRIVATE

@@ -35,6 +35,7 @@
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 #include <sys/types.h>

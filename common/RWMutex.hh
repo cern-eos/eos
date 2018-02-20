@@ -59,7 +59,6 @@
 #include "common/Timing.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
 #include <stdint.h>
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -158,18 +157,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get Readlock Counter
   //----------------------------------------------------------------------------
-  inline size_t GetReadLockCounter()
-  {
-    return AtomicGet(mRdLockCounter);
-  }
+  size_t GetReadLockCounter();
 
   //----------------------------------------------------------------------------
   //! Get Writelock Counter
   //----------------------------------------------------------------------------
-  inline size_t GetWriteLockCounter()
-  {
-    return AtomicGet(mWrLockCounter);
-  }
+  size_t GetWriteLockCounter();
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 

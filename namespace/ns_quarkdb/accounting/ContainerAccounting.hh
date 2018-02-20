@@ -31,6 +31,7 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
+#include <atomic>
 
 EOSNSNAMESPACE_BEGIN
 

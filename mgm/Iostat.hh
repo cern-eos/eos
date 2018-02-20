@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <string>
 #include <set>
+#include <atomic>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

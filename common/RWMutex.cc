@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "XrdSys/XrdSysAtomics.hh"
 #include "common/backward-cpp/backward.hpp"
 #include "common/RWMutex.hh"
 #include <exception>
@@ -256,6 +257,24 @@ RWMutex::TimedRdLock(uint64_t timeout_ms)
 #endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
   return retc;
+}
+
+//----------------------------------------------------------------------------
+// Get Writelock Counter
+//----------------------------------------------------------------------------
+size_t
+RWMutex::GetWriteLockCounter()
+{
+  return AtomicGet(mWrLockCounter);
+}
+
+//----------------------------------------------------------------------------
+// Get ReadLock Counter
+//----------------------------------------------------------------------------
+size_t
+RWMutex::GetReadLockCounter()
+{
+  return AtomicGet(mRdLockCounter);
 }
 
 //------------------------------------------------------------------------------
