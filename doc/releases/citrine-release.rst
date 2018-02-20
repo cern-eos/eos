@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.2.14 Citrine``
+===================
+
+2018-02-20
+
+Bug
+++++
+
+* [EOS-2153] - consistent eosd memory leak
+* [EOS-2348] - ns shows wrong value for resident memory (shows virtual)
+* [EOS-2350] - eosd returns Numerical result out of range when talking to a CITRINE server and out of quota
+
+
 ``v4.2.13 Citrine``
 ===================
 
