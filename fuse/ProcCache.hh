@@ -397,6 +397,7 @@ public:
       if (protect && protect->count(it->first)) {
         ++it;
       } else {
+	delete it->second;
         pCatalog.erase(it++);
         ++count;
       }
