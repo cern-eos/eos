@@ -50,7 +50,7 @@ public:
   //!
   //! @param fs_id filesystem id
   //----------------------------------------------------------------------------
-  DrainFS(eos::common::FileSystem::fsid_t fs_id, 
+  DrainFS(eos::common::FileSystem::fsid_t fs_id,
             eos::common::FileSystem::fsid_t target_fs_id = 0):
     mThread(0), mFsId(fs_id), mTargetFsId(target_fs_id), mDrainStatus(eos::common::FileSystem::kNoDrain)
   {}

@@ -24,14 +24,13 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
-#include "common/FileSystem.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
 class DrainFS;
 class DrainTransferJob;
+class TableFormatterBase;
 
 //------------------------------------------------------------------------------
 //! @brief Class running the centralized draining

@@ -2066,4 +2066,158 @@ Iostat::UdpBroadCast(eos::common::Report* report)
     }
   }
 }
+
+void
+Iostat::AddToPopularity(std::string path, unsigned long long rb, time_t starttime,
+                  time_t stoptime)
+{
+  size_t popularitybin = (((starttime + stoptime) / 2) % (IOSTAT_POPULARITY_DAY *
+                          IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
+  PopularityMutex.Lock();
+  eos::common::Path cPath(path.c_str());
+
+  for (size_t k = 0; k < cPath.GetSubPathSize(); k++) {
+    std::string sp = cPath.GetSubPath(k);
+    IostatPopularity[popularitybin][sp].rb += rb;
+    IostatPopularity[popularitybin][sp].nread++;
+  }
+
+  IostatLastPopularityBin = popularitybin;
+  PopularityMutex.UnLock();
+}
+
+/* ------------------------------------------------------------------------- */
+void
+IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
+{
+  time_t now = time(0);
+  size_t tdiff = stoptime - starttime;
+  size_t toff = now - stoptime;
+
+  if (toff < 86400) {
+    // if the measurements was done in the last 86400 seconds
+    unsigned int mbins = tdiff / 1440; // number of bins the measurement was hitting
+
+    if (mbins == 0) {
+      mbins = 1;
+    }
+
+    unsigned long norm_val = (1.0 * val / mbins);
+
+    for (size_t bins = 0; bins < mbins; bins++) {
+      unsigned int bin86400 = (((stoptime - (bins * 1440)) / 1440) % 60);
+      avg86400[bin86400] += norm_val;
+    }
+  }
+
+  if (toff < 3600) {
+    // if the measurements was done in the last 3600 seconds
+    unsigned int mbins = tdiff / 60; // number of bins the measurement was hitting
+
+    if (mbins == 0) {
+      mbins = 1;
+    }
+
+    unsigned long norm_val = 1.0 * val / mbins;
+
+    for (size_t bins = 0; bins < mbins; bins++) {
+      unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
+      avg3600[bin3600] += norm_val;
+    }
+  }
+
+  if (toff < 300) {
+    // if the measurements was done in the last 300 seconds
+    unsigned int mbins = tdiff / 5; // number of bins the measurement was hitting
+
+    if (mbins == 0) {
+      mbins = 1;
+    }
+
+    unsigned long norm_val = 1.0 * val / mbins;
+
+    for (size_t bins = 0; bins < mbins; bins++) {
+      unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);
+      avg300[bin300] += norm_val;
+    }
+  }
+
+  if (toff < 60) {
+    // if the measurements was done in the last 60 seconds
+    unsigned int mbins = tdiff / 1; // number of bins the measurement was hitting
+
+    if (mbins == 0) {
+      mbins = 1;
+    }
+
+    unsigned long norm_val = 1.0 * val / mbins;
+
+    for (size_t bins = 0; bins < mbins; ++bins) {
+      unsigned int bin60 = (((stoptime - (bins * 1)) / 1) % 60);
+      avg60[bin60] += norm_val;
+    }
+  }
+}
+
+void
+IostatAvg::StampZero()
+{
+  unsigned int bin86400 = (time(0) / 1440);
+  unsigned int bin3600 = (time(0) / 60);
+  unsigned int bin300 = (time(0) / 5);
+  unsigned int bin60 = (time(0) / 1);
+  avg86400[(bin86400 + 1) % 60] = 0;
+  avg3600[(bin3600 + 1) % 60] = 0;
+  avg300[(bin300 + 1) % 60] = 0;
+  avg60[(bin60 + 1) % 60] = 0;
+}
+
+double
+IostatAvg::GetAvg86400()
+{
+  double sum = 0;
+
+  for (int i = 0; i < 60; i++) {
+    sum += avg86400[i];
+  }
+
+  return sum;
+}
+
+double
+IostatAvg::GetAvg3600()
+{
+  double sum = 0;
+
+  for (int i = 0; i < 60; i++) {
+    sum += avg3600[i];
+  }
+
+  return sum;
+}
+
+double
+IostatAvg::GetAvg300()
+{
+  double sum = 0;
+
+  for (int i = 0; i < 60; i++) {
+    sum += avg300[i];
+  }
+
+  return sum;
+}
+
+double
+IostatAvg::GetAvg60()
+{
+  double sum = 0;
+
+  for (int i = 0; i < 60; i++) {
+    sum += avg60[i];
+  }
+
+  return sum;
+}
+
 EOSMGMNAMESPACE_END

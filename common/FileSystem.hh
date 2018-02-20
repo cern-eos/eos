@@ -25,7 +25,6 @@
 #define __EOSCOMMON_FILESYSTEM_HH__
 
 #include "common/Namespace.hh"
-#include "common/StringConversion.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include <string>
 #include <stdint.h>
@@ -467,43 +466,7 @@ public:
   //! many lookup's in tight loops.
   //----------------------------------------------------------------------------
   fsactive_t
-  GetActiveStatus(bool cached = false)
-  {
-    fsactive_t rActive = 0;
-
-    if (cached) {
-      time_t now = time(NULL);
-      cActiveLock.Lock();
-
-      if (now - cActiveTime) {
-        cActiveTime = now;
-      } else {
-        rActive = cActive;
-        cActiveLock.UnLock();
-        return rActive;
-      }
-    }
-
-    std::string active = GetString("stat.active");
-
-    if (active == "online") {
-      cActive = kOnline;
-
-      if (cached) {
-        cActiveLock.UnLock();
-      }
-
-      return kOnline;
-    } else {
-      cActive = kOffline;
-
-      if (cached) {
-        cActiveLock.UnLock();
-      }
-
-      return kOffline;
-    }
-  }
+  GetActiveStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get the activation status from a snapshot
@@ -718,33 +681,7 @@ public:
   //! Return the filesystem status (via a cache)
   //----------------------------------------------------------------------------
   fsstatus_t
-  GetStatus(bool cached = false)
-  {
-    fsstatus_t rStatus = 0;
-
-    if (cached) {
-      time_t now = time(NULL);
-      cStatusLock.Lock();
-
-      if (now - cStatusTime) {
-        cStatusTime = now;
-      } else {
-        rStatus = cStatus;
-        cStatusLock.UnLock();
-        return rStatus;
-      }
-    }
-
-    cStatus = GetStatusFromString(GetString("stat.boot").c_str());
-    rStatus = cStatus;
-
-    if (cached) {
-      cStatusLock.UnLock();
-    }
-
-    return rStatus;
-  }
-
+  GetStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get internal boot status
@@ -768,32 +705,7 @@ public:
   //! Return the configuration status (via cache)
   //----------------------------------------------------------------------------
   fsstatus_t
-  GetConfigStatus(bool cached = false)
-  {
-    fsstatus_t rConfigStatus = 0;
-
-    if (cached) {
-      time_t now = time(NULL);
-      cConfigLock.Lock();
-
-      if (now - cConfigTime) {
-        cConfigTime = now;
-      } else {
-        rConfigStatus = cConfigStatus;
-        cConfigLock.UnLock();
-        return rConfigStatus;
-      }
-    }
-
-    cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
-    rConfigStatus = cConfigStatus;
-
-    if (cached) {
-      cConfigLock.UnLock();
-    }
-
-    return rConfigStatus;
-  }
+  GetConfigStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Return the error code variable of that filesystem
@@ -833,14 +745,7 @@ public:
   //! Function printing the file system info to the table
   //----------------------------------------------------------------------------
   void Print(TableHeader& table_mq_header, TableData& table_mq_data,
-             std::string listformat, const std::string& filter = "")
-  {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
-
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      mHash->Print(table_mq_header, table_mq_data, listformat, filter);
-    }
-  }
+             std::string listformat, const std::string& filter = "");
 
   //----------------------------------------------------------------------------
   //! Store a configuration key-val pair. Internally these keys are prefixed

@@ -26,6 +26,7 @@
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/FsView.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

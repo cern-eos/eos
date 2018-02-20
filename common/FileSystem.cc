@@ -741,4 +741,124 @@ FileSystem::HasHeartBeat(fs_snapshot_t& fs)
   return false;
 }
 
+//----------------------------------------------------------------------------
+// Return the configuration status (via cache)
+//----------------------------------------------------------------------------
+FileSystem::fsstatus_t
+FileSystem::GetConfigStatus(bool cached)
+{
+  fsstatus_t rConfigStatus = 0;
+
+  if (cached) {
+    time_t now = time(NULL);
+    cConfigLock.Lock();
+
+    if (now - cConfigTime) {
+      cConfigTime = now;
+    } else {
+      rConfigStatus = cConfigStatus;
+      cConfigLock.UnLock();
+      return rConfigStatus;
+    }
+  }
+
+  cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
+  rConfigStatus = cConfigStatus;
+
+  if (cached) {
+    cConfigLock.UnLock();
+  }
+
+  return rConfigStatus;
+}
+
+//----------------------------------------------------------------------------
+// Return the filesystem status (via a cache)
+//----------------------------------------------------------------------------
+FileSystem::fsstatus_t
+FileSystem::GetStatus(bool cached)
+{
+  fsstatus_t rStatus = 0;
+
+  if (cached) {
+    time_t now = time(NULL);
+    cStatusLock.Lock();
+
+    if (now - cStatusTime) {
+      cStatusTime = now;
+    } else {
+      rStatus = cStatus;
+      cStatusLock.UnLock();
+      return rStatus;
+    }
+  }
+
+  cStatus = GetStatusFromString(GetString("stat.boot").c_str());
+  rStatus = cStatus;
+
+  if (cached) {
+    cStatusLock.UnLock();
+  }
+
+  return rStatus;
+}
+
+//----------------------------------------------------------------------------
+// Function printing the file system info to the table
+//----------------------------------------------------------------------------
+void
+FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
+             std::string listformat, const std::string& filter)
+{
+  XrdMqRWMutexReadLock lock(mSom->HashMutex);
+
+  if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    mHash->Print(table_mq_header, table_mq_data, listformat, filter);
+  }
+}
+
+//----------------------------------------------------------------------------
+// Get the activation status via a cache.
+// This can be used with a small cache which 1s expiration time to avoid too
+// many lookup's in tight loops.
+//----------------------------------------------------------------------------
+FileSystem::fsactive_t
+FileSystem::GetActiveStatus(bool cached)
+{
+  fsactive_t rActive = 0;
+
+  if (cached) {
+    time_t now = time(NULL);
+    cActiveLock.Lock();
+
+    if (now - cActiveTime) {
+      cActiveTime = now;
+    } else {
+      rActive = cActive;
+      cActiveLock.UnLock();
+      return rActive;
+    }
+  }
+
+  std::string active = GetString("stat.active");
+
+  if (active == "online") {
+    cActive = kOnline;
+
+    if (cached) {
+      cActiveLock.UnLock();
+    }
+
+    return kOnline;
+  } else {
+    cActive = kOffline;
+
+    if (cached) {
+      cActiveLock.UnLock();
+    }
+
+    return kOffline;
+  }
+}
+
 EOSCOMMONNAMESPACE_END;
