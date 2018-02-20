@@ -129,6 +129,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
             if (isEOF)
             {
               request_next = false;
+	      XReadAheadNom = XReadAheadMin;
               break;
             }
           }
@@ -144,6 +145,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
             // remove this chunk
             delete_chunk.insert(it->first);
             request_next = false;
+	    XReadAheadNom = XReadAheadMin;
           }
           else
           {
@@ -155,8 +157,10 @@ XrdCl::Proxy::Read( uint64_t  offset,
       if (!has_successor)
         request_next = true;
       else
+      {
         request_next = false;
-
+	XReadAheadNom = XReadAheadMin;
+      }
       // check if we can remove previous prefetched chunks
       for ( auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
       {
@@ -183,6 +187,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
       else
       {
         request_next = false;
+	XReadAheadNom = XReadAheadMin;
       }
     }
 
