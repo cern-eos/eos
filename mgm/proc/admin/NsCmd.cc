@@ -348,16 +348,17 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << std::endl
         << "ALL      current container id             " << cid_now
         << std::endl
-        << line << std::endl
-        << "ALL      memory virtual                   "
+        << line << std::endl;
+    // Do them one at a time otherwise sizestring is saved only the first time
+    oss << "ALL      memory virtual                   "
         << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
             mem.vmsize, "B")
-        << std::endl
-        << "ALL      memory resident                  "
+        << std::endl;
+    oss << "ALL      memory resident                  "
         << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
             mem.resident, "B")
-        << std::endl
-        << "ALL      memory share                     "
+        << std::endl;
+    oss << "ALL      memory share                     "
         << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)
             mem.share, "B")
         << std::endl
