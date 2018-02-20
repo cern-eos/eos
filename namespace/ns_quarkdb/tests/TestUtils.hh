@@ -25,19 +25,22 @@
 #include <gtest/gtest.h>
 #include "Namespace.hh"
 #include "qclient/Members.hh"
+#include <memory>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
-namespace eos {
-  class IContainerMDSvc;
-  class IFileMDSvc;
-  class IView;
-  class IFsView;
-  class MetadataFlusher;
+namespace eos
+{
+class IContainerMDSvc;
+class IFileMDSvc;
+class IView;
+class IFsView;
+class MetadataFlusher;
 }
 
 EOSNSTESTING_BEGIN
@@ -45,9 +48,10 @@ EOSNSTESTING_BEGIN
 //------------------------------------------------------------------------------
 //! Class FlushAllOnDestruction
 //------------------------------------------------------------------------------
-class FlushAllOnConstruction {
+class FlushAllOnConstruction
+{
 public:
-  FlushAllOnConstruction(const qclient::Members &mbr);
+  FlushAllOnConstruction(const qclient::Members& mbr);
   ~FlushAllOnConstruction();
 
 private:
@@ -59,7 +63,8 @@ private:
 //! boilerplate code
 //------------------------------------------------------------------------------
 
-class NsTestsFixture : public ::testing::Test {
+class NsTestsFixture : public ::testing::Test
+{
 public:
   NsTestsFixture();
   ~NsTestsFixture();
@@ -80,7 +85,7 @@ public:
 
   // Return default qclient instance. Use if you need just one qclient, and
   // you're too lazy to call createQClient.
-  qclient::QClient &qcl();
+  qclient::QClient& qcl();
 
   // Return flushers
   eos::MetadataFlusher* mdFlusher();
