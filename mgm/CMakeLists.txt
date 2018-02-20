@@ -47,10 +47,6 @@ include_directories(
 set(EOS_CTA_PB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cta_interface/eos_cta/protobuf/)
 add_subdirectory(eos_cta_pb)
 
-if(BUILD_TESTS)
-  add_subdirectory(tests)
-endif()
-
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
