@@ -393,6 +393,7 @@ public:
         ++it;
       else
       {
+	delete it->second;
         pCatalog.erase (it++);
         ++count;
       }
