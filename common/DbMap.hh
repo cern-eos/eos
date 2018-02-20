@@ -33,6 +33,7 @@
  */
 /*----------------------------------------------------------------------------*/
 
+#include <atomic>
 #include "common/DbMapCommon.hh"
 #include "common/DbMapLevelDb.hh"
 
@@ -266,7 +267,7 @@ private:
   // ------------------------------------------------------------------------
   //! this are the counters of 'set' and 'get' calls to this instance
   // ------------------------------------------------------------------------
-  mutable size_t pNestedSetSeq;
+  mutable std::atomic<size_t> pNestedSetSeq;
 
 protected:
   // ------------------------------------------------------------------------
@@ -999,7 +1000,7 @@ public:
   void beginSetSequence() const
   {
     RWMutexWriteLock lock(pMutex);
-    AtomicInc(pNestedSetSeq);
+    pNestedSetSeq++;
 
     //assert(!setsequence);
     if (!pSetSequence) {
@@ -1016,7 +1017,7 @@ public:
   unsigned long endSetSequence()
   {
     RWMutexWriteLock lock(pMutex);
-    AtomicDec(pNestedSetSeq);
+    pNestedSetSeq--;
 
     if (pSetSequence && pNestedSetSeq == 0) {
       try {

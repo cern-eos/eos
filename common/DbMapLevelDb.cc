@@ -32,7 +32,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 LvDbInterfaceBase::Option LvDbInterfaceBase::gDefaultOption = { 10, 100};
-unsigned LvDbInterfaceBase::pNInstances = 0;
+std::atomic<unsigned> LvDbInterfaceBase::pNInstances {0};
 bool LvDbInterfaceBase::pDebugMode = false;
 bool LvDbInterfaceBase::pAbortOnLvDbError = true;
 RWMutex LvDbInterfaceBase::gDbMgmtMutex;
@@ -82,14 +82,14 @@ LvDbDbLogInterface::~LvDbDbLogInterface()
   }
 
   gUniqMutex.UnLock();
-  AtomicDec(pNInstances);
+  pNInstances--;
 }
 
 void
 LvDbDbLogInterface::init()
 {
   pIsOpen = false;
-  AtomicInc(pNInstances);
+  pNInstances++;
 }
 
 void

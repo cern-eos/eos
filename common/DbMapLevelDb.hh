@@ -32,6 +32,7 @@
 #define __EOSCOMMON_DBMAP_LEVELDB_HH__
 
 /*----------------------------------------------------------------------------*/
+#include <atomic>
 #include "common/DbMapCommon.hh"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
@@ -59,7 +60,7 @@ protected:
   friend void _testLvDbError_(const leveldb::Status &s, void* _this, const char* __file, int __line);
   static bool pAbortOnLvDbError;
   static bool pDebugMode;
-  static unsigned pNInstances;
+  static std::atomic<unsigned> pNInstances;
   leveldb::Options pOptions;
 
   static RWMutex gDbMgmtMutex;
