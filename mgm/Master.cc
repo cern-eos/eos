@@ -176,35 +176,39 @@ Master::Init()
   // start the heartbeat thread anyway
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void*>(this),
                     XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
-  // Get sync up if it is not up
-  eos::common::ShellCmd
-  scmd1(fHasSystemd ?
-        "systemctl status eos@sync || systemctl start eos@sync" :
-        "service eos status sync || service eos start sync");
-  rc = scmd1.wait(30);
 
-  if (rc.exit_code) {
-    eos_crit("failed to start sync service");
-    return false;
-  }
-
-  // Get eossync up if it is not up
-  eos::common::ShellCmd
-  scmd2(fHasSystemd ?
-        "systemctl status eossync@* || systemctl start eossync" :
-        "service eossync status || service eossync start ");
-  rc = scmd2.wait(30);
-
-  if (rc.exit_code) {
-    eos_crit("failed to start eossync service");
-    return false;
+  // Check if we want the MGM to start sync/eossync at all
+  if (!getenv("EOS_START_SYNC_SEPARATELY")) {
+    // Get sync up if it is not up
+    eos::common::ShellCmd
+    scmd1(fHasSystemd ?
+    "systemctl status eos@sync || systemctl start eos@sync" :
+    "service eos status sync || service eos start sync");
+    rc = scmd1.wait(30);
+    
+    if (rc.exit_code) {
+      eos_crit("failed to start sync service");
+      return false;
+    }
+    
+    // Get eossync up if it is not up
+    eos::common::ShellCmd
+    scmd2(fHasSystemd ?
+    "systemctl status eossync@* || systemctl start eossync" :
+    "service eossync status || service eossync start ");
+    rc = scmd2.wait(30);
+    
+    if (rc.exit_code) {
+      eos_crit("failed to start eossync service");
+      return false;
+    }
   }
 
   return true;
 }
 
 //------------------------------------------------------------------------------
-// Chekc if host is reachable
+// Check if host is reachable
 //------------------------------------------------------------------------------
 bool
 Master::HostCheck(const char* hostname, int port, int timeout)
