@@ -112,6 +112,10 @@ error_retc_map(int retc)
     errno = EAGAIN;
   }
 
+  if (retc == kXR_overQuota) {
+    errno = EDQUOT;
+  }
+
   if (retc) {
     return -1;
   }
