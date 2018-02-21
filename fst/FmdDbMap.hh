@@ -34,6 +34,15 @@
 #define ECOMM 70
 #endif
 
+//! Forward declaration
+namespace eos
+{
+namespace ns
+{
+class FileMdProto;
+}
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -53,14 +62,14 @@ public:
   static bool EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd);
 
   //----------------------------------------------------------------------------
-  //! Convert namespace file metadata to an Fmd struct
+  //! Convert namespace file proto md to an Fmd struct
   //!
-  //! @param file namespace file metadata object
+  //! @param file namespace file proto object
   //! @param fmd reference to Fmd struct
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd);
+  static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd, struct Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -562,17 +571,6 @@ private:
   static bool ExecuteDumpmd(const std::string& mgm_hosst,
                             eos::common::FileSystem::fsid_t fsid,
                             std::string& fn_output);
-
-  //----------------------------------------------------------------------------
-  //! Get file metadata info from QuarkDB
-  //!
-  //! @param qcl qclient object
-  //! @param fid file id
-  //!
-  //! @return file metadata object
-  //----------------------------------------------------------------------------
-  std::unique_ptr<eos::FileMD>
-  GetFmdFromQdb(qclient::QClient* qcl, eos::IFileMD::id_t id) const;
 };
 
 extern FmdDbMapHandler gFmdDbMapHandler;

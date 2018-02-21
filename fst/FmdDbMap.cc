@@ -36,6 +36,7 @@
 #include <fstream>
 #include <algorithm>
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -82,42 +83,41 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
 }
 
 //----------------------------------------------------------------------------
-// Convert namespace file metadata to an Fmd struct
+// Convert namespace file proto object to an Fmd struct
 //----------------------------------------------------------------------------
 bool
-FmdDbMapHandler::NsFileMDToFmd(eos::IFileMD* file, struct Fmd& fmd)
+FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
+                                  struct Fmd& fmd)
 {
-  fmd.set_fid(file->getId());
-  fmd.set_cid(file->getContainerId());
+  fmd.set_fid(filemd.id());
+  fmd.set_cid(filemd.cont_id());
   eos::IFileMD::ctime_t ctime;
+  (void) memcpy(&ctime, filemd.ctime().data(), sizeof(ctime));
   eos::IFileMD::ctime_t mtime;
-  (void) file->getCTime(ctime);
-  (void) file->getMTime(mtime);
+  (void) memcpy(&mtime, filemd.mtime().data(), sizeof(mtime));
   fmd.set_ctime(ctime.tv_sec);
   fmd.set_ctime_ns(ctime.tv_nsec);
   fmd.set_mtime(mtime.tv_sec);
   fmd.set_mtime_ns(mtime.tv_nsec);
-  fmd.set_mgmsize(file->getSize());
-  fmd.set_lid(file->getLayoutId());
-  fmd.set_uid(file->getCUid());
-  fmd.set_gid(file->getCGid());
+  fmd.set_mgmsize(filemd.size());
+  fmd.set_lid(filemd.layout_id());
+  fmd.set_uid(filemd.uid());
+  fmd.set_gid(filemd.gid());
   std::string str_xs;
-  eos::Buffer xs = file->getChecksum();
-  uint8_t size = xs.size();
+  uint8_t size = filemd.checksum().size();
 
   for (uint8_t i = 0; i < size; i++) {
     char hx[3];
     hx[0] = 0;
     snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *(unsigned char*)(xs.getDataPtr() + i));
+             *(unsigned char*)(filemd.checksum().data() + i));
     str_xs += static_cast<char*>(hx);
   }
 
   fmd.set_mgmchecksum(str_xs);
   std::string slocations;
-  auto locations = file->getLocations();
 
-  for (const auto& loc : locations) {
+  for (const auto& loc : filemd.locations()) {
     slocations += loc;
     slocations += " ";
   }
@@ -1225,8 +1225,9 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     return false;
   }
 
+  // Collect all file ids on the desired file system
   std::string cursor = "0";
-  long long count = 1000000;
+  long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
   qclient::QSet qset(*qcl,  eos::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
@@ -1240,25 +1241,32 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     }
   } while (cursor != "0");
 
-  eos_info("resyncing %llu files for file_system %llu", file_ids.size(), fsid);
+  uint64_t total = file_ids.size();
+  eos_info("resyncing %llu files for file_system %u", total, fsid);
   uint64_t num_files = 0;
+  auto it = file_ids.begin();
+  std::list<std::future<eos::ns::FileMdProto>> files;
 
-  for (const auto& id : file_ids) {
-    eos_debug("resyncing fid=%llu", id);
+  // Pre-fetch the first 1000 files
+  while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    auto file = GetFmdFromQdb(qcl, id);
+    files.emplace_back(MetadataFetcher::getFileFromId(*qcl, *it));
+    ++it;
+  }
+
+  while (!files.empty()) {
     struct Fmd ns_fmd;
     FmdHelper::Reset(ns_fmd);
-    NsFileMDToFmd(file.get(), ns_fmd);
+    NsFileProtoToFmd(files.front().get(), ns_fmd);
+    files.pop_front();
     FmdHelper* local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
                                        ns_fmd.gid(), ns_fmd.lid(), true, true);
     ns_fmd.set_layouterror(FmdHelper::LayoutError(ns_fmd, fsid));
 
     if (local_fmd) {
-      // check if it exists on disk
+      // Check if it exists on disk
       if (local_fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) {
-        ns_fmd.set_layouterror(ns_fmd.layouterror() |
-                               LayoutId::kMissing);
+        ns_fmd.set_layouterror(ns_fmd.layouterror() | LayoutId::kMissing);
         eos_warning("found missing replica for fid=%08llx on fsid=%lu",
                     ns_fmd.fid(), (unsigned long) fsid);
       }
@@ -1268,46 +1276,26 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
                          ns_fmd.gid(), ns_fmd.ctime(), ns_fmd.ctime_ns(),
                          ns_fmd.mtime(), ns_fmd.mtime_ns(),
                          ns_fmd.layouterror(), ns_fmd.locations())) {
-        eos_err("failed to update fid %llu", id);
+        eos_err("failed to update fid %llu", ns_fmd.fid());
       }
 
       delete local_fmd;
     } else {
-      eos_err("failed to get/create local fid %llu", id);
+      eos_err("failed to get/create local fid %llu", ns_fmd.fid());
+    }
+
+    if (it != file_ids.end()) {
+      ++num_files;
+      files.emplace_back(MetadataFetcher::getFileFromId(*qcl, *it));
+      ++it;
+    }
+
+    if (num_files % 10000 == 0) {
+      eos_info("resynced %llu/%llu files", num_files, total);
     }
   }
 
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Get file metadata info from QuarkDB
-//------------------------------------------------------------------------------
-std::unique_ptr<eos::FileMD>
-FmdDbMapHandler::GetFmdFromQdb(qclient::QClient* qcl,
-                               eos::IFileMD::id_t id) const
-{
-  std::string blob;
-
-  try {
-    std::string sid = stringify(id);
-    qclient::QHash bucket_map(*qcl, eos::FileMDSvc::getBucketKey(id));
-    blob = bucket_map.hget(sid);
-  } catch (std::runtime_error& qdb_err) {
-    eos_err("msg=\"file id=%llu not found, qclient exception\"", id);
-    return nullptr;
-  }
-
-  if (blob.empty()) {
-    eos_err("msg=\"file id=%llu not found\"", id);
-    return nullptr;
-  }
-
-  std::unique_ptr<eos::FileMD> file(new eos::FileMD(0, nullptr));
-  eos::Buffer ebuff;
-  ebuff.putData(blob.c_str(), blob.length());
-  file->deserialize(ebuff);
-  return file;
 }
 
 //------------------------------------------------------------------------------
