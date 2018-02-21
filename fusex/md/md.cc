@@ -405,16 +405,17 @@ metad::map_children_to_local(shared_md pmd)
     if (EOS_LOGS_DEBUG)
       eos_static_debug("translate %s [%lx]", map->first.c_str(), map->second);
 
-    // skip entries we already know
-    if (pmd->local_children().count(map->first))
+    uint64_t remote_ino = map->second;
+    uint64_t local_ino = inomap.forward(remote_ino);
+
+    // skip entries we already know, if we don't have the mapping we have forgotten already this one
+    if (pmd->local_children().count(map->first) && local_ino)
       continue;
 
     // skip entries which are the deletion list
     if (pmd->get_todelete().count(map->first))
       continue;
 
-    uint64_t remote_ino = map->second;
-    uint64_t local_ino = inomap.forward(remote_ino);
 
     if (!local_ino)
     {
