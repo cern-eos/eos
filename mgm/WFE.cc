@@ -1610,20 +1610,19 @@ WFE::Job::DoIt(bool issync)
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullPath;
-        {
-          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
-          try {
-            fmd = gOFS->eosFileService->getFileMD(mFid);
-            fullPath = gOFS->eosView->getUri(fmd.get());
-            cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-          } catch (eos::MDException& e) {
-            eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
-                           e.getMessage().str().c_str());
-            MoveWithResults(ENOENT);
-            return ENOENT;
-          }
+        try {
+          eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+          fmd = gOFS->eosFileService->getFileMD(mFid);
+          fullPath = gOFS->eosView->getUri(fmd.get());
+          cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+        } catch (eos::MDException& e) {
+          eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
+                         e.getMessage().str().c_str());
+          MoveWithResults(ENOENT);
+          return ENOENT;
         }
+
         auto eventUpperCase = event;
         std::transform(eventUpperCase.begin(), eventUpperCase.end(),
                        eventUpperCase.begin(),
