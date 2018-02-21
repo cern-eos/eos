@@ -31,3 +31,7 @@ target_link_libraries( fusex-benchmark eosCommonServer eosCommon)
 install(
   TARGETS fusex-benchmark
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+install(
+  FILES eos-fusex-certify
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
