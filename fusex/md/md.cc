@@ -267,6 +267,9 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   if (pmd->cap_count())
     return 0;
   
+  if (pmd->opendir_is())
+    return 0;
+
   eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);

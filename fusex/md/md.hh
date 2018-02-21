@@ -72,6 +72,7 @@ public:
     {
       setop_add();
       lookup_cnt.store(0, std::memory_order_seq_cst);
+      opendir_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
       cap_count_reset();
       refresh = false;
@@ -154,6 +155,31 @@ public:
     int lookup_is()
     {
       return lookup_cnt.load();
+    }
+
+    void opendir_inc()
+    {
+      // atomic operation, no need to lock before calling
+      int prevOpendir = opendir_cnt.fetch_add(1, std::memory_order_seq_cst);
+      eos_static_info("ino=%16x opendir=%d => opendir=%d", id(), prevOpendir,
+                      prevOpendir + 1);
+    }
+
+    bool opendir_dec(int n)
+    {
+      // atomic operation, no need to lock before calling
+      int prevOpendir = opendir_cnt.fetch_sub(n, std::memory_order_seq_cst);
+
+      if (prevOpendir - n > 0) {
+        return false;
+      }
+
+      return true;
+    }
+
+    int opendir_is()
+    {
+      return opendir_cnt.load();
     }
 
     md_op getop() const
@@ -251,6 +277,7 @@ public:
     std::atomic<md_op> op;
     std::atomic<int> lookup_cnt;
     std::atomic<int> cap_cnt;
+    std::atomic<int> opendir_cnt;
     bool lock_remote;
     bool refresh;
     std::vector<struct flock> locktable;

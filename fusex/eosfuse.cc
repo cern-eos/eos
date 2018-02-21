@@ -1900,6 +1900,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       } else {
         auto md_fh = new opendir_t;
         md_fh->md = md;
+	md->opendir_inc();
         // fh contains a dummy 0 pointer
         eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
         fi->fh = (unsigned long) md_fh;
@@ -2119,6 +2120,7 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     // prevent this.
     md->items_lock.Lock();
     md->items_lock.UnLock();
+    md->md->opendir_dec(1);
     delete md;
     fi->fh = 0;
   }
