@@ -32,6 +32,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is
 // /eos/<instance/proc/recycle/

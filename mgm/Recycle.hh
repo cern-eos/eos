@@ -26,9 +26,9 @@
 
 #include "mgm/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucErrInfo.hh"
 #include <sys/types.h>
+
+class XrdOucErrInfo;
 
 EOSMGMNAMESPACE_BEGIN
 

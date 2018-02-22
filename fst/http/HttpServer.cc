@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/http/HttpServer.hh"
 #include "fst/http/ProtocolHandlerFactory.hh"
+#include "fst/XrdFstOfsFile.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/

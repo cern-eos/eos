@@ -29,12 +29,14 @@
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include <fstream>
 #include <sstream>
 #include <cstdio>
 #include <unistd.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <uuid/uuid.h>
 #include <math.h>

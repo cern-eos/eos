@@ -114,14 +114,7 @@ public:
    * Destructor
    */
   virtual
-  ~HttpHandler ()
-  {
-    if (mFile)
-    {
-      delete mFile;
-      mFile = 0;
-    }
-  }
+  ~HttpHandler ();
 
   /**
    * Check whether the given method and headers are a match for this protocol.

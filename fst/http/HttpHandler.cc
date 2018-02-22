@@ -30,6 +30,7 @@
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/MimeTypes.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/XrdFstOfsFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
@@ -38,6 +39,16 @@ EOSFSTNAMESPACE_BEGIN
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
+
+
+/*----------------------------------------------------------------------------*/
+HttpHandler::~HttpHandler ()
+{
+  if (mFile) {
+    delete mFile;
+    mFile = nullptr;
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 bool

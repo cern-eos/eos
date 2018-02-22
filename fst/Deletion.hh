@@ -28,6 +28,7 @@
 #include "common/FileId.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>

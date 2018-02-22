@@ -28,8 +28,9 @@
 #include "mgm/txengine/TransferDB.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
-#include "common/sqlite/sqlite3.h"
 #include <string>
+
+class sqlite3;
 
 EOSMGMNAMESPACE_BEGIN
 

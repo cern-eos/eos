@@ -25,7 +25,7 @@
 #define __EOSMGM_FSCK__HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/FsView.hh"
+#include "common/FileSystem.hh"
 #include "common/FileId.hh"
 #include <sys/types.h>
 #include <string>

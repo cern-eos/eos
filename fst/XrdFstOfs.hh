@@ -25,7 +25,6 @@
 #define __XRDFSTOFS_FSTOFS_HH__
 
 #include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
 #include "fst/Config.hh"
 #include "fst/Fmd.hh"
 #include "common/Logging.hh"
@@ -38,7 +37,6 @@
 #include <queue>
 #include <memory>
 #include <chrono>
-#include "qclient/QClient.hh"
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
@@ -51,6 +49,10 @@
 #define ENOKEY 126
 #endif
 
+namespace qclient {
+  class QClient;
+}
+
 class XrdOucEnv;
 class XrdScheduler;
 
@@ -62,6 +64,7 @@ class RaidMetaLayout;
 class HttpServer;
 class Storage;
 class Messaging;
+class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs

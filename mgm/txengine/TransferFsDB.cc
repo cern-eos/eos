@@ -26,6 +26,7 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "common/sqlite/sqlite3.h"
 
 EOSMGMNAMESPACE_BEGIN
 
