@@ -292,12 +292,12 @@ public:
   //----------------------------------------------------------------------------
   //! Resync all meta data from QuarkdDB
   //!
-  //! @param qcl qclient object
+  //! @param qdb_members members of the QDB cluster
   //! @param fsid filesystem id
   //!
   //! @return true if successfull, otherwise false
   //----------------------------------------------------------------------------
-  bool ResyncAllFromQdb(qclient::QClient* qcl,
+  bool ResyncAllFromQdb(const qclient::Members& qdb_members,
                         eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------

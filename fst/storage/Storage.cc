@@ -472,11 +472,11 @@ Storage::Boot(FileSystem* fs)
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
 
-    if (gOFS.pQcl) {
+    if (gOFS.mQcl) {
       // Resync meta data connecting directly to QuarkDB
       eos_info("msg=\"synchronizing from QuarkDB backend\"");
 
-      if (!gFmdDbMapHandler.ResyncAllFromQdb(gOFS.pQcl.get(), fsid)) {
+      if (!gFmdDbMapHandler.ResyncAllFromQdb(gOFS.mQdbMembers, fsid)) {
         fs->SetStatus(eos::common::FileSystem::kBootFailure);
         fs->SetError(EFAULT, "cannot resync meta data from QuarkDB");
         return;

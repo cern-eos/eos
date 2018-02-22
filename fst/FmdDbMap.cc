@@ -21,23 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "fst/FmdDbMap.hh"
 #include "common/Path.hh"
 #include "proto/Fs.pb.h"
 #include "proto/ConsoleRequest.pb.h"
-#include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -1217,7 +1217,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
+FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
                                   eos::common::FileSystem::fsid_t fsid)
 {
   using namespace std::chrono;
@@ -1231,7 +1231,9 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
   std::string cursor = "0";
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
-  qclient::QSet qset(*qcl,  eos::keyFilesystemFiles(fsid));
+  std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, true,
+  {true, seconds(60)}));
+  qclient::QSet qset(*qcl.get(),  eos::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
   do {
@@ -1243,7 +1245,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     }
   } while (cursor != "0");
 
-  auto start = steady_clock::now();
+  auto start = high_resolution_clock::now();
   uint64_t total = file_ids.size();
   eos_info("resyncing %llu files for file_system %u", total, fsid);
   uint64_t num_files = 0;
@@ -1253,7 +1255,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    files.emplace_back(MetadataFetcher::getFileFromId(*qcl, *it));
+    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), *it));
     ++it;
   }
 
@@ -1289,17 +1291,17 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
 
     if (it != file_ids.end()) {
       ++num_files;
-      files.emplace_back(MetadataFetcher::getFileFromId(*qcl, *it));
+      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), *it));
       ++it;
     }
 
     if (num_files % 10000 == 0) {
       double rate = 0;
-      auto duration = steady_clock::now() - start;
-      auto f_secs = duration_cast<seconds>(duration);
+      auto duration = high_resolution_clock::now() - start;
+      auto f_secs = duration_cast<milliseconds>(duration);
 
       if (f_secs.count()) {
-        rate = num_files / f_secs.count();
+        rate = (double) num_files * 1000 / (double)f_secs.count();
       }
 
       eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
@@ -1308,11 +1310,11 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
   }
 
   double rate = 0;
-  auto duration = steady_clock::now() - start;
-  auto f_secs = duration_cast<seconds>(duration);
+  auto duration = high_resolution_clock::now() - start;
+  auto f_secs = duration_cast<milliseconds>(duration);
 
   if (f_secs.count()) {
-    rate = num_files / f_secs.count();
+    rate = (double) num_files * 1000 / (double)f_secs.count();
   }
 
   eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",

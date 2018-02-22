@@ -33,11 +33,13 @@
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "qclient/Members.hh"
+#include <google/sparse_hash_map>
 #include <sys/mman.h>
 #include <queue>
 #include <memory>
 #include <chrono>
-#include <google/sparse_hash_map>
+
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
@@ -50,8 +52,9 @@
 #define ENOKEY 126
 #endif
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 class XrdOucEnv;
@@ -370,7 +373,8 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
-  std::unique_ptr<qclient::QClient> pQcl; ///< Qclient object
+  std::unique_ptr<qclient::QClient> mQcl; ///< Qclient object
+  qclient::Members mQdbMembers; ///< QDB member endpoints
 
 private:
   HttpServer* mHttpd; ///< Embedded http server

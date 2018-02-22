@@ -468,14 +468,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           Eroute.Say("=====> fstofs.qdbcluster : ", qdb_cluster.c_str());
-          ::qclient::Members qdb_members;
 
           if (!qdb_cluster.empty()) {
-            if (!qdb_members.parse(qdb_cluster)) {
+            if (!mQdbMembers.parse(qdb_cluster)) {
               Eroute.Emsg("Config", "failed to parse qdbcluster members");
               NoGo = 1;
             } else {
-              pQcl.reset(new ::qclient::QClient(qdb_members, true,
+              mQcl.reset(new ::qclient::QClient(mQdbMembers, true,
               {true, std::chrono::seconds(60)}));
             }
           }
