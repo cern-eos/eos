@@ -2319,14 +2319,6 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   // invalidate children
                   if (md && md->id()) {
                     eos_static_info("md=%16x", md->id());
-                    std::map<std::string, uint64_t> children_copy;
-                    if (EosFuse::Instance().Config().options.md_kernelcache)
-                    {
-                      for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it)
-                      {
-                        children_copy[it->first] = it->second;
-                      }
-                    }
 
 		    cleanup(md);
 
@@ -2341,7 +2333,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		// still we want to remove the cap entry
                 std::string capid = cap::capx::capid(ino, rsp.lease_().clientid());
 		eos_static_debug("");
-                fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
+                EosFuse::Instance().getCap().forget(capid);
 	      }
             }
 
