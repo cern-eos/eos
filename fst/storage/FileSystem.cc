@@ -66,13 +66,9 @@ FileSystem::FileSystem(const char* queuepath,
 /*----------------------------------------------------------------------------*/
 FileSystem::~FileSystem()
 {
-  if (scanDir) {
-    delete scanDir;
-  }
+  delete scanDir;
 
-  if (mFileIO) {
-    delete mFileIO;
-  }
+  delete mFileIO;
 
   // ----------------------------------------------------------------------------
   // we call the FmdSqliteHandler shutdown function for this filesystem
@@ -137,7 +133,7 @@ eos::common::Statfs*
 FileSystem::GetStatfs()
 {
   if (!GetPath().length()) {
-    return 0;
+    return nullptr;
   }
 
   eos::common::Statfs::Callback::callback_data_t lData;
@@ -371,9 +367,9 @@ void
 FileSystem::IoPing()
 {
   std::string cmdbw = "eos-iobw ";
-  cmdbw += GetPath().c_str();
+  cmdbw += GetPath();
   std::string cmdiops = "eos-iops ";
-  cmdiops += GetPath().c_str();
+  cmdiops += GetPath();
   eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
   seqBandwidth = 0;
   IOPS = 0;
