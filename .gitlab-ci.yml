@@ -85,7 +85,7 @@ eos_rpm_fedora_rawhide:
     - docker-fc_rawhide
   allow_failure: true
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_rpm_fedora_26:
@@ -116,7 +116,7 @@ eos_rpm_fedora_26:
     - docker-fc25
   allow_failure: true
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_deb_ubuntu_artful:
@@ -145,7 +145,7 @@ eos_deb_ubuntu_artful:
     - docker-ubuntu
   allow_failure: true
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_dmg_macosx:
@@ -172,7 +172,7 @@ eos_dmg_macosx:
     - macosx-shell
   allow_failure: true
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_nginx_cc7:
@@ -195,7 +195,7 @@ eos_nginx_cc7:
   environment:
     name: nginx-cc7-prod
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_nginx_slc6:
@@ -218,7 +218,7 @@ eos_nginx_slc6:
   environment:
     name: nginx-slc6-prod
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_apmon_cc7:
@@ -241,7 +241,7 @@ eos_apmon_cc7:
   environment:
     name: apmon-cc7-prod
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
     
 eos_docs:
@@ -258,7 +258,7 @@ eos_docs:
     - docker-cc7
   when: manual
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_dockerimage_commit:
@@ -275,7 +275,7 @@ eos_dockerimage_commit:
   only:
     - branches
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_dockerimage_tag:
@@ -321,7 +321,7 @@ eos_unit_test:
   tags:
     - docker-cc7
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_system_test:
@@ -343,7 +343,7 @@ eos_system_test:
   dependencies:
     - eos_rpm_cc7
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_stress_test:
@@ -363,7 +363,7 @@ eos_stress_test:
   allow_failure: true
   retry: 1
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_publish_artifacts:
@@ -403,7 +403,7 @@ eos_publish_debian_artifacts:
     - master
     - tags
   except:
-    - /^beryl_aquamarine*$/
+    - /^beryl_aquamarine.*$/
     - /^0\.3.*$/
 
 eos_publish_debian_artifacts_volume:
