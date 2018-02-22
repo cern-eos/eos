@@ -1303,7 +1303,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
       }
 
       eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
-               num_files, total, rate);
+               fsid, num_files, total, rate);
     }
   }
 
@@ -1316,7 +1316,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
   }
 
   eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
-           num_files, total, rate);
+           fsid, num_files, total, rate);
   return true;
 }
 
