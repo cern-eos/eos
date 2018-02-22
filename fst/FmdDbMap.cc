@@ -1220,6 +1220,8 @@ bool
 FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
                                   eos::common::FileSystem::fsid_t fsid)
 {
+  using namespace std::chrono;
+
   if (!ResetMgmInformation(fsid)) {
     eos_err("failed to reset the mgm information before resyncing");
     return false;
@@ -1241,6 +1243,7 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     }
   } while (cursor != "0");
 
+  auto start = steady_clock::now();
   uint64_t total = file_ids.size();
   eos_info("resyncing %llu files for file_system %u", total, fsid);
   uint64_t num_files = 0;
@@ -1291,10 +1294,29 @@ FmdDbMapHandler::ResyncAllFromQdb(qclient::QClient* qcl,
     }
 
     if (num_files % 10000 == 0) {
-      eos_info("resynced %llu/%llu files", num_files, total);
+      double rate = 0;
+      auto duration = steady_clock::now() - start;
+      auto f_secs = duration_cast<seconds>(duration);
+
+      if (f_secs.count()) {
+        rate = num_files / f_secs.count();
+      }
+
+      eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
+               num_files, total, rate);
     }
   }
 
+  double rate = 0;
+  auto duration = steady_clock::now() - start;
+  auto f_secs = duration_cast<seconds>(duration);
+
+  if (f_secs.count()) {
+    rate = num_files / f_secs.count();
+  }
+
+  eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
+           num_files, total, rate);
   return true;
 }
 
