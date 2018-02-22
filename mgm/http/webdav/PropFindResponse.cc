@@ -116,7 +116,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
     if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "", eos::common::OwnCloud::GetAllowSyncName(), val))
     {
       // Sync not allowed in this tree.
-      SetResponseCode(ResponseCodes::METHOD_NOT_ALLOWED);
+      SetResponseCode(ResponseCodes::FORBIDDEN);
       return this;
     }
   }
@@ -180,7 +180,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
   {
     // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
-    int listrc = directory._open(request->GetUrl().c_str(), *mVirtualIdentity,
+    int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                  (const char*) 0);
 
     responseNode = BuildResponseNode(request->GetUrl().c_str(), request->GetUrl(true).c_str());
@@ -224,8 +224,8 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
     }
     else
     {
-      eos_static_warning("msg=\"error opening directory\"");
-      SetResponseCode(HttpResponse::BAD_REQUEST);
+      eos_static_warning("msg=\"error opening directory - might be stalled/banned\"");
+      SetResponseCode(ResponseCodes::FORBIDDEN);
       return this;
     }
   }
