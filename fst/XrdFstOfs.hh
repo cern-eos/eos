@@ -37,6 +37,7 @@
 #include <queue>
 #include <memory>
 #include <chrono>
+#include <google/sparse_hash_map>
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
