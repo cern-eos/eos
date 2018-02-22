@@ -100,6 +100,7 @@ namespace XrdCl
       buffersize = _default_size;
       queued_size = 0;
       inflight_size = 0;
+      inflight_buffers = 0;
       max_inflight_size = _max_inflight_size;
     }
 
@@ -118,7 +119,8 @@ namespace XrdCl
 	size_t cnt=0;
 	{
 	  XrdSysMutexHelper lLock(this);
-	  if (inflight_size < max_inflight_size)
+	  if ( (inflight_size < max_inflight_size) && 
+	       (inflight_buffers < 30000) ) // avoid to trigger XRootD SID exhaustion
 	    break;
 	}
 	// we wait that the situation relaxes
@@ -134,6 +136,7 @@ namespace XrdCl
 
       if (!queue.size() || (size < buffersize)) {
 	inflight_size += cap_size;
+	inflight_buffers++;
 	return std::make_shared<std::vector<char>>( cap_size , 0);
       } else {
 	shared_buffer buffer = queue.front();
@@ -141,7 +144,7 @@ namespace XrdCl
 	buffer->resize(cap_size);
 	buffer->reserve(cap_size);
 	inflight_size += buffer->capacity();
-
+	inflight_buffers++;
 	queue.pop();
 	return buffer;
       }
@@ -151,7 +154,7 @@ namespace XrdCl
     {
       XrdSysMutexHelper lLock(this);
       inflight_size -= buffer->capacity();
-
+      inflight_buffers--;
       if ( (queue.size() == max) || (buffer->capacity() < buffersize)) {
 	return;
       } else {
@@ -182,6 +185,7 @@ namespace XrdCl
     size_t buffersize;
     size_t queued_size;
     size_t inflight_size;
+    size_t inflight_buffers;
     size_t max_inflight_size;
   } ;
 
