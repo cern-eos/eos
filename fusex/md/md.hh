@@ -518,6 +518,7 @@ public:
     void reset()
     {
       _inodes.store(0, std::memory_order_seq_cst);
+      _inodes_stacked.store(0, std::memory_order_seq_cst);
       _inodes_ever.store(0, std::memory_order_seq_cst);
       _inodes_deleted.store(0, std::memory_order_seq_cst);
       _inodes_deleted_ever.store(0, std::memory_order_seq_cst);
@@ -529,6 +530,11 @@ public:
       _inodes.fetch_add(1, std::memory_order_seq_cst);
     }
 
+    void inodes_stacked_inc()
+    {
+      _inodes_stacked.fetch_add(1, std::memory_order_seq_cst);
+    }
+
     void inodes_ever_inc()
     {
       _inodes_ever.fetch_add(1, std::memory_order_seq_cst);
@@ -537,6 +543,11 @@ public:
     void inodes_dec()
     {
       _inodes.fetch_sub(1, std::memory_order_seq_cst);
+    }
+
+    void inodes_stacked_dec()
+    {
+      _inodes_stacked.fetch_sub(1, std::memory_order_seq_cst);
     }
 
     void inodes_deleted_inc()
@@ -564,6 +575,11 @@ public:
       return _inodes.load();
     }
 
+    ssize_t inodes_stacked()
+    {
+      return _inodes_stacked.load();
+    }
+
     ssize_t inodes_ever()
     {
       return _inodes_ever.load();
@@ -587,6 +603,7 @@ public:
 
   private:
     std::atomic<ssize_t> _inodes;
+    std::atomic<ssize_t> _inodes_stacked;
     std::atomic<ssize_t> _inodes_deleted;
     std::atomic<ssize_t> _inodes_backlog;
     std::atomic<ssize_t> _inodes_ever;

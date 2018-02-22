@@ -1308,6 +1308,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     snprintf(ino_stat, sizeof(ino_stat),
              "# -----------------------------------------------------------------------------------------------------------\n"
              "ALL        inodes              := %lu\n"
+             "ALL        inodes stack        := %lu\n"
              "ALL        inodes-todelete     := %lu\n"
              "ALL        inodes-backlog      := %lu\n"
              "ALL        inodes-ever         := %lu\n"
@@ -1317,6 +1318,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-caps         := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
+             this->getMdStat().inodes_stacked(),
              this->getMdStat().inodes_deleted(),
              this->getMdStat().inodes_backlog(),
              this->getMdStat().inodes_ever(),

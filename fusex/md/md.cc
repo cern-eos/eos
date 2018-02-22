@@ -252,6 +252,7 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), nlookup, ino);
 
   if (!md->lookup_dec(nlookup)) {
+    eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), nlookup, ino);
     return EAGAIN;
   }
 
@@ -262,19 +263,33 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   }
 
   if (has_flush(ino))
+  {
+    stat.inodes_stacked_inc();
+    eos_static_debug("flush - ino=%016x", ino);
     return 0;
+  }
 
   if (pmd->cap_count())
+  {
+    stat.inodes_stacked_inc();
+    eos_static_debug("caps %d - ino=%016x", pmd->cap_count(),ino);
     return 0;
+  }
   
   if (pmd->opendir_is())
+  {
+    stat.inodes_stacked_inc();
+    eos_static_debug("opendir %d - ino=%016x", pmd->opendir_is(),ino);
     return 0;
-
-  eos_static_info("delete md object - ino=%016x name=%s", ino, md->name().c_str());
+  }
+  
+  eos_static_debug("delete md object - ino=%016x name=%s", ino, md->name().c_str());
 
   mdmap.eraseTS(ino);
   stat.inodes_dec();
-  inomap.erase_bwd(ino);
+
+  // - we currently don't forget old mappings, because it creates race conditions with overlaying caps
+  //  PUTMEBACK-LATER: inomap.erase_bwd(ino);
 
   return 0;
 }
