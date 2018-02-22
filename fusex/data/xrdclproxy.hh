@@ -120,13 +120,13 @@ namespace XrdCl
 	{
 	  XrdSysMutexHelper lLock(this);
 	  if ( (inflight_size < max_inflight_size) && 
-	       (inflight_buffers < 30000) ) // avoid to trigger XRootD SID exhaustion
+	       (inflight_buffers < 16384) ) // avoid to trigger XRootD SID exhaustion
 	    break;
 	}
 	// we wait that the situation relaxes
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	if (!(cnt%50))
-	  eos_static_warning("inflight-buffer exceeds maximum of %lu bytes", max_inflight_size);
+	if (!(cnt%1000))
+	  eos_static_warning("inflight-buffer exceeds maximum of %lu bytes or too many buffers in flight (>16384)", max_inflight_size);
 	cnt++;
       } while (1);
 
@@ -134,9 +134,10 @@ namespace XrdCl
 
       size_t cap_size = size;
 
+      inflight_buffers++;
+
       if (!queue.size() || (size < buffersize)) {
 	inflight_size += cap_size;
-	inflight_buffers++;
 	return std::make_shared<std::vector<char>>( cap_size , 0);
       } else {
 	shared_buffer buffer = queue.front();
@@ -144,7 +145,6 @@ namespace XrdCl
 	buffer->resize(cap_size);
 	buffer->reserve(cap_size);
 	inflight_size += buffer->capacity();
-	inflight_buffers++;
 	queue.pop();
 	return buffer;
       }
