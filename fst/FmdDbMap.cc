@@ -1245,7 +1245,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
     }
   } while (cursor != "0");
 
-  auto start = high_resolution_clock::now();
+  auto start = steady_clock::now();
   uint64_t total = file_ids.size();
   eos_info("resyncing %llu files for file_system %u", total, fsid);
   uint64_t num_files = 0;
@@ -1297,27 +1297,27 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
 
     if (num_files % 10000 == 0) {
       double rate = 0;
-      auto duration = high_resolution_clock::now() - start;
-      auto f_secs = duration_cast<milliseconds>(duration);
+      auto duration = steady_clock::now() - start;
+      auto ms = duration_cast<milliseconds>(duration);
 
-      if (f_secs.count()) {
-        rate = (double) num_files * 1000 / (double)f_secs.count();
+      if (ms.count()) {
+        rate = (num_files * 1000.0) / (double)ms.count();
       }
 
-      eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
+      eos_info("fsid=%u resynced %llu/%llu files at a rate of %.2f Hz",
                fsid, num_files, total, rate);
     }
   }
 
   double rate = 0;
-  auto duration = high_resolution_clock::now() - start;
-  auto f_secs = duration_cast<milliseconds>(duration);
+  auto duration = steady_clock::now() - start;
+  auto ms = duration_cast<milliseconds>(duration);
 
-  if (f_secs.count()) {
-    rate = (double) num_files * 1000 / (double)f_secs.count();
+  if (ms.count()) {
+    rate = (num_files * 1000.0) / (double)ms.count();
   }
 
-  eos_info("fsid=%u resynced %llu/%llu files at a rate of %d Hz",
+  eos_info("fsid=%u resynced %llu/%llu files at a rate of %.2f Hz",
            fsid, num_files, total, rate);
   return true;
 }
