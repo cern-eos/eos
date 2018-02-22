@@ -364,7 +364,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("flush-wait-open")) {
-        root["options"]["flush-wait-open"] = 0;
+        root["options"]["flush-wait-open"] = 1;
       }
 
       if (!root["options"].isMember("show-tree-size")) {
