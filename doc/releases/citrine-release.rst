@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.15 Citrine``
+===================
+
+2018-02-22
+
+Bug
++++
+
+* [EOS-2353] - git clone with 2GB random reading creates read amplification
+* [EOS-2359] - Deadlock in proto wfe
+* [EOS-2361] - MGM crash after enabling ToggleDeadlock
+* [EOS-2362] - eosfusebind (runuser) broken on slc6
+
 
 ``v4.2.14 Citrine``
 ===================
