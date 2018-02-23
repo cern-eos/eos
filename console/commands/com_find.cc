@@ -1485,5 +1485,5 @@ com_find_new(char* arg)
 }
 
 int com_find(char *arg) {
-  return com_find_new(arg);
+  return com_find_old(arg);
 }
