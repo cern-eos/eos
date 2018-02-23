@@ -95,12 +95,12 @@ The recovery settings are defined in the following section:
 
 ```
    "recovery" : {
-     "read-open" = 1,
-     "read-open-noserver" = 1,
-     "read-open-noserver-retrywindow" = 86400,
-     "write-open" = 1,
-     "write-open-noserver" = 1,
-     "write-open-noserver-retrywindow" = 86400
+     "read-open" : 1,
+     "read-open-noserver" : 1,
+     "read-open-noserver-retrywindow" : 86400,
+     "write-open" : 1,
+     "write-open-noserver" : 1,
+     "write-open-noserver-retrywindow" : 86400
    }
 ```
 
