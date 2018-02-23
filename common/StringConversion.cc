@@ -159,6 +159,42 @@ StringConversion::GetReadableSizeString(XrdOucString& sizestring,
 }
 
 //------------------------------------------------------------------------------
+// Convert a string containing binary characters to its hex representation
+//------------------------------------------------------------------------------
+std::string
+StringConversion::string_to_hex(const std::string& input)
+{
+  static const char* const lut = "0123456789ABCDEF";
+  size_t len = input.length();
+  std::string output;
+  output.reserve(2 * len);
+
+  for (size_t i = 0; i < len; ++i) {
+    const unsigned char c = input[i];
+    output.push_back(lut[c >> 4]);
+    output.push_back(lut[c & 15]);
+  }
+
+  return output;
+}
+
+//------------------------------------------------------------------------------
+// Convert a char to its hex representation
+//------------------------------------------------------------------------------
+std::string
+StringConversion::char_to_hex(const char input)
+{
+  static const char* const lut = "0123456789abcdef";
+  std::string output;
+  output.resize(2);
+
+  const unsigned char c = input;
+  output[0] = lut[c >> 4];
+  output[1] = lut[c & 15];
+  return output;
+}
+
+//------------------------------------------------------------------------------
 // Convert a readable string into a number
 //------------------------------------------------------------------------------
 unsigned long long

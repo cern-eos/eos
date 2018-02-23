@@ -36,7 +36,6 @@ EOSMGMNAMESPACE_BEGIN
 // Based on the Uid/Gid of given FileMd / ContainerMd, should it be included
 // in the search results?
 //------------------------------------------------------------------------------
-
 template<typename T>
 static bool eliminateBasedOnUidGid(const eos::console::FindProto &req,
   const T& md)
@@ -59,6 +58,22 @@ static bool eliminateBasedOnUidGid(const eos::console::FindProto &req,
   }
 
   return false;
+}
+
+
+//------------------------------------------------------------------------------
+// Print hex checksum of given fmd, if requested by req.
+//------------------------------------------------------------------------------
+static void printChecksum(std::ofstream &ss, const eos::console::FindProto &req,
+  const std::shared_ptr<eos::IFileMD> &fmd)
+{
+  if(req.checksum()) {
+    ss << " checksum=";
+
+    for(unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
+      ss << eos::common::StringConversion::char_to_hex(fmd->getChecksum().getDataPadded(i));
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -102,7 +117,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool printuid = findRequest.printuid();
   bool printgid = findRequest.printgid();
   bool printfs = findRequest.fs();
-  bool printchecksum = findRequest.checksum();
   bool printctime = findRequest.ctime();
   bool printmtime = findRequest.mtime();
   bool printrep = findRequest.nrep();
@@ -370,7 +384,7 @@ eos::mgm::FindCmd::ProcessRequest()
             // How to print, count, etc. when file is selected...
             if (selected) {
               bool printSimple = !(printsize || printfid || printuid || printgid ||
-                                   printchecksum || printfileinfo || printfs || printctime ||
+                                   findRequest.checksum() || printfileinfo || printfs || printctime ||
                                    printmtime || printrep || printunlink || printhosts ||
                                    printpartition || selectrepdiff || purge_atomic || layoutstripes);
 
@@ -494,15 +508,7 @@ eos::mgm::FindCmd::ProcessRequest()
                         }
                       }
 
-                      if (printchecksum) {
-                        ofstdoutStream << " checksum=";
-
-                        for (unsigned int i = 0;
-                             i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-                          ofstdoutStream << std::right << setfill('0') << std::setw(2)
-                                         << (unsigned char)(fmd->getChecksum().getDataPadded(i));
-                        }
-                      }
+                      printChecksum(ofstdoutStream, findRequest, fmd);
 
                       if (printctime) {
                         eos::IFileMD::ctime_t ctime;
