@@ -44,6 +44,7 @@ set(MGM_UT_SRCS
   mgm/LockTrackerTests.cc)
 
 set(COMMON_UT_SRCS
+  common/FutureWrapperTests.cc
   common/TimingTests.cc
   common/MappingTests.cc
   common/SymKeysTests.cc

@@ -92,7 +92,7 @@ public:
     ensureHasArrived();
 
     if (mException) {
-      throw mException;
+      std::rethrow_exception(mException);
     }
 
     return mObj;
@@ -109,7 +109,7 @@ public:
     ensureHasArrived();
 
     if (mException) {
-      throw mException;
+      std::rethrow_exception(mException);
     }
 
     return &mObj;
