@@ -3,10 +3,10 @@ eosxd
 
 Configuration File
 ------------------
-The configuration file name for an unnamed instance is */etc/eos/fuse.conf*.
-The configuration file for a named instance is */etc/eos/fuse.<name>.conf*.
+The configuration file name for an unnamed instance is ```/etc/eos/fuse.conf```.
+The configuration file for a named instance is ```/etc/eos/fuse.<name>.conf```.
 
-You can select a named instance adding '-ofsname=<name>' to the argument list.
+You can select a named instance adding ```'-ofsname=<name>'``` to the argument list.
 
 This 
 
