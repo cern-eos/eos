@@ -32,6 +32,34 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+// Based on the Uid/Gid of given FileMd / ContainerMd, should it be included
+// in the search results?
+//------------------------------------------------------------------------------
+
+template<typename T>
+static bool eliminateBasedOnUidGid(const eos::console::FindProto &req,
+  const T& md)
+{
+
+  if(req.searchuid() && md->getCUid() != req.uid() ) {
+    return true;
+  }
+
+  if(req.searchnotuid() && md->getCUid() == req.notuid()) {
+    return true;
+  }
+
+  if(req.searchgid() && md->getCGid() != req.gid()) {
+    return true;
+  }
+
+  if(req.searchnotgid() && md->getCGid() == req.gid()) {
+    return true;
+  }
+
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
@@ -60,10 +88,6 @@ eos::mgm::FindCmd::ProcessRequest()
   auto olderthan = findRequest.olderthan();
   auto youngerthan = findRequest.youngerthan();
   auto& purgeversion = findRequest.purge();
-  auto uid = findRequest.uid();
-  auto gid = findRequest.gid();
-  auto notuid = findRequest.notuid();
-  auto notgid = findRequest.notgid();
   auto& permission = findRequest.permission();
   auto& notpermission = findRequest.notpermission();
   auto stripes = findRequest.layoutstripes();
@@ -71,10 +95,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
   bool findgroupmix = findRequest.mixedgroups();
-  bool searchuid = findRequest.searchuid();
-  bool searchnotuid = findRequest.searchnotuid();
-  bool searchgid = findRequest.searchgid();
-  bool searchnotgid = findRequest.searchnotgid();
   bool searchpermission = findRequest.searchpermission();
   bool searchnotpermission = findRequest.searchnotpermission();
   bool printsize = findRequest.size();
@@ -280,19 +300,7 @@ eos::mgm::FindCmd::ProcessRequest()
               }
             }
 
-            if (searchuid && fmd->getCUid() != uid) {
-              selected = false;
-            }
-
-            if (searchnotuid && fmd->getCUid() == notuid) {
-              selected = false;
-            }
-
-            if (searchgid && fmd->getCGid() != gid) {
-              selected = false;
-            }
-
-            if (searchnotgid && fmd->getCGid() == notgid) {
+            if(eliminateBasedOnUidGid(findRequest, fmd)) {
               selected = false;
             }
 
@@ -673,19 +681,7 @@ eos::mgm::FindCmd::ProcessRequest()
         eosViewMutexGuard.Release();
       }
 
-      if (searchuid && mCmd->getCUid() != uid) {
-        selected = false;
-      }
-
-      if (searchnotuid && mCmd->getCUid() == notuid) {
-        selected = false;
-      }
-
-      if (searchgid && mCmd->getCGid() != gid) {
-        selected = false;
-      }
-
-      if (searchnotgid && mCmd->getCGid() == notgid) {
+      if(eliminateBasedOnUidGid(findRequest, mCmd)) {
         selected = false;
       }
 
