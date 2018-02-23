@@ -65,7 +65,9 @@ if ( $mgmurl =~/^\// ) {
         $redirector=`test -r /etc/sysconfig/eos_env && source /etc/sysconfig/eos_env && echo \$EOS_MGM_URL`;
         chomp $redirector;
         if ($redirector ne "") {
-            $redirector = "root://" . $redirector;
+            if ($redirector !~ /^root:\/\/*/) {
+                $redirector = "root://" . $redirector;
+            }
         } else {
             printf STDERR "error: cannot automatically determine to which MGM I should connect - set it via EOS_MGM_URL in /etc/sysconfig/eos or CDB_CLUSTER variable in /etc/quattor_install_info!\n";
         }
