@@ -41,7 +41,7 @@ This
     "fd-limit" : 65536,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
     "overlay-mode" : 000, 
-    "rm-rf-protect-levels" : 1
+    "rm-rf-protect-levels" : 1,
     "show-tree-size" : 0,
     "free-md-asap" : 1,
     "cpu-core-affinity" : 1,
