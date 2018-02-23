@@ -1632,6 +1632,7 @@ WFE::Job::DoIt(bool issync)
         );
         eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(),
                         hostPort.c_str());
+
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
         int errc = 0;
