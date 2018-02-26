@@ -30,6 +30,7 @@
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Stat.hh"
+#include "namespace/utils/BalanceCalculator.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -299,16 +300,7 @@ eos::mgm::FindCmd::ProcessRequest()
   url += gOFS->MgmOfsAlias;
   url += "/";
   // this hash is used to calculate the balance of the found files over the filesystems involved
-  google::dense_hash_map<unsigned long, unsigned long long> filesystembalance;
-  google::dense_hash_map<std::string, unsigned long long> spacebalance;
-  google::dense_hash_map<std::string, unsigned long long> schedulinggroupbalance;
-  google::dense_hash_map<int, unsigned long long> sizedistribution;
-  google::dense_hash_map<int, unsigned long long> sizedistributionn;
-  filesystembalance.set_empty_key(0);
-  spacebalance.set_empty_key("");
-  schedulinggroupbalance.set_empty_key("");
-  sizedistribution.set_empty_key(-1);
-  sizedistributionn.set_empty_key(-1);
+  eos::BalanceCalculator balanceCalculator;
   eos::common::Path cPath(spath.c_str());
   bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() ||
                    findRequest.files());
@@ -643,39 +635,7 @@ eos::mgm::FindCmd::ProcessRequest()
           eosViewMutexGuard.Release();
 
           if (fmd) {
-            for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
-              auto loc = fmd->getLocation(i);
-              size_t size = fmd->getSize();
-
-              if (!loc) {
-                eos_err("fsid 0 found %s %llu", fmd->getName().c_str(), fmd->getId());
-                continue;
-              }
-
-              filesystembalance[loc] += size;
-
-              if ((i == 0) && (size)) {
-                auto bin = (int) log10((double) size);
-                sizedistribution[ bin ] += size;
-                sizedistributionn[ bin ]++;
-              }
-
-              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-              eos::common::FileSystem* filesystem = nullptr;
-
-              if (FsView::gFsView.mIdView.count(loc)) {
-                filesystem = FsView::gFsView.mIdView[loc];
-              }
-
-              if (filesystem != nullptr) {
-                eos::common::FileSystem::fs_snapshot_t fs;
-
-                if (filesystem->SnapShotFileSystem(fs, true)) {
-                  spacebalance[fs.mSpace] += size;
-                  schedulinggroupbalance[fs.mGroup] += size;
-                }
-              }
-            }
+            balanceCalculator.account(fmd);
           }
         }
       }
@@ -851,68 +811,7 @@ eos::mgm::FindCmd::ProcessRequest()
   }
 
   if (calcbalance) {
-    XrdOucString sizestring = "";
-
-    for (const auto& it : filesystembalance) {
-      ofstdoutStream << "fsid=" << it.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) <<
-                     eos::common::StringConversion::GetReadableSizeString(sizestring, it.second,
-                         "B");
-      ofstdoutStream << " \tnbytes=" << it.second << std::endl;
-    }
-
-    for (const auto& its : spacebalance) {
-      ofstdoutStream << "space=" << its.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) <<
-                     eos::common::StringConversion::GetReadableSizeString(sizestring, its.second,
-                         "B");
-      ofstdoutStream << " \tnbytes=" << its.second << std::endl;
-    }
-
-    for (const auto& itg : schedulinggroupbalance) {
-      ofstdoutStream << "sched=" << itg.first << " \tvolume=";
-      ofstdoutStream << std::left << std::setw(12) <<
-                     eos::common::StringConversion::GetReadableSizeString(sizestring, itg.second,
-                         "B");
-      ofstdoutStream << " \tnbytes=" << itg.second << std::endl;
-    }
-
-    for (const auto& itsd : sizedistribution) {
-      unsigned long long lowerlimit = 0;
-      unsigned long long upperlimit = 0;
-
-      if (((itsd.first) - 1) > 0) {
-        lowerlimit = pow(10, (itsd.first));
-      }
-
-      if ((itsd.first) > 0) {
-        upperlimit = pow(10, (itsd.first) + 1);
-      }
-
-      XrdOucString sizestring1;
-      XrdOucString sizestring2;
-      XrdOucString sizestring3;
-      XrdOucString sizestring4;
-      unsigned long long avgsize = (sizedistributionn[itsd.first]
-                                    ? itsd.second / sizedistributionn[itsd.first] : 0);
-      ofstdoutStream << "sizeorder=" << std::right << setfill('0') << std::setw(
-                       2) << itsd.first;
-      ofstdoutStream << " \trange=[ " << setfill(' ') << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
-                       sizestring1, lowerlimit, "B");
-      ofstdoutStream << " ... " << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
-                       sizestring2, upperlimit, "B") << " ]";
-      ofstdoutStream << " volume=" << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
-                       sizestring3, itsd.second, "B");
-      ofstdoutStream << " \tavgsize=" << std::left << std::setw(12);
-      ofstdoutStream << eos::common::StringConversion::GetReadableSizeString(
-                       sizestring4, avgsize, "B");
-      ofstdoutStream << " \tnbytes=" << itsd.second;
-      ofstdoutStream << " \t avgnbytes=" << avgsize;
-      ofstdoutStream << " \t nfiles=" << sizedistributionn[itsd.first];
-    }
+    balanceCalculator.printSummary(ofstdoutStream);
   }
 
   if (!CloseTemporaryOutputFiles()) {
