@@ -659,12 +659,15 @@ eos::mgm::FindCmd::ProcessRequest()
         eosViewMutexGuard.Release();
       }
 
+      if(!mCmd) {
+        continue;
+      }
+
       if(eliminateBasedOnUidGid(findRequest, mCmd)) {
         selected = false;
       }
 
       if (searchpermission || searchnotpermission) {
-        if(mCmd) {
           mode_t st_mode = eos::modeFromMetadataEntry(mCmd);
 
           std::ostringstream flagOstr;
@@ -679,10 +682,6 @@ eos::mgm::FindCmd::ProcessRequest()
           if (searchnotpermission && permString == notpermission) {
             selected = false;
           }
-        }
-        else {
-          selected = false;
-        }
       }
 
       if (selectfaultyacl) {
@@ -724,22 +723,13 @@ eos::mgm::FindCmd::ProcessRequest()
 
       if (selected && !purge && !printcounter) {
         if (printchildcount) {
-          //-------------------------------------------
-          eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-          std::shared_ptr<eos::IContainerMD> mCmd;
           unsigned long long childfiles = 0;
           unsigned long long childdirs = 0;
 
-          try {
-            mCmd = gOFS->eosView->getContainer(foundit.first);
-            childfiles = mCmd->getNumFiles();
-            childdirs = mCmd->getNumContainers();
-            ofstdoutStream << foundit.first << " ndir=" << childdirs << " nfiles=" <<
-                           childfiles << std::endl;
-          } catch (eos::MDException& e) {
-            eos_debug("caught exception %d %s\n", e.getErrno(),
-                      e.getMessage().str().c_str());
-          }
+          childfiles = mCmd->getNumFiles();
+          childdirs = mCmd->getNumContainers();
+          ofstdoutStream << foundit.first << " ndir=" << childdirs <<
+              " nfiles=" << childfiles << std::endl;
         } else {
           if (!printfileinfo) {
             // print directories
@@ -766,21 +756,7 @@ eos::mgm::FindCmd::ProcessRequest()
             }
 
             ofstdoutStream << foundit.first;
-
-            if (findRequest.printuid() || findRequest.printgid()) {
-              eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-              std::shared_ptr<eos::IContainerMD> mCmd;
-
-              try {
-                mCmd = gOFS->eosView->getContainer(foundit.first.c_str());
-
-                printUidGid(ofstdoutStream, findRequest, mCmd);
-
-              } catch (eos::MDException& e) {
-                eos_debug("caught exception %d %s\n", e.getErrno(),
-                          e.getMessage().str().c_str());
-              }
-            }
+            printUidGid(ofstdoutStream, findRequest, mCmd);
           } else {
             // print fileinfo -m
             this->PrintFileInfoMinusM(foundit.first, errInfo);
