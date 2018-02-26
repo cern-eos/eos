@@ -694,7 +694,7 @@ eos::mgm::FindCmd::ProcessRequest()
 
       if (searchpermission || searchnotpermission) {
         if(mCmd) {
-          mode_t st_mode = eos::modeFromContainerMD(mCmd);
+          mode_t st_mode = eos::modeFromMetadataEntry(mCmd);
 
           std::ostringstream flagOstr;
           flagOstr << std::oct << st_mode;

@@ -170,30 +170,13 @@ XrdMgmOfs::_stat(const char* path,
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
 
     if (fmd->isLink()) {
-      buf->st_mode = S_IFLNK;
-    } else {
-      buf->st_mode = S_IFREG;
-    }
-
-    uint16_t flags = fmd->getFlags();
-
-    if (fmd->isLink()) {
-      buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
       buf->st_nlink = 1;
-    } else {
-      if (!flags) {
-        buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
-      } else {
-        buf->st_mode |= flags;
-      }
-
+    }
+    else {
       buf->st_nlink = fmd->getNumLocation();
-      if (fmd->hasLocation(EOS_TAPE_FSID))
-      {
-	buf->st_mode |= EOS_TAPE_MODE_T;
-      }
     }
 
+    buf->st_mode = eos::modeFromMetadataEntry(fmd);
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
@@ -280,8 +263,7 @@ XrdMgmOfs::_stat(const char* path,
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
-    buf->st_mode = eos::modeFromContainerMD(cmd);
-
+    buf->st_mode = eos::modeFromMetadataEntry(cmd);
     buf->st_nlink = 1;
     buf->st_uid = cmd->getCUid();
     buf->st_gid = cmd->getCGid();
