@@ -38,16 +38,6 @@
   XrdOucString sfreebytes = env.Get("mgm.target.freebytes");
   char* alogid = env.Get("mgm.logid");
   char* simulate = env.Get("mgm.simulate"); // used to test the routing
-  char* sreplyjob = env.Get("mgm.replyjob");
-  XrdOucString rjob;
-  bool replyjob = false;
-
-  // Older EOS versions send jobs via asynchronous queue, newer version
-  // reply directly with the job
-  if (sreplyjob && ((rjob = sreplyjob) == "1"))
-  {
-    replyjob = true;
-  }
 
   // static map with iterator position for the next group scheduling and its mutex
   static std::map<std::string, size_t> sGroupCycle;
@@ -397,28 +387,19 @@
                 XrdOucString response = "submitted";
                 error.setErrInfo(response.length() + 1, response.c_str());
 
-                if (!replyjob) {
-                  if (!simulate) {
-                    eos::common::TransferJob* txjob = new eos::common::TransferJob(
-                      fullcapability.c_str());
+                if (!simulate) {
+                  eos::common::TransferJob* txjob =
+                    new eos::common::TransferJob(fullcapability.c_str());
 
-                    if (target_fs->GetBalanceQueue()->Add(txjob)) {
-                      eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u",
-                                      hexfid.c_str(), source_fsid, target_fsid);
-                      eos_thread_debug("job=%s", fullcapability.c_str());
-                    }
-
-                    if (txjob) {
-                      delete txjob;
-                    }
+                  if (target_fs->GetBalanceQueue()->Add(txjob)) {
+                    eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u",
+                                    hexfid.c_str(), source_fsid, target_fsid);
+                    eos_thread_debug("job=%s", fullcapability.c_str());
                   }
-                } else {
-                  // send job as response
-                  response = fullcapability;
-                  error.setErrInfo(response.length() + 1, response.c_str());
-                  eos_thread_info("cmd=replied fid=%x source_fs=%u target_fs=%u job-length=%d",
-                                  hexfid.c_str(), source_fsid, target_fsid, response.length());
-                  eos_thread_debug("job=%s", fullcapability.c_str());
+
+                  if (txjob) {
+                    delete txjob;
+                  }
                 }
 
                 if (source_capabilityenv) {
