@@ -27,7 +27,6 @@
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
-#include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
@@ -42,6 +41,8 @@
 
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
+
+eos::common::ThreadPool eos::mgm::WFE::gAsyncCommunicationPool(1, 10);
 
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
@@ -1648,6 +1649,7 @@ WFE::Job::DoIt(bool issync)
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
+
         int errc = 0;
         auto user_name  = Mapping::UidToUserName(mVid.uid, errc);
 
@@ -1703,10 +1705,7 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_cli()->mutable_user()->set_username(user_name);
         notification->mutable_cli()->mutable_user()->set_groupname(group_name);
 
-        if (event == "sync::delete") {
-          collectAttributes();
-          notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
-        } else if (event == "sync::prepare") {
+        if (event == "sync::prepare") {
           struct stat buf;
           XrdOucErrInfo errInfo;
 
@@ -1770,6 +1769,9 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->mutable_owner()->set_groupname(group_name);
           notification->mutable_file()->set_fid(mFid);
 
+          collectAttributes();
+        } else if (event == "sync::delete") {
+          notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
           collectAttributes();
         } else if (event == "closew") {
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
@@ -1874,71 +1876,20 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to outside service:\n%s",
+        eos_static_info("Request sent to outside service:\n%s",
                          notification->DebugString().c_str());
-        XrdSsiPbServiceType service(hostPort, endPoint);
-        cta::xrd::Response response;
 
-        try {
-          auto future = service.Send(request, response);
-          future.get();
-        } catch (std::runtime_error& error) {
-          eos_static_err("Could not send request to outside service. Reason: %s",
-                         error.what());
-          MoveWithResults(SFS_ERROR);
-          return SFS_ERROR;
+        if (event == "sync::delete") {
+          auto jobCopy = *this;
+          auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
+            SendProtoWFRequest(&jobCopy, fullPath, request, hostPort, endPoint);
+          };
+          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, jobCopy);
+          gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
         }
-
-        switch (response.type()) {
-        case cta::xrd::Response::RSP_SUCCESS: {
-          retc = SFS_OK;
-          eos_static_debug("Response received from outside service:\n%s",
-                           response.DebugString().c_str());
-          // Set all attributes for file from response
-          eos::common::Mapping::VirtualIdentity rootvid;
-          eos::common::Mapping::Root(rootvid);
-          XrdOucErrInfo errInfo;
-
-          for (const auto& attrPair : response.xattr()) {
-            errInfo.clear();
-
-            if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
-                                nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
-              eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
-                             attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(),
-                             errInfo.getErrText());
-            }
-          }
-
-          break;
+        else {
+          return SendProtoWFRequest(this, fullPath, request, hostPort, endPoint);
         }
-
-        case cta::xrd::Response::RSP_ERR_CTA:
-          retc = EINVAL;
-          eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
-          break;
-
-        case cta::xrd::Response::RSP_ERR_USER:
-          retc = EINVAL;
-          eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
-          break;
-
-        case cta::xrd::Response::RSP_ERR_PROTOBUF:
-          retc = EINVAL;
-          eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
-          break;
-
-        case cta::xrd::Response::RSP_INVALID:
-          retc = EINVAL;
-          eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
-          break;
-
-        default:
-          retc = EINVAL;
-          eos_static_err("Response:\n%s", response.DebugString().c_str());
-        }
-
-        MoveWithResults(retc);
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
@@ -1961,6 +1912,73 @@ WFE::Job::DoIt(bool issync)
   }
 
   return retc;
+}
+
+int
+WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request,
+                             const std::string& hostPort, const std::string& endPoint) {
+  XrdSsiPbServiceType service(hostPort, endPoint);
+  cta::xrd::Response response;
+
+  try {
+    auto future = service.Send(request, response);
+    future.get();
+  } catch (std::runtime_error& error) {
+    eos_static_err("Could not send request to outside service. Reason: %s",
+                   error.what());
+    jobPtr->MoveWithResults(SFS_ERROR);
+    return SFS_ERROR;
+  }
+
+  switch (response.type()) {
+    case cta::xrd::Response::RSP_SUCCESS: {
+      eos_static_debug("Response received from outside service:\n%s",
+                       response.DebugString().c_str());
+      // Set all attributes for file from response
+      eos::common::Mapping::VirtualIdentity rootvid;
+      eos::common::Mapping::Root(rootvid);
+      XrdOucErrInfo errInfo;
+
+      for (const auto& attrPair : response.xattr()) {
+        errInfo.clear();
+
+        if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
+                            nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
+          eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
+                         attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(),
+                         errInfo.getErrText());
+        }
+      }
+
+      jobPtr->MoveWithResults(SFS_OK);
+      return SFS_OK;
+    }
+
+    case cta::xrd::Response::RSP_ERR_CTA:
+      eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
+      jobPtr->MoveWithResults(EINVAL);
+      return EINVAL;
+
+    case cta::xrd::Response::RSP_ERR_USER:
+      eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
+      jobPtr->MoveWithResults(EINVAL);
+      return EINVAL;
+
+    case cta::xrd::Response::RSP_ERR_PROTOBUF:
+      eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
+      jobPtr->MoveWithResults(EINVAL);
+      return EINVAL;
+
+    case cta::xrd::Response::RSP_INVALID:
+      eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
+      jobPtr->MoveWithResults(EINVAL);
+      return EINVAL;
+
+    default:
+      eos_static_err("Response:\n%s", response.DebugString().c_str());
+      jobPtr->MoveWithResults(EINVAL);
+      return EINVAL;
+  }
 }
 
 void

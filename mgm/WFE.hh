@@ -28,6 +28,8 @@
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
 #include "common/FileId.hh"
+#include "common/ThreadPool.hh"
+#include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdJob.hh"
@@ -125,11 +127,11 @@ public:
       Action(std::string a, std::string e, time_t when, std::string workflow,
              std::string queue)
       {
-        mAction = a;
-        mEvent = e;
+        mAction = std::move(a);
+        mEvent = std::move(e);
         mTime = when;
-        mWorkflow = workflow;
-        mQueue = queue;
+        mWorkflow = std::move(workflow);
+        mQueue = std::move(queue);
         XrdOucString tst;
         mWhen = eos::common::StringConversion::GetSizeString(tst,
                 (unsigned long long) when);
@@ -159,9 +161,7 @@ public:
       eos::common::Mapping::Copy(vid, mVid);
     }
 
-    ~Job()
-    {
-    }
+    ~Job() override = default;
 
     Job(const Job& other)
     {
@@ -173,9 +173,13 @@ public:
     // ---------------------------------------------------------------------------
     // Job execution function
     // ---------------------------------------------------------------------------
-    void DoIt() { DoIt(false); return ;}
+    void DoIt() override { DoIt(false); }
 
     int  DoIt(bool issync=false);
+
+    static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
+                                  const cta::xrd::Request& request, const std::string& hostPort,
+                                  const std::string& endPoint);
 
     // -------------------------------------------------------------------------
     // persistency related methods
@@ -193,11 +197,11 @@ public:
 
     // -------------------------------------------------------------------------
 
-    void AddAction(std::string action,
-                   std::string event,
+    void AddAction(const std::string& action,
+                   const std::string& event,
                    time_t when,
-                   std::string workflow,
-                   std::string queue)
+                   const std::string& workflow,
+                   const std::string& queue)
     {
       Action thisaction(action, event, when, workflow, queue);
       mActions.push_back(thisaction);
@@ -218,8 +222,7 @@ public:
                       (unsigned long long) mFid);
     }
 
-    bool IsSync(std::string event="" ) {return ( (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::");}
-
+    bool IsSync(const std::string& event="" ) {return ( (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::");}
 
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
@@ -285,6 +288,9 @@ public:
 
   /// singleton object of a scheduler
   static XrdScheduler* gScheduler;
+
+  /// pool executing asynchronous communications in workflow
+  static eos::common::ThreadPool gAsyncCommunicationPool;
 };
 
 EOSMGMNAMESPACE_END
