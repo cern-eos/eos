@@ -25,6 +25,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/utils/SmartPtrs.hh"
 #include "namespace/utils/DataHelper.hh"
+#include "namespace/utils/Descriptor.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 

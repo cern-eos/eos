@@ -31,7 +31,6 @@
 
 #include "namespace/MDException.hh"
 #include "namespace/utils/Buffer.hh"
-#include "namespace/utils/Descriptor.hh"
 
 namespace eos
 {

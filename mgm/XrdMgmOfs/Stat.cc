@@ -280,11 +280,7 @@ XrdMgmOfs::_stat(const char* path,
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
-    buf->st_mode = cmd->getMode();
-
-    if (cmd->numAttributes()) {
-      buf->st_mode |= S_ISVTX;
-    }
+    buf->st_mode = eos::modeFromContainerMD(cmd);
 
     buf->st_nlink = 1;
     buf->st_uid = cmd->getCUid();
@@ -347,14 +343,14 @@ XrdMgmOfs::_stat(const char* path,
 // ---------------------------------------------------------------------------
 //  get the checksum info of a file
 // ---------------------------------------------------------------------------
-int 
+int
 XrdMgmOfs::_getchecksum(const char* Name,
            XrdOucErrInfo& error,
            std::string* xstype,
            std::string* xs,
            const XrdSecEntity* client,
-           const char* opaque, 
-           bool follow) 
+           const char* opaque,
+           bool follow)
 {
     // ---------------------------------------------------------------------------
     errno = 0;

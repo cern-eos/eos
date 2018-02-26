@@ -29,6 +29,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -692,14 +693,13 @@ eos::mgm::FindCmd::ProcessRequest()
       }
 
       if (searchpermission || searchnotpermission) {
-        struct stat buf;
+        if(mCmd) {
+          mode_t st_mode = eos::modeFromContainerMD(mCmd);
 
-        if (gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr,
-                        nullptr) == 0) {
           std::ostringstream flagOstr;
-          flagOstr << std::oct << buf.st_mode;
-          auto flagStr = flagOstr.str();
-          auto permString = flagStr.substr(flagStr.length() - 3);
+          flagOstr << std::oct << st_mode;
+          std::string flagStr = flagOstr.str();
+          std::string permString = flagStr.substr(flagStr.length() - 3);
 
           if (searchpermission && permString != permission) {
             selected = false;
@@ -708,7 +708,8 @@ eos::mgm::FindCmd::ProcessRequest()
           if (searchnotpermission && permString == notpermission) {
             selected = false;
           }
-        } else {
+        }
+        else {
           selected = false;
         }
       }
