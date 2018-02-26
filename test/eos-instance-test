@@ -718,7 +718,7 @@ runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 categorie="stress"
 # ------------------------------------------------------------------------------
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 5"
+runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
 runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
 runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
@@ -733,7 +733,7 @@ runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | g
 ################################################################################
 # ATTRIBUTES
 ###################################################A############################
-runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 5"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 5"
 runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test"
@@ -1115,7 +1115,7 @@ categorie="owncloud"
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
-runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep success | wc -l | grep -w 5"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 
 # upload with chunking
 runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
