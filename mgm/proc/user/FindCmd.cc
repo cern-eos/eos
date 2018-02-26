@@ -178,6 +178,41 @@ static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD> &fmd)
 }
 
 //------------------------------------------------------------------------------
+// Check whether to eliminate depending on modification time and options passed
+// to FindCmd.
+//------------------------------------------------------------------------------
+static bool eliminateBasedOnMTime(const eos::console::FindProto &req,
+  const std::shared_ptr<eos::IFileMD> &fmd)
+{
+
+  eos::IFileMD::ctime_t mtime;
+  fmd->getMTime(mtime);
+
+  if(req.onehourold()) {
+    if(mtime.tv_sec > (time(nullptr) - 3600)) {
+      return true;
+    }
+  }
+
+  time_t selectoldertime = (time_t) req.olderthan();
+  time_t selectyoungertime = (time_t) req.youngerthan();
+
+  if(selectoldertime > 0) {
+    if (mtime.tv_sec > selectoldertime) {
+      return true;
+    }
+  }
+
+  if(selectyoungertime > 0) {
+    if (mtime.tv_sec < selectyoungertime) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -201,8 +236,6 @@ eos::mgm::FindCmd::ProcessRequest()
   auto& attributevalue = findRequest.attributevalue();
   auto& printkey = findRequest.printkey();
   auto finddepth = findRequest.maxdepth();
-  auto olderthan = findRequest.olderthan();
-  auto youngerthan = findRequest.youngerthan();
   auto& purgeversion = findRequest.purge();
   auto& permission = findRequest.permission();
   auto& notpermission = findRequest.notpermission();
@@ -222,7 +255,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool printmtime = findRequest.mtime();
   bool printrep = findRequest.nrep();
   bool selectrepdiff = findRequest.stripediff();
-  bool selectonehour = findRequest.onehourold();
   bool printunlink = findRequest.nunlink();
   bool printcounter = findRequest.count();
   bool printchildcount = findRequest.childcount();
@@ -238,8 +270,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool nodirs = findRequest.files();
   bool dirs = findRequest.directories();
   auto max_version = 999999ul;
-  time_t selectoldertime = (time_t) olderthan;
-  time_t selectyoungertime = (time_t) youngerthan;
 
   if (!purge_atomic) {
     try {
@@ -387,31 +417,8 @@ eos::mgm::FindCmd::ProcessRequest()
             eosViewMutexGuard.Release();
             //-------------------------------------------
 
-            if (selectonehour) {
-              eos::IFileMD::ctime_t mtime;
-              fmd->getMTime(mtime);
-
-              if (mtime.tv_sec > (time(nullptr) - 3600)) {
-                selected = false;
-              }
-            }
-
-            if (selectoldertime > 0) {
-              eos::IFileMD::ctime_t mtime;
-              fmd->getMTime(mtime);
-
-              if (mtime.tv_sec > selectoldertime) {
-                selected = false;
-              }
-            }
-
-            if (selectyoungertime > 0) {
-              eos::IFileMD::ctime_t mtime;
-              fmd->getMTime(mtime);
-
-              if (mtime.tv_sec < selectyoungertime) {
-                selected = false;
-              }
+            if(eliminateBasedOnMTime(findRequest, fmd)) {
+              selected = false;
             }
 
             if(eliminateBasedOnUidGid(findRequest, fmd)) {
