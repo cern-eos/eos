@@ -136,6 +136,47 @@ static void printReplicas(std::ofstream &ss,
 }
 
 //------------------------------------------------------------------------------
+// Check whether file replicas belong to different scheduling groups
+//------------------------------------------------------------------------------
+static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD> &fmd)
+{
+  // find files which have replicas on mixed scheduling groups
+  std::string sGroupRef = "";
+  std::string sGroup = "";
+
+  for (auto lociter : fmd->getLocations()) {
+    // ignore filesystem id 0
+    if (!lociter) {
+      eos_static_err("fsid 0 found fid=%lld", fmd->getId());
+      continue;
+    }
+
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* filesystem = nullptr;
+
+    if (FsView::gFsView.mIdView.count(lociter)) {
+      filesystem = FsView::gFsView.mIdView[lociter];
+    }
+
+    if (filesystem != nullptr) {
+      sGroup = filesystem->GetString("schedgroup");
+    } else {
+      sGroup = "none";
+    }
+
+    if (!sGroupRef.empty()) {
+      if (sGroup != sGroupRef) {
+        return true;
+      }
+    } else {
+      sGroupRef = sGroup;
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -392,45 +433,8 @@ eos::mgm::FindCmd::ProcessRequest()
               selected = false;
             }
 
-            if (findgroupmix) {
-              // find files which have replicas on mixed scheduling groups
-              std::string sGroupRef = "";
-              std::string sGroup = "";
-              bool mixed = false;
-
-              for (auto lociter : fmd->getLocations()) {
-                // ignore filesystem id 0
-                if (!lociter) {
-                  eos_err("fsid 0 found fid=%lld", fmd->getId());
-                  continue;
-                }
-
-                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                eos::common::FileSystem* filesystem = nullptr;
-
-                if (FsView::gFsView.mIdView.count(lociter)) {
-                  filesystem = FsView::gFsView.mIdView[lociter];
-                }
-
-                if (filesystem != nullptr) {
-                  sGroup = filesystem->GetString("schedgroup");
-                } else {
-                  sGroup = "none";
-                }
-
-                if (!sGroupRef.empty()) {
-                  if (sGroup != sGroupRef) {
-                    mixed = true;
-                    break;
-                  }
-                } else {
-                  sGroupRef = sGroup;
-                }
-              }
-
-              if (!mixed) {
-                selected = false;
-              }
+            if (findgroupmix && !hasMixedSchedGroups(fmd)) {
+              selected = false;
             }
 
             if (selectrepdiff &&
