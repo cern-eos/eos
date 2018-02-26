@@ -213,6 +213,22 @@ static bool eliminateBasedOnMTime(const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Print uid / gid of a FileMD or ContainerMD, if requested by req.
+//------------------------------------------------------------------------------
+template<typename T>
+static void printUidGid(std::ofstream &ss, const eos::console::FindProto &req,
+  const T &md)
+{
+  if(req.printuid()) {
+    ss << " uid=" << md->getCUid();
+  }
+
+  if(req.printgid()) {
+    ss << " gid=" << md->getCGid();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -248,8 +264,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool searchnotpermission = findRequest.searchnotpermission();
   bool printsize = findRequest.size();
   bool printfid = findRequest.fid();
-  bool printuid = findRequest.printuid();
-  bool printgid = findRequest.printgid();
   bool printfs = findRequest.fs();
   bool printctime = findRequest.ctime();
   bool printmtime = findRequest.mtime();
@@ -453,7 +467,7 @@ eos::mgm::FindCmd::ProcessRequest()
 
             // How to print, count, etc. when file is selected...
             if (selected) {
-              bool printSimple = !(printsize || printfid || printuid || printgid ||
+              bool printSimple = !(printsize || printfid || findRequest.printuid() || findRequest.printgid() ||
                                    findRequest.checksum() || printfileinfo || printfs || printctime ||
                                    printmtime || printrep || printunlink || printhosts ||
                                    printpartition || selectrepdiff || purge_atomic || layoutstripes);
@@ -486,13 +500,7 @@ eos::mgm::FindCmd::ProcessRequest()
                         ofstdoutStream << " fid=" << fmd->getId();
                       }
 
-                      if (printuid) {
-                        ofstdoutStream << " uid=" << fmd->getCUid();
-                      }
-
-                      if (printgid) {
-                        ofstdoutStream << " gid=" << fmd->getCGid();
-                      }
+                      printUidGid(ofstdoutStream, findRequest, fmd);
 
                       if (printfs) {
                         ofstdoutStream << " fsid=";
@@ -803,20 +811,15 @@ eos::mgm::FindCmd::ProcessRequest()
 
             ofstdoutStream << foundit.first;
 
-            if (printuid || printgid) {
+            if (findRequest.printuid() || findRequest.printgid()) {
               eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
               std::shared_ptr<eos::IContainerMD> mCmd;
 
               try {
                 mCmd = gOFS->eosView->getContainer(foundit.first.c_str());
 
-                if (printuid) {
-                  ofstdoutStream << " uid=" << mCmd->getCUid();
-                }
+                printUidGid(ofstdoutStream, findRequest, mCmd);
 
-                if (printgid) {
-                  ofstdoutStream << " gid=" << mCmd->getCGid();
-                }
               } catch (eos::MDException& e) {
                 eos_debug("caught exception %d %s\n", e.getErrno(),
                           e.getMessage().str().c_str());
