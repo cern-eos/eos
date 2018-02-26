@@ -77,6 +77,65 @@ static void printChecksum(std::ofstream &ss, const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Print replica location of an fmd.
+//------------------------------------------------------------------------------
+static void printReplicas(std::ofstream &ss,
+  const std::shared_ptr<eos::IFileMD> &fmd, bool onlyhost, bool selectonline)
+{
+  if(onlyhost) {
+    ss << " hosts=";
+  }
+  else {
+    ss << " partition=";
+  }
+
+  std::set<std::string> results;
+
+  for(auto lociter : fmd->getLocations()) {
+    // lookup filesystem
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* filesystem = nullptr;
+
+    if (FsView::gFsView.mIdView.count(lociter)) {
+      filesystem = FsView::gFsView.mIdView[lociter];
+    }
+
+    if(!filesystem) {
+      continue;
+    }
+
+    eos::common::FileSystem::fs_snapshot_t fs;
+
+    if (filesystem->SnapShotFileSystem(fs, true)) {
+
+      if(selectonline && filesystem->GetActiveStatus(true) != eos::common::FileSystem::kOnline) {
+        continue;
+      }
+
+      std::string item;
+      if(onlyhost) {
+        item = fs.mHost;
+      }
+      else {
+        item = fs.mHost;
+        item += ":";
+        item += fs.mPath;
+      }
+
+      results.insert(item);
+    }
+  }
+
+  for(auto it = results.begin(); it != results.end(); it++) {
+    if(it != results.begin()) {
+      ss << ",";
+    }
+
+    ss << it->c_str();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -127,7 +186,6 @@ eos::mgm::FindCmd::ProcessRequest()
   bool printchildcount = findRequest.childcount();
   bool printhosts = findRequest.hosts();
   bool printpartition = findRequest.partition();
-  bool selectonline = findRequest.online();
   bool printfileinfo = findRequest.fileinfo();
   bool selectfaultyacl = findRequest.faultyacl();
   bool purge = false;
@@ -438,74 +496,12 @@ eos::mgm::FindCmd::ProcessRequest()
                         }
                       }
 
-                      if (printpartition) {
-                        ofstdoutStream << " partition=";
-                        std::set<std::string> fsPartition;
-
-                        for (auto lociter : fmd->getLocations()) {
-                          // get host name for fs id
-                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                          eos::common::FileSystem* filesystem = nullptr;
-
-                          if (FsView::gFsView.mIdView.count(lociter)) {
-                            filesystem = FsView::gFsView.mIdView[lociter];
-                          }
-
-                          if (filesystem != nullptr) {
-                            eos::common::FileSystem::fs_snapshot_t fs;
-
-                            if (filesystem->SnapShotFileSystem(fs, true)) {
-                              std::string partition = fs.mHost;
-                              partition += ":";
-                              partition += fs.mPath;
-
-                              if ((!selectonline) ||
-                                  (filesystem->GetActiveStatus(true) == eos::common::FileSystem::kOnline)) {
-                                fsPartition.insert(partition);
-                              }
-                            }
-                          }
-                        }
-
-                        for (auto partitionit = fsPartition.begin(); partitionit != fsPartition.end();
-                             partitionit++) {
-                          if (partitionit != fsPartition.begin()) {
-                            ofstdoutStream << ',';
-                          }
-
-                          ofstdoutStream << partitionit->c_str();
-                        }
+                      if(printpartition) {
+                        printReplicas(ofstdoutStream, fmd, false, findRequest.online());
                       }
 
-                      if (printhosts) {
-                        ofstdoutStream << " hosts=";
-                        std::set<std::string> fsHosts;
-
-                        for (auto lociter : fmd->getLocations()) {
-                          // get host name for fs id
-                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                          eos::common::FileSystem* filesystem = nullptr;
-
-                          if (FsView::gFsView.mIdView.count(lociter)) {
-                            filesystem = FsView::gFsView.mIdView[lociter];
-                          }
-
-                          if (filesystem != nullptr) {
-                            eos::common::FileSystem::fs_snapshot_t fs;
-
-                            if (filesystem->SnapShotFileSystem(fs, true)) {
-                              fsHosts.insert(fs.mHost);
-                            }
-                          }
-                        }
-
-                        for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++) {
-                          if (hostit != fsHosts.begin()) {
-                            ofstdoutStream << ',';
-                          }
-
-                          ofstdoutStream << hostit->c_str();
-                        }
+                      if(printhosts) {
+                        printReplicas(ofstdoutStream, fmd, true, findRequest.online());
                       }
 
                       printChecksum(ofstdoutStream, findRequest, fmd);
