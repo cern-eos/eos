@@ -1886,6 +1886,7 @@ WFE::Job::DoIt(bool issync)
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, jobCopy);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
+          return SFS_OK;
         }
         else {
           return SendProtoWFRequest(this, fullPath, request, hostPort, endPoint);
