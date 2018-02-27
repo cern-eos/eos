@@ -155,12 +155,14 @@ public:
                    const std::string& clientid);
 
     // send MD after update
-    int SendMD(const eos::fusex::md& md,
-               const std::string& uuid,
-               const std::string& clientid,
-               uint64_t md_ino,
-               uint64_t md_pino,
-               struct timespec& p_mtime);
+    int SendMD( const eos::fusex::md &md,
+		const std::string& uuid,
+		const std::string& clientid,
+		uint64_t md_ino,
+		uint64_t md_pino,
+		uint64_t clock,
+		struct timespec& p_mtime		
+		);
 
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
@@ -302,6 +304,7 @@ public:
     int BroadcastMD(const eos::fusex::md& md,
                     uint64_t md_ino,
                     uint64_t md_pino,
+		    uint64_t clock,
                     struct timespec& p_mtime
                    ); // broad cast changed md around
     std::string Print(std::string option, std::string filter);
