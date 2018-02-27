@@ -230,6 +230,79 @@ static void printUidGid(std::ofstream &ss, const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Print fs of a FileMD.
+//------------------------------------------------------------------------------
+static void printFs(std::ofstream &ss, const std::shared_ptr<eos::IFileMD> &fmd)
+{
+  ss << " fsid=";
+
+  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+  eos::IFileMD::LocationVector::const_iterator lociter;
+
+  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
+    if (lociter != loc_vect.begin()) {
+      ss << ',';
+    }
+
+    ss << *lociter;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print a selected FileMD, according to formatting settings in req.
+//------------------------------------------------------------------------------
+static void printFMD(std::ofstream &ss, const eos::console::FindProto &req,
+  const std::shared_ptr<eos::IFileMD> &fmd)
+{
+
+  if(req.size()) {
+    ss << " size=" << fmd->getSize();
+  }
+
+  if (req.fid()) {
+    ss << " fid=" << fmd->getId();
+  }
+
+  printUidGid(ss, req, fmd);
+
+  if (req.fs()) {
+    printFs(ss, fmd);
+  }
+
+  if(req.partition()) {
+    printReplicas(ss, fmd, false, req.online());
+  }
+
+  if(req.hosts()) {
+    printReplicas(ss, fmd, true, req.online());
+  }
+
+  printChecksum(ss, req, fmd);
+
+  if(req.ctime()) {
+    eos::IFileMD::ctime_t ctime;
+    fmd->getCTime(ctime);
+    ss << " ctime=" << (unsigned long long) ctime.tv_sec;
+    ss << '.' << (unsigned long long) ctime.tv_nsec;
+  }
+
+  if(req.mtime()) {
+    eos::IFileMD::ctime_t mtime;
+    fmd->getMTime(mtime);
+    ss << " mtime=" << (unsigned long long) mtime.tv_sec;
+    ss << '.' << (unsigned long long) mtime.tv_nsec;
+  }
+
+  if (req.nrep()) {
+    ss << " nrep=" << fmd->getNumLocation();
+  }
+
+  if (req.nunlink()) {
+    ss << " nunlink=" << fmd->getNumUnlinkedLocation();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -500,62 +573,8 @@ eos::mgm::FindCmd::ProcessRequest()
                     }
 
                     ofstdoutStream << fspath;
+                    printFMD(ofstdoutStream, findRequest, fmd);
 
-                    if (printsize) {
-                      ofstdoutStream << " size=" << fmd->getSize();
-                    }
-
-                    if (printfid) {
-                      ofstdoutStream << " fid=" << fmd->getId();
-                    }
-
-                    printUidGid(ofstdoutStream, findRequest, fmd);
-
-                    if (printfs) {
-                      ofstdoutStream << " fsid=";
-                      eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
-                      eos::IFileMD::LocationVector::const_iterator lociter;
-
-                      for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
-                        if (lociter != loc_vect.begin()) {
-                          ofstdoutStream << ',';
-                        }
-
-                        ofstdoutStream << *lociter;
-                      }
-                    }
-
-                    if(printpartition) {
-                      printReplicas(ofstdoutStream, fmd, false, findRequest.online());
-                    }
-
-                    if(printhosts) {
-                      printReplicas(ofstdoutStream, fmd, true, findRequest.online());
-                    }
-
-                    printChecksum(ofstdoutStream, findRequest, fmd);
-
-                    if (printctime) {
-                      eos::IFileMD::ctime_t ctime;
-                      fmd->getCTime(ctime);
-                      ofstdoutStream << " ctime=" << (unsigned long long) ctime.tv_sec;
-                      ofstdoutStream << '.' << (unsigned long long) ctime.tv_nsec;
-                    }
-
-                    if (printmtime) {
-                      eos::IFileMD::ctime_t mtime;
-                      fmd->getMTime(mtime);
-                      ofstdoutStream << " mtime=" << (unsigned long long) mtime.tv_sec;
-                      ofstdoutStream << '.' << (unsigned long long) mtime.tv_nsec;
-                    }
-
-                    if (printrep) {
-                      ofstdoutStream << " nrep=" << fmd->getNumLocation();
-                    }
-
-                    if (printunlink) {
-                      ofstdoutStream << " nunlink=" << fmd->getNumUnlinkedLocation();
-                    }
                   }
                 } else {
                   // print fileinfo -m
