@@ -98,7 +98,7 @@ message cap_map {
 };
 
 message heartbeat {
-  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; }
+  enum ProtVersion { PROTOCOLV1 = 0; PROTOCOLV2 = 1; PROTOCOLV3 = 2; }
 
   string name = 1; //< client chosen ID	
   string host = 2; //< client host
