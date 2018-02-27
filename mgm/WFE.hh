@@ -59,12 +59,10 @@ private:
   eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
-  mutable XrdSysMutex mActiveJobsMutex;
+  /// number of all jobs which are queued and didn't run yet
+  std::atomic_uint_least32_t mActiveJobs;
 
-  /// this are all jobs which are queued and didn't run yet
-  size_t mActiveJobs;
-
-  /// condition variabl to get signalled for a done job
+  /// condition variable to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 
 public:
@@ -247,10 +245,7 @@ public:
 
   void DecActiveJobs()
   {
-    {
-      XrdSysMutexHelper lMutex(mActiveJobsMutex);
-      mActiveJobs--;
-    }
+    mActiveJobs--;
     PublishActiveJobs();
   }
 
@@ -260,10 +255,7 @@ public:
 
   void IncActiveJobs()
   {
-    {
-      XrdSysMutexHelper lMutex(mActiveJobsMutex);
-      mActiveJobs++;
-    }
+    mActiveJobs++;
     PublishActiveJobs();
   }
 
@@ -276,10 +268,9 @@ public:
   //! Return active jobs
   // ---------------------------------------------------------------------------
 
-  size_t GetActiveJobs() const
+  inline auto GetActiveJobs() -> decltype(mActiveJobs.load()) const
   {
-    XrdSysMutexHelper lMutex(mActiveJobsMutex);
-    return mActiveJobs;
+    return mActiveJobs.load();
   }
 
   /// the scheduler class is providing a destructor-less object,

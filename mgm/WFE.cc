@@ -1876,7 +1876,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to outside service:\n%s",
+        eos_static_info("Request sent to outside service:\n%s",
                          notification->DebugString().c_str());
 
         if (event == "sync::delete") {
@@ -2033,7 +2033,7 @@ WFE::PublishActiveJobs()
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   char sactive[256];
-  snprintf(sactive, sizeof(sactive) - 1, "%lu", GetActiveJobs());
+  snprintf(sactive, sizeof(sactive) - 1, "%u", GetActiveJobs());
   FsView::gFsView.mSpaceView["default"]->SetConfigMember
   ("stat.wfe.active",
    sactive,
