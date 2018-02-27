@@ -523,11 +523,12 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
 /*----------------------------------------------------------------------------*/
 int
 FuseServer::Clients::SendMD( const eos::fusex::md &md,
-                            const std::string& uuid,
-                            const std::string & clientid,
-                            uint64_t md_ino,
-                            uint64_t md_pino,
-                            struct timespec& p_mtime
+			     const std::string& uuid,
+			     const std::string & clientid,
+			     uint64_t md_ino,
+			     uint64_t md_pino,
+			     uint64_t clock,
+			     struct timespec& p_mtime
                             )
 /*----------------------------------------------------------------------------*/
 {
@@ -550,6 +551,7 @@ FuseServer::Clients::SendMD( const eos::fusex::md &md,
     rsp.mutable_md_()->set_pt_mtime(p_mtime.tv_sec);
     rsp.mutable_md_()->set_pt_mtime_ns(p_mtime.tv_nsec);
   }
+  rsp.mutable_md_()->set_clock(clock);
 
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
@@ -835,6 +837,7 @@ int
 FuseServer::Caps::BroadcastMD(const eos::fusex::md & md,
                               uint64_t md_ino,
                               uint64_t md_pino,
+			      uint64_t clock,
                               struct timespec& p_mtime)
 {
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
@@ -878,6 +881,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md & md,
                                                cap->clientid(),
                                                md_ino,
                                                md_pino,
+					       clock,
                                                p_mtime);
 
         // make sure we sent the update only once to each client, eveh if this
@@ -2434,6 +2438,9 @@ FuseServer::HandleMD(const std::string &id,
 
       try
       {
+
+	uint64_t clock = 0;
+
         if (md.md_ino() && exclusive)
         {
           return EEXIST;
@@ -2586,6 +2593,10 @@ FuseServer::HandleMD(const std::string &id,
           gOFS->eosDirectoryService->updateStore(pcmd);
         }
 
+	// retrieve the clock
+	fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md_ino), &clock);
+	eos_static_info("ino=%llx clock=%llx", md_ino, clock);
+
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -2599,7 +2610,7 @@ FuseServer::HandleMD(const std::string &id,
         case CREATE:
         case RENAME:
         case MOVE:
-          Cap().BroadcastMD(md, md_ino, md_pino, pt_mtime);
+          Cap().BroadcastMD(md, md_ino, md_pino, clock, pt_mtime);
           break;
         }
       }
@@ -2621,6 +2632,8 @@ FuseServer::HandleMD(const std::string &id,
 
     if (S_ISLNK(md.mode()))
     {
+      uint64_t clock = 0;
+
       eos_static_info("ino=%lx set-link", (long) md.md_ino());
 
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -2689,7 +2702,7 @@ FuseServer::HandleMD(const std::string &id,
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
 
-        Cap().BroadcastMD(md, md_ino, md_pino, pt_mtime);
+        Cap().BroadcastMD(md, md_ino, md_pino, clock, pt_mtime);
         //Cap().BroadcastRelease(md);
       }
       catch ( eos::MDException &e )
