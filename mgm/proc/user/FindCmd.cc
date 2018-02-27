@@ -303,6 +303,49 @@ static void printFMD(std::ofstream &ss, const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Should I print in simple format, ie just the path, or more information
+// is needed?
+//------------------------------------------------------------------------------
+static bool shouldPrintSimple(const eos::console::FindProto &req)
+{
+  return !(
+    req.size() || req.fid() || req.printuid() || req.printgid() ||
+    req.checksum() || req.fileinfo() || req.fs() || req.ctime() ||
+    req.mtime() || req.nrep() || req.nunlink() || req.hosts()   ||
+    req.partition() || req.stripediff() || (req.purge() == "atomic") ||
+    req.dolayoutstripes()
+  );
+}
+
+//------------------------------------------------------------------------------
+// Check whether to select depending on permissions.
+//------------------------------------------------------------------------------
+static bool eliminateBasedOnPermissions(const eos::console::FindProto &req,
+  const std::shared_ptr<IContainerMD> &cont)
+{
+  if(!req.searchpermission() && !req.searchnotpermission()) {
+    return false;
+  }
+
+  mode_t st_mode = eos::modeFromMetadataEntry(cont);
+
+  std::ostringstream flagOstr;
+  flagOstr << std::oct << st_mode;
+  std::string flagStr = flagOstr.str();
+  std::string permString = flagStr.substr(flagStr.length() - 3);
+
+  if(req.searchpermission() && permString != req.permission()) {
+    return true;
+  }
+
+  if(req.searchnotpermission() && permString == req.notpermission()) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -327,27 +370,14 @@ eos::mgm::FindCmd::ProcessRequest()
   auto& printkey = findRequest.printkey();
   auto finddepth = findRequest.maxdepth();
   auto& purgeversion = findRequest.purge();
-  auto& permission = findRequest.permission();
-  auto& notpermission = findRequest.notpermission();
   auto stripes = findRequest.layoutstripes();
   bool silent = findRequest.silent();
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
   bool findgroupmix = findRequest.mixedgroups();
-  bool searchpermission = findRequest.searchpermission();
-  bool searchnotpermission = findRequest.searchnotpermission();
-  bool printsize = findRequest.size();
-  bool printfid = findRequest.fid();
-  bool printfs = findRequest.fs();
-  bool printctime = findRequest.ctime();
-  bool printmtime = findRequest.mtime();
-  bool printrep = findRequest.nrep();
   bool selectrepdiff = findRequest.stripediff();
-  bool printunlink = findRequest.nunlink();
   bool printcounter = findRequest.count();
   bool printchildcount = findRequest.childcount();
-  bool printhosts = findRequest.hosts();
-  bool printpartition = findRequest.partition();
   bool printfileinfo = findRequest.fileinfo();
   bool selectfaultyacl = findRequest.faultyacl();
   bool purge = false;
@@ -358,6 +388,8 @@ eos::mgm::FindCmd::ProcessRequest()
   bool nodirs = findRequest.files();
   bool dirs = findRequest.directories();
   auto max_version = 999999ul;
+
+  bool printSimple = shouldPrintSimple(findRequest);
 
   if (!purge_atomic) {
     try {
@@ -512,147 +544,159 @@ eos::mgm::FindCmd::ProcessRequest()
         //---------------------------------------------
         // fmd looks OK, proceed.
         //---------------------------------------------
-        if (!calcbalance) {
-          if(eliminateBasedOnMTime(findRequest, fmd)) {
+
+
+        //---------------------------------------------
+        // Balance calculation? Ignore selection
+        // criteria (TODO: Change this?) and simply
+        // account all fmd's.
+        //---------------------------------------------
+        if(calcbalance) {
+          balanceCalculator.account(fmd);
+          continue;
+        }
+
+        //---------------------------------------------
+        // Selection.
+        //---------------------------------------------
+
+        if(eliminateBasedOnMTime(findRequest, fmd)) {
+          selected = false;
+        }
+
+        if(eliminateBasedOnUidGid(findRequest, fmd)) {
+          selected = false;
+        }
+
+        // Check attribute key-value filter
+        if (!attributekey.empty() && !attributevalue.empty()) {
+          XrdOucString attr;
+          errInfo.clear();
+          gOFS->_attr_get(fspath.c_str(), errInfo, mVid, nullptr,
+                          attributekey.c_str(), attr);
+
+          if (attributevalue != std::string(attr.c_str())) {
             selected = false;
           }
+        }
 
-          if(eliminateBasedOnUidGid(findRequest, fmd)) {
-            selected = false;
-          }
+        if (findzero && fmd->getSize() != 0) {
+          selected = false;
+        }
 
-          // Check attribute key-value filter
-          if (!attributekey.empty() && !attributevalue.empty()) {
-            XrdOucString attr;
-            errInfo.clear();
-            gOFS->_attr_get(fspath.c_str(), errInfo, mVid, nullptr,
-                            attributekey.c_str(), attr);
+        if (findgroupmix && !hasMixedSchedGroups(fmd)) {
+          selected = false;
+        }
 
-            if (attributevalue != std::string(attr.c_str())) {
-              selected = false;
-            }
-          }
+        if (selectrepdiff &&
+            fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(
+              fmd->getLayoutId() + 1)) {
+          selected = false;
+        }
 
-          if (findzero && fmd->getSize() != 0) {
-            selected = false;
-          }
+        //---------------------------------------------
+        // Printing.
+        //---------------------------------------------
+        if(!selected) {
+          continue;
+        }
 
-          if (findgroupmix && !hasMixedSchedGroups(fmd)) {
-            selected = false;
-          }
-
-          if (selectrepdiff &&
-              fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(
-                fmd->getLayoutId() + 1)) {
-            selected = false;
-          }
-
-          // How to print, count, etc. when file is selected...
-          if (selected) {
-            bool printSimple = !(printsize || printfid || findRequest.printuid() || findRequest.printgid() ||
-                                 findRequest.checksum() || printfileinfo || printfs || printctime ||
-                                 printmtime || printrep || printunlink || printhosts ||
-                                 printpartition || selectrepdiff || purge_atomic || layoutstripes);
-
-            if (printSimple) {
-              if (!printcounter) {
-                if (printxurl) {
-                  ofstdoutStream << url;
-                }
-
-                ofstdoutStream << fspath << std::endl;
+        // How to print, count, etc. when file is selected...
+        if (selected) {
+          if (printSimple) {
+            if (!printcounter) {
+              if (printxurl) {
+                ofstdoutStream << url;
               }
-            } else {
-              if (!purge_atomic && !layoutstripes) {
-                if (!printfileinfo) {
-                  if (!printcounter) {
-                    ofstdoutStream << "path=";
 
-                    if (printxurl) {
-                      ofstdoutStream << url;
-                    }
+              ofstdoutStream << fspath << std::endl;
+            }
+          } else {
+            if (!purge_atomic && !layoutstripes) {
+              if (!printfileinfo) {
+                if (!printcounter) {
+                  ofstdoutStream << "path=";
 
-                    ofstdoutStream << fspath;
-                    printFMD(ofstdoutStream, findRequest, fmd);
+                  if (printxurl) {
+                    ofstdoutStream << url;
+                  }
 
+                  ofstdoutStream << fspath;
+                  printFMD(ofstdoutStream, findRequest, fmd);
+
+                }
+              } else {
+                // print fileinfo -m
+                this->PrintFileInfoMinusM(fspath, errInfo);
+              }
+
+              if (!printcounter) {
+                ofstdoutStream << std::endl;
+              }
+            }
+
+            // Do the purge if needed
+            if (purge_atomic &&
+                fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
+              ofstdoutStream << "# found atomic " << fspath << std::endl;
+              struct stat buf;
+
+              if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr,
+                                nullptr)) &&
+                  ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
+                time_t now = time(nullptr);
+
+                if ((now - buf.st_ctime) > 86400) {
+                  if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
+                    ofstdoutStream << "# purging atomic " << fspath;
                   }
                 } else {
-                  // print fileinfo -m
-                  this->PrintFileInfoMinusM(fspath, errInfo);
-                }
-
-                if (!printcounter) {
-                  ofstdoutStream << std::endl;
-                }
-              }
-
-              // Do the purge if needed
-              if (purge_atomic &&
-                  fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
-                ofstdoutStream << "# found atomic " << fspath << std::endl;
-                struct stat buf;
-
-                if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr,
-                                  nullptr)) &&
-                    ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
-                  time_t now = time(nullptr);
-
-                  if ((now - buf.st_ctime) > 86400) {
-                    if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
-                      ofstdoutStream << "# purging atomic " << fspath;
-                    }
-                  } else {
-                    ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
-                  }
-                }
-              }
-
-              // Add layout stripes if needed
-              if (layoutstripes) {
-                ProcCommand fileCmd;
-                std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
-                info += fspath;
-                info += "&mgm.file.layout.stripes=";
-                info += std::to_string(stripes);
-
-                if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
-                  std::ostringstream outputStream;
-                  XrdSfsFileOffset offset = 0;
-                  constexpr uint32_t size = 512;
-                  auto bytesRead = 0ul;
-                  char buffer[size];
-
-                  do {
-                    bytesRead = fileCmd.read(offset, buffer, size);
-
-                    for (auto i = 0u; i < bytesRead; i++) {
-                      outputStream << buffer[i];
-                    }
-
-                    offset += bytesRead;
-                  } while (bytesRead == size);
-
-                  fileCmd.close();
-                  XrdOucEnv env(outputStream.str().c_str());
-
-                  if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
-                    if (!silent) {
-                      ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
-                    }
-                  } else {
-                    ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
-                  }
+                  ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
                 }
               }
             }
 
-            filecounter++;
+            // Add layout stripes if needed
+            if (layoutstripes) {
+              ProcCommand fileCmd;
+              std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
+              info += fspath;
+              info += "&mgm.file.layout.stripes=";
+              info += std::to_string(stripes);
+
+              if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
+                std::ostringstream outputStream;
+                XrdSfsFileOffset offset = 0;
+                constexpr uint32_t size = 512;
+                auto bytesRead = 0ul;
+                char buffer[size];
+
+                do {
+                  bytesRead = fileCmd.read(offset, buffer, size);
+
+                  for (auto i = 0u; i < bytesRead; i++) {
+                    outputStream << buffer[i];
+                  }
+
+                  offset += bytesRead;
+                } while (bytesRead == size);
+
+                fileCmd.close();
+                XrdOucEnv env(outputStream.str().c_str());
+
+                if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
+                  if (!silent) {
+                    ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
+                  }
+                } else {
+                  ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
+                }
+              }
+            }
           }
-      } else {
-        if (fmd) {
-          balanceCalculator.account(fmd);
+
+          filecounter++;
         }
-      }
     }
   }
 
@@ -686,21 +730,8 @@ eos::mgm::FindCmd::ProcessRequest()
         selected = false;
       }
 
-      if (searchpermission || searchnotpermission) {
-          mode_t st_mode = eos::modeFromMetadataEntry(mCmd);
-
-          std::ostringstream flagOstr;
-          flagOstr << std::oct << st_mode;
-          std::string flagStr = flagOstr.str();
-          std::string permString = flagStr.substr(flagStr.length() - 3);
-
-          if (searchpermission && permString != permission) {
-            selected = false;
-          }
-
-          if (searchnotpermission && permString == notpermission) {
-            selected = false;
-          }
+      if(eliminateBasedOnPermissions(findRequest, mCmd)) {
+        selected = false;
       }
 
       if (selectfaultyacl) {
