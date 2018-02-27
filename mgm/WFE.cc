@@ -1876,7 +1876,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_info("Request sent to outside service:\n%s",
+        eos_static_debug("Request sent to outside service:\n%s",
                          notification->DebugString().c_str());
 
         if (event == "sync::delete") {
