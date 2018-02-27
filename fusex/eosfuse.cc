@@ -414,6 +414,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["no-xattr"] = 0;
     }
 
+    if (!root["options"].isMember("nocache-graceperiod")) {
+      root["options"]["nocache-graceperiod"] = 5;
+    }
+
     if (!root["auth"].isMember("forknoexec-heuristic")) {
       root["auth"]["forknoexec-heuristic"] = 1;
     }
@@ -517,6 +521,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (config.options.no_xattr) {
       disable_xattr();
     }
+
+    config.options.nocache_graceperiod = root["options"]["nocache-graceperiod"].asInt();
 
     config.recovery.read = root["recovery"]["read"].asInt();
     config.recovery.read_open = root["recovery"]["read-open"].asInt();
@@ -1120,7 +1126,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d",
+    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d nocache-graceperiod:%d",
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1139,7 +1145,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.show_tree_size,
                        config.options.free_md_asap,
                        config.options.cpu_core_affinity,
-                       config.options.no_xattr
+                       config.options.no_xattr,
+		       config.options.nocache_graceperiod
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
                        cconfig.read_ahead_strategy.c_str(),
@@ -2793,14 +2800,19 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   req,
                                   (mode == W_OK));
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
+
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
 
           if (md->creator()) {
             fi->keep_cache = Instance().Config().options.data_kernelcache;
           }
 
+	  // files which have been broadcasted from a remote update are not cached during the first default:5 seconds
+	  if ( (time(NULL) - md->bc_time()) < EosFuse::Instance().Config().options.nocache_graceperiod)
+	    fi->keep_cache = false;
+
           fi->direct_io = 0;
-          eos_static_info("%s", md->dump(e).c_str());
+          eos_static_info("%s data-cache=%d", md->dump(e).c_str(), fi->keep_cache);
         }
       }
     }

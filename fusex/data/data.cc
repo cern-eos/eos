@@ -459,7 +459,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     mSimulateWriteErrorInFlusher = true;
   }
 
-  if (flags & O_SYNC) {
+  if ( (flags & O_SYNC) ||
+       ( ( time(NULL) - mMd->bc_time() ) < EosFuse::Instance().Config().options.nocache_graceperiod)) {
     mFile->disable_caches();
   }
 
