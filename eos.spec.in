@@ -178,10 +178,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %files -n eos-server
 %defattr(-, root, root, -)
 %{_bindir}/xrdmqdumper
-# Namespace on Quarkdb requires at least CC7
-%if 0%{distribution} > 6
 %{_bindir}/eos_ns_convert
-%endif
 %{_sbindir}/eosha
 %{_sbindir}/eoshapl
 %{_sbindir}/eosfilesync
@@ -217,11 +214,8 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsInMemory.so
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so
-# Namespace on Quarkdb requires at least CC7
-%if 0%{distribution} >= 6
 %{_libdir}/libEosNsQuarkdb.so
 %{_libdir}/libEosNsQuarkdb-Shared.so
-%endif
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
