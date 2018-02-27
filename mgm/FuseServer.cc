@@ -126,7 +126,7 @@ FuseServer::Clients::MonitorHeartBeat()
           it->second.set_state(Client::ONLINE);
         }
 
-        if (it->second.heartbeat().protversion() != it->second.heartbeat().PROTOCOLV2)
+        if (it->second.heartbeat().protversion() <= it->second.heartbeat().PROTOCOLV2)
         {
           // protocol version mismatch, evict this client
           evictversionmap[it->second.heartbeat().uuid()] = it->first;
@@ -143,7 +143,7 @@ FuseServer::Clients::MonitorHeartBeat()
     // delete client ot be evicted because of a version mismatch
     for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it)
     {
-      std::string versionerror = "Server supports only PROTOCOLV2";
+      std::string versionerror = "Server supports PROTOCOLV3 and requires atleast PROTOCOLV2";
       std::string uuid = it->first;
       Evict(uuid, versionerror);
       mMap.erase(it->second);
