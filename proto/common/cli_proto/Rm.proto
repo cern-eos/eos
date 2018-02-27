@@ -1,0 +1,9 @@
+syntax="proto3";
+package eos.console;
+
+message RmProto {
+    bool Recursive = 1;
+    bool BypassRecycle = 2;
+    uint64 Fileid  = 3;
+    string Path = 4;
+}
