@@ -77,41 +77,39 @@ set_target_properties(
 add_library(
   EosNsQuarkdb MODULE
   $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
 target_link_libraries(
   EosNsQuarkdb
+  EosProtobuf
   EosNsCommon
   eosCommon
   EosCrc32c-Static
   qclient
-  bz2
   rocksdb
   ${Z_LIBRARY}
+  ${BZ2_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(
   EosNsQuarkdb-Shared SHARED
-  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>)
+  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>)
 
 target_link_libraries(
   EosNsQuarkdb-Shared PUBLIC
+  EosProtobuf
   EosNsCommon
   eosCommon
   EosCrc32c-Static
   qclient
-  bz2
   rocksdb
   ${Z_LIBRARY}
+  ${BZ2_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -122,21 +120,20 @@ if (Linux)
   add_library(
     EosNsQuarkdb-Static STATIC
     $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
-    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
     NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
   target_link_libraries(
     EosNsQuarkdb-Static
     EosNsCommon-Static
+    EosProtobuf
     eosCommon-Static
     EosCrc32c-Static
     qclient
-    bz2
     rocksdb
+    ${BZ2_LIBRARY}
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
-    ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
@@ -164,8 +161,7 @@ add_executable(eos_ns_convert
   tools/ConvertMemToKV.cc
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(eos_ns_convert
   jemalloc
@@ -173,12 +169,9 @@ target_link_libraries(eos_ns_convert
   eosCommon
   EosCrc32c-Static
   EosNsInMemory-Static
-  ${PROTOBUF_LIBRARY})
+  EosProtobuf)
 
-add_executable(eos_dump_proto_md
-  tools/EosDumpProtoMd.cc
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
-  )
+add_executable(eos_dump_proto_md tools/EosDumpProtoMd.cc)
 
 target_link_libraries(eos_dump_proto_md
   EosCrc32c-Static

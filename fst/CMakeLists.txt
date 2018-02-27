@@ -170,7 +170,7 @@ add_library(EosFstIo-Objects OBJECT
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_dependencies(EosFstIo-Objects EosNsQuarkdbProto-Objects)
+add_dependencies(EosFstIo-Objects EosProtobuf)
 
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -178,10 +178,11 @@ target_compile_definitions(EosFstIo-Objects PUBLIC
 add_library(EosFstIo SHARED
   $<TARGET_OBJECTS:EosFstIo-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
+  EosProtobuf
   EosCrc32c-Static
   jerasure-static
   ${Z_LIBRARY}
@@ -196,8 +197,7 @@ target_link_libraries(EosFstIo PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${PROTOBUF_LIBRARY})
+  ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -220,7 +220,7 @@ endif()
 add_library(EosFstIo-Static STATIC
   $<TARGET_OBJECTS:EosFstIo-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosFstIo-Static PUBLIC
   eosCommon-Static
@@ -347,10 +347,11 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
 
 add_library(XrdEosFst MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
+
 add_library(XrdEosFst-Shared SHARED
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>)
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})

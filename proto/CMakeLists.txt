@@ -86,8 +86,34 @@ set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(CommonCli-Objects OBJECT
+add_library(EosCliProto-Objects OBJECT
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
 
-set_target_properties(CommonCli-Objects PROPERTIES
+set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(EosProtobuf SHARED
+  $<TARGET_OBJECTS:EosAuthProto-Objects>
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
+
+target_link_libraries(EosProtobuf PUBLIC
+  eosCommon
+  ${PROTOBUF_LIBRARIES})
+
+add_library(EosProtobuf-Static STATIC
+  $<TARGET_OBJECTS:EosAuthProto-Objects>
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
+
+target_link_libraries(EosProtobuf-Static PRIVATE
+  eosCommon-Static
+  ${PROTOBUF_LIBARIES})
+
+install(
+  TARGETS EosProtobuf EosProtobuf-Static
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

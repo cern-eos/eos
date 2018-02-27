@@ -127,7 +127,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
   # @TODO (esindril) Add the table formatter in common
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
-  $<TARGET_OBJECTS:CommonCli-Objects>
+  $<TARGET_OBJECTS:EosCliProto-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 #-------------------------------------------------------------------------------
