@@ -320,7 +320,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("md-kernelcache.enoent.timeout")) {
-        root["options"]["md-kernelcache.enoent.timeout"] = 5;
+        root["options"]["md-kernelcache.enoent.timeout"] = 0.01;
       }
 
       if (!root["options"].isMember("md-backend.timeout")) {
