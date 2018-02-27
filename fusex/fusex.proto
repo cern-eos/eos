@@ -49,7 +49,7 @@ message md {
   fixed64 pt_mtime_ns= 40 ; //< ns of modification time for the parent directory
   bool creator = 41; //< indicates we are the creator of this md record
   string mv_authid = 42; //< indicates the authid applying to the source directory of a mv
-  fixed64 bc_time = 43; //< time when the last broadcast was received
+  fixed64 bc_time = 43; //< indicates the reception time of a broadcasted md record
 };
 
 message md_map {
