@@ -1623,7 +1623,15 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       if (!pmd || (((!S_ISDIR(md->mode())) && !pmd->cap_count())) ||
           (!md->cap_count())) {
         // don't wipe capp'ed meta-data, local state has to be used, since we get remote-invalidated in case we are out-of-date
-	md->CopyFrom(cont.md_());
+
+	if ( (cont.md_().clock() >= md->clock()) )
+	{
+	  eos_static_info("overwriting clock MD %lx => %lx", md->clock(), cont.md_().clock());
+	  md->CopyFrom(cont.md_());
+	}
+	else
+	  eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ", (long) ino, (long) md_ino);
+
 	md->set_nchildren(md->local_children().size());
 	if (EOS_LOGS_DEBUG)
 	{
@@ -2364,7 +2372,18 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		md->Locker().Lock();
 		bookingsize = rsp.md_().size() - md->size();
 		md_clientid = rsp.md_().clientid();
-		*md = rsp.md_();
+		// verify that this record is newer than 
+		if (rsp.md_().clock() >= md->clock()) 
+		{
+		  eos_static_info("overwriting clock MD %lx => %lx", md->clock(), rsp.md_().clock());
+		  *md = rsp.md_();
+		  md->set_creator(false);
+		  md->set_bc_time(time(NULL));
+		}
+		else
+		{
+		  eos_static_warning("keeping clock MD %lx => %lx", md->clock(), rsp.md_().clock());
+		}
 		md->clear_clientid();
 		pino = inomap.forward(md->md_pino());
 
