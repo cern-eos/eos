@@ -2288,7 +2288,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               uint64_t md_ino = rsp.lease_().md_ino();
               std::string authid = rsp.lease_().authid();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_info("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
+              eos_static_notice("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
                               md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
               shared_md check_md;
 
@@ -2351,7 +2351,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               uint64_t md_ino = rsp.md_().md_ino();
               std::string authid = rsp.md_().authid();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_info("md-update: remote-ino=%lx ino=%lx authid=%s",
+              eos_static_notice("md-update: remote-ino=%lx ino=%lx authid=%s",
                               md_ino, ino, authid.c_str());
               // we get this when a file update/flush appeared
               shared_md md;
