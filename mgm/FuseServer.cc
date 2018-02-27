@@ -126,7 +126,7 @@ FuseServer::Clients::MonitorHeartBeat()
           it->second.set_state(Client::ONLINE);
         }
 
-        if (it->second.heartbeat().protversion() <= it->second.heartbeat().PROTOCOLV2)
+        if (it->second.heartbeat().protversion() < it->second.heartbeat().PROTOCOLV2)
         {
           // protocol version mismatch, evict this client
           evictversionmap[it->second.heartbeat().uuid()] = it->first;
