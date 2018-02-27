@@ -388,6 +388,48 @@ void FindCmd::ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspat
 }
 
 //------------------------------------------------------------------------------
+// Modify layout stripes
+//------------------------------------------------------------------------------
+void eos::mgm::FindCmd::ModifyLayoutStripes(std::ofstream &ss, const eos::console::FindProto &req, const std::string &fspath)
+{
+  XrdOucErrInfo errInfo;
+  ProcCommand fileCmd;
+  std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
+  info += fspath;
+  info += "&mgm.file.layout.stripes=";
+  info += std::to_string(req.layoutstripes());
+
+  if(fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
+    std::ostringstream outputStream;
+    XrdSfsFileOffset offset = 0;
+    constexpr uint32_t size = 512;
+    auto bytesRead = 0ul;
+    char buffer[size];
+
+    do {
+      bytesRead = fileCmd.read(offset, buffer, size);
+
+      for (auto i = 0u; i < bytesRead; i++) {
+        outputStream << buffer[i];
+      }
+
+      offset += bytesRead;
+    } while (bytesRead == size);
+
+    fileCmd.close();
+    XrdOucEnv env(outputStream.str().c_str());
+
+    if(std::stoi(env.Get("mgm.proc.retc")) == 0) {
+      if(!req.silent()) {
+        ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
+      }
+    } else {
+      ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -412,8 +454,6 @@ eos::mgm::FindCmd::ProcessRequest()
   auto& printkey = findRequest.printkey();
   auto finddepth = findRequest.maxdepth();
   auto& purgeversion = findRequest.purge();
-  auto stripes = findRequest.layoutstripes();
-  bool silent = findRequest.silent();
   bool calcbalance = findRequest.balance();
   bool findzero = findRequest.zerosizefiles();
   bool findgroupmix = findRequest.mixedgroups();
@@ -654,54 +694,22 @@ eos::mgm::FindCmd::ProcessRequest()
         }
 
         //----------------------------------------------------------------------
-        // This find is actually a write? (purge, or set layoutstripes)
+        // Purge atomic files?
         //----------------------------------------------------------------------
         if(purge_atomic) {
           this->ProcessAtomicFilePurge(ofstdoutStream, fspath, *fmd.get());
         }
 
-
-        // Add layout stripes if needed
+        //----------------------------------------------------------------------
+        // Modify layout stripes?
+        //----------------------------------------------------------------------
         if (layoutstripes) {
-          ProcCommand fileCmd;
-          std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
-          info += fspath;
-          info += "&mgm.file.layout.stripes=";
-          info += std::to_string(stripes);
-
-          if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
-            std::ostringstream outputStream;
-            XrdSfsFileOffset offset = 0;
-            constexpr uint32_t size = 512;
-            auto bytesRead = 0ul;
-            char buffer[size];
-
-            do {
-              bytesRead = fileCmd.read(offset, buffer, size);
-
-              for (auto i = 0u; i < bytesRead; i++) {
-                outputStream << buffer[i];
-              }
-
-              offset += bytesRead;
-            } while (bytesRead == size);
-
-            fileCmd.close();
-            XrdOucEnv env(outputStream.str().c_str());
-
-            if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
-              if (!silent) {
-                ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
-              }
-            } else {
-              ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
-            }
-          }
+          this->ModifyLayoutStripes(ofstdoutStream, findRequest, fspath);
         }
 
         //----------------------------------------------------------------------
-        // If purge_atomic or layoutstripes, there's nothing more to do, process
-        // next item.
+        // If purge_atomic or layoutstripes is set, there's nothing more to
+        // do, process next item.
         //----------------------------------------------------------------------
         if(purge_atomic || layoutstripes) {
           continue;

@@ -52,6 +52,9 @@ public:
   void ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspath,
     eos::IFileMD &fmd);
 
+  void ModifyLayoutStripes(std::ofstream &ss,
+    const eos::console::FindProto &req, const std::string &fspath);
+
 };
 
 EOSMGMNAMESPACE_END
