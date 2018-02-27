@@ -2013,7 +2013,7 @@ data::datax::cache_invalidate()
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
   // truncate the block cache
-  int dt = mFile->file()->truncate(0);
+  int dt = mFile->file() ? mFile->file()->truncate(0) : 0;
   int jt = mFile->journal() ? mFile->journal()->truncate(0, true) : 0;
 
   for (auto fit = mFile->get_xrdioro().begin();
