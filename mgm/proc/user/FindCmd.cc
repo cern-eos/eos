@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: FindCmd.cc
-// Author: Jozsef Makai - CERN
+// Author: Georgios Bitzes, Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -346,6 +346,48 @@ static bool eliminateBasedOnPermissions(const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Purge atomic files
+//------------------------------------------------------------------------------
+void FindCmd::ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspath,
+  eos::IFileMD &fmd) {
+
+  if(fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) == std::string::npos) {
+    return;
+  }
+
+  ss << "# found atomic " << fspath << std::endl;
+  if( !(mVid.uid == 0 || mVid.uid == fmd.getCUid()) ) {
+    // Not allowed to remove file
+    ss << "# skipping atomic " << fspath << " [no permission to remove]" << std::endl;
+    return;
+  }
+
+  time_t now = time(nullptr);
+
+  eos::IFileMD::ctime_t atime;
+  fmd.getCTime(atime);
+
+  //----------------------------------------------------------------------------
+  // Is the file older than 1 day?
+  //----------------------------------------------------------------------------
+  if(now - atime.tv_sec <= 86400) {
+    ss << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Perform the rm
+  //----------------------------------------------------------------------------
+  XrdOucErrInfo errInfo;
+  if(!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
+    ss << "# purging atomic " << fspath;
+  }
+  else {
+    ss << "# could not purge atomic " << fspath;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -516,9 +558,9 @@ eos::mgm::FindCmd::ProcessRequest()
         std::string fspath = foundit.first;
         fspath += fileit;
 
-        //-------------------------------------------
+        //----------------------------------------------------------------------
         // Fetch fmd for target file
-        //-------------------------------------------
+        //----------------------------------------------------------------------
         eos::common::RWMutexReadLock eosViewMutexGuard;
         eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
@@ -534,31 +576,31 @@ eos::mgm::FindCmd::ProcessRequest()
 
         eosViewMutexGuard.Release();
 
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         // Do we have the fmd? If not, skip this entry.
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         if(!fmd) {
           continue;
         }
 
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         // fmd looks OK, proceed.
-        //---------------------------------------------
+        //----------------------------------------------------------------------
 
 
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         // Balance calculation? Ignore selection
         // criteria (TODO: Change this?) and simply
         // account all fmd's.
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         if(calcbalance) {
           balanceCalculator.account(fmd);
           continue;
         }
 
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         // Selection.
-        //---------------------------------------------
+        //----------------------------------------------------------------------
 
         if(eliminateBasedOnMTime(findRequest, fmd)) {
           selected = false;
@@ -594,109 +636,113 @@ eos::mgm::FindCmd::ProcessRequest()
           selected = false;
         }
 
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         // Printing.
-        //---------------------------------------------
+        //----------------------------------------------------------------------
         if(!selected) {
           continue;
         }
 
+        filecounter++;
+
+        //----------------------------------------------------------------------
+        // Skip printing each entry if we're only interested in the total file
+        // count.
+        //----------------------------------------------------------------------
+        if(printcounter) {
+          continue;
+        }
+
+        //----------------------------------------------------------------------
+        // This find is actually a write? (purge, or set layoutstripes)
+        //----------------------------------------------------------------------
+        if(purge_atomic) {
+          this->ProcessAtomicFilePurge(ofstdoutStream, fspath, *fmd.get());
+        }
+
+
+        // Add layout stripes if needed
+        if (layoutstripes) {
+          ProcCommand fileCmd;
+          std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
+          info += fspath;
+          info += "&mgm.file.layout.stripes=";
+          info += std::to_string(stripes);
+
+          if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
+            std::ostringstream outputStream;
+            XrdSfsFileOffset offset = 0;
+            constexpr uint32_t size = 512;
+            auto bytesRead = 0ul;
+            char buffer[size];
+
+            do {
+              bytesRead = fileCmd.read(offset, buffer, size);
+
+              for (auto i = 0u; i < bytesRead; i++) {
+                outputStream << buffer[i];
+              }
+
+              offset += bytesRead;
+            } while (bytesRead == size);
+
+            fileCmd.close();
+            XrdOucEnv env(outputStream.str().c_str());
+
+            if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
+              if (!silent) {
+                ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
+              }
+            } else {
+              ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
+            }
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // If purge_atomic or layoutstripes, there's nothing more to do, process
+        // next item.
+        //----------------------------------------------------------------------
+        if(purge_atomic || layoutstripes) {
+          continue;
+        }
+
+        //----------------------------------------------------------------------
+        // Print simple?
+        //----------------------------------------------------------------------
+        if(printSimple) {
+          if (printxurl) {
+            ofstdoutStream << url;
+          }
+
+          ofstdoutStream << fspath << std::endl;
+          continue;
+        }
+
+        //----------------------------------------------------------------------
+        // Nope, print fancy
+        //----------------------------------------------------------------------
+
         // How to print, count, etc. when file is selected...
-        if (selected) {
-          if (printSimple) {
-            if (!printcounter) {
+          if (!purge_atomic && !layoutstripes) {
+            if (!printfileinfo) {
+              ofstdoutStream << "path=";
+
               if (printxurl) {
                 ofstdoutStream << url;
               }
 
-              ofstdoutStream << fspath << std::endl;
-            }
-          } else {
-            if (!purge_atomic && !layoutstripes) {
-              if (!printfileinfo) {
-                if (!printcounter) {
-                  ofstdoutStream << "path=";
+              ofstdoutStream << fspath;
+              printFMD(ofstdoutStream, findRequest, fmd);
 
-                  if (printxurl) {
-                    ofstdoutStream << url;
-                  }
-
-                  ofstdoutStream << fspath;
-                  printFMD(ofstdoutStream, findRequest, fmd);
-
-                }
-              } else {
-                // print fileinfo -m
-                this->PrintFileInfoMinusM(fspath, errInfo);
-              }
-
-              if (!printcounter) {
-                ofstdoutStream << std::endl;
-              }
+            } else {
+              // print fileinfo -m
+              this->PrintFileInfoMinusM(fspath, errInfo);
             }
 
-            // Do the purge if needed
-            if (purge_atomic &&
-                fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
-              ofstdoutStream << "# found atomic " << fspath << std::endl;
-              struct stat buf;
-
-              if ((!gOFS->_stat(fspath.c_str(), &buf, errInfo, mVid, (const char*) nullptr,
-                                nullptr)) &&
-                  ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
-                time_t now = time(nullptr);
-
-                if ((now - buf.st_ctime) > 86400) {
-                  if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
-                    ofstdoutStream << "# purging atomic " << fspath;
-                  }
-                } else {
-                  ofstdoutStream << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
-                }
-              }
-            }
-
-            // Add layout stripes if needed
-            if (layoutstripes) {
-              ProcCommand fileCmd;
-              std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
-              info += fspath;
-              info += "&mgm.file.layout.stripes=";
-              info += std::to_string(stripes);
-
-              if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
-                std::ostringstream outputStream;
-                XrdSfsFileOffset offset = 0;
-                constexpr uint32_t size = 512;
-                auto bytesRead = 0ul;
-                char buffer[size];
-
-                do {
-                  bytesRead = fileCmd.read(offset, buffer, size);
-
-                  for (auto i = 0u; i < bytesRead; i++) {
-                    outputStream << buffer[i];
-                  }
-
-                  offset += bytesRead;
-                } while (bytesRead == size);
-
-                fileCmd.close();
-                XrdOucEnv env(outputStream.str().c_str());
-
-                if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
-                  if (!silent) {
-                    ofstdoutStream << env.Get("mgm.proc.stdout") << std::endl;
-                  }
-                } else {
-                  ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
-                }
-              }
-            }
+            ofstdoutStream << std::endl;
           }
 
-          filecounter++;
-        }
     }
   }
 

@@ -26,6 +26,10 @@
 #include "mgm/Namespace.hh"
 #include "proto/ConsoleRequest.pb.h"
 
+namespace eos {
+  class IFileMD;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 class FindCmd : public IProcCommand
@@ -45,6 +49,9 @@ public:
 
   eos::console::ReplyProto ProcessRequest() override;
   void PrintFileInfoMinusM(const std::string &path, XrdOucErrInfo &errInfo);
+  void ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspath,
+    eos::IFileMD &fmd);
+
 };
 
 EOSMGMNAMESPACE_END
