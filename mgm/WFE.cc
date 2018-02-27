@@ -277,11 +277,11 @@ WFE::WFEr()
                 }
 
                 // stop scheduling if there are too many jobs running
-                if ((lWFEntx - GetActiveJobs()) <= 0) {
+                if (lWFEntx <= GetActiveJobs()) {
                   if (lWFEntx > 0) {
                     mDoneSignal.Wait(10);
 
-                    if ((lWFEntx - GetActiveJobs()) <= 0) {
+                    if (lWFEntx <= GetActiveJobs()) {
                       delete job;
                       break;
                     }
@@ -759,6 +759,19 @@ WFE::Job::DoIt(bool issync)
  *  */
 /*----------------------------------------------------------------------------*/
 {
+  // RAII: Async jobs reduce counter on all paths
+  auto decrementJobs = [this] (void*) {
+    if (!IsSync()) {
+      gOFS->WFEd.GetSignal()->Signal();
+      gOFS->WFEd.DecActiveJobs();
+    }
+  };
+
+  std::unique_ptr<void, decltype(decrementJobs)> activeJobsGuard {
+    static_cast<void*>(this),
+    decrementJobs
+  };
+
   std::string method;
   std::string args;
   eos::common::Mapping::VirtualIdentity lRootVid;
@@ -1945,11 +1958,6 @@ WFE::Job::DoIt(bool issync)
     }
   } else {
     //Delete(mActions[0].mQueue);
-  }
-
-  if (!IsSync()) {
-    gOFS->WFEd.GetSignal()->Signal();
-    gOFS->WFEd.DecActiveJobs();
   }
 
   return retc;
