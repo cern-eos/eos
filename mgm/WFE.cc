@@ -42,7 +42,7 @@
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
 
-eos::common::ThreadPool eos::mgm::WFE::gAsyncCommunicationPool(1, 10);
+eos::common::ThreadPool eos::mgm::WFE::gAsyncCommunicationPool(1, 10, 5, 5, 5);
 
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
