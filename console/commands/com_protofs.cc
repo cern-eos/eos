@@ -46,7 +46,7 @@ public:
   //----------------------------------------------------------------------------
   //! Denstructor
   //----------------------------------------------------------------------------
-  ~FsHelper() = default;
+  ~FsHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -55,7 +55,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool ParseCommand(const char* arg);
+  bool ParseCommand(const char* arg) override;
 };
 
 //------------------------------------------------------------------------------
@@ -604,7 +604,7 @@ FsHelper::ParseCommand(const char* arg)
 //------------------------------------------------------------------------------
 // Fs command entry point
 //------------------------------------------------------------------------------
-int com_newfs(char* arg)
+int com_protofs(char* arg)
 {
   if (wants_help(arg)) {
     com_fs_help();

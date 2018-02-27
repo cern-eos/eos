@@ -68,7 +68,7 @@ extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
 extern int com_fs(char*);
-extern int com_newfs(char*);
+extern int com_protofs(char*);
 extern int com_fsck(char*);
 extern int com_fuse(char*);
 extern int com_fusex(char*);
@@ -137,8 +137,7 @@ COMMAND commands[] = {
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
   { (char*) "find", com_find, (char*) "Find files/directories"},
-  { (char*) "fs", com_fs, (char*) "File System configuration"},
-    { (char*) "newfs", com_newfs, (char*) "File System configuration"},
+  { (char*) "fs", com_protofs, (char*) "File System configuration"},
   { (char*) "fsck", com_fsck, (char*) "File System Consistency Checking"},
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
   { (char*) "fusex", com_fusex, (char*) "Fuse(x) Administration"},
