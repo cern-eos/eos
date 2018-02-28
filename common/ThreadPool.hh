@@ -78,7 +78,7 @@ public:
       } while (toContinue);
     };
 
-    for (auto i = 0u; i < threadsMin; i++) {
+    for (auto i = 0u; i < std::max(threadsMin, 1u); i++) {
       mThreadPool.emplace_back(
         std::async(std::launch::async, threadPoolFunc)
       );
