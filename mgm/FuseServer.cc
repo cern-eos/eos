@@ -2427,6 +2427,7 @@ FuseServer::HandleMD(const std::string &id,
       eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::FileMD* fmd = 0;
+      eos::FileMD* ofmd = 0;
       eos::ContainerMD* pcmd = 0;
       eos::ContainerMD* cpcmd = 0;
 
@@ -2438,10 +2439,19 @@ FuseServer::HandleMD(const std::string &id,
 
       try
       {
-
 	uint64_t clock = 0;
 
-        if (md.md_ino() && exclusive)
+	pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+
+	// a client may open a file, where he still does not know the real inode
+	fmd = pcmd->findFile( md.name() );
+      
+	if (!md.md_ino() && fmd)
+	{
+	  md_ino = eos::common::FileId::FidToInode(fmd->getId());
+	}
+
+        if (md_ino && exclusive)
         {
           return EEXIST;
         }
@@ -2453,7 +2463,6 @@ FuseServer::HandleMD(const std::string &id,
 
           // dir update
           fmd = gOFS->eosFileService->getFileMD(fid);
-          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
           if (fmd->getContainerId() != md.md_pino())
           {
             // this indicates a file move
@@ -2472,9 +2481,28 @@ FuseServer::HandleMD(const std::string &id,
             op = RENAME;
             eos_static_info("rename %s=>%s", fmd->getName().c_str(), md.name().c_str());
 
-            // the target might exist, so we remove it
-            pcmd->removeFile(md.name());
+	    ofmd = pcmd->findFile( md.name() );
 
+	    if (ofmd) 
+	    {
+	      // the target might exist, so we remove it
+	      gOFS->eosFileService->removeFile(ofmd);
+	      pcmd->removeFile(md.name());
+
+	      try
+	      {
+		eos::QuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd);
+		// free previous quota
+		if (quotanode)
+		{
+		  quotanode->removeFile(ofmd);
+		}
+	      }
+	      catch ( eos::MDException &e )
+	      {
+		fmd->setSize(md.size());
+	      }
+	    }
             gOFS->eosView->renameFile(fmd, md.name());
           }
           eos_static_info("fid=%lx ino=%lx pino=%lx cpino=%lx update-file",
@@ -2486,13 +2514,6 @@ FuseServer::HandleMD(const std::string &id,
         {
           // file creation
           op = CREATE;
-          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
-
-          if (exclusive && pcmd->findContainer( md.name() ))
-          {
-            // O_EXCL set on creation - 
-            return EEXIST;
-          }
 
           unsigned long layoutId = 0;
           unsigned long forcedFsId = 0;
@@ -2512,8 +2533,13 @@ FuseServer::HandleMD(const std::string &id,
                                     forcedGroup);
 
 
+	  if (fmd)
+	  {
+	    eos_static_crit("discovered re-creation of existing file");
+	  }
 
-          fmd = gOFS->eosFileService->createFile();
+	  fmd = gOFS->eosFileService->createFile();
+	 
           fmd->setName( md.name() );
           fmd->setLayoutId( layoutId );
           md_ino = eos::common::FileId::FidToInode(fmd->getId());
@@ -2648,7 +2674,7 @@ FuseServer::HandleMD(const std::string &id,
         op = CREATE;
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-        if ( pcmd->findContainer( md.name() ))
+        if ( pcmd->findFile( md.name() ))
         {
           // O_EXCL set on creation - 
           return EEXIST;
