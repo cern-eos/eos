@@ -96,6 +96,7 @@ extern int com_quota(char*);
 extern int com_reconnect(char*);
 extern int com_recycle(char*);
 extern int com_rm(char*);
+extern int com_protorm(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
@@ -165,7 +166,7 @@ COMMAND commands[] = {
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_recycle, (char*) "Recycle Bin Functionality"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
-  { (char*) "rm", com_rm, (char*) "Remove a file"},
+  { (char*) "rm", com_protorm, (char*) "Remove a file"},
   { (char*) "role", com_role, (char*) "Set the client role"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
@@ -1112,7 +1113,7 @@ execute_line(char* line)
   size_t cepos;
 
   if (cbpos != std::string::npos) {
-    cepos = exec_line.find("\"", cbpos + 12);
+    cepos = exec_line.find('"', cbpos + 12);
 
     if (cepos == std::string::npos) {
       fprintf(stderr,
@@ -1223,6 +1224,24 @@ bool Path2FileDenominator(XrdOucString& input)
   }
 
   return RegWrapDenominator(input, "fid:[0-9]+$");
+}
+
+//------------------------------------------------------------------------------
+// Extract file id specifier if input is in one of the following formats:
+// fxid:<hex_id> | fid:<dec_id>
+//------------------------------------------------------------------------------
+bool Path2FileDenominator(XrdOucString& input, unsigned long long& id)
+{
+  if (RegWrapDenominator(input, "fxid:[a-fA-F0-9]+$")) {
+    id = strtoull(input.c_str(), nullptr, 16);
+    return true;
+  }
+  else if (RegWrapDenominator(input, "fid:[0-9]+$")) {
+    id = strtoull(input.c_str(), nullptr, 10);
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

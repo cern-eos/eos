@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #include "common/StringTokenizer.hh"
+#include "common/Path.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
-void com_protorm_help();
+void com_rm_help();
 
 //------------------------------------------------------------------------------
 //! Class FsHelper
@@ -59,10 +60,6 @@ public:
 
 bool
 RmHelper::ParseCommand(const char* arg) {
-  if (wants_help(arg)) {
-    return false;
-  }
-
   XrdOucString option;
   eos::console::RmProto* rm = mReq.mutable_rm();
   eos::common::StringTokenizer tokenizer(arg);
@@ -84,10 +81,69 @@ RmHelper::ParseCommand(const char* arg) {
     }
   }
 
+  auto path = option;
+
+  do {
+    XrdOucString param = tokenizer.GetToken();
+
+    if (param.length()) {
+      path += " ";
+      path += param;
+    } else {
+      break;
+    }
+  } while (true);
+
+  // remove escaped blanks
+  while (path.replace("\\ ", " "));
+
+  if (path.length() == 0) {
+    return false;
+  }
+
+  auto id = 0ull;
+  if (Path2FileDenominator(path, id)) {
+    rm->set_fileid(id);
+  } else {
+    path = abspath(path.c_str());
+    rm->set_path(path.c_str());
+  }
+
+  eos::common::Path cPath(path.c_str());
+  mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
+
   return true;
 }
 
-void com_protorm_help() {
+//------------------------------------------------------------------------------
+// Rm command entry point
+//------------------------------------------------------------------------------
+int com_protorm(char* arg)
+{
+  if (wants_help(arg)) {
+    com_rm_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  RmHelper rm;
+
+  if (!rm.ParseCommand(arg)) {
+    com_rm_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  if (rm.NeedsConfirmation() && !rm.ConfirmOperation()) {
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  global_retc = rm.Execute();
+  return global_retc;
+}
+
+void com_rm_help() {
   std::ostringstream oss;
   oss << "Usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>]"
       << std::endl

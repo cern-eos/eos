@@ -108,6 +108,18 @@ bool RegWrapDenominator(XrdOucString& input, const std::string& key);
 bool Path2FileDenominator(XrdOucString& path);
 
 //------------------------------------------------------------------------------
+//! Extract file id specifier if input is in one of the following formats:
+//! fxid:<hex_id> | fid:<dec_id>
+//!
+//! @param input input following the above format or an actual path
+//!
+//! @param id result with the extracted id
+//!
+//! @return true if path is given as a file id specifier, otherwise false
+//------------------------------------------------------------------------------
+bool Path2FileDenominator(XrdOucString& path, unsigned long long& id);
+
+//------------------------------------------------------------------------------
 //! Check if MGM is online and reachable
 //!
 //! @url uri where to connect to the MGM
