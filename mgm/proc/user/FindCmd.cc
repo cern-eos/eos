@@ -574,6 +574,7 @@ public:
       found = globalfound.get();
     }
     else {
+      localfound.reset(new std::map<std::string, std::set<std::string>>());
       found = localfound.get();
     }
   }
