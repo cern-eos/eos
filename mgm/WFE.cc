@@ -1880,11 +1880,10 @@ WFE::Job::DoIt(bool issync)
                          notification->DebugString().c_str());
 
         if (event == "sync::delete") {
-          auto jobCopy = *this;
           auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
             SendProtoWFRequest(&jobCopy, fullPath, request, hostPort, endPoint);
           };
-          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, jobCopy);
+          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
         }
