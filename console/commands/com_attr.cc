@@ -90,7 +90,7 @@ com_attr(char* arg1)
       value.erase(0, epos + 1);
       key.erase(epos);
 
-      if (key != "default") {
+      if (key != "default" && key != "sys.attr.link") {
         eos::common::SymKey::Base64(value, value64);
         value = value64;
       }
