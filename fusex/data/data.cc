@@ -773,7 +773,7 @@ data::datax::recover_ropen(fuse_req_t req)
     XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
     XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
 
-    // retrieve the 'tried' information to apply this for the file-reopening to exclude already knowns 'bad' locations
+    // retrieve the 'tried' information to apply this for the file-reopening to exclude already known 'bad' locations
     std::string slasturl;
     proxy->GetProperty("LastURL", slasturl);
 
@@ -790,12 +790,14 @@ data::datax::recover_ropen(fuse_req_t req)
     {
       eos_warning("applying exclusion list: tried=%s,%s",last_host.c_str(), new_cgi["tried"].c_str());
       new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
+      new_cgi["eos.repairread"] = "1";
       newurl.SetParams(new_cgi);
       mRemoteUrlRO = newurl.GetURL();
     }
     else 
     {
       new_cgi.erase("tried");
+      new_cgi["eos.repairread"] = "1";
       newurl.SetParams(new_cgi);
       mRemoteUrlRO = newurl.GetURL();
     }
