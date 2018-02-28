@@ -1991,6 +1991,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // add all stat entries with 0
   InitStats();
+
   // set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
@@ -2111,6 +2112,26 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Fuse-Checksum", 0, 0, 0);
   MgmStats.Add("Fuse-XAttr", 0, 0, 0);
   MgmStats.Add("Fuse-Utimes", 0, 0, 0);
+  MgmStats.Add("FUSEx-0-HANDLE", 0, 0, 0);
+  MgmStats.Add("FUSEx-0-STREAM", 0, 0, 0);
+  MgmStats.Add("FUSEx-GET", 0, 0, 0);
+  MgmStats.Add("FUSEx-SET", 0, 0, 0);
+  MgmStats.Add("FUSEx-LS", 0, 0, 0);
+  MgmStats.Add("FUSEx-CREATE", 0, 0, 0);
+  MgmStats.Add("FUSEx-UPDATE", 0, 0, 0);
+  MgmStats.Add("FUSEx-MKDIR", 0, 0, 0);
+  MgmStats.Add("FUSEx-RMDIR", 0, 0, 0);
+  MgmStats.Add("FUSEx-RENAME", 0, 0, 0);
+  MgmStats.Add("FUSEx-MV", 0, 0, 0);
+  MgmStats.Add("FUSEx-DELETE", 0, 0, 0);
+  MgmStats.Add("FUSEx-GETCAP", 0, 0, 0);
+  MgmStats.Add("FUSEx-SETLK", 0, 0, 0);
+  MgmStats.Add("FUSEx-GETLK", 0, 0, 0);
+  MgmStats.Add("FUSEx-SETLKW", 0, 0, 0);
+  MgmStats.Add("FUSEx-BEGINFLUSH", 0, 0, 0);
+  MgmStats.Add("FUSEx-ENDFLUSH", 0, 0, 0);
+  MgmStats.Add("FUSEx-CREATELNK", 0, 0, 0);
+  MgmStats.Add("FUSEx-DELETELNK", 0, 0, 0);
   MgmStats.Add("GetMdLocation", 0, 0, 0);
   MgmStats.Add("GetMd", 0, 0, 0);
   MgmStats.Add("Http-COPY", 0, 0, 0);
