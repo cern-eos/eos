@@ -186,7 +186,6 @@ DrainTransferJob::GetFileInfo() const
       throw e;
     }
   } else {
-    eos_info("Getting fid=%llu info from quarkdb", mFileId);
     qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
                             "drain");
     auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, mFileId).get();
