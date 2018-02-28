@@ -397,6 +397,75 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   return SFS_OK;
 }
 
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given md object - low-level API.
+//------------------------------------------------------------------------------
+template<typename T>
+static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
+  //------------------------------------------------------------------------------
+  // First, check if the cmd itself contains the attribute.
+  //------------------------------------------------------------------------------
+  if(md.hasAttribute(key)) {
+    rvalue = md.getAttribute(key);
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Nope.. does the fmd have linked attributes?
+  //----------------------------------------------------------------------------
+  const std::string kMagicKey = "sys.attr.link";
+  if(!md.hasAttribute(kMagicKey)) {
+    // Nope
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // It does, fetch linked container
+  //----------------------------------------------------------------------------
+  std::string linkedContainer = md.getAttribute(kMagicKey);
+  std::shared_ptr<eos::IContainerMD> dh;
+  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
+  try {
+    dh = gOFS->eosView->getContainer(linkedContainer.c_str());
+  }
+  catch(eos::MDException &e) {
+    errno = e.getErrno();
+    eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+    return false;
+  }
+
+  nsLock.Release();
+
+  //----------------------------------------------------------------------------
+  // We have the linked container, lookup.
+  //----------------------------------------------------------------------------
+  if(!dh->hasAttribute(key)) {
+    return false;
+  }
+
+  rvalue = dh->getAttribute(key);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given cmd - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::IContainerMD &cmd, std::string key, std::string& rvalue) {
+  return attrGetInternal(cmd, key, rvalue);
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given fmd - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::IFileMD &fmd, std::string key, std::string& rvalue) {
+  return attrGetInternal(fmd, key, rvalue);
+}
+
 //------------------------------------------------------------------------------
 // Get extended attribute for a given inode - low-level API.
 //------------------------------------------------------------------------------

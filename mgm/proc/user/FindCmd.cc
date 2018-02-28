@@ -345,6 +345,21 @@ static bool eliminateBasedOnPermissions(const eos::console::FindProto &req,
   return false;
 }
 
+static bool eliminateBasedOnAttr(const eos::console::FindProto &req,
+  const std::shared_ptr<IFileMD> &cmd)
+{
+  if(req.attributekey().empty() || req.attributevalue().empty()) {
+    return false;
+  }
+
+  std::string attr;
+  if(!gOFS->_attr_get(*cmd.get(), req.attributekey(), attr)) {
+    return true;
+  }
+
+  return (attr != req.attributevalue());
+}
+
 //------------------------------------------------------------------------------
 // Purge atomic files
 //------------------------------------------------------------------------------
@@ -427,6 +442,29 @@ void eos::mgm::FindCmd::ModifyLayoutStripes(std::ofstream &ss, const eos::consol
       ofstderrStream << env.Get("mgm.proc.stderr") << std::endl;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Check whether a container has faulty ACLs.
+//------------------------------------------------------------------------------
+static bool hasFaultyAcl(std::shared_ptr<IContainerMD> &cmd)
+{
+  XrdOucErrInfo errInfo;
+
+  std::string acl;
+  if(gOFS->_attr_get(*cmd.get(), "sys.acl", acl)) {
+    if(!Acl::IsValid(acl.c_str(), errInfo)) {
+      return true;
+    }
+  }
+
+  if(gOFS->_attr_get(*cmd.get(), "user.acl", acl)) {
+    if(!Acl::IsValid(acl.c_str(), errInfo)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -610,7 +648,7 @@ eos::mgm::FindCmd::ProcessRequest()
           fmd = gOFS->eosView->getFile(fspath);
         }
         catch(eos::MDException& e) {
-          eos_debug("caught exception %d %s\n", e.getErrno(),
+          eos_err("caught exception %d %s\n", e.getErrno(),
                     e.getMessage().str().c_str());
         }
 
@@ -650,16 +688,8 @@ eos::mgm::FindCmd::ProcessRequest()
           selected = false;
         }
 
-        // Check attribute key-value filter
-        if (!attributekey.empty() && !attributevalue.empty()) {
-          XrdOucString attr;
-          errInfo.clear();
-          gOFS->_attr_get(fspath.c_str(), errInfo, mVid, nullptr,
-                          attributekey.c_str(), attr);
-
-          if (attributevalue != std::string(attr.c_str())) {
-            selected = false;
-          }
+        if(eliminateBasedOnAttr(findRequest, fmd)) {
+          selected = false;
         }
 
         if (findzero && fmd->getSize() != 0) {
@@ -698,6 +728,7 @@ eos::mgm::FindCmd::ProcessRequest()
         //----------------------------------------------------------------------
         if(purge_atomic) {
           this->ProcessAtomicFilePurge(ofstdoutStream, fspath, *fmd.get());
+          continue;
         }
 
         //----------------------------------------------------------------------
@@ -705,13 +736,14 @@ eos::mgm::FindCmd::ProcessRequest()
         //----------------------------------------------------------------------
         if (layoutstripes) {
           this->ModifyLayoutStripes(ofstdoutStream, findRequest, fspath);
+          continue;
         }
 
         //----------------------------------------------------------------------
-        // If purge_atomic or layoutstripes is set, there's nothing more to
-        // do, process next item.
+        // Print fileinfo -m?
         //----------------------------------------------------------------------
-        if(purge_atomic || layoutstripes) {
+        if(printfileinfo) {
+          this->PrintFileInfoMinusM(fspath, errInfo);
           continue;
         }
 
@@ -776,10 +808,16 @@ eos::mgm::FindCmd::ProcessRequest()
         eosViewMutexGuard.Release();
       }
 
+      //----------------------------------------------------------------------
+      // Process next item if we don't have a cmd
+      //----------------------------------------------------------------------
       if(!mCmd) {
         continue;
       }
 
+      //----------------------------------------------------------------------
+      // Selection.
+      //----------------------------------------------------------------------
       if(eliminateBasedOnUidGid(findRequest, mCmd)) {
         selected = false;
       }
@@ -789,31 +827,22 @@ eos::mgm::FindCmd::ProcessRequest()
       }
 
       if (selectfaultyacl) {
-        // get the attributes and call the verify function
-        eos::IContainerMD::XAttrMap map;
-
-        if (!gOFS->_attr_ls(foundit.first.c_str(), errInfo,
-                            mVid, nullptr, map)) {
-          if ((map.count("sys.acl") || map.count("user.acl"))) {
-            if (map.count("sys.acl")) {
-              if (Acl::IsValid(map["sys.acl"].c_str(), errInfo)) {
-                selected = false;
-              }
-            }
-
-            if (map.count("user.acl")) {
-              if (Acl::IsValid(map["user.acl"].c_str(), errInfo)) {
-                selected = false;
-              }
-            }
-          } else {
-            selected = false;
-          }
+        if(!hasFaultyAcl(mCmd)) {
+          selected = false;
         }
       }
 
+      if(!selected) {
+        continue;
+      }
+
+      //----------------------------------------------------------------------
+      // Printing.
+      //----------------------------------------------------------------------
+      dircounter++;
+
       // eventually call the version purge function if we own this version dir or we are root
-      if (selected && purge &&
+      if (purge &&
           (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
         struct stat buf;
 
@@ -825,7 +854,7 @@ eos::mgm::FindCmd::ProcessRequest()
         }
       }
 
-      if (selected && !purge && !printcounter) {
+      if (!purge && !printcounter) {
         if (printchildcount) {
           unsigned long long childfiles = 0;
           unsigned long long childdirs = 0;
@@ -837,21 +866,16 @@ eos::mgm::FindCmd::ProcessRequest()
         } else {
           if (!printfileinfo) {
             // print directories
-            XrdOucString attr = "";
+            std::string attr;
 
             if (!printkey.empty()) {
-              gOFS->_attr_get(foundit.first.c_str(), errInfo, mVid, nullptr,
-                              printkey.c_str(), attr);
+              if(!gOFS->_attr_get(*mCmd.get(), printkey, attr)) {
+                attr = "undef";
+              }
 
-              if (!printkey.empty()) {
-                if (!attr.length()) {
-                  attr = "undef";
-                }
-
-                if (!printcounter) {
-                  ofstdoutStream << printkey << "=" << std::left << std::setw(
+              if (!printcounter) {
+                ofstdoutStream << printkey << "=" << std::left << std::setw(
                                    32) << attr << " path=";
-                }
               }
             }
 
@@ -868,10 +892,6 @@ eos::mgm::FindCmd::ProcessRequest()
 
           ofstdoutStream << std::endl;
         }
-      }
-
-      if (selected) {
-        dircounter++;
       }
     }
   }

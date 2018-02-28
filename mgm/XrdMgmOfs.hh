@@ -746,6 +746,28 @@ public:
                const char* key, XrdOucString& value);
 
   //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given ContainerMD - low-level API.
+  //!
+  //! @param cmd directory to get attribute
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return true if attribute was found, false otherwise
+  //----------------------------------------------------------------------------
+  bool _attr_get(eos::IContainerMD &cmd, std::string key, std::string& rvalue);
+
+  //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given FileMD - low-level API.
+  //!
+  //! @param fmd file to get attribute
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return true if attribute was found, false otherwise
+  //----------------------------------------------------------------------------
+  bool _attr_get(eos::IFileMD &fmd, std::string key, std::string& rvalue);
+
+  //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - low-level API.
   //!
   //! @param path directory name to get attribute

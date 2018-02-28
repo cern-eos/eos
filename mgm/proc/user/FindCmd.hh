@@ -45,6 +45,9 @@ public:
                    eos::common::Mapping::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, true) {}
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   virtual ~FindCmd() = default;
 
   eos::console::ReplyProto ProcessRequest() override;
