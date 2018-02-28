@@ -66,7 +66,7 @@ set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
   "${CMAKE_BINARY_DIR}/common/;${CMAKE_BINARY_DIR}/mq/;"
   "${CMAKE_BINARY_DIR}/auth_plugin/;${CMAKE_BINARY_DIR}/namespace/ns_quarkdb/;"
-  "${CMAKE_BINARY_DIR}/namespace/")
+  "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
 
 set_target_properties(
   eos-unit-tests PROPERTIES
