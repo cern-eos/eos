@@ -231,6 +231,7 @@ XrdFstOfsFile::open (const char* path,
   XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
+  bool isRepairRead = false;
 
   while (stringOpaque.replace("?", "&")) {}
 
@@ -597,6 +598,11 @@ XrdFstOfsFile::open (const char* path,
     maxsize = 0;
   }
 
+  if ((val = capOpaque->Get("mgm.repairread")))
+  {
+    isRepairRead = true;
+  }
+
   if ((val = openOpaque->Get("eos.pio.action")))
   {
     // figure out if this is a RAIN reconstruction
@@ -946,7 +952,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Attach meta data
   //............................................................................
-  fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW, isRepairRead);
 
   if ( (!fMd) || gOFS.Simulate_FMD_open_error )
   {

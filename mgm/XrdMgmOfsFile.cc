@@ -156,6 +156,9 @@ XrdMgmOfsFile::open (const char *inpath,
   // flag indicating to drop the current disk replica in the policy space
   bool isRepair = false;
 
+  // flag indicating a read for repair (meaningfull only on the FST)
+  bool isRepairRead = false;
+
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
 
@@ -807,6 +810,11 @@ XrdMgmOfsFile::open (const char *inpath,
   if (openOpaque->Get("eos.repair"))
   {
     isRepair = true;
+  }
+
+  if (openOpaque->Get("eos.repairread"))
+  {
+    isRepairRead = true;
   }
 
   // disable atomic uploads for FUSE clients
@@ -1940,6 +1948,10 @@ XrdMgmOfsFile::open (const char *inpath,
     capability += (int) filesystem->GetId();
   }
 
+  if (isRepairRead)
+  {
+    capability += "&mgm.repairread=1";
+  }
   XrdOucString infolog = "";
   XrdOucString piolist = "";
 
