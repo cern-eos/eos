@@ -42,8 +42,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit FindCmd(eos::console::RequestProto&& req,
-                   eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+                   eos::common::Mapping::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -58,6 +57,10 @@ public:
   void ModifyLayoutStripes(std::ofstream &ss,
     const eos::console::FindProto &req, const std::string &fspath);
 
+  void PurgeVersions(std::ofstream &ss, int64_t maxVersion,
+    const std::string &dirpath);
+
+  void printPath(std::ofstream &ss, const std::string& path, bool url);
 };
 
 EOSMGMNAMESPACE_END

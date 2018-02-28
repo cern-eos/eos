@@ -361,6 +361,15 @@ static bool eliminateBasedOnAttr(const eos::console::FindProto &req,
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FindCmd::FindCmd(eos::console::RequestProto&& req,
+  eos::common::Mapping::VirtualIdentity& vid) :
+  IProcCommand(std::move(req), vid, true) {
+
+}
+
+//------------------------------------------------------------------------------
 // Purge atomic files
 //------------------------------------------------------------------------------
 void FindCmd::ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspath,
@@ -465,6 +474,40 @@ static bool hasFaultyAcl(std::shared_ptr<IContainerMD> &cmd)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Purge version directory.
+//------------------------------------------------------------------------------
+void
+eos::mgm::FindCmd::PurgeVersions(std::ofstream &ss, int64_t maxVersion,
+  const std::string &dirpath)
+{
+  if(dirpath.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
+    return;
+  }
+
+  struct stat buf;
+  XrdOucErrInfo errInfo;
+  if ((!gOFS->_stat(dirpath.c_str(), &buf, errInfo, mVid, nullptr,
+     nullptr)) && ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
+
+    ss << "# purging " << dirpath;
+    gOFS->PurgeVersion(dirpath.c_str(), errInfo, maxVersion);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print path.
+//------------------------------------------------------------------------------
+void
+eos::mgm::FindCmd::printPath(std::ofstream &ss, const std::string& path, bool url)
+{
+  if(url) {
+    ss << "root://" << gOFS->MgmOfsAlias << "/";
+  }
+
+  ss << path;
 }
 
 //------------------------------------------------------------------------------
@@ -621,14 +664,11 @@ eos::mgm::FindCmd::ProcessRequest()
     for (auto& foundit : *found) {
       if (!findRequest.files() && !nodirs) {
         if (!printcounter) {
-          if (printxurl) {
-            ofstdoutStream << url;
-          }
-
-          ofstdoutStream << foundit.first << std::endl;
+          printPath(ofstdoutStream, foundit.first, printxurl);
         }
 
         dircounter++;
+        ofstdoutStream << std::endl;
       }
 
       for (auto& fileit : foundit.second) {
@@ -751,38 +791,18 @@ eos::mgm::FindCmd::ProcessRequest()
         // Print simple?
         //----------------------------------------------------------------------
         if(printSimple) {
-          if (printxurl) {
-            ofstdoutStream << url;
-          }
-
-          ofstdoutStream << fspath << std::endl;
+          printPath(ofstdoutStream, fspath, printxurl);
+          ofstdoutStream << std::endl;
           continue;
         }
 
         //----------------------------------------------------------------------
         // Nope, print fancy
         //----------------------------------------------------------------------
-
-        // How to print, count, etc. when file is selected...
-          if (!purge_atomic && !layoutstripes) {
-            if (!printfileinfo) {
-              ofstdoutStream << "path=";
-
-              if (printxurl) {
-                ofstdoutStream << url;
-              }
-
-              ofstdoutStream << fspath;
-              printFMD(ofstdoutStream, findRequest, fmd);
-
-            } else {
-              // print fileinfo -m
-              this->PrintFileInfoMinusM(fspath, errInfo);
-            }
-
-            ofstdoutStream << std::endl;
-          }
-
+        ofstdoutStream << "path=";
+        printPath(ofstdoutStream, fspath, printxurl);
+        printFMD(ofstdoutStream, findRequest, fmd);
+        ofstdoutStream << std::endl;
     }
   }
 
@@ -841,58 +861,63 @@ eos::mgm::FindCmd::ProcessRequest()
       //----------------------------------------------------------------------
       dircounter++;
 
-      // eventually call the version purge function if we own this version dir or we are root
-      if (purge &&
-          (foundit.first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
-        struct stat buf;
-
-        if ((!gOFS->_stat(foundit.first.c_str(), &buf, errInfo, mVid, nullptr,
-                          nullptr)) &&
-            ((mVid.uid == 0) || (mVid.uid == buf.st_uid))) {
-          ofstdoutStream << "# purging " << foundit.first;
-          gOFS->PurgeVersion(foundit.first.c_str(), errInfo, max_version);
-        }
+      //----------------------------------------------------------------------
+      // Just print dir count?
+      //----------------------------------------------------------------------
+      if(printcounter) {
+        // We print at the end.
+        continue;
       }
 
-      if (!purge && !printcounter) {
-        if (printchildcount) {
-          unsigned long long childfiles = 0;
-          unsigned long long childdirs = 0;
+      //----------------------------------------------------------------------
+      // Just print child count?
+      //----------------------------------------------------------------------
+      if(printchildcount) {
+        unsigned long long childfiles = 0;
+        unsigned long long childdirs = 0;
 
-          childfiles = mCmd->getNumFiles();
-          childdirs = mCmd->getNumContainers();
-          ofstdoutStream << foundit.first << " ndir=" << childdirs <<
-              " nfiles=" << childfiles << std::endl;
-        } else {
-          if (!printfileinfo) {
-            // print directories
-            std::string attr;
-
-            if (!printkey.empty()) {
-              if(!gOFS->_attr_get(*mCmd.get(), printkey, attr)) {
-                attr = "undef";
-              }
-
-              if (!printcounter) {
-                ofstdoutStream << printkey << "=" << std::left << std::setw(
-                                   32) << attr << " path=";
-              }
-            }
-
-            if (printxurl) {
-              ofstdoutStream << url;
-            }
-
-            ofstdoutStream << foundit.first;
-            printUidGid(ofstdoutStream, findRequest, mCmd);
-          } else {
-            // print fileinfo -m
-            this->PrintFileInfoMinusM(foundit.first, errInfo);
-          }
-
-          ofstdoutStream << std::endl;
-        }
+        childfiles = mCmd->getNumFiles();
+        childdirs = mCmd->getNumContainers();
+        ofstdoutStream << foundit.first << " ndir=" << childdirs <<
+            " nfiles=" << childfiles << std::endl;
+        continue;
       }
+
+      //----------------------------------------------------------------------
+      // Purge version directory?
+      //----------------------------------------------------------------------
+      if(purge) {
+        this->PurgeVersions(ofstdoutStream, max_version, foundit.first);
+        continue;
+      }
+
+      //----------------------------------------------------------------------
+      // Print fileinfo -m?
+      //----------------------------------------------------------------------
+      if(printfileinfo) {
+        this->PrintFileInfoMinusM(foundit.first, errInfo);
+        continue;
+      }
+
+      //------------------------------------------------------------------------
+      // Nope, just print. Are we printing an attribute alongside the other
+      // contents?
+      //------------------------------------------------------------------------
+      if(!printkey.empty()) {
+        std::string attr;
+        if(!gOFS->_attr_get(*mCmd.get(), printkey, attr)) {
+          attr = "undef";
+        }
+
+        ofstdoutStream << printkey << "=" << std::left << std::setw(32) << attr << " path=";
+      }
+
+      //------------------------------------------------------------------------
+      // Print the rest.
+      //------------------------------------------------------------------------
+      printPath(ofstdoutStream, foundit.first, printxurl);
+      printUidGid(ofstdoutStream, findRequest, mCmd);
+      ofstdoutStream << std::endl;
     }
   }
 
