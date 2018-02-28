@@ -40,7 +40,7 @@ ProcCommand::Rm()
   XrdOucString spathid = pOpaque->Get("mgm.file.id");
 
   if (spathid.length()) {
-    GetPathFromFid(spath, pOpaque, "Cannot get fid");
+    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "Cannot get fid");
   } else {
     spath = pOpaque->Get("mgm.path");
   }

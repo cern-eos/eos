@@ -31,7 +31,18 @@ eos::mgm::RmCmd::ProcessRequest() {
   eos::console::ReplyProto reply;
 
   eos::console::RmProto rm = mReqProto.rm();
+  auto recursive = rm.recursive();
+  auto deep = rm.deep();
+  auto force = rm.bypassrecycle();
 
+  std::string path;
+  if (rm.path().empty()) {
+    XrdOucString pathOut;
+    GetPathFromFid(pathOut, rm.fileid(), "Cannot get fid");
+    path = pathOut.c_str();
+  } else {
+    path = rm.path();
+  }
 
   return reply;
 }

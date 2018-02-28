@@ -311,17 +311,6 @@ private:
   XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
-  //! Get a file's full path using the fid information stored in the opaque
-  //! data.
-  //!
-  //! @param path full path of the file
-  //! @param opaque request opaque information
-  //! @param err_msg error message to be displayed in case of exception
-  //----------------------------------------------------------------------------
-  void GetPathFromFid(XrdOucString& path, XrdOucEnv* opaque,
-                      const std::string& err_msg);
-
-  //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the
   //! arch_dir location. If not it sets the retc and stdErr string accordingly.
   //!

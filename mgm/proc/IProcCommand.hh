@@ -43,20 +43,20 @@ class IProcCommand: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
-  //! Costructor
+  //! Constructor
   //----------------------------------------------------------------------------
   IProcCommand():
     mExecRequest(false), mReqProto(), mDoAsync(false), mForceKill(false),
     stdOut(), stdErr(), stdJson(), retc(0), mTmpResp() {}
 
   //----------------------------------------------------------------------------
-  //! Costructor
+  //! Constructor
   //!
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   IProcCommand(eos::console::RequestProto&& req,
                eos::common::Mapping::VirtualIdentity& vid, bool async):
-    mExecRequest(false), mReqProto(std::move(req)), mDoAsync(async),
+    mExecRequest(false), mReqProto(req), mDoAsync(async),
     mForceKill(false), mVid(vid), stdOut(), stdErr(), stdJson(), retc(0),
     mTmpResp() {}
 
@@ -179,6 +179,17 @@ public:
 protected:
   virtual bool OpenTemporaryOutputFiles();
   virtual bool CloseTemporaryOutputFiles();
+
+  //----------------------------------------------------------------------------
+  //! Get a file's full path using the fid information stored in the opaque
+  //! data.
+  //!
+  //! @param path full path of the file
+  //! @param opaque request opaque information
+  //! @param err_msg error message to be displayed in case of exception
+  //----------------------------------------------------------------------------
+  void GetPathFromFid(XrdOucString& path, unsigned long long fid,
+                      const std::string& err_msg);
 
   //----------------------------------------------------------------------------
   //! Format console reply as json output

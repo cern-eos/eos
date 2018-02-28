@@ -21,8 +21,10 @@
  ************************************************************************/
 
 #include "common/Path.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
+#include "namespace/interface/IView.hh"
 #include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
@@ -333,6 +335,35 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
   oss << "mgm.proc.stdout=" << json
       << "&mgm.proc.stderr=" << reply.std_err()
       << "&mgm.proc.retc=" << reply.retc();
+}
+
+//------------------------------------------------------------------------------
+// Get a file's full path using the fid information stored in the opaque data
+//------------------------------------------------------------------------------
+void
+IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
+                            const std::string& err_msg)
+{
+  if (path == "") {
+    if (fid == 0ULL) {
+      stdErr += "error: fid unknown!";
+      retc = errno;
+      return;
+    }
+
+    try {
+      std::string temp =
+        gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+      path = XrdOucString(temp.c_str());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      stdErr = err_msg.c_str();
+      stdErr += e.getMessage().str().c_str();
+      stdErr += "\n";
+      eos_debug("caught exception %d %s\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END
