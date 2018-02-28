@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 DrainTransferJob::~DrainTransferJob()
 {
-  eos_notice("Destroying transfer job");
+  eos_debug("Destroying transfer job");
 
   if (mThread.joinable()) {
     mThread.join();
@@ -50,7 +50,7 @@ DrainTransferJob::~DrainTransferJob()
 //------------------------------------------------------------------------------
 void DrainTransferJob::ReportError(const std::string& error)
 {
-  eos_notice(error.c_str());
+  eos_err(error.c_str());
   mErrorString = error;
   mStatus = Status::Failed;
 }
@@ -65,271 +65,278 @@ void DrainTransferJob::Start()
 
 //------------------------------------------------------------------------------
 // Implement the thrid-party transfer
-// @todo (amanzi): review this whole method, it could be simplified and better
-//                 encapsulated e.g. lambdas
 //------------------------------------------------------------------------------
 void
 DrainTransferJob::DoIt()
 {
   using eos::common::LayoutId;
-  eos::common::Mapping::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
-  XrdSysTimer sleeper;
-  std::shared_ptr<eos::IFileMD> fmd;
-  std::shared_ptr<eos::IContainerMD> cmd;
-  uid_t owner_uid = 0;
-  gid_t owner_gid = 0;
-  unsigned long long size = 0;
-  std::string source_xs;
-  XrdOucString source_sz;
-  long unsigned int lid = 0;
-  unsigned long long cid = 0;
-  XrdOucEnv* source_capabilityenv = 0;
-  XrdOucEnv* target_capabilityenv = 0;
-  std::string source_path;
-  mStatus = Status::Running; // update status
-  {
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+  mStatus = Status::Running;
+  FileDrainInfo fdrain;
 
-    try {
-      fmd = gOFS->eosFileService->getFileMD(mFileId);
-      lid = fmd->getLayoutId();
-      cid = fmd->getContainerId();
-      owner_uid = fmd->getCUid();
-      owner_gid = fmd->getCGid();
-      size = fmd->getSize();
-      source_path = gOFS->eosView->getUri(fmd.get());
-      eos::common::Path cPath(source_path.c_str());
-      cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd.get()));
-
-      // get the checksum string if defined
-      for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId());
-           i++) {
-        char hb[3];
-        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-        source_xs += hb;
-      }
-
-      eos::common::StringConversion::GetSizeString(source_sz,
-          (unsigned long long) fmd->getSize());
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_notice("fid=%016x errno=%d msg=\"%s\"\n",
-                 mFileId, e.getErrno(), e.getMessage().str().c_str());
-      ReportError("Error reading the file metadata");
-      return;
-    }
+  try {
+    fdrain = GetFileInfo();
+  } catch (const eos::MDException& e) {
+    ReportError(e.what());
+    return;
   }
-  eos::common::FileSystem::fs_snapshot target_snapshot;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem* target_fs = 0;
-  eos::common::FileSystem* source_fs = 0;
+
+  // Take snapshots of the source and target file systems
+  eos::common::FileSystem::fs_snapshot dst_snapshot;
+  eos::common::FileSystem::fs_snapshot src_snapshot;
   {
-    eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-    source_fs = FsView::gFsView.mIdView[mFsIdSource];
-    target_fs = FsView::gFsView.mIdView[mFsIdTarget];
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
+    eos::common::FileSystem* target_fs = FsView::gFsView.mIdView[mFsIdTarget];
 
     if (!target_fs || !source_fs) {
-      ReportError("Target/source fs not found");
+      ReportError("msg=\"source/taget file system not found\"");
       return;
     }
 
-    source_fs->SnapShotFileSystem(source_snapshot);
-    target_fs->SnapShotFileSystem(target_snapshot);
+    source_fs->SnapShotFileSystem(src_snapshot);
+    target_fs->SnapShotFileSystem(dst_snapshot);
   }
+  uint64_t lid = fdrain.mProto.layout_id();
 
   if ((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP) ||
-       (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) {
+      (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) {
     // @todo (amanzi): to be implemented - run TPC with reconstruction
   } else {
     // Prepare the TPC copy job
-    XrdCl::PropertyList properties;
-    XrdCl::PropertyList result;
-    XrdOucString hexfid = "";
-    XrdOucString sizestring;
+    XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
+    XrdCl::URL url_dst = BuildTpcDst(fdrain, dst_snapshot);
 
-    // Non-empty files run with TPC only
-    if (size) {
-      properties.Set("thirdParty", "only");
+    if (!url_src.IsValid()) {
+      ReportError("msg=\"invalid src url\"");
+      return;
     }
 
+    if (!url_dst.IsValid()) {
+      ReportError("msg=\"invalid dst url\"");
+      return;
+    }
+
+    XrdCl::PropertyList properties;
     properties.Set("force", true);
     properties.Set("posc", false);
     properties.Set("coerce", false);
-    XrdOucString source, target = "";
-    std::string cgi;
-    cgi += "&eos.app=drainer";
-    cgi += "&eos.targetsize=";
-    cgi += source_sz.c_str();
+    properties.Set("source", url_src);
+    properties.Set("target", url_dst);
+    properties.Set("sourceLimit", (uint16_t) 1);
+    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+    properties.Set("parallelChunks", (uint8_t) 1);
+    properties.Set("tpcTimeout",  900);
 
-    if (!source_xs.empty()) {
-      cgi += "&eos.checksum=";
-      cgi += source_xs;
+    // Non-empty files run with TPC only
+    if (fdrain.mProto.size()) {
+      properties.Set("thirdParty", "only");
     }
 
-    XrdCl::URL url_src;
-    url_src.SetProtocol("root");
-    url_src.SetHostName(source_snapshot.mHost.c_str());
-    url_src.SetPort(stoi(source_snapshot.mPort));
-    url_src.SetUserName("daemon");
-    unsigned long long target_lid = lid & 0xffffff0f;
+    // Create the process job
+    XrdCl::PropertyList result;
+    XrdCl::CopyProcess cpy;
+    cpy.AddJob(properties, &result);
+    XrdCl::XRootDStatus prepare_st = cpy.Prepare();
+    eos_notice("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
+               url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
 
-    // Mask block checksums for the current replica layout
-    if (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone) {
-      target_lid &= 0xff0fffff;
-    }
+    if (prepare_st.IsOK()) {
+      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
 
-    XrdOucString source_params = "";
-    source_params += "mgm.access=read";
-    source_params += "&mgm.lid=";
-    source_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     (unsigned long long) target_lid);
-    source_params += "&mgm.cid=";
-    source_params +=  eos::common::StringConversion::GetSizeString(sizestring, cid);
-    source_params += "&mgm.ruid=1";
-    source_params += "&mgm.rgid=1";
-    source_params += "&mgm.uid=1";
-    source_params += "&mgm.gid=1";
-    source_params += "&mgm.path=";
-    source_params += source_path.c_str();
-    source_params += "&mgm.manager=";
-    source_params += gOFS->ManagerId.c_str();
-    eos::common::FileId::Fid2Hex(mFileId, hexfid);
-    source_params += "&mgm.fid=";
-    source_params += +hexfid.c_str();
-    source_params += "&mgm.sec=";
-    source_params += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
-    source_params += "&mgm.drainfsid=";
-    source_params += (int) mFsIdSource;
-    // build the replica_source_capability contents
-    source_params += "&mgm.localprefix=";
-    source_params += source_snapshot.mPath.c_str();
-    source_params += "&mgm.fsid=";
-    source_params += (int) source_snapshot.mId;
-    source_params += "&mgm.sourcehostport=";
-    source_params += source_snapshot.mHostPort.c_str();
-    source_params += "&eos.app=drainer";
-    source_params += "&eos.ruid=0&eos.rgid=0";
-    // build source
-    source +=  source_path.c_str();
-    target = source;
-    XrdCl::URL url_trg;
-    url_trg.SetProtocol("root");
-    url_trg.SetHostName(target_snapshot.mHost.c_str());
-    url_trg.SetPort(stoi(target_snapshot.mPort));
-    url_trg.SetUserName("daemon");
-    url_trg.SetParams(cgi);
-    XrdOucString target_params = "";
-    target_params += "mgm.access=write";
-    target_params += "&mgm.lid=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     (unsigned long long) target_lid);
-    target_params += "&mgm.source.lid=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     (unsigned long long) lid);
-    target_params += "&mgm.source.ruid=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     (unsigned long long) owner_uid);
-    target_params += "&mgm.source.rgid=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     (unsigned long long) owner_gid);
-    target_params += "&mgm.cid=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     cid);
-    target_params += "&mgm.ruid=1";
-    target_params += "&mgm.rgid=1";
-    target_params += "&mgm.uid=1";
-    target_params += "&mgm.gid=1";
-    target_params += "&mgm.path=";
-    target_params += source_path.c_str();
-    target_params += "&mgm.manager=";
-    target_params += gOFS->ManagerId.c_str();
-    target_params += "&mgm.fid=";
-    target_params += hexfid.c_str();
-    target_params += "&mgm.sec=";
-    target_params += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
-    target_params += "&mgm.drainfsid=";
-    target_params += (int) mFsIdSource;
-    // build the target_capability contents
-    target_params += "&mgm.localprefix=";
-    target_params += target_snapshot.mPath.c_str();
-    target_params += "&mgm.fsid=";
-    target_params += (int) target_snapshot.mId;
-    target_params += "&mgm.sourcehostport=";
-    target_params += target_snapshot.mHostPort.c_str();
-    target_params += "&mgm.bookingsize=";
-    target_params += eos::common::StringConversion::GetSizeString(sizestring,
-                     size);
-    // issue a replica_source_capability
-    XrdOucEnv insource_capability(source_params.c_str());
-    XrdOucEnv intarget_capability(target_params.c_str());
-    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-    int caprc = 0;
-
-    if ((caprc = gCapabilityEngine.Create(&insource_capability,
-                                          source_capabilityenv,
-                                          symkey, gOFS->mCapabilityValidity)) ||
-        (caprc = gCapabilityEngine.Create(&intarget_capability,
-                                          target_capabilityenv,
-                                          symkey, gOFS->mCapabilityValidity))) {
-      std::string err  = "unable to create source/target capability - errno=";
-      err += caprc;
-      ReportError(err);
-    } else {
-      int caplen = 0;
-      XrdOucString source_cap = source_capabilityenv->Env(caplen);
-      XrdOucString target_cap = target_capabilityenv->Env(caplen);
-      source_cap += "&source.url=root://";
-      source_cap += source_snapshot.mHostPort.c_str();
-      source_cap += "//replicate:";
-      source_cap += hexfid;
-      target_cap += "&target.url=root://";
-      target_cap += target_snapshot.mHostPort.c_str();
-      target_cap += "//replicate:";
-      target_cap += hexfid;
-      url_src.SetParams(source_cap.c_str());
-      url_src.SetPath(source.c_str());
-      url_trg.SetParams(target_cap.c_str());
-      url_trg.SetPath(target.c_str());
-      properties.Set("source", url_src);
-      properties.Set("target", url_trg);
-      properties.Set("sourceLimit", (uint16_t) 1);
-      properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-      properties.Set("parallelChunks", (uint8_t) 1);
-      properties.Set("tpcTimeout",  900);
-      //create the process job
-      XrdCl::CopyProcess lCopyProcess;
-      lCopyProcess.AddJob(properties, &result);
-      XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-      eos_notice("[tpc]: %s=>%s %s",
-                 url_src.GetURL().c_str(),
-                 url_trg.GetURL().c_str(),
-                 lTpcPrepareStatus.ToStr().c_str());
-
-      if (lTpcPrepareStatus.IsOK()) {
-        XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
-        eos_notice("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-
-        if (!lTpcStatus.IsOK()) {
-          ReportError(lTpcStatus.ToStr().c_str());
-        } else {
-          eos_notice("Drain Job completed Succesfully");
-          mStatus = Status::OK;
-        }
+      if (!tpc_st.IsOK()) {
+        ReportError(tpc_st.ToStr().c_str());
       } else {
-        ReportError("Failed to prepare the Drain job");
+        eos_notice("msg=\"drain job completed successfully");
+        mStatus = Status::OK;
       }
-    }
-
-    if (source_capabilityenv) {
-      delete source_capabilityenv;
-    }
-
-    if (target_capabilityenv) {
-      delete target_capabilityenv;
+    } else {
+      ReportError("msg=\"failed to prepare drain job\"");
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Get file metadata info
+//------------------------------------------------------------------------------
+DrainTransferJob::FileDrainInfo
+DrainTransferJob::GetFileInfo() const
+{
+  FileDrainInfo fdrain;
+
+  // @todo (esindril) remove this
+  if (true || gOFS->mQdbCluster.empty()) {
+    try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
+      fdrain.mProto.set_layout_id(fmd->getLayoutId());
+      fdrain.mProto.set_cont_id(fmd->getContainerId());
+      fdrain.mProto.set_uid(fmd->getCUid());
+      fdrain.mProto.set_gid(fmd->getCGid());
+      fdrain.mProto.set_size(fmd->getSize());
+      fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
+      fdrain.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
+                                 fmd->getChecksum().getSize());
+    } catch (eos::MDException& e) {
+      std::ostringstream oss;
+      oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
+          << " errno=" << e.getErrno()
+          << " msg=\"" << e.getMessage().str() << "\"";
+      eos_err("%s", oss.str().c_str());
+      throw e;
+    }
+  } else {
+    // @todo (esindril): add implementation for qdb namespace
+  }
+
+  return fdrain;
+}
+
+//------------------------------------------------------------------------------
+// Build TPC source url
+//------------------------------------------------------------------------------
+XrdCl::URL
+DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
+                              const eos::common::FileSystem::fs_snapshot& fs)
+{
+  using eos::common::LayoutId;
+  XrdCl::URL url_src;
+  uint64_t lid = fdrain.mProto.layout_id();
+  uint64_t target_lid = lid & 0xffffff0f;
+
+  // Mask block checksums only for replica layouts
+  if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica) &&
+      (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone)) {
+    target_lid &= 0xff0fffff;
+  }
+
+  std::ostringstream src_params;
+  src_params << "mgm.access=read"
+             << "&mgm.lid=" << target_lid
+             << "&mgm.cid=" << fdrain.mProto.cont_id()
+             << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+             << "&mgm.path=" << fdrain.mFullPath
+             << "&mgm.manager=" << gOFS->ManagerId.c_str()
+             << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
+             << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
+             << "&mgm.drainfsid=" << mFsIdSource
+             << "&mgm.localprefix=" << fs.mPath.c_str()
+             << "&mgm.fsid=" << fs.mId
+             << "&mgm.sourcehostport=" << fs.mHostPort.c_str()
+             << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+  // Build the capability
+  int caprc = 0;
+  XrdOucEnv* output_cap = 0;
+  XrdOucEnv input_cap(src_params.str().c_str());
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+
+  if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
+                                        symkey, gOFS->mCapabilityValidity))) {
+    std::string err = "msg=\"unable to create src capability, errno=";
+    err += caprc;
+    err += "\"";
+    ReportError(err);
+    return url_src;
+  }
+
+  int cap_len = 0;
+  std::ostringstream src_cap;
+  src_cap << output_cap->Env(cap_len)
+          << "&source.url=root://" << fs.mHostPort.c_str()
+          << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+  // Fill in the url object
+  url_src.SetProtocol("root");
+  url_src.SetHostName(fs.mHost.c_str());
+  url_src.SetPort(stoi(fs.mPort));
+  url_src.SetUserName("daemon");
+  url_src.SetParams(src_cap.str());
+  url_src.SetPath(fdrain.mFullPath);
+  delete output_cap;
+  return url_src;
+}
+
+//------------------------------------------------------------------------------
+// Build TPC destination url
+//------------------------------------------------------------------------------
+XrdCl::URL
+DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
+                              const eos::common::FileSystem::fs_snapshot& fs)
+{
+  using eos::common::LayoutId;
+  XrdCl::URL url_dst;
+  uint64_t lid = fdrain.mProto.layout_id();
+  uint64_t target_lid = lid & 0xffffff0f;
+
+  // Mask block checksums only for replica layouts
+  if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica) &&
+      (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone)) {
+    target_lid &= 0xff0fffff;
+  }
+
+  std::ostringstream dst_params;
+  dst_params << "mgm.access=write"
+             << "&mgm.lid=" << target_lid
+             << "&mgm.source.lid=" << lid
+             << "&mgm.source.ruid=" << fdrain.mProto.uid()
+             << "&mgm.source.rgid=" << fdrain.mProto.gid()
+             << "&mgm.cid=" << fdrain.mProto.cont_id()
+             << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+             << "&mgm.path=" << fdrain.mFullPath.c_str()
+             << "&mgm.manager=" << gOFS->ManagerId.c_str()
+             << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
+             << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
+             << "&mgm.drainfsid=" << mFsIdSource
+             << "&mgm.localprefix=" << fs.mPath.c_str()
+             << "&mgm.fsid=" << fs.mId
+             << "&mgm.sourcehostport=" << fs.mHostPort.c_str()
+             << "&mgm.bookingsize=" << fdrain.mProto.size()
+             << "&eos.app=drainer&eos.targetsize=" << fdrain.mProto.size();
+
+  if (!fdrain.mProto.checksum().empty()) {
+    dst_params << "&eos.checksum=";
+    uint32_t xs_len = LayoutId::GetChecksumLen(lid);
+    uint32_t data_len = fdrain.mProto.checksum().size();
+
+    for (auto i = 0u; i < data_len; ++i) {
+      dst_params << eos::common::StringConversion::char_to_hex(
+                   fdrain.mProto.checksum()[i]);
+      ++i;
+    }
+
+    // Pad with zeros if necessary
+    while (data_len < xs_len) {
+      ++data_len;
+      dst_params << '0';
+    }
+  }
+
+  // Build the capability
+  int caprc = 0;
+  XrdOucEnv* output_cap = 0;
+  XrdOucEnv input_cap(dst_params.str().c_str());
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+
+  if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
+                                        symkey, gOFS->mCapabilityValidity))) {
+    std::string err = "msg=\"unable to create dst capability, errno=";
+    err += caprc;
+    err += "\"";
+    ReportError(err);
+    return url_dst;
+  }
+
+  int cap_len = 0;
+  std::ostringstream dst_cap;
+  dst_cap << output_cap->Env(cap_len)
+          << "&target.url=root://" << fs.mHostPort.c_str()
+          << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+  url_dst.SetProtocol("root");
+  url_dst.SetHostName(fs.mHost.c_str());
+  url_dst.SetPort(stoi(fs.mPort));
+  url_dst.SetUserName("daemon");
+  url_dst.SetParams(dst_cap.str());
+  url_dst.SetPath(fdrain.mFullPath);
+  delete output_cap;
+  return url_dst;
 }
 
 EOSMGMNAMESPACE_END

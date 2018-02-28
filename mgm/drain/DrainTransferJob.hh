@@ -26,6 +26,7 @@
 #include "common/FileId.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
+#include "proto/FileMd.pb.h"
 #include <thread>
 
 EOSMGMNAMESPACE_BEGIN
@@ -38,19 +39,19 @@ class DrainTransferJob: public eos::common::LogId
 {
 public:
   //! Status of a drain transfer job
-  enum Status { OK, Running, Failed, Ready};
+  enum Status {OK, Running, Failed, Ready};
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param fileId the file id
-  //! @param fsIdT source file system id
-  //! @param fsIdT target file system id
+  //! @param fid the file id
+  //! @param fsid_src source file system id
+  //! @param fsid_trg target file system id
   //----------------------------------------------------------------------------
-  DrainTransferJob(eos::common::FileId::fileid_t fileId,
-                   eos::common::FileSystem::fsid_t fsIdS,
-                   eos::common::FileSystem::fsid_t fsIdT = 0):
-    mFileId(fileId), mFsIdSource(fsIdS), mFsIdTarget(fsIdT), mThread(),
+  DrainTransferJob(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid_src,
+                   eos::common::FileSystem::fsid_t fsid_trg = 0):
+    mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg), mThread(),
     mStatus(OK) {}
 
   //----------------------------------------------------------------------------
@@ -70,9 +71,12 @@ public:
   //----------------------------------------------------------------------------
   void ReportError(const std::string& error);
 
-  inline void SetTargetFS(eos::common::FileSystem::fsid_t fsIdT)
+  //----------------------------------------------------------------------------
+  //! Set the taget file system
+  //----------------------------------------------------------------------------
+  inline void SetTargetFS(eos::common::FileSystem::fsid_t fsid_trg)
   {
-    mFsIdTarget = fsIdT;
+    mFsIdTarget = fsid_trg;
   }
 
   inline void SetStatus(DrainTransferJob::Status status)
@@ -106,10 +110,51 @@ public:
   }
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Struct holding info about a file to be drained
+  //----------------------------------------------------------------------------
+  struct FileDrainInfo {
+    std::string mFullPath;
+    eos::ns::FileMdProto mProto;
+  };
+
   //----------------------------------------------------------------------------
   //! Method executed by the drainer thread where all the work is done
   //----------------------------------------------------------------------------
   void DoIt();
+
+  //----------------------------------------------------------------------------
+  //! Get file metadata info. Depending on the MGM configuration this will use
+  //! the in-memory approach with namespace locking or the qclient to connect
+  //! directy to QDB without any locking.
+  //!
+  //! @return file drain info object or throws and MDException
+  //----------------------------------------------------------------------------
+  FileDrainInfo GetFileInfo() const;
+
+  //----------------------------------------------------------------------------
+  //! Build TPC source url
+  //!
+  //! @param fdrain file to be drained info
+  //! @param fs source file system snapshot
+  //!
+  //! @return XrdCl source URL
+  //----------------------------------------------------------------------------
+  XrdCl::URL BuildTpcSrc(const FileDrainInfo& fdrain,
+                         const eos::common::FileSystem::fs_snapshot& fs);
+
+  //----------------------------------------------------------------------------
+  //! Build TPC destination url
+  //!
+  //! @param fdrain file to be drained info
+  //! @param fs source file system snapshot
+  //!
+  //! @return XrdCl destination URL
+  //----------------------------------------------------------------------------
+  XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain,
+                         const eos::common::FileSystem::fs_snapshot& fs);
+
 
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system

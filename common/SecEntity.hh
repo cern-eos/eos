@@ -148,12 +148,11 @@ public:
       rs += tokens[5];
       rs += "&sec.info=";
       rs += tokens[6];
+      rs += "&sec.app=";
 
-      if (sec_app) {
-        rs += "&sec.app=";
+      if ((tokens[7].empty() || tokens[7] == "-") && sec_app) {
         rs += sec_app;
       } else {
-        rs += "&sec.app=";
         rs += tokens[7];
       }
     } else {

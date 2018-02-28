@@ -21,43 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   FileId.hh
- *
- * @brief  Convenience Class for File IDs.
- *
- *
- */
-
-#ifndef __EOSCOMMON_FILEID__HH__
-#define __EOSCOMMON_FILEID__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class to handle file IDs.
-//! Provides conversion functions from/to hex representation and to build path names from fids and prefixes
-/*----------------------------------------------------------------------------*/
+//! Provides conversion functions from/to hex representation and to build path
+//! names from fids and prefixes
+//------------------------------------------------------------------------------
 class FileId
 {
 public:
   typedef unsigned long long fileid_t;
 
-  //! Constructor
-  FileId();
+  //----------------------------------------------------------------------------
+  //! Convert a fid into a hexadecimal string
+  //----------------------------------------------------------------------------
+  static std::string Fid2Hex(unsigned long long fid)
+  {
+    char hexbuffer[128];
+    sprintf(hexbuffer, "%08llx", fid);
+    return std::string(hexbuffer);
+  }
 
-  //! Destructor
-  ~FileId();
-
-  //! Convert a fid into a hex decimal string
-
+  //----------------------------------------------------------------------------
+  //! Convert a fid into a hexadecimal string
+  //----------------------------------------------------------------------------
   static void Fid2Hex(unsigned long long fid, XrdOucString& hexstring)
   {
     char hexbuffer[128];
@@ -65,8 +57,9 @@ public:
     hexstring = hexbuffer;
   }
 
+  //----------------------------------------------------------------------------
   //! Convert a hex decimal string into a fid
-
+  //----------------------------------------------------------------------------
   static unsigned long long Hex2Fid(const char* hexstring)
   {
     if (hexstring) {
@@ -76,12 +69,10 @@ public:
     }
   }
 
-  //! Convert an EOS file id into an inode number
-
-  // ---------------------------------------------------------------------------
-  // we shift the range by 28 bytes to not overlap with directory inodes
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
+  //! Convert an EOS file id into an inode number - we shift the range by 28
+  //! bytes to not overlap with directory inodes
+  //----------------------------------------------------------------------------
   static unsigned long long FidToInode(unsigned long long fid)
   {
     return (fid << 28);
@@ -97,8 +88,9 @@ public:
     return (ino >= (1 << 28));
   }
 
+  //----------------------------------------------------------------------------
   //! Compute a path from a fid and localprefix
-
+  //----------------------------------------------------------------------------
   static void FidPrefix2FullPath(const char* hexstring, const char* localprefix,
                                  XrdOucString& fullpath, unsigned int subindex = 0)
   {
@@ -125,8 +117,9 @@ public:
     fullpath = sfullpath;
   }
 
+  //----------------------------------------------------------------------------
   //! Compute a fid from a prefix path
-
+  //----------------------------------------------------------------------------
   static unsigned long long PathToFid(const char* path)
   {
     XrdOucString hexfid = "";
@@ -141,11 +134,4 @@ public:
   }
 };
 
-/*----------------------------------------------------------------------------*/
-
 EOSCOMMONNAMESPACE_END
-
-#endif
-
-
-

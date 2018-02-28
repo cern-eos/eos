@@ -51,8 +51,9 @@ public:
   //! @param fs_id filesystem id
   //----------------------------------------------------------------------------
   DrainFS(eos::common::FileSystem::fsid_t fs_id,
-            eos::common::FileSystem::fsid_t target_fs_id = 0):
-    mThread(0), mFsId(fs_id), mTargetFsId(target_fs_id), mDrainStatus(eos::common::FileSystem::kNoDrain)
+          eos::common::FileSystem::fsid_t target_fs_id = 0):
+    mThread(0), mFsId(fs_id), mTargetFsId(target_fs_id),
+    mDrainStatus(eos::common::FileSystem::kNoDrain)
   {}
 
   //----------------------------------------------------------------------------
@@ -66,7 +67,7 @@ public:
   void DrainStop();
 
   //----------------------------------------------------------------------------
-  // get the list of  Failed  Jobs
+  //! Get the list of failed drain jobs
   //----------------------------------------------------------------------------
   inline const std::vector<shared_ptr<DrainTransferJob>>& GetFailedJobs() const
   {
@@ -90,7 +91,7 @@ public:
 private:
 
   //----------------------------------------------------------------------------
-  // Thread loop implementing the drain job
+  //! Thread loop implementing the drain job
   //----------------------------------------------------------------------------
   void* Drain();
 
@@ -120,8 +121,8 @@ private:
   void CompleteDrain();
 
   eos::common::FileSystem::fsid_t mFsId; ///< Id of the draining file system
-  eos::common::FileSystem::fsid_t mTargetFsId;  ///< Id of the target fs for draining
-  // @todo (amanzi): try using std::thread just like in drain job
+  eos::common::FileSystem::fsid_t
+  mTargetFsId;  ///< Id of the target fs for draining
   eos::common::FileSystem::eDrainStatus mDrainStatus;
   std::string mSpace; ///< Space where fs resides
   std::string mGroup; ///< Group where fs resided

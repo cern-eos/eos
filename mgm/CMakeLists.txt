@@ -38,8 +38,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_SOURCE_DIR}/mgm/cta_interface/include
-  ${CMAKE_BINARY_DIR}/mgm/eos_cta_pb
-)
+  ${CMAKE_BINARY_DIR}/mgm/eos_cta_pb)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -177,7 +176,7 @@ add_library(
 # Add dependecy to EosAuthProto-Objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosMgm
 #-------------------------------------------------------------------------------
-add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
+add_dependencies(XrdEosMgm-Objects EosProtobuf)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DBACKWARD_HAS_DW=1 -DDAEMONGID=${DAEMONGID})
@@ -187,10 +186,7 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(XrdEosMgm MODULE
-  $<TARGET_OBJECTS:XrdEosMgm-Objects>
-  $<TARGET_OBJECTS:CommonCli-Objects>
-  $<TARGET_OBJECTS:EosAuthProto-Objects>)
+add_library(XrdEosMgm MODULE $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC
@@ -203,6 +199,7 @@ endif()
 
 target_link_libraries(
   XrdEosMgm PUBLIC
+  EosProtobuf
   qclient
   eosCommon
   eosCommonServer
@@ -222,7 +219,6 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
-  ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(
@@ -259,9 +255,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 if(Linux)
   add_library(XrdEosMgm-Shared SHARED
-    $<TARGET_OBJECTS:XrdEosMgm-Objects>
-    $<TARGET_OBJECTS:CommonCli-Objects>
-    $<TARGET_OBJECTS:EosAuthProto-Objects>)
+    $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
   target_compile_definitions(
     XrdEosMgm-Shared PUBLIC
@@ -270,6 +264,7 @@ if(Linux)
   target_link_libraries(
     XrdEosMgm-Shared PUBLIC
     EosNsCommon-Static
+    EosProtobuf
     eosCommon
     eosCommonServer
     eosCapability-Static
@@ -288,6 +283,5 @@ if(Linux)
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${JSONCPP_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${PROTOBUF_LIBRARIES})
+    ${CMAKE_THREAD_LIBS_INIT})
 endif()

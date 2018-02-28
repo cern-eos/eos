@@ -250,7 +250,8 @@ DrainFS::Drain()
       eos::common::FileSystem::fsid_t fsIdTarget;
       last_filesleft = filesleft;
 
-      while ((mJobsRunning.size() <= maxParallelJobs) && (job != mJobsPending.end())) {
+      while ((mJobsRunning.size() <= maxParallelJobs) &&
+             (job != mJobsPending.end())) {
         if (!(*job)->GetTargetFS()) {
           if ((fsIdTarget = SelectTargetFS(&(*job->get()))) != 0) {
             (*job)->SetTargetFS(fsIdTarget);
@@ -262,6 +263,7 @@ DrainFS::Drain()
             continue;
           }
         }
+
         XrdSysTimer sleep;
         sleep.Wait(200);
         (*job)->SetStatus(DrainTransferJob::Ready);
