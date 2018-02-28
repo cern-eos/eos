@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::FuseX ()
 {
-  gOFS->MgmStats.Add("Fuse-FuseX", pVid->uid, pVid->gid, 1);
+  gOFS->MgmStats.Add("FUSEx-0-STREAM", pVid->uid, pVid->gid, 1);
 
   // -------------------------------------------------------------------------------------------------------
   // This function returns meta data by inode or if provided first translates a path into an inode.

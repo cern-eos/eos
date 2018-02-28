@@ -1992,6 +1992,7 @@ FuseServer::HandleMD(const std::string &id,
 
   if ( md.operation() == md.BEGINFLUSH )
   {
+    gOFS->MgmStats.Add("FUSEx-BEGINFLUSH", vid->uid, vid->gid, 1);
     // this is a flush begin/end indicator
     Flushs().beginFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
@@ -2002,6 +2003,7 @@ FuseServer::HandleMD(const std::string &id,
 
   if ( md.operation() == md.ENDFLUSH )
   {
+    gOFS->MgmStats.Add("FUSEx-ENDFLUSH", vid->uid, vid->gid, 1);
     Flushs().endFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
     resp.set_type(resp.NONE);
@@ -2033,7 +2035,12 @@ FuseServer::HandleMD(const std::string &id,
       (*parent)[md.md_ino()].set_clientid(md.clientid());
       if (md.operation() == md.LS)
       {
+	gOFS->MgmStats.Add("FUSEx-LS", vid->uid, vid->gid, 1);
         (*parent)[md.md_ino()].set_operation(md.LS);
+      }
+      else
+      {
+	gOFS->MgmStats.Add("FUSEx-GET", vid->uid, vid->gid, 1);
       }
 
       size_t n_attached=1;
@@ -2153,6 +2160,7 @@ FuseServer::HandleMD(const std::string &id,
   }
   if (md.operation() == md.SET)
   {
+    gOFS->MgmStats.Add("FUSEx-SET", vid->uid, vid->gid, 1);
     uint64_t md_pino=md.md_pino();
 
     if (!md_pino)
@@ -2390,6 +2398,21 @@ FuseServer::HandleMD(const std::string &id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
+
+	switch ( op ) {
+	case MOVE:
+	  gOFS->MgmStats.Add("FUSEx-MV", vid->uid, vid->gid, 1);
+	  break;
+	case UPDATE:
+	  gOFS->MgmStats.Add("FUSEx-UPDATE", vid->uid, vid->gid, 1);
+	  break;
+	case CREATE:
+	  gOFS->MgmStats.Add("FUSEx-MKDIR", vid->uid, vid->gid, 1);
+	  break;
+	case RENAME:
+	  gOFS->MgmStats.Add("FUSEx-RENAME", vid->uid, vid->gid, 1);
+	  break;
+	}
 
         // broadcast this update around
         switch ( op ) {
@@ -2630,6 +2653,22 @@ FuseServer::HandleMD(const std::string &id,
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
 
+	switch ( op ) {
+	case MOVE:
+	  gOFS->MgmStats.Add("FUSEx-MV", vid->uid, vid->gid, 1);
+	  break;
+	case UPDATE:
+	  gOFS->MgmStats.Add("FUSEx-UPDATE", vid->uid, vid->gid, 1);
+	  break;
+	case CREATE:
+	  gOFS->MgmStats.Add("FUSEx-CREATE", vid->uid, vid->gid, 1);
+	  break;
+	case RENAME:
+	  gOFS->MgmStats.Add("FUSEx-RENAME", vid->uid, vid->gid, 1);
+	  break;
+	}
+
+
         // broadcast this update around
         switch ( op ) {
         case UPDATE:
@@ -2670,6 +2709,8 @@ FuseServer::HandleMD(const std::string &id,
 
       try
       {
+	gOFS->MgmStats.Add("FUSEx-CREATELNK", vid->uid, vid->gid, 1);
+
         // link creation
         op = CREATE;
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2793,6 +2834,7 @@ FuseServer::HandleMD(const std::string &id,
 
       if (S_ISDIR(md.mode()))
       {
+	gOFS->MgmStats.Add("FUSEx-RMDIR", vid->uid, vid->gid, 1);
         // check if this directory is empty
         if (cmd->getNumContainers() || cmd->getNumFiles())
         {
@@ -2822,6 +2864,7 @@ FuseServer::HandleMD(const std::string &id,
       }
       if (S_ISREG(md.mode()))
       {
+	gOFS->MgmStats.Add("FUSEx-DELETE", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
 
         try
@@ -2855,6 +2898,7 @@ FuseServer::HandleMD(const std::string &id,
       }
       if (S_ISLNK(md.mode()))
       {
+	gOFS->MgmStats.Add("FUSEx-DELETELNK", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-link", (long) md.md_ino());
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
@@ -2887,6 +2931,7 @@ FuseServer::HandleMD(const std::string &id,
 
   if (md.operation() == md.GETCAP)
   {
+    gOFS->MgmStats.Add("FUSEx-GETCAP", vid->uid, vid->gid, 1);
     eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
     
     eos::fusex::container cont;
@@ -2919,6 +2964,7 @@ FuseServer::HandleMD(const std::string &id,
 
   if (md.operation() == md.GETLK)
   {
+    gOFS->MgmStats.Add("FUSEx-GETLK", vid->uid, vid->gid, 1);
     eos::fusex::response resp;
     resp.set_type(resp.LOCK);
 
@@ -2958,7 +3004,15 @@ FuseServer::HandleMD(const std::string &id,
     int sleep = 0;
 
     if ( md.operation() == md.SETLKW )
+    {
+      gOFS->MgmStats.Add("FUSEx-SETLKW", vid->uid, vid->gid, 1);
       sleep = 1;
+    }
+    else
+    {
+      gOFS->MgmStats.Add("FUSEx-SETLK", vid->uid, vid->gid, 1);
+    }
+
 
     struct flock lock;
     lock.l_len = md.flock().len();

@@ -32,7 +32,7 @@
   MAYSTALL;
   MAYREDIRECT;
 
-  gOFS->MgmStats.Add("Fuse-Fusex", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("FUSEx-0-HANDLE", vid.uid, vid.gid, 1);
 
   // receive a protocol buffer and apply to the namespace
 
