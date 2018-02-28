@@ -24,7 +24,7 @@
 #include <cfloat>
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
-#include "mgm/Balancer.hh"
+#include "mgm/balancer/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
 #include "mgm/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"

@@ -135,7 +135,7 @@ add_library(
   XrdMgmOfsDirectory.cc
   XrdMgmOfs.cc
   DrainJob.cc
-  Balancer.cc
+  balancer/Balancer.cc
   FileSystem.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
