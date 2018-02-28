@@ -2295,6 +2295,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         if (Instance().Config().options.mkdir_is_sync) {
           md->set_type(md->EXCL);
           rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	  md->set_type(md->MD);
         } else {
           Instance().mds.add(req, pmd, md, pcap->authid());
         }
@@ -3028,6 +3029,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             (fi && fi->flags & O_EXCL)) {
           md->set_type(md->EXCL);
           rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	  md->set_type(md->MD);
         } else {
           Instance().mds.add(req, pmd, md, pcap->authid());
         }
@@ -4097,6 +4099,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       if (Instance().Config().options.mkdir_is_sync) {
         md->set_type(md->EXCL);
         rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	md->set_type(md->MD);
       } else {
         Instance().mds.add(req, pmd, md, pcap->authid());
       }
