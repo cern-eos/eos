@@ -1532,11 +1532,13 @@ XrdFstOfsFile::close()
       }
     }
 
-    if (!mTpcThreadStatus) {
-      int retc = XrdSysThread::Join(mTpcThread, NULL);
-      eos_debug("TPC job join returned %i", retc);
-    } else {
-      eos_warning("TPC job was never started successfully");
+    if (tpcFlag == kTpcDstSetup) {
+      if (!mTpcThreadStatus) {
+        int retc = XrdSysThread::Join(mTpcThread, NULL);
+        eos_debug("TPC job join returned %i", retc);
+      } else {
+        eos_warning("TPC job was never started successfully");
+      }
     }
   }
 
