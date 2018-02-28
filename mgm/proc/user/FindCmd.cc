@@ -511,6 +511,160 @@ eos::mgm::FindCmd::printPath(std::ofstream &ss, const std::string& path, bool ur
 }
 
 //------------------------------------------------------------------------------
+// Find result struct
+//------------------------------------------------------------------------------
+struct FindResult {
+  std::string path;
+  bool isdir;
+
+  std::shared_ptr<eos::IContainerMD> containerMD;
+  std::shared_ptr<eos::IFileMD> fileMD;
+
+  std::shared_ptr<eos::IContainerMD> toContainerMD() {
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
+
+    if(!containerMD) {
+      try {
+        containerMD = gOFS->eosView->getContainer(path);
+      }
+      catch (eos::MDException& e) {
+        eos_static_err("caught exception %d %s\n", e.getErrno(),
+                  e.getMessage().str().c_str());
+        return {};
+      }
+    }
+    return containerMD;
+  }
+
+  std::shared_ptr<eos::IFileMD> toFileMD() {
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
+
+    if(!fileMD) {
+      try {
+        fileMD = gOFS->eosView->getFile(path);
+      }
+      catch(eos::MDException& e) {
+        eos_static_err("caught exception %d %s\n", e.getErrno(),
+          e.getMessage().str().c_str());
+        return {};
+      }
+    }
+    return fileMD;
+  }
+};
+
+//------------------------------------------------------------------------------
+// Find result provider class
+//------------------------------------------------------------------------------
+class FindResultProvider {
+public:
+
+  //----------------------------------------------------------------------------
+  // In-memory: Check whether we need to take deep query mutex lock
+  //----------------------------------------------------------------------------
+  FindResultProvider(bool deepQuery) {
+    if(deepQuery) {
+      static eos::common::RWMutex deepQueryMutex;
+      static std::unique_ptr<std::map<std::string, std::set<std::string>>> globalfound;
+      deepQueryMutexGuard.Grab(deepQueryMutex);
+
+      if(!globalfound) {
+        globalfound.reset(new std::map<std::string, std::set<std::string>>());
+      }
+      found = globalfound.get();
+    }
+    else {
+      found = localfound.get();
+    }
+  }
+
+  ~FindResultProvider() {
+    found->clear();
+  }
+
+  //----------------------------------------------------------------------------
+  // In-memory: Get map for holding content results
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::set<std::string>>* getFoundMap() {
+    return found;
+  }
+
+  bool nextInMemory(FindResult& res) {
+    //------------------------------------------------------------------------
+    // Search not started yet?
+    //------------------------------------------------------------------------
+    if(!inMemStarted) {
+      dirIterator = found->begin();
+      targetFileSet = &dirIterator->second;
+      fileIterator = targetFileSet->begin();
+      inMemStarted = true;
+
+      res.path = dirIterator->first;
+      res.isdir = true;
+      res.containerMD = {};
+      res.fileMD = {};
+      return true;
+    }
+
+    //------------------------------------------------------------------------
+    // At the end of a file iterator? Give out next directory.
+    //------------------------------------------------------------------------
+    if(fileIterator == targetFileSet->end()) {
+      dirIterator++;
+      if(dirIterator == found->end()) {
+        // Search has ended.
+        return false;
+      }
+
+      targetFileSet = &dirIterator->second;
+      fileIterator = targetFileSet->begin();
+
+      res.path = dirIterator->first;
+      res.isdir = true;
+      res.containerMD = {};
+      res.fileMD = {};
+      return true;
+    }
+
+    //------------------------------------------------------------------------
+    // Nope, just give out another file.
+    //------------------------------------------------------------------------
+    res.path = dirIterator->first + *fileIterator;
+    res.isdir = false;
+    res.containerMD = {};
+    res.fileMD = {};
+
+    fileIterator++;
+    return true;
+  }
+
+  bool next(FindResult& res) {
+    if(found) {
+      //------------------------------------------------------------------------
+      // In-memory case
+      //------------------------------------------------------------------------
+      return nextInMemory(res);
+    }
+
+    return false;
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  // In-memory: Map holding results
+  //----------------------------------------------------------------------------
+  eos::common::RWMutexWriteLock deepQueryMutexGuard;
+  std::unique_ptr<std::map<std::string, std::set<std::string>>> localfound;
+  std::map<std::string, std::set<std::string>>* found = nullptr;
+  bool inMemStarted = false;
+
+  std::map<std::string, std::set<std::string>>::iterator dirIterator;
+  std::set<std::string> *targetFileSet = nullptr;
+  std::set<std::string>::iterator fileIterator;
+
+};
+
+//------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
@@ -564,35 +718,12 @@ eos::mgm::FindCmd::ProcessRequest()
     }
   }
 
-  XrdOucString url = "root://";
-  url += gOFS->MgmOfsAlias;
-  url += "/";
   // this hash is used to calculate the balance of the found files over the filesystems involved
   eos::BalanceCalculator balanceCalculator;
   eos::common::Path cPath(spath.c_str());
   bool deepquery = cPath.GetSubPathSize() < 5 && (!findRequest.directories() ||
                    findRequest.files());
-  static eos::common::RWMutex deepQueryMutex;
-  static std::unique_ptr<std::map<std::string, std::set<std::string>>>
-  globalfound;
-  eos::common::RWMutexWriteLock deepQueryMutexGuard;
-  std::unique_ptr<std::map<std::string, std::set<std::string>>> localfound;
-  std::map<std::string, std::set<std::string>>* found = nullptr;
   XrdOucErrInfo errInfo;
-
-  if (deepquery) {
-    // we use a single once allocated map for deep searches to store the results to avoid memory explosion
-    deepQueryMutexGuard.Grab(deepQueryMutex);
-
-    if (!globalfound) {
-      globalfound.reset(new std::map<std::string, std::set<std::string>>());
-    }
-
-    found = globalfound.get();
-  } else {
-    localfound.reset(new std::map<std::string, std::set<std::string>>());
-    found = localfound.get();
-  }
 
   // check what <path> actually is ...
   XrdSfsFileExistence file_exists;
@@ -601,10 +732,6 @@ eos::mgm::FindCmd::ProcessRequest()
     std::ostringstream error;
     error << "error: failed to run exists on '" << spath << "'";
     ofstderrStream << error.str();
-
-    if (deepquery) {
-      deepQueryMutexGuard.Release();
-    }
 
     reply.set_retc(errno);
     reply.set_std_err(error.str());
@@ -620,10 +747,6 @@ eos::mgm::FindCmd::ProcessRequest()
       error << "error: no such file or directory";
       ofstderrStream << error.str();
 
-      if (deepquery) {
-        deepQueryMutexGuard.Release();
-      }
-
       reply.set_retc(ENOENT);
       reply.set_std_err(error.str());
       return reply;
@@ -632,27 +755,30 @@ eos::mgm::FindCmd::ProcessRequest()
 
   errInfo.clear();
 
-  if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, (*found),
-                  attributekey.length() ? attributekey.c_str() : nullptr,
-                  attributevalue.length() ? attributevalue.c_str() : nullptr,
-                  nofiles, 0, true, finddepth,
-                  filematch.length() ? filematch.c_str() : nullptr)) {
-    std::ostringstream error;
-    error << stdErr;
-    error << "error: unable to run find in directory";
-    ofstderrStream << error.str();
+  std::unique_ptr<FindResultProvider> findResultProvider;
 
-    if (deepquery) {
-      deepQueryMutexGuard.Release();
-    }
+  if(true) /* replace with ! NsInQDB */ {
+    findResultProvider.reset(new FindResultProvider(deepquery));
+    std::map<std::string, std::set<std::string>>* found = findResultProvider->getFoundMap();
 
-    reply.set_retc(errno);
-    reply.set_std_err(error.str());
-    return reply;
-  } else {
-    if (stdErr.length()) {
-      ofstderrStream << stdErr;
-      reply.set_retc(E2BIG);
+    if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, (*found),
+                    attributekey.length() ? attributekey.c_str() : nullptr,
+                    attributevalue.length() ? attributevalue.c_str() : nullptr,
+                    nofiles, 0, true, finddepth,
+                    filematch.length() ? filematch.c_str() : nullptr)) {
+      std::ostringstream error;
+      error << stdErr;
+      error << "error: unable to run find in directory";
+      ofstderrStream << error.str();
+
+      reply.set_retc(errno);
+      reply.set_std_err(error.str());
+      return reply;
+    } else {
+      if (stdErr.length()) {
+        ofstderrStream << stdErr;
+        reply.set_retc(E2BIG);
+      }
     }
   }
 
@@ -661,38 +787,28 @@ eos::mgm::FindCmd::ProcessRequest()
   unsigned long long dircounter = 0;
 
   if (findRequest.files() || !dirs) {
-    for (auto& foundit : *found) {
-      if (!findRequest.files() && !nodirs) {
-        if (!printcounter) {
-          printPath(ofstdoutStream, foundit.first, printxurl);
+    FindResult findResult;
+
+    while(findResultProvider->next(findResult)) {
+      if(findResult.isdir) {
+        if (!findRequest.files() && !nodirs) {
+          if (!printcounter) {
+            printPath(ofstdoutStream, findResult.path, printxurl);
+          }
+
+          dircounter++;
+          ofstdoutStream << std::endl;
         }
-
-        dircounter++;
-        ofstdoutStream << std::endl;
       }
-
-      for (auto& fileit : foundit.second) {
+      else {
         cnt++;
-        std::string fspath = foundit.first;
-        fspath += fileit;
+        std::string fspath = findResult.path;
 
         //----------------------------------------------------------------------
         // Fetch fmd for target file
         //----------------------------------------------------------------------
-        eos::common::RWMutexReadLock eosViewMutexGuard;
-        eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
-        std::shared_ptr<eos::IFileMD> fmd;
+        std::shared_ptr<eos::IFileMD> fmd = findResult.toFileMD();
         bool selected = true;
-
-        try {
-          fmd = gOFS->eosView->getFile(fspath);
-        }
-        catch(eos::MDException& e) {
-          eos_err("caught exception %d %s\n", e.getErrno(),
-                    e.getMessage().str().c_str());
-        }
-
-        eosViewMutexGuard.Release();
 
         //----------------------------------------------------------------------
         // Do we have the fmd? If not, skip this entry.
@@ -812,21 +928,14 @@ eos::mgm::FindCmd::ProcessRequest()
   eos_debug("Listing directories");
 
   if (dirs) {
-    for (auto& foundit : *found) {
-      // Filtering the directories
-      bool selected = true;
-      eos::common::RWMutexReadLock eosViewMutexGuard;
-      eosViewMutexGuard.Grab(gOFS->eosViewRWMutex);
-      std::shared_ptr<eos::IContainerMD> mCmd;
+    FindResult findResult;
 
-      try {
-        mCmd = gOFS->eosView->getContainer(foundit.first);
-        eosViewMutexGuard.Release();
-      } catch (eos::MDException& e) {
-        eos_debug("caught exception %d %s\n", e.getErrno(),
-                  e.getMessage().str().c_str());
-        eosViewMutexGuard.Release();
-      }
+    while(findResultProvider->next(findResult)) {
+      // Only interested in directories here.
+      if(!findResult.isdir) continue;
+
+      std::shared_ptr<eos::IContainerMD> mCmd = findResult.toContainerMD();
+      bool selected = true;
 
       //----------------------------------------------------------------------
       // Process next item if we don't have a cmd
@@ -878,7 +987,7 @@ eos::mgm::FindCmd::ProcessRequest()
 
         childfiles = mCmd->getNumFiles();
         childdirs = mCmd->getNumContainers();
-        ofstdoutStream << foundit.first << " ndir=" << childdirs <<
+        ofstdoutStream << findResult.path << " ndir=" << childdirs <<
             " nfiles=" << childfiles << std::endl;
         continue;
       }
@@ -887,7 +996,7 @@ eos::mgm::FindCmd::ProcessRequest()
       // Purge version directory?
       //----------------------------------------------------------------------
       if(purge) {
-        this->PurgeVersions(ofstdoutStream, max_version, foundit.first);
+        this->PurgeVersions(ofstdoutStream, max_version, findResult.path);
         continue;
       }
 
@@ -895,7 +1004,7 @@ eos::mgm::FindCmd::ProcessRequest()
       // Print fileinfo -m?
       //----------------------------------------------------------------------
       if(printfileinfo) {
-        this->PrintFileInfoMinusM(foundit.first, errInfo);
+        this->PrintFileInfoMinusM(findResult.path, errInfo);
         continue;
       }
 
@@ -915,15 +1024,10 @@ eos::mgm::FindCmd::ProcessRequest()
       //------------------------------------------------------------------------
       // Print the rest.
       //------------------------------------------------------------------------
-      printPath(ofstdoutStream, foundit.first, printxurl);
+      printPath(ofstdoutStream, findResult.path, printxurl);
       printUidGid(ofstdoutStream, findRequest, mCmd);
       ofstdoutStream << std::endl;
     }
-  }
-
-  if (deepquery) {
-    globalfound->clear();
-    deepQueryMutexGuard.Release();
   }
 
   if (printcounter) {
