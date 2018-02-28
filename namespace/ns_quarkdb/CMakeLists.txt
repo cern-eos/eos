@@ -113,6 +113,12 @@ target_link_libraries(
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+set_target_properties(
+  EosNsQuarkdb-Shared PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
+
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb-Static library
 #-------------------------------------------------------------------------------

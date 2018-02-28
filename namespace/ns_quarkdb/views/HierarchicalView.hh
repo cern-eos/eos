@@ -188,7 +188,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get uri for the container
   //----------------------------------------------------------------------------
-  virtual std::string getUri(const IContainerMD* container) const;
+  virtual std::string getUri(const IContainerMD* container) const override;
+
+  //------------------------------------------------------------------------
+  //! Get uri for container id
+  //------------------------------------------------------------------------
+  virtual std::string getUri(const IContainerMD::id_t cid) const override;
 
   //----------------------------------------------------------------------------
   //! Get uri for the file

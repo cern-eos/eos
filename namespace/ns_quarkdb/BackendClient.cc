@@ -97,9 +97,11 @@ BackendClient::getInstance(const std::string& host, uint32_t port)
 // members
 //------------------------------------------------------------------------------
 qclient::QClient*
-BackendClient::getInstance(const qclient::Members& qdb_members)
+BackendClient::getInstance(const qclient::Members& qdb_members,
+                           const std::string tag)
 {
   std::ostringstream oss;
+  oss << tag << ":";
 
   for (const auto& elem : qdb_members.getEndpoints()) {
     oss << elem.toString() << " ";
@@ -120,6 +122,46 @@ BackendClient::getInstance(const qclient::Members& qdb_members)
 
   return instance;
 }
+
+//------------------------------------------------------------------------------
+// Get client for a particular quarkdb instance specified as a list of cluster
+// members. The cluster specification is a list of space separated host:port.
+//------------------------------------------------------------------------------
+qclient::QClient*
+BackendClient::getInstance(const std::string& qdb_cluster,
+                           const std::string tag)
+{
+  qclient::Members qdb_members;
+
+  if (!qdb_members.parse(qdb_cluster)) {
+    return nullptr;
+  }
+
+  std::ostringstream oss;
+  oss << tag << ":";
+
+  for (const auto& elem : qdb_members.getEndpoints()) {
+    oss << elem.toString() << " ";
+  }
+
+  std::string qdb_id = oss.str();
+  qdb_id.pop_back();
+  qclient::QClient* instance{nullptr};
+  std::lock_guard<std::mutex> lock(pMutexMap);
+
+  if (pMapClients.find(qdb_id) == pMapClients.end()) {
+    instance = new qclient::QClient(qdb_members, true,
+    {true, std::chrono::seconds(60)});
+    pMapClients.insert(std::make_pair(qdb_id, instance));
+  } else {
+    instance = pMapClients[qdb_id];
+  }
+
+  return instance;
+}
+
+
+
 
 //------------------------------------------------------------------------------
 // Initialization and finalization

@@ -92,8 +92,10 @@ HierarchicalView::initialize1()
     pRoot = pContainerSvc->getContainerMD(1);
   } catch (MDException& e) {
     pRoot = pContainerSvc->createContainer();
-    if(pRoot->getId() != 1) {
-      eos_static_crit("Error when creating root '/' path - directory inode is not 1, but %d!", pRoot->getId());
+
+    if (pRoot->getId() != 1) {
+      eos_static_crit("Error when creating root '/' path - directory inode is not 1, but %d!",
+                      pRoot->getId());
       std::quick_exit(1);
     }
 
@@ -599,11 +601,19 @@ HierarchicalView::getUri(const IContainerMD* container) const
     throw ex;
   }
 
+  return getUri(container->getId());
+}
+
+//------------------------------------------------------------------------------
+// Get uri for container id
+//------------------------------------------------------------------------------
+std::string
+HierarchicalView::getUri(const IContainerMD::id_t cid) const
+{
   // Gather the uri elements
   std::vector<std::string> elements;
   elements.reserve(10);
-  std::shared_ptr<IContainerMD> cursor =
-    pContainerSvc->getContainerMD(container->getId());
+  std::shared_ptr<IContainerMD> cursor = pContainerSvc->getContainerMD(cid);
 
   while (cursor->getId() != 1) {
     elements.push_back(cursor->getName());

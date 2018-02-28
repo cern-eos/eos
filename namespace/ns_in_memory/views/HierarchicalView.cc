@@ -639,35 +639,22 @@ void HierarchicalView::FileVisitor::visitFile(IFileMD* file)
   }
 }
 
-//----------------------------------------------------------------------------
-// Get uri for the container
-//----------------------------------------------------------------------------
-std::string HierarchicalView::getUri(const IContainerMD* container) const
+//------------------------------------------------------------------------------
+// Get uri for container id
+//------------------------------------------------------------------------------
+std::string
+HierarchicalView::getUri(const IContainerMD::id_t cid) const
 {
-  //--------------------------------------------------------------------------
-  // Check the input
-  //--------------------------------------------------------------------------
-  if (!container) {
-    MDException ex;
-    ex.getMessage() << "Invalid container (zero pointer)";
-    throw ex;
-  }
-
-  //--------------------------------------------------------------------------
-  // Gather the uri elements
-  //--------------------------------------------------------------------------
   std::vector<std::string> elements;
   elements.reserve(10);
-  const IContainerMD* cursor = container;
+  const IContainerMD* cursor = pContainerSvc->getContainerMD(cid).get();
 
   while (cursor->getId() != 1) {
     elements.push_back(cursor->getName());
     cursor = pContainerSvc->getContainerMD(cursor->getParentId()).get();
   }
 
-  //--------------------------------------------------------------------------
   // Assemble the uri
-  //--------------------------------------------------------------------------
   std::string path = "/";
   std::vector<std::string>::reverse_iterator rit;
 
@@ -677,6 +664,21 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
   }
 
   return path;
+}
+
+
+//----------------------------------------------------------------------------
+// Get uri for the container
+//----------------------------------------------------------------------------
+std::string HierarchicalView::getUri(const IContainerMD* container) const
+{
+  if (!container) {
+    MDException ex;
+    ex.getMessage() << "Invalid container (zero pointer)";
+    throw ex;
+  }
+
+  return getUri(container->getId());
 }
 
 //----------------------------------------------------------------------------

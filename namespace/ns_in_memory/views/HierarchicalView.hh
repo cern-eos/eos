@@ -35,254 +35,260 @@
 
 namespace eos
 {
-  //----------------------------------------------------------------------------
-  //! Implementation of the hierarchical namespace
-  //----------------------------------------------------------------------------
-  class HierarchicalView: public IView
+//----------------------------------------------------------------------------
+//! Implementation of the hierarchical namespace
+//----------------------------------------------------------------------------
+class HierarchicalView: public IView
+{
+public:
+  //------------------------------------------------------------------------
+  //! Constructor
+  //------------------------------------------------------------------------
+  HierarchicalView(): pContainerSvc((IContainerMDSvc*)0),
+    pFileSvc((IFileMDSvc*)0), pRoot((IContainerMD*)0)
   {
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      HierarchicalView(): pContainerSvc((IContainerMDSvc*)0),
-                          pFileSvc((IFileMDSvc*)0), pRoot((IContainerMD*)0)
-      {
-	pQuotaStats = new QuotaStats();
-      }
+    pQuotaStats = new QuotaStats();
+  }
 
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~HierarchicalView()
-      {
-	delete pQuotaStats;
-      }
+  //------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------
+  virtual ~HierarchicalView()
+  {
+    delete pQuotaStats;
+  }
 
-      //------------------------------------------------------------------------
-      //! Specify a pointer to the underlying container service
-      //------------------------------------------------------------------------
-      virtual void setContainerMDSvc( IContainerMDSvc *containerSvc ) override
-      {
-	pContainerSvc = containerSvc;
-      }
+  //------------------------------------------------------------------------
+  //! Specify a pointer to the underlying container service
+  //------------------------------------------------------------------------
+  virtual void setContainerMDSvc(IContainerMDSvc* containerSvc) override
+  {
+    pContainerSvc = containerSvc;
+  }
 
-      //------------------------------------------------------------------------
-      //! Get the container svc pointer
-      //------------------------------------------------------------------------
-      virtual IContainerMDSvc* getContainerMDSvc() override
-      {
-	return pContainerSvc;
-      }
+  //------------------------------------------------------------------------
+  //! Get the container svc pointer
+  //------------------------------------------------------------------------
+  virtual IContainerMDSvc* getContainerMDSvc() override
+  {
+    return pContainerSvc;
+  }
 
-      //------------------------------------------------------------------------
-      //! Specify a pointer to the underlying file service that alocates the
-      //! actual files
-      //------------------------------------------------------------------------
-      virtual void setFileMDSvc( IFileMDSvc *fileMDSvc ) override
-      {
-	pFileSvc = fileMDSvc;
-      }
+  //------------------------------------------------------------------------
+  //! Specify a pointer to the underlying file service that alocates the
+  //! actual files
+  //------------------------------------------------------------------------
+  virtual void setFileMDSvc(IFileMDSvc* fileMDSvc) override
+  {
+    pFileSvc = fileMDSvc;
+  }
 
-      //------------------------------------------------------------------------
-      //! Get the FileMDSvc
-      //------------------------------------------------------------------------
-      virtual IFileMDSvc* getFileMDSvc() override
-      {
-	return pFileSvc;
-      }
+  //------------------------------------------------------------------------
+  //! Get the FileMDSvc
+  //------------------------------------------------------------------------
+  virtual IFileMDSvc* getFileMDSvc() override
+  {
+    return pFileSvc;
+  }
 
-      //------------------------------------------------------------------------
-      //! Configure the view
-      //------------------------------------------------------------------------
-      virtual void configure( const std::map<std::string, std::string> &config ) override;
+  //------------------------------------------------------------------------
+  //! Configure the view
+  //------------------------------------------------------------------------
+  virtual void configure(const std::map<std::string, std::string>& config)
+  override;
 
-      //------------------------------------------------------------------------
-      //! Initialize the view
-      //------------------------------------------------------------------------
-      virtual void initialize() override;
+  //------------------------------------------------------------------------
+  //! Initialize the view
+  //------------------------------------------------------------------------
+  virtual void initialize() override;
 
-      virtual void initialize1() override;// phase 1 - load & setup container
-      virtual void initialize2() override;// phase 2 - load files
-      virtual void initialize3() override;// phase 3 - register files in container
+  virtual void initialize1() override;// phase 1 - load & setup container
+  virtual void initialize2() override;// phase 2 - load files
+  virtual void initialize3() override;// phase 3 - register files in container
 
-      //------------------------------------------------------------------------
-      //! Finalize the view
-      //------------------------------------------------------------------------
-      virtual void finalize() override;
+  //------------------------------------------------------------------------
+  //! Finalize the view
+  //------------------------------------------------------------------------
+  virtual void finalize() override;
 
-      //------------------------------------------------------------------------
-      //! Retrieve a file for given uri
-      //------------------------------------------------------------------------
-      virtual std::shared_ptr<IFileMD> getFile(const std::string &uri,
-					       bool follow = true,
-					       size_t* link_depths = 0) override;
+  //------------------------------------------------------------------------
+  //! Retrieve a file for given uri
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IFileMD> getFile(const std::string& uri,
+      bool follow = true,
+      size_t* link_depths = 0) override;
 
-      //------------------------------------------------------------------------
-      //! Create a file for given uri
-      //------------------------------------------------------------------------
-      virtual std::shared_ptr<IFileMD> createFile(const std::string &uri,
-						  uid_t uid = 0, gid_t gid = 0) override;
+  //------------------------------------------------------------------------
+  //! Create a file for given uri
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
+      uid_t uid = 0, gid_t gid = 0) override;
 
-      //------------------------------------------------------------------------
-      //! Create a link for given uri
-      //------------------------------------------------------------------------
-      virtual void createLink( const std::string &uri,
-			       const std::string &linkuri,
-			       uid_t uid = 0, gid_t gid = 0 ) override;
+  //------------------------------------------------------------------------
+  //! Create a link for given uri
+  //------------------------------------------------------------------------
+  virtual void createLink(const std::string& uri,
+                          const std::string& linkuri,
+                          uid_t uid = 0, gid_t gid = 0) override;
 
-      //------------------------------------------------------------------------
-      //! Update file store
-      //------------------------------------------------------------------------
-      virtual void updateFileStore( IFileMD *file ) override
-      {
-	pFileSvc->updateStore( file );
-      }
+  //------------------------------------------------------------------------
+  //! Update file store
+  //------------------------------------------------------------------------
+  virtual void updateFileStore(IFileMD* file) override
+  {
+    pFileSvc->updateStore(file);
+  }
 
-      //------------------------------------------------------------------------
-      //! Remove a link
-      //------------------------------------------------------------------------
-      virtual void removeLink( const std::string &uri ) override;
+  //------------------------------------------------------------------------
+  //! Remove a link
+  //------------------------------------------------------------------------
+  virtual void removeLink(const std::string& uri) override;
 
-      //------------------------------------------------------------------------
-      //! Unlink the file
-      //------------------------------------------------------------------------
-      virtual void unlinkFile( const std::string &uri ) override;
+  //------------------------------------------------------------------------
+  //! Unlink the file
+  //------------------------------------------------------------------------
+  virtual void unlinkFile(const std::string& uri) override;
 
-      //------------------------------------------------------------------------
-      //! Remove the file from the hierarchy so that it won't be accessible
-      //! by path anymore and unlink all of it's replicas. The file needs
-      //! to be manually removed (ie. using removeFile method) once it has
-      //! no valid replicas.
-      //!
-      //! @param file IFileMD object to be removed
-      //------------------------------------------------------------------------
-      virtual void unlinkFile(eos::IFileMD* file) override;
+  //------------------------------------------------------------------------
+  //! Remove the file from the hierarchy so that it won't be accessible
+  //! by path anymore and unlink all of it's replicas. The file needs
+  //! to be manually removed (ie. using removeFile method) once it has
+  //! no valid replicas.
+  //!
+  //! @param file IFileMD object to be removed
+  //------------------------------------------------------------------------
+  virtual void unlinkFile(eos::IFileMD* file) override;
 
-      //------------------------------------------------------------------------
-      //! Remove the file
-      //------------------------------------------------------------------------
-      virtual void removeFile( IFileMD *file ) override;
+  //------------------------------------------------------------------------
+  //! Remove the file
+  //------------------------------------------------------------------------
+  virtual void removeFile(IFileMD* file) override;
 
-      //------------------------------------------------------------------------
-      //! Get a container (directory)
-      //------------------------------------------------------------------------
-      virtual std::shared_ptr<IContainerMD>
-      getContainer(const std::string &uri, bool follow = true,
-		   size_t* link_depth = 0) override;
+  //------------------------------------------------------------------------
+  //! Get a container (directory)
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  getContainer(const std::string& uri, bool follow = true,
+               size_t* link_depth = 0) override;
 
-      //------------------------------------------------------------------------
-      //! Create a container (directory)
-      //------------------------------------------------------------------------
-      virtual std::shared_ptr<IContainerMD>
-      createContainer(const std::string &uri, bool createParents = false ) override;
+  //------------------------------------------------------------------------
+  //! Create a container (directory)
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  createContainer(const std::string& uri, bool createParents = false) override;
 
-      //------------------------------------------------------------------------
-      //! Update container store
-      //------------------------------------------------------------------------
-      virtual void updateContainerStore( IContainerMD *container ) override
-      {
-	pContainerSvc->updateStore( container );
-      }
+  //------------------------------------------------------------------------
+  //! Update container store
+  //------------------------------------------------------------------------
+  virtual void updateContainerStore(IContainerMD* container) override
+  {
+    pContainerSvc->updateStore(container);
+  }
 
-      //------------------------------------------------------------------------
-      //! Remove a container (directory)
-      //------------------------------------------------------------------------
-      virtual void removeContainer( const std::string &uri,
-				    bool recursive = false ) override;
+  //------------------------------------------------------------------------
+  //! Remove a container (directory)
+  //------------------------------------------------------------------------
+  virtual void removeContainer(const std::string& uri,
+                               bool recursive = false) override;
 
-      //------------------------------------------------------------------------
-      //! Get uri for the container
-      //------------------------------------------------------------------------
-      virtual std::string getUri( const IContainerMD *container ) const override;
+  //------------------------------------------------------------------------
+  //! Get uri for the container
+  //------------------------------------------------------------------------
+  virtual std::string getUri(const IContainerMD* container) const override;
 
-      //------------------------------------------------------------------------
-      //! Get uri for the file
-      //------------------------------------------------------------------------
-      virtual std::string getUri( const IFileMD *file ) const override;
+  //------------------------------------------------------------------------
+  //! Get uri for container id
+  //------------------------------------------------------------------------
+  virtual std::string getUri(const IContainerMD::id_t cid) const override;
 
-      //------------------------------------------------------------------------
-      //! Get real path translating existing symlink
-      //------------------------------------------------------------------------
-      virtual std::string getRealPath( const std::string &path ) override;
+  //------------------------------------------------------------------------
+  //! Get uri for the file
+  //------------------------------------------------------------------------
+  virtual std::string getUri(const IFileMD* file) const override;
 
-      //------------------------------------------------------------------------
-      //! Get quota node id concerning given container
-      //------------------------------------------------------------------------
-      virtual IQuotaNode *getQuotaNode( const IContainerMD *container,
-					bool               search = true ) override;
+  //------------------------------------------------------------------------
+  //! Get real path translating existing symlink
+  //------------------------------------------------------------------------
+  virtual std::string getRealPath(const std::string& path) override;
 
-      //------------------------------------------------------------------------
-      //! Register the container to be a quota node
-      //------------------------------------------------------------------------
-      virtual IQuotaNode *registerQuotaNode( IContainerMD *container ) override;
+  //------------------------------------------------------------------------
+  //! Get quota node id concerning given container
+  //------------------------------------------------------------------------
+  virtual IQuotaNode* getQuotaNode(const IContainerMD* container,
+                                   bool               search = true) override;
 
-      //------------------------------------------------------------------------
-      //! Remove the quota node
-      //------------------------------------------------------------------------
-      virtual void removeQuotaNode( IContainerMD *container ) override;
+  //------------------------------------------------------------------------
+  //! Register the container to be a quota node
+  //------------------------------------------------------------------------
+  virtual IQuotaNode* registerQuotaNode(IContainerMD* container) override;
 
-      //------------------------------------------------------------------------
-      //! Get the quota stats placeholder
-      //------------------------------------------------------------------------
-      virtual IQuotaStats *getQuotaStats() override
-      {
-	return pQuotaStats;
-      }
+  //------------------------------------------------------------------------
+  //! Remove the quota node
+  //------------------------------------------------------------------------
+  virtual void removeQuotaNode(IContainerMD* container) override;
 
-      //------------------------------------------------------------------------
-      //! Set the quota stats placeholder, currently associated object (if any)
-      //! won't beX deleted.
-      //------------------------------------------------------------------------
-      virtual void setQuotaStats( IQuotaStats *quotaStats ) override
-      {
-	pQuotaStats = quotaStats;
-      }
+  //------------------------------------------------------------------------
+  //! Get the quota stats placeholder
+  //------------------------------------------------------------------------
+  virtual IQuotaStats* getQuotaStats() override
+  {
+    return pQuotaStats;
+  }
 
-      //------------------------------------------------------------------------
-      //! Rename container
-      //------------------------------------------------------------------------
-      virtual void renameContainer( IContainerMD *container,
-				    const std::string &newName ) override;
+  //------------------------------------------------------------------------
+  //! Set the quota stats placeholder, currently associated object (if any)
+  //! won't beX deleted.
+  //------------------------------------------------------------------------
+  virtual void setQuotaStats(IQuotaStats* quotaStats) override
+  {
+    pQuotaStats = quotaStats;
+  }
 
-      //------------------------------------------------------------------------
-      //! Rename file
-      //------------------------------------------------------------------------
-      virtual void renameFile( IFileMD *file, const std::string &newName ) override;
+  //------------------------------------------------------------------------
+  //! Rename container
+  //------------------------------------------------------------------------
+  virtual void renameContainer(IContainerMD* container,
+                               const std::string& newName) override;
 
-    private:
-      std::shared_ptr<IContainerMD> findLastContainer(
-	 std::vector<char*> &elements, size_t end,size_t &index,
-	 size_t* link_depths = 0 );
+  //------------------------------------------------------------------------
+  //! Rename file
+  //------------------------------------------------------------------------
+  virtual void renameFile(IFileMD* file, const std::string& newName) override;
 
-      void cleanUpContainer( IContainerMD *cont );
+private:
+  std::shared_ptr<IContainerMD> findLastContainer(
+    std::vector<char*>& elements, size_t end, size_t& index,
+    size_t* link_depths = 0);
 
-      //------------------------------------------------------------------------
-      // File visitor for reloading
-      //------------------------------------------------------------------------
-      class FileVisitor: public IFileVisitor
-      {
-	public:
-	  FileVisitor(IContainerMDSvc *contSvc,
-		      IQuotaStats *quotaStats,
-		      IView *view):
-	    pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
+  void cleanUpContainer(IContainerMD* cont);
 
-	  virtual void visitFile( IFileMD *file );
+  //------------------------------------------------------------------------
+  // File visitor for reloading
+  //------------------------------------------------------------------------
+  class FileVisitor: public IFileVisitor
+  {
+  public:
+    FileVisitor(IContainerMDSvc* contSvc,
+                IQuotaStats* quotaStats,
+                IView* view):
+      pContSvc(contSvc), pQuotaStats(quotaStats), pView(view) {}
 
-	private:
-	  IContainerMDSvc *pContSvc;
-	  IQuotaStats     *pQuotaStats;
-	  IView           *pView;
-      };
+    virtual void visitFile(IFileMD* file);
 
-      //------------------------------------------------------------------------
-      // Data members
-      //------------------------------------------------------------------------
-      IContainerMDSvc *pContainerSvc;
-      IFileMDSvc      *pFileSvc;
-      IQuotaStats     *pQuotaStats;
-      std::shared_ptr<IContainerMD> pRoot;
+  private:
+    IContainerMDSvc* pContSvc;
+    IQuotaStats*     pQuotaStats;
+    IView*           pView;
   };
+
+  //------------------------------------------------------------------------
+  // Data members
+  //------------------------------------------------------------------------
+  IContainerMDSvc* pContainerSvc;
+  IFileMDSvc*      pFileSvc;
+  IQuotaStats*     pQuotaStats;
+  std::shared_ptr<IContainerMD> pRoot;
+};
 };
 
 #endif // EOS_NS_HIERARCHICAL_VIEW_HH
