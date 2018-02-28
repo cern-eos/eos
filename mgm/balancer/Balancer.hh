@@ -45,6 +45,8 @@ class Balancer
 {
 public:
 
+  //! Map group to a the BalanceGroup thread
+  typedef std::map<std::string, std::shared_ptr<eos::mgm::BalanceGroup>>> BalancerMap;
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -75,6 +77,7 @@ public:
 private:
   pthread_t mThread; ///< Balancer thread id
   std::string mSpaceName; ///< Space of this balancer object
+  BalancerMap  mBalancerMap;
 };
 
 EOSMGMNAMESPACE_END

@@ -36,7 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 class BalanceGroup: public eos::common::LogId
 {
 public:
-  pthread_t mThread; ///< Thead supervising the draining
+  pthread_t mThread; ///< Thead supervising the balancing
 
   //----------------------------------------------------------------------------
   //! Static thread startup function
@@ -48,8 +48,8 @@ public:
   //!
   //! @param groupName groupName
   //----------------------------------------------------------------------------
-  BalanceGroup(std::string groupName):
-    mThread(0),mGroup(groupName)
+  BalanceGroup(std::string groupName, std::string spaceName):
+    mThread(0),mGroup(groupName), mSpace(spaceName)
   }
   {}
 
@@ -59,7 +59,7 @@ public:
   virtual ~BalanceGroup();
 
   //----------------------------------------------------------------------------
-  //! Stop draining attached file system
+  //! Stop balancing the group
   //---------------------------------------------------------------------------
   void BalanceGroupStop();
 
@@ -78,22 +78,20 @@ private:
   void* Balance();
 
   //----------------------------------------------------------------------------
-  //! Select target file system using the GeoTreeEngine ( to check if it's going to really do the dirty job)
-  //!
-  //! @param BalancerJob
+  //! Select target file system 
   //!
   ///! @return if successful then target file system, othewise 0
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(BalancerJob* job);
+  eos::common::FileSystem::fsid_t SelectTargetFS();
 
   //----------------------------------------------------------------------------
-  //! Select source file system using the GeoTreeEngine ( to check if it's going to really do the dirty job)
+  //! Select source file system 
   //!
-  //! @param job drain job object
-  //!
-  ///! @return if successful then target file system, othewise 0
+  ///! @return if successful then source file system, othewise 0
   //---------------------------------------------------------------------------- 
-  eos::common::FileSystem::fsid_t SelectSourceFS(BalancerJob* job);
+  eos::common::FileSystem::fsid_t SelectSourceFS();
+
+  eos::common::FileSystem::fsid_t SelectFileToBalance(eos::common::FileSystem::fsid_t);
 
   //----------------------------------------------------------------------------
   //! Set initial balancer counters and status

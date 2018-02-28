@@ -145,8 +145,6 @@ Balancer::Balance(void)
 
       // Loop over all groups
       for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
-        // Need to make sure, nobody is drainig here, otherwise we can get
-        // a scheduling interference between drain and balancing!
         total_files = 0;
 
         for (auto it = (*git)->begin(); it != (*git)->end(); ++it) {
@@ -178,8 +176,14 @@ Balancer::Balance(void)
           (*git)->SetConfigMember("stat.balancing", "balancing", false,
                                     "", true);
 	  
-          //create the thread for Balancing
+          //@todo : create the thread for Balancing the group ( BalancerGroup class) and add to the map ( todo)
+          //start the drain
+          shared_ptr<BalanceGroup> balance_group = shared_ptr<BalanceGroup>(new BalanceGroup("get the group name"
+                           std::string(mSpaceName.c_str)));
 
+          mDrainFS.insert(std::make_pair("get the group name"
+                                   balance_group));
+          //@todo : check if this is needed
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
             FileSystem* fs = FsView::gFsView.mIdView[*fsit];
 
@@ -212,9 +216,7 @@ Balancer::Balance(void)
 
               // If the value changes significantly, broadcast it
               if (fabs(fsdev - avg) > 0.1) {
-                if (!has_drainjob) {
                   fs->SetDouble("stat.nominal.filled", avg, true);
-                }
               }
             }
           }
