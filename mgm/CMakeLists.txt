@@ -117,6 +117,7 @@ add_library(
   proc/user/Quota.cc
   proc/user/Recycle.cc
   proc/user/Rm.cc
+  proc/user/RmCmd.cc
   proc/user/Rmdir.cc
   proc/user/Version.cc
   proc/user/Who.cc
