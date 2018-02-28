@@ -1204,15 +1204,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             EosFuseSessionLoop loop(10, 20, 10, 20);
             err = loop.Loop(fusesession);
           }
-
 #endif
         }
-
-        fuse_remove_signal_handlers(fusesession);
-        fuse_session_remove_chan(fusechan);
       }
-
-      fuse_session_destroy(fusesession);
     }
 
     eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
@@ -1223,6 +1217,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaCacheFlush.join();
     tMetaCommunicate.join();
     tCapFlush.join();
+
+    // remove the session and channel object after all threads are joined
+    if (fusesession) {
+      fuse_remove_signal_handlers(fusesession);
+      if (fusechan) {
+	fuse_session_remove_chan(fusechan);
+      }
+      fuse_session_destroy(fusesession);
+    }
     fuse_unmount(local_mount_dir, fusechan);
     mKV.reset();
   } else {
