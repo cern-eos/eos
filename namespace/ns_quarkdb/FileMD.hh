@@ -25,7 +25,6 @@
 #define __EOS_NS_FILE_MD_HH__
 
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "proto/FileMd.pb.h"
 #include <cstdint>
@@ -556,7 +555,7 @@ public:
   //----------------------------------------------------------------------------
   //! Initialize from protobuf contents
   //----------------------------------------------------------------------------
-  void initialize(eos::ns::FileMdProto &&proto);
+  void initialize(eos::ns::FileMdProto&& proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
