@@ -50,7 +50,7 @@ Report::Report (XrdOucEnv &report)
   host = report.Get("host") ? report.Get("host") : "none";
   server_name = host;
   server_domain = host;
-  int dpos = host.find(".");
+  auto dpos = host.find('.');
   if (dpos != STR_NPOS)
   {
     server_name.erase(dpos);

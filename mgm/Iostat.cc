@@ -534,18 +534,18 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       const char* tag = elem.c_str();
       table_data.emplace_back();
       TableRow& row = table_data.back();
-      row.push_back(TableCell("all", format_ss));
+      row.emplace_back(TableCell("all", format_ss));
 
       if (monitoring) {
-        row.push_back(TableCell("all", format_s));
+        row.emplace_back(TableCell("all", format_s));
       }
 
-      row.push_back(TableCell(tag, format_s));
-      row.push_back(TableCell(GetTotal(tag), format_l));
-      row.push_back(TableCell(GetTotalAvg60(tag), format_l));
-      row.push_back(TableCell(GetTotalAvg300(tag), format_l));
-      row.push_back(TableCell(GetTotalAvg3600(tag), format_l));
-      row.push_back(TableCell(GetTotalAvg86400(tag), format_l));
+      row.emplace_back(TableCell(tag, format_s));
+      row.emplace_back(TableCell(GetTotal(tag), format_l));
+      row.emplace_back(TableCell(GetTotalAvg60(tag), format_l));
+      row.emplace_back(TableCell(GetTotalAvg300(tag), format_l));
+      row.emplace_back(TableCell(GetTotalAvg3600(tag), format_l));
+      row.emplace_back(TableCell(GetTotalAvg86400(tag), format_l));
     }
 
     table.AddRows(table_data);
@@ -555,7 +555,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
     {
       XrdSysMutexHelper mLock(BroadcastMutex);
 
-      if (mUdpPopularityTarget.size()) {
+      if (!mUdpPopularityTarget.empty()) {
         TableFormatterBase table_udp;
 
         if (!monitoring) {
@@ -568,7 +568,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
 
         for (const auto& elem : mUdpPopularityTarget) {
           table_data.emplace_back();
-          table_data.back().push_back(TableCell(elem.c_str(), format_ss));
+          table_data.back().emplace_back(TableCell(elem.c_str(), format_ss));
         }
 
         table_udp.AddRows(table_data);
@@ -617,8 +617,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           username = eos::common::Mapping::UidToUserName(it->first, terrc);
         }
 
-        uidout.push_back(std::make_tuple(username, tuit->first.c_str(),
-                                         IostatUid[tuit->first.c_str()][it->first],
+        uidout.emplace_back(std::make_tuple(username, tuit->first.c_str(),
+                                         IostatUid[tuit->first][it->first],
                                          it->second.GetAvg60(), it->second.GetAvg300(),
                                          it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
@@ -629,13 +629,13 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
     for (auto& tup : uidout) {
       table_data.emplace_back();
       TableRow& row = table_data.back();
-      row.push_back(TableCell(std::get<0>(tup), format_ss));
-      row.push_back(TableCell(std::get<1>(tup), format_s));
-      row.push_back(TableCell(std::get<2>(tup), format_l));
-      row.push_back(TableCell(std::get<3>(tup), format_l));
-      row.push_back(TableCell(std::get<4>(tup), format_l));
-      row.push_back(TableCell(std::get<5>(tup), format_l));
-      row.push_back(TableCell(std::get<6>(tup), format_l));
+      row.emplace_back(TableCell(std::get<0>(tup), format_ss));
+      row.emplace_back(TableCell(std::get<1>(tup), format_s));
+      row.emplace_back(TableCell(std::get<2>(tup), format_l));
+      row.emplace_back(TableCell(std::get<3>(tup), format_l));
+      row.emplace_back(TableCell(std::get<4>(tup), format_l));
+      row.emplace_back(TableCell(std::get<5>(tup), format_l));
+      row.emplace_back(TableCell(std::get<6>(tup), format_l));
     }
 
     table_user.AddRows(table_data);
@@ -677,8 +677,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
           groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
         }
 
-        gidout.push_back(std::make_tuple(groupname, tgit->first.c_str(),
-                                         IostatGid[tgit->first.c_str()][it->first],
+        gidout.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
+                                         IostatGid[tgit->first][it->first],
                                          it->second.GetAvg60(), it->second.GetAvg300(),
                                          it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
@@ -689,13 +689,13 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
     for (auto& tup : gidout) {
       table_data.emplace_back();
       TableRow& row = table_data.back();
-      row.push_back(TableCell(std::get<0>(tup), format_ss));
-      row.push_back(TableCell(std::get<1>(tup), format_s));
-      row.push_back(TableCell(std::get<2>(tup), format_l));
-      row.push_back(TableCell(std::get<3>(tup), format_l));
-      row.push_back(TableCell(std::get<4>(tup), format_l));
-      row.push_back(TableCell(std::get<5>(tup), format_l));
-      row.push_back(TableCell(std::get<6>(tup), format_l));
+      row.emplace_back(TableCell(std::get<0>(tup), format_ss));
+      row.emplace_back(TableCell(std::get<1>(tup), format_s));
+      row.emplace_back(TableCell(std::get<2>(tup), format_l));
+      row.emplace_back(TableCell(std::get<3>(tup), format_l));
+      row.emplace_back(TableCell(std::get<4>(tup), format_l));
+      row.emplace_back(TableCell(std::get<5>(tup), format_l));
+      row.emplace_back(TableCell(std::get<6>(tup), format_l));
     }
 
     table_group.AddRows(table_data);
@@ -752,20 +752,20 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
 
         table_data.emplace_back();
         TableRow& row = table_data.back();
-        row.push_back(TableCell(it->c_str(), format_ss));
+        row.emplace_back(TableCell(it->c_str(), format_ss));
 
         if (!monitoring) {
-          row.push_back(TableCell("user", format_s));
+          row.emplace_back(TableCell("user", format_s));
         }
 
-        row.push_back(TableCell(topplace, format_ll));
-        row.push_back(TableCell(username, format_s));
+        row.emplace_back(TableCell(topplace, format_ll));
+        row.emplace_back(TableCell(username, format_s));
 
         if (monitoring) {
-          row.push_back(TableCell("", "", "", true));
+          row.emplace_back(TableCell("", "", "", true));
         }
 
-        row.push_back(TableCell(counter, format_l));
+        row.emplace_back(TableCell(counter, format_l));
       }
 
       // by gid name
@@ -792,20 +792,20 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
 
         table_data.emplace_back();
         TableRow& row = table_data.back();
-        row.push_back(TableCell(it->c_str(), format_ss));
+        row.emplace_back(TableCell(it->c_str(), format_ss));
 
         if (!monitoring) {
-          row.push_back(TableCell("group", format_s));
+          row.emplace_back(TableCell("group", format_s));
         }
 
-        row.push_back(TableCell(topplace, format_ll));
+        row.emplace_back(TableCell(topplace, format_ll));
 
         if (monitoring) {
-          row.push_back(TableCell("", "", "", true));
+          row.emplace_back(TableCell("", "", "", true));
         }
 
-        row.push_back(TableCell(groupname, format_s));
-        row.push_back(TableCell(counter, format_l));
+        row.emplace_back(TableCell(groupname, format_s));
+        row.emplace_back(TableCell(counter, format_l));
       }
     }
 
@@ -843,12 +843,12 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       table_data.emplace_back();
       TableRow& row = table_data.back();
       std::string name = !monitoring ? "out" : "domain_io_out";
-      row.push_back(TableCell(name, format_ss));
-      row.push_back(TableCell(it->first.c_str(), format_s));
-      row.push_back(TableCell(it->second.GetAvg60(), format_l));
-      row.push_back(TableCell(it->second.GetAvg300(), format_l));
-      row.push_back(TableCell(it->second.GetAvg3600(), format_l));
-      row.push_back(TableCell(it->second.GetAvg86400(), format_l));
+      row.emplace_back(TableCell(name, format_ss));
+      row.emplace_back(TableCell(it->first.c_str(), format_s));
+      row.emplace_back(TableCell(it->second.GetAvg60(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg300(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg3600(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg86400(), format_l));
     }
 
     // IO in bytes
@@ -857,12 +857,12 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       table_data.emplace_back();
       TableRow& row = table_data.back();
       std::string name = !monitoring ? "in" : "domain_io_in";
-      row.push_back(TableCell(name, format_ss));
-      row.push_back(TableCell(it->first.c_str(), format_s));
-      row.push_back(TableCell(it->second.GetAvg60(), format_l));
-      row.push_back(TableCell(it->second.GetAvg300(), format_l));
-      row.push_back(TableCell(it->second.GetAvg3600(), format_l));
-      row.push_back(TableCell(it->second.GetAvg86400(), format_l));
+      row.emplace_back(TableCell(name, format_ss));
+      row.emplace_back(TableCell(it->first.c_str(), format_s));
+      row.emplace_back(TableCell(it->second.GetAvg60(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg300(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg3600(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg86400(), format_l));
     }
 
     table.AddRows(table_data);
@@ -898,12 +898,12 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       table_data.emplace_back();
       TableRow& row = table_data.back();
       std::string name = (!monitoring ? "out" : "app_io_out");
-      row.push_back(TableCell(name, format_ss));
-      row.push_back(TableCell(it->first.c_str(), format_s));
-      row.push_back(TableCell(it->second.GetAvg60(), format_l));
-      row.push_back(TableCell(it->second.GetAvg300(), format_l));
-      row.push_back(TableCell(it->second.GetAvg3600(), format_l));
-      row.push_back(TableCell(it->second.GetAvg86400(), format_l));
+      row.emplace_back(TableCell(name, format_ss));
+      row.emplace_back(TableCell(it->first.c_str(), format_s));
+      row.emplace_back(TableCell(it->second.GetAvg60(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg300(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg3600(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg86400(), format_l));
     }
 
     // IO in bytes
@@ -911,12 +911,12 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       table_data.emplace_back();
       TableRow& row = table_data.back();
       std::string name = (!monitoring ? "in" : "app_io_in");
-      row.push_back(TableCell(name, format_ss));
-      row.push_back(TableCell(it->first.c_str(), format_s));
-      row.push_back(TableCell(it->second.GetAvg60(), format_l));
-      row.push_back(TableCell(it->second.GetAvg300(), format_l));
-      row.push_back(TableCell(it->second.GetAvg3600(), format_l));
-      row.push_back(TableCell(it->second.GetAvg86400(), format_l));
+      row.emplace_back(TableCell(name, format_ss));
+      row.emplace_back(TableCell(it->first.c_str(), format_s));
+      row.emplace_back(TableCell(it->second.GetAvg60(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg300(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg3600(), format_l));
+      row.emplace_back(TableCell(it->second.GetAvg86400(), format_l));
     }
 
     table.AddRows(table_data);
