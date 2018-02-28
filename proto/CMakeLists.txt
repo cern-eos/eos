@@ -102,6 +102,11 @@ target_link_libraries(EosProtobuf PUBLIC
   eosCommon
   ${PROTOBUF_LIBRARIES})
 
+set_target_properties(EosProtobuf PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
+
 add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosAuthProto-Objects>
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
