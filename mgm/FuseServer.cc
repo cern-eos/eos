@@ -2297,15 +2297,30 @@ FuseServer::HandleMD(const std::string& id,
                       md.authid().c_str());
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> ofmd;
       std::shared_ptr<eos::IContainerMD> pcmd;
       std::shared_ptr<eos::IContainerMD> cpcmd;
       uint64_t fid = eos::common::FileId::InodeToFid(md.md_ino());
+
       md_ino = md.md_ino();
       uint64_t md_pino = md.md_pino();
 
-      try {
+      try
+      {
 	uint64_t clock = 0;
-        if (md.md_ino() && exclusive) {
+
+	pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+
+	// a client may open a file, where he still does not know the real inode
+	fmd = pcmd->findFile( md.name() );
+      
+	if (!md.md_ino() && fmd)
+	{
+	  md_ino = eos::common::FileId::FidToInode(fmd->getId());
+	}
+
+        if (md_ino && exclusive)
+        {
           return EEXIST;
         }
 
@@ -2332,8 +2347,29 @@ FuseServer::HandleMD(const std::string& id,
             // this indicates a file rename
             op = RENAME;
             eos_static_info("rename %s=>%s", fmd->getName().c_str(), md.name().c_str());
-            // the target might exist, so we remove it
-            pcmd->removeFile(md.name());
+
+	    ofmd = pcmd->findFile( md.name() );
+
+	    if (ofmd) 
+	    {
+	      // the target might exist, so we remove it
+	      gOFS->eosFileService->removeFile(ofmd.get());
+	      pcmd->removeFile(md.name());
+
+	      try
+	      {
+		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		// free previous quota
+		if (quotanode)
+		{
+		  quotanode->removeFile(ofmd.get());
+		}
+	      }
+	      catch ( eos::MDException &e )
+	      {
+		fmd->setSize(md.size());
+	      }
+	    }
             gOFS->eosView->renameFile(fmd.get(), md.name());
           }
 
@@ -2344,12 +2380,6 @@ FuseServer::HandleMD(const std::string& id,
         } else {
           // file creation
           op = CREATE;
-          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
-
-          if (exclusive && pcmd->findContainer(md.name())) {
-            // O_EXCL set on creation -
-            return EEXIST;
-          }
 
           unsigned long layoutId = 0;
           unsigned long forcedFsId = 0;
@@ -2358,6 +2388,7 @@ FuseServer::HandleMD(const std::string& id,
           eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
           XrdOucEnv env;
           // retrieve the layout
+
           Policy::GetLayoutAndSpace("fusex", attrmap, *vid, layoutId, space, env,
                                     forcedFsId, forcedGroup);
           fmd = gOFS->eosFileService->createFile();
@@ -2477,8 +2508,9 @@ FuseServer::HandleMD(const std::string& id,
         op = CREATE;
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-        if (pcmd->findContainer(md.name())) {
-          // O_EXCL set on creation -
+        if ( pcmd->findFile( md.name() ))
+        {
+          // links are exclusive
           return EEXIST;
         }
 
