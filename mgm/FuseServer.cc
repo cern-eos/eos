@@ -2337,14 +2337,6 @@ FuseServer::HandleMD(const std::string& id,
 
 	pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-	// a client may open a file, where he still does not know the real inode
-	fmd = pcmd->findFile( md.name() );
-      
-	if (!md.md_ino() && fmd)
-	{
-	  md_ino = eos::common::FileId::FidToInode(fmd->getId());
-	}
-
         if (md_ino && exclusive)
         {
           return EEXIST;
