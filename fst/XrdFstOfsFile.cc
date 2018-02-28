@@ -223,6 +223,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
+  bool isRepairRead = false;
 
   while (stringOpaque.replace("?", "&")) {}
 
@@ -589,6 +590,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     maxsize = 0;
   }
 
+  if ((val = capOpaque->Get("mgm.repairread")))
+  {
+    isRepairRead = true;
+  }
+
   if ((val = openOpaque->Get("eos.pio.action"))) {
     // figure out if this is a RAIN reconstruction
     XrdOucString action = val;
@@ -884,7 +890,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW, isRepairRead);
 
   if ((!fMd) || gOFS.Simulate_FMD_open_error) {
     if (!gOFS.Simulate_FMD_open_error) {
