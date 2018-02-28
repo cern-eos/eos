@@ -93,7 +93,6 @@ set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(EosProtobuf SHARED
-  $<TARGET_OBJECTS:EosAuthProto-Objects>
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
@@ -108,7 +107,6 @@ set_target_properties(EosProtobuf PROPERTIES
   MACOSX_RPATH TRUE)
 
 add_library(EosProtobuf-Static STATIC
-  $<TARGET_OBJECTS:EosAuthProto-Objects>
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)

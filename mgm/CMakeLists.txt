@@ -187,7 +187,9 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(XrdEosMgm MODULE $<TARGET_OBJECTS:XrdEosMgm-Objects>)
+add_library(XrdEosMgm MODULE
+  $<TARGET_OBJECTS:EosAuthProto-Objects>
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC
@@ -256,6 +258,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 if(Linux)
   add_library(XrdEosMgm-Shared SHARED
+    $<TARGET_OBJECTS:EosAuthProto-Objects>
     $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
   target_compile_definitions(
