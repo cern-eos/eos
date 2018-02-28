@@ -207,6 +207,9 @@ target_link_libraries(
   eosCommon
   eosCommonServer
   EosNsCommon
+  # @todo (esindril) Move the fetcher and flusher functionality in the
+  # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
+  EosNsQuarkdb-Shared
   eosCapability-Static
   XrdSsiPbEosCta
   ${Z_LIBRARY}
@@ -268,6 +271,9 @@ if(Linux)
   target_link_libraries(
     XrdEosMgm-Shared PUBLIC
     EosNsCommon-Static
+    # @todo (esindril) Move the fetcher and flusher functionality in the
+    # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
+    EosNsQuarkdb-Shared
     EosProtobuf
     eosCommon
     eosCommonServer

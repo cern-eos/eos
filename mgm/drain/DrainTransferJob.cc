@@ -29,6 +29,8 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -161,10 +163,10 @@ DrainTransferJob::DoIt()
 DrainTransferJob::FileDrainInfo
 DrainTransferJob::GetFileInfo() const
 {
+  std::ostringstream oss;
   FileDrainInfo fdrain;
 
-  // @todo (esindril) remove this
-  if (true || gOFS->mQdbCluster.empty()) {
+  if (gOFS->mQdbCluster.empty()) {
     try {
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
@@ -177,7 +179,6 @@ DrainTransferJob::GetFileInfo() const
       fdrain.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
                                  fmd->getChecksum().getSize());
     } catch (eos::MDException& e) {
-      std::ostringstream oss;
       oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
           << " errno=" << e.getErrno()
           << " msg=\"" << e.getMessage().str() << "\"";
@@ -185,7 +186,24 @@ DrainTransferJob::GetFileInfo() const
       throw e;
     }
   } else {
-    // @todo (esindril): add implementation for qdb namespace
+    eos_info("Getting fid=%llu info from quarkdb", mFileId);
+    qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
+                            "drain");
+    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, mFileId).get();
+    std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
+    // Get the full path to the file
+    std::string dir_uri;
+    {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      dir_uri = gOFS->eosView->getUri(fdrain.mProto.cont_id());
+    }
+
+    if (dir_uri.empty()) {
+      oss << "msg\"no parent container id=" << fdrain.mProto.cont_id() << "\"";
+      make_mdexception(ENOENT, oss.str());
+    }
+
+    fdrain.mFullPath = dir_uri + fdrain.mProto.name();
   }
 
   return fdrain;
