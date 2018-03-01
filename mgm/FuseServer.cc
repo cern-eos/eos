@@ -2466,14 +2466,6 @@ FuseServer::HandleMD(const std::string &id,
 
 	pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-	// a client may open a file, where he still does not know the real inode
-	fmd = pcmd->findFile( md.name() );
-      
-	if (!md.md_ino() && fmd)
-	{
-	  md_ino = eos::common::FileId::FidToInode(fmd->getId());
-	}
-
         if (md_ino && exclusive)
         {
           return EEXIST;
@@ -2494,6 +2486,30 @@ FuseServer::HandleMD(const std::string &id,
             cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
             cpcmd->removeFile(fmd->getName());
             gOFS->eosView->updateContainerStore(cpcmd);
+
+	    ofmd = pcmd->findFile( md.name() );
+
+	    if (ofmd) 
+	    {
+	      try
+	      {
+		// the target might exist, so we remove it
+		pcmd->removeFile(md.name());
+		gOFS->eosFileService->removeFile(ofmd);
+		
+		eos::QuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd);
+		// free previous quota
+		if (quotanode)
+		{
+		  quotanode->removeFile(ofmd);
+		}
+	      }
+	      catch ( eos::MDException &e )
+	      {
+	      }
+	    }
+
+
             fmd->setName(md.name());
             pcmd->addFile(fmd);
             gOFS->eosView->updateContainerStore(pcmd);
@@ -2508,12 +2524,12 @@ FuseServer::HandleMD(const std::string &id,
 
 	    if (ofmd) 
 	    {
-	      // the target might exist, so we remove it
-	      gOFS->eosFileService->removeFile(ofmd);
-	      pcmd->removeFile(md.name());
-
 	      try
 	      {
+		// the target might exist, so we remove it
+		pcmd->removeFile(md.name());
+		gOFS->eosFileService->removeFile(ofmd);
+		
 		eos::QuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd);
 		// free previous quota
 		if (quotanode)
@@ -2523,7 +2539,6 @@ FuseServer::HandleMD(const std::string &id,
 	      }
 	      catch ( eos::MDException &e )
 	      {
-		fmd->setSize(md.size());
 	      }
 	    }
             gOFS->eosView->renameFile(fmd, md.name());
