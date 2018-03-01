@@ -381,6 +381,11 @@ public:
   void initialize(eos::ns::ContainerMdProto &&proto);
 
   //----------------------------------------------------------------------------
+  //! Initialize, without loading children
+  //----------------------------------------------------------------------------
+  void initializeWithoutChildren(eos::ns::ContainerMdProto &&proto);
+
+  //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override

@@ -31,6 +31,9 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/BalanceCalculator.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -560,6 +563,16 @@ class FindResultProvider {
 public:
 
   //----------------------------------------------------------------------------
+  // QDB: Initialize NamespaceExplorer
+  //----------------------------------------------------------------------------
+  FindResultProvider(qclient::QClient *qc, const std::string &target)
+  : qcl(qc), path(target) {
+
+    ExplorationOptions options;
+    explorer.reset(new NamespaceExplorer(path, options, *qcl));
+  }
+
+  //----------------------------------------------------------------------------
   // In-memory: Check whether we need to take deep query mutex lock
   //----------------------------------------------------------------------------
   FindResultProvider(bool deepQuery) {
@@ -580,7 +593,9 @@ public:
   }
 
   ~FindResultProvider() {
-    found->clear();
+    if(found) {
+      found->clear();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -639,6 +654,32 @@ public:
     return true;
   }
 
+  bool nextInQDB(FindResult& res) {
+    //--------------------------------------------------------------------------
+    // Just copy the result given by namespace explorer.
+    //--------------------------------------------------------------------------
+    NamespaceItem item;
+    if(!explorer->fetch(item)) {
+      return false;
+    }
+
+    res.path = item.fullPath;
+    res.isdir = !item.isFile;
+
+    if(item.isFile) {
+      eos::FileMD *fmd = new eos::FileMD();
+      fmd->initialize(std::move(item.fileMd));
+      res.fileMD.reset(fmd);
+    }
+    else {
+      eos::ContainerMD *cmd = new eos::ContainerMD();
+      cmd->initializeWithoutChildren(std::move(item.containerMd));
+      res.containerMD.reset(cmd);
+    }
+
+    return true;
+  }
+
   bool next(FindResult& res) {
     if(found) {
       //------------------------------------------------------------------------
@@ -647,7 +688,10 @@ public:
       return nextInMemory(res);
     }
 
-    return false;
+    //------------------------------------------------------------------------
+    // QDB case
+    //------------------------------------------------------------------------
+    return nextInQDB(res);
   }
 
 private:
@@ -663,6 +707,12 @@ private:
   std::set<std::string> *targetFileSet = nullptr;
   std::set<std::string>::iterator fileIterator;
 
+  //----------------------------------------------------------------------------
+  // QDB: NamespaceExplorer and QClient
+  //----------------------------------------------------------------------------
+  qclient::QClient *qcl = nullptr;
+  std::string path;
+  std::unique_ptr<NamespaceExplorer> explorer;
 };
 
 //------------------------------------------------------------------------------
@@ -758,7 +808,7 @@ eos::mgm::FindCmd::ProcessRequest()
 
   std::unique_ptr<FindResultProvider> findResultProvider;
 
-  if(true) /* replace with ! NsInQDB */ {
+  if(!gOFS->NsInQDB) {
     findResultProvider.reset(new FindResultProvider(deepquery));
     std::map<std::string, std::set<std::string>>* found = findResultProvider->getFoundMap();
 
@@ -781,6 +831,12 @@ eos::mgm::FindCmd::ProcessRequest()
         reply.set_retc(E2BIG);
       }
     }
+  }
+  else {
+    findResultProvider.reset(new FindResultProvider(
+      eos::BackendClient::getInstance(gOFS->mQdbCluster, "find"),
+      findRequest.path()
+    ));
   }
 
   unsigned int cnt = 0;

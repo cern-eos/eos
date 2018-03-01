@@ -741,6 +741,10 @@ ContainerMD::deserialize(Buffer& buffer)
   loadChildren();
 }
 
+//------------------------------------------------------------------------------
+// Initialize from a ContainerMdProto object, then load children maps
+// asynchronously.
+//------------------------------------------------------------------------------
 void
 ContainerMD::initialize(eos::ns::ContainerMdProto&& proto)
 {
@@ -748,6 +752,14 @@ ContainerMD::initialize(eos::ns::ContainerMdProto&& proto)
   loadChildren();
 }
 
+//------------------------------------------------------------------------------
+// Initialize from a ContainerMdProto object, without loading children maps.
+//------------------------------------------------------------------------------
+void
+ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
+{
+  mCont = std::move(proto);
+}
 
 //------------------------------------------------------------------------------
 // Get map copy of the extended attributes
