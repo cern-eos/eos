@@ -669,6 +669,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
   out += outline;
   std::string na = !monitoring ? "-NA-" : "NA";
+  std::string format_cmd = !monitoring ? "-s" : "os";
   std::string format_s = !monitoring ? "s" : "os";
   std::string format_ss = !monitoring ? "-s" : "os";
   std::string format_l = !monitoring ? "+l" : "ol";
@@ -680,7 +681,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   if (!monitoring) {
     table_all.SetHeader({
       std::make_tuple("who", 3, format_ss),
-      std::make_tuple("command", 24, format_s),
+      std::make_tuple("command", 24, format_cmd),
       std::make_tuple("sum", 8, format_l),
       std::make_tuple("5s", 8, format_f),
       std::make_tuple("1min", 8, format_f),
@@ -716,7 +717,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       table_data.back().push_back(TableCell("all", format_s));
     }
 
-    table_data.back().push_back(TableCell(tag, format_s));
+    table_data.back().push_back(TableCell(tag, format_cmd));
     table_data.back().push_back(TableCell(GetTotal(tag), format_l));
     table_data.back().push_back(TableCell(GetTotalAvg5(tag), format_f));
     table_data.back().push_back(TableCell(GetTotalAvg60(tag), format_f));
@@ -889,7 +890,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     if (!monitoring) {
       table_user.SetHeader({
         std::make_tuple("user", 5, format_ss),
-        std::make_tuple("command", 24, format_s),
+        std::make_tuple("command", 24, format_cmd),
         std::make_tuple("sum", 8, format_l),
         std::make_tuple("5s", 8, format_f),
         std::make_tuple("1min", 8, format_f),
@@ -968,7 +969,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     if (!monitoring) {
       table_group.SetHeader({
         std::make_tuple("group", 5, format_ss),
-        std::make_tuple("command", 24, format_s),
+        std::make_tuple("command", 24, format_cmd),
         std::make_tuple("sum", 8, format_l),
         std::make_tuple("5s", 8, format_f),
         std::make_tuple("1min", 8, format_f),
