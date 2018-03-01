@@ -79,6 +79,19 @@ std::unique_ptr<SearchNode> SearchNode::expand() {
   return retval;
 }
 
+// TODO: Remove this eventually, once we are confident the two find
+// implementations match, apart for the order.
+struct FilesystemEntryComparator {
+    bool operator() (const std::string& lhs, const std::string& rhs) const {
+        for(size_t i = 0; i < std::min(lhs.size(), rhs.size()); i++) {
+          if(lhs[i] != rhs[i]) {
+            return lhs[i] < rhs[i];
+          }
+        }
+        return lhs.size() > rhs.size();
+    }
+};
+
 void SearchNode::stageChildren() {
   // Unconditionally stage container mds, block if necessary. Call this only if:
   // - Search really needs the result.
@@ -88,7 +101,7 @@ void SearchNode::stageChildren() {
 
   // containerMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
-  std::map<std::string, id_t> sortedContainerMap;
+  std::map<std::string, id_t, FilesystemEntryComparator> sortedContainerMap;
   for(auto it = containerMap->begin(); it != containerMap->end(); it++) {
     sortedContainerMap[it->first] = it->second;
   }
