@@ -133,14 +133,13 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
 
   eos::PathProcessor::splitPath(pathParts, path);
 
-  if(pathParts.empty()) {
-    MDException e(EINVAL);
-    e.getMessage() << "Empty path provided";
-    throw e;
-  }
-
   // This part is synchronous by necessity.
   staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, 1).get());
+
+  if(pathParts.empty()) {
+    // We're running a search on the root node, expand.
+    dfsPath.emplace_back(new SearchNode(qcl, 1, nullptr));
+  }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
   // maybe move there?
@@ -191,6 +190,10 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
 }
 
 std::string NamespaceExplorer::buildStaticPath() {
+  if(staticPath.size() == 1) {
+    return "";
+  }
+
   // TODO: Cache this?
   std::stringstream ss;
   for(size_t i = 0; i < staticPath.size(); i++) {
@@ -211,7 +214,12 @@ std::string NamespaceExplorer::buildDfsPath() {
   ss << buildStaticPath();
 
   for(size_t i = 0; i < dfsPath.size(); i++) {
-    ss << dfsPath[i]->getContainerInfo().name() << "/";
+    if(dfsPath[i]->getContainerInfo().id() == 1) {
+      ss << "/";
+    }
+    else {
+      ss << dfsPath[i]->getContainerInfo().name() << "/";
+    }
   }
 
   return ss.str();
