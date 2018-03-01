@@ -31,12 +31,6 @@
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
-
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <algorithm>
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -110,7 +104,7 @@ Iostat::StartCirculate()
 void
 Iostat::ApplyIostatConfig()
 {
-  std::string enabled = "";
+  std::string enabled;
   std::string iocollect = FsView::gFsView.GetGlobalConfig(Iostat::gIostatCollect);
   std::string ioreport = FsView::gFsView.GetGlobalConfig(Iostat::gIostatReport);
   std::string ioreportns = FsView::gFsView.GetGlobalConfig(
@@ -120,7 +114,7 @@ Iostat::ApplyIostatConfig()
   std::string udplist = FsView::gFsView.GetGlobalConfig(
                           Iostat::gIostatUdpTargetList);
 
-  if ((iocollect == "true") || (iocollect == "")) {
+  if ((iocollect == "true") || (iocollect.empty())) {
     // by default enable
     StartCollection();
   }
@@ -128,26 +122,9 @@ Iostat::ApplyIostatConfig()
   {
     XrdSysMutexHelper mLock(Mutex);
 
-    if (ioreport == "true") {
-      mReport = true;
-    } else {
-      // by default is disabled
-      mReport = false;
-    }
-
-    if (ioreportns == "true") {
-      mReportNamespace = true;
-    } else {
-      // by default is disabled
-      mReportNamespace = false;
-    }
-
-    if ((iopopularity == "true") || (iopopularity == "")) {
-      // by default enabled
-      mReportPopularity = true;
-    } else {
-      mReportPopularity = false;
-    }
+    mReport = (ioreport == "true");
+    mReportNamespace = (ioreportns == "true");
+    mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
   }
 
   {
@@ -167,7 +144,7 @@ Iostat::ApplyIostatConfig()
 bool
 Iostat::StoreIostatConfig()
 {
-  bool ok = 1;
+  bool ok = true;
   ok &= FsView::gFsView.SetGlobalConfig(Iostat::gIostatPopularity,
                                         mReportPopularity ? "true" : "false");
   ok &= FsView::gFsView.SetGlobalConfig(Iostat::gIostatReport,
@@ -1056,7 +1033,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
       eos::common::StringConversion::Tokenize(r_open_hotfiles, r_open_vector);
       eos::common::StringConversion::Tokenize(w_open_hotfiles, w_open_vector);
       std::string host = FsView::gFsView.mIdView[it->first]->GetString("host");
-      std::string path = "";
+      std::string path;
       std::string id = FsView::gFsView.mIdView[it->first]->GetString("id");
       std::vector<std::tuple<std::string, std::string, std::string,
           std::string, std::string>> data;
@@ -1074,7 +1051,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         {
           unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-          eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
@@ -1084,11 +1061,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         }
 
         if (rank > 1) {
-          data.push_back(std::make_tuple(
+          data.emplace_back(std::make_tuple(
                            "read", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
         }
 
-        data_monitoring.push_back(std::make_tuple(
+        data_monitoring.emplace_back(std::make_tuple(
                                     "hotfile", "read", key.c_str(), it->first, path.c_str(), val.c_str()));
       }
 
@@ -1103,7 +1080,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         {
           unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
-          eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
@@ -1113,11 +1090,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         }
 
         if (rank > 1) {
-          data.push_back(std::make_tuple(
+          data.emplace_back(std::make_tuple(
                            "write", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
         }
 
-        data_monitoring.push_back(std::make_tuple(
+        data_monitoring.emplace_back(std::make_tuple(
                                     "hotfile", "write", key.c_str(), it->first, path.c_str(), val.c_str()));
       }
 
@@ -1128,11 +1105,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         for (auto it : data) {
           table_data.emplace_back();
           TableRow& row = table_data.back();
-          row.push_back(TableCell(std::get<0>(it), format_ss));
-          row.push_back(TableCell(std::get<1>(it), format_s));
-          row.push_back(TableCell(std::get<2>(it), format_s));
-          row.push_back(TableCell(std::get<3>(it), format_s));
-          row.push_back(TableCell(std::get<4>(it), format_ss));
+          row.emplace_back(TableCell(std::get<0>(it), format_ss));
+          row.emplace_back(TableCell(std::get<1>(it), format_s));
+          row.emplace_back(TableCell(std::get<2>(it), format_s));
+          row.emplace_back(TableCell(std::get<3>(it), format_s));
+          row.emplace_back(TableCell(std::get<4>(it), format_ss));
         }
       } else {
         std::sort(data_monitoring.begin(), data_monitoring.end());
@@ -1140,12 +1117,12 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         for (auto it : data_monitoring) {
           table_data.emplace_back();
           TableRow& row = table_data.back();
-          row.push_back(TableCell(std::get<0>(it), format_ss));
-          row.push_back(TableCell(std::get<1>(it), format_s));
-          row.push_back(TableCell(std::get<2>(it), format_s));
-          row.push_back(TableCell(std::get<3>(it), format_l));
-          row.push_back(TableCell(std::get<4>(it), format_ss));
-          row.push_back(TableCell(std::get<5>(it), format_s));
+          row.emplace_back(TableCell(std::get<0>(it), format_ss));
+          row.emplace_back(TableCell(std::get<1>(it), format_s));
+          row.emplace_back(TableCell(std::get<2>(it), format_s));
+          row.emplace_back(TableCell(std::get<3>(it), format_l));
+          row.emplace_back(TableCell(std::get<4>(it), format_ss));
+          row.emplace_back(TableCell(std::get<5>(it), format_s));
         }
       }
     }
@@ -1231,14 +1208,14 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         TableRow& row = table_data.back();
 
         if (monitoring) {
-          row.push_back(TableCell("popularitybyaccess", format_ss));
-          row.push_back(TableCell((unsigned) tmarker, format_lll));
+          row.emplace_back(TableCell("popularitybyaccess", format_ss));
+          row.emplace_back(TableCell((unsigned) tmarker, format_lll));
         }
 
-        row.push_back(TableCell((int) cnt, format_ll));
-        row.push_back(TableCell(it.second.nread, format_lll));
-        row.push_back(TableCell(it.second.rb, format_lll, unit));
-        row.push_back(TableCell(it.first.c_str(), format_s));
+        row.emplace_back(TableCell((int) cnt, format_ll));
+        row.emplace_back(TableCell(it.second.nread, format_lll));
+        row.emplace_back(TableCell(it.second.rb, format_lll, unit));
+        row.emplace_back(TableCell(it.first.c_str(), format_s));
       }
 
       if (cnt > 0) {
@@ -1283,21 +1260,21 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         TableRow& row = table_data.back();
 
         if (monitoring) {
-          row.push_back(TableCell("popularitybyvolume", format_ss));
-          row.push_back(TableCell((unsigned) tmarker, format_lll));
+          row.emplace_back(TableCell("popularitybyvolume", format_ss));
+          row.emplace_back(TableCell((unsigned) tmarker, format_lll));
         }
 
-        row.push_back(TableCell((int) cnt, format_ll));
+        row.emplace_back(TableCell((int) cnt, format_ll));
 
         if (!monitoring) {
-          row.push_back(TableCell(it.second.rb, format_lll, unit));
-          row.push_back(TableCell(it.second.nread, format_lll));
+          row.emplace_back(TableCell(it.second.rb, format_lll, unit));
+          row.emplace_back(TableCell(it.second.nread, format_lll));
         } else {
-          row.push_back(TableCell(it.second.nread, format_lll));
-          row.push_back(TableCell(it.second.rb, format_lll, unit));
+          row.emplace_back(TableCell(it.second.nread, format_lll));
+          row.emplace_back(TableCell(it.second.rb, format_lll, unit));
         }
 
-        row.push_back(TableCell(it.first.c_str(), format_s));
+        row.emplace_back(TableCell(it.first.c_str(), format_s));
       }
 
       table.AddRows(table_data);
@@ -1360,7 +1337,7 @@ Iostat::Store()
 
   Mutex.UnLock();
   fclose(fout);
-  return (rename(tmpname.c_str(), mStoreFileName.c_str()) ? false : true);
+  return rename(tmpname.c_str(), mStoreFileName.c_str()) == 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1431,7 +1408,7 @@ Iostat::NamespaceReport(const char* path, XrdOucString& stdOut,
 
   while (std::getline(inFile, reportLine)) {
     XrdOucEnv ioreport(reportLine.c_str());
-    eos::common::Report* report = new eos::common::Report(ioreport);
+    auto* report = new eos::common::Report(ioreport);
     report->Dump(stdOut);
 
     if (!report->wb) {
@@ -1546,7 +1523,7 @@ Iostat::Circulate()
     XrdSysThread::CancelPoint();
   }
 
-  return 0;
+  return nullptr;
 }
 
 /* ------------------------------------------------------------------------- */

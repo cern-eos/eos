@@ -50,9 +50,10 @@ Report::Report(XrdOucEnv& report)
   host = report.Get("host") ? report.Get("host") : "none";
   server_name = host;
   server_domain = host;
-  ssize_t dpos = host.find('.');
-
-  if (dpos != STR_NPOS) {
+  
+  auto dpos = host.find('.');
+  if (dpos != std::string::npos)
+  {
     server_name.erase(dpos);
     server_domain.erase(0, dpos + 1);
   }
@@ -106,9 +107,10 @@ Report::Report(XrdOucEnv& report)
   sec_name = report.Get("sec.name") ? report.Get("sec.name") : "";
   sec_host = report.Get("sec.host") ? report.Get("sec.host") : "";
   sec_domain = report.Get("sec.host") ? report.Get("sec.host") : "";
-  dpos = sec_host.find(".");
 
-  if (dpos != STR_NPOS) {
+  dpos = sec_host.find('.');
+  if (dpos != std::string::npos)
+  {
     sec_host.erase(dpos);
     sec_domain.erase(0, dpos + 1);
   }
@@ -118,8 +120,9 @@ Report::Report(XrdOucEnv& report)
   sec_info = report.Get("sec.info") ? report.Get("sec.info") : "";
   sec_app = report.Get("sec.app") ? report.Get("sec.app") : "";
 
-  if (sec_app.find("?") != std::string::npos) {
-    sec_app.erase(sec_app.find("?"));
+  if (sec_app.find('?') != std::string::npos)
+  {
+    sec_app.erase(sec_app.find('?'));
   }
 }
 
