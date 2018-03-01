@@ -168,7 +168,7 @@ COMMAND commands[] = {
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_recycle, (char*) "Recycle Bin Functionality"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
-  { (char*) "rm", com_rm, (char*) "Remove a file"},
+  { (char*) "rm", com_protorm, (char*) "Remove a file"},
   { (char*) "role", com_role, (char*) "Set the client role"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
