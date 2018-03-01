@@ -25,8 +25,6 @@
 #include "RmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "common/Path.hh"
@@ -41,7 +39,6 @@ eos::mgm::RmCmd::ProcessRequest() {
 
   eos::console::RmProto rm = mReqProto.rm();
   auto recursive = rm.recursive();
-  auto deep = rm.deep();
   auto force = rm.bypassrecycle();
 
   std::string spath;
@@ -58,10 +55,11 @@ eos::mgm::RmCmd::ProcessRequest() {
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
-  // @todo (jmakai): find out what to do with these macros
-//  NAMESPACEMAP;
-//  PROC_BOUNCE_ILLEGAL_NAMES;
-//  PROC_BOUNCE_NOT_ALLOWED;
+  if (IsOperationAllowed(spath.c_str()) == SFS_OK) { // This is the not allowed case now
+    reply.set_std_err(stdErr.c_str());
+    reply.set_retc(EACCES);
+    return reply;
+  }
 
   if (force && (vid.uid)) {
     errStream << "warning: removing the force flag - this is only allowed for the 'root' role!\n";
@@ -158,15 +156,9 @@ eos::mgm::RmCmd::ProcessRequest() {
       std::set<std::string>::const_iterator fileit;
 
       errInfo.clear();
-      if (((cPath.GetSubPathSize() < 4) && deep) ||
-          (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, found))) {
-        if ((cPath.GetSubPathSize() < 4) && deep) {
-          errStream << "error: deep recursive deletes are forbidden without shell confirmation code!";
-          retc = EPERM;
-        } else {
-          errStream << "error: unable to remove file/directory";
-          retc = errno;
-        }
+      if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, found)) {
+        errStream << "error: unable to remove file/directory";
+        retc = errno;
       } else {
         XrdOucString recyclingAttribute;
 

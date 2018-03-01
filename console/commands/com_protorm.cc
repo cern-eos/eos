@@ -110,10 +110,7 @@ RmHelper::ParseCommand(const char* arg) {
   }
 
   eos::common::Path cPath(path.c_str());
-  if (rm->recursive() && (cPath.GetSubPathSize() < 4)) {
-    mNeedsConfirmation = true;
-    rm->set_deep(true);
-  }
+  mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
 
   return true;
 }
@@ -138,8 +135,8 @@ int com_protorm(char* arg)
   }
 
   if (rm.NeedsConfirmation() && !rm.ConfirmOperation()) {
-    global_retc = EINVAL;
-    return EINVAL;
+    global_retc = EINTR;
+    return EINTR;
   }
 
   global_retc = rm.Execute();

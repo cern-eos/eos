@@ -50,7 +50,7 @@ Report::Report(XrdOucEnv& report)
   host = report.Get("host") ? report.Get("host") : "none";
   server_name = host;
   server_domain = host;
-  
+
   auto dpos = host.find('.');
   if (dpos != std::string::npos)
   {

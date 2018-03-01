@@ -200,6 +200,8 @@ protected:
   static void ConvertToJsonFormat(eos::console::ReplyProto& reply,
                                   std::ostringstream& oss);
 
+  int IsOperationAllowed(const char* inpath);
+
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::mutex mMutexAsync; ///< Mutex locked during async execution

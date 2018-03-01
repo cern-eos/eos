@@ -24,6 +24,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
+#include "mgm/Access.hh"
+#include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include "json/json.h"
 
@@ -364,6 +366,13 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
                 e.getErrno(), e.getMessage().str().c_str());
     }
   }
+}
+
+int
+IProcCommand::IsOperationAllowed(const char* inpath) {
+  PROC_BOUNCE_NOT_ALLOWED;
+
+  return SFS_ERROR;
 }
 
 EOSMGMNAMESPACE_END
