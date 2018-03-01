@@ -2349,33 +2349,26 @@ FuseServer::HandleMD(const std::string& id,
           fmd = gOFS->eosFileService->getFileMD(fid);
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
+	  eos_static_debug("updating %s => %s ", fmd->getName().c_str(), md.name().c_str());
           if (fmd->getContainerId() != md.md_pino()) {
             // this indicates a file move
             op = MOVE;
-            eos_static_info("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
+            eos_static_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
             cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
             cpcmd->removeFile(fmd->getName());
             gOFS->eosView->updateContainerStore(cpcmd.get());
             fmd->setName(md.name());
-            pcmd->addFile(fmd.get());
-            gOFS->eosView->updateContainerStore(pcmd.get());
-          }
 
-          if (fmd->getName() != md.name()) {
-            // this indicates a file rename
-            op = RENAME;
-            eos_static_info("rename %s=>%s", fmd->getName().c_str(), md.name().c_str());
-
-	    ofmd = pcmd->findFile( md.name() );
-
+	    ofmd = pcmd->findFile( md.name() );	    
 	    if (ofmd) 
 	    {
 	      // the target might exist, so we remove it
-	      gOFS->eosFileService->removeFile(ofmd.get());
-	      pcmd->removeFile(md.name());
+	      eos_static_debug("removing previous file in move %s",md.name().c_str());
 
 	      try
 	      {
+		pcmd->removeFile(md.name());
+		gOFS->eosFileService->removeFile(ofmd.get());	      
 		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 		// free previous quota
 		if (quotanode)
@@ -2385,11 +2378,48 @@ FuseServer::HandleMD(const std::string& id,
 	      }
 	      catch ( eos::MDException &e )
 	      {
-		fmd->setSize(md.size());
 	      }
 	    }
-            gOFS->eosView->renameFile(fmd.get(), md.name());
+
+            pcmd->addFile(fmd.get());
+            gOFS->eosView->updateContainerStore(pcmd.get());
           }
+	  else
+	  {
+	    if (fmd->getName() != md.name()) {
+	      // this indicates a file rename
+	      op = RENAME;
+
+	      ofmd = pcmd->findFile( md.name() );
+
+	      eos_static_debug("rename %s [%lx] => %s [%lx]", fmd->getName().c_str(), fid, md.name().c_str(),
+			      ofmd?ofmd->getId():0);
+	      
+	      
+	      if (ofmd) 
+	      {
+		// the target might exist, so we remove it
+		eos_static_debug("removing previous file in update %s",md.name().c_str());
+
+		try
+		{
+		  pcmd->removeFile(md.name());
+		  gOFS->eosFileService->removeFile(ofmd.get());
+		  
+		  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		  // free previous quota
+		  if (quotanode)
+		  {
+		    quotanode->removeFile(ofmd.get());
+		  }
+		}
+		catch ( eos::MDException &e )
+		{
+		}
+	      }
+	      gOFS->eosView->renameFile(fmd.get(), md.name());
+	    }
+	  }
 
           eos_static_info("fid=%lx ino=%lx pino=%lx cpino=%lx update-file",
                           (long) fid,
