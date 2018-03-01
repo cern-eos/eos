@@ -136,9 +136,6 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ExplorationOptions options;
   options.depthLimit = 999;
 
-  // Empty path
-  ASSERT_THROW(eos::NamespaceExplorer("", options, qcl()), eos::MDException);
-
   // Invalid path
   ASSERT_THROW(eos::NamespaceExplorer("/eos/invalid/path", options, qcl()), eos::MDException);
 

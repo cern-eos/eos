@@ -133,12 +133,6 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
 
   eos::PathProcessor::splitPath(pathParts, path);
 
-  // if(pathParts.empty()) {
-  //   MDException e(EINVAL);
-  //   e.getMessage() << "Empty path provided";
-  //   throw e;
-  // }
-
   // This part is synchronous by necessity.
   staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, 1).get());
 
