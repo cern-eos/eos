@@ -269,6 +269,8 @@ Iostat::Receive(void)
       eos::common::Report* report = new eos::common::Report(ioreport);
       Add("bytes_read", report->uid, report->gid, report->rb, report->ots,
           report->cts);
+      Add("bytes_read", report->uid, report->gid, report->rvb_sum, report->ots,
+          report->cts);
       Add("bytes_written", report->uid, report->gid, report->wb, report->ots,
           report->cts);
       Add("read_calls", report->uid, report->gid, report->nrc, report->ots,
@@ -618,9 +620,9 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         }
 
         uidout.emplace_back(std::make_tuple(username, tuit->first.c_str(),
-                                         IostatUid[tuit->first][it->first],
-                                         it->second.GetAvg60(), it->second.GetAvg300(),
-                                         it->second.GetAvg3600(), it->second.GetAvg86400()));
+                                            IostatUid[tuit->first][it->first],
+                                            it->second.GetAvg60(), it->second.GetAvg300(),
+                                            it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
     }
 
@@ -678,9 +680,9 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         }
 
         gidout.emplace_back(std::make_tuple(groupname, tgit->first.c_str(),
-                                         IostatGid[tgit->first][it->first],
-                                         it->second.GetAvg60(), it->second.GetAvg300(),
-                                         it->second.GetAvg3600(), it->second.GetAvg86400()));
+                                            IostatGid[tgit->first][it->first],
+                                            it->second.GetAvg60(), it->second.GetAvg300(),
+                                            it->second.GetAvg3600(), it->second.GetAvg86400()));
       }
     }
 
@@ -2068,8 +2070,9 @@ Iostat::UdpBroadCast(eos::common::Report* report)
 }
 
 void
-Iostat::AddToPopularity(std::string path, unsigned long long rb, time_t starttime,
-                  time_t stoptime)
+Iostat::AddToPopularity(std::string path, unsigned long long rb,
+                        time_t starttime,
+                        time_t stoptime)
 {
   size_t popularitybin = (((starttime + stoptime) / 2) % (IOSTAT_POPULARITY_DAY *
                           IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
