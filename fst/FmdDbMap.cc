@@ -1568,11 +1568,11 @@ FmdDbMapHandler::TrimDB()
 long long
 FmdDbMapHandler::GetNumFiles(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexReadLock lock(gFmdDbMapHandler.mMapMutex);
+  eos::common::RWMutexReadLock lock(mMapMutex);
   FsReadLock fs_rd_lock(fsid);
 
-  if (gFmdDbMapHandler.mDbMap.count(fsid)) {
-    return gFmdDbMapHandler.mDbMap[fsid]->size();
+  if (mDbMap.count(fsid)) {
+    return mDbMap[fsid]->size();
   } else {
     return 0ll;
   }

@@ -935,9 +935,11 @@ LvDbDbMapInterface::removeEntry(const Slice& key, const TvalSlice& val)
 
 bool LvDbDbMapInterface::clear()
 {
+  pNDbEntries = 0;
+
   if (!pAttachedDbname.empty()) {
     leveldb::Status s;
-#if 0
+#if 1
     leveldb::WriteBatch batch;
     leveldb::Iterator* it = AttachedDb->NewIterator(leveldb::ReadOptions());
 
@@ -948,7 +950,6 @@ bool LvDbDbMapInterface::clear()
     s = AttachedDb->Write(leveldb::WriteOptions(), &batch);
     TestLvDbError(s, this);
     delete it;
-    pNDbEntries = 0;
 #else
     auto dbname = pAttachedDbname;
     detachDb();
