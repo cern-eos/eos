@@ -32,7 +32,7 @@
 int MgmExecute::process(const std::string& response)
 {
   mErrc = 0;
-  std::vector<std::pair<std::string, size_t>> tags {
+  std::vector<std::pair<std::string, ssize_t>> tags {
     std::make_pair("mgm.proc.stdout=", -1),
     std::make_pair("&mgm.proc.stderr=", -1),
     std::make_pair("&mgm.proc.retc=", -1)
@@ -40,6 +40,13 @@ int MgmExecute::process(const std::string& response)
 
   for (auto& elem : tags) {
     elem.second = response.find(elem.first);
+  }
+
+  if (tags[0].second == -1) {
+    // This is a "FUSE" format response that only contains the stdout without
+    // error message or return code
+    mResult = response;
+    return mErrc;
   }
 
   // Parse stdout

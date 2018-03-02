@@ -328,8 +328,8 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-
-    retc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal, errLocal, entries);
+    retc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal,
+                                        errLocal, entries);
 
     if (!retc) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
@@ -626,14 +626,15 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 }
 
 int
-FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
+FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
+{
   XrdOucErrInfo errInfo;
   auto filesDeleted = 0u;
-
   // Create a snapshot to avoid deadlock with dropstripe
   std::list<std::string> files;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+
     for (auto it_fid = gOFS->eosFsView->getFileList(dropfilesProto.fsid());
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
@@ -648,33 +649,37 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto) {
 
   for (const auto& filePath : files) {
     errInfo.clear();
-    if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(), dropfilesProto.force()) != 0) {
-      eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(), dropfilesProto.fsid());
+
+    if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(),
+                          dropfilesProto.force()) != 0) {
+      eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(),
+              dropfilesProto.fsid());
     } else {
       filesDeleted++;
     }
   }
 
   std::ostringstream oss;
-  oss << "Deleted " << filesDeleted << " replicas on filesystem " << dropfilesProto.fsid() << std::endl;
+  oss << "Deleted " << filesDeleted << " replicas on filesystem " <<
+      dropfilesProto.fsid() << std::endl;
   mOut = oss.str();
-
   return SFS_OK;
 }
 
 int
-FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto) {
+FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
+{
   std::string filePath;
-  std::unordered_set<std::string, Murmur3::MurmurHasher<const std::string&>> sourceHash, targetHash;
-
+  std::unordered_set<std::string, Murmur3::MurmurHasher<const std::string&>>
+      sourceHash, targetHash;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+
     for (auto it_fid = gOFS->eosFsView->getFileList(compareProto.sourceid());
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
         auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
         filePath = gOFS->eosView->getUri(fmd.get());
-
         sourceHash.insert(filePath);
       } catch (eos::MDException& e) {}
     }
@@ -684,12 +689,10 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto) {
       try {
         auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
         filePath = gOFS->eosView->getUri(fmd.get());
-
         targetHash.insert(filePath);
       } catch (eos::MDException& e) {}
     }
   }
-
   std::ostringstream resultStream;
 
   for (const auto& source : sourceHash) {
@@ -707,25 +710,26 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto) {
   }
 
   mOut = resultStream.str();
-
   return SFS_OK;
 }
 
 int
-FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto) {
+FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
+{
   std::string filePath;
   XrdOucErrInfo errInfo;
   auto success = 0u;
-
   eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+
   for (auto it_fid = gOFS->eosFsView->getFileList(cloneProto.sourceid());
        (it_fid && it_fid->valid()); it_fid->next()) {
     try {
       auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
       filePath = gOFS->eosView->getUri(fmd.get());
-
       errInfo.clear();
-      if (gOFS->_copystripe(filePath.c_str(), errInfo, mVid, cloneProto.sourceid(), cloneProto.targetid()) == 0) {
+
+      if (gOFS->_copystripe(filePath.c_str(), errInfo, mVid,
+                            cloneProto.sourceid(), cloneProto.targetid()) == 0) {
         success++;
       }
     } catch (eos::MDException& e) {
@@ -772,9 +776,11 @@ eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
 }
 
 int
-FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, XrdOucString& dp,
+FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
+                                    XrdOucString& dp,
                                     XrdOucString& df, XrdOucString& ds, XrdOucString& out,
-                                    XrdOucString& err, size_t& entries) {
+                                    XrdOucString& err, size_t& entries)
+{
   try {
     mSemaphore.Wait();
   } catch (...) {

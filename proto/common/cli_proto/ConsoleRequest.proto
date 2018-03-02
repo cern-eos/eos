@@ -15,9 +15,9 @@ message RequestProto {
   // Types of output format supported
   enum FormatType {
     DEFAULT = 0;
-    FUSE    = 1;
-    JSON    = 2;
-    HTTP    = 3;
+    JSON    = 1;
+    HTTP    = 2;
+    FUSE    = 3;
   }
 
   FormatType format = 1;
