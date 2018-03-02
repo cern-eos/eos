@@ -130,13 +130,13 @@ int
 RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   // Do some minimal checkups
-  if (mNbTotalFiles < 2) {
-    eos_err("failed open layout - stripe size at least 2");
+  if (mNbTotalFiles < 6) {
+    eos_err("failed open layout - stripe size must be at least 6");
     return SFS_ERROR;
   }
 
   if (mStripeWidth < 64) {
-    eos_err("failed open layout - stripe width at least 64");
+    eos_err("failed open layout - stripe width must be at least 64");
     return SFS_ERROR;
   }
 
