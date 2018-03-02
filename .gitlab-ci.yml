@@ -565,7 +565,6 @@ eos_publish_artifacts:
     - docker-cc7
   only:
     - master
-    - switch_to_new_rm
     - tags
 
 eos_publish_debian_artifacts:
