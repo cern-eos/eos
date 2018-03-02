@@ -816,7 +816,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   // Get XrdCl::FileSystem object
   // !!! WATCH OUT: GOTO ANCHOR !!!
 again:
-  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+  auto* fs = new XrdCl::FileSystem(url);
   //eos_static_info("url=%s", address.c_str());
 
   if (!fs) {
@@ -1028,7 +1028,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
   } else {
     stdOut = "";
     // loop over filesystems
-    eos::common::RWMutexReadLock(gOFS.Storage->mFsMutex);
+    eos::common::RWMutexReadLock fsLock(gOFS.Storage->mFsMutex);
     std::vector <eos::fst::FileSystem*>::const_iterator it;
 
     for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {

@@ -26,9 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
-#include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "common/StringConversion.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -288,7 +286,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
     stdErr = "error: illegal parameters";
     retc = EINVAL;
   } else {
-    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock viewLock(FsView::gFsView.ViewMutex);
     FileSystem* fs = 0;
 
     if (fsid && FsView::gFsView.mIdView.count(fsid)) {
@@ -303,13 +301,13 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       } else {
         // by host:port:data name
         std::string path = identifier;
-        size_t slashpos = identifier.find("/");
+        size_t slashpos = identifier.find('/');
 
         if (slashpos != std::string::npos) {
           path.erase(0, slashpos);
           identifier.erase(slashpos);
 
-          if ((identifier.find(":") == std::string::npos)) {
+          if ((identifier.find(':') == std::string::npos)) {
             identifier += ":1095"; // default eos fst port
           }
 
@@ -346,7 +344,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         std::string nodename = fs->GetString("host");
         size_t dpos = 0;
 
-        if ((dpos = nodename.find(".")) != std::string::npos) {
+        if ((dpos = nodename.find('.')) != std::string::npos) {
           nodename.erase(dpos);
         }
 
@@ -522,8 +520,8 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             fs->SetId(fsid);
             fs->SetString("uuid", uuid.c_str());
             fs->SetString("configstatus", configstatus.c_str());
-            std::string splitspace = "";
-            std::string splitgroup = "";
+            std::string splitspace;
+            std::string splitgroup;
             unsigned int groupsize = 0;
             unsigned int groupmod = 0;
             unsigned int subgroup = 0;
@@ -925,12 +923,12 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
     sorted_grps = proc_sort_groups_by_priority(fs_view, dst, grp_size, grp_mod);
   } else {
     // Special case for spare space which doesn't have groups
-    sorted_grps.push_back("spare");
+    sorted_grps.emplace_back("spare");
   }
 
   bool done = false;
 
-  for (auto grp : sorted_grps) {
+  for (const auto& grp : sorted_grps) {
     if (proc_mv_fs_group(fs_view, src, grp, stdOut, stdErr) == 0) {
       stdErr = "";
       done = true;
@@ -1029,7 +1027,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
     lst_fsids.push_back(std::to_string(*it));
   }
 
-  for (auto sfsid : lst_fsids) {
+  for (const auto& sfsid : lst_fsids) {
     if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
       failed_fs.push_back(sfsid);
     }
@@ -1092,7 +1090,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
     lst_fsids.push_back(std::to_string(*it));
   }
 
-  for (auto sfsid : lst_fsids) {
+  for (const auto& sfsid : lst_fsids) {
     if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
       failed_fs.push_back(sfsid);
     }
@@ -1154,7 +1152,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     size_t dpos = 0;
     std::string cstate = fs->GetString("configstatus");
 
-    if ((dpos = nodename.find(".")) != std::string::npos) {
+    if ((dpos = nodename.find('.')) != std::string::npos) {
       nodename.erase(dpos);
     }
 

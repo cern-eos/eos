@@ -55,7 +55,7 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
   std::string src_path = src;
   std::string dst_path = dst;
   {
-    eos::common::RWMutexWriteLock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
 
     try {
       src_fmd = gOFS->eosView->getFile(src_path);

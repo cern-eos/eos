@@ -235,7 +235,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
     }
   }
 
-  return (bool) balancefsvector.size();
+  return !balancefsvector.empty();
 }
 
 /*----------------------------------------------------------------------------*/

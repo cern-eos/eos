@@ -48,7 +48,7 @@
 
   std::shared_ptr<eos::IFileMD> fmd;
   std::string fullpath;
-  eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
   try
   {
