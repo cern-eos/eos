@@ -24,6 +24,7 @@ This
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
+    "backtrace" : 0,
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0.01,

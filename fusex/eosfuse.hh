@@ -202,6 +202,7 @@ public:
       int libfusethreads;
       int foreground;
       int md_kernelcache;
+      int enable_backtrace;
       double md_kernelcache_enoent_timeout;
       double md_backend_timeout;
       double md_backend_put_timeout;

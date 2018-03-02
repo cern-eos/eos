@@ -315,6 +315,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["debuglevel"] = 4;
       }
 
+      if (!root["options"].isMember("backtrace")) {
+	root["options"]["backtrace"] = 0;
+      }
+
       if (!root["options"].isMember("md-kernelcache")) {
         root["options"]["md-kernelcache"] = 1;
       }
@@ -491,6 +495,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.statfilepath = root["statfilepath"].asString();
     config.options.debug = root["options"]["debug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
+    config.options.enable_backtrace = root["options"]["backtrace"].asInt();
     config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
     config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
     config.options.md_kernelcache_enoent_timeout =
@@ -1126,7 +1131,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d nocache-graceperiod:%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d nocache-graceperiod:%d",
+		       config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
@@ -1245,9 +1251,9 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 #ifdef __linux__
   backward::SignalHandling::handleSignal(sig, si, ctx);
 #endif
-  eos_static_warning("sighandler received signal %d - emitting same signal", sig);
+  eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
   signal(SIGSEGV, SIG_DFL);
-  kill(getpid(), sig);
+  kill(getpid(), 2);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1257,21 +1263,24 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  struct sigaction sa;
-  sa.sa_flags = SA_SIGINFO;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_sigaction = EosFuse::umounthandler;
 
-  if (sigaction(SIGSEGV, &sa, NULL) == -1) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "failed to install SEGV handler");
-    throw std::runtime_error(msg);
-  }
-
-  if (sigaction(SIGABRT, &sa, NULL) == -1) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "failed to install SEGV handler");
-    throw std::runtime_error(msg);
+  if (EosFuse::instance().config.options.enable_backtrace) {
+    struct sigaction sa;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = EosFuse::umounthandler;
+    
+    if (sigaction(SIGSEGV, &sa, NULL) == -1) {
+      char msg[1024];
+      snprintf(msg, sizeof(msg), "failed to install SEGV handler");
+      throw std::runtime_error(msg);
+    }
+    
+    if (sigaction(SIGABRT, &sa, NULL) == -1) {
+      char msg[1024];
+      snprintf(msg, sizeof(msg), "failed to install SEGV handler");
+      throw std::runtime_error(msg);
+    }
   }
 
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
@@ -1361,6 +1370,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "All        starttime           := %lu\n"
              "All        uptime              := %lu\n"
              "All        instance-url        := %s\n"
+	     "All        client-uuid         := %s\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              osstat.threads,
              eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -1381,7 +1391,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              FUSE_USE_VERSION,
              start_time,
              now - start_time,
-             EosFuse::Instance().config.hostport.c_str()
+             EosFuse::Instance().config.hostport.c_str(),
+	     EosFuse::instance().config.clientuuid.c_str()
             );
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
