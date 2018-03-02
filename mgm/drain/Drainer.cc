@@ -151,11 +151,7 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
                                    fs_set));
   }
 
-  XrdSysThread::Run(&fs->mThread,
-                    DrainFS::StaticThreadProc,
-                    static_cast<void*>(fs.get()),
-                    XRDSYSTHREAD_HOLD,
-                    "DrainFS Thread");
+  fs->Start();
   mDrainMutex.UnLock();
   return true;
 }
@@ -204,7 +200,7 @@ Drainer::StopFSDrain(unsigned int fsId, XrdOucString& err)
     return false;
   }
 
-  (*it)->DrainStop();
+  (*it)->Stop();
   return true;
 }
 
@@ -346,13 +342,12 @@ Drainer::GetDrainStatus(unsigned int fsId, XrdOucString& out, XrdOucString& err)
     table_header_jobs.push_back(std::make_tuple("destination fs", 30, "s"));
     table_header_jobs.push_back(std::make_tuple("error", 100, "s"));
     table_jobs.SetHeader(table_header_jobs);
-    std::vector<shared_ptr<DrainTransferJob>>::const_iterator job_vect_it =
-        (*it)->GetFailedJobs().begin();
+    auto job_vect_it = (*it)->GetFailedJobs().cbegin();
 
-    if (job_vect_it != (*it)->GetFailedJobs().end()) {
+    if (job_vect_it != (*it)->GetFailedJobs().cend()) {
       out += "List of Files failed to be drained:\n\n";
 
-      while (job_vect_it != (*it)->GetFailedJobs().end()) {
+      while (job_vect_it != (*it)->GetFailedJobs().cend()) {
         PrintJobsTable(table_jobs, (*job_vect_it).get());
         job_vect_it++;
       }

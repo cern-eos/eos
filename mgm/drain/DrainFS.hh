@@ -22,10 +22,10 @@
  ************************************************************************/
 
 #pragma once
-#include <pthread.h>
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "common/Logging.hh"
+#include <thread>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -38,13 +38,6 @@ class DrainTransferJob;
 class DrainFS: public eos::common::LogId
 {
 public:
-  pthread_t mThread; ///< Thead supervising the draining
-
-  //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticThreadProc(void*);
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -52,8 +45,9 @@ public:
   //----------------------------------------------------------------------------
   DrainFS(eos::common::FileSystem::fsid_t fs_id,
           eos::common::FileSystem::fsid_t target_fs_id = 0):
-    mThread(0), mFsId(fs_id), mTargetFsId(target_fs_id),
-    mDrainStatus(eos::common::FileSystem::kNoDrain)
+    mFsId(fs_id), mTargetFsId(target_fs_id),
+    mDrainStatus(eos::common::FileSystem::kNoDrain), mTotalFiles(0),
+    mDrainPeriod(0)
   {}
 
   //----------------------------------------------------------------------------
@@ -64,12 +58,12 @@ public:
   //----------------------------------------------------------------------------
   //! Stop draining attached file system
   //---------------------------------------------------------------------------
-  void DrainStop();
+  void Stop();
 
   //----------------------------------------------------------------------------
   //! Get the list of failed drain jobs
   //----------------------------------------------------------------------------
-  inline const std::vector<shared_ptr<DrainTransferJob>>& GetFailedJobs() const
+  inline const std::list<shared_ptr<DrainTransferJob>>& GetFailedJobs() const
   {
     return mJobsFailed;
   }
@@ -88,12 +82,25 @@ public:
   {
     return mFsId;
   }
-private:
 
   //----------------------------------------------------------------------------
-  //! Thread loop implementing the drain job
+  //! Start thread supervising the draining
   //----------------------------------------------------------------------------
-  void* Drain();
+  void Start()
+  {
+    mThread = std::thread(&DrainFS::DoIt, this);
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  //! State of the drain job
+  //----------------------------------------------------------------------------
+  enum class State { DONE, EXPIRED, FAILED, CONTINUE};
+
+  //----------------------------------------------------------------------------
+  //! Method draining the file system
+  //----------------------------------------------------------------------------
+  void DoIt();
 
   //----------------------------------------------------------------------------
   //! Select target file system using the GeoTreeEngine
@@ -105,36 +112,71 @@ private:
   eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob* job);
 
   //----------------------------------------------------------------------------
-  //! Set initial drain counters and status
+  //! Reset drain counters and status
   //----------------------------------------------------------------------------
-  void SetInitialCounters();
+  void ResetCounters();
 
   //----------------------------------------------------------------------------
   //! Get space defined drain variables i.e. number of retires, number of
   //! transfers per fs, etc.
+  //!
+  //! @param space space name
+  //! @note method must be called with a lock on gFsView.ViewMutex
   //----------------------------------------------------------------------------
-  void GetSpaceConfiguration();
+  void GetSpaceConfiguration(const std::string& space);
 
   //---------------------------------------------------------------------------
   //! Clean up when draining is completed
   //---------------------------------------------------------------------------
   void CompleteDrain();
 
-  eos::common::FileSystem::fsid_t mFsId; ///< Id of the draining file system
-  eos::common::FileSystem::fsid_t
-  mTargetFsId;  ///< Id of the target fs for draining
+  //---------------------------------------------------------------------------
+  //! Prepare the file system for drain i.e. delay the start by the configured
+  //! amount of timem, set the status
+  //!
+  //! @return true if successful, otherwise false
+  //---------------------------------------------------------------------------
+  bool PrepareFs();
+
+  //---------------------------------------------------------------------------
+  //! Update the file system state to draining
+  //!
+  //! @return true if successful, otherwise false
+  //---------------------------------------------------------------------------
+  bool MarkFsDraining();
+
+  //---------------------------------------------------------------------------
+  //! Collect and prepare all the drain jobs
+  //!
+  //! @returns number of drain jobs prepared
+  //---------------------------------------------------------------------------
+  uint64_t CollectDrainJobs();
+
+  //---------------------------------------------------------------------------
+  //! Update progress of the drain
+  //!
+  //! @return progress state of the drain job
+  //---------------------------------------------------------------------------
+  State UpdateProgress();
+
+  eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
+  eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::FileSystem::eDrainStatus mDrainStatus;
-  std::string mSpace; ///< Space where fs resides
-  std::string mGroup; ///< Group where fs resided
-  //! Collection of drain jobs to run
-  std::vector<shared_ptr<DrainTransferJob>> mJobsPending;
-  //! Collection of failed drain jobs
-  std::vector<shared_ptr<DrainTransferJob>> mJobsFailed;
-  //! Collection of running drain jobs
-  std::vector<shared_ptr<DrainTransferJob>> mJobsRunning;
+  std::thread mThread; ///< Thread supervising the draining
   bool mDrainStop = false; ///< Flag to cancel an ongoing draining
   int mMaxRetries = 1; ///< Max number of retries
   unsigned int maxParallelJobs = 10; ///< Max number of parallel drain jobs
+  uint64_t mTotalFiles; ///< Total number of files to drain
+  std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
+  std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
+  std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
+  //! Collection of drain jobs to run
+  std::list<shared_ptr<DrainTransferJob>> mJobsPending;
+  //! Collection of failed drain jobs
+  std::list<shared_ptr<DrainTransferJob>> mJobsFailed;
+  //! Collection of running drain jobs
+  std::list<shared_ptr<DrainTransferJob>> mJobsRunning;
+
 };
 
 EOSMGMNAMESPACE_END
