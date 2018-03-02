@@ -156,7 +156,7 @@ public:
   //!
   //! @return : default block size
   //----------------------------------------------------------------------------
-  uint64_t GetBlockSize()
+  int32_t GetBlockSize()
   {
     return mBlocksize;
   }
@@ -547,7 +547,7 @@ private:
   bool mDoReadahead; ///< mark if readahead is enabled
   const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
   const uint64_t mDefaultBlocksize;
-  uint32_t mBlocksize; ///< block size for rd/wr opertations
+  int32_t mBlocksize; ///< block size for rd/wr opertations
   XrdCl::File* mXrdFile; ///< handler to xrd file
   AsyncMetaHandler* mMetaHandler; ///< async requests meta handler
   PrefetchMap mMapBlocks; ///< map of block read/prefetched

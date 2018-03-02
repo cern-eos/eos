@@ -43,9 +43,8 @@ public:
   //! @param offset request offset
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
-  //!
   //----------------------------------------------------------------------------
-  SimpleHandler(uint64_t offset = 0, uint32_t length = 0, bool isWrite = false);
+  SimpleHandler(uint64_t offset = 0, int32_t length = 0, bool isWrite = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -59,7 +58,7 @@ public:
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
   //----------------------------------------------------------------------------
-  void Update(uint64_t offset, uint32_t length, bool isWrite);
+  void Update(uint64_t offset, int32_t length, bool isWrite);
 
   //----------------------------------------------------------------------------
   //! Wait for request to be done
@@ -82,25 +81,25 @@ public:
   GetOffset() const
   {
     return mOffset;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t
+  inline int32_t
   GetLength() const
   {
     return mLength;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t
+  inline int32_t
   GetRespLength() const
   {
     return mRespLength;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Get response chunk status
@@ -109,7 +108,7 @@ public:
   GetRespStatus() const
   {
     return mRespOK;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation
@@ -118,7 +117,7 @@ public:
   IsWrite() const
   {
     return mIsWrite;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Handle response
@@ -131,7 +130,7 @@ public:
 
 private:
   uint64_t mOffset; ///< offset of the request
-  uint32_t mLength; ///< length of the request
+  int32_t mLength; ///< length of the request
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
   bool mRespOK; ///< mark if the resp status is ok

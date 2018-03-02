@@ -95,7 +95,7 @@ public:
   GetOffset() const
   {
     return mOffset;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Get request chunk length
@@ -104,7 +104,7 @@ public:
   GetLength() const
   {
     return mLength;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Get response chunk length
@@ -113,7 +113,7 @@ public:
   GetRespLength() const
   {
     return mRespLength;
-  };
+  }
 
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation
@@ -122,7 +122,7 @@ public:
   IsWrite() const
   {
     return mIsWrite;
-  };
+  }
 
 private:
   char* mBuffer;  ///< holder for data for write requests

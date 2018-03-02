@@ -439,10 +439,11 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
         if (sh->WaitOK()) {
           eos_debug("block in cache, blk_off=%lld, req_off= %lld", iter->first, offset);
 
-          if (sh->GetRespLength() == 0) {
+          if (sh->GetRespLength() <= 0) {
             // The request got a response but it read 0 bytes
             eos_warning("response contains 0 bytes");
             done_read = true;
+            nread = sh->GetRespLength();
             break;
           }
 
@@ -527,9 +528,14 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
         // has already failed
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         mMetaHandler->HandleResponse(&status, handler);
+        nread = -1;
+      } else {
+        if (mMetaHandler->WaitOK()) {
+          nread = length;
+        } else {
+          nread = -1;
+        }
       }
-
-      nread = length;
     }
   }
 
@@ -1002,7 +1008,7 @@ XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
   bool done = true;
   XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
-  eos_debug("try to prefetch with offset: %lli, length: %4u",
+  eos_debug("try to prefetch with offset: %lli, length: %lu",
             offset, mBlocksize);
 
   if (!mQueueBlocks.empty()) {

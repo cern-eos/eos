@@ -28,7 +28,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SimpleHandler::SimpleHandler(uint64_t offset, uint32_t length, bool isWrite) :
+SimpleHandler::SimpleHandler(uint64_t offset, int32_t length, bool isWrite) :
   eos::common::LogId(),
   XrdCl::ResponseHandler(),
   mOffset(offset),
@@ -52,7 +52,7 @@ SimpleHandler::~SimpleHandler()
 // Update function
 //------------------------------------------------------------------------------
 void
-SimpleHandler::Update(uint64_t offset, uint32_t length, bool isWrite)
+SimpleHandler::Update(uint64_t offset, int32_t length, bool isWrite)
 {
   mOffset = offset;
   mLength = length;
