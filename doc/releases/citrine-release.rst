@@ -15,6 +15,31 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.16 Citrine``
+===================
+
+2018-03-02
+
+Bug
++++
+
+* [EOS-2142] - eosfstregister fails to get mgm url in CentOS 7
+* [EOS-2370] - EOSATLAS crashed while creating the output for a recursive attr set
+* [EOS-2382] - FUSEX access with concurrency creates orphaned files
+* [EOS-2386] - Vectored IO not accounted by "io" commands
+* [EOS-2387] - FST crash in eos::fst::ReedSLayout::AddDataBlock
+
+Task
+++++
+
+* [EOS-2383] - eosxd: segfault in inval_inode
+
+Improvement
++++++++++++
+
+* [EOS-1565] - RFE: turn off SIGSEGV handler on non-MGM EOS components
+
+
 ``v4.2.15 Citrine``
 ===================
 
