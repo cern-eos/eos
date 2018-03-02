@@ -195,9 +195,9 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     cmd.reset(new FsCmd(std::move(req), vid));
     break;
 
-    case RequestProto::kRm:
-      cmd.reset(new RmCmd(std::move(req), vid));
-      break;
+  case RequestProto::kRm:
+    cmd.reset(new RmCmd(std::move(req), vid));
+    break;
 
   default:
     eos_static_err("error: unknown request type");

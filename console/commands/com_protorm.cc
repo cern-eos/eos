@@ -39,7 +39,7 @@ public:
   //----------------------------------------------------------------------------
   RmHelper()
   {
-    mIsAdmin = true;
+    mIsAdmin = false;
     mHighlight = true;
   }
 
