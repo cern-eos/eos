@@ -24,8 +24,8 @@
 #include "mgm/drain/DrainFS.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/GeoTreeEngine.hh"
 #include "mgm/Master.hh"
+#include "mgm/FsView.hh"
 #include "namespace/interface/IFsView.hh"
 #include <sstream>
 
@@ -102,10 +102,10 @@ DrainFS::GetSpaceConfiguration(const std::string& space_name)
 void
 DrainFS::DoIt()
 {
-  eos_notice("msg=\"fsid=%u start draining\"", mFsId);
   int ntried = 0;
+  eos_notice("msg=\"fsid=%u start draining\"", mFsId);
 
-  do {
+  do { // Loop for retries
     ntried++;
 
     if (!PrepareFs()) {
@@ -121,50 +121,37 @@ DrainFS::DoIt()
       return;
     }
 
-    // Loop to drain the files
-    do {
+    do { // Loop to drain the files
       auto job = mJobsPending.begin();
-      eos::common::FileSystem::fsid_t fsIdTarget;
+      // @todo (esindril) Use a thread pool for all the draining jobs
 
       while ((mJobsRunning.size() <= maxParallelJobs) &&
              (job != mJobsPending.end())) {
-        if (!(*job)->GetTargetFS()) {
-          if ((fsIdTarget = SelectTargetFS(&(*job->get()))) != 0) {
-            (*job)->SetTargetFS(fsIdTarget);
-          } else {
-            std::string error = "Failed to find a suitable Target filesystem for draining";
-            (*job)->ReportError(error);
-            mJobsFailed.push_back(*job);
-            job = mJobsPending.erase(job);
-            continue;
-          }
-        }
-
-        XrdSysTimer sleep;
-        sleep.Wait(200);
-        (*job)->SetStatus(DrainTransferJob::Ready);
+        // @todo (esindril) this is a hack for getting different TPC keys in
+        // xrootd. Should be fixed in XRootD code.
+        std::this_thread::sleep_for(milliseconds(200));
         (*job)->Start();
         mJobsRunning.push_back(*job);
         job = mJobsPending.erase(job);
       }
 
-      for (auto it_jobs = mJobsRunning.begin() ; it_jobs !=  mJobsRunning.end();) {
-        if ((*it_jobs)->GetStatus() == DrainTransferJob::OK) {
-          it_jobs = mJobsRunning.erase(it_jobs);
-        } else if ((*it_jobs)->GetStatus() == DrainTransferJob::Failed) {
-          mJobsFailed.push_back(*it_jobs);
-          it_jobs = mJobsRunning.erase(it_jobs);
+      for (auto it = mJobsRunning.begin(); it !=  mJobsRunning.end();) {
+        if ((*it)->GetStatus() == DrainTransferJob::OK) {
+          it = mJobsRunning.erase(it);
+        } else if ((*it)->GetStatus() == DrainTransferJob::Failed) {
+          mJobsFailed.push_back(*it);
+          it = mJobsRunning.erase(it);
         } else {
-          it_jobs++;
+          ++it;
         }
       }
 
       State state = UpdateProgress();
 
-      if ((state == State::DONE) || (state == State::FAILED)) {
-        return;
-      } else if (state == State::EXPIRED) {
+      if (state == State::EXPIRED) {
         break;
+      } else if ((state == State::DONE) || (state == State::FAILED)) {
+        return;
       }
     } while (!mDrainStop);
   } while ((ntried < mMaxRetries) && !mDrainStop);
@@ -209,17 +196,22 @@ void
 DrainFS::Stop()
 {
   mDrainStop = true;
+
+  if (mThread.joinable()) {
+    mThread.join();
+  }
+
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mIdView.count(mFsId)) {
     FileSystem* fs  = FsView::gFsView.mIdView[mFsId];
 
     if (fs) {
+      mDrainStatus = eos::common::FileSystem::kNoDrain;
       fs->OpenTransaction();
       fs->SetConfigStatus(eos::common::FileSystem::kRW, true);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
       fs->CloseTransaction();
-      mDrainStatus = eos::common::FileSystem::kNoDrain;
       FsView::gFsView.StoreFsConfig(fs);
       return;
     }
@@ -448,78 +440,6 @@ DrainFS::UpdateProgress()
   }
 
   return State::CONTINUE;
-}
-
-//------------------------------------------------------------------------------
-// Select target file system using the GeoTreeEngine
-// @todo (esindril) this should be moved inside the drain job
-//------------------------------------------------------------------------------
-eos::common::FileSystem::fsid_t
-DrainFS::SelectTargetFS(DrainTransferJob* job)
-{
-  unsigned int nfilesystems = 1;
-  unsigned int ncollocatedfs = 0;
-  std::vector<FileSystem::fsid_t> new_repl;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  // Take locks
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-  auto fmd = gOFS->eosFileService->getFileMD(job->GetFileId());
-  eos::common::FileSystem* source_fs =
-    FsView::gFsView.mIdView[job->GetSourceFS()];
-  source_fs->SnapShotFileSystem(source_snapshot);
-  FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
-  // Check other replicas for the file
-  std::vector<std::string> fsid_geotags;
-  std::vector<FileSystem::fsid_t> existing_repl
-    = static_cast<std::vector<FileSystem::fsid_t>>(fmd->getLocations());
-
-  if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
-    eos_notice("could not retrieve info for all avoid fsids");
-    return 0;
-  }
-
-  for (auto repl : existing_repl) {
-    eos_static_debug("existing replicas: %d", (unsigned long)repl);
-  }
-
-  for (auto geo : fsid_geotags) {
-    eos_static_debug("geotags: %s", geo.c_str());
-  }
-
-  bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
-               group, nfilesystems,
-               &new_repl,
-               (ino64_t) fmd->getId(),
-               NULL, // entrypoints
-               NULL, // firewall
-               GeoTreeEngine::draining,
-               &existing_repl,
-               &fsid_geotags,
-               fmd->getSize(),
-               "",// start from geotag
-               "",// client geo tag
-               ncollocatedfs,
-               NULL, // excludeFS
-               &fsid_geotags, // excludeGeoTags
-               NULL);
-
-  if (res) {
-    std::ostringstream oss;
-
-    for (auto elem : new_repl) {
-      oss << " " << (unsigned long)(elem);
-    }
-
-    eos_static_debug("GeoTree Draining Placement returned %d with fs id's -> %s",
-                     (int)res, oss.str().c_str());
-    // Return only one FS now
-    eos::common::FileSystem::fsid_t targetFS = *new_repl.begin();
-    return targetFS;
-  } else {
-    eos_notice("fid=%llu could not place new replica", job->GetFileId());
-    return 0;
-  }
 }
 
 EOSMGMNAMESPACE_END

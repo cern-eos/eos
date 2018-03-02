@@ -24,6 +24,7 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
@@ -32,6 +33,7 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -79,6 +81,11 @@ DrainTransferJob::DoIt()
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
     ReportError(e.what());
+    return;
+  }
+
+  if (!SelectDstFs(fdrain)) {
+    ReportError("msg=\"failed to select destination file system\"");
     return;
   }
 
@@ -354,6 +361,73 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   url_dst.SetPath(fdrain.mFullPath);
   delete output_cap;
   return url_dst;
+}
+
+//------------------------------------------------------------------------------
+// Select destiantion file system for current transfer
+//------------------------------------------------------------------------------
+bool
+DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
+{
+  if (mFsIdTarget) {
+    return true;
+  }
+
+  unsigned int nfilesystems = 1;
+  unsigned int ncollocatedfs = 0;
+  std::vector<FileSystem::fsid_t> new_repl;
+  eos::common::FileSystem::fs_snapshot source_snapshot;
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
+  source_fs->SnapShotFileSystem(source_snapshot);
+  FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
+  // Check other replicas for the file
+  std::vector<std::string> fsid_geotags;
+  std::vector<FileSystem::fsid_t> existing_repl;
+
+  for (auto elem : fdrain.mProto.locations()) {
+    existing_repl.push_back(elem);
+  }
+
+  if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
+    eos_err("msg=\"fid=%llu failed to retrieve info for existing replicas\"",
+            mFileId);
+    return false;
+  }
+
+  bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
+               group, nfilesystems,
+               &new_repl,
+               (ino64_t) fdrain.mProto.id(),
+               NULL, // entrypoints
+               NULL, // firewall
+               GeoTreeEngine::draining,
+               &existing_repl,
+               &fsid_geotags,
+               fdrain.mProto.size(),
+               "",// start from geotag
+               "",// client geo tag
+               ncollocatedfs,
+               NULL, // excludeFS
+               &fsid_geotags, // excludeGeoTags
+               NULL);
+
+  if (!res || new_repl.empty())  {
+    eos_err("msg=\"fid=%llu could not place new replica\"", mFileId);
+    return false;
+  }
+
+  std::ostringstream oss;
+
+  for (auto elem : new_repl) {
+    oss << " " << (unsigned long)(elem);
+  }
+
+  eos_static_debug("msg=\"drain placement retc=%d with fsids=%s", (int)res,
+                   oss.str().c_str());
+  // Return only one fs now
+  mFsIdTarget = new_repl[0];
+  return true;
 }
 
 EOSMGMNAMESPACE_END

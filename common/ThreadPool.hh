@@ -54,16 +54,15 @@ public:
   //! e.g. if in average 27.8 jobs were waiting for execution,
   //! then 2 new threads will be added to the pool
   //----------------------------------------------------------------------------------
-  explicit ThreadPool(unsigned int threadsMin = std::thread::hardware_concurrency(),
+  explicit ThreadPool(unsigned int threadsMin =
+                        std::thread::hardware_concurrency(),
                       unsigned int threadsMax = std::thread::hardware_concurrency(),
                       unsigned int samplingInterval = 10,
                       unsigned int samplingNumber = 12,
                       unsigned int averageWaitingJobsPerNewThread = 10)
   {
     threadsMax = threadsMin > threadsMax ? threadsMin : threadsMax;
-
-    auto threadPoolFunc = [this]
-    {
+    auto threadPoolFunc = [this] {
       std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
       bool toContinue = true;
 
@@ -72,7 +71,8 @@ public:
         toContinue = task.first;
 
         // Termination is signalled by false
-        if(toContinue) {
+        if (toContinue)
+        {
           (*(task.second))();
         }
       } while (toContinue);
@@ -86,16 +86,17 @@ public:
 
     mThreadCount += threadsMin;
 
-    if(threadsMax > threadsMin) {
+    if (threadsMax > threadsMin) {
       auto maintainerThreadFunc = [this, threadPoolFunc, threadsMin, threadsMax,
-                                   samplingInterval, samplingNumber, averageWaitingJobsPerNewThread]
-      {
+      samplingInterval, samplingNumber, averageWaitingJobsPerNewThread] {
         auto rounds = 0u, sumQueueSize = 0u;
         auto signalFuture = mMaintainerSignal.get_future();
 
-        while (true) {
+        while (true)
+        {
           if (signalFuture.valid()) {
-            if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) == std::future_status::ready) {
+            if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) ==
+            std::future_status::ready) {
               break;
             }
           } else {
@@ -107,19 +108,21 @@ public:
             std::remove_if(
               mThreadPool.begin(),
               mThreadPool.end(),
-              [](std::future<void>& future) {
-                return future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-              }
+          [](std::future<void>& future) {
+            return future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+          }
             ),
-            mThreadPool.end()
+          mThreadPool.end()
           );
-
           sumQueueSize += mTasks.size();
+
           if (++rounds == samplingNumber) {
             auto averageQueueSize = (double) sumQueueSize / rounds;
+
             if (averageQueueSize > mThreadCount) {
               auto threadsToAdd =
-                std::min((unsigned int) floor(averageQueueSize / averageWaitingJobsPerNewThread),
+                std::min((unsigned int) floor(averageQueueSize /
+                                              averageWaitingJobsPerNewThread),
                          threadsMax - mThreadCount);
 
               for (auto i = 0u; i < threadsToAdd; i++) {
@@ -136,7 +139,8 @@ public:
               // Push in fake tasks for each threads to be stopped so threads can wake up and
               // notice that they should terminate. Termination is signalled with false.
               for (auto i = 0u; i < threadsToRemove; i++) {
-                auto fakeTask = std::make_pair(false, std::make_shared<std::function<void(void)>>([] {}));
+                auto fakeTask = std::make_pair(false,
+                                               std::make_shared<std::function<void(void)>>([] {}));
                 mTasks.push(fakeTask);
               }
 
@@ -148,7 +152,6 @@ public:
           }
         }
       };
-
       mMaintainerThread.reset(new std::thread(maintainerThreadFunc));
     }
   }
@@ -168,13 +171,13 @@ public:
   {
     auto task = std::make_shared<std::packaged_task<Ret(void)>>(func);
     auto taskFunc = std::make_pair(
-      true,
-      std::make_shared<std::function<void(void)>>(
-        [task] {
-          (*task)();
-        }
-      )
-    );
+                      true,
+                      std::make_shared<std::function<void(void)>>(
+    [task] {
+      (*task)();
+    }
+                      )
+                    );
     mTasks.push(taskFunc);
     return task->get_future();
   }
@@ -193,12 +196,13 @@ public:
     // Push in fake tasks for each threads so all waiting can wake up and
     // notice that running is over. Termination is signalled with false.
     for (auto i = 0u; i < mThreadPool.size(); i++) {
-      auto fakeTask = std::make_pair(false, std::make_shared<std::function<void(void)>>([] {}));
+      auto fakeTask = std::make_pair(false,
+                                     std::make_shared<std::function<void(void)>>([] {}));
       mTasks.push(fakeTask);
     }
 
     for (auto& future : mThreadPool) {
-      if(future.valid()) {
+      if (future.valid()) {
         future.get();
       }
     }
@@ -223,11 +227,10 @@ public:
 
 private:
   std::vector<std::future<void>> mThreadPool;
-  eos::common::ConcurrentQueue<std::pair<bool, std::shared_ptr<std::function<void(void)>>>> mTasks;
-
+  eos::common::ConcurrentQueue<std::pair<bool, std::shared_ptr<std::function<void(void)>>>>
+  mTasks;
   std::unique_ptr<std::thread> mMaintainerThread;
   std::promise<void> mMaintainerSignal;
-
   std::atomic_uint mThreadCount {0};
 };
 

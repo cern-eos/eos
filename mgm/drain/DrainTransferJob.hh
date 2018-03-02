@@ -52,7 +52,7 @@ public:
                    eos::common::FileSystem::fsid_t fsid_src,
                    eos::common::FileSystem::fsid_t fsid_trg = 0):
     mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg), mThread(),
-    mStatus(OK) {}
+    mStatus(Ready) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -155,6 +155,14 @@ private:
   XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain,
                          const eos::common::FileSystem::fs_snapshot& fs);
 
+  //----------------------------------------------------------------------------
+  //! Select destiantion file system for current transfer
+  //!
+  //! @param fdrain file to drain metadata info
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SelectDstFs(const FileDrainInfo& fdrain);
 
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system

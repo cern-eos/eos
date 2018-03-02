@@ -195,7 +195,6 @@ Drainer::StopFSDrain(unsigned int fsId, XrdOucString& err)
   });
 
   if (it == it_drainfs->second.end()) {
-    //fs is not draining
     err = "error: a central FS drain has not started for the given FS ";
     return false;
   }

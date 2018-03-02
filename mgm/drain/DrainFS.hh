@@ -95,21 +95,12 @@ private:
   //----------------------------------------------------------------------------
   //! State of the drain job
   //----------------------------------------------------------------------------
-  enum class State { DONE, EXPIRED, FAILED, CONTINUE};
+  enum class State {DONE, EXPIRED, FAILED, CONTINUE};
 
   //----------------------------------------------------------------------------
   //! Method draining the file system
   //----------------------------------------------------------------------------
   void DoIt();
-
-  //----------------------------------------------------------------------------
-  //! Select target file system using the GeoTreeEngine
-  //!
-  //! @param job drain job object
-  //!
-  ///! @return if successful then target file system, othewise 0
-  //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(DrainTransferJob* job);
 
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
