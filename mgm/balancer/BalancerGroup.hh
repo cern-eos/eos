@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! file BalanceGroup.hh
+//! file BalancerGroup.hh
 //! @uthor Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #pragma once
-#include <pthread.h>
+#include <thread>
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "common/Logging.hh"
+#include "mgm/balancer/BalancerJob.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -33,35 +34,28 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! @brief Class implementing the balancing of a group
 //------------------------------------------------------------------------------
-class BalanceGroup: public eos::common::LogId
+class BalancerGroup: public eos::common::LogId
 {
 public:
-  pthread_t mThread; ///< Thead supervising the balancing
-
-  //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticThreadProc(void*);
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param groupName groupName
+  //  @param spaceName spaceName
   //----------------------------------------------------------------------------
-  BalanceGroup(std::string groupName, std::string spaceName):
-    mThread(0),mGroup(groupName), mSpace(spaceName)
-  }
-  {}
+  BalancerGroup(const std::string& groupName, const std::string& spaceName):
+    mThread(), mGroup(groupName), mSpace(spaceName) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~BalanceGroup();
+  virtual ~BalancerGroup();
 
   //----------------------------------------------------------------------------
   //! Stop balancing the group
   //---------------------------------------------------------------------------
-  void BalanceGroupStop();
+  void BalancerGroupStop();
 
   //---------------------------------------------------------------------------
   //! Get the group name
@@ -70,8 +64,18 @@ public:
   {
     return mGroup;
   }
-private:
 
+  //---------------------------------------------------------------------------
+  //! Get the space name
+  //---------------------------------------------------------------------------
+  inline const std::string GetSpanceName() const
+  {
+    return mSpace;
+  }
+
+  void Start();
+
+private:
   //----------------------------------------------------------------------------
   // Thread loop implementing the Balance 
   //----------------------------------------------------------------------------
@@ -82,7 +86,7 @@ private:
   //!
   ///! @return if successful then target file system, othewise 0
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS();
+  eos::common::FileSystem::fsid_t SelectTargetFS(eos::common::FileSystem::fsid_t );
 
   //----------------------------------------------------------------------------
   //! Select source file system 
@@ -91,12 +95,16 @@ private:
   //---------------------------------------------------------------------------- 
   eos::common::FileSystem::fsid_t SelectSourceFS();
 
-  eos::common::FileSystem::fsid_t SelectFileToBalance(eos::common::FileSystem::fsid_t);
+  eos::common::FileId::fileid_t SelectFileToBalance(eos::common::FileSystem::fsid_t);
 
   //----------------------------------------------------------------------------
   //! Set initial balancer counters and status
   //----------------------------------------------------------------------------
   void SetInitialCounters();
+  
+  void GetSpaceConfiguration();
+  
+  std::thread mThread; ///< Thread supervisioning the group balancing
 
   std::string mSpace; ///< Space where fs resides
   std::string mGroup; ///< Group where fs resided
@@ -106,7 +114,7 @@ private:
   std::vector<shared_ptr<BalancerJob>> mJobsFailed;
   //! Collection of running balancer jobs
   std::vector<shared_ptr<BalancerJob>> mJobsRunning;
-  bool mBalancerStop = false; ///< Flag to cancel an ongoing draining
+  bool mBalanceStop = false; ///< Flag to cancel an ongoing draining
   unsigned int maxParallelJobs = 10; ///< Max number of parallel balancer jobs
 };
 

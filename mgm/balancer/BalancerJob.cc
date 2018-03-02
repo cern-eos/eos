@@ -69,14 +69,14 @@ void BalancerJob::Start()
 // Implement the thrid-party transfer
 //------------------------------------------------------------------------------
 void
-DrainTransferJob::DoIt()
+BalancerJob::DoIt()
 {
   using eos::common::LayoutId;
   mStatus = Status::Running;
   FileBalanceInfo fbalance;
 
   try {
-    falance = GetFileInfo();
+    fbalance = BalancerJob::GetFileInfo(mFileId);
   } catch (const eos::MDException& e) {
     ReportError(e.what());
     return;
@@ -161,7 +161,7 @@ DrainTransferJob::DoIt()
 // Get file metadata info
 //------------------------------------------------------------------------------
 BalancerJob::FileBalanceInfo
-BalancerrJob::GetFileInfo() const
+BalancerJob::GetFileInfo(eos::common::FileId::fileid_t fileId) 
 {
   std::ostringstream oss;
   FileBalanceInfo fbalance;
@@ -169,7 +169,7 @@ BalancerrJob::GetFileInfo() const
   if (gOFS->mQdbCluster.empty()) {
     try {
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fileId);
       fbalance.mProto.set_layout_id(fmd->getLayoutId());
       fbalance.mProto.set_cont_id(fmd->getContainerId());
       fbalance.mProto.set_uid(fmd->getCUid());
@@ -179,17 +179,15 @@ BalancerrJob::GetFileInfo() const
       fbalance.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
                                  fmd->getChecksum().getSize());
     } catch (eos::MDException& e) {
-      oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
+      oss << "fxid=" << eos::common::FileId::Fid2Hex(fileId)
           << " errno=" << e.getErrno()
           << " msg=\"" << e.getMessage().str() << "\"";
-      eos_err("%s", oss.str().c_str());
       throw e;
     }
   } else {
-    eos_info("Getting fid=%llu info from quarkdb", mFileId);
     qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
                             "balancer");
-    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, mFileId).get();
+    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, fileId).get();
     std::swap<eos::ns::FileMdProto>(fbalance.mProto, tmp);
     // Get the full path to the file
     std::string dir_uri;

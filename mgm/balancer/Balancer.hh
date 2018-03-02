@@ -25,6 +25,7 @@
 #ifndef __EOSMGM_BALANCER__
 #define __EOSMGM_BALANCER__
 
+#include "mgm/balancer/BalancerGroup.hh"
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include <string>
@@ -46,7 +47,7 @@ class Balancer
 public:
 
   //! Map group to a the BalanceGroup thread
-  typedef std::map<std::string, std::shared_ptr<eos::mgm::BalanceGroup>>> BalancerMap;
+  typedef std::map<std::string, std::shared_ptr<eos::mgm::BalancerGroup>> BalancerMap;
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -78,6 +79,7 @@ private:
   pthread_t mThread; ///< Balancer thread id
   std::string mSpaceName; ///< Space of this balancer object
   BalancerMap  mBalancerMap;
+  XrdSysMutex  mBalancerMutex; ///< Mutex for the mBalancerMap
 };
 
 EOSMGMNAMESPACE_END

@@ -109,7 +109,6 @@ public:
     return mErrorString;
   }
 
-private:
 
   //----------------------------------------------------------------------------
   //! Struct holding info about a file to be balanced
@@ -119,6 +118,7 @@ private:
     eos::ns::FileMdProto mProto;
   };
 
+private:
   //----------------------------------------------------------------------------
   //! Method executed by the balancer thread where all the work is done
   //----------------------------------------------------------------------------
@@ -131,7 +131,7 @@ private:
   //!
   //! @return file balance info object or throws and MDException
   //----------------------------------------------------------------------------
-  FileBalanceInfo GetFileInfo() const;
+  static FileBalanceInfo GetFileInfo(eos::common::FileId::fileid_t fileId);
 
   //----------------------------------------------------------------------------
   //! Build TPC source url

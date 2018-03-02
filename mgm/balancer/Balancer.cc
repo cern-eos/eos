@@ -166,81 +166,44 @@ Balancer::Balance(void)
 
         double dev = 0;
         double avg = 0;
-        double fsdev = 0;
 
-        
+        std::string group = std::string((*git)->GetMember("name").c_str());
+
+        //if the standard MaxStandardDevitaion is > of the configured threshould we start the balancing
         if ((dev = (*git)->MaxAbsDeviation("stat.statfs.filled", false)) >
             SpaceDifferenceThreshold) {
           avg = (*git)->AverageDouble("stat.statfs.filled", false);
           
           (*git)->SetConfigMember("stat.balancing", "balancing", false,
                                     "", true);
-	  
-          //@todo : create the thread for Balancing the group ( BalancerGroup class) and add to the map ( todo)
-          //start the drain
-          shared_ptr<BalanceGroup> balance_group = shared_ptr<BalanceGroup>(new BalanceGroup("get the group name"
-                           std::string(mSpaceName.c_str)));
 
-          mDrainFS.insert(std::make_pair("get the group name"
+          //check if a thread for the group has been already created
+          mBalancerMutex.Lock();
+          auto it_balancers = mBalancerMap.find(group);
+          if (it_balancers != mBalancerMap.end()) {
+            //if the balancer is alreeady running do nothing
+          }else {
+            shared_ptr<BalancerGroup> balance_group = shared_ptr<BalancerGroup>(new BalancerGroup(group,mSpaceName));
+            mBalancerMap.insert(std::make_pair(group,
                                    balance_group));
-          //@todo : check if this is needed
-          for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
-
-            if (fs) {
-              FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
-
-              if (node) {
-                // Broadcast the rate & stream configuration if changed
-                if (node->GetConfigMember("stat.balance.ntx") !=
-                    SpaceNodeTransfers) {
-                  node->SetConfigMember("stat.balance.ntx", SpaceNodeTransfers,
-                                        false, "", true);
-                }
-
-                if (node->GetConfigMember("stat.balance.rate") !=
-                    SpaceNodeTransferRate) {
-                  node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate,
-                                        false, "", true);
-                }
-
-                if (node->GetConfigMember("stat.balance.threshold") !=
-                    SpaceNodeThreshold) {
-                  node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold,
-                                        false, "", true);
-                }
-              }
-
-              // Broadcast the avg. value to all filesystems
-              fsdev = fs->GetDouble("stat.nominal.filled");
-
-              // If the value changes significantly, broadcast it
-              if (fabs(fsdev - avg) > 0.1) {
-                  fs->SetDouble("stat.nominal.filled", avg, true);
-              }
-            }
-          }
+            balance_group->Start();
+          }  
+          mBalancerMutex.UnLock(); 
+              
         } else {
-          for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
+           mBalancerMutex.Lock();
+           //we should stop the BalancingGroup thread if existing
+           auto it_balancers = mBalancerMap.find(group);
+       
+           if (it_balancers != mBalancerMap.end()) {
+              mBalancerMap.erase(it_balancers);
+           } 
+           mBalancerMutex.UnLock();  
 
-            if (fs) {
-              std::string isset = fs->GetString("stat.nominal.filled");
-              fsdev = fs->GetDouble("stat.nominal.filled");
-              fsdev = fabs(fsdev);
-              if ((fsdev > 0) || (!isset.length())) {
-                // 0.0 indicates, that we are perfectly filled
-                // (or the balancing is disabled)
-                if (fsdev) {
-                  fs->SetDouble("stat.nominal.filled", 0.0, true);
-                }
-
-                if ((*git)->GetConfigMember("stat.balancing") != "idle")
-                  (*git)->SetConfigMember("stat.balancing", "idle",
+           if ((*git)->GetConfigMember("stat.balancing") != "idle") {
+              (*git)->SetConfigMember("stat.balancing", "idle",
                                           false, "", true);
-              }
-            }
-          }
+           }
         }
 
         XrdOucString sizestring1;
@@ -261,24 +224,6 @@ Balancer::Balance(void)
             (*git)->SetConfigMember("stat.balancing.running", "0", false,
                                     "", true);
           }
-
-          for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
-
-            if (fs) {
-              std::string isset = fs->GetString("stat.nominal.filled");
-              double fsdev = fs->GetDouble("stat.nominal.filled");
-
-              if ((fsdev > 0) || (!isset.length())) {
-                // 0.0 indicates, that we are perfectly filled
-                // (or the balancing is disabled)
-                if (fsdev) {
-                  fs->SetDouble("stat.nominal.filled", 0.0, true);
-                }
-              }
-            }
-          }
-
           if ((*git)->GetConfigMember("stat.balancing") != "idle") {
             (*git)->SetConfigMember("stat.balancing", "idle", false,
                                     "", true);
