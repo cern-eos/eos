@@ -457,7 +457,7 @@ public:
 
   void Print(std::string& out, std::string options = "", bool monitoring = false);
 
-  bool FillContainerMD(uint64_t id, eos::fusex::md& dir);
+  int FillContainerMD(uint64_t id, eos::fusex::md& dir);
   bool FillFileMD(uint64_t id, eos::fusex::md& file);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
                         eos::common::Mapping::VirtualIdentity* vid,

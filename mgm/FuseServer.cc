@@ -1283,7 +1283,7 @@ FuseServer::Flush::Print(std::string& out)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-bool
+int
 FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
 {
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -1313,6 +1313,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     dir.set_nlink(1);
     dir.set_name(cmd->getName());
     dir.set_fullpath(fullpath);
+
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
 
     for (const auto& elem : xattrs) {
@@ -1329,6 +1330,13 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     dir.set_nchildren(cmd->getNumContainers() + cmd->getNumFiles());
 
     if (dir.operation() == dir.LS) {
+      // we put a hard-coded listing limit for service protection
+      if (dir.nchildren() > 32768)
+      {
+	// xrootd does not handle E2BIG ... sigh
+	return ENAMETOOLONG;
+      }
+
       for (auto it = cmd->filesBegin(), end = cmd->filesEnd();
            it != end; ++it) {
         (*dir.mutable_children())[it->first] =
@@ -1350,13 +1358,13 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
 
     dir.set_clock(clock);
     dir.clear_err();
-    return true;
+    return 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_err("caught exception %d %s\n", e.getErrno(),
                    e.getMessage().str().c_str());
     dir.set_err(errno);
-    return false;
+    return errno;
   }
 }
 
@@ -1951,9 +1959,10 @@ FuseServer::HandleMD(const std::string& id,
       }
 
       size_t n_attached = 1;
-
+      
+      int retc = 0;
       // retrieve directory meta data
-      if (FillContainerMD(md.md_ino(), (*parent)[md.md_ino()])) {
+      if (!(retc = FillContainerMD(md.md_ino(), (*parent)[md.md_ino()])) ) {
         // refresh the cap with the same authid
         FillContainerCAP(md.md_ino(), (*parent)[md.md_ino()], vid,
                          md.authid());
@@ -2012,6 +2021,12 @@ FuseServer::HandleMD(const std::string& id,
           std::string mdout = dump_message(*mdmap);
           eos_static_debug("\n%s\n", mdout.c_str());
         }
+      }
+      else 
+      {
+        eos_static_err("ino=%lx errc=%d", (long) md.md_ino(),
+                       retc);
+	return retc;
       }
 
       (*parent)[md.md_ino()].clear_operation();
