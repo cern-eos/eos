@@ -160,7 +160,9 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       if ((!gOFS->_readlink(url.c_str(),
                             error,
                             *mVirtualIdentity,
-                            link)) && (link != ""))
+                            link)) && (link != "") && 
+	  ( link.beginswith("http://") ||
+	    link.beginswith("https://") ))
       {
         if (gOFS->access(url.c_str(),
                          R_OK,
@@ -175,6 +177,8 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
                                            response->FORBIDDEN);
           return response;
         }
+
+
         // create an external redirect
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(eos::common::HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
