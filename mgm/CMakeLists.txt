@@ -270,7 +270,7 @@ if(Linux)
 
   target_link_libraries(
     XrdEosMgm-Shared PUBLIC
-    EosNsCommon-Static
+    #EosNsCommon-Static
     # @todo (esindril) Move the fetcher and flusher functionality in the
     # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
     EosNsQuarkdb-Shared
