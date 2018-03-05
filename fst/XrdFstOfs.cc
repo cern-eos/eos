@@ -242,8 +242,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   sleeper.Wait(1000);
   gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
-  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
-//  gFmdDbMapHandler.Shutdown();
   kill(watchdog, 9);
   int wstatus = 0;
   wait(&wstatus);
@@ -313,8 +311,6 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   XrdSysTimer sleeper;
   sleeper.Wait(1000);
   gOFS.Storage->ShutdownThreads();
-  eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gFmdDbMapHandler.Shutdown();
   kill(watchdog, 9);
   int wstatus = 0;
   ::wait(&wstatus);
