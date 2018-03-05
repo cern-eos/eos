@@ -26,11 +26,22 @@
 #include "mgm/FileSystem.hh"
 #include "common/Logging.hh"
 #include <thread>
+#include <future>
+#include <map>
+
+namespace eos
+{
+namespace common
+{
+class ThreadPool;
+}
+}
 
 EOSMGMNAMESPACE_BEGIN
 
-//! Forward declaration
+//! Forward declaratio
 class DrainTransferJob;
+
 
 //------------------------------------------------------------------------------
 //! @brief Class implementing the draining of a filesystem
@@ -41,14 +52,13 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
+  //! @param thread_pool drain thread pool to use for jobs
   //! @param fs_id filesystem id
+  //! @param target_fs_id file system where to drain
   //----------------------------------------------------------------------------
-  DrainFS(eos::common::FileSystem::fsid_t fs_id,
-          eos::common::FileSystem::fsid_t target_fs_id = 0):
-    mFsId(fs_id), mTargetFsId(target_fs_id),
-    mDrainStatus(eos::common::FileSystem::kNoDrain), mTotalFiles(0),
-    mDrainPeriod(0)
-  {}
+  DrainFS(eos::common::ThreadPool& thread_pool,
+          eos::common::FileSystem::fsid_t fs_id,
+          eos::common::FileSystem::fsid_t target_fs_id = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -63,7 +73,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the list of failed drain jobs
   //----------------------------------------------------------------------------
-  inline const std::list<shared_ptr<DrainTransferJob>>& GetFailedJobs() const
+  inline const std::list<std::shared_ptr<DrainTransferJob>>&
+      GetFailedJobs() const
   {
     return mJobsFailed;
   }
@@ -166,8 +177,8 @@ private:
   //! Collection of failed drain jobs
   std::list<shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
-  std::list<shared_ptr<DrainTransferJob>> mJobsRunning;
-
+  std::map<std::shared_ptr<DrainTransferJob>, std::future<void>> mJobsRunning;
+  eos::common::ThreadPool& mThreadPool;
 };
 
 EOSMGMNAMESPACE_END

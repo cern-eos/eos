@@ -26,12 +26,24 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
+#include "common/ThreadPool.hh"
 #include "namespace/interface/IFsView.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
 
 using namespace std::chrono;
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+DrainFS::DrainFS(eos::common::ThreadPool& thread_pool,
+                 eos::common::FileSystem::fsid_t fs_id,
+                 eos::common::FileSystem::fsid_t target_fs_id):
+  mFsId(fs_id), mTargetFsId(target_fs_id),
+  mDrainStatus(eos::common::FileSystem::kNoDrain), mTotalFiles(0),
+  mDrainPeriod(0), mThreadPool(thread_pool)
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -122,28 +134,34 @@ DrainFS::DoIt()
     }
 
     do { // Loop to drain the files
-      auto job = mJobsPending.begin();
-      // @todo (esindril) Use a thread pool for all the draining jobs
+      auto it_job = mJobsPending.begin();
 
       while ((mJobsRunning.size() <= maxParallelJobs) &&
-             (job != mJobsPending.end())) {
+             (it_job != mJobsPending.end())) {
         // @todo (esindril) this is a hack for getting different TPC keys in
         // xrootd. Should be fixed in XRootD code.
         std::this_thread::sleep_for(milliseconds(200));
-        (*job)->Start();
-        mJobsRunning.push_back(*job);
-        job = mJobsPending.erase(job);
+        auto& job = *it_job;
+        mJobsRunning.emplace(*it_job, mThreadPool.PushTask<void>(
+                               [&job] {job->Start();}));
+        it_job = mJobsPending.erase(it_job);
       }
 
       for (auto it = mJobsRunning.begin(); it !=  mJobsRunning.end();) {
-        if ((*it)->GetStatus() == DrainTransferJob::OK) {
+        if (it->first->GetStatus() == DrainTransferJob::OK) {
+          it->second.get();
           it = mJobsRunning.erase(it);
-        } else if ((*it)->GetStatus() == DrainTransferJob::Failed) {
-          mJobsFailed.push_back(*it);
+        } else if (it->first->GetStatus() == DrainTransferJob::Failed) {
+          it->second.get();
+          mJobsFailed.push_back(it->first);
           it = mJobsRunning.erase(it);
         } else {
           ++it;
         }
+      }
+
+      if (mJobsRunning.size() > maxParallelJobs) {
+        std::this_thread::sleep_for(seconds(1));
       }
 
       State state = UpdateProgress();
@@ -342,6 +360,7 @@ DrainFS::State
 DrainFS::UpdateProgress()
 {
   static bool first_run = true;
+  static seconds refresh_timeout(60);
   static seconds stall_timeout(600);
   static uint64_t old_num_to_drain = 0;
   static time_point<steady_clock> last_change = steady_clock::now();
@@ -434,7 +453,30 @@ DrainFS::UpdateProgress()
     FsView::gFsView.StoreFsConfig(fs);
   }
 
-  if (!num_to_drain) {
+  // If we have only failed jobs check if files still exist
+  if ((mJobsRunning.size() == 0) && (mJobsPending.size() == 0) &&
+      (mJobsFailed.size())) {
+    static auto last_tstamp = steady_clock::now();
+    auto now_tstamp = steady_clock::now();
+    auto dur = now_tstamp - last_tstamp;
+    bool do_refresh = (duration_cast<seconds>(dur).count() >
+                       refresh_timeout.count());
+
+    if (do_refresh) {
+      last_tstamp = now_tstamp;
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+      for (auto it = mJobsFailed.begin(); it != mJobsFailed.end();) {
+        if (gOFS->eosFsView->hasFileId((*it)->GetFileId(), (*it)->GetSourceFS())) {
+          ++it;
+        } else {
+          it = mJobsFailed.erase(it);
+        }
+      }
+    }
+  }
+
+  if ((num_to_drain == 0) && (mJobsRunning.size() == 0)) {
     CompleteDrain();
     return State::DONE;
   }

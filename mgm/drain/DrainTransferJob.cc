@@ -56,7 +56,7 @@ void DrainTransferJob::ReportError(const std::string& error)
 {
   eos_err(error.c_str());
   mErrorString = error;
-  mStatus = Status::Failed;
+  mStatus.store(Status::Failed);
 }
 
 //------------------------------------------------------------------------------
@@ -74,13 +74,13 @@ void
 DrainTransferJob::DoIt()
 {
   using eos::common::LayoutId;
-  mStatus = Status::Running;
+  mStatus.store(Status::Running);
   FileDrainInfo fdrain;
 
   try {
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
-    ReportError(e.what());
+    ReportError(std::string(e.what()));
     return;
   }
 
@@ -156,7 +156,7 @@ DrainTransferJob::DoIt()
         ReportError(tpc_st.ToStr().c_str());
       } else {
         eos_notice("msg=\"drain job completed successfully");
-        mStatus = Status::OK;
+        mStatus.store(Status::OK);
       }
     } else {
       ReportError("msg=\"failed to prepare drain job\"");
@@ -172,6 +172,7 @@ DrainTransferJob::GetFileInfo() const
 {
   std::ostringstream oss;
   FileDrainInfo fdrain;
+  eos_info("Get fid=%llu info", mFileId);
 
   if (gOFS->mQdbCluster.empty()) {
     try {

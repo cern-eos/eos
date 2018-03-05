@@ -24,6 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/ThreadPool.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -40,7 +41,8 @@ class Drainer: public eos::common::LogId
 public:
 
   //! Map node to vector of draining file systems
-  typedef std::map<std::string, std::set<std::shared_ptr<eos::mgm::DrainFS>>> DrainMap;
+  typedef std::map<std::string, std::set<std::shared_ptr<eos::mgm::DrainFS>>>
+  DrainMap;
 
   //----------------------------------------------------------------------------
   // Service thread static startup function
@@ -65,7 +67,8 @@ public:
   //----------------------------------------------------------------------------
   //! Start  of a given file system
   //----------------------------------------------------------------------------
-  bool StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId, XrdOucString&);
+  bool StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
+                    XrdOucString&);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
@@ -113,6 +116,7 @@ private:
   std::map<std::string, int> maxFSperNodeConfMap;
   DrainMap  mDrainFS;
   XrdSysMutex mDrainMutex, drainConfMutex;
+  eos::common::ThreadPool mThreadPool; ///< Thread pool for drain jobs
 };
 
 EOSMGMNAMESPACE_END

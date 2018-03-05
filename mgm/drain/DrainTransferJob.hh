@@ -86,7 +86,7 @@ public:
 
   inline DrainTransferJob::Status GetStatus() const
   {
-    return mStatus;
+    return mStatus.load();
   }
 
   inline eos::common::FileId::fileid_t GetFileId() const
@@ -169,7 +169,7 @@ private:
   eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
   std::thread mThread; ///< Thread doing the draining
   std::string mErrorString; ///< Error message
-  Status mStatus; ///< Status of the drain job
+  std::atomic<Status> mStatus; ///< Status of the drain job
 };
 
 EOSMGMNAMESPACE_END

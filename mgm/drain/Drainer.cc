@@ -33,7 +33,8 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Drainer::Drainer()
+Drainer::Drainer():
+  mThreadPool(std::thread::hardware_concurrency(), 200, 10, 6, 5)
 {
   XrdSysThread::Run(&mThread, Drainer::StaticDrainer,
                     static_cast<void*>(this), XRDSYSTHREAD_HOLD,
@@ -93,7 +94,8 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
     }
   }
 
-  //check that the destination FS, if specified, is in the same space and group of the source
+  // Check that the destination FS, if specified, is in the same space and group
+  // as the source
   if (targetFsId) {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     auto it_fs = FsView::gFsView.mIdView.find(targetFsId);
@@ -109,7 +111,8 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
     if (source_drain_snapshot.mSpace == destination_drain_snapshot.mSpace &&
         source_drain_snapshot.mGroup == destination_drain_snapshot.mGroup) {}
     else {
-      err = "error: the destination FS does not belong to the same space and scheduling group as the source";
+      err = "error: the destination FS does not belong to the same space and "
+            "scheduling group as the source";
       return false;
     }
   }
@@ -118,7 +121,7 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
   auto it_drainfs = mDrainFS.find(source_drain_snapshot.mHostPort);
 
   if (it_drainfs != mDrainFS.end()) {
-    //check if the FS is already under draining for this node
+    // Check if the FS is already under draining for this node
     auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
     [sourceFsId](const shared_ptr<DrainFS>& element) {
       return element.get()->GetFsId() == sourceFsId;
@@ -129,7 +132,7 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
       mDrainMutex.UnLock();
       return false;
     } else {
-      //check if we have reached the max fs per node for this node
+      // Check if we have reached the max fs per node for this node
       if (it_drainfs->second.size() >= GetSpaceConf(source_drain_snapshot.mSpace)) {
         err = "error: reached maximum number of draining fs for the node";
         mDrainMutex.UnLock();
@@ -138,9 +141,9 @@ Drainer::StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
     }
   }
 
-  //start the drain
-  shared_ptr<DrainFS> fs = shared_ptr<DrainFS>(new DrainFS(sourceFsId,
-                           targetFsId));
+  // Start the drain
+  std::shared_ptr<DrainFS> fs =
+    std::shared_ptr<DrainFS>(new DrainFS(mThreadPool, sourceFsId, targetFsId));
 
   if (it_drainfs != mDrainFS.end()) {
     it_drainfs->second.insert(fs);
@@ -188,7 +191,7 @@ Drainer::StopFSDrain(unsigned int fsId, XrdOucString& err)
     return false;
   }
 
-  //check if the FS is already under draining for this node
+  // Check if the FS is already under draining for this node
   auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
   [fsId](const shared_ptr<DrainFS>& element) {
     return element.get()->GetFsId() == fsId;
@@ -359,11 +362,10 @@ Drainer::GetDrainStatus(unsigned int fsId, XrdOucString& out, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-//
+// Print table with draining status
 //------------------------------------------------------------------------------
 void
-Drainer::PrintTable(TableFormatterBase& table, std::string node,
-                    DrainFS* fs)
+Drainer::PrintTable(TableFormatterBase& table, std::string node, DrainFS* fs)
 {
   TableData table_data;
   table_data.emplace_back();
@@ -375,7 +377,7 @@ Drainer::PrintTable(TableFormatterBase& table, std::string node,
 }
 
 //------------------------------------------------------------------------------
-//
+// Print table of the drain jobs
 //------------------------------------------------------------------------------
 void
 Drainer::PrintJobsTable(TableFormatterBase& table, DrainTransferJob* job)
@@ -398,6 +400,9 @@ Drainer::StaticDrainer(void* arg)
   return reinterpret_cast<Drainer*>(arg)->Drain();
 }
 
+//------------------------------------------------------------------------------
+// Method doing the actual drain monitoring
+//------------------------------------------------------------------------------
 void*
 Drainer::Drain()
 {
@@ -420,7 +425,7 @@ Drainer::Drain()
     sleeper.Wait(1000);
   } while (!go);
 
-  while (1) {
+  while (true) {
     uint64_t timeout_ms = 100;
 
     while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
@@ -443,6 +448,8 @@ Drainer::Drain()
             true, "/eos/*/mgm");
       }
 
+      // @todo (esindril): this needs to be reviewed and the mutex probably
+      // dropped
       // Get the space configuration
       drainConfMutex.Lock();
 
@@ -457,7 +464,7 @@ Drainer::Drain()
       space++;
     }
 
-    //execute only once at boot time
+    // Execute only once at boot time
     if (go) {
       for (auto it_fs = FsView::gFsView.mIdView.begin();
            it_fs != FsView::gFsView.mIdView.end(); it_fs++) {
@@ -492,12 +499,11 @@ Drainer::Drain()
 }
 
 //------------------------------------------------------------------------------
-//
+// Check space conf to see if we reached the max configured draining fs per node
 //------------------------------------------------------------------------------
 unsigned int
 Drainer::GetSpaceConf(const std::string& space)
 {
-  //check space conf to see if we reached the max configured draining fs per node
   if (maxFSperNodeConfMap.count(space)) {
     return maxFSperNodeConfMap[space];
   } else {
