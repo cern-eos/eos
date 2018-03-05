@@ -307,6 +307,9 @@ backend::fetchResponse(std::string& requestURL,
       {
 	errno = XrdCl::Proxy::status2errno(status);
 	eos_static_err ("error=status is not ok : errno=%d", errno);
+	// xrootd does not transport E2BIG ... sigh 
+	if (errno == ENAMETOOLONG)
+	  errno = E2BIG;
 	return errno;
       }
 
