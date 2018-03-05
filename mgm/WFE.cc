@@ -28,6 +28,7 @@
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
 #include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
+#include "mgm/cta_interface/include/XrdSsiPbLog.hpp"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1876,8 +1877,7 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        eos_static_debug("Request sent to outside service:\n%s",
-                         notification->DebugString().c_str());
+        XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, notification);
 
         if (event == "sync::delete") {
           auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
@@ -1932,8 +1932,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
 
   switch (response.type()) {
     case cta::xrd::Response::RSP_SUCCESS: {
-      eos_static_debug("Response received from outside service:\n%s",
-                       response.DebugString().c_str());
+      XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, &response);
       // Set all attributes for file from response
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
