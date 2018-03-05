@@ -54,7 +54,7 @@ add_library(XrdMqClient SHARED
 target_link_libraries(
   XrdMqClient PUBLIC
   fmt
-  ${UUID_LIBRARIES}
+  ${UUID_LIBRARY}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -72,7 +72,7 @@ add_library(XrdMqClient-Static STATIC
 target_link_libraries(
   XrdMqClient-Static PRIVATE
   fmt
-  ${UUID_LIBRARIES}
+  ${UUID_LIBRARY}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -92,7 +92,7 @@ add_library(XrdMqOfs MODULE
 
 target_link_libraries(
   XrdMqOfs PRIVATE
-  ${UUID_LIBRARIES}
+  ${UUID_LIBRARY}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
