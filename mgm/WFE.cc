@@ -1877,7 +1877,6 @@ WFE::Job::DoIt(bool issync)
 
         eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
                          timeoutResolution, requestTimeout, streamTimeout);
-        XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, notification);
 
         if (event == "sync::delete") {
           auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
@@ -1918,6 +1917,8 @@ int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request,
                              const std::string& hostPort, const std::string& endPoint) {
   XrdSsiPbServiceType service(hostPort, endPoint, XrdSsiPb::DefaultResponseBufferSize, 120);
+  const auto& notification = request.notification();
+  XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, &notification);
   cta::xrd::Response response;
 
   try {
