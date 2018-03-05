@@ -604,8 +604,32 @@ public:
                          long long& avail_files, long long& avail_bytes,
                          eos::IContainerMD::id_t& quota_inode);
 
+
+  //----------------------------------------------------------------------------
+  //! Get quota for a given spacequota
+  //!
+  //! @param uid user id
+  //! @param gid group id
+  //! @param avail_files inode quota left
+  //! @param avail_bytes size quota left
+  //! @param spacequota object
+  //----------------------------------------------------------------------------
+  static int QuotaBySpace(uid_t uid, gid_t gid,
+			  long long& avail_files, long long& avail_bytes,
+			  SpaceQuota* spacequota);
+
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota
+
+  //----------------------------------------------------------------------------
+  //! Get space quota object for given quota container id
+  //!
+  //! @param qino inode of quota node
+  //!
+  //! @return SpaceQuota object
+  //----------------------------------------------------------------------------
+  static SpaceQuota* GetSpaceQuota(const eos::IContainerMD::id_t qino);
+
 
 private:
 
@@ -630,6 +654,8 @@ private:
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
+  //! Map from container id to SpaceQuota object
+  static std::map<eos::IContainerMD::id_t, SpaceQuota*> pMapInodeQuota;
 };
 
 EOSMGMNAMESPACE_END
