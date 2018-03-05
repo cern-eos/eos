@@ -53,7 +53,7 @@ ProcCommand::Accounting()
 
           for (size_t i = 3; i < objectPath.size(); ++i) {
             try {
-              auto number = std::stoul(objectPath[i].c_str());
+              auto number = std::stoul(objectPath[i]);
               prevObject = &((*prevObject)[Json::ArrayIndex(number)]);
             } catch (std::invalid_argument& err) {
               prevObject = &((*prevObject)[objectPath[i]]);
@@ -134,7 +134,7 @@ ProcCommand::Accounting()
       storageShare.clear();
       attributes.clear();
       errInfo.clear();
-      gOFS->_attr_ls(quota.first.c_str(), errInfo, vid, (const char*) 0, attributes);
+      gOFS->_attr_ls(quota.first.c_str(), errInfo, vid, nullptr, attributes);
 
       for (const auto& attr : attributes) {
         processAccountingAttribute(attr, storageShare);
@@ -165,8 +165,10 @@ ProcCommand::Accounting()
       try {
         auto minutes = std::stoi(pOpaque->Get("mgm.accounting.expired"));
         accountingCache.SetExpiredAfter(
-          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::minutes(
-                minutes)));
+          std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::minutes(std::max(minutes, 1))
+          )
+        );
         stdOut += "success: expired time frame set to ";
         stdOut += minutes;
         stdOut += "\n";
@@ -180,8 +182,10 @@ ProcCommand::Accounting()
       try {
         auto minutes = std::stoi(pOpaque->Get("mgm.accounting.invalid"));
         accountingCache.SetInvalidAfter(
-          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::minutes(
-                minutes)));
+          std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::minutes(std::max(minutes, 5))
+          )
+        );
         stdOut += "success: invalid time frame set to ";
         stdOut += minutes;
         stdOut += "\n";
