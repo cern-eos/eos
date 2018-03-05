@@ -169,7 +169,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
   xml_node<> *responseNode = 0;
   if (depth == "0" || !S_ISDIR(statInfo.st_mode))
   {
-    // Simply stat the file or direcAtory
+    // Simply stat the file or directory
     responseNode = BuildResponseNode(request->GetUrl(), request->GetUrl(true));
     if (responseNode)
     {
