@@ -152,7 +152,15 @@ ProcCommand::Accounting()
     return new std::string(writer.write(root));
   };
 
+  retc = SFS_OK;
+
   if (mSubCmd == "config") {
+    if(!pVid->sudoer) {
+      stdErr += "error: only sudoers are allowed to change cache configuration";
+      retc = EPERM;
+      return retc;
+    }
+
     if (pOpaque->Get("mgm.accounting.expired")) {
       try {
         auto minutes = std::stoi(pOpaque->Get("mgm.accounting.expired"));
@@ -200,7 +208,7 @@ ProcCommand::Accounting()
     retc = ENOTSUP;
   }
 
-  return SFS_OK;
+  return retc;
 }
 
 EOSMGMNAMESPACE_END
