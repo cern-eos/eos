@@ -748,8 +748,6 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 
   if (mInodeCaps.count(id))
   {
-    std::set<std::string> deletioncaps;
-
     for (auto it = mInodeCaps[id].begin();
          it != mInodeCaps[id].end(); ++it)
     {
@@ -762,18 +760,11 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 
       if (cap->id())
       {
-        deletioncaps.insert(*it);
         gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
                                                    cap->clientuuid(),
                                                    cap->clientid());
         errno = 0 ; // seems that ZMQ function might set errno
       }
-    }
-
-    for (auto it = deletioncaps.begin(); it != deletioncaps.end(); ++it)
-    {
-      eos_static_info("auto-remove-cap authid=%s", it->c_str());
-      mInodeCaps[id].erase(*it);
     }
   }
   return 0;
@@ -795,8 +786,6 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
   if (mInodeCaps.count(refcap->id()))
   {
 
-    std::set<std::string> deletioncaps;
-
     for (auto it = mInodeCaps[refcap->id()].begin();
          it != mInodeCaps[refcap->id()].end(); ++it)
     {
@@ -817,17 +806,10 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
 
       if (cap->id())
       {
-        deletioncaps.insert(*it);
         gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
                                                    cap->clientuuid(),
                                                    cap->clientid());
       }
-    }
-
-    for (auto it = deletioncaps.begin(); it != deletioncaps.end(); ++it)
-    {
-      eos_static_info("auto-remove-cap authid=%s", it->c_str());
-      mInodeCaps[refcap->id()].erase(*it);
     }
   }
   return 0;
