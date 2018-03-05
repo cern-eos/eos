@@ -141,9 +141,9 @@ DrainFS::DoIt()
         // @todo (esindril) this is a hack for getting different TPC keys in
         // xrootd. Should be fixed in XRootD code.
         std::this_thread::sleep_for(milliseconds(200));
-        auto& job = *it_job;
+        auto job = *it_job;
         mJobsRunning.emplace(*it_job, mThreadPool.PushTask<void>(
-                               [&job] {job->Start();}));
+                               [job] {job->Start();}));
         it_job = mJobsPending.erase(it_job);
       }
 
