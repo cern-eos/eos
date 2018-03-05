@@ -275,7 +275,6 @@ if(Linux)
     # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
     EosNsQuarkdb-Shared
     EosProtobuf
-    eosCommon
     eosCommonServer
     eosCapability-Static
     qclient
