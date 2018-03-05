@@ -2805,6 +2805,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             io->set_maxfilesize(pcap->max_file_size());
           }
 
+	  io->cap_ = pcap;
+
           capLock.UnLock();
           // attach a datapool object
           fi->fh = (uint64_t) io;
@@ -2814,6 +2816,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   md_pino,
                                   req,
                                   (mode == W_OK));
+
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
 
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
@@ -3077,6 +3080,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                 md), md, true);
             io->set_authid(pcap->authid());
             io->set_maxfilesize(pcap->max_file_size());
+	    io->cap_ = pcap;
             // attach a datapool object
             fi->fh = (uint64_t) io;
             io->ioctx()->set_remote(Instance().Config().hostport,
@@ -3184,17 +3188,24 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
                      ino, size, off, buf, io->maxfilesize());
       rc = EFBIG;
     } else {
-      if (io->ioctx()->pwrite(req, buf, size, off) == -1) {
-        eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
+      if (!EosFuse::instance().getCap().has_quota(io->cap_,size))
+      {
+        eos_static_err("quota-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
                        off, buf);
-        rc = errno ? errno : EIO;
+	rc = EDQUOT;
       } else {
-        {
-          XrdSysMutexHelper mLock(io->mdctx()->Locker());
-          io->mdctx()->set_size(io->ioctx()->size());
-          io->set_update();
-        }
-        fuse_reply_write(req, size);
+	if (io->ioctx()->pwrite(req, buf, size, off) == -1) {
+	  eos_static_err("io-error: inode=%lld size=%lld off=%lld buf=%lld", ino, size,
+			 off, buf);
+	  rc = errno ? errno : EIO;
+	} else {
+	  {
+	    XrdSysMutexHelper mLock(io->mdctx()->Locker());
+	    io->mdctx()->set_size(io->ioctx()->size());
+	    io->set_update();
+	  }
+	  fuse_reply_write(req, size);
+	}
       }
     }
   } else {

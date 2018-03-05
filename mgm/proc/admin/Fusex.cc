@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+// -----------------------.qc-----------------------------------------------
 // File: proc/admin/Fusex.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -42,20 +42,44 @@ ProcCommand::Fusex()
       gOFS->zMQ->gFuseServer.Print(out, option, false);
       stdOut += out.c_str();
       retc = 0;
-    } else if (mSubCmd == "hb") {
+    } else if (mSubCmd == "conf") {
       std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") :
                        "";
+
+      std::string qc = pOpaque->Get("mgm.fusex.qc") ? pOpaque->Get("mgm.fusex.qc") :
+	               "";
+
       int i_hb = atoi(hb.c_str());
+      int i_qc = atoi(qc.c_str());
+
+      if (!i_hb && !i_qc)
+      {
+	i_hb = gOFS->zMQ->gFuseServer.Client().HeartbeatInterval();
+	i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
+      }
+
 
       if ((i_hb > 0) && (i_hb <= 15)) {
         gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(i_hb);
-        stdOut += "info: configured FUSEX heartbeat interval to ";
+        stdOut += "info: configured FUSEX heartbeat interval is ";
         stdOut += hb.c_str();
-        stdOut += " seconds";
+        stdOut += " seconds\n";
         retc = 0;
       } else {
-        stdErr += "error: hearbeat interval must be [1..15] seconds";
+        stdErr += "error: hearbeat interval must be [1..15] seconds\n";
         retc = EINVAL;
+      }
+      if ((i_qc > 0) && (i_qc <= 60)) {
+        gOFS->zMQ->gFuseServer.Client().SetQuotaCheckInterval(i_qc);
+        stdOut += "info: configured FUSEX quota check interval is ";
+        stdOut += qc.c_str();
+        stdOut += " seconds\n";
+        retc = 0;
+      } else {
+	if (i_qc < 0) {
+	  stdErr += "error: quota check interval must be [1..60] seconds\n";
+	  retc = EINVAL;
+	}
       }
     } else if (mSubCmd == "evict") {
       std::string s_reason;

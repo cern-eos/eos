@@ -169,7 +169,6 @@ public:
 private:
   cache* _file;
   journalcache* _journal;
-
   std::map<std::string, XrdCl::Proxy*> _xrdioro;
   std::map<std::string, XrdCl::Proxy*> _xrdiorw;
   fuse_ino_t ino;

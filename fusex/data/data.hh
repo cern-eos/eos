@@ -31,6 +31,7 @@
 #include "data/io.hh"
 #include "data/cachehandler.hh"
 #include "md/md.hh"
+#include "cap/cap.hh"
 #include "misc/AssistedThread.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
@@ -206,7 +207,7 @@ public:
 
   typedef struct _data_fh {
     shared_data data;
-
+    cap::shared_cap cap_;
     metad::shared_md md;
     bool rw;
     std::string _authid;

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <inttypes.h>
 #include <iostream>
 #include <list>
 #include <sstream>
@@ -29,8 +30,9 @@
 #include <iostream>
 #include <chrono>
 #include <qclient/AssistedThread.hh>
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+
+#define __PRI64_PREFIX "l"
+#define PRId64         __PRI64_PREFIX "d"
 
 EOSNSNAMESPACE_BEGIN
 

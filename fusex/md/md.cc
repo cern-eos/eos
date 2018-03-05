@@ -2345,6 +2345,19 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 	      }
             }
 
+            if (rsp.type() == rsp.CAP) {
+	      std::string clientid = rsp.cap_().clientid();
+              uint64_t ino = inomap.forward(rsp.cap_().id());
+	      cap::shared_cap cap = EosFuse::Instance().caps.get(ino, clientid);
+	      eos_static_notice("cap-update: cap-id=%lx %s", rsp.cap_().id(), cap->dump().c_str());
+
+	      if (cap->id())
+	      {
+		EosFuse::Instance().caps.update_quota(cap, rsp.cap_()._quota());
+		eos_static_notice("cap-update: cap-id=%lx %s", rsp.cap_().id(), cap->dump().c_str());
+	      }
+	    }
+
             if (rsp.type() == rsp.MD) {
               fuse_req_t req;
               memset(&req, 0, sizeof(fuse_req_t));
