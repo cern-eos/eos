@@ -1917,8 +1917,6 @@ int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request,
                              const std::string& hostPort, const std::string& endPoint) {
   XrdSsiPbServiceType service(hostPort, endPoint, XrdSsiPb::DefaultResponseBufferSize, 120);
-  const auto& notification = request.notification();
-  XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, &notification);
   cta::xrd::Response response;
 
   try {
@@ -1933,7 +1931,6 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
 
   switch (response.type()) {
     case cta::xrd::Response::RSP_SUCCESS: {
-      XrdSsiPb::Log::DumpProtobuf(XrdSsiPb::Log::PROTOBUF, &response);
       // Set all attributes for file from response
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
