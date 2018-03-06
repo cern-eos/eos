@@ -48,8 +48,7 @@ target_compile_definitions(
 #-------------------------------------------------------------------------------
 # FuseCache library
 #-------------------------------------------------------------------------------
-add_library(FuseCache SHARED $<TARGET_OBJECTS:FuseCache-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+add_library(FuseCache SHARED $<TARGET_OBJECTS:FuseCache-Objects>)
 
 target_link_libraries(
   FuseCache PUBLIC

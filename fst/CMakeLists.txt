@@ -170,15 +170,11 @@ add_library(EosFstIo-Objects OBJECT
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_dependencies(EosFstIo-Objects EosProtobuf)
-
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED
-  $<TARGET_OBJECTS:EosFstIo-Objects>
-  $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  $<TARGET_OBJECTS:EosFstIo-Objects>)
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
@@ -332,11 +328,6 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
-# Add dependecy to EosNsQuarkdb-Shared so we guarantee that the protocol
-# buffer files are generated when we try to build these libraries
-#add_dependencies(XrdEosFst-Objects EosNsQuarkdb-Shared)
-add_dependencies(XrdEosFst-Objects EosFstProto-Objects)
-
 set_target_properties(
   XrdEosFst-Objects
   PROPERTIES
@@ -346,12 +337,10 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
 add_library(XrdEosFst-Shared SHARED
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
