@@ -461,8 +461,6 @@ eos_system_test:
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test eos vid enable krb5
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
-    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
-    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest" ci
     - docker exec -i eos-client-test mkdir /eos1/
     - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
     - docker exec -i eos-client-test mkdir /eos2/
@@ -470,6 +468,8 @@ eos_system_test:
     - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
     - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest" ci
     - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 /eosclient-tests/functional/pjd-fstest.sh /eos1/dockertest/fsprobe; fi
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
+    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest" ci
     - docker exec -i eos-mgm-test eos -b space quota default on
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -493,7 +493,6 @@ eos_system_test_with_quarkdb:
     - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
     - docker exec -i eos-client-test mkdir /eos2/
     - docker exec -di eos-client-test mount -t fuse eosxd /eos2/
-    - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
     - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest" ci
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest" ci
