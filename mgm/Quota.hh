@@ -628,9 +628,14 @@ private:
 
 public:
   static std::map<std::string, SpaceQuota*> gQuota;
+  //! Map from container id to SpaceQuota object
+  static std::map<eos::ContainerMD::id_t, SpaceQuota*> gMapInodeQuota;
+
   static eos::common::RWMutex gQuotaMutex;
 
   static SpaceQuota* GetSpaceQuota (const char* name, bool nocreate = false);
+  static SpaceQuota* GetSpaceQuota(const eos::ContainerMD::id_t qino);
+
   static SpaceQuota* GetResponsibleSpaceQuota (const char*path); // returns a space (+quota node), which is responsible for <path>
 
   Quota ()
