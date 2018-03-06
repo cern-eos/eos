@@ -861,8 +861,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   url_dst.SetProtocol("root");
   url_dst.SetHostName("localhost");
   url_dst.SetUserName("root");
-  url_dst.SetPath(dst_path);
   url_dst.SetParams("eos.ruid=0&eos.rgid=0");
+  url_dst.SetPath(dst_path);
   properties.Set("source", url_src);
   properties.Set("target", url_dst);
   XrdCl::CopyProcess copy_proc;
