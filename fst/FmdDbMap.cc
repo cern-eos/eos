@@ -1262,7 +1262,14 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   while (!files.empty()) {
     struct Fmd ns_fmd;
     FmdHelper::Reset(ns_fmd);
-    NsFileProtoToFmd(files.front().get(), ns_fmd);
+
+    try {
+      NsFileProtoToFmd(files.front().get(), ns_fmd);
+    } catch (const eos::MDException& e) {
+      eos_err("msg=\"failed to get metadata from QuarkDB\"");
+      return false;
+    }
+
     files.pop_front();
     FmdHelper* local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
                                        ns_fmd.gid(), ns_fmd.lid(), true, true);
