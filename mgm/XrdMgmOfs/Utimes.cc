@@ -92,7 +92,6 @@ XrdMgmOfs::_utimes(const char* path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char* epname = "utimes";
   std::shared_ptr<eos::IContainerMD> cmd;
   EXEC_TIMING_BEGIN("Utimes");
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);

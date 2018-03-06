@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <common/Path.hh>
+#include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/ShellCmd.hh"
@@ -1739,9 +1739,8 @@ WFE::Job::DoIt(bool issync)
               StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
               std::ostringstream destStream;
               destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                         << std::string{buffer};
-              destStream <<
-                         "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
+                         << std::string{buffer}
+                         << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
               notification->mutable_transport()->set_dst_url(destStream.str());
             }
           } else {
@@ -1803,10 +1802,9 @@ WFE::Job::DoIt(bool issync)
                     << fxidString;
           notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
           std::ostringstream reportStream;
-          reportStream << "eosQuery://" << gOFS->HostName <<
-                       "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString;
-          reportStream <<
-                       "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+          reportStream << "eosQuery://" << gOFS->HostName
+                       << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                       << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
           collectAttributes();
         } else if (event == "archived") {
@@ -1854,29 +1852,6 @@ WFE::Job::DoIt(bool issync)
           MoveWithResults(SFS_ERROR);
           return SFS_ERROR;
         }
-
-        static XrdCl::Env* xrootEnv = nullptr;
-        xrootEnv = xrootEnv == nullptr ? XrdCl::DefaultEnv::GetEnv() : xrootEnv;
-        static int requestTimeout = 0;
-
-        if (xrootEnv != nullptr) {
-          xrootEnv->GetInt("RequestTimeout", requestTimeout);
-        }
-
-        static int timeoutResolution = 0;
-
-        if (xrootEnv != nullptr) {
-          xrootEnv->GetInt("TimeoutResolution", timeoutResolution);
-        }
-
-        static int streamTimeout = 0;
-
-        if (xrootEnv != nullptr) {
-          xrootEnv->GetInt("StreamTimeout", streamTimeout);
-        }
-
-        eos_static_debug("XRD_TIMEOUTRESOLUTION=%d XRD_REQUESTTIMEOUT=%d XRD_STREAMTIMEOUT=%d",
-                         timeoutResolution, requestTimeout, streamTimeout);
 
         if (event == "sync::delete") {
           auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
