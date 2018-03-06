@@ -170,7 +170,6 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc
   ${FUSEX_SRCS})
 
 #-------------------------------------------------------------------------------
@@ -274,10 +273,8 @@ if(Linux)
     # @todo (esindril) Move the fetcher and flusher functionality in the
     # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
     EosNsQuarkdb-Shared
-    EosProtobuf
     eosCommonServer
     eosCapability-Static
-    qclient
     XrdSsiPbEosCta
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}

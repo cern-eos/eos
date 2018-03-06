@@ -102,7 +102,6 @@ target_link_libraries(
   EosNsQuarkdb-Shared PUBLIC
   EosProtobuf
   EosNsCommon
-  eosCommon
   EosCrc32c-Static
   qclient
   rocksdb
