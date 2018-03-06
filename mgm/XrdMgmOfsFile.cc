@@ -2398,8 +2398,14 @@ XrdMgmOfsFile::open(const char* inpath,
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
       if (ret_wfe != 0) {
-        // Error from the workflow
+        // Remove the file from the namespace in this case
+        try {
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          gOFS->eosFileService->removeFile(fmd.get());
+        } catch (eos::MDException& ex) {}
+
         rcode = SFS_ERROR;
+        return rcode;
       }
     }
   }
