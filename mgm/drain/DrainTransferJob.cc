@@ -146,8 +146,8 @@ DrainTransferJob::DoIt()
     XrdCl::CopyProcess cpy;
     cpy.AddJob(properties, &result);
     XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_notice("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
-               url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
+    eos_info("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
+             url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
 
     if (prepare_st.IsOK()) {
       XrdCl::XRootDStatus tpc_st = cpy.Run(0);
@@ -155,7 +155,7 @@ DrainTransferJob::DoIt()
       if (!tpc_st.IsOK()) {
         ReportError(tpc_st.ToStr().c_str());
       } else {
-        eos_notice("msg=\"drain job completed successfully");
+        eos_info("msg=\"drain job completed successfully");
         mStatus.store(Status::OK);
       }
     } else {
@@ -172,7 +172,6 @@ DrainTransferJob::GetFileInfo() const
 {
   std::ostringstream oss;
   FileDrainInfo fdrain;
-  eos_info("Get fid=%llu info", mFileId);
 
   if (gOFS->mQdbCluster.empty()) {
     try {
