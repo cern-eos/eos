@@ -2404,8 +2404,7 @@ XrdMgmOfsFile::open(const char* inpath,
           gOFS->eosFileService->removeFile(fmd.get());
         } catch (eos::MDException& ex) {}
 
-        rcode = SFS_ERROR;
-        return rcode;
+        return Emsg(epname, error, ENOTCONN, "open - synchronous create workflow error", path);
       }
     }
   }
@@ -2422,7 +2421,7 @@ XrdMgmOfsFile::open(const char* inpath,
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
       if (ret_wfe != 0) {
         // Error from the workflow
-        rcode = SFS_ERROR;
+        rcode = Emsg(epname, error, ENOTCONN, "open - synchronous openw workflow error", path);
       }
     }
   }
