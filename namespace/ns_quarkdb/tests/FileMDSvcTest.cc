@@ -48,8 +48,8 @@ TEST(FileMDSvc, LoadTest)
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };
-
-  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
+  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(
+        config["qdb_cluster"]));
   eos::MetadataFlusher* flusher =
     eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
         qclient::Members::fromString(config["qdb_cluster"]));
@@ -107,98 +107,3 @@ TEST(FileMDSvc, LoadTest)
   fileSvc->finalize();
 }
 
-TEST(FileMDSvc, CheckFileTest)
-{
-  std::map<std::string, std::string> config = {
-    {"qdb_cluster", "localhost:7778"},
-    {"qdb_flusher_md", "tests_md"},
-    {"qdb_flusher_quota", "tests_quota"}
-  };
-
-  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
-  std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
-  std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
-  std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
-  std::unique_ptr<eos::IFsView> fsView{new eos::FileSystemView()};
-  fileSvc->setContMDService(contSvc.get());
-  contSvc->setFileMDService(fileSvc.get());
-  contSvc->configure(config);
-  fileSvc->configure(config);
-  fsView->configure(config);
-  view->setContainerMDSvc(contSvc.get());
-  view->setFileMDSvc(fileSvc.get());
-  view->configure(config);
-  view->initialize();
-  fileSvc->addChangeListener(fsView.get());
-  // Create test container and file
-  std::shared_ptr<eos::IContainerMD> cont =
-    view->createContainer("/test_dir", true);
-  std::shared_ptr<eos::IFileMD> file =
-    view->createFile("/test_dir/test_file1.dat");
-  eos::IFileMD::id_t fid = file->getId();
-  std::string sfid = std::to_string(fid);
-  ASSERT_TRUE(file != nullptr);
-
-  // Add some replica and unlink locations
-  for (int i = 1; i <= 4; ++i) {
-    file->addLocation(i);
-  }
-
-  // There should be 4 filesystems now
-  eos::MetadataFlusher* flusher =
-    eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
-        qclient::Members::fromString(config["qdb_cluster"]));
-  flusher->synchronize();
-  auto it = fsView->getFileSystemIterator();
-
-  for (size_t i = 1; i <= 4; i++) {
-    ASSERT_TRUE(it->valid()) << i;
-    ASSERT_EQ(i, it->getElement());
-    it->next();
-  }
-
-  ASSERT_FALSE(it->valid());
-  file->unlinkLocation(3);
-  file->unlinkLocation(4);
-  view->updateFileStore(file.get());
-  // Corrupt the backend KV store
-  std::ostringstream oss;
-  std::string key;
-  qclient::QClient* qcl = eos::BackendClient::getInstance(
-                            qclient::Members::fromString(config["qdb_cluster"]));
-  flusher->synchronize();
-  key = eos::keyFilesystemFiles(1);
-  qclient::QSet fs_set(*qcl, key);
-  ASSERT_TRUE(fs_set.srem(sfid));
-  key = eos::keyFilesystemUnlinked(4);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.srem(sfid));
-  key = eos::fsview::sNoReplicaPrefix;
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sadd(sfid));
-  // Introduce file in the set to be checked and trigger a check
-  fs_set.setKey(eos::constants::sSetCheckFiles);
-  ASSERT_NO_THROW(fs_set.sadd(sfid));
-  ASSERT_TRUE(fileSvc->checkFiles(oss));
-  // Check that the back-end KV store is consistent
-  flusher->synchronize();
-  key = eos::keyFilesystemFiles(1);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sismember(sfid));
-  key = eos::keyFilesystemFiles(2);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sismember(sfid));
-  key = eos::keyFilesystemUnlinked(3);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sismember(sfid));
-  key = eos::keyFilesystemUnlinked(4);
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.sismember(sfid));
-  key = eos::fsview::sNoReplicaPrefix;
-  fs_set.setKey(key);
-  ASSERT_TRUE(fs_set.scard() == 0);
-  file->unlinkAllLocations();
-  file->removeAllLocations();
-  view->removeFile(file.get());
-  view->removeContainer("/test_dir", true);
-}

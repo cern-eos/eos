@@ -151,16 +151,6 @@ public:
   void visit(IFileVisitor* visitor) override {};
 
   //----------------------------------------------------------------------------
-  //! Check files that had errors - these are stored in a separate set in the
-  //! KV store.
-  //!
-  //! @param oss output string stream
-  //!
-  //! @return true if all files are consistent, otherwise false
-  //----------------------------------------------------------------------------
-  bool checkFiles(std::ostringstream& oss);
-
-  //----------------------------------------------------------------------------
   //! Get first free file id
   //----------------------------------------------------------------------------
   IFileMD::id_t getFirstFreeId() override;
@@ -175,15 +165,6 @@ private:
   static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
   //! Interval for backend flush of consistent file ids
   static std::chrono::seconds sFlushInterval;
-
-  //----------------------------------------------------------------------------
-  //! Check file object consistency
-  //!
-  //! @param fid file id
-  //!
-  //! @return true if file info is consistent, otherwise false
-  //----------------------------------------------------------------------------
-  bool checkFile(std::uint64_t fid);
 
   //----------------------------------------------------------------------------
   //! Attach a broken file to lost+found
@@ -209,7 +190,6 @@ private:
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider; ///< Provides next free inode
-  qclient::QSet mDirtyFidBackend; ///< Set of "dirty" files
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
   std::atomic<uint64_t> mNumFiles; ///< Total number of fileso
 };

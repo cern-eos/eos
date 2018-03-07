@@ -35,7 +35,8 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 //----------------------------------------------------------------------------
 //! Override number of buckets
 //----------------------------------------------------------------------------
-void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets) {
+void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets)
+{
   sNumFileBuckets = buckets;
 }
 
@@ -45,13 +46,14 @@ void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets) {
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
-    mMetaMap(), mDirtyFidBackend(), mFileCache(10e8), mNumFiles(0ull) {}
+    mMetaMap(), mFileCache(10e8), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-FileMDSvc::~FileMDSvc() {
-  if(pFlusher) {
+FileMDSvc::~FileMDSvc()
+{
+  if (pFlusher) {
     pFlusher->synchronize();
   }
 }
@@ -84,8 +86,6 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     pQcl = BackendClient::getInstance(qdb_members);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
-    mDirtyFidBackend.setKey(constants::sSetCheckFiles);
-    mDirtyFidBackend.setClient(*pQcl);
     mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
@@ -115,14 +115,6 @@ FileMDSvc::initialize()
   }
 
   SafetyCheck();
-  std::ostringstream oss;
-
-  if (!checkFiles(oss)) {
-    MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__ << oss.str();
-    throw e;
-  }
-
   ComputeNumberOfFiles();
 }
 
@@ -214,8 +206,6 @@ FileMDSvc::updateStore(IFileMD* obj)
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
   std::string sid = stringify(obj->getId());
   pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
-  // Remove id from dirty set
-  pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -233,9 +223,6 @@ FileMDSvc::removeFile(IFileMD* obj)
   if (mNumFiles) {
     --mNumFiles;
   }
-
-  // Remove id from dirty set
-  pFlusher->srem(constants::sSetCheckFiles, stringify(obj->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -283,9 +270,6 @@ FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 void
 FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
-  // Mark file as inconsistent so we can recover it in case of a crash
-  pFlusher->sadd(constants::sSetCheckFiles, stringify(event->file->getId()));
-
   for (const auto& elem : pListeners) {
     elem->fileMDChanged(event);
   }
@@ -306,72 +290,6 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
   }
 
   pContSvc = impl_cont_svc;
-}
-
-//------------------------------------------------------------------------------
-// Check file object consistency
-//------------------------------------------------------------------------------
-bool
-FileMDSvc::checkFiles(std::ostringstream& oss)
-{
-  bool is_ok = true;
-  std::string cursor {"0"};
-  std::pair<std::string, std::vector<std::string>> reply;
-  std::list<std::string> to_drop;
-  oss << "Inconsistent file ids: ";
-
-  do {
-    reply = mDirtyFidBackend.sscan(cursor);
-    cursor = reply.first;
-
-    for (const auto& elem : reply.second) {
-      if (checkFile(std::stoull(elem))) {
-        to_drop.emplace_back(elem);
-      } else {
-        is_ok = false;
-        oss << elem << " ";
-      }
-    }
-  } while (cursor != "0");
-
-  if (!to_drop.empty()) {
-    try {
-      if (mDirtyFidBackend.srem(to_drop) != (long long int) to_drop.size()) {
-        fprintf(stderr, "Failed to drop files that have been fixed\n");
-      }
-    } catch (const std::runtime_error& e) {
-      fprintf(stderr, "Failed to drop files that have been fixed\n");
-    }
-  }
-
-  if (is_ok) {
-    oss.str("");
-    oss.clear();
-  }
-
-  return is_ok;
-}
-
-//------------------------------------------------------------------------------
-// Recheck individual file - the information stored in the filemd map is the
-// one reliable and to be enforced.
-//------------------------------------------------------------------------------
-bool
-FileMDSvc::checkFile(std::uint64_t fid)
-{
-  try {
-    std::shared_ptr<IFileMD> file = getFileMD(fid);
-
-    for (const auto& elem : pListeners) {
-      if (!elem->fileMDCheck(file.get())) {
-        return false;
-      }
-    }
-  } catch (const MDException& e) {
-    // File id not found
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------

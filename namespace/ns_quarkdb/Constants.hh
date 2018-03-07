@@ -46,8 +46,6 @@ static const std::string sMapMetaInfoKey{"meta_map"};
 static const std::string sLastUsedFid{"last_used_fid"};
 //! Field last used container id in meta info map
 static const std::string sLastUsedCid{"last_used_cid"};
-//! Set of files that need to be rechecked
-static const std::string sSetCheckFiles{"files_check_set"};
 }
 
 //! Variable associated with the QuotaView
