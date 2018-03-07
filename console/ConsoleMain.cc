@@ -1069,7 +1069,7 @@ main(int argc, char* argv[])
       add_history(s);
       // 20 minutes timeout for commands ... that is long !
       signal(SIGALRM, exit_handler);
-      alarm(1200);
+      alarm(3600);
       execute_line(s);
       alarm(0);
       char newline = '\n';
@@ -1237,8 +1237,7 @@ bool Path2FileDenominator(XrdOucString& input, unsigned long long& id)
   if (RegWrapDenominator(input, "fxid:[a-fA-F0-9]+$")) {
     id = strtoull(input.c_str(), nullptr, 16);
     return true;
-  }
-  else if (RegWrapDenominator(input, "fid:[0-9]+$")) {
+  } else if (RegWrapDenominator(input, "fid:[0-9]+$")) {
     id = strtoull(input.c_str(), nullptr, 10);
     return true;
   }
