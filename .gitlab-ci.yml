@@ -493,6 +493,7 @@ eos_system_test_with_quarkdb:
     - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
     - docker exec -i eos-client-test mkdir /eos2/
     - docker exec -di eos-client-test mount -t fuse eosxd /eos2/
+    - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
     - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest" ci
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest" ci
