@@ -113,21 +113,30 @@ com_fusex (char* arg1)
     in += inode;
     in += "&mgm.fusex.pid=";
     in += pid;
-  }
-  else if (subcmd == "hb")
-  {
+  } else if (subcmd == "conf") {
     XrdOucString interval = subtokenizer.GetToken();
-    int i_interval = atoi(interval.c_str());
-    if (  (i_interval < 0) || 
-	  (i_interval > 15) ) 
+    XrdOucString quota_interval = subtokenizer.GetToken();
+    int i_interval = interval.length()? atoi(interval.c_str()) : 0;
+    int q_interval = quota_interval.length()? atoi(quota_interval.c_str()) : 0;
+
+    if ((i_interval < 0) ||
+        (i_interval > 15)) {
       goto com_fusex_usage;
-    in += "&mgm.subcmd=hb";
+    }
+
+    if ((q_interval < 0 ) ||
+	(q_interval > 60 )) {
+      goto com_fusex_usage;
+    }
+
+    in += "&mgm.subcmd=conf";
     in += "&mgm.fusex.hb=";
     in += interval;
-  }
-
-  else
-  {
+    if (quota_interval.length()) {
+      in += "&mgm.fusex.qc=";
+      in += quota_interval;
+    }
+  } else {
     goto com_fusex_usage;
   }
 
@@ -204,10 +213,21 @@ com_fusex_usage:
   fprintf(stdout, "                -t|i|p <regexp>>                                     -  display entries matching <regexp> for the used filter type");
   fprintf(stdout, "\n");
   fprintf(stdout, "examples:\n");
-  fprintf(stdout, "           fusex caps -i ^0000abcd$                                  :  show caps for inode 0000abcd\n");
-  fprintf(stdout, "           fusex caps -p ^/eos/$                                     :  show caps for path /eos\n");
-  fprintf(stdout, "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
-  fprintf(stdout, "       fusex hb <seconds>                                            :  change heartbeat intervaln from [1-15] seconds");
-
+  fprintf(stdout,
+          "           fusex caps -i ^0000abcd$                                  :  show caps for inode 0000abcd\n");
+  fprintf(stdout,
+          "           fusex caps -p ^/eos/$                                     :  show caps for path /eos\n");
+  fprintf(stdout,
+          "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
+  fprintf(stdout,
+          "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds]  :  show heartbeat and quota interval\n");
+  fprintf(stdout,                       
+          "                                                                     :  [ optional change heartbeat interval from [1-15] seconds ]\n");
+  fprintf(stdout,
+	  "                                                                     :  [ optional set quota check interval from [1-16] seconds ]\n");
+  fprintf(stdout, "examples:\n");
+  fprintf(stdout, "   fusex conf                                                :  show heartbeat and quota interval\n");
+  fprintf(stdout, "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
+  fprintf(stdout, "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
   return (0);
 }

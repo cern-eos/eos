@@ -57,11 +57,175 @@ public:
 
   std::string dump_message(const google::protobuf::Message& message);
 
+  class Caps : public XrdSysMutex
+  {
+    friend class FuseServer;
+
+  public:
+
+    class capx : public eos::fusex::cap
+    {
+    public:
+
+      capx()
+      {
+      }
+
+      virtual ~capx()
+      {
+      }
+
+      capx& operator=(eos::fusex::cap other)
+      {
+        (*((eos::fusex::cap*)(this))) = other;
+        return *this;
+      }
+
+      void set_vid(eos::common::Mapping::VirtualIdentity* vid)
+      {
+        mVid = *vid;
+      }
+
+      eos::common::Mapping::VirtualIdentity* vid()
+      {
+        return &mVid;
+      }
+
+    private:
+      eos::common::Mapping::VirtualIdentity mVid;
+    } ;
+
+    typedef std::shared_ptr<capx> shared_cap;
+
+    Caps()
+    {
+    }
+
+    virtual ~Caps()
+    {
+    }
+
+    typedef std::string authid_t;
+    typedef std::string clientid_t;
+    typedef std::pair<uint64_t, authid_t> ino_authid_t;
+    typedef std::set<authid_t> authid_set_t;
+    typedef std::set<uint64_t> ino_set_t;
+    typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
+    typedef std::map<clientid_t, authid_set_t> client_set_t;
+    typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
+
+    void pop()
+    {
+      XrdSysMutexHelper lock(this);
+      mTimeOrderedCap.pop_front();
+    }
+
+    bool expire()
+    {
+      XrdSysMutexHelper lock(this);
+      authid_t id;
+      if (!mTimeOrderedCap.empty())
+      {
+        id = mTimeOrderedCap.front();
+      }
+      else
+        return false;
+
+      if (mCaps.count(id))
+      {
+        shared_cap cap = mCaps[id];
+        uint64_t now = (uint64_t) time(NULL);
+
+        if ((cap->vtime()+10) <= now)
+        {
+          mCaps.erase(id);
+          mInodeCaps[cap->id()].erase(id);
+          if (!mInodeCaps[cap->id()].size())
+            mInodeCaps.erase(cap->id());
+          return true;
+        }
+        else
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    void Store(const eos::fusex::cap &cap,
+               eos::common::Mapping::VirtualIdentity* vid);
+
+
+    bool Imply(uint64_t md_ino,
+               authid_t authid,
+               authid_t implied_authid);
+
+
+    int Delete(uint64_t id);
+
+    shared_cap Get(authid_t id);
+
+    int BroadcastCap(shared_cap cap);
+    int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
+    int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
+    int BroadcastMD(const eos::fusex::md &md,
+                    uint64_t md_ino,
+                    uint64_t md_pino,
+		    uint64_t clock,
+                    struct timespec& p_mtime
+                    ); // broad cast changed md around
+    std::string Print(std::string option, std::string filter);
+
+    std::map<authid_t, shared_cap>& GetCaps()
+    {
+      return mCaps;
+    }
+
+    notify_set_t& InodeCaps()
+    {
+      return mInodeCaps;
+    }
+
+    client_set_t& ClientCaps()
+    {
+      return mClientCaps;
+    }
+
+    client_ino_set_t& ClientInoCaps()
+    {
+      return mClientInoCaps;
+    }
+
+  protected:
+    // -------------------------------------------------------------------------
+    // a time ordered list pointing to caps
+    // -------------------------------------------------------------------------
+    std::deque< authid_t > mTimeOrderedCap;
+    // -------------------------------------------------------------------------
+    // authid=>cap lookup map
+    // -------------------------------------------------------------------------
+    std::map<authid_t, shared_cap> mCaps;
+    // -------------------------------------------------------------------------
+    // clientid=>list of authid 
+    // -------------------------------------------------------------------------
+    client_set_t mClientCaps;
+
+    // -------------------------------------------------------------------------
+    // clientid=>list of inodes 
+    // -------------------------------------------------------------------------
+    client_ino_set_t mClientInoCaps;
+
+    // -------------------------------------------------------------------------
+    // inode=>authid_t 
+    // -------------------------------------------------------------------------
+    notify_set_t mInodeCaps;
+  } ;
+
   class Clients : public XrdSysMutex
   {
   public:
 
-    Clients() : mHeartBeatWindow(15), mHeartBeatOfflineWindow(60) , mHeartBeatRemoveWindow(900), mHeartBeatInterval(1)
+    Clients() : mHeartBeatWindow(15), mHeartBeatOfflineWindow(60) , mHeartBeatRemoveWindow(900), mHeartBeatInterval(1), mQuotaCheckInterval(1)
     {
     }
 
@@ -175,6 +339,9 @@ public:
 		struct timespec& p_mtime		
 		);
 
+    // broadcast a new cap
+    int SendCAP( FuseServer::Caps::shared_cap cap );
+
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
 
@@ -186,6 +353,16 @@ public:
 
     // change the clients heartbeat interval
     int SetHeartbeatInterval(int interval);
+
+    // change the quote node check interval
+    int SetQuotaCheckInterval(int interval);
+
+    // get heartbeat interval setting
+    int HeartbeatInterval() const { return mHeartBeatInterval; } 
+
+    // get quota check interval setting
+    int QuotaCheckInterval() const { return mQuotaCheckInterval; } 
+
 
   private:
     // lookup client full id to heart beat
@@ -206,170 +383,10 @@ public:
     // client heartbeat interval
     int mHeartBeatInterval;
 
+    // quota check interval
+    int mQuotaCheckInterval;
+
     std::atomic<bool> terminate_;
-  } ;
-
-  class Caps : public XrdSysMutex
-  {
-    friend class FuseServer;
-
-  public:
-
-    class capx : public eos::fusex::cap
-    {
-    public:
-
-      capx()
-      {
-      }
-
-      virtual ~capx()
-      {
-      }
-
-      capx& operator=(eos::fusex::cap other)
-      {
-        (*((eos::fusex::cap*)(this))) = other;
-        return *this;
-      }
-
-      void set_vid(eos::common::Mapping::VirtualIdentity* vid)
-      {
-        mVid = *vid;
-      }
-
-      eos::common::Mapping::VirtualIdentity* vid()
-      {
-        return &mVid;
-      }
-
-    private:
-      eos::common::Mapping::VirtualIdentity mVid;
-    } ;
-
-    typedef std::shared_ptr<capx> shared_cap;
-
-    Caps()
-    {
-    }
-
-    virtual ~Caps()
-    {
-    }
-
-    typedef std::string authid_t;
-    typedef std::string clientid_t;
-    typedef std::pair<uint64_t, authid_t> ino_authid_t;
-    typedef std::set<authid_t> authid_set_t;
-    typedef std::set<uint64_t> ino_set_t;
-    typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
-    typedef std::map<clientid_t, authid_set_t> client_set_t;
-    typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
-
-    void pop()
-    {
-      XrdSysMutexHelper lock(this);
-      mTimeOrderedCap.pop_front();
-    }
-
-    bool expire()
-    {
-      XrdSysMutexHelper lock(this);
-      authid_t id;
-      if (!mTimeOrderedCap.empty())
-      {
-        id = mTimeOrderedCap.front();
-      }
-      else
-        return false;
-
-      if (mCaps.count(id))
-      {
-        shared_cap cap = mCaps[id];
-        uint64_t now = (uint64_t) time(NULL);
-
-        if ((cap->vtime()+10) <= now)
-        {
-          mCaps.erase(id);
-          mInodeCaps[cap->id()].erase(id);
-          if (!mInodeCaps[cap->id()].size())
-            mInodeCaps.erase(cap->id());
-          return true;
-        }
-        else
-        {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    void Store(const eos::fusex::cap &cap,
-               eos::common::Mapping::VirtualIdentity* vid);
-
-
-    bool Imply(uint64_t md_ino,
-               authid_t authid,
-               authid_t implied_authid);
-
-
-    int Delete(uint64_t id);
-
-    shared_cap Get(authid_t id);
-
-    int BroadcastRelease(const eos::fusex::md &md); // broad cast triggered by fuse network
-    int BroadcastReleaseFromExternal(uint64_t inode); // broad cast triggered non-fuse network
-    int BroadcastMD(const eos::fusex::md &md,
-                    uint64_t md_ino,
-                    uint64_t md_pino,
-		    uint64_t clock,
-                    struct timespec& p_mtime
-                    ); // broad cast changed md around
-    std::string Print(std::string option, std::string filter);
-
-    std::map<authid_t, shared_cap>& GetCaps()
-    {
-      return mCaps;
-    }
-
-    notify_set_t& InodeCaps()
-    {
-      return mInodeCaps;
-    }
-
-    client_set_t& ClientCaps()
-    {
-      return mClientCaps;
-    }
-
-    client_ino_set_t& ClientInoCaps()
-    {
-      return mClientInoCaps;
-    }
-
-  protected:
-    // -------------------------------------------------------------------------
-    // a time ordered list pointing to caps
-    // -------------------------------------------------------------------------
-    std::deque< authid_t > mTimeOrderedCap;
-    // -------------------------------------------------------------------------
-    // authid=>cap lookup map
-    // -------------------------------------------------------------------------
-    std::map<authid_t, shared_cap> mCaps;
-    // -------------------------------------------------------------------------
-    // clientid=>list of authid 
-    // -------------------------------------------------------------------------
-    client_set_t mClientCaps;
-
-    // -------------------------------------------------------------------------
-    // clientid=>list of inodes 
-    // -------------------------------------------------------------------------
-    client_ino_set_t mClientInoCaps;
-
-    // -------------------------------------------------------------------------
-    // inode=>authid_t 
-    // -------------------------------------------------------------------------
-    notify_set_t mInodeCaps;
   } ;
 
   class Lock : XrdSysMutex

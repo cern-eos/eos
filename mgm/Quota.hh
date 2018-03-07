@@ -657,6 +657,10 @@ public:
                          long long& avail_bytes,
                          eos::ContainerMD::id_t& quota_inode);
 
+  static int QuotaBySpace(uid_t uid, gid_t gid,
+                          long long& avail_files, long long& avail_bytes,
+                          SpaceQuota* spacequota);
+
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes);
 
   static void PrintOut (const char* space, XrdOucString &output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);

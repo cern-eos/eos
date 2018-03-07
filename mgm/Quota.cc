@@ -33,7 +33,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::map<std::string, SpaceQuota*> Quota::gQuota;
-std::map<eos::ContainerMD::id_t, SpaceQuota*> gMapInodeQuota;
+std::map<eos::ContainerMD::id_t, SpaceQuota*> Quota::gMapInodeQuota;
 
 eos::common::RWMutex Quota::gQuotaMutex;
 gid_t Quota::gProjectId = 99;
@@ -1125,7 +1125,8 @@ Quota::GetSpaceQuota (const char* name, bool nocreate)
       spacequota = new SpaceQuota(sname.c_str());
       gQuotaMutex.LockWrite();
       gQuota[sname] = spacequota;
-      gMapInodeQuota[spacequota->GetQuotaNode()->getId()] = spacequota;
+      if (spacequota->GetQuotaNode())
+	gMapInodeQuota[spacequota->GetQuotaNode()->getId()] = spacequota;
       gQuotaMutex.UnLockWrite();
       gQuotaMutex.LockRead();
     }
@@ -1204,6 +1205,20 @@ Quota::QuotaByPath(const char* myspace,
   }
   
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
+
+  if (space) {
+    quota_inode = space->GetQuotaNode()->getId();
+    return QuotaBySpace(uid, gid, avail_files, avail_bytes, space);
+  }
+
+  return -1;
+}
+
+int
+Quota::QuotaBySpace(uid_t uid, gid_t gid,
+                    long long& avail_files, long long& avail_bytes,
+                    SpaceQuota* space)
+{
   if (space)
   {
     long long maxbytes_user, maxbytes_group, maxbytes_project;
@@ -1262,7 +1277,6 @@ Quota::QuotaByPath(const char* myspace,
     avail_files = freefiles;
     avail_bytes = freebytes;
     
-    quota_inode = space->GetQuotaNode()->getId();
     return 0;
   }
   return -1;

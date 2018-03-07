@@ -213,12 +213,13 @@ FuseServer::MonitorCaps()
   XrdSysTimer sleeper;
   eos_static_info("msg=\"starting fusex monitor caps thread\"");
 
-  while (1)
-  {
-    do
-    {
-      if ( Cap().expire() )
-      {
+  std::map<FuseServer::Caps::authid_t, time_t> outofquota;
+
+  size_t cnt=0;
+  while (1) {
+    // expire caps
+    do {
+      if (Cap().expire()) {
         Cap().pop();
       }
       else
@@ -228,11 +229,111 @@ FuseServer::MonitorCaps()
     }
     while (1);
 
+    time_t now = time(NULL);
+
+    if (!(cnt%Clients().QuotaCheckInterval()))
+    {
+      // check quota nodes every mQuotaCheckInterval iterations
+      typedef struct quotainfo
+      {
+	quotainfo(uid_t _uid, gid_t _gid, uint64_t _qid) : uid(_uid), gid(_gid), qid(_qid) {}
+	quotainfo() : uid(0), gid(0), qid(0) {}
+	uid_t uid;
+	gid_t gid;
+	uint64_t qid;
+	std::vector<std::string> authids;
+	std::string id() {
+	  char sid[64]; snprintf(sid, sizeof(sid), "%u:%u:%lu", uid,gid,qid);
+	  return sid;
+	}
+      } quotainfo_t;  
+
+      std::map<std::string, quotainfo_t> qmap;
+      {
+	eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
+	XrdSysMutexHelper cLock(&Cap());
+	std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =  Cap().GetCaps();
+	for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
+	  eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
+	  if (it->second->_quota().quota_inode()) {
+	    quotainfo_t qi(it->second->uid(), it->second->gid(), it->second->_quota().quota_inode());
+	    // skip if we did this already ...
+	    if (qmap.count(qi.id())) {
+	      qmap[qi.id()].authids.push_back(it->second->authid());
+	    }
+	    else
+	    {
+	      qmap[qi.id()] = qi;
+	      qmap[qi.id()].authids.push_back(it->second->authid());
+	    }
+	  }
+	}
+      }
+
+      for (auto it = qmap.begin(); it != qmap.end(); ++it) {
+	eos::ContainerMD::id_t qino_id = it->second.qid;
+	eos_static_debug("checking qino=%d", qino_id);
+	eos::common::RWMutexReadLock rd_quota_lock(Quota::gQuotaMutex);
+	// check if this node is over quota
+	SpaceQuota* quota = Quota::GetSpaceQuota(qino_id);
+	if (quota) {
+	  long long avail_bytes = 0;
+	  long long avail_files = 0;
+	  if (!Quota::QuotaBySpace(it->second.uid,
+				   it->second.gid, 
+				   avail_files, 
+				   avail_bytes,
+				   quota)) {
+
+	    for (auto auit = it->second.authids.begin(); auit != it->second.authids.end(); ++auit)
+	    {
+	      eos_static_debug("checking qino=%d files=%ld bytes=%ld authid=%s", qino_id, avail_files, avail_bytes, auit->c_str());
+
+	      if ( ((!avail_files || !avail_bytes) && (!outofquota.count(*auit))) || // first time out of quota
+		   ((avail_files && avail_bytes) && (outofquota.count(*auit))) ) // first time back to quota
+	      {
+		// send the changed quota information via a cap update
+		FuseServer::Caps::shared_cap cap;
+		{
+		  XrdSysMutexHelper cLock(&Cap());
+		  if (Cap().GetCaps().count(*auit))
+		    cap = Cap().GetCaps()[*auit];
+		}
+		if (cap )
+		{
+		  cap->mutable__quota()->set_inode_quota(avail_files);
+		  cap->mutable__quota()->set_volume_quota(avail_bytes);
+		  // send this cap (again)
+		  Cap().BroadcastCap(cap);
+		}
+		// mark to not send this again unless the quota status changes
+		if (!avail_files || !avail_bytes) 
+		  outofquota[*auit] = now;
+		else
+		  outofquota.erase(*auit);
+	      }
+	    } 
+	  }
+	}
+      }
+
+      // expire some old out of quota entries 
+      for (auto it = outofquota.begin(); it != outofquota.end();) {
+	if ( ((it->second) + 3600) < now ) {
+	  auto erase_it = it++;
+	  outofquota.erase(erase_it);
+	} 
+	++it;
+      }
+    }
+    
     sleeper.Snooze(1);
 
     if (should_terminate())
       break;
+    cnt++;
   }
+
   return ;
 }
 
@@ -572,7 +673,39 @@ FuseServer::Clients::SendMD( const eos::fusex::md &md,
   return 0;
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+int
+FuseServer::Clients::SendCAP( FuseServer::Caps::shared_cap cap )
 /*----------------------------------------------------------------------------*/
+{
+  // prepare update message
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.CAP);
+  *(rsp.mutable_cap_()) = *cap;
+
+  const std::string& uuid = cap->clientuuid();
+
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+
+  XrdSysMutexHelper lLock(this);
+
+  if (!mUUIDView.count(uuid)) {
+    return ENOENT;
+  }
+  const std::string& clientid = mUUIDView[uuid];
+  
+  eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
+                  uuid.c_str(), clientid.c_str(), cap->id());
+  gOFS->zMQ->task->reply(clientid, rspstream);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void
 FuseServer::Clients::HandleStatistics(const std::string identity, const eos::fusex::statistics & stats)
 /*----------------------------------------------------------------------------*/
@@ -670,10 +803,10 @@ FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
 int
 FuseServer::Clients::SetHeartbeatInterval(int interval)
 {
-  mHeartBeatInterval = interval;
   // broadcast to all clients
 
   XrdSysMutexHelper lLock(this);
+  mHeartBeatInterval = interval;
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it)
   {
@@ -686,6 +819,15 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
       BroadcastConfig( id, cfg );
     }
   }
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Clients::SetQuotaCheckInterval(int interval)
+{
+  XrdSysMutexHelper lLock(this);
+  mQuotaCheckInterval = interval;
   return 0;
 }
 
@@ -804,8 +946,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
       if (cap->clientuuid() == refcap->clientuuid())
         continue;
 
-      if (cap->id())
-      {
+      if (cap->id()) {
         gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
                                                    cap->clientuuid(),
                                                    cap->clientid());
@@ -816,7 +957,16 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md & md)
 }
 
 int
-FuseServer::Caps::BroadcastMD(const eos::fusex::md & md,
+FuseServer::Caps::BroadcastCap(shared_cap cap)
+{
+  if (cap && cap->id()) {
+    return gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
+  }
+  return -1;
+}
+
+int
+FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               uint64_t md_ino,
                               uint64_t md_pino,
 			      uint64_t clock,

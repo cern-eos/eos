@@ -179,7 +179,7 @@ message config {
 }
 
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7;}
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7; CAP = 8;}
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -190,4 +190,5 @@ message response {
   lock lock_ = 5;
   md md_ = 6;
   config config_ = 7;
+  cap cap_ = 8;
 }

@@ -43,22 +43,54 @@ ProcCommand::Fusex ()
       retc = 0;
     }
     else
-      if (mSubCmd == "hb")
+      if (mSubCmd == "conf")
     {
-      std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") : "";
+      std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") :
+	"";
+
+      std::string qc = pOpaque->Get("mgm.fusex.qc") ? pOpaque->Get("mgm.fusex.qc") :
+	"";
+
       int i_hb = atoi(hb.c_str());
-      if ( (i_hb >0) && (i_hb <= 15) )
+      int i_qc = atoi(qc.c_str());
+
+      if (!i_hb)
       {
-	gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(i_hb);
-	stdOut += "info: configured FUSEX heartbeat interval to "; 
-	stdOut += hb.c_str();
-	stdOut += " seconds";
-	retc = 0;
+	i_hb = gOFS->zMQ->gFuseServer.Client().HeartbeatInterval();
+	char shb[16];
+	snprintf(shb, sizeof(shb),"%d",i_hb);
+	hb = shb;
       }
-      else
+
+      if (!i_qc)
       {
-	stdErr += "error: hearbeat interval must be [1..15] seconds";
-	retc = EINVAL;
+	i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
+	char sqc[16];
+	snprintf(sqc, sizeof(sqc),"%d",i_qc);
+	qc = sqc;
+      }
+      
+      if ((i_hb > 0) && (i_hb <= 15)) {
+        gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(i_hb);
+        stdOut += "info: configured FUSEX heartbeat interval is ";
+        stdOut += hb.c_str();
+        stdOut += " seconds\n";
+        retc = 0;
+      } else {
+        stdErr += "error: hearbeat interval must be [1..15] seconds\n";
+        retc = EINVAL;
+      }
+      if ((i_qc > 0) && (i_qc <= 60)) {
+        gOFS->zMQ->gFuseServer.Client().SetQuotaCheckInterval(i_qc);
+        stdOut += "info: configured FUSEX quota check interval is ";
+        stdOut += qc.c_str();
+        stdOut += " seconds\n";
+        retc = 0;
+      } else {
+        if (i_qc < 0) {
+          stdErr += "error: quota check interval must be [1..60] seconds\n";
+          retc = EINVAL;
+        }
       }
     }
     else
