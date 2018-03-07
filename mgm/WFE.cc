@@ -28,7 +28,6 @@
 #include "common/StringTokenizer.hh"
 #include "mgm/Quota.hh"
 #include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
-#include "mgm/cta_interface/include/XrdSsiPbLog.hpp"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -36,7 +35,6 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -1904,6 +1902,12 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     return SFS_ERROR;
   }
 
+  std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
+  errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
+  errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
+  errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
+
   switch (response.type()) {
     case cta::xrd::Response::RSP_SUCCESS: {
       // Set all attributes for file from response
@@ -1927,22 +1931,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     }
 
     case cta::xrd::Response::RSP_ERR_CTA:
-      eos_static_err("RSP_ERR_CTA %s", response.message_txt().c_str());
-      jobPtr->MoveWithResults(EINVAL);
-      return EINVAL;
-
     case cta::xrd::Response::RSP_ERR_USER:
-      eos_static_err("RSP_ERR_USER %s", response.message_txt().c_str());
-      jobPtr->MoveWithResults(EINVAL);
-      return EINVAL;
-
     case cta::xrd::Response::RSP_ERR_PROTOBUF:
-      eos_static_err("RSP_ERR_PROTOBUF %s", response.message_txt().c_str());
-      jobPtr->MoveWithResults(EINVAL);
-      return EINVAL;
-
     case cta::xrd::Response::RSP_INVALID:
-      eos_static_err("RSP_INVALID %s", response.message_txt().c_str());
+      eos_static_err("%s %s", errorEnumMap[response.type()], response.message_txt().c_str());
       jobPtr->MoveWithResults(EINVAL);
       return EINVAL;
 

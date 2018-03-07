@@ -794,12 +794,12 @@ runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_I
 runtest "### Attr      " unix 0 "" eos attr set sys.workflow.sync::prepare.default=test "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep permission"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:pw "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep \"synchronous prepare workflow error\""
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep \"synchronous prepare workflow error\""
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0 2>&1 | grep trigger"
+runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=0\&eos.rgid=0 2>&1 | grep \"synchronous prepare workflow error\""
 runtest "### Space     " unix 0 "" eos space config "default space.wfe=off"
 
 ################################################################################
