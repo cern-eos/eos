@@ -494,7 +494,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                          args,
                          error,
                          &lClient) != SFS_DATA) {
-      retc = Emsg(epname, error, ENOTCONN, "open - synchronous prepare workflow error", prep_path.c_str());
+      retc = Emsg(epname, error, ENOTCONN, "prepare - synchronous prepare workflow error", prep_path.c_str());
     }
   }
 
