@@ -52,12 +52,21 @@ ProcCommand::Fusex()
       int i_hb = atoi(hb.c_str());
       int i_qc = atoi(qc.c_str());
 
-      if (!i_hb && !i_qc)
+      if (!i_hb)
       {
 	i_hb = gOFS->zMQ->gFuseServer.Client().HeartbeatInterval();
-	i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
+	char shb[16];
+	snprintf(shb, sizeof(shb),"%d",i_hb);
+	hb = shb;
       }
 
+      if (!i_qc)
+      {
+	i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
+	char sqc[16];
+	snprintf(sqc, sizeof(sqc),"%d",i_qc);
+	qc = sqc;
+      }
 
       if ((i_hb > 0) && (i_hb <= 15)) {
         gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(i_hb);

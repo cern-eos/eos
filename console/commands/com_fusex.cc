@@ -114,7 +114,7 @@ com_fusex(char* arg1)
   } else if (subcmd == "conf") {
     XrdOucString interval = subtokenizer.GetToken();
     XrdOucString quota_interval = subtokenizer.GetToken();
-    int i_interval = interval.length()? atoi(interval.c_str()) : -1;
+    int i_interval = interval.length()? atoi(interval.c_str()) : 0;
     int q_interval = quota_interval.length()? atoi(quota_interval.c_str()) : 0;
 
     if ((i_interval < 0) ||
@@ -128,7 +128,7 @@ com_fusex(char* arg1)
     }
 
     in += "&mgm.subcmd=conf";
-    in += "&mgm.fusex.conf=";
+    in += "&mgm.fusex.hb=";
     in += interval;
     if (quota_interval.length()) {
       in += "&mgm.fusex.qc=";

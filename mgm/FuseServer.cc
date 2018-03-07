@@ -219,6 +219,8 @@ FuseServer::MonitorCaps()
 
   std::map<FuseServer::Caps::authid_t, time_t> outofquota;
 
+  uint64_t noquota = std::numeric_limits<long>::max() / 2;
+
   size_t cnt=0;
   while (1) {
     // expire caps
@@ -256,6 +258,11 @@ FuseServer::MonitorCaps()
 	std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =  Cap().GetCaps();
 	for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
 	  eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
+
+	  // if we find a cap with 'noquota' contents, we just ignore this one
+	  if (it->second->_quota().inode_quota() == noquota)
+	    continue;
+
 	  if (it->second->_quota().quota_inode()) {
 	    quotainfo_t qi(it->second->uid(), it->second->gid(), it->second->_quota().quota_inode());
 	    // skip if we did this already ...
