@@ -56,6 +56,7 @@ private:
   // Statistics
   long int noScanFiles;
   long int noCorruptFiles;
+  long int noHWCorruptFiles;
   float durationScan;
   long long int totalScanSize;
   long long int bufferSize;

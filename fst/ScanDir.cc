@@ -112,7 +112,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
 {
   thread = 0;
   noNoChecksumFiles = noScanFiles = 0;
-  noCorruptFiles = noTotalFiles = SkippedFiles = 0;
+  noHWCorruptFiles = noCorruptFiles = noTotalFiles = SkippedFiles = 0;
   durationScan = 0;
   totalScanSize = bufferSize = 0;
   buffer = 0;
@@ -238,7 +238,7 @@ ScanDir::CheckFile(const char* filepath)
   float scantime;
   unsigned long layoutid = 0;
   unsigned long long scansize;
-  std::string filePath, checksumType, checksumStamp, logicalFileName;
+  std::string filePath, checksumType, checksumStamp, logicalFileName, previousFileCxError;
   char checksumVal[SHA_DIGEST_LENGTH];
   size_t checksumLen;
   filePath = filepath;
@@ -286,14 +286,29 @@ ScanDir::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.timestamp", checksumStamp);
   io->attrGet("user.eos.lfn", logicalFileName);
+
+  io->attrGet("user.eos.filecxerror", previousFileCxError);
+
   bool rescan = RescanFile(checksumStamp);
 
+  // a file which was checked as ok, but got a checksum error
+  bool was_healthy = (previousFileCxError == "0");
+
+  // check if this file has been modified since the last time we scanned it
+  bool didnt_change = false;
+  time_t scanTime = atoll(checksumStamp.c_str())/ 1000000;
+  
+  if (buf1.st_mtime < scanTime)
+  {
+    didnt_change = true;
+  }
+
   if (rescan || forcedScan) {
-    // if (checksumType.compare(""))
     if (1) {
       bool blockcxerror = false;
       bool filecxerror = false;
       bool skiptosettime = false;
+
       XrdOucString envstring = "eos.layout.checksum=";
       envstring += checksumType.c_str();
       XrdOucEnv env(envstring.c_str());
@@ -329,9 +344,23 @@ ScanDir::CheckFile(const char* filepath)
                      filePath.c_str(), logicalFileName.c_str());
               eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
                       logicalFileName.c_str());
+
+	      if (was_healthy && didnt_change)
+	      {
+		syslog(LOG_ERR, "HW corrupted file found: localpath=%s lfn=\"%s\" \n", 
+		       filePath.c_str(), logicalFileName.c_str());
+		noHWCorruptFiles++;
+	      }
+	       
             } else {
               fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
                       filePath.c_str(), logicalFileName.c_str());
+	      if (was_healthy && didnt_change)
+	      {
+		fprintf(stderr, "HW corrupted file found: localpath=%s lfn=\"%s\" \n", 
+			filePath.c_str(), logicalFileName.c_str());
+		noHWCorruptFiles++;
+	      }
             }
           }
         } else {
@@ -674,6 +703,7 @@ ScanDir::ThreadProc(void)
     noScanFiles = 0;
     totalScanSize = 0;
     noCorruptFiles = 0;
+    noHWCorruptFiles = 0;
     noNoChecksumFiles = 0;
     noTotalFiles = 0;
     SkippedFiles = 0;
@@ -685,19 +715,19 @@ ScanDir::ThreadProc(void)
 
     if (bgThread) {
       syslog(LOG_ERR,
-             "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n",
+             "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
              dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
              SkippedFiles);
-      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li",
+      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li",
                  dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
                  SkippedFiles);
     } else {
       fprintf(stderr,
-              "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n",
+              "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
               dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
               SkippedFiles);
     }
 
