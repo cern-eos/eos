@@ -900,29 +900,30 @@ filesystem::add_fd2file(LayoutWrapper* raw_file,
   auto iter_fd = inodexrdlogin2fds.find(sstr.str());
   shared_ptr<FileAbstraction> fabst;
 
-// If there is already an entry for the current user and the current inode
-// then we return the old fd
-  if (!raw_file) {
+  // If there is already an entry for the current user and the current inode
+  // then we return the old fd
+  if (raw_file == nullptr) {
     if (iter_fd != inodexrdlogin2fds.end()) {
       fd = *iter_fd->second.begin();
-      auto iter_file = fd2fabst.find(
-                         fd);  //all the fd ti a same file share the same fabst
+      auto iter_file = fd2fabst.find(fd);
 
       if (iter_file != fd2fabst.end()) {
         fabst = iter_file->second;
-      }
 
-      for (auto fdit = iter_fd->second.begin(); fdit != iter_fd->second.end();
-           fdit++) {
-        if (isROfd == (fd2count[*fdit] < 0)) {
-          fd2count[*fdit] += isROfd ? -1 : 1;
-          isROfd ? iter_file->second->IncNumOpenRO() : iter_file->second->IncNumOpenRW();
-          eos_static_debug("existing fdesc exisiting fabst: fabst=%p path=%s "
-                           "isRO=%d => fdesc=%d",
-                           fabst.get(), path, (int) isROfd, (int) *fdit);
-          fabst->CleanReadCache();
-          return *fdit;
+        for (auto fdit = iter_fd->second.begin(); fdit != iter_fd->second.end();
+             fdit++) {
+          if (isROfd == (fd2count[*fdit] < 0)) {
+            fd2count[*fdit] += isROfd ? -1 : 1;
+            isROfd ? fabst->IncNumOpenRO() : fabst->IncNumOpenRW();
+            eos_static_debug("existing fdesc exisiting fabst: fabst=%p path=%s "
+                             "isRO=%d => fdesc=%d",
+                             fabst.get(), path, (int) isROfd, (int) *fdit);
+            fabst->CleanReadCache();
+            return *fdit;
+          }
         }
+      } else {
+        return -1;
       }
     }
 
