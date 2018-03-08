@@ -148,6 +148,22 @@ XrdMgmOfs::_rem(const char* path,
     fid = fmd->getId();
     eos_info("got fmd=%lld", (unsigned long long) fmd.get());
 
+    if (fmd->hasAttribute("sys.eos.mdino") || fmd->hasAttribute("sys.eos.nlink")) {
+      eos_static_info("hlnk rm target fid %#lx", fid);
+      bool ok = false;
+      if (fmd->hasAttribute("sys.eos.nlink")) {
+	  long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
+          eos_static_info("hlnk rm target nlink %ld", nlink);
+	  ok = (nlink == 0) && strncmp(fmd->getName().c_str(), "...eos.ino...", 13);		/* 0-origin - nlink=0 means just this file */
+      }
+
+      if (!ok) {
+        gOFS->eosViewRWMutex.UnLockWrite();
+        errno = EXDEV;
+        return Emsg(epname, error, errno, "remove file with hard links only through fusex", path);
+      }
+    }
+
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       aclpath = gOFS->eosView->getUri(container.get());

@@ -83,6 +83,9 @@
 
 #define _FILE_OFFSET_BITS 64
 
+const char *k_mdino = "sys.eos.mdino";
+const char *k_nlink = "sys.eos.nlink";
+
 EosFuse* EosFuse::sEosFuse = 0;
 
 /* -------------------------------------------------------------------------- */
@@ -1116,6 +1119,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fusestat.Add("removexattr", 0, 0, 0);
     fusestat.Add("readlink", 0, 0, 0);
     fusestat.Add("symlink", 0, 0, 0);
+    fusestat.Add("link", 0, 0, 0);
     fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
     tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
     tStatCirculate.reset(&EosFuse::StatCirculate, this);
@@ -1842,7 +1846,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
     if (md->err()) {
       if (EOS_LOGS_DEBUG) {
-        eos_static_debug("returning errc=%d for ino=%016lx name=%s md-name=%s\n",
+        eos_static_debug("returning errc=%d for ino=%#lx name=%s md-name=%s\n",
                          md->err(), parent, name, md->name().c_str());
       }
 
@@ -2076,6 +2080,8 @@ EBADF  Invalid directory stream descriptor fi->fh
       metad::shared_md cmd = Instance().mds.get(req, cino, "" , 0, 0, 0, true);
       eos_static_debug("list: %08x %s (d=%d)", cino, it->first.c_str(),
                        cmd->deleted());
+      if (strncmp(bname.c_str(), "...eos.ino...", 13) == 0)	/* hard link deleted inodes */
+	continue;
       mode_t mode;
       {
         XrdSysMutexHelper cLock(cmd->Locker());
@@ -2089,11 +2095,24 @@ EBADF  Invalid directory stream descriptor fi->fh
       struct stat stbuf;
       memset(&stbuf, 0, sizeof(struct stat));
       stbuf.st_ino = cino;
+      {
+	  auto attrMap = cmd->attr();
+
+	  if (attrMap.count(k_mdino)) {
+	      uint64_t mdino = std::stoll(attrMap[k_mdino]);
+	      uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
+	      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk %s id %#lx mdino '%s' (%lx) local_ino %#lx", cmd->name().c_str(), cmd->id(), attrMap[k_mdino].c_str(), mdino, local_ino);
+	      stbuf.st_ino = local_ino;
+	      metad::shared_md target = Instance().mds.get(req, local_ino, "" , 0, 0, 0, true);
+	      mode = target->mode();
+	  }
+
+      }
       stbuf.st_mode = mode;
       size_t a_size = fuse_add_direntry(req, b_ptr , size - b_size,
                                         bname.c_str(), &stbuf, ++off);
-      eos_static_info("name=%s ino=%08lx mode=%08x bytes=%u/%u",
-                      bname.c_str(), cino, mode, a_size, size - b_size);
+      eos_static_info("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u",
+                      bname.c_str(), cino, stbuf.st_ino, mode, a_size, size - b_size);
 
       if (a_size > (size - b_size)) {
         break;
@@ -2388,7 +2407,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  if (EOS_LOGS_DEBUG) eos_static_debug("parent=%#lx name=%s", parent, name);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor pmon(__func__, Instance().Tracker(), parent, true);
@@ -2401,6 +2420,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   if (pcap->errc()) {
     rc = pcap->errc();
   } else {
+    metad::shared_md pmd = NULL /* Parent */, tmd = NULL /*Hard link target */;
     std::string sname = name;
     uint64_t freesize = 0;
 
@@ -2416,7 +2436,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
     if (!rc) {
       metad::shared_md md;
-      metad::shared_md pmd;
       md = Instance().mds.lookup(req, parent, name);
       XrdSysMutexHelper mLock(md->Locker());
 
@@ -2435,8 +2454,29 @@ EROFS  pathname refers to a file on a read-only filesystem.
           eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
           rc = EPERM; // you shall not pass, muahahahahah
         } else {
-          freesize = md->size();
+	  int nlink = 0;				    /* nlink has 0-origin (0 = simple file, 1 = inode has two names) */
+	  auto attrMap = md->attr();
+
           pmd = Instance().mds.get(req, parent, pcap->authid());
+
+	  if (attrMap.count(k_mdino)) {			    /* This is a hard link */
+	    uint64_t mdino = std::stoll(attrMap[k_mdino]);
+	    uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
+	    tmd = Instance().mds.get(req, local_ino, pcap->authid());	    /* the target of the link */
+	    attrMap = tmd->attr();
+	  }
+
+	  if (attrMap.count(k_nlink)) {
+	    nlink = std::stol(attrMap[k_nlink]);
+	    md->cap_count_reset();			    /* force refresh */
+	    if (tmd == NULL)				    /* the original target which must be refreshed later, even if logically deleted meanwhile */
+		tmd = md;
+	  } 
+
+          if (nlink <= 0)				    /* don't bother updating, this is a real delete */
+	    freesize = md->size();
+
+          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink, Instance().mds.dump_md(md, false).c_str());
           Instance().datas.unlink(req, md->id());
           Instance().mds.remove(req, pmd, md, pcap->authid());
           del_ino = md->id();
@@ -2453,6 +2493,22 @@ EROFS  pathname refers to a file on a read-only filesystem.
       Instance().caps.free_volume(pcap, freesize);
       Instance().caps.free_inode(pcap);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
+    }
+
+    if (tmd) {		/* link target, need to update as nlink has been decreased (on the server) */
+      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink refresh inode %#lx",  tmd->id());
+      if (tmd->getop() == tmd->RM) tmd->setop_none();		/* in case we just deleted it: we need to refresh it nevertheless */
+
+      int rc = Instance().mds.refresh(req, tmd->id(), pcap->authid());
+      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink refresh rc=%d inode %#lx", rc, tmd->id());
+    }
+
+    if (pmd) {
+      XrdSysMutexHelper pLock(pmd->Locker());
+      pmd->cap_count_reset();
+      pLock.UnLock();
+      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink tmpd get %s inode %#lx", pmd->name().c_str(), parent);
+      metad::shared_md tpmd = Instance().mds.get(req, parent, pcap->authid());
     }
   }
 
@@ -3329,7 +3385,7 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  eos_static_debug("ino=%#lx nlookup=%d", ino, nlookup);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   int rc = 0;
@@ -4146,6 +4202,108 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, parent, 0, rc).c_str());
+}
+
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent, const char* newname)
+/* -------------------------------------------------------------------------- */
+{
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
+  if (EOS_LOGS_DEBUG) eos_static_debug("hlnk newname=%s ino=%#lx parent=%#lx", newname, ino, parent);
+  ADD_FUSE_STAT(__func__, req);
+  EXEC_TIMING_BEGIN(__func__);
+  Track::Monitor mon(__func__, Instance().Tracker(), parent);
+  int rc = 0;
+  fuse_id id(req);
+  struct fuse_entry_param e;
+
+  // do a parent check
+  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                         S_IFDIR | W_OK, true);
+
+  if (pcap->errc()) {
+    rc = pcap->errc();
+  } else {
+    metad::shared_md md;	    /* the new name */
+    metad::shared_md pmd;	    /* the parent directory for the new name */
+    metad::shared_md tmd;	    /* the link target */
+
+    md = Instance().mds.lookup(req, parent, newname);
+    pmd = Instance().mds.get(req, parent, pcap->authid());
+    XrdSysMutexHelper mLock(md->Locker());
+
+    if (md->id() && !md->deleted()) {
+      rc = EEXIST;
+    } else {
+      if (md->deleted()) {
+        // we need to wait that this entry is really gone
+        Instance().mds.wait_flush(req, md);
+      }
+      tmd = Instance().mds.get(req, ino, pcap->authid());		/* link target */
+      if (tmd->id()==0 || tmd->deleted()) {
+        rc = ENOENT;
+      } else if (tmd->pid() != parent) {
+	rc = EXDEV;							/* only same parent supported */
+      } else {
+        XrdSysMutexHelper tmLock(tmd->Locker());
+
+	if (EOS_LOGS_DEBUG) eos_static_debug("hlnk tmd id=%ld %s", tmd->id(), tmd->name().c_str());
+
+        md->set_mode(tmd->mode());
+        md->set_err(0);
+        struct timespec ts;
+        eos::common::Timing::GetTimeSpec(ts);
+        md->set_name(newname);
+
+	char tgtStr[64];
+	snprintf(tgtStr, sizeof(tgtStr), "////hlnk%ld", tmd->md_ino());	/* This triggers the hard link and specifies the target inode */
+        md->set_target(tgtStr);
+
+        md->set_atime(tmd->atime());
+        md->set_atime_ns(tmd->atime_ns());
+        md->set_mtime(tmd->mtime());
+        md->set_mtime_ns(tmd->mtime_ns());
+        md->set_ctime(tmd->ctime());
+        md->set_ctime_ns(tmd->ctime_ns());
+        md->set_btime(tmd->btime());
+        md->set_btime_ns(tmd->btime_ns());
+        md->set_uid(tmd->uid());
+        md->set_gid(tmd->gid());
+	md->set_size(tmd->size());
+	tmd->Locker().UnLock();
+
+        md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+        rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+
+	md->set_target("");
+	md->Locker().UnLock();
+
+	if (rc==0) {
+          int rc2 = Instance().mds.refresh(req, tmd->id(), pcap->authid());	/* corrects the nlink count among other things */
+          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk refresh target rc=%d inode %#lx", rc2, tmd->id());
+
+          rc2 = Instance().mds.refresh(req, md->id(), pcap->authid());
+          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk refresh link rc=%d link inode %#lx", rc2, md->id());
+
+	  { 
+		XrdSysMutexHelper tmLock(tmd->Locker());
+		memset(&e, 0, sizeof(e));
+		tmd->convert(e);
+		if (EOS_LOGS_DEBUG) eos_static_debug("hlnk tmd %s %s", tmd->name().c_str(), tmd->dump(e).c_str());
+		fuse_reply_entry(req, &e);			    /* hereafter the req may no longer be valid, hence this had better be the last action */
+	  } 
+
+	}
+      }
+    }
+  }
+
+  if (rc) fuse_reply_err(req, rc);
+
+  EXEC_TIMING_END(__func__);
+  COMMONTIMING("_stop_", &timing);
 }
 
 void

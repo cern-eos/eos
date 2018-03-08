@@ -152,6 +152,9 @@ public:
   static void readlink(fuse_req_t req, fuse_ino_t ino);
 
   static void
+  link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent, const char* newname);
+
+  static void
   symlink(fuse_req_t req, const char* link, fuse_ino_t parent, const char* name);
 
   static void getlk(fuse_req_t req, fuse_ino_t ino,

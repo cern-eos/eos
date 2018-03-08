@@ -152,7 +152,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 metad::shared_md
 metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 {
-  eos_static_info("ino=%08llx name=%s", parent, name);
+  eos_static_info("ino=%#llx name=%s", parent, name);
   // --------------------------------------------------
   // STEP 1 : retrieve the required parent MD
   // --------------------------------------------------
@@ -298,11 +298,27 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 void
 metad::mdx::convert(struct fuse_entry_param& e)
 {
+  const char *k_mdino = "sys.eos.mdino";
+  auto attrMap = attr();
+
   e.ino = id();
   e.attr.st_dev = 0;
   e.attr.st_ino = id();
   e.attr.st_mode = mode();
   e.attr.st_nlink = nlink() + 1;
+  if (attrMap.count(k_mdino)) {
+      uint64_t mdino = std::stoll(attrMap[k_mdino]);
+      uint64_t local_ino = EosFuse::Instance().mds.inomap.forward(mdino);
+      shared_md tmd = EosFuse::Instance().mds.getlocal(NULL, local_ino);
+      if (!tmd->id()) {
+	  eos_static_err("converting hard-link %s target inode %#lx remote %#lx not in cache, nlink set to %d", name().c_str(), local_ino, mdino, e.attr.st_nlink);
+      } else {
+	  if (EOS_LOGS_DEBUG) eos_static_debug("hlnk convert name=%s id=%#lx target local_ino=%#lx nlink0=", name().c_str(), id(), local_ino, tmd->nlink());
+	  e.attr.st_nlink = tmd->nlink() + 1;
+      }
+
+      e.ino = e.attr.st_ino = local_ino;
+  }
   e.attr.st_uid = uid();
   e.attr.st_gid = gid();
   e.attr.st_rdev = 0;
@@ -352,10 +368,6 @@ metad::mdx::convert(struct fuse_entry_param& e)
     e.attr.st_mode &= (~S_ISGID);
     e.attr.st_mode &= (~S_ISUID);
   }
-  else
-  {
-    e.attr.st_nlink=1;
-  }
   if (S_ISLNK(e.attr.st_mode))
   {
     e.attr.st_size = target().size();
@@ -370,7 +382,7 @@ metad::mdx::dump()
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
-           "ino=%016lx dev=%08x mode=%08x nlink=%08x uid=%05d gid=%05d rdev=%08x "
+           "ino=%016lx dev=%08x mode=%#o nlink=%d uid=%05d gid=%05d rdev=%08x "
            "size=%llu bsize=%u blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
            (unsigned long) id(), 0, (unsigned int) mode(), (unsigned int) nlink(),
            (int) uid(), (int) gid(), 0,
@@ -526,7 +538,7 @@ metad::get(fuse_req_t req,
            const char* name,
            bool readdir)
 {
-  eos_static_info("ino=%1llx pino=%16lx name=%s listing=%d", ino,
+  eos_static_info("ino=%#llx pino=%#lx name=%s listing=%d", ino,
                   pmd ? pmd->id() : 0, name, listing);
   shared_md md;
 
@@ -565,7 +577,7 @@ metad::get(fuse_req_t req,
       eos_static_info("returning cap entry");
       return md;
     } else {
-      eos_static_info("pmd=%x cap-cnt=%d", pmd ? pmd->id() : 0,
+      eos_static_info("pmd=%#x cap-cnt=%d", pmd ? pmd->id() : 0,
                       pmd ? pmd->cap_count() : 0);
       uint64_t md_pid = 0;
       mode_t md_mode = 0;
@@ -790,6 +802,73 @@ metad::get(fuse_req_t req,
   }
 
   return md;
+}
+
+/* -------------------------------------------------------------------------- */
+int
+metad::refresh(fuse_req_t req, fuse_ino_t ino, std::string authid)
+{
+  shared_md md;
+
+  if (!mdmap.retrieveTS(ino, md)) {
+      return ENOENT;
+  }
+
+  if ( EOS_LOGS_DEBUG ) {
+      eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
+  }
+
+
+  int rc = 0; // response code to a backend getMD call
+  std::vector<eos::fusex::container> contv; // response container
+  eos_static_info("ino=%#lx type=%d", md->md_ino(), md->type());
+  rc = mdbackend->getMD(req, md->md_ino(), md->clock(), contv, false, authid);
+
+  if (!rc) {
+    // -------------------------------------------------------------------------
+    // we need to store all response data and eventually create missing
+    // hierarchical entries
+    // -------------------------------------------------------------------------
+    eos_static_debug("apply vector=%d", contv.size());
+
+    for (auto it = contv.begin(); it != contv.end(); ++it) {
+      if (it->ref_inode_()) {
+        if (ino) {
+          // the response contains the remote inode according to the request
+          inomap.insert(it->ref_inode_(), ino);
+        }
+
+        uint64_t l_ino;
+
+        // store the retrieved meta data blob
+        if (!(l_ino = apply(req, *it, false))) {
+          eos_static_crit("msg=\"failed to apply response\"");
+        } else {
+          ino = l_ino;
+        }
+      } else {
+        // we didn't get the md back
+      }
+    }
+
+    /*
+    // if the md record was returned, it is accessible after the apply function
+    // attached it. We should also attach to the parent to be able to add
+    // a not yet published child entry at the parent.
+    mdmap.retrieveWithParentTS(ino, md, pmd);
+
+    eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
+                    pmd ? pmd->id() : 0, name, listing);
+    */
+
+  }
+
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("MD:\n%s", dump_md(md).c_str());
+  }
+
+
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1076,8 +1155,8 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   // this is called with the md object locked
 
   if (EOS_LOGS_DEBUG)
-    eos_static_debug("child=%s parent=%s inode=%016lx", md->name().c_str(),
-		     pmd->name().c_str(), md->id());
+    eos_static_debug("child=%s parent=%s inode=%#lx upstreaqm=%d", md->name().c_str(),
+		     pmd->name().c_str(), md->id(), upstream);
 
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
@@ -1752,7 +1831,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             mdflush.Lock();
             if (!mdqueue.count(md->id()))
             {
-	      eos_static_debug("case 2 %s", md->name().c_str());
+	      eos_static_debug("case 2 %s id %#lx", md->name().c_str(), md->id());
 
               mdflush.UnLock();
 	      todelete = md->get_todelete();
@@ -1966,7 +2045,7 @@ metad::mdcflush(ThreadAssistant& assistant)
       fuse_id f_id = it->get_fuse_id();
       mdx::md_op op = it->op();
       lastflushid = ino;
-      eos_static_info("metacache::flush ino=%lx flushqueue-size=%u", ino,
+      eos_static_info("metacache::flush ino=%#lx flushqueue-size=%u", ino,
                       mdflushqueue.size());
       eos_static_info("metacache::flush %s", flushentry::dump(*it).c_str());
       mdflushqueue.erase(it);

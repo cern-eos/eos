@@ -137,6 +137,7 @@ protected:
     operations.listxattr = &T::listxattr;
     operations.removexattr = &T::removexattr;
     operations.readlink = &T::readlink;
+    operations.link = &T::link;
     operations.symlink = &T::symlink;
     operations.getlk = &T::getlk;
     operations.setlk = &T::setlk;

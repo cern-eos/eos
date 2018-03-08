@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <string>
+#include <cstdlib>
+
 #include "mgm/FuseServer.hh"
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
@@ -42,6 +45,9 @@ EOSMGMNAMESPACE_BEGIN
 #define SA_OK 64   // set xattr
 #define U_OK 128   // can update
 #define SU_OK 256  // set utime
+
+const char *k_mdino = "sys.eos.mdino";
+const char *k_nlink = "sys.eos.nlink";
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -1523,7 +1529,7 @@ bool
 FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
 {
   // fills file meta data by inode number
-  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> fmd, gmd;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   uint64_t clock = 0;
@@ -1531,12 +1537,23 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
                    eos::common::FileId::InodeToFid(inode));
 
   try {
+    bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
                                           &clock);
     eos_static_info("clock=%llx", clock);
+    file.set_name(fmd->getName());
+    gmd = fmd;
+    if (fmd->hasAttribute(k_mdino)) {
+      has_mdino = true;
+      uint64_t mdino = std::stoll(fmd->getAttribute(k_mdino));
+      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino), &clock);
+      eos_static_info("hlnk switched from %s to file %s (%#llx)", gmd->getName().c_str(), fmd->getName().c_str(), mdino);
+    }
+
+    /* fmd = link target file, gmd = link file */
     fmd->getCTime(ctime);
     fmd->getMTime(mtime);
-    file.set_md_ino(inode);
+    file.set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
     file.set_md_pino(fmd->getContainerId());
     file.set_ctime(ctime.tv_sec);
     file.set_ctime_ns(ctime.tv_nsec);
@@ -1557,13 +1574,18 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
       file.set_mode(fmd->getFlags() | S_IFREG);
     }
 
-    // TODO: no hardlinks
-    file.set_nlink(1);
-    file.set_name(fmd->getName());
+    /* hardlinks */
+    int nlink = 0;
+    if (fmd->hasAttribute(k_nlink)) {
+        nlink = std::stoi(fmd->getAttribute(k_nlink));
+	eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(), nlink);
+    }
+    file.set_nlink(nlink);
     file.set_clock(clock);
     eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
 
     for (const auto& elem : xattrs) {
+      if (has_mdino && ((elem.first) == k_nlink)) continue;
       (*file.mutable_attr())[elem.first] = elem.second;
 
       if ((elem.first) == "sys.eos.btime") {
@@ -1572,6 +1594,10 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
         file.set_btime(strtoul(key.c_str(), 0, 10));
         file.set_btime_ns(strtoul(val.c_str(), 0, 10));
       }
+    }
+
+    if (has_mdino) {
+	(*file.mutable_attr())[k_mdino] = gmd->getAttribute(k_mdino);
     }
 
     file.clear_err();
@@ -2562,6 +2588,50 @@ FuseServer::HandleMD(const std::string& id,
                           (long) fid,
                           (long) md.md_ino(),
                           (long) md.md_pino(), (long) fmd->getContainerId());
+	} else if (strncmp(md.target().c_str(), "////hlnk", 8) == 0) {   /* creation of a hard link */
+	    uint64_t tgt_md_ino = atoll(md.target().c_str()+8);
+
+            pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+            if (pcmd->findContainer(md.name()))		/* name check protected by eosViewRWMutex above */
+		return EEXIST;
+
+	    /* fmd is the target file corresponding to tgt_fid, gmd the file corresponding to new name */
+	    fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino));
+	    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile();
+
+	    int nlink;					/* here: 0 origin, 1 means file + one hard link */
+	    nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(k_nlink)) : 0;
+            eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
+                          (long) fid, fmd->getName().c_str(), nlink, md.name().c_str());
+	    nlink += 1;
+	    fmd->setAttribute(k_nlink, std::to_string(nlink));
+            gOFS->eosFileService->updateStore(fmd.get());
+
+	    gmd->setAttribute(k_mdino, std::to_string(tgt_md_ino));
+	    gmd->setName(md.name());
+            gOFS->eosFileService->updateStore(gmd.get());
+
+	    eos_static_debug("hlnk %s mdino %s %s nlink %s", gmd->getName().c_str(), gmd->getAttribute(k_mdino).c_str(),
+			fmd->getName().c_str(), fmd->getAttribute(k_nlink).c_str());
+
+	    pcmd->addFile(gmd.get());
+            gOFS->eosView->updateContainerStore(pcmd.get());
+
+            eos::fusex::response resp;
+            resp.set_type(resp.ACK);
+            resp.mutable_ack_()->set_code(resp.ack_().OK);
+            resp.mutable_ack_()->set_transactionid(md.reqid());
+            resp.mutable_ack_()->set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
+            resp.SerializeToString(response);
+            struct timespec pt_mtime;
+            pt_mtime.tv_sec = md.mtime();
+            pt_mtime.tv_nsec = md.mtime_ns();
+
+            gOFS->eosDirectoryService->updateStore(pcmd.get());
+            uint64_t clock = 0;
+            Cap().BroadcastMD(md, tgt_md_ino, md_pino, clock, pt_mtime);
+	    return 0;
+
         } else {
           // file creation
           op = CREATE;
@@ -2851,15 +2921,58 @@ FuseServer::HandleMD(const std::string& id,
         } catch (eos::MDException& e) {
         }
 
-        pcmd->removeFile(fmd->getName());
-        fmd->setContainerId(0);
-        fmd->unlinkAllLocations();
+	bool doDelete = true;
+	uint64_t tgt_md_ino;
+
+	if (fmd->hasAttribute(k_mdino)) {	    /* this is a hard link, update reference count on underlying file */
+	  tgt_md_ino = std::stoll(fmd->getAttribute(k_mdino));
+	  uint64_t clock;
+
+	  /* gmd = the file holding the inode */
+	  std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
+	  long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
+
+	  if (nlink >= 0) {
+	    gmd->setAttribute(k_nlink, std::to_string(nlink));
+	    gOFS->eosFileService->updateStore(gmd.get());
+	    eos_static_info("hlnk nlink update on %s for %s now %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+	  } else {		// remove target file as well
+	    eos_static_info("hlnk unlink target %s for %s nlink %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+	    pcmd->removeFile(gmd->getName());
+	    gmd->setContainerId(0);
+	    gmd->unlinkAllLocations();
+            gOFS->eosFileService->updateStore(gmd.get());
+	  }
+	} else if (fmd->hasAttribute(k_nlink)) {    /* this is a genuine file, potentially with hard links */
+	  tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
+	  /* reduce reference count, only remove file if negative (origin 0 == 1 file) */
+	  long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
+	  if (nlink >= 0) {  // hard links exist, just rename the file so the inode does not disappear
+	    char nameBuf[256];
+	    snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
+	    std::string tmpName = nameBuf;
+
+	    fmd->setAttribute(k_nlink, std::to_string(nlink));
+            eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(), tmpName.c_str(), nlink);
+            pcmd->removeFile(tmpName);	    	// if the target exists, remove it!
+            gOFS->eosView->renameFile(fmd.get(), tmpName);
+	    doDelete = false;
+	  } else
+	      eos_static_info("hlnk nlink %ld for %s, will be deleted", nlink, fmd->getName().c_str());
+	}
+
+	if (doDelete) {
+	    pcmd->removeFile(fmd->getName());
+	    fmd->setContainerId(0);
+	    fmd->unlinkAllLocations();
+	}
         gOFS->eosFileService->updateStore(fmd.get());
         gOFS->eosDirectoryService->updateStore(pcmd.get());
         pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
+
         Cap().BroadcastRelease(md);
         Cap().Delete(md.md_ino());
         return 0;

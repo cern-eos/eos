@@ -453,6 +453,8 @@ public:
                 bool readdir = false
                );
 
+  int refresh( fuse_req_t req, fuse_ino_t ino, const std::string authid = "");
+
   uint64_t insert(fuse_req_t req,
                   shared_md md,
                   std::string authid);
