@@ -38,6 +38,7 @@ FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
   qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
   qclient::QClient qcl(members, true, strategy);
   qcl.exec("FLUSHALL").get();
+  qcl.exec("SET", "QDB-INSTANCE-FOR-EOS-NS-TESTS", "YES");
 }
 
 FlushAllOnConstruction::~FlushAllOnConstruction() { }
@@ -68,6 +69,10 @@ qclient::Members NsTestsFixture::getMembers() {
   return qclient::Members::fromString(testconfig["qdb_cluster"]);
 }
 
+void NsTestsFixture::setSizeMapper(IQuotaStats::SizeMapper mapper) {
+  sizeMapper = mapper;
+}
+
 void NsTestsFixture::initServices() {
   if(containerSvcPtr) {
     // Already initialized.
@@ -89,6 +94,11 @@ void NsTestsFixture::initServices() {
   viewPtr->setContainerMDSvc(containerSvcPtr.get());
   viewPtr->setFileMDSvc(fileSvcPtr.get());
   viewPtr->configure(testconfig);
+
+  if(sizeMapper) {
+    view()->getQuotaStats()->registerSizeMapper(sizeMapper);
+  }
+
   viewPtr->initialize();
 
   fileSvcPtr->addChangeListener(fsViewPtr.get());
@@ -149,8 +159,16 @@ void NsTestsFixture::shut_down_everything() {
   containerSvcPtr.reset();
   qclPtr.reset();
 
-  mdFlusherPtr = nullptr;
-  quotaFlusherPtr = nullptr;
+  if(mdFlusherPtr) {
+    mdFlusherPtr->synchronize();
+    mdFlusherPtr = nullptr;
+  }
+
+  if(quotaFlusherPtr) {
+    quotaFlusherPtr->synchronize();
+    quotaFlusherPtr = nullptr;
+  }
+  
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {

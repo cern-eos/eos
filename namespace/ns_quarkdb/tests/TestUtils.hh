@@ -41,6 +41,7 @@ class IFileMDSvc;
 class IView;
 class IFsView;
 class MetadataFlusher;
+class IFileMD;
 }
 
 EOSNSTESTING_BEGIN
@@ -63,6 +64,8 @@ private:
 //! boilerplate code
 //------------------------------------------------------------------------------
 
+typedef uint64_t (*SizeMapper)(const IFileMD* file);
+
 class NsTestsFixture : public ::testing::Test
 {
 public:
@@ -76,6 +79,7 @@ public:
   eos::IFsView* fsview();
 
   void shut_down_everything();
+  void shut_down_view();
 
   // explicit transfer of ownership
   std::unique_ptr<qclient::QClient> createQClient();
@@ -90,6 +94,9 @@ public:
   // Return flushers
   eos::MetadataFlusher* mdFlusher();
   eos::MetadataFlusher* quotaFlusher();
+
+  // Register size mapper
+  void setSizeMapper(SizeMapper sizeMapper);
 
   // Populate namespace with dummy test data.
   void populateDummyData1();
@@ -110,6 +117,8 @@ private:
   eos::MetadataFlusher* mdFlusherPtr = nullptr;
   eos::MetadataFlusher* quotaFlusherPtr = nullptr;
 
+  // Size mapper, if avaliable
+  SizeMapper sizeMapper = nullptr;
 };
 
 

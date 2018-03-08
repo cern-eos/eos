@@ -207,50 +207,33 @@ createFiles(const std::string& path, eos::IView* view,
 }
 
 
-TEST(HierarchicalView, QuotaTest)
+TEST_F(HierarchicalViewF, QuotaTest)
 {
   srandom(time(nullptr));
   // Initialize the system
-  std::map<std::string, std::string> config = {
-    {"qdb_cluster", "localhost:7778"},
-    {"qdb_flusher_md", "tests_md"},
-    {"qdb_flusher_quota", "tests_quota"}
-  };
+  setSizeMapper(mapSize);
 
-  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
-  std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
-  std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
-  std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
-  fileSvc->setContMDService(contSvc.get());
-  fileSvc->configure(config);
-  contSvc->setFileMDService(fileSvc.get());
-  contSvc->configure(config);
-  view->setContainerMDSvc(contSvc.get());
-  view->setFileMDSvc(fileSvc.get());
-  view->configure(config);
-  view->getQuotaStats()->registerSizeMapper(mapSize);
-  ASSERT_NO_THROW(view->initialize());
   // Create some structures, insert quota nodes and test their correctness
   std::shared_ptr<eos::IContainerMD> cont1{
-    view->createContainer("/test/embed/embed1", true)};
+    view()->createContainer("/test/embed/embed1", true)};
   std::shared_ptr<eos::IContainerMD> cont2{
-    view->createContainer("/test/embed/embed2", true)};
+    view()->createContainer("/test/embed/embed2", true)};
   std::shared_ptr<eos::IContainerMD> cont3{
-    view->createContainer("/test/embed/embed3", true)};
-  std::shared_ptr<eos::IContainerMD> cont4{view->getContainer("/test/embed")};
-  std::shared_ptr<eos::IContainerMD> cont5{view->getContainer("/test")};
-  eos::IQuotaNode* qnCreated1 = view->registerQuotaNode(cont1.get());
-  eos::IQuotaNode* qnCreated2 = view->registerQuotaNode(cont3.get());
-  eos::IQuotaNode* qnCreated3 = view->registerQuotaNode(cont5.get());
-  ASSERT_THROW(view->registerQuotaNode(cont1.get()), eos::MDException);
+    view()->createContainer("/test/embed/embed3", true)};
+  std::shared_ptr<eos::IContainerMD> cont4{view()->getContainer("/test/embed")};
+  std::shared_ptr<eos::IContainerMD> cont5{view()->getContainer("/test")};
+  eos::IQuotaNode* qnCreated1 = view()->registerQuotaNode(cont1.get());
+  eos::IQuotaNode* qnCreated2 = view()->registerQuotaNode(cont3.get());
+  eos::IQuotaNode* qnCreated3 = view()->registerQuotaNode(cont5.get());
+  ASSERT_THROW(view()->registerQuotaNode(cont1.get()), eos::MDException);
   ASSERT_TRUE(qnCreated1);
   ASSERT_TRUE(qnCreated2);
   ASSERT_TRUE(qnCreated3);
-  eos::IQuotaNode* qn1 = view->getQuotaNode(cont1.get());
-  eos::IQuotaNode* qn2 = view->getQuotaNode(cont2.get());
-  eos::IQuotaNode* qn3 = view->getQuotaNode(cont3.get());
-  eos::IQuotaNode* qn4 = view->getQuotaNode(cont4.get());
-  eos::IQuotaNode* qn5 = view->getQuotaNode(cont5.get());
+  eos::IQuotaNode* qn1 = view()->getQuotaNode(cont1.get());
+  eos::IQuotaNode* qn2 = view()->getQuotaNode(cont2.get());
+  eos::IQuotaNode* qn3 = view()->getQuotaNode(cont3.get());
+  eos::IQuotaNode* qn4 = view()->getQuotaNode(cont4.get());
+  eos::IQuotaNode* qn5 = view()->getQuotaNode(cont5.get());
   ASSERT_TRUE(qn1);
   ASSERT_TRUE(qn2);
   ASSERT_TRUE(qn3);
@@ -265,127 +248,119 @@ TEST(HierarchicalView, QuotaTest)
   std::map<uid_t, eos::IQuotaNode::UsageInfo> users1;
   std::map<gid_t, eos::IQuotaNode::UsageInfo> groups1;
   std::string path1 = "/test/embed/embed1/";
-  createFiles(path1, view.get(), &users1, &groups1);
+  createFiles(path1, view(), &users1, &groups1);
   std::map<uid_t, eos::IQuotaNode::UsageInfo> users2;
   std::map<gid_t, eos::IQuotaNode::UsageInfo> groups2;
   std::string path2 = "/test/embed/embed2/";
-  createFiles(path2, view.get(), &users2, &groups2);
+  createFiles(path2, view(), &users2, &groups2);
   std::map<uid_t, eos::IQuotaNode::UsageInfo> users3;
   std::map<gid_t, eos::IQuotaNode::UsageInfo> groups3;
   std::string path3 = "/test/embed/embed3/";
-  createFiles(path3, view.get(), &users3, &groups3);
+  createFiles(path3, view(), &users3, &groups3);
   // Verify correctness
-  eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1).get());
-  eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2).get());
+  eos::IQuotaNode* node1 = view()->getQuotaNode(view()->getContainer(path1).get());
+  eos::IQuotaNode* node2 = view()->getQuotaNode(view()->getContainer(path2).get());
 
   for (int i = 1; i <= 10; ++i) {
-    ASSERT_TRUE(node1->getPhysicalSpaceByUser(i) == users1[i].physicalSpace);
-    ASSERT_TRUE(node2->getPhysicalSpaceByUser(i) == users2[i].physicalSpace);
-    ASSERT_TRUE(node1->getUsedSpaceByUser(i) == users1[i].space);
-    ASSERT_TRUE(node2->getUsedSpaceByUser(i) == users2[i].space);
-    ASSERT_TRUE(node1->getNumFilesByUser(i) == users1[i].files);
-    ASSERT_TRUE(node2->getNumFilesByUser(i) == users2[i].files);
+    ASSERT_EQ(node1->getPhysicalSpaceByUser(i), users1[i].physicalSpace);
+    ASSERT_EQ(node2->getPhysicalSpaceByUser(i), users2[i].physicalSpace);
+    ASSERT_EQ(node1->getUsedSpaceByUser(i), users1[i].space);
+    ASSERT_EQ(node2->getUsedSpaceByUser(i), users2[i].space);
+    ASSERT_EQ(node1->getNumFilesByUser(i), users1[i].files);
+    ASSERT_EQ(node2->getNumFilesByUser(i), users2[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
-    ASSERT_TRUE(node1->getPhysicalSpaceByGroup(i) ==
+    ASSERT_EQ(node1->getPhysicalSpaceByGroup(i),
                 groups1[i].physicalSpace);
-    ASSERT_TRUE(node2->getPhysicalSpaceByGroup(i) ==
+    ASSERT_EQ(node2->getPhysicalSpaceByGroup(i),
                 groups2[i].physicalSpace);
-    ASSERT_TRUE(node1->getUsedSpaceByGroup(i) == groups1[i].space);
-    ASSERT_TRUE(node2->getUsedSpaceByGroup(i) == groups2[i].space);
-    ASSERT_TRUE(node1->getNumFilesByGroup(i) == groups1[i].files);
-    ASSERT_TRUE(node2->getNumFilesByGroup(i) == groups2[i].files);
+    ASSERT_EQ(node1->getUsedSpaceByGroup(i), groups1[i].space);
+    ASSERT_EQ(node2->getUsedSpaceByGroup(i), groups2[i].space);
+    ASSERT_EQ(node1->getNumFilesByGroup(i), groups1[i].files);
+    ASSERT_EQ(node2->getNumFilesByGroup(i), groups2[i].files);
   }
 
   // Restart and check if the quota stats are reloaded correctly
-  ASSERT_NO_THROW(view->finalize());
-  view->configure(config);
-  view->getQuotaStats()->registerSizeMapper(mapSize);
-  ASSERT_NO_THROW(view->initialize());
-  node1 = view->getQuotaNode(view->getContainer(path1).get());
-  node2 = view->getQuotaNode(view->getContainer(path2).get());
+  shut_down_everything();
+  node1 = view()->getQuotaNode(view()->getContainer(path1).get());
+  node2 = view()->getQuotaNode(view()->getContainer(path2).get());
   ASSERT_TRUE(node1);
   ASSERT_TRUE(node2);
 
   for (int i = 1; i <= 10; ++i) {
-    ASSERT_TRUE(node1->getPhysicalSpaceByUser(i) == users1[i].physicalSpace);
-    ASSERT_TRUE(node2->getPhysicalSpaceByUser(i) == users2[i].physicalSpace);
-    ASSERT_TRUE(node1->getUsedSpaceByUser(i) == users1[i].space);
-    ASSERT_TRUE(node2->getUsedSpaceByUser(i) == users2[i].space);
-    ASSERT_TRUE(node1->getNumFilesByUser(i) == users1[i].files);
-    ASSERT_TRUE(node2->getNumFilesByUser(i) == users2[i].files);
+    ASSERT_EQ(node1->getPhysicalSpaceByUser(i), users1[i].physicalSpace);
+    ASSERT_EQ(node2->getPhysicalSpaceByUser(i), users2[i].physicalSpace);
+    ASSERT_EQ(node1->getUsedSpaceByUser(i), users1[i].space);
+    ASSERT_EQ(node2->getUsedSpaceByUser(i), users2[i].space);
+    ASSERT_EQ(node1->getNumFilesByUser(i), users1[i].files);
+    ASSERT_EQ(node2->getNumFilesByUser(i), users2[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
-    ASSERT_TRUE(node1->getPhysicalSpaceByGroup(i) ==
-                groups1[i].physicalSpace);
-    ASSERT_TRUE(node2->getPhysicalSpaceByGroup(i) ==
-                groups2[i].physicalSpace);
-    ASSERT_TRUE(node1->getUsedSpaceByGroup(i) == groups1[i].space);
-    ASSERT_TRUE(node2->getUsedSpaceByGroup(i) == groups2[i].space);
-    ASSERT_TRUE(node1->getNumFilesByGroup(i) == groups1[i].files);
-    ASSERT_TRUE(node2->getNumFilesByGroup(i) == groups2[i].files);
+    ASSERT_EQ(node1->getPhysicalSpaceByGroup(i), groups1[i].physicalSpace);
+    ASSERT_EQ(node2->getPhysicalSpaceByGroup(i), groups2[i].physicalSpace);
+    ASSERT_EQ(node1->getUsedSpaceByGroup(i), groups1[i].space);
+    ASSERT_EQ(node2->getUsedSpaceByGroup(i), groups2[i].space);
+    ASSERT_EQ(node1->getNumFilesByGroup(i), groups1[i].files);
+    ASSERT_EQ(node2->getNumFilesByGroup(i), groups2[i].files);
   }
 
   // Remove the quota nodes on /test/embed/embed1 and /dest/embed/embed2
   // and check if the quota on /test has been updated
   eos::IQuotaNode* parentNode = nullptr;
-  ASSERT_NO_THROW(
-    parentNode = view->getQuotaNode(view->getContainer("/test").get()));
-  ASSERT_NO_THROW(
-    view->removeQuotaNode(view->getContainer(path1).get()));
+  parentNode = view()->getQuotaNode(view()->getContainer("/test").get());
+  view()->removeQuotaNode(view()->getContainer(path1).get());
 
   for (int i = 1; i <= 10; ++i) {
-    ASSERT_TRUE(parentNode->getPhysicalSpaceByUser(i) ==
+    ASSERT_EQ(parentNode->getPhysicalSpaceByUser(i),
                 users1[i].physicalSpace + users2[i].physicalSpace);
-    ASSERT_TRUE(parentNode->getUsedSpaceByUser(i) ==
+    ASSERT_EQ(parentNode->getUsedSpaceByUser(i),
                 users1[i].space + users2[i].space);
-    ASSERT_TRUE(parentNode->getNumFilesByUser(i) ==
+    ASSERT_EQ(parentNode->getNumFilesByUser(i),
                 users1[i].files + users2[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
-    ASSERT_TRUE(parentNode->getPhysicalSpaceByGroup(i) ==
+    ASSERT_EQ(parentNode->getPhysicalSpaceByGroup(i),
                 groups1[i].physicalSpace + groups2[i].physicalSpace);
-    ASSERT_TRUE(parentNode->getUsedSpaceByGroup(i) ==
+    ASSERT_EQ(parentNode->getUsedSpaceByGroup(i),
                 groups1[i].space + groups2[i].space);
-    ASSERT_TRUE(parentNode->getNumFilesByGroup(i) ==
+    ASSERT_EQ(parentNode->getNumFilesByGroup(i),
                 groups1[i].files + groups2[i].files);
   }
 
-  ASSERT_NO_THROW(
-    view->removeQuotaNode(view->getContainer(path3).get()));
-  ASSERT_THROW(view->removeQuotaNode(view->getContainer(path3).get()),
+  view()->removeQuotaNode(view()->getContainer(path3).get());
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path3).get()),
                eos::MDException);
 
   for (int i = 1; i <= 10; ++i) {
-    ASSERT_TRUE(parentNode->getPhysicalSpaceByUser(i) ==
+    ASSERT_EQ(parentNode->getPhysicalSpaceByUser(i),
                 users1[i].physicalSpace + users2[i].physicalSpace +
                 users3[i].physicalSpace);
-    ASSERT_TRUE(parentNode->getUsedSpaceByUser(i) ==
+    ASSERT_EQ(parentNode->getUsedSpaceByUser(i),
                 users1[i].space + users2[i].space + users3[i].space);
-    ASSERT_TRUE(parentNode->getNumFilesByUser(i) ==
+    ASSERT_EQ(parentNode->getNumFilesByUser(i),
                 users1[i].files + users2[i].files + users3[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
-    ASSERT_TRUE(parentNode->getPhysicalSpaceByGroup(i) ==
+    ASSERT_EQ(parentNode->getPhysicalSpaceByGroup(i),
                 groups1[i].physicalSpace + groups2[i].physicalSpace +
                 groups3[i].physicalSpace);
-    ASSERT_TRUE(parentNode->getUsedSpaceByGroup(i) ==
+    ASSERT_EQ(parentNode->getUsedSpaceByGroup(i),
                 groups1[i].space + groups2[i].space + groups3[i].space);
-    ASSERT_TRUE(parentNode->getNumFilesByGroup(i) ==
+    ASSERT_EQ(parentNode->getNumFilesByGroup(i),
                 groups1[i].files + groups2[i].files + groups3[i].files);
   }
 
   // Clean up
   // Remove all the quota nodes
-  ASSERT_THROW(view->removeQuotaNode(cont1.get()), eos::MDException);
-  ASSERT_THROW(view->removeQuotaNode(cont2.get()), eos::MDException);
-  ASSERT_THROW(view->removeQuotaNode(cont3.get()), eos::MDException);
-  ASSERT_THROW(view->removeQuotaNode(cont4.get()), eos::MDException);
-  ASSERT_NO_THROW(view->removeQuotaNode(cont5.get()));
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path1).get()), eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path2).get()), eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path3).get()), eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer("/test/embed").get()), eos::MDException);
+  view()->removeQuotaNode(cont5.get());
   // Remove all the files
   std::list<std::string> paths{path1, path2, path3};
 
@@ -393,19 +368,18 @@ TEST(HierarchicalView, QuotaTest)
     for (int i = 0; i < 1000; ++i) {
       std::ostringstream p;
       p << path_elem << "file" << i;
-      std::shared_ptr<eos::IFileMD> file{view->getFile(p.str())};
-      ASSERT_NO_THROW(view->unlinkFile(p.str()));
-      ASSERT_NO_THROW(view->removeFile(
-                        view->getFileMDSvc()->getFileMD(file->getId()).get()));
+      std::shared_ptr<eos::IFileMD> file{view()->getFile(p.str())};
+      view()->unlinkFile(p.str());
+      view()->removeFile(fileSvc()->getFileMD(file->getId()).get());
     }
   }
 
   // Remove all containers
-  ASSERT_NO_THROW(view->removeContainer("/test/", true));
+  ASSERT_NO_THROW(view()->removeContainer("/test/", true));
   // Remove the root container
-  std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
-  ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
-  ASSERT_NO_THROW(view->finalize());
+  std::shared_ptr<eos::IContainerMD> root{view()->getContainer("/")};
+  ASSERT_NO_THROW(containerSvc()->removeContainer(root.get()));
+  ASSERT_NO_THROW(view()->finalize());
 }
 
 TEST_F(HierarchicalViewF, LostContainerTest)
