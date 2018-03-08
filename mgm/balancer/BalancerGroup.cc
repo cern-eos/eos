@@ -128,11 +128,56 @@ BalancerGroup::BalancerGroupStop()
 //------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t
 BalancerGroup::SelectSourceFS()
-{ 
-  //@todo: this should return the FS which has highest fill ratio
-  //@todo: we should check if the FS is not under drain
+{
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); 
+  FsGroup* group = FsView::gFsView.mGroupView[mGroup];
 
-  return 0;
+  if (!group) {
+    eos_err("group=%s is not in group view", mGroup.c_str());
+    return 0;
+  }
+
+    
+  FsGroup::const_iterator group_iterator;
+
+  eos::common::FileSystem* source_fs = 0;
+  eos::common::FileSystem::fsid_t source_fsid = 0;
+
+  double avgDiskFilled = group->AverageDouble("stat.statfs.filled", false);
+  double maxDiskFilled = 0;
+
+  for (group_iterator = group->begin(); group_iterator != group->end();  group_iterator++) {
+    source_fs = FsView::gFsView.mIdView[*group_iterator];
+
+    if (!source_fs) {
+        continue;
+    }
+
+    eos::common::FileSystem::fs_snapshot snapshot;
+    source_fs->SnapShotFileSystem(snapshot);
+
+    //checks
+    //not empty
+    if ((snapshot.mDiskFilled > snapshot.mNominalFilled) &&
+       //booted
+       (snapshot.mStatus == eos::common::FileSystem::kBooted) &&
+       // this filesystem is  readable
+       (snapshot.mConfigStatus > eos::common::FileSystem::kRO) &&
+       //no errors
+       (snapshot.mErrCode == 0) &&
+       //active 
+       (source_fs->GetActiveStatus(snapshot) != eos::common::FileSystem::kOffline) &&
+       //drain status
+       (snapshot.mDrainStatus == eos::common::FileSystem::kNoDrain)) {
+
+       if ((snapshot.mDiskFilled > avgDiskFilled) && (snapshot.mDiskFilled > maxDiskFilled)) {
+            maxDiskFilled = snapshot.mDiskFilled;
+            source_fsid =*group_iterator;
+          }
+       }  
+    }    
+
+  return source_fsid;
 }
 
 //------------------------------------------------------------------------------
