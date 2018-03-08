@@ -340,8 +340,11 @@ QuotaStats::registerNewNode(IContainerMD::id_t node_id)
 void
 QuotaStats::removeNode(IContainerMD::id_t node_id)
 {
-  if (pNodeMap.count(node_id) != 0u) {
-    pNodeMap.erase(node_id);
+  auto it = pNodeMap.find(node_id);
+
+  if(it != pNodeMap.end()) {
+    delete it->second;
+    pNodeMap.erase(it);
   }
 
   std::string snode_id = std::to_string(node_id);
