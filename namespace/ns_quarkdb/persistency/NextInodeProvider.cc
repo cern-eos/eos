@@ -57,7 +57,7 @@ int64_t NextInodeProvider::getFirstFreeId()
 // The hash contains the current largest *reserved* inode we've seen so far.
 // To obtain the next free one, we increment that counter and return its value.
 // We reserve inodes by blocks to avoid roundtrips to the db, increasing the
-// block-size slowly up to 200 so as to avoid wasting lots of inodes if the MGM
+// block-size slowly up to 5000 so as to avoid wasting lots of inodes if the MGM
 // is unstable and restarts often.
 //------------------------------------------------------------------------------
 int64_t NextInodeProvider::reserve()
@@ -69,7 +69,7 @@ int64_t NextInodeProvider::reserve()
     mNextId = mBlockEnd - mStepIncrease + 1;
 
     // Increase step for next round
-    if (mStepIncrease <= 2000) {
+    if (mStepIncrease <= 5000) {
       mStepIncrease++;
     }
   }
