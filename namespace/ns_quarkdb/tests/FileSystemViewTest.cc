@@ -101,191 +101,163 @@ TEST(FileSystemView, ParseFsId)
 //------------------------------------------------------------------------------
 // Concrete implementation tests
 //------------------------------------------------------------------------------
-TEST(FileSystemView, BasicSanity)
+class FileSystemViewF : public eos::ns::testing::NsTestsFixture {};
+
+TEST_F(FileSystemViewF, BasicSanity)
 {
   srandom(time(nullptr));
 
-  try {
-    std::map<std::string, std::string> config = {
-      {"qdb_cluster", "localhost:7778"},
-      {"qdb_flusher_md", "tests_md"},
-      {"qdb_flusher_quota", "tests_quota"}
-    };
+  view()->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> c =
+    view()->createContainer("/test/embed/embed2", true);
+  view()->createContainer("/test/embed/embed3", true);
 
-    eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(config["qdb_cluster"]));
-    eos::MetadataFlusher* flusher =
-      eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
-          qclient::Members::fromString(config["qdb_cluster"]));
-    std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
-    std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
-    std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
-    std::unique_ptr<eos::IFsView> fsView{new eos::FileSystemView()};
-    fileSvc->setContMDService(contSvc.get());
-    contSvc->setFileMDService(fileSvc.get());
-    contSvc->configure(config);
-    fileSvc->configure(config);
-    fsView->configure(config);
-    view->setContainerMDSvc(contSvc.get());
-    view->setFileMDSvc(fileSvc.get());
-    view->configure(config);
-    view->initialize();
-    fileSvc->addChangeListener(fsView.get());
-    view->createContainer("/test/embed/embed1", true);
-    std::shared_ptr<eos::IContainerMD> c =
-      view->createContainer("/test/embed/embed2", true);
-    view->createContainer("/test/embed/embed3", true);
+  // Create some files
+  for (int i = 0; i < 1000; ++i) {
+    std::ostringstream o;
+    o << "file" << i;
+    std::shared_ptr<eos::IFileMD> files[4];
+    files[0] = view()->createFile(std::string("/test/embed/") + o.str());
+    files[1] = view()->createFile(std::string("/test/embed/embed1/") + o.str());
+    files[2] = view()->createFile(std::string("/test/embed/embed2/") + o.str());
+    files[3] = view()->createFile(std::string("/test/embed/embed3/") + o.str());
 
-    // Create some files
-    for (int i = 0; i < 1000; ++i) {
-      std::ostringstream o;
-      o << "file" << i;
-      std::shared_ptr<eos::IFileMD> files[4];
-      files[0] = view->createFile(std::string("/test/embed/") + o.str());
-      files[1] = view->createFile(std::string("/test/embed/embed1/") + o.str());
-      files[2] = view->createFile(std::string("/test/embed/embed2/") + o.str());
-      files[3] = view->createFile(std::string("/test/embed/embed3/") + o.str());
-
-      for (int j = 0; j < 4; ++j) {
-        while (files[j]->getNumLocation() != 5) {
-          files[j]->addLocation(getRandomLocation());
-        }
-
-        view->updateFileStore(files[j].get());
+    for (int j = 0; j < 4; ++j) {
+      while (files[j]->getNumLocation() != 5) {
+        files[j]->addLocation(getRandomLocation());
       }
+
+      view()->updateFileStore(files[j].get());
     }
-
-    // Create some file without replicas assigned
-    for (int i = 0; i < 500; ++i) {
-      std::ostringstream o;
-      o << "noreplicasfile" << i;
-      view->createFile(std::string("/test/embed/embed1/") + o.str());
-    }
-
-    // Sum up all the locations
-    flusher->synchronize();
-    size_t numReplicas = countReplicas(fsView.get());
-    ASSERT_EQ(numReplicas, 20000);
-    size_t numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 0);
-    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
-
-    // Unlink replicas
-    for (int i = 100; i < 500; ++i) {
-      std::ostringstream o;
-      o << "file" << i;
-      // Unlink some replicas
-      std::shared_ptr<eos::IFileMD> f = c->findFile(o.str());
-      f->unlinkLocation(f->getLocation(0));
-      f->unlinkLocation(f->getLocation(0));
-      view->updateFileStore(f.get());
-    }
-
-    flusher->synchronize();
-    numReplicas = countReplicas(fsView.get());
-    ASSERT_EQ(numReplicas, 19200);
-    numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 800);
-    std::list<eos::IFileMD::id_t> file_ids;
-
-    for (int i = 500; i < 900; ++i) {
-      std::ostringstream o;
-      o << "file" << i;
-      // Unlink some replicas
-      std::shared_ptr<eos::IFileMD> f{c->findFile(o.str())};
-      f->unlinkAllLocations();
-      c->removeFile(o.str());
-      f->setContainerId(0);
-      file_ids.push_back(f->getId());
-      view->updateFileStore(f.get());
-    }
-
-    flusher->synchronize();
-    numReplicas = countReplicas(fsView.get());
-    ASSERT_EQ(numReplicas, 17200);
-    numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 2800);
-    // Restart
-    view->finalize();
-    fsView->finalize();
-    view->initialize();
-    numReplicas = countReplicas(fsView.get());
-    ASSERT_EQ(numReplicas, 17200);
-    numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 2800);
-    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
-    std::shared_ptr<eos::IFileMD> f{
-      view->getFile(std::string("/test/embed/embed1/file1"))};
-    f->unlinkAllLocations();
-    numReplicas = countReplicas(fsView.get());
-    ASSERT_EQ(numReplicas, 17195);
-    numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 2805);
-    f->removeAllLocations();
-    numUnlinked = countUnlinked(fsView.get());
-    ASSERT_EQ(numUnlinked, 2800);
-    view->updateFileStore(f.get());
-    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 501);
-    view->removeFile(f.get());
-    ASSERT_EQ(fsView->getNumNoReplicasFiles(), 500);
-    view->finalize();
-    fsView->finalize();
-
-    // Cleanup - remove all files
-    for (int i = 0; i < 1000; ++i) {
-      std::ostringstream o;
-      o << "file" << i;
-      std::list<std::string> paths;
-      paths.push_back("/test/embed/" + o.str());
-      paths.push_back("/test/embed/embed1/" + o.str());
-      paths.push_back("/test/embed/embed2/" + o.str());
-      paths.push_back("/test/embed/embed3/" + o.str());
-
-      for (auto && elem : paths) {
-        // Skip the files that have already been removed
-        if ((elem == "/test/embed/embed1/file1") ||
-            (i >= 500 && i < 900 && elem.find("/test/embed/embed2/") == 0)) {
-          continue;
-        }
-
-        std::shared_ptr<eos::IFileMD> file{view->getFile(elem)};
-        ASSERT_NO_THROW(view->unlinkFile(file.get()));
-        ASSERT_NO_THROW(file->removeAllLocations());
-        ASSERT_NO_THROW(view->removeFile(file.get()));
-      }
-    }
-
-    // Remove the files that were unlinked only
-    for (auto && id : file_ids) {
-      std::shared_ptr<eos::IFileMD> file = fileSvc->getFileMD(id);
-      ASSERT_NO_THROW(file->removeAllLocations());
-      ASSERT_NO_THROW(view->removeFile(file.get()));
-    }
-
-    for (int i = 0; i < 500; ++i) {
-      std::ostringstream o;
-      o << "noreplicasfile" << i;
-      std::string path = "/test/embed/embed1/" + o.str();
-      std::shared_ptr<eos::IFileMD> file{view->getFile(path)};
-      ASSERT_NO_THROW(view->unlinkFile(file.get()));
-      ASSERT_NO_THROW(view->removeFile(file.get()));
-    }
-
-    // Remove all containers
-    ASSERT_NO_THROW(view->removeContainer("/test/", true));
-    // Remove the root container
-    std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
-    ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
-    view->finalize();
-  } catch (eos::MDException& e) {
-    std::cerr << e.getMessage().str() << std::endl;
-    FAIL();
   }
+
+  // Create some file without replicas assigned
+  for (int i = 0; i < 500; ++i) {
+    std::ostringstream o;
+    o << "noreplicasfile" << i;
+    view()->createFile(std::string("/test/embed/embed1/") + o.str());
+  }
+
+  // Sum up all the locations
+  mdFlusher()->synchronize();
+  size_t numReplicas = countReplicas(fsview());
+  ASSERT_EQ(numReplicas, 20000);
+  size_t numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 0);
+  ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
+
+  // Unlink replicas
+  for (int i = 100; i < 500; ++i) {
+    std::ostringstream o;
+    o << "file" << i;
+    // Unlink some replicas
+    std::shared_ptr<eos::IFileMD> f = c->findFile(o.str());
+    f->unlinkLocation(f->getLocation(0));
+    f->unlinkLocation(f->getLocation(0));
+    view()->updateFileStore(f.get());
+  }
+
+  mdFlusher()->synchronize();
+  numReplicas = countReplicas(fsview());
+  ASSERT_EQ(numReplicas, 19200);
+  numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 800);
+  std::list<eos::IFileMD::id_t> file_ids;
+
+  for (int i = 500; i < 900; ++i) {
+    std::ostringstream o;
+    o << "file" << i;
+    // Unlink some replicas
+    std::shared_ptr<eos::IFileMD> f{c->findFile(o.str())};
+    f->unlinkAllLocations();
+    c->removeFile(o.str());
+    f->setContainerId(0);
+    file_ids.push_back(f->getId());
+    view()->updateFileStore(f.get());
+  }
+
+  mdFlusher()->synchronize();
+  numReplicas = countReplicas(fsview());
+  ASSERT_EQ(numReplicas, 17200);
+  numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 2800);
+
+  // Restart
+  shut_down_everything();
+
+  numReplicas = countReplicas(fsview());
+  ASSERT_EQ(numReplicas, 17200);
+  numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 2800);
+  ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
+  std::shared_ptr<eos::IFileMD> f{
+    view()->getFile(std::string("/test/embed/embed1/file1"))};
+  f->unlinkAllLocations();
+  numReplicas = countReplicas(fsview());
+  ASSERT_EQ(numReplicas, 17195);
+  numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 2805);
+  f->removeAllLocations();
+  numUnlinked = countUnlinked(fsview());
+  ASSERT_EQ(numUnlinked, 2800);
+  view()->updateFileStore(f.get());
+  ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 501);
+  view()->removeFile(f.get());
+  ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
+
+  shut_down_everything();
+
+  // Cleanup - remove all files
+  for (int i = 0; i < 1000; ++i) {
+    std::ostringstream o;
+    o << "file" << i;
+    std::list<std::string> paths;
+    paths.push_back("/test/embed/" + o.str());
+    paths.push_back("/test/embed/embed1/" + o.str());
+    paths.push_back("/test/embed/embed2/" + o.str());
+    paths.push_back("/test/embed/embed3/" + o.str());
+
+    for (auto && elem : paths) {
+      // Skip the files that have already been removed
+      if ((elem == "/test/embed/embed1/file1") ||
+          (i >= 500 && i < 900 && elem.find("/test/embed/embed2/") == 0)) {
+        continue;
+      }
+
+      std::shared_ptr<eos::IFileMD> file{view()->getFile(elem)};
+      view()->unlinkFile(file.get());
+      file->removeAllLocations();
+      view()->removeFile(file.get());
+    }
+  }
+
+  // Remove the files that were unlinked only
+  for (auto && id : file_ids) {
+    std::shared_ptr<eos::IFileMD> file = fileSvc()->getFileMD(id);
+    file->removeAllLocations();
+    view()->removeFile(file.get());
+  }
+
+  for (int i = 0; i < 500; ++i) {
+    std::ostringstream o;
+    o << "noreplicasfile" << i;
+    std::string path = "/test/embed/embed1/" + o.str();
+    std::shared_ptr<eos::IFileMD> file{view()->getFile(path)};
+    view()->unlinkFile(file.get());
+    view()->removeFile(file.get());
+  }
+
+  // Remove all containers
+  view()->removeContainer("/test/", true);
+  // Remove the root container
+  std::shared_ptr<eos::IContainerMD> root{view()->getContainer("/")};
+  containerSvc()->removeContainer(root.get());
 }
 
 //------------------------------------------------------------------------------
 // Test file iterator on top of QHash object
 //------------------------------------------------------------------------------
-TEST(FileSystemView, FileIterator)
+TEST_F(FileSystemViewF, FileIterator)
 {
   std::srand(std::time(0));
   std::unordered_set<eos::IFileMD::id_t> input_set;
@@ -296,12 +268,9 @@ TEST(FileSystemView, FileIterator)
   }
 
   // Push the set to QuarkDB
-  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString("localhost:7778"));
-  qclient::RetryStrategy retryStrategy {true, std::chrono::seconds(60) };
-  qclient::QClient qcl("localhost", 7778, true, retryStrategy);
   qclient::AsyncHandler ah;
   const std::string key = "set_iter_test";
-  qclient::QSet set(qcl, key);
+  qclient::QSet set(qcl(), key);
 
   for (auto elem : input_set) {
     set.sadd_async(elem, &ah);
@@ -310,7 +279,7 @@ TEST(FileSystemView, FileIterator)
   ASSERT_TRUE(ah.Wait());
   std::unordered_set<eos::IFileMD::id_t> result_set;
   auto iter = std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>>
-              (new eos::QdbFileIterator(qcl, key));
+              (new eos::QdbFileIterator(qcl(), key));
 
   for (; (iter && iter->valid()); iter->next()) {
     result_set.insert(iter->getElement());
@@ -322,5 +291,5 @@ TEST(FileSystemView, FileIterator)
     ASSERT_TRUE(result_set.find(elem) != result_set.end());
   }
 
-  qcl.del(key);
+  qcl().del(key);
 }
