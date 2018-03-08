@@ -35,31 +35,18 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #undef private
 
+class FileMDSvcF : public eos::ns::testing::NsTestsFixture {};
+
 //------------------------------------------------------------------------------
 // Tests implementation
 //------------------------------------------------------------------------------
-TEST(FileMDSvc, LoadTest)
+TEST_F(FileMDSvcF, LoadTest)
 {
-  std::unique_ptr<eos::IContainerMDSvc> contSvc{new eos::ContainerMDSvc};
-  std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
-  fileSvc->setContMDService(contSvc.get());
-  std::map<std::string, std::string> config = {
-    {"qdb_cluster", "localhost:7778"},
-    {"qdb_flusher_md", "tests_md"},
-    {"qdb_flusher_quota", "tests_quota"}
-  };
-  eos::ns::testing::FlushAllOnConstruction guard(qclient::Members::fromString(
-        config["qdb_cluster"]));
-  eos::MetadataFlusher* flusher =
-    eos::MetadataFlusherFactory::getInstance(config["qdb_flusher_md"],
-        qclient::Members::fromString(config["qdb_cluster"]));
-  fileSvc->configure(config);
-  ASSERT_NO_THROW(fileSvc->initialize());
-  std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
-  std::shared_ptr<eos::IFileMD> file2 = fileSvc->createFile();
-  std::shared_ptr<eos::IFileMD> file3 = fileSvc->createFile();
-  std::shared_ptr<eos::IFileMD> file4 = fileSvc->createFile();
-  std::shared_ptr<eos::IFileMD> file5 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file1 = fileSvc()->createFile();
+  std::shared_ptr<eos::IFileMD> file2 = fileSvc()->createFile();
+  std::shared_ptr<eos::IFileMD> file3 = fileSvc()->createFile();
+  std::shared_ptr<eos::IFileMD> file4 = fileSvc()->createFile();
+  std::shared_ptr<eos::IFileMD> file5 = fileSvc()->createFile();
   ASSERT_TRUE(file1 != nullptr);
   ASSERT_TRUE(file2 != nullptr);
   ASSERT_TRUE(file3 != nullptr);
@@ -75,35 +62,34 @@ TEST(FileMDSvc, LoadTest)
   eos::IFileMD::id_t id3 = file3->getId();
   eos::IFileMD::id_t id4 = file4->getId();
   eos::IFileMD::id_t id5 = file5->getId();
-  fileSvc->updateStore(file1.get());
-  fileSvc->updateStore(file2.get());
-  fileSvc->updateStore(file3.get());
-  fileSvc->updateStore(file4.get());
-  fileSvc->updateStore(file5.get());
-  flusher->synchronize();
-  ASSERT_EQ(fileSvc->getNumFiles(), 5);
-  fileSvc->removeFile(file2.get());
-  fileSvc->removeFile(file4.get());
-  flusher->synchronize();
-  ASSERT_EQ(fileSvc->getNumFiles(), 3);
-  fileSvc->finalize();
-  ASSERT_NO_THROW(fileSvc->initialize());
-  std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
-  std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
-  std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
+  fileSvc()->updateStore(file1.get());
+  fileSvc()->updateStore(file2.get());
+  fileSvc()->updateStore(file3.get());
+  fileSvc()->updateStore(file4.get());
+  fileSvc()->updateStore(file5.get());
+  mdFlusher()->synchronize();
+  ASSERT_EQ(fileSvc()->getNumFiles(), 5);
+  fileSvc()->removeFile(file2.get());
+  fileSvc()->removeFile(file4.get());
+  mdFlusher()->synchronize();
+  ASSERT_EQ(fileSvc()->getNumFiles(), 3);
+  fileSvc()->finalize();
+  ASSERT_NO_THROW(fileSvc()->initialize());
+  std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc()->getFileMD(id1);
+  std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc()->getFileMD(id3);
+  std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc()->getFileMD(id5);
   ASSERT_TRUE(fileRec1 != nullptr);
   ASSERT_TRUE(fileRec3 != nullptr);
   ASSERT_TRUE(fileRec5 != nullptr);
   ASSERT_TRUE(fileRec1->getName() == "file1");
   ASSERT_TRUE(fileRec3->getName() == "file3");
   ASSERT_TRUE(fileRec5->getName() == "file5");
-  ASSERT_THROW(fileSvc->getFileMD(id2), eos::MDException);
-  ASSERT_THROW(fileSvc->getFileMD(id4), eos::MDException);
-  ASSERT_NO_THROW(fileSvc->removeFile(fileRec1.get()));
-  ASSERT_NO_THROW(fileSvc->removeFile(fileRec3.get()));
-  ASSERT_NO_THROW(fileSvc->removeFile(fileRec5.get()));
-  flusher->synchronize();
-  ASSERT_EQ(fileSvc->getNumFiles(), 0);
-  fileSvc->finalize();
+  ASSERT_THROW(fileSvc()->getFileMD(id2), eos::MDException);
+  ASSERT_THROW(fileSvc()->getFileMD(id4), eos::MDException);
+  ASSERT_NO_THROW(fileSvc()->removeFile(fileRec1.get()));
+  ASSERT_NO_THROW(fileSvc()->removeFile(fileRec3.get()));
+  ASSERT_NO_THROW(fileSvc()->removeFile(fileRec5.get()));
+  mdFlusher()->synchronize();
+  ASSERT_EQ(fileSvc()->getNumFiles(), 0);
+  fileSvc()->finalize();
 }
-
