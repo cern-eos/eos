@@ -1604,6 +1604,8 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
 
   (void) close(tmp_fd);
   fn_output = tmpfile;
+  std::ostringstream cmd;
+  /*
   // First try to do the dumpmd using protobuf requests
   using eos::console::FsProto_DumpMdProto;
   eos::console::RequestProto request;
@@ -1613,7 +1615,7 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
   dumpmd->set_display(eos::console::FsProto::DumpMdProto::MONITOR);
   request.set_format(eos::console::RequestProto::FUSE);
   std::string b64buff;
-  std::ostringstream cmd;
+
 
   if (eos::common::SymKey::ProtobufBase64Encode(&request, b64buff)) {
     cmd << "env XrdSecPROTOCOL=sss xrdcp -f -s \""
@@ -1631,7 +1633,7 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
   } else {
     eos_static_err("msg=\"failed to serialize protobuf request for dumpmd\"");
   }
-
+  */
   eos_static_info("msg=\"falling back to classic dumpmd command\"");
   cmd.str("");
   cmd.clear();
