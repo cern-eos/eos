@@ -1755,14 +1755,13 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
                 long long int uid_sel, long long int gid_sel, bool monitoring,
                 bool translate_ids)
 {
+  output = "";
   // Add this to have all quota nodes visible even if they are not in
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-  output = "";
-  XrdOucString spacenames = "";
 
   if (path.empty()) {
     for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {

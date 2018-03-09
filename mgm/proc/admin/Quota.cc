@@ -45,11 +45,6 @@ ProcCommand::AdminQuota()
         return SFS_OK;
       }
 
-      // Make sure path ends with /
-      if (*path.rbegin() != '/') {
-        path += '/';
-      }
-
       if (Quota::RmSpaceQuota(path, msg, retc)) {
         stdOut = msg.c_str();
       } else {
