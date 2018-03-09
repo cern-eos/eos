@@ -1874,7 +1874,7 @@ Quota::Check(const std::string& path, uid_t uid, gid_t gid,
 }
 
 //------------------------------------------------------------------------------
-// Clean-up all space quotas by deleting them and clearing the map
+// Clean-up all space quotas by deleting them and clearing the maps
 //------------------------------------------------------------------------------
 void
 Quota::CleanUp()
@@ -1886,6 +1886,7 @@ Quota::CleanUp()
   }
 
   pMapQuota.clear();
+  pMapInodeQuota.clear();
 }
 
 //------------------------------------------------------------------------------
