@@ -4044,10 +4044,11 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     if (table_mq_format.length()) {
       // If a format was given for the filesystem children, forward the print to
       // the filesystems
-      for (auto it = begin(); it != end(); it++) {
-        FileSystem* fs = FsView::gFsView.mIdView[*it];
-        table_mq_header.clear();
-        fs->Print(table_mq_header, table_mq_data, table_mq_format, filter);
+      for (auto& elem : FsView::gFsView.mIdView) {
+        if (elem.second) {
+          table_mq_header.clear();
+          elem.second->Print(table_mq_header, table_mq_data, table_mq_format, filter);
+        }
       }
     }
 
