@@ -1279,19 +1279,6 @@ Quota::GetSpaceQuota(const std::string& path)
 }
 
 //------------------------------------------------------------------------------
-// Get space quota object for given quota inode
-//------------------------------------------------------------------------------
-SpaceQuota*
-Quota::GetSpaceQuota(const eos::IContainerMD::id_t qino)
-{
-  if (pMapInodeQuota.count(qino)) {
-    return pMapInodeQuota[qino];
-  } else {
-    return static_cast<SpaceQuota*>(0);
-  }
-}
-
-//------------------------------------------------------------------------------
 // Get space quota object responsible for path (find best match) - caller has
 // to have a read lock on pMapMutex.
 //------------------------------------------------------------------------------
@@ -1652,7 +1639,7 @@ Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
   eos_static_debug("path=%s", path.c_str());
   eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
-  SpaceQuota* squota = GetSpaceQuota(path);
+  std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
 
   if (!squota) {
     retc = EINVAL;
@@ -1666,6 +1653,8 @@ Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
     }
 
     pMapQuota.erase(path);
+    // Delete also from the pMapInodeQuota
+    (void) pMapInodeQuota.erase(squota->GetQuotaNode()->getId());
 
     // Remove ns quota node
     try {
@@ -1790,32 +1779,21 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock rd_ns_lcok(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   output = "";
   XrdOucString spacenames = "";
 
   if (path.empty()) {
-    // TODO: this for loop should be removed
-    // Make sure all configured spaces exist in the quota views
-    std::map<std::string, FsSpace*>::const_iterator sit;
-
-    for (sit = FsView::gFsView.mSpaceView.begin();
-         sit != FsView::gFsView.mSpaceView.end(); sit++) {
-      GetSpaceQuota(sit->second->GetMember("name").c_str());
-    }
-
-    std::map<std::string, SpaceQuota*>::const_iterator it;
-
-    for (it = pMapQuota.begin(); it != pMapQuota.end(); it++) {
-      it->second->Refresh();
+    for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
+      // it->second->Refresh();
       it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
     }
   } else {
     SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
     if (squota) {
-      squota->Refresh();
+      // squota->Refresh();
       squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
     } else {
       output = "error: no quota for path ";
@@ -2004,7 +1982,7 @@ std::map<std::string, std::tuple<unsigned long long,
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
   for (const auto& quotaNode : pMapQuota) {
-    quotaNode.second->Refresh();
+    // quotaNode.second->Refresh();
     allGroupLogicalByteValues[quotaNode.first] =
       std::make_tuple(quotaNode.second->GetQuota(
                         SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
@@ -2017,7 +1995,7 @@ std::map<std::string, std::tuple<unsigned long long,
 }
 
 //------------------------------------------------------------------------------
-//
+// Get quota for requested user and group by path
 //------------------------------------------------------------------------------
 int
 Quota::QuotaByPath(const char* path, uid_t uid, gid_t gid,
@@ -2029,17 +2007,35 @@ Quota::QuotaByPath(const char* path, uid_t uid, gid_t gid,
 
   if (squota) {
     quota_inode = squota->GetQuotaNode()->getId();
-    return QuotaBySpace(uid, gid, avail_files, avail_bytes, squota);
+    return GetQuotaInfo(squota, uid, gid, avail_files, avail_bytes);
   }
 
   return -1;
 }
 
+//------------------------------------------------------------------------------
+// Get quota for requested user and group by quota inode
+//------------------------------------------------------------------------------
+int
+Quota::QuotaBySpace(const eos::IContainerMD::id_t qino, uid_t uid, gid_t gid,
+                    long long& avail_files, long long& avail_bytes)
+{
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  auto it = pMapInodeQuota.find(qino);
 
-int 
-Quota::QuotaBySpace(uid_t uid, gid_t gid,
-		    long long& avail_files, long long& avail_bytes,
-		    SpaceQuota* squota)
+  if (it != pMapInodeQuota.end()) {
+    return GetQuotaInfo(it->second, uid, gid, avail_files, avail_bytes);
+  }
+
+  return -1;
+}
+
+//------------------------------------------------------------------------------
+// Private method to collect desired info from a quota node
+//------------------------------------------------------------------------------
+int
+Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
+                    long long avail_files, long long& avail_bytes)
 {
   long long maxbytes_user, maxbytes_group, maxbytes_project;
   long long freebytes_user, freebytes_group, freebytes_project;
@@ -2051,38 +2047,38 @@ Quota::QuotaBySpace(uid_t uid, gid_t gid,
   maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
   maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
   maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
-				      Quota::gProjectId);
+                                      Quota::gProjectId);
   freebytes_user = maxbytes_user - squota->GetQuota(
-						    SpaceQuota::kUserLogicalBytesIs, uid);
+                     SpaceQuota::kUserLogicalBytesIs, uid);
   freebytes_group = maxbytes_group - squota->GetQuota(
-						      SpaceQuota::kGroupLogicalBytesIs, gid);
+                      SpaceQuota::kGroupLogicalBytesIs, gid);
   freebytes_project = maxbytes_project - squota->GetQuota(
-							  SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
-  
+                        SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+
   if (freebytes_user > freebytes) {
     freebytes = freebytes_user;
   }
-  
+
   if (freebytes_group > freebytes) {
     freebytes = freebytes_group;
   }
-  
+
   if (freebytes_project > freebytes) {
     freebytes = freebytes_project;
   }
-  
+
   if (maxbytes_user > maxbytes) {
     maxbytes = maxbytes_user;
   }
-  
+
   if (maxbytes_group > maxbytes) {
     maxbytes = maxbytes_group;
   }
-  
+
   if (maxbytes_project > maxbytes) {
     maxbytes = maxbytes_project;
   }
-  
+
   long long maxfiles_user, maxfiles_group, maxfiles_project;
   long long freefiles_user, freefiles_group, freefiles_project;
   long long freefiles = 0;
@@ -2092,38 +2088,38 @@ Quota::QuotaBySpace(uid_t uid, gid_t gid,
   maxfiles_user  = squota->GetQuota(SpaceQuota::kUserFilesTarget, uid);
   maxfiles_group = squota->GetQuota(SpaceQuota::kGroupFilesTarget, gid);
   maxfiles_project = squota->GetQuota(SpaceQuota::kGroupFilesTarget,
-				      Quota::gProjectId);
+                                      Quota::gProjectId);
   freefiles_user = maxfiles_user - squota->GetQuota(SpaceQuota::kUserFilesIs,
-						    uid);
+                   uid);
   freefiles_group = maxfiles_group - squota->GetQuota(SpaceQuota::kGroupFilesIs,
-						      gid);
+                    gid);
   freefiles_project = maxfiles_project - squota->GetQuota(
-							  SpaceQuota::kGroupFilesIs, Quota::gProjectId);
-  
+                        SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+
   if (freefiles_user > freefiles) {
     freefiles = freefiles_user;
   }
-  
+
   if (freefiles_group > freefiles) {
     freefiles = freefiles_group;
   }
-  
+
   if (freefiles_project > freefiles) {
     freefiles = freefiles_project;
   }
-  
+
   if (maxfiles_user > maxfiles) {
     maxfiles = maxfiles_user;
   }
-  
+
   if (maxfiles_group > maxfiles) {
     maxfiles = maxfiles_group;
   }
-  
+
   if (maxfiles_project > maxfiles) {
     maxfiles = maxfiles_project;
   }
-  
+
   avail_files = freefiles;
   avail_bytes = freebytes;
   return 0;

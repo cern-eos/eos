@@ -599,6 +599,8 @@ public:
   //! @param avail_files inode quota left
   //! @param avail_bytes size quota left
   //! @param quota_inode inode of the quota node
+  //!
+  //! @return 0 if successful
   //----------------------------------------------------------------------------
   static int QuotaByPath(const char* path, uid_t uid, gid_t gid,
                          long long& avail_files, long long& avail_bytes,
@@ -606,32 +608,38 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! Get quota for a given spacequota
+  //! Get quota for requested user and group by quota inode
   //!
+  //! @param qino inode of quota node
   //! @param uid user id
   //! @param gid group id
   //! @param avail_files inode quota left
   //! @param avail_bytes size quota left
-  //! @param spacequota object
+  //!
+  //! @return 0 if successful
   //----------------------------------------------------------------------------
-  static int QuotaBySpace(uid_t uid, gid_t gid,
-			  long long& avail_files, long long& avail_bytes,
-			  SpaceQuota* spacequota);
+  static int QuotaBySpace(const eos::IContainerMD::id_t, uid_t uid, gid_t gid,
+                          long long& avail_files, long long& avail_bytes);
 
   static gid_t gProjectId; ///< gid indicating project quota
-  static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota
-
-  //----------------------------------------------------------------------------
-  //! Get space quota object for given quota container id
-  //!
-  //! @param qino inode of quota node
-  //!
-  //! @return SpaceQuota object
-  //----------------------------------------------------------------------------
-  static SpaceQuota* GetSpaceQuota(const eos::IContainerMD::id_t qino);
-
+  static eos::common::RWMutex pMapMutex; ///< Protect access to pMapQuota
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Private method to collect desired info from a quota node
+  //!
+  //! @param squota quota object
+  //! @param uid user id
+  //! @param gid group id
+  //! @param avail_files inode quota left
+  //! @param avail_bytes size quota left
+  //!
+  //! @return 0 if successful
+  //! @note locks should be taken outside this method
+  //----------------------------------------------------------------------------
+  static int GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
+                          long long avail_files, long long& avail_bytes);
 
   //----------------------------------------------------------------------------
   //! Get space quota object for exact path
