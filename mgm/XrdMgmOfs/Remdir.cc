@@ -230,7 +230,10 @@ XrdMgmOfs::_remdir(const char* path,
   EXEC_TIMING_END("RmDir");
 
   if (errno) {
-    return Emsg(epname, error, errno, "rmdir", path);
+    if (errno == ENOTEMPTY)
+      return Emsg(epname, error, errno, "rmdir - Directory not empty", path);
+    else
+      return Emsg(epname, error, errno, "rmdir", path);
   } else {
     return SFS_OK;
   }
