@@ -1263,18 +1263,14 @@ const char* SpaceQuota::GetTagName(int tag)
 // pMapMutex.
 //------------------------------------------------------------------------------
 SpaceQuota*
-Quota::GetSpaceQuota(const std::string& path)
+Quota::GetSpaceQuota(const std::string& qpath)
 {
-  std::string lpath = path;
+  std::string path = NormalizePath(qpath);
 
-  if (lpath[lpath.length() - 1] != '/') {
-    lpath += '/';
-  }
-
-  if (pMapQuota.count(lpath)) {
-    return pMapQuota[lpath];
+  if (pMapQuota.count(path)) {
+    return pMapQuota[path];
   } else {
-    return static_cast<SpaceQuota*>(0);
+    return nullptr;
   }
 }
 
@@ -1308,8 +1304,9 @@ Quota::GetResponsibleSpaceQuota(const std::string& path)
 // Check if space quota exists
 //------------------------------------------------------------------------------
 bool
-Quota::Exists(const std::string& path)
+Quota::Exists(const std::string& qpath)
 {
+  std::string path = NormalizePath(qpath);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   return (pMapQuota.count(path) != 0);
 }
@@ -1438,14 +1435,12 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
                          std::string& msg, int& retc)
 {
   std::ostringstream oss_msg;
-  std::string path = qpath;
+  std::string path = NormalizePath(qpath);
   retc = EINVAL;
 
   // If no path use "/eos/"
   if (path.empty()) {
     path = "/eos/";
-  } else if (path[path.length() - 1] != '/') {
-    path += '/';
   }
 
   // Get type of quota to set and construct config entry
@@ -1471,16 +1466,6 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     }
   }
 
-  // Quota values need to be positive
-  /*
-  if (value < 0)
-  {
-    oss_msg << "error: " << ((quota_type == Type::kVolume) ? "volume" : "inode")
-      << " quota value needs to be positive" << std::endl;
-    msg = oss_msg.str();
-    return false;
-  }
-  */
   // Make sure the quota node exist
   (void) Create(path);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
@@ -1536,14 +1521,12 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
                         Quota::Type quota_type, std::string& msg, int& retc)
 {
   std::ostringstream oss_msg;
-  std::string path = qpath;
+  std::string path = NormalizePath(qpath);
   retc = EINVAL;
 
   // If no path use "/eos/"
   if (path.empty()) {
     path = "/eos/";
-  } else if (path[path.length() - 1] != '/') {
-    path += '/';
   }
 
   // Get type of quota to remove and construct config entry
@@ -1634,9 +1617,10 @@ Quota::RmQuotaForId(const std::string& path, long id, Quota::IdT id_type,
 // Remove space quota
 //------------------------------------------------------------------------------
 bool
-Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
+Quota::RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc)
 {
-  eos_static_debug("path=%s", path.c_str());
+  std::string path = NormalizePath(qpath);
+  eos_static_debug("qpath=%s, path=%s", qpath.c_str(), path.c_str());
   eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
   std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
@@ -1648,10 +1632,6 @@ Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
     return false;
   } else {
     // Remove space quota from map
-    if (path[path.length() - 1 ] != '/') {
-      path += '/';
-    }
-
     pMapQuota.erase(path);
     // Delete also from the pMapInodeQuota
     (void) pMapInodeQuota.erase(squota->GetQuotaNode()->getId());
@@ -1735,7 +1715,7 @@ Quota::LoadNodes()
         quota_path = gOFS->eosView->getUri(container.get());
 
         // Make sure directories are '/' terminated
-        if (quota_path[quota_path.length() - 1] != '/') {
+        if (quota_path.back() != '/') {
           quota_path += '/';
         }
 
@@ -1809,8 +1789,9 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
 // Get group quota values for a particular path and id
 //------------------------------------------------------------------------------
 std::map<int, unsigned long long>
-Quota::GetGroupStatistics(const std::string& path, long id)
+Quota::GetGroupStatistics(const std::string& qpath, long id)
 {
+  std::string path = NormalizePath(qpath);
   std::map<int, unsigned long long> map;
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);

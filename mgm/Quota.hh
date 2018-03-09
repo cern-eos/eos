@@ -330,11 +330,11 @@ public:
   //----------------------------------------------------------------------------
   //! Check if quota node for path exists
   //!
-  //! @param path path to search for, which needs to be '/' terminated
+  //! @param qpath path to search for
   //!
   //! @return true if quota node exists, otherwise false
   //----------------------------------------------------------------------------
-  static bool Exists(const std::string& path);
+  static bool Exists(const std::string& qpath);
 
   //----------------------------------------------------------------------------
   //! Check if there is a quota node responsible for the given path
@@ -444,18 +444,18 @@ public:
   //----------------------------------------------------------------------------
   //! Removes a quota node
   //!
-  //! @param path quota node path to be removed
+  //! @param qpath quota node path to be removed
   //! @param msg message returned to the client
   //! @param retc error number returned to the client
   //!
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool RmSpaceQuota(std::string& path, std::string& msg, int& retc);
+  static bool RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Get group quota values for a particular path and id
   //!
-  //! @param path quota node path
+  //! @param qpath quota node path
   //! @param id uid/gid/projectid
   //!
   //! @return map between quota types and values. The map contains 4 entries
@@ -463,7 +463,7 @@ public:
   //!         kGroupBytesTarget, kGroupFilesIs and kGroupFilesTarget
   //----------------------------------------------------------------------------
   static std::map<int, unsigned long long>
-  GetGroupStatistics(const std::string& path, long id);
+  GetGroupStatistics(const std::string& qpath, long id);
 
   //----------------------------------------------------------------------------
   //! Update SpaceQuota from the namespace quota only if the requested path is
@@ -644,11 +644,11 @@ private:
   //----------------------------------------------------------------------------
   //! Get space quota object for exact path
   //!
-  //! @param path path of the quota node
+  //! @param qpath path of the quota node
   //!
   //! @return SpaceQuota object
   //----------------------------------------------------------------------------
-  static SpaceQuota* GetSpaceQuota(const std::string& path);
+  static SpaceQuota* GetSpaceQuota(const std::string& qpath);
 
   //----------------------------------------------------------------------------
   //! Get space quota node responsible for path looking for the most specific
@@ -659,6 +659,24 @@ private:
   //! @return SpaceQuota object
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Make sure the path ends with a /
+  //!
+  //! @param path input path
+  //!
+  //! @return / terminated path
+  //----------------------------------------------------------------------------
+  static inline std::string NormalizePath(const std::string& ipath)
+  {
+    std::string path = ipath;
+
+    if (!path.empty() && (path.back() != '/')) {
+      path += '/';
+    }
+
+    return path;
+  }
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
