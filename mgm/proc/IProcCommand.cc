@@ -165,7 +165,7 @@ IProcCommand::KillJob()
 
   mForceKill.store(true);
 
-  if (mFuture.is_valid()) {
+  if (mFuture.valid()) {
     return (mFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
   } else {
     return true;
