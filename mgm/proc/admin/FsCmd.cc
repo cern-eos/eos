@@ -62,12 +62,7 @@ eos::mgm::FsCmd::ProcessRequest()
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropfiles) {
     reply.set_retc(DropFiles(fs.dropfiles()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
-    // @todo (esindril): this is just to trigger the fallback to othe old dumpmd
-    // on the fsts
-    reply.set_retc(EINVAL);
-    reply.set_std_err("error: no supported");
-    return reply;
-    // reply.set_retc(DumpMd(fs.dumpmd()));
+    reply.set_retc(DumpMd(fs.dumpmd()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
     mOut = List(fs.ls());
     reply.set_retc(0);

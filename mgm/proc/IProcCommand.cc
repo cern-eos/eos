@@ -51,9 +51,8 @@ IProcCommand::open(const char* path, const char* info,
     mExecRequest = true;
   }
 
-  std::future_status status = mFuture.wait_for(std::chrono::seconds(delay));
-
-  if (status != std::future_status::ready) {
+  if (mFuture.wait_for(std::chrono::seconds(delay)) !=
+      std::future_status::ready) {
     // Stall the client
     std::string msg = "command not ready, stall the client 5 seconds";
     eos_notice("%s", msg.c_str());
@@ -143,8 +142,7 @@ IProcCommand::LaunchJob()
 {
   if (mDoAsync) {
     mFuture = ProcInterface::sProcThreads.PushTask<eos::console::ReplyProto>
-    ([&]() -> eos::console::ReplyProto {
-      std::lock_guard<std::mutex> lock(mMutexAsync);
+    ([this]() -> eos::console::ReplyProto {
       return ProcessRequest();
     });
   } else {
@@ -167,11 +165,10 @@ IProcCommand::KillJob()
 
   mForceKill.store(true);
 
-  if (mMutexAsync.try_lock()) {
-    mMutexAsync.unlock();
-    return true;
+  if (mFuture.is_valid()) {
+    return (mFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
   } else {
-    return false;
+    return true;
   }
 }
 
@@ -344,7 +341,7 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
 //------------------------------------------------------------------------------
 void
 IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
-                            const std::string& err_msg)
+                             const std::string& err_msg)
 {
   if (path == "") {
     if (fid == 0ULL) {
@@ -369,9 +366,9 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
 }
 
 int
-IProcCommand::IsOperationAllowed(const char* inpath) {
+IProcCommand::IsOperationAllowed(const char* inpath)
+{
   PROC_BOUNCE_NOT_ALLOWED;
-
   return SFS_ERROR;
 }
 

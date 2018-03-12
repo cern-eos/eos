@@ -46,8 +46,8 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mExecRequest(false), mReqProto(), mDoAsync(false), mForceKill(false),
-    stdOut(), stdErr(), stdJson(), retc(0), mTmpResp() {}
+    mExecRequest(false), mReqProto(), mDoAsync(false),
+    mForceKill(false), stdOut(), stdErr(), stdJson(), retc(0), mTmpResp() {}
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -204,7 +204,6 @@ protected:
 
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
-  std::mutex mMutexAsync; ///< Mutex locked during async execution
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   bool mDoAsync; ///< If true use thread pool to do the work
   std::atomic<bool> mForceKill; ///< Flag to notify worker thread
