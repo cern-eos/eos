@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
- 
+
 #include <sstream>
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
@@ -126,6 +126,8 @@ com_archive_usage:
       << ": show status of archived directories in subtree" << std::endl
       << "               kill <job_uuid>                        "
       << ": kill transfer" << std::endl
+      << "               delete <path>                          "
+      << ": delete files from tape, keeping the ones on disk" << std::endl
       << "               help [--help|-h]                       "
       << ": display help message" << std::endl;
   fprintf(stdout, "%s", oss.str().c_str());
