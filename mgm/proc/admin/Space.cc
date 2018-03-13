@@ -627,13 +627,12 @@ ProcCommand::Space()
                   stdErr = "error: value has to either on, paused or off";
                 } else {
                   if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-                                                                               "/eos/*/mgm")) {
+                      "/eos/*/mgm")) {
                     retc = EIO;
                     stdErr = "error: cannot set space config value";
                   }
                 }
-              }
-              else {
+              } else {
                 errno = 0;
                 unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                             value.c_str());
@@ -669,15 +668,21 @@ ProcCommand::Space()
           // set a filesystem related parameter
           if (!key.compare(0, 3, "fs.")) {
             key.erase(0, 3);
-            // we disable the autosave, do all the updates and then switch back to autosave and evt. save all changes
+            // we disable the autosave, do all the updates and then switch back
+            // to autosave and evt. save all changes
             bool autosave = gOFS->ConfEngine->GetAutoSave();
             gOFS->ConfEngine->SetAutoSave(false);
             eos::mgm::BaseView::const_iterator it;
 
             // store these as a global parameter of the space
-            if (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") ||
-                 (key == "drainperiod"))) {
-              if ((!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+            if (((key == "headroom") || (key == "scaninterval") ||
+                 (key == "graceperiod") || (key == "drainperiod"))) {
+              unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+                                          value.c_str());
+              char ssize[1024];
+              snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+
+              if ((!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, ssize, true,
                    "/eos/*/mgm"))) {
                 stdErr += "error: failed to set space parameter <";
                 stdErr += key.c_str();
@@ -704,7 +709,8 @@ ProcCommand::Space()
                     fs->SetString(key.c_str(), value.c_str());
 
                     if (value == "off") {
-                      // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+                      // we have to remove the errc here, otherwise we cannot
+                      // terminate drainjobs on file systems with errc set
                       fs->SetString("errc", "0");
                     }
 
@@ -713,8 +719,9 @@ ProcCommand::Space()
                     errno = 0;
                     eos::common::StringConversion::GetSizeFromString(value.c_str());
 
-                    if (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") ||
-                         (key == "drainperiod")) && (!errno)) {
+                    if (((key == "headroom") || (key == "scaninterval") ||
+                         (key == "graceperiod") || (key == "drainperiod"))
+                        && (!errno)) {
                       fs->SetLongLong(key.c_str(),
                                       eos::common::StringConversion::GetSizeFromString(value.c_str()));
                       FsView::gFsView.StoreFsConfig(fs);
