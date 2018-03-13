@@ -612,7 +612,7 @@ LRU::ConvertMatch(const char* dir,
   }
 
   for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++) {
-    time_t t = strtoul(it->second.c_str(), 0, 10);
+    time_t t = eos::common::StringConversion::GetSizeFromString(it->second.c_str());
 
     if (errno) {
       eos_static_err("msg=\"LRU match attribute has illegal age\" "
