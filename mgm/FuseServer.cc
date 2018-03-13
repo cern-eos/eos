@@ -1774,6 +1774,10 @@ FuseServer::FillContainerCAP(uint64_t id,
               useracl,
               *vid,
               evaluseracl);
+      if (EOS_LOGS_DEBUG)
+	  eos_static_debug("cap id=%lld evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
+	      id, evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(), acl.CanUpdate(), acl.CanNotDelete());
+	
 
       if (acl.IsMutable()) {
         if (acl.CanRead()) {
@@ -2480,16 +2484,14 @@ FuseServer::HandleMD(const std::string& id,
             eos_static_err("imply failed for new inode %lx", md_ino);
           }
 
-          if (pcmd->getMode() & S_ISGID) {
-            // parent attribute inheritance
-            eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+  	  // parent attribute inheritance
+	  eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
 
-            for (const auto& elem : xattrs) {
-              cmd->setAttribute(elem.first, elem.second);
-            }
+	  for (const auto& elem : xattrs) {
+	    cmd->setAttribute(elem.first, elem.second);
+	  }
 
-            sgid_mode = S_ISGID;
-          }
+	  sgid_mode = S_ISGID;
         }
 
         cmd->setName(md.name());

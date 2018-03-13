@@ -36,6 +36,7 @@ include_directories(
   ${ZMQ_INCLUDE_DIR}
   ${LIBEVENT_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
+  ${RICHACL_INCLUDE_DIRS}
   ./)
 
 find_package(RocksDB)
@@ -95,6 +96,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${ZMQ_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   ${BZ2_LIBRARY}
+  ${RICHACL_LIBRARIES}
   eosCommon)
 
 #-------------------------------------------------------------------------------

@@ -7,14 +7,18 @@
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
         %define use_systemd 1
+	%define use_richacl 1
     %else
         %define use_systemd 0
+	%define use_richacl 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
         %define use_systemd 1
+	%define use_richacl 1
     %else
         %define use_systemd 0
+	%define use_richacl 0
     %endif
 %endif
 
@@ -62,6 +66,9 @@ BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
+%if %{use_richacl}
+BuildRequires: librichacl-devel, richacl >= 1.12
+%endif
 BuildRequires: redhat-rpm-config
 %if %{?fedora}%{!?fedora:0} >= 27
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
@@ -529,6 +536,9 @@ Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
+%if %{use_richacl}
+Requires: librichacl, richacl >= 1.12
+%endif
 
 %description -n eos-fusex-core
 The new EOS fuse core containing eosxd.
