@@ -219,11 +219,11 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   mXrdFile->GetProperty("LastURL", mLastTriedUrl);
 
   if (!status.IsOK()) {
-    eos_err("error=opening remote XrdClFile");
-    errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
+    eos_err("error= \"open failed url=%s, errno=%i, errc=%i, msg=%s\"",
+            request.c_str(), mLastErrNo, mLastErrCode, mLastErrMsg.c_str());
     errno = status.errNo;
     return SFS_ERROR;
   } else {
@@ -441,7 +441,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 
           if (sh->GetRespLength() <= 0) {
             // The request got a response but it read 0 bytes
-            eos_warning("response contains 0 bytes");
+            eos_debug("response contains 0 bytes");
             done_read = true;
             nread = sh->GetRespLength();
             break;

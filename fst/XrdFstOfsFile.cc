@@ -49,7 +49,8 @@ const uint16_t XrdFstOfsFile::msDefaultTimeout = 300; // default timeout value
 XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   XrdOfsFile(user, MonID),
   eos::common::LogId(),
-  mTpcThreadStatus(EINVAL)
+  mTpcThreadStatus(EINVAL),
+  mTpcRetc(0)
 {
   openOpaque = 0;
   capOpaque = 0;
@@ -93,7 +94,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   viaDelete = remoteDelete = writeDelete = false;
   SecString = "";
   writeErrorFlag = 0;
-  tpcFlag = kTpcNone;
+  mTpcFlag = kTpcNone;
   mTpcState = kTpcIdle;
   ETag = "";
   mForcedMtime = 1;
@@ -329,20 +330,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   // Determine the TPC step that we are in
   if (tpc_stage == "placement") {
-    tpcFlag = kTpcSrcCanDo;
+    mTpcFlag = kTpcSrcCanDo;
   } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_dst.length()) {
-    tpcFlag = kTpcSrcSetup;
+    mTpcFlag = kTpcSrcSetup;
   } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_src.length()) {
-    tpcFlag = kTpcDstSetup;
+    mTpcFlag = kTpcDstSetup;
   } else if (tpc_key.length() && tpc_org.length()) {
     // Notice:
     // XRootD does not full follow the TPC specification and it doesn't set the
     // tpc.stage=copy in the TpcSrcRead step. The above condition should be:
     // else if ((tpc_stage == "copy") && tpc_key.length() && tpc_org.length()) {
-    tpcFlag = kTpcSrcRead;
+    mTpcFlag = kTpcSrcRead;
   }
 
-  if ((tpcFlag == kTpcSrcSetup) || (tpcFlag == kTpcDstSetup)) {
+  if ((mTpcFlag == kTpcSrcSetup) || (mTpcFlag == kTpcDstSetup)) {
     // Create a TPC entry in the TpcMap
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
@@ -370,7 +371,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     gOFS.TpcMap[isRW][tpc_key].expires = time(NULL) + 60; // one minute that's fine
     TpcKey = tpc_key.c_str();
 
-    if (tpcFlag == kTpcDstSetup) {
+    if (mTpcFlag == kTpcDstSetup) {
       if (!tpc_lfn.length()) {
         return gOFS.Emsg(epname, error, EINVAL, "open - tpc lfn missing", path);
       }
@@ -382,7 +383,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                gOFS.TpcMap[isRW][tpc_key].path.c_str(),
                gOFS.TpcMap[isRW][tpc_key].lfn.c_str(),
                gOFS.TpcMap[isRW][tpc_key].expires);
-    } else if (tpcFlag == kTpcSrcSetup) {
+    } else if (mTpcFlag == kTpcSrcSetup) {
       // For a TpcSrcSetup we need to store the decoded capability contents
       XrdOucEnv* saveOpaque = 0;
       int caprc = gCapabilityEngine.Extract(&tmpOpaque, saveOpaque);
@@ -406,7 +407,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                gOFS.TpcMap[isRW][tpc_key].path.c_str(),
                gOFS.TpcMap[isRW][tpc_key].expires);
     }
-  } else if (tpcFlag == kTpcSrcRead) {
+  } else if (mTpcFlag == kTpcSrcRead) {
     // Verify a TPC entry in the TpcMap since the destination's open can now
     // come before the transfer has been setup we have to give some time for
     // the TPC client to deposit the key the not so nice side effect is that
@@ -430,8 +431,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
     }
 
-    time_t now = time(NULL);
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+    time_t now = time(NULL);
 
     if (!gOFS.TpcMap[isRW].count(tpc_key)) {
       eos_err("tpc key=%s not valid", tpc_key.c_str());
@@ -466,7 +467,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   // Expire keys which are more than one 4 hours expired
-  if (tpcFlag > kTpcNone) {
+  if (mTpcFlag > kTpcNone) {
     time_t now = time(NULL);
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
     auto it = (gOFS.TpcMap[isRW]).begin();
@@ -506,7 +507,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int caprc = 0;
 
   // TpcSrcRead can bypass capability checks
-  if (tpcFlag == kTpcSrcRead) {
+  if (mTpcFlag == kTpcSrcRead) {
     // Grab the capability contents from the tpc key map
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
@@ -590,8 +591,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     maxsize = 0;
   }
 
-  if ((val = capOpaque->Get("mgm.repairread")))
-  {
+  if ((val = capOpaque->Get("mgm.repairread"))) {
     isRepairRead = true;
   }
 
@@ -890,7 +890,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW, isRepairRead);
+  fMd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW,
+                                     isRepairRead);
 
   if ((!fMd) || gOFS.Simulate_FMD_open_error) {
     if (!gOFS.Simulate_FMD_open_error) {
@@ -1243,8 +1244,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
              , eos::common::SecEntity::ToEnv(SecString.c_str(),
-                 ((tpcFlag == kTpcDstSetup) ||
-                  (tpcFlag == kTpcSrcRead)) ? "tpc" : 0).c_str());
+                 ((mTpcFlag == kTpcDstSetup) ||
+                  (mTpcFlag == kTpcSrcRead)) ? "tpc" : 0).c_str());
     reportString = report;
   }
 }
@@ -1538,7 +1539,7 @@ XrdFstOfsFile::close()
       }
     }
 
-    if (tpcFlag == kTpcDstSetup) {
+    if (mTpcFlag == kTpcDstSetup) {
       if (!mTpcThreadStatus) {
         int retc = XrdSysThread::Join(mTpcThread, NULL);
         eos_debug("TPC job join returned %i", retc);
@@ -1966,7 +1967,7 @@ XrdFstOfsFile::close()
 
     if (!deleteOnClose) {
       // Prepare a report and add to the report queue
-      if ((tpcFlag != kTpcSrcSetup) && (tpcFlag != kTpcSrcCanDo)) {
+      if ((mTpcFlag != kTpcSrcSetup) && (mTpcFlag != kTpcSrcCanDo)) {
         // We don't want a report for the source tpc setup or can do open
         XrdOucString reportString = "";
         MakeReportEnv(reportString);
@@ -2294,7 +2295,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
 
   //  EPNAME("read");
-  if (tpcFlag == kTpcSrcRead) {
+  if (mTpcFlag == kTpcSrcRead) {
     if (!(rCalls % 10)) {
       if (!TpcValid()) {
         eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s",
@@ -2658,32 +2659,34 @@ XrdFstOfsFile::sync()
   static const int cbWaitTime = 1800;
 
   // TPC transfer
-  if (tpcFlag == kTpcDstSetup) {
-    int tpc_state = GetTpcState();
+  if (mTpcFlag == kTpcDstSetup) {
+    XrdSysMutexHelper scope_lock(&mTpcJobMutex);
 
-    if (tpc_state == kTpcIdle) {
+    if (mTpcState == kTpcIdle) {
       eos_info("msg=\"tpc enabled -> 1st sync\"");
-      SetTpcState(kTpcEnabled);
-      return SFS_OK;
-    } else if (tpc_state == kTpcRun) {
-      if (mTpcInfo.SetCB(&error)) {
-        return SFS_ERROR;
-      }
-
-      eos_info("msg=\"tpc already running -> 2nd sync\"");
-      error.setErrCode(cbWaitTime);
-      mTpcInfo.Engage();
-      return SFS_STARTED;
-    } else if (tpc_state == kTpcDone) {
-      eos_info("msg=\"tpc already finished -> 2nd sync\"");
-      return SFS_OK;
-    } else if (tpc_state == kTpcEnabled) {
-      SetTpcState(kTpcRun);
       mTpcThreadStatus = XrdSysThread::Run(&mTpcThread,
                                            XrdFstOfsFile::StartDoTpcTransfer,
                                            static_cast<void*>(this), XRDSYSTHREAD_HOLD,
                                            "TPC Transfer Thread");
 
+      if (mTpcThreadStatus == 0) {
+        mTpcState = kTpcRun;
+        scope_lock.UnLock();
+        return SFS_OK;
+      } else {
+        eos_err("msg=\"failed to start TPC job thread\"");
+        mTpcState = kTpcDone;
+
+        if (mTpcInfo.Key) {
+          free(mTpcInfo.Key);
+        }
+
+        mTpcInfo.Key = strdup("Copy failed, could not start job");
+        return mTpcInfo.Fail(&error, "could not start job", ECANCELED);
+      }
+    } else if (mTpcState == kTpcRun) {
+      eos_info("msg=\"tpc running -> 2nd sync\"");
+
       if (mTpcInfo.SetCB(&error)) {
         return SFS_ERROR;
       }
@@ -2691,8 +2694,18 @@ XrdFstOfsFile::sync()
       error.setErrCode(cbWaitTime);
       mTpcInfo.Engage();
       return SFS_STARTED;
+    } else if (mTpcState == kTpcDone) {
+      eos_info("msg=\"tpc already finished, retc=%i\"", mTpcRetc);
+
+      if (mTpcRetc) {
+        error.setErrInfo(mTpcRetc, (mTpcInfo.Key ? mTpcInfo.Key : "failed tpc"));
+        return SFS_ERROR;
+      } else {
+        return SFS_OK;
+      }
     } else {
       eos_err("msg=\"unknown tpc state\"");
+      error.setErrInfo(EINVAL, "unknown TPC state");
       return SFS_ERROR;
     }
   } else {
@@ -2726,17 +2739,18 @@ XrdFstOfsFile::StartDoTpcTransfer(void* arg)
 void*
 XrdFstOfsFile::DoTpcTransfer()
 {
-  eos_info("msg=\"tpc now running - 2nd sync\"");
+  eos_info("msg=\"tpc now running - 1st sync\"");
   std::string src_url = "";
   std::string src_cgi = "";
 
   // The sync initiates the third party copy
   if (!TpcValid()) {
     eos_err("msg=\"tpc session invalidated during sync\"");
-    error.setErrInfo(ECONNABORTED,
-                     "sync - TPC session has been closed by disconnect");
-    SetTpcState(kTpcDone);
-    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by diconnect");
+    XrdSysMutexHelper scope_lock(mTpcJobMutex);
+    mTpcState = kTpcDone;
+    mTpcRetc = ECONNABORTED;
+    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync TPC session closed by "
+                   "disconnect");
     return 0;
   }
 
@@ -2757,24 +2771,24 @@ XrdFstOfsFile::DoTpcTransfer()
   XrdIo tpcIO(src_url.c_str());
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
-  if (tpcIO.fileOpen(0, 0, src_cgi.c_str(), 10)) {
-    XrdOucString msg = "sync - TPC open failed for url=";
-    msg += src_url.c_str();
-    msg += " cgi=";
-    msg += src_cgi.c_str();
-    error.setErrInfo(EFAULT, msg.c_str());
-    SetTpcState(kTpcDone);
-    mTpcInfo.Reply(SFS_ERROR, EFAULT, "TPC open failed");
+  if (tpcIO.fileOpen(0, 0, src_cgi.c_str())) {
+    eos_err("msg=\"TPC open failed for url=%s cgi=%s\"", src_url.c_str(),
+            src_cgi.c_str());
+    XrdSysMutexHelper scope_lock(mTpcJobMutex);
+    mTpcState = kTpcDone;
+    mTpcRetc = EFAULT;
+    mTpcInfo.Reply(SFS_ERROR, EFAULT, "sync - TPC open failed");
     return 0;
   }
 
   if (!TpcValid()) {
-    eos_err("msg=\"tpc session invalidated during sync\"");
-    error.setErrInfo(ECONNABORTED,
-                     "sync - TPC session has been closed by disconnect");
-    SetTpcState(kTpcDone);
-    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by disconnect");
     tpcIO.fileClose();
+    eos_err("msg=\"tpc session invalidated during sync\"");
+    XrdSysMutexHelper scope_lock(mTpcJobMutex);
+    mTpcState = kTpcDone;
+    mTpcRetc = ECONNABORTED;
+    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync - TPC session closed by "
+                   "disconnect");
     return 0;
   }
 
@@ -2788,17 +2802,21 @@ XrdFstOfsFile::DoTpcTransfer()
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
+    // @note this way of reading asynchronously in the buffer without waiting
+    // for the async requests works properly only if readahead is enabled.
+    // Otherwise, one must call fileWaitAsyncIO().
     rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
                                  tpcIO.GetBlockSize(), true, 30);
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
               rbytes, tpcIO.GetBlockSize());
 
     if (rbytes == -1) {
-      SetTpcState(kTpcDone);
+      (void) tpcIO.fileClose();
       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
-      error.setErrInfo(EIO, "sync - TPC remote read failed");
-      mTpcInfo.Reply(SFS_ERROR, EIO, "TPC remote read failed");
-      tpcIO.fileClose();
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = EIO;
+      mTpcInfo.Reply(SFS_ERROR, EIO, "sync - TPC remote read failed");
       return 0;
     }
 
@@ -2808,11 +2826,12 @@ XrdFstOfsFile::DoTpcTransfer()
       eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
 
       if (rbytes != wbytes) {
-        SetTpcState(kTpcDone);
+        (void) tpcIO.fileClose();
         eos_err("msg=\"tpc transfer terminated - local write failed\"");
-        error.setErrInfo(EIO, "sync - tpc local write failed");
-        mTpcInfo.Reply(SFS_ERROR, EIO, "TPC local write failed");
-        tpcIO.fileClose();
+        XrdSysMutexHelper scope_lock(mTpcJobMutex);
+        mTpcState = kTpcDone;
+        mTpcRetc = EIO;
+        mTpcInfo.Reply(SFS_ERROR, EIO, "sync - TPC local write failed");
         return 0;
       }
 
@@ -2821,19 +2840,22 @@ XrdFstOfsFile::DoTpcTransfer()
 
     // Check validity of the TPC key
     if (!TpcValid()) {
-      SetTpcState(kTpcDone);
+      (void) tpcIO.fileClose();
       eos_err("msg=\"tpc transfer invalidated during sync\"");
-      error.setErrInfo(ECONNABORTED,
-                       "sync - TPC session has been closed by disconnect");
-      mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by diconnect");
-      tpcIO.fileClose();
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = ECONNABORTED;
+      mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync - TPC session closed "
+                     "by diconnect");
       return 0;
     }
   } while (rbytes > 0);
 
   // Close the remote file
-  eos_debug("Close remote file and exit");
+  eos_info("done tpc transfer, close remote file and exit");
   XrdCl::XRootDStatus st = tpcIO.fileClose();
+  XrdSysMutexHelper scope_lock(mTpcJobMutex);
+  mTpcState = kTpcDone;
   mTpcInfo.Reply(SFS_OK, 0, "");
   return 0;
 }
@@ -2975,26 +2997,6 @@ XrdFstOfsFile::GetFstPath()
 {
   std::string ret = fstPath.c_str();
   return ret;
-}
-
-//------------------------------------------------------------------------------
-// Set the TPC state
-//------------------------------------------------------------------------------
-void
-XrdFstOfsFile::SetTpcState(TpcState_t state)
-{
-  XrdSysMutexHelper scope_lock(mTpcStateMutex);
-  mTpcState = state;
-}
-
-//----------------------------------------------------------------------------
-// Get the TPC state of the transfer
-//----------------------------------------------------------------------------
-XrdFstOfsFile::TpcState_t
-XrdFstOfsFile::GetTpcState()
-{
-  XrdSysMutexHelper scope_lock(mTpcStateMutex);
-  return mTpcState;
 }
 
 //------------------------------------------------------------------------------

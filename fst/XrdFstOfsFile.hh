@@ -411,16 +411,13 @@ protected:
     kTpcSrcCanDo = 4, //! read access to evaluate if source available
   };
 
-  int tpcFlag; //! uses kTpcXYZ enums above to identify TPC access
+  int mTpcFlag; //! uses kTpcXYZ enums above to identify TPC access
 
   enum TpcState_t {
-    kTpcIdle = 0, //! TPC is not enabled and not running (no sync received)
-    kTpcEnabled = 1, //! TPC is enabled, but not running (1st sync received)
-    kTpcRun = 2, //! TPC is running (2nd sync received)
-    kTpcDone = 3, //! TPC has finished
+    kTpcIdle = 0, //! TPC is not enabled (1st sync)
+    kTpcRun = 1, //! TPC is running (2nd sync)
+    kTpcDone = 2, //! TPC has finished
   };
-
-  int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
 
   FmdHelper* fMd; //! pointer to the in-memory file meta data object
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
@@ -557,20 +554,6 @@ private:
   void* DoTpcTransfer();
 
   //----------------------------------------------------------------------------
-  //! Set the TPC state
-  //!
-  //! @param state TPC state
-  //----------------------------------------------------------------------------
-  void SetTpcState(TpcState_t state);
-
-  //----------------------------------------------------------------------------
-  //! Get the TPC state of the transfer
-  //!
-  //! @return TPC state
-  //----------------------------------------------------------------------------
-  TpcState_t GetTpcState();
-
-  //----------------------------------------------------------------------------
   //! Check fst validity to avoid any open replays
   //!
   //! @param env_opaque env opaque infomtation
@@ -597,8 +580,9 @@ public:
   int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
   pthread_t mTpcThread; ///< thread doing the TPC transfer
   TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
-  XrdSysMutex mTpcStateMutex; ///< mutex protecting the access to TPC state
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
+  XrdSysMutex mTpcJobMutex; ///< TPC job mutex
+  int mTpcRetc; ///< TPC job return code
   uint16_t mTimeout; ///< timeout for layout operations
 };
 

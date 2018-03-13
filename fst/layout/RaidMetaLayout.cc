@@ -268,9 +268,9 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     // Open remote stripes
     // @note: for TPC transfers we open the remote stipes only in the
     // kTpcSrcRead or kTpcDstSetup stages.
-    if ((mOfsFile->tpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
-        (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
-        (mOfsFile->tpcFlag == XrdFstOfsFile::kTpcNone)) {
+    if ((mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
+        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
+        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcNone)) {
       for (unsigned int i = 0; i < stripe_urls.size(); i++) {
         if (i != (unsigned int) mPhysicalStripeIndex) {
           eos_info("Open remote stripe i=%i ", i);
