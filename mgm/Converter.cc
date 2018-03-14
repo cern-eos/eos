@@ -311,7 +311,7 @@ Converter::Converter(const char* spacename)
 
   {
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
-    // store this object in the converter map for callbask
+    // store this object in the converter map for callback
     gConverterMap[spacename] = this;
   }
 
