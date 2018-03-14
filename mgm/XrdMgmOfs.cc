@@ -165,7 +165,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0), auth_tid(0),
   mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr),
-  commentLog(0),
+  mCommentLog(nullptr),
   FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
@@ -178,7 +178,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN = 0;
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
-
   IoStats.reset(new eos::mgm::Iostat());
   Httpd.reset(new eos::mgm::HttpServer());
   EgroupRefresh.reset(new eos::mgm::Egroup());
@@ -494,7 +493,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                          args,
                          error,
                          &lClient) != SFS_DATA) {
-      retc = Emsg(epname, error, ENOTCONN, "prepare - synchronous prepare workflow error", prep_path.c_str());
+      retc = Emsg(epname, error, ENOTCONN,
+                  "prepare - synchronous prepare workflow error", prep_path.c_str());
     }
   }
 
@@ -554,8 +554,9 @@ XrdMgmOfs::Emsg(const char* pfx,
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
     eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
-    if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) || ( (!strcmp(pfx,"attr_get") || (!strcmp(pfx,"attr_ls")) ) && (ecode == ENOENT) ) )
-    {
+    if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) ||
+        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls"))) &&
+         (ecode == ENOENT))) {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
       eos_err("Unable to %s %s; %s", op, target, etext);

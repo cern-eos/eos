@@ -560,13 +560,13 @@ public:
   // stat file and get the checksum info
   // ---------------------------------------------------------------------------
   int _getchecksum(const char* Name,
-           XrdOucErrInfo& out_error,
-           std::string* xstype,
-           std::string* xs,
-           const XrdSecEntity* client = 0,
-           const char* opaque = 0,
-           bool follow = true
-          );
+                   XrdOucErrInfo& out_error,
+                   std::string* xstype,
+                   std::string* xs,
+                   const XrdSecEntity* client = 0,
+                   const char* opaque = 0,
+                   bool follow = true
+                  );
   // ---------------------------------------------------------------------------
   // stat file by vid
   // ---------------------------------------------------------------------------
@@ -754,7 +754,7 @@ public:
   //!
   //! @return true if attribute was found, false otherwise
   //----------------------------------------------------------------------------
-  bool _attr_get(eos::IContainerMD &cmd, std::string key, std::string& rvalue);
+  bool _attr_get(eos::IContainerMD& cmd, std::string key, std::string& rvalue);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given FileMD - low-level API.
@@ -765,7 +765,7 @@ public:
   //!
   //! @return true if attribute was found, false otherwise
   //----------------------------------------------------------------------------
-  bool _attr_get(eos::IFileMD &fmd, std::string key, std::string& rvalue);
+  bool _attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - low-level API.
@@ -1445,7 +1445,7 @@ public:
 
   //! Class implementing comment log: mgm writes all proc commands with a
   //! comment into /var/log/eos/comments.log
-  eos::common::CommentLog* commentLog;
+  eos::common::CommentLog* mCommentLog;
 
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;

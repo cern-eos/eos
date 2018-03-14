@@ -431,9 +431,9 @@ ProcCommand::close()
   if (!mClosed) {
     // Only instance users or sudoers can add to the log book
     if ((pVid->uid <= 2) || (pVid->sudoer)) {
-      if (mComment.length() && gOFS->commentLog) {
-        if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
-                                   mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc)) {
+      if (mComment.length() && gOFS->mCommentLog) {
+        if (!gOFS->mCommentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
+                                    mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc)) {
           eos_err("failed to log to comment log file");
         }
       }

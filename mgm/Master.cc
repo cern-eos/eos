@@ -182,22 +182,22 @@ Master::Init()
     // Get sync up if it is not up
     eos::common::ShellCmd
     scmd1(fHasSystemd ?
-    "systemctl status eos@sync || systemctl start eos@sync" :
-    "service eos status sync || service eos start sync");
+          "systemctl status eos@sync || systemctl start eos@sync" :
+          "service eos status sync || service eos start sync");
     rc = scmd1.wait(30);
-    
+
     if (rc.exit_code) {
       eos_crit("failed to start sync service");
       return false;
     }
-    
+
     // Get eossync up if it is not up
     eos::common::ShellCmd
     scmd2(fHasSystemd ?
-    "systemctl status eossync@* || systemctl start eossync" :
-    "service eossync status || service eossync start ");
+          "systemctl status eossync@* || systemctl start eossync" :
+          "service eossync status || service eossync start ");
     rc = scmd2.wait(30);
-    
+
     if (rc.exit_code) {
       eos_crit("failed to start eossync service");
       return false;
@@ -1078,14 +1078,12 @@ Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
     stdOut += gOFS->MgmConfigDir.c_str();
     stdOut += " activating master=";
     stdOut += fThisHost;
-    stdOut += "\n";
   } else {
     gOFS->MgmConfigDir.replace(fThisHost, fRemoteHost);
     stdOut += "configdir=";
     stdOut += gOFS->MgmConfigDir.c_str();
     stdOut += " activating master=";
     stdOut += fRemoteHost;
-    stdOut += "\n";
   }
 
   MasterLog(eos_static_notice(stdOut.c_str()));
@@ -1819,7 +1817,6 @@ Master::BootNamespace()
   // For qdb namespace enable by default all the views
   bool ns_in_qdb = (dynamic_cast<eos::IChLogContainerMDSvc*>
                     (gOFS->eosDirectoryService) == nullptr);
-
   gOFS->NsInQDB = ns_in_qdb;
 
   if (ns_in_qdb ||

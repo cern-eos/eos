@@ -188,7 +188,8 @@ XrdMgmOfs::InitializeFileView()
 
         if (fmd) {
           fmd->setSize(4096);
-          fmd->setAttribute("sys.proc", "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse");
+          fmd->setAttribute("sys.proc",
+                            "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse");
           eosView->updateFileStore(fmd.get());
         }
 
@@ -1362,14 +1363,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   g_logging.SetUnit(unit.c_str());
   std::string filter =
     "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,"
-    "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures";
+    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,placeNewReplicas,"
+    "accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,"
+    "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
+    "updateAtomicPenalties,updateFastStructures";
   g_logging.SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-             "RegisterNode,SharedHash,"
-             "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures");
-  // we automatically append the host name to the config dir
+             "RegisterNode,SharedHash,placeNewReplicas,accessReplicas,"
+             "placeNewReplicasOneGroup,accessReplicasOneGroup,"
+             "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
+             "updateAtomicPenalties,updateFastStructures");
+  // Automatically append the host name to the config dir
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
   XrdOucString makeit = "mkdir -p ";
@@ -1386,9 +1391,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (src) {
     eos_err("%s returned %d", chownit.c_str(), src);
+    NoGo = 1;
+    return NoGo;
   }
 
-  // check config directory access
+  // Check config directory access
   if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK)) {
     Eroute.Emsg("Config", "Cannot acccess the configuration directory for r/w!",
                 MgmConfigDir.c_str());
@@ -1407,17 +1414,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   } else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());
-    NoGo = 1;
-  }
-
-  commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
-
-  // Create comment log
-  if (commentLog && commentLog->IsValid()) {
-    Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
-  } else {
-    Eroute.Emsg("Config", "Cannot create/open the comment log file "
-                "/var/log/eos/mgm/logbook.log");
     NoGo = 1;
   }
 
@@ -1441,19 +1437,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
+  // Create comment log to save all proc commands executed with a comment
+  mCommentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
+
+  if (mCommentLog && mCommentLog->IsValid()) {
+    Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
+  } else {
+    Eroute.Emsg("Config", "Cannot create/open the comment log file "
+                "/var/log/eos/mgm/logbook.log");
+    NoGo = 1;
+  }
+
+  // Save MGM alias if configured
   if (getenv("EOS_MGM_ALIAS")) {
     MgmOfsAlias = getenv("EOS_MGM_ALIAS");
   }
 
-  // we don't put the alias we need call-back's to appear on our node
   if (MgmOfsAlias.length()) {
     Eroute.Say("=====> mgmofs.alias: ", MgmOfsAlias.c_str());
   }
 
+  // Build the adler & sha1 checksum of the default keytab file
   XrdOucString keytabcks = "unaccessible";
-  // ----------------------------------------------------------
-  // build the adler & sha1 checksum of the default keytab file
-  // ----------------------------------------------------------
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
   XrdOucString symkey = "";
 
@@ -1513,7 +1518,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                   NodeConfigQueuePrefix.c_str(),
                                   GroupConfigQueuePrefix.c_str(),
                                   SpaceConfigQueuePrefix.c_str());
-  FsView::gFsView.SetConfigEngine(ConfEngine);
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
@@ -1541,7 +1545,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr, "%s", out.c_str());
 
-  // eventuall autoload a configuration
+  // Eventually autoload a configuration
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
   }
@@ -1864,7 +1868,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
-  // hook to the appropiate config file
+  // Hook to the appropiate config file
   XrdOucString stdOut;
   XrdOucString stdErr;
 
@@ -1901,6 +1905,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
+  // It's safe to set the config engine for the FsView after the
+  // ApplyMasterConfig otherwise any update that comes will be the only one
+  // recorded in the config file. This leads to a corruption of the
+  // default.eoscf in which it only holds a few entries.
+  FsView::gFsView.SetConfigEngine(ConfEngine);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex::EstimateLatenciesAndCompensation();
   FsView::gFsView.ViewMutex.SetDebugName("FsView");
@@ -1991,7 +2000,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // add all stat entries with 0
   InitStats();
-
   // set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
