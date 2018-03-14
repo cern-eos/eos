@@ -19,12 +19,24 @@ UBoxed Installation
 Preparation
 -----------
 
-The setup scripts will install all required packages.
+The setup scripts will install all required packages. 
 
 .. note::
+   Make sure you have no other web server listening on the standard ports. Make sure you have atleast 6GB of free space under ``/var/lib/docker/volumes/``. 
 
-   Make sure you have no other web server listening on the standard ports.
+.. warning::
+   The installation requires atleast docker version 17.03 - if you have an older one we recommend to uninstall it let
+   the setup script take care of pulling a newer version.
+   
+.. warning::
+   In certain environments docker container cannot resolve external domain addresses because nameserver accesss to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json``. 
+   For the CERN DNS server that would be e.g.
 
+.. code-block:: bash
+   cat /etc/docker/daemon.json
+   {
+     "dns" : ["137.138.17.5", "137.138.17.5"]
+   }
 
 Quick Setup
 -----------
@@ -69,7 +81,8 @@ Run a Self Test
 Connect to your services
 ++++++++++++++++++++++++
 
-Open https://localhost in a local browser or connect to your docker installation machine with a remote browser. 
+Open https://localhost in a local browser or connect to your docker host machine with a remote browser. You will land on the Uboxed main page which directs you to documentation and how to try the individual services.
+
 
 Stop Services
 -------------
