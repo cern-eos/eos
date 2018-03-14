@@ -4,14 +4,11 @@ quota
 .. code-block:: text
 
   Usage:
-    quota [<path>]                                                   : show personal quota for all or only the quota node responsible for <path>
-    quota ls [-n] [-m] [-u <uid>] [-g <gid>] [-p <path>]             : list configured quota and quota node(s)
-    quota ls [-n] [-m] [-u <uid>] [-g <gid>] [<path>]                : list configured quota and quota node(s)
-    quota rm -u <uid>|-g <gid> [-v] [-i] -p <path>                   : remove configured quota type(s) for uid/gid in path
-    quota rm -u <uid>|-g <gid> [-v] [-i] <path>                      : remove configured quota type(s) for uid/gid in path
-    quota rmnode -p <path>                                           : remove quota node and every defined quota on that node
-    quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] -p <path> : set volume and/or inode quota by uid or gid
-    quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] <path>    : set volume and/or inode quota by uid or gid
+    quota [<path>]                                                     : show personal quota for all or only the quota node responsible for <path>
+    quota ls [-n] [-m] [-u <uid>] [-g <gid>] [ [-p] <path> ]           : list configured quota and quota node(s)
+    quota rm -u <uid>|-g <gid> [-v] [-i] [-p] <path>                   : remove configured quota type(s) for uid/gid in path
+    quota rmnode -p <path>                                             : remove quota node and every defined quota on that node
+    quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [-p] <path> : set volume and/or inode quota by uid or gid
     General options:
     -m : print information in monitoring <key>=<value> format
     -n : don't translate ids, print uid and gid number

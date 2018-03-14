@@ -15,7 +15,8 @@ geosched
     :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
     :  '-c' enables color display
     geosched show param                                                :  show internal parameters
-    geosched show state                                                :  show internal state
+    geosched show state [-m]                                           :  show internal state
+    :  '-m' list in monitoring format
     geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show state)
     geosched updater {pause|resume}                                    :  pause / resume the tree updater
     geosched forcerefresh                                              :  force a refresh of the trees/snapshots

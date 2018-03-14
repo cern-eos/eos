@@ -4,15 +4,16 @@ kinetic
 .. code-block:: text
 
   ------------------------------------------------------------------------------------------------
-  usage: kinetic config [--publish | --upload ] [--space <name>] [ --security | --cluster | --location] [--file <local-json-file>
-    kinetic config [--space <name> ] [--security | --cluster | --location]
+  usage: kinetic config [--publish|--upload] ...
+    kinetic config [--space <name> ] [--security|--cluster|--location]
     shows the currently deployed kinetic configuration - by default 'default' space
-    --security, --cluster, --location selects only the relevant entry for the given fieldn
+    setting --security, --cluster, or --location shows only the selected subconfiguration
     kinetic config --publish [--space <name>]
     publishes the configuration files under <mgm>:/var/eos/kinetic/ to all currently
     existing FSTs in default or referenced space
-    kinetic config --upload {--cluster | --security| --location} --file <local-json-file>  [--space <name>]
-    uploads the local configuration file as current version <mgm>:/var/eos/kinetic/ for the dedicated space and security,cluster or location description
+    kinetic config --upload {--cluster|--security|--location} --file <local-json-file> [--space <name>]
+    uploads the supplied local-json-file as current version for the selected
+    subconfiguration to <mgm>:/var/eos/kinetic/
   usage: kinetic --id <name> <operation> [OPTIONS] 
     --id <name>
     the name of target cluster (see kinetic config)

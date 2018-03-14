@@ -28,4 +28,6 @@ fsck
     :  just drop replicas from the namespace if they cannot be found on disk
     fsck repair --unlink-zero-replicas
     :  drop all files which have no replica's attached and are older than 48 hours!
+    fsck repair --replace-damaged-replicas
+    :  drop the damaged replica of the file and recover with a healthy one if possible!
     fsck repair --all                                          :  do all the repair actions besides <checksum-commit>

@@ -5,6 +5,7 @@ ls
 
   usage: ls [-lani] <path>                                                  :  list directory <path>
     -l : show long listing
+    -y : show long listing with backend(tape) status
     -lh: show long listing with readable sizes
     -a : show hidden files
     -i : add inode information

@@ -17,7 +17,7 @@ file
     - %silent                                                     :  suppresses all information for each replic to be printed
     - %force                                                      :  forces to get the MD even if the node is down
     - %output                                                     :  prints lines with inconsitency information
-  file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>][<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:
+  file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:
     convert the layout of a file
     <layout>:<stripes>   : specify the target layout and number of stripes
     <layout-id>          : specify the hexadecimal layout id
@@ -27,12 +27,12 @@ file
     --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet
     --rewrite            : run convertion rewriting the file as is creating new copies and dropping old
   file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>
-    <src>                                                         :  source can be a file or a directory [<path>|fid:<fid-dec>|fxid:<fid-hex>]
+    <src>                                                         :  source can be a file or a directory (<path>|fid:<fid-dec>|fxid:<fid-hex>)
     <dst>                                                         :  destination can be a file (if source is a file) or a directory
     -f :  force overwrite
     -c :  clone the file (keep ctime,mtime)
   file drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid> [-f] :
-    drop the file [<path>|fid:<fid-dec>|fxid:<fid-hex>] from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem)
+    drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem)
   file info [<path>|fid:<fid-dec>|fxid:<fid-hex>] :
     convenience function aliasing to 'fileinfo' command
   file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :
@@ -44,9 +44,9 @@ file
   file purge <path> [purge-version] :
     keep maximumg <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.
   file rename [<path>|fid:<fid-dec>|fxid:<fid-hex>] <new> :
-    rename from [<path>|fid:<fid-dec>|fxid:<fid-hex>] to <new> name (works for files and directories!).
+    rename from <old> to <new> name (works for files and directories!).
   file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :
-    replicate file [<path>|fid:<fid-dec>|fxid:<fid-hex>] part on <fsid1> to <fsid2>
+    replicate file <path> part on <fsid1> to <fsid2>
   file symlink <name> <link-name> :
     create a symlink with <name> pointing to <link-name>
   file tag <name> +|-|~<fsid> :
@@ -54,7 +54,7 @@ file
     unlink keeps the location in the list of deleted files e.g. the location get's a deletion request
   file touch [<path>|fid:<fid-dec>|fxid:<fid-hex>] :
     create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time
-  file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] :
+  file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : 
     verify a file against the disk images
     <fsid>          : verifies only the replica on <fsid>
     -checksum       : trigger the checksum calculation during the verification process

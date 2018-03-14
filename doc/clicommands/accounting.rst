@@ -1,19 +1,10 @@
 accounting
----
+----------
 
 .. code-block:: text
 
-  '[eos] accounting report [-f]' report accounting information of quota nodes in standard JSON format
-  Options:
-    -f : issue a forced update bypassing the cache (use only if cached data is too old and you can't wait for the update)
-
-  '[eos] accounting config [-e <expired> | -i <invalid>]' configure accounting caching behaviour
-  Options:
-    -e : set new expiry time in minutes. After this, data is served from cache instantly (you most likely get the cached data) and asynchronous update is issued. 10 min is default.
-    -i : set new invalidity time in minutes. After this, the data is no longer served from cache, the client will wait for a synchronous update. Never by default.
-         Must be greater than expiry to take effect.
-
-.. code-block:: text
-
-  Report:
-    This command uses caching to avoid frequent re-computation of data. See the config command how to configure its behaviour.
+  usage: accounting report [-f]                          : prints accounting report in JSON, data is served from cache if possible
+    -f : forces a synchronous report instead of using the cache (only use this if the cached data is too old)
+    accounting config -e [<expired>] -i [<invalid>] : configure caching behaviour
+    -e : expiry time in minutes, after this time frame asynchronous update happens, default is 10 minutes
+    -i : invalidity time in minutes, after this time frame synchronous update happens, must be greater than expiry time, default is never

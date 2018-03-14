@@ -96,6 +96,13 @@ attr
     sys.attr.link=<directory>             : symbolic links for attributes - all attributes of <directory> are visible in this directory and overwritten/extended by the local attributes
     sys.http.index=<path>                 : show a static page as directory index instead of the dynamic one
     => <path> can be a relative or absolute file path!
+    sys.accounting.*=<value>              : set accounting attributes with value on the proc directory (common values) or quota nodes which translate to JSON output in the accounting report command
+    => You have to create such an attribute for each leaf value in the desired JSON.
+    => JSON objects: create a new key with a new name after a '.', e.g. sys.accounting.storagecapacity.online.totalsize=x or sys.accounting.storagecapacity.online.usedsize=y to add a new key-value to this object
+    => JSON arrays: place a continuous whole number from 0 to the attribute name, e.g. sys.accounting.accessmode.{0,1,2,...}
+    => array of objects: you can combine the above two to achieve arbitrary JSON output, e.g. sys.accounting.storageendpoints.0.name, sys.accounting.storageendpoints.0.id and sys.accounting.storageendpoints.1.name ...
+    sys.proc=<opaque command>             : run arbitrary command on accessing the file
+    => <opaque comamnd> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse
   User Variables:
     user.forced.space=<space>              : s.a.
     user.forced.layout=<layout>            : s.a.
