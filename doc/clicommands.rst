@@ -6,17 +6,17 @@ Client Commands
 .. toctree::
   :maxdepth: 2
 
+  clicommands/vst
   clicommands/motd
-  clicommands/acl
-  clicommands/accounting
-  clicommands/health
   clicommands/help
   clicommands/vid
   clicommands/chmod
   clicommands/cd
+  clicommands/newfind
   clicommands/file
+  clicommands/recycle
   clicommands/touch
-  clicommands/vst
+  clicommands/accounting
   clicommands/fileinfo
   clicommands/cp
   clicommands/find
@@ -35,8 +35,8 @@ Client Commands
   clicommands/version
   clicommands/exit
   clicommands/ls
-  clicommands/geosched
-  clicommands/rm
+  clicommands/fusex
+  clicommands/health
   clicommands/ns
   clicommands/config
   clicommands/question
@@ -49,17 +49,20 @@ Client Commands
   clicommands/who
   clicommands/quota
   clicommands/fsck
-  clicommands/recycle
+  clicommands/geosched
   clicommands/pwd
   clicommands/fuse
+  clicommands/rm
   clicommands/timing
   clicommands/dropbox
   clicommands/role
   clicommands/group
   clicommands/info
+  clicommands/drain
   clicommands/attr
   clicommands/license
   clicommands/clear
+  clicommands/acl
   clicommands/rtlog
   clicommands/chown
   clicommands/mv
