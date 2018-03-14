@@ -8,9 +8,8 @@
 EOS Docker Installation
 =======================
 
-If you want to try EOS and get up a test instance in two minutes, a docker installation is the way to do that.
-
-We rovide EOS docker images with all the necessary components installed and ready to use.
+A docker installation is the easiest way to go if you want to try EOS and get up a test instance in two minutes. 
+We provide EOS docker images with all the necessary components installed and ready to use.
 
 
 Preparation
@@ -20,7 +19,7 @@ Preparation
 
    Make sure you have docker_ installed and the docker daemon started on your system.
 
-.. code-block:: text
+.. code-block:: bash
 
    // Example on CentOS 7
    yum install docker
@@ -32,16 +31,17 @@ Run EOS in docker
 
 Checkout the `eos-docker <https://gitlab.cern.ch/eos/eos-docker>`_ project:
 
-.. code-block:: text
+.. code-block:: bash
 
    git clone https://gitlab.cern.ch/eos/eos-docker.git
    cd eos-docker
 
-To start a small instance with 6 storage servers (FST), 1 namespace server (MGM), 1 messaging borker (MQ), 1 client and 1 Kerberos KDC containers ready to use,
+To start a small instance with 6 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging borker (**MQ**), 1 client and 1 Kerberos **KDC** containers ready to use,
 all you have to do is to use the `start_services <https://gitlab.cern.ch/eos/eos-docker/blob/master/scripts/start_services.sh>`_ script.
-You have to give the name of the image to use with the -i and the number of FST containers (default is 6) with the -n flags.
 
-The containers will reside on the same network knowing about each other and configured to be working out-of-the-box.
+The arguments to provide are thhe name of the image to use with the **-i** and the number of FST containers (default is 6) with the **-n** flag.
+
+The containers will reside on the same network knowing about each other and are configured to be working out-of-the-box.
 
 .. parsed-literal::
 
@@ -49,18 +49,22 @@ The containers will reside on the same network knowing about each other and conf
 
 To connect to EOS using the EOS shell on the MGM container you can do:
 
-.. code-block:: text
+.. code-block:: bash
 
    docker exec -i eos-mgm-test eos
    EOS Console [root://localhost] |/> whoami
    whoami
    Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) [authz:sss] sudo* host=localhost
 
+.. code-block:: bash
+
    EOS Console [root://localhost] |/> version
    version
    EOS_INSTANCE=eosdockertest
    EOS_SERVER_VERSION=4.2.16 EOS_SERVER_RELEASE=1
    EOS_CLIENT_VERSION=4.2.16 EOS_CLIENT_RELEASE=1
+
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> node ls
    node ls
@@ -76,7 +80,7 @@ To connect to EOS using the EOS shell on the MGM container you can do:
 
 You can mounting EOS to the client container using FUSE and KRB5 authentication.
 
-.. code-block:: text
+.. code-block:: bash
 
    docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
    docker exec -i eos-client-test bash
@@ -97,6 +101,8 @@ You can mounting EOS to the client container using FUSE and KRB5 authentication.
    ==== fuse multi-threading  : true
    info: successfully mounted EOS [root://eos-mgm-test.eoscluster.cern.ch] under /eos
 
+.. code-block:: bash
+
    [root@testmachine eos-docker]# docker exec -i eos-client-test bash 
    ls -la /eos/
    total 4
@@ -106,13 +112,13 @@ You can mounting EOS to the client container using FUSE and KRB5 authentication.
 
 Or by running the the EOS instance testsuite
 
-.. code-block:: text
+.. code-block:: bash
 
    docker exec -i eos-mgm-test eos-instance-test
 
 You can use the  `shutdown_services <https://gitlab.cern.ch/eos/eos-docker/blob/master/scripts/shutdown_services.sh>`_ script to remove these EOS containers from your system.
 
-.. code-block:: text
+.. code-block:: bash
 
    scripts/shutdown_services.sh
 
@@ -121,24 +127,24 @@ Image Repository
 -------------------
 
 You can get the images for each automatic build and for each release.
-The release images are tagged with the release version. Regular images are tagged with the build id of their origin.
+The release images are tagged with the release version. Regular images are tagged with the build id of their originating piepline.
 
 Docker images are accessible from the project's `registry <https://gitlab.cern.ch/dss/eos/container_registry>`_.
 
 
-.. code-block:: text
+.. code-block:: bash
 
    docker pull gitlab-registry.cern.ch/dss/eos:<tag>
 
 Example for a build
 
-.. code-block:: text
+.. code-block:: bash
 
    docker pull gitlab-registry.cern.ch/dss/eos:206970
 
 Example for the latest release
 
-.. code-block:: text
+.. code-block:: bash
 
    docker pull gitlab-registry.cern.ch/dss/eos: |version| 
 
