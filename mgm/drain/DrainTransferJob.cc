@@ -224,15 +224,16 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 {
   using eos::common::LayoutId;
   XrdCl::URL url_src;
-  uint64_t lid = fdrain.mProto.layout_id();
-  uint64_t target_lid = lid & 0xffffff0f;
+  uint64_t target_lid = fdrain.mProto.layout_id();
 
   // Mask block checksums only for replica layouts
-  if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica) &&
-      (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone)) {
+  if ((LayoutId::GetLayoutType(target_lid) == LayoutId::kReplica) &&
+      (LayoutId::GetBlockChecksum(target_lid) != LayoutId::kNone)) {
     target_lid &= 0xff0fffff;
   }
 
+  // Force layout to plain file
+  target_lid &= 0xffffff0f;
   std::ostringstream src_params;
   src_params << "mgm.access=read"
              << "&mgm.lid=" << target_lid
@@ -288,14 +289,16 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   using eos::common::LayoutId;
   XrdCl::URL url_dst;
   uint64_t lid = fdrain.mProto.layout_id();
-  uint64_t target_lid = lid & 0xffffff0f;
+  uint64_t target_lid = lid;
 
   // Mask block checksums only for replica layouts
-  if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica) &&
-      (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone)) {
+  if ((LayoutId::GetLayoutType(target_lid) == LayoutId::kReplica) &&
+      (LayoutId::GetBlockChecksum(target_lid) != LayoutId::kNone)) {
     target_lid &= 0xff0fffff;
   }
 
+  // Force layout to plain file
+  target_lid &= 0xffffff0f;
   std::ostringstream dst_params;
   dst_params << "mgm.access=write"
              << "&mgm.lid=" << target_lid
