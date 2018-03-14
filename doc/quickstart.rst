@@ -9,5 +9,6 @@ Quickstart Guide
    quickstart/setup_repo
    quickstart/install
    quickstart/docker_image
+   quickstart/uboxed
    quickstart/client/configure
    quickstart/admin/configure
