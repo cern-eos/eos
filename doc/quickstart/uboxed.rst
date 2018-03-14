@@ -5,8 +5,8 @@
 
 .. _uboxed: https://github.com/cernbox/uboxed
 
-UBoxed Installation
-=======================
+UBoxed Docker Installation
+==========================
 
 `UBoxed <https://github.com/cernbox/uboxed>`_ is a self-contained docker demo configuration for scientific and general purpose use. It encapsulates four compontents:
 
