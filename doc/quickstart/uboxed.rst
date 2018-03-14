@@ -12,8 +12,8 @@ UBoxed Docker Installation
 
 - `EOS <https://eos.cern.ch>`_ - storage and namespace server
 - `CERNBox <https://cernbox.web.cern.ch>`_ - dropbox-like add-on for sync-and-share service on top of EOS
-- `SWAN <https://swan.web.cern.ch>`_ - Service for Web based ANalsysi - Jupyter notebook interface
-- `CVMFS <https://cvmfs.web.cern.ch`_ - CernVM file system - a scalable software distribution service
+- `SWAN <https://swan.web.cern.ch>`_ - Service for Web based Analysys - Jupyter notebook interface
+- `CVMFS <https://cvmfs.web.cern.ch>`_ - CernVM file system - a scalable software distribution service
 
 
 Preparation
