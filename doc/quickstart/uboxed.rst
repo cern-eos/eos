@@ -8,12 +8,12 @@
 UBoxed Installation
 =======================
 
-`UBoxed <https://github.com/cernbox/uboxed` is a self-contained docker demo configuration for scientific and general purpose use. It encapsulates four compontents:
+`UBoxed <https://github.com/cernbox/uboxed>`_ is a self-contained docker demo configuration for scientific and general purpose use. It encapsulates four compontents:
 
-- `EOS <https://eos.cern.ch>` - storage and namespace server
-- `CERNBox <https://cernbox.web.cern.ch>` - dropbox-like add-on for sync-and-share service on top of EOS
-- `SWAN <https://swan.web.cern.ch>` - Service for Web based ANalsysi - Jupyter notebook interface
-- `CVMFS <https://cvmfs.web.cern.ch` - CernVM file system - a scalable software distribution service
+- `EOS <https://eos.cern.ch>`_ - storage and namespace server
+- `CERNBox <https://cernbox.web.cern.ch>`_ - dropbox-like add-on for sync-and-share service on top of EOS
+- `SWAN <https://swan.web.cern.ch>`_ - Service for Web based ANalsysi - Jupyter notebook interface
+- `CVMFS <https://cvmfs.web.cern.ch`_ - CernVM file system - a scalable software distribution service
 
 
 Preparation
@@ -24,15 +24,16 @@ The setup scripts will install all required packages.
 .. note::
    Make sure you have no other web server listening on the standard ports. Make sure you have atleast 6GB of free space under ``/var/lib/docker/volumes/``. 
 
-.. warning::
+.. note::
    The installation requires atleast docker version 17.03 - if you have an older one we recommend to uninstall it let
    the setup script take care of pulling a newer version.
    
-.. warning::
+.. note::
    In certain environments docker container cannot resolve external domain addresses because nameserver accesss to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json``. 
    For the CERN DNS server that would be e.g.
 
 .. code-block:: bash
+
    cat /etc/docker/daemon.json
    {
      "dns" : ["137.138.17.5", "137.138.17.5"]
@@ -41,7 +42,7 @@ The setup scripts will install all required packages.
 Quick Setup
 -----------
 
-Checkout the `uboxed <https://github.com/cernbox/uboxed`_ project:
+Checkout the `uboxed <https://github.com/cernbox/uboxed>`_ project:
 
 .. code-block:: bash
 
@@ -81,7 +82,7 @@ Run a Self Test
 Connect to your services
 ++++++++++++++++++++++++
 
-Open https://localhost in a local browser or connect to your docker host machine with a remote browser. You will land on the Uboxed main page which directs you to documentation and how to try the individual services.
+Open https://localhost in a local browser or connect to your docker host machine with with a remote browser and HTTPS. You will land on the **Uboxed** main page which directs you to documentation and how to try the individual services running in your container setup.
 
 
 Stop Services
