@@ -1649,19 +1649,30 @@ WFE::Job::DoIt(bool issync)
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
 
-        int errc = 0;
-        auto user_name  = Mapping::UidToUserName(mVid.uid, errc);
+        static auto getUserName = [] (uid_t uid) {
+          int errc = 0;
+          auto user_name  = Mapping::UidToUserName(uid, errc);
 
-        if (errc) {
-          user_name = "nobody";
-        }
+          if (errc) {
+            user_name = "nobody";
+          }
 
-        errc = 0;
-        auto group_name = Mapping::GidToGroupName(mVid.gid, errc);
+          return user_name;
+        };
 
-        if (errc) {
-          group_name = "nobody";
-        }
+        static auto getGroupName = [] (gid_t gid) {
+          int errc = 0;
+          auto group_name  = Mapping::GidToGroupName(gid, errc);
+
+          if (errc) {
+            group_name = "nobody";
+          }
+
+          return group_name;
+        };
+
+        notification->mutable_cli()->mutable_user()->set_username(getUserName(mVid.uid));
+        notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(mVid.gid));
 
         auto collectAttributes = [&notification, &fullPath] {
           eos::common::Mapping::VirtualIdentity rootvid;
@@ -1701,114 +1712,177 @@ WFE::Job::DoIt(bool issync)
           }
         };
 
-        notification->mutable_cli()->mutable_user()->set_username(user_name);
-        notification->mutable_cli()->mutable_user()->set_groupname(group_name);
-
         if (event == "sync::prepare") {
+          constexpr static auto retrievesAttrName = "sys.retrieves";
           struct stat buf;
           XrdOucErrInfo errInfo;
 
+          bool onDisk;
+          bool onTape;
           // Check if we have a disk replica and if not, whether it's on tape
           if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
                           false) == 0) {
-            auto onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 :
+            onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 :
                            buf.st_nlink) > 0;
-            auto onTape = buf.st_mode & EOS_TAPE_MODE_T;
-
-            if (onDisk) {
-              eos_static_info("File %s is already on disk, nothing to prepare.",
-                              fullPath.c_str());
-              MoveWithResults(SFS_OK);
-              return SFS_OK;
-            } else if (!onTape) {
-              eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
-                             fullPath.c_str());
-              MoveWithResults(EINVAL);
-              return EINVAL;
-            } else {
-              collectAttributes();
-              notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
-              notification->mutable_file()->set_lpath(fullPath);
-              notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-              notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-              notification->mutable_file()->mutable_owner()->set_username(user_name);
-              notification->mutable_file()->mutable_owner()->set_groupname(group_name);
-              char buffer[1024];
-              StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
-              std::ostringstream destStream;
-              destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                         << std::string{buffer}
-                         << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
-              notification->mutable_transport()->set_dst_url(destStream.str());
-            }
+            onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
           } else {
             eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
                            errInfo.getErrText());
+            MoveWithResults(EAGAIN);
             return EAGAIN;
           }
+
+          bool onGoingRetrieve = true;
+          auto retrieveCntr = 0ul;
+          try {
+            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+            if (fmd->hasAttribute(retrievesAttrName)) {
+              retrieveCntr = std::stoul(fmd->getAttribute(retrievesAttrName));
+            }
+          } catch (eos::MDException& ex) {
+            eos_static_err("Could not determine ongoing retrieves for file %s.",
+                           fullPath.c_str());
+            MoveWithResults(EAGAIN);
+            return EAGAIN;
+          }
+
+          if (onDisk) {
+            if (retrieveCntr != 0) {
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              fmd->setAttribute(retrievesAttrName, "0");
+              gOFS->eosView->updateFileStore(fmd.get());
+            }
+          } else {
+            eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+            onGoingRetrieve = (retrieveCntr != 0);
+
+            fmd->setAttribute(retrievesAttrName, std::to_string(++retrieveCntr));
+            gOFS->eosView->updateFileStore(fmd.get());
+          }
+
+          if (onDisk) {
+            eos_static_info("File %s is already on disk, nothing to prepare.",
+                            fullPath.c_str());
+            MoveWithResults(SFS_OK);
+            return SFS_OK;
+          } else if (!onTape) {
+            eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
+                           fullPath.c_str());
+            MoveWithResults(ENODATA);
+            return ENODATA;
+          } else if (onGoingRetrieve) {
+            eos_static_info("File %s is already being retrieved by %ul clients.",
+                            fullPath.c_str(), retrieveCntr);
+            MoveWithResults(SFS_OK);
+            return SFS_OK;
+          } else {
+            collectAttributes();
+
+            {
+              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+              notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+              notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+              notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
+              notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+            }
+
+            notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
+            notification->mutable_file()->set_lpath(fullPath);
+
+            char buffer[1024];
+            StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
+            std::ostringstream destStream;
+            destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+                       << std::string{buffer}
+                       << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
+            notification->mutable_transport()->set_dst_url(destStream.str());
+          }
         } else if (event == "sync::openw") {
+          collectAttributes();
+
+          {
+            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+          }
+
           notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          notification->mutable_file()->mutable_owner()->set_username(user_name);
-          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
           notification->mutable_file()->set_fid(mFid);
-
-          collectAttributes();
         } else if (event == "sync::create") {
+          collectAttributes();
+
+          {
+            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+          }
+
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          notification->mutable_file()->mutable_owner()->set_username(user_name);
-          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
           notification->mutable_file()->set_fid(mFid);
-
-          collectAttributes();
         } else if (event == "sync::delete") {
-          notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
           collectAttributes();
+          notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
         } else if (event == "closew") {
+          collectAttributes();
+
+          std::ostringstream checksum;
+          {
+            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
+            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
+            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+
+            notification->mutable_file()->set_size(fmd->getSize());
+            notification->mutable_file()->mutable_cks()->set_type(
+              eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
+
+            for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+                 i++) {
+              char hb[4];
+              sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+              checksum << hb;
+            }
+          }
+
+          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
+
           notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
           notification->mutable_wf()->mutable_instance()->set_name(
             gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-          notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-          notification->mutable_file()->mutable_owner()->set_username(user_name);
-          notification->mutable_file()->mutable_owner()->set_groupname(group_name);
-          notification->mutable_file()->mutable_cks()->set_type(
-            eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
-          std::ostringstream checksum;
-
-          for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-               i++) {
-            char hb[4];
-            sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-            checksum << hb;
-          }
-
-          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
-          notification->mutable_file()->set_size(fmd->getSize());
           notification->mutable_file()->set_fid(mFid);
+
           auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
           std::ostringstream srcStream;
           srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
                     << fxidString;
           notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
+
           std::ostringstream reportStream;
           reportStream << "eosQuery://" << gOFS->HostName
                        << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                        << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
-          collectAttributes();
         } else if (event == "archived") {
           static constexpr auto tapeFsid = 65535u;
 
-          if (fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1) {
+          bool onlyTapeCopy = false;
+          {
+            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+            onlyTapeCopy = fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1;
+          }
+
+          if (onlyTapeCopy) {
             eos_static_info("File %s already has a tape copy. Ignoring request.",
                             fullPath.c_str());
           } else {
@@ -1817,7 +1891,14 @@ WFE::Job::DoIt(bool issync)
             eos::common::Mapping::Root(root_vid);
 
             bool dropFailed = false;
-            for (auto location : fmd->getLocations()) {
+
+            decltype(fmd->getLocations()) locationsCopy;
+            {
+              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              locationsCopy = fmd->getLocations();
+            }
+
+            for (auto location : locationsCopy) {
               if (location != tapeFsid) {
                 errInfo.clear();
 
@@ -1830,10 +1911,12 @@ WFE::Job::DoIt(bool issync)
               }
             }
 
-            if (!fmd->hasLocation(tapeFsid)) {
+            {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->addLocation(tapeFsid);
-              gOFS->eosView->updateFileStore(fmd.get());
+              if (!fmd->hasLocation(tapeFsid)) {
+                fmd->addLocation(tapeFsid);
+                gOFS->eosView->updateFileStore(fmd.get());
+              }
             }
 
             if (dropFailed) {
