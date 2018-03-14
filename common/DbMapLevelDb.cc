@@ -413,7 +413,7 @@ LvDbDbLogInterface::setDbFile(const string& dbname, int volumeduration,
                               int createperm, void* option)
 {
   Option* opt = option ? (Option*)option : &gDefaultOption;
-  _unused(opt); // to get rid of the unused vairable warning
+  (void) opt; // to get rid of the unused vairable warning
   // Check if the file can be opened, it creates it with the required
   // permissions if it does not exist.
   leveldb::DB* testdb = NULL;
@@ -1051,11 +1051,7 @@ std::string LvDbDbMapInterface::getAttachedDbName() const
   return pAttachedDbname;
 }
 
-#ifdef EOS_STDMAP_DBMAP
-bool LvDbDbMapInterface::syncFromDb(std::map<Tkey, Tval>* map)
-#else
 bool LvDbDbMapInterface::syncFromDb(::google::dense_hash_map<Tkey, Tval>* map)
-#endif
 {
   if (!pAttachedDbname.empty()) {
     leveldb::Iterator* it = AttachedDb->NewIterator(leveldb::ReadOptions());
