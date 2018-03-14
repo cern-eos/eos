@@ -147,7 +147,7 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   XrdCl::XRootDStatus status;
   char sfmd[1024];
   snprintf(sfmd, sizeof(sfmd) - 1, "%llu", fid);
-  XrdOucString fmdquery = "/?mgm.pcmd=getfmd&mgm.getfmd.fid=";
+  XrdOucString fmdquery = "/?xrd.wantprot=sss&mgm.pcmd=getfmd&mgm.getfmd.fid=";
   fmdquery += sfmd;
   XrdOucString address = "root://";
   address += manager;
@@ -257,7 +257,7 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
-  XrdOucString fmdquery = "/?mgm.pcmd=rewrite&mgm.fxid=";
+  XrdOucString fmdquery = "/?xrd.wantprot=sss&mgm.pcmd=rewrite&mgm.fxid=";
   XrdOucString shexfid;
   eos::common::FileId::Fid2Hex(fid, shexfid);
   fmdquery += shexfid;

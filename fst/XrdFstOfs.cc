@@ -813,11 +813,13 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
     return EINVAL;
   }
 
+  // Request sss authentication on the MGM side
+  std::string opaque = capOpaqueFile.c_str();
+  opaque += "&xrd.wantprot=sss";
   // Get XrdCl::FileSystem object
   // !!! WATCH OUT: GOTO ANCHOR !!!
 again:
   auto* fs = new XrdCl::FileSystem(url);
-  //eos_static_info("url=%s", address.c_str());
 
   if (!fs) {
     eos_err("error=failed to get new FS object");
@@ -830,11 +832,11 @@ again:
     return EINVAL;
   }
 
-  arg.FromString(capOpaqueFile.c_str());
+  arg.FromString(opaque);
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
 
   if (status.IsOK()) {
-    eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
+    eos_debug("called MGM cache - %s", opaque.c_str());
     rc = SFS_OK;
   } else {
     msg = (status.GetErrorMessage().c_str());
@@ -872,7 +874,7 @@ again:
         XrdSysTimer sleeper;
         sleeper.Snooze(1);
         tried++;
-        eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
+        eos_static_info("msg=\"retry query\" query=\"%s\"", opaque.c_str());
 
         if (!manager || (tried > 60)) {
           // use the broadcasted manager name in the repeated try
