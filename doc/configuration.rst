@@ -28,7 +28,6 @@ Configuration
    configuration/proxys
    configuration/quota
    configuration/recyclebin
-   configuration/systemd
    configuration/scheduler
    configuration/transfer
    configuration/tty

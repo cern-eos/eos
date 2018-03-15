@@ -9,6 +9,8 @@ Using EOS
 .. toctree::
    :maxdepth: 1
 
-   using/rain
-   using/tpc
    using/archive
+   using/rain
+   using/systemd
+   using/tpc
+
