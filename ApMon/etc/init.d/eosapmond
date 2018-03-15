@@ -16,6 +16,7 @@ EOSROLE="fst"
 EOSUSER="daemon"
 . /etc/init.d/functions
 test -e /etc/sysconfig/eos && . /etc/sysconfig/eos
+test -e /etc/sysconfig/eos_env && . /etc/sysconfig/eos_env
 
 
 mkdir -p ${EOSLOGDIR}/${EOSROLE}
