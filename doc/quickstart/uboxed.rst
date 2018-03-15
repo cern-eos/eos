@@ -15,6 +15,9 @@ We have bundled a demonstration setup of four CERN developed cloud and anlysis p
 - `SWAN <https://swan.web.cern.ch>`_ - service for web based interactive analysis with jupyter notebook interface
 - `CVMFS <https://cvmfs.web.cern.ch>`_ - CernVM file system - a scalable software distribution service
 
+.. image:: uboxed.jpg
+   :scale: 50 %
+   :align: center
 
 Preparation
 -----------

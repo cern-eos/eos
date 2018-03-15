@@ -21,7 +21,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 2018-03-02
 
 Bug
-+++
+---
 
 * [EOS-2142] - eosfstregister fails to get mgm url in CentOS 7
 * [EOS-2370] - EOSATLAS crashed while creating the output for a recursive attr set
@@ -30,12 +30,12 @@ Bug
 * [EOS-2387] - FST crash in eos::fst::ReedSLayout::AddDataBlock
 
 Task
-++++
+----
 
 * [EOS-2383] - eosxd: segfault in inval_inode
 
 Improvement
-+++++++++++
+-----------
 
 * [EOS-1565] - RFE: turn off SIGSEGV handler on non-MGM EOS components
 
@@ -46,7 +46,7 @@ Improvement
 2018-02-22
 
 Bug
-+++
+---
 
 * [EOS-2353] - git clone with 2GB random reading creates read amplification
 * [EOS-2359] - Deadlock in proto wfe
@@ -60,7 +60,7 @@ Bug
 2018-02-20
 
 Bug
-++++
+----
 
 * [EOS-2153] - consistent eosd memory leak
 * [EOS-2348] - ns shows wrong value for resident memory (shows virtual)
@@ -73,7 +73,7 @@ Bug
 2018-02-19
 
 Bug
-++++
+----
 
 * [EOS-2057] - Wrong conversion between IEC and Metric multiples
 * [EOS-2299] - WFE can't be switched off
@@ -86,24 +86,24 @@ Bug
 * [EOS-2337] - autofs-ed fuse mounts not working for mountpoint names with matched entries under "/"
 
 Task
-++++
+----
 
 * [EOS-2329] - protect MGM against memory exhaustion caused by a globbing ls
 
 Improvement
-+++++++++++
+-----------
 
 * [EOS-2321] - Quota report TiB vs. TB
 * [EOS-2323] - citrine mgm crash
 * [EOS-2336] - Default smart files in the proc filesystem
 
 Configuration Change
-++++++++++++++++++++
+-------------------+
 
 * [EOS-2279] - eosfusebind error message at login
 
 Incident
-++++++++
+-------+
 
 * [EOS-2298] - EOS MGM memory leak
 
@@ -115,7 +115,7 @@ Incident
 2018-02-01
 
 Bug
-+++
+---
 
 * Fix deadlock observerd in EOSATLAS between gFsView.ViewMutex and pAddRmFsMutex from the
   scheduling part.
@@ -124,7 +124,7 @@ Bug
 * [EOS-2290] - increase shutdown timeout for the FSTs
 
 New Feature
-+++++++++++
+----------+
 
 * Add skeleton for new "fs" command using protobuf requests
 * Add skeleton for CTA integration
@@ -137,7 +137,7 @@ New Feature
 2018-01-25
 
 Bug
-+++
+---
 
 * [EOS-2264] - Fix possible insertion of an empty FS in FSView
 * [EOS-2270] - FSCK crashed booting namespace
@@ -147,12 +147,12 @@ Bug
 * [EOS-2268] - Third party copying (on the same instance) fails with big files
 
 Improvement
-+++++++++++
+-----------
 
 * [EOS-2283] - Double unlock in CITRINE code
 
 Task
-++++
+----
 
 * [EOS-2244] - Understand EOSATLAS configuration issue
 
@@ -163,14 +163,14 @@ Task
 2018-01-24
 
 Bug
-+++
+---
 
 * [EOS-2264] Fix possible insertion of an empty FS in FSView
 * [EOS-2258] If FST has qdb cluster configuration then to the dumpmd directly against QuarkDB
 * [EOS-2277] fixes 'fake' truncation failing eu-strip in rpm builds of eos
 
 Improvements
-++++++++++++
+------------
 
 * Refactoring of includes to speed up compilation, various build improvements
 * avoid to call IsKnownNode to discover if an FST talks to the MGM, rely on sss + daemon user
@@ -183,18 +183,18 @@ Improvements
 2018-01-18
 
 Bug
-+++
+---
 
 * [EOS-2228] Crash around forceRefreshSched related to pFsId2FsPtr
 
 New Feature
-+++++++++++
+-----------
 
 * Filter out xrdcl.secuid/xrdcl.secgid tags on the FSTs to avoid triggering a
   bug on the xrootd client implementation
 
 Improvements
-++++++++++++
+------------
 
 * [EOS-2253] Small writes should be aggregated with the journal
 * Refactoring of the includes to speed up compilation
@@ -206,7 +206,7 @@ Improvements
 2018-01-16
 
 Bug
-+++
+---
 
 * [EOS-2184] - "eos ls -l" doesn't display the setgid bit anymore
 * [EOS-2186] - eos ns reports wrong number of directory
@@ -220,17 +220,17 @@ Bug
 * [EOS-2241] - Directory TREE mv does not invalidate source caches
 
 New Feature
-+++++++++++
+-----------
 
 * [EOS-2248] - FUSEX has to point ZMQ connection to active master
 
 Improvement
-+++++++++++
+-----------
 
 * [EOS-2238] - Print a warning for 'node ...' functions when an FST is seen without a GEO tag
 
 Support
-+++++++
+-------
 * [EOS-2208] - EOS MGM (new NS) aborts with "pure virtual method called" on update (restart?)
 
 
@@ -240,7 +240,7 @@ Support
 2017-12-18
 
 Bug
-+++
+---
 
 * [EOS-2207] - Work-around via environment variable to avoid loading too big no-replica sets (export EOS_NS_QDB_SKIP_UNLINKED_FILELIST)
 
@@ -254,7 +254,7 @@ Bug
 2017-12-18
 
 Bug
-+++
+---
 
 * [EOS-2150] - Repair option for d_mem_sz_diff error files
 * [EOS-2202] - Lock-order-inversion between gAccessMutex and ViewMutex
@@ -267,7 +267,7 @@ Bug
 2017-12-12
 
 Bug
-+++
+---
 
 * [EOS-2142] - eosfstregister fails to get mgm url in CentOS 7
 * [EOS-2146] - symlinks have to show the size of the target string
@@ -290,14 +290,14 @@ Bug
 2017-11-28
 
 Bug
-++++
+----
 
 * [EOS-2123] - eosxd renice's to lowest possible priority
 * [EOS-2130] - segv while compiling eos
 * [EOS-2137] - JSON output doesn't work anymore
 
 Improvements
-++++++++++++
+------------
 
 * Many improvements and fixes for eosxd
 * Many improvements and fixes for the namespace on QuarkDB
@@ -309,19 +309,19 @@ Improvements
 2017-11-17
 
 New features
-++++++++++++
+------------
 
 * New centralized draining implementation
 * mgmofs.qdbcluster option in the configuration of the MGM to connect QuarkDB cluster
 
 Improvements
-++++++++++++
+------------
 
 * Use the flusher also in the quota view of the new namespace
 * Use prefetching for TPC transfers
 
 Bug
-+++
+---
 * [EOS-2117] - mount.eosx should filter invalid options
 * Fix ns stat statistics
 
@@ -332,7 +332,7 @@ Bug
 2017-11-14
 
 Improvements
-++++++++++++
+------------
 
 * Many fixes for the eosxd fuse module
 * Add eos_dump_proto_md tool to dump object metada info from QuarkDB
@@ -346,7 +346,7 @@ Improvements
 2017-11-10
 
 Bug
-+++
+---
 
 * [EOS-2017] - MGM crash caused by FSCK
 * [EOS-2061] - converter error in  "file adjustreplica" on raid6/archive layouts
@@ -359,11 +359,11 @@ Bug
 * [EOS-2094] - JSON Return 0 instead of "NULL" when space.nominalsize is not defined
 
 Task
-++++
+----
 * [EOS-1998] - Allow FST to login even when client traffic is stalled
 
 Improvement
-+++++++++++
+-----------
 
 * [EOS-2101] - Report logical used-space when using xrootd commands
 * A lot of improvements on the fusex side
@@ -375,7 +375,7 @@ Improvement
 2017-10-23
 
 Bug
-++++
+----
 
 * [EOS-1971] - EOS node listing crash
 * [EOS-2015] - Table engine display values issue
@@ -383,19 +383,19 @@ Bug
 * [EOS-2060] - XrdMgmOfsFile SEGV out of bounds access
 
 New Feature
-+++++++++++
+-----------
 
 * [EOS-2030] - Add '.' and '..' directories to file listings
 * Prototype for the new fuse implementation i.e fusex
 * Refactor of the ns command to use ProtoBuf-style commands
 
 Task
-++++
+----
 
 * [EOS-2033] - quota id mapping for non-existing users
 
 Bug
-++++
+----
 
 * [EOS-2016] - avoid SEGV when removing ghost entries on FST
 * [EOS-2017] - avoid creating NULL object in map when resetting draining
@@ -408,7 +408,7 @@ Bug
 2017-09-19
 
 Bug
-++++
+----
 
 * [EOS-2016] - avoid SEGV when removing ghost entries on FST
 * [EOS-2017] - avoid creating NULL object in map when resetting draining
@@ -420,7 +420,7 @@ Bug
 2017-09-15
 
 Bug
-++++
+----
 * [EOS-1978] - Preserve converted file ctime and ctime (CITRINE)
 * FUSE: fix significant leak when returning a cached directory listing
 * MGM: Enforce permission check when utime is executed
@@ -434,7 +434,7 @@ Bug
 2017-09-08
 
 Bug
-++++
+----
 * Mask the block checksum for draining and balancing when there is layout
   requesting blockchecksum for replica files.
 * Add protection in case the proxys or the firewalleps vectors are not
@@ -452,7 +452,7 @@ Bug
 2017-08-30
 
 Bug
-+++
+---
 * [EOS-1991] - eos-fuse rpm package broken dependency
 
 ``v4.1.27 Citrine``
@@ -461,20 +461,20 @@ Bug
 2017-08-28
 
 Bug
-+++
+---
 * [EOS-1976] - EOSD client memory leak
 * [EOS-1986] - EOSPUBLIC: Crash when deleting a file entry
 * [EOS-1984] - MGM: only show available fs on geosched show state latency and penalties tables.
 * [EOS-1974] - NS: add missing initialization of pData (might lead to a SEGV during compaction if mmapping is disabled)
 
 Improvement
-+++++++++++
+-----------
 * [EOS-1791] - RFE: attempt to auto-unmount on eos-fuse-core updates
 * [EOS-1968] - eosd: always preload libjemalloc.so.1
 * [EOS-1983] - Built-in http server should be dual-stack
 
 New features
-++++++++++++
+------------
 
 * New accounting command - "eos accounting".
 
@@ -484,7 +484,7 @@ New features
 2017-08-07
 
 Bug
-+++
+---
 * [EOS-558] - "eos fileinfo" should better indicate non-active machines
 * [EOS-1895] - MGM Crash when the groupscheduler can't place file
 * [EOS-1897] - /var/log/eos/archive/eosarchived.log is world-writeable, should not
@@ -492,11 +492,11 @@ Bug
 * [EOS-1936] - EOS ATLAS lost file due to balancing
 
 Story
-+++++
+-----
 * [EOS-1919] - Bug visible when creating YUM repositories on the FUSE mount in CITRINE instances
 
 Improvement
-++++++++++++
+------------
 * [EOS-1159] - renaming a "quota node" directory gets rid of the quota setting?
 * [EOS-1345] - documentation update - eos fs help
 * [EOS-1875] - RFE: isolate eos client from LD_LIBRARY_PATH via RPATH
@@ -510,7 +510,7 @@ Improvement
 2017-06-29
 
 Bugfix
-++++++
+------
 * [EOS-542] - eos file version filename version modify the permissions of the file
 * [EOS-1259] - MGM eos node ls display
 * [EOS-1292] - "eos" hangs for 5min without EOS_MGM_URL - give verbose error message instead
@@ -523,14 +523,14 @@ Bugfix
 * [EOS-1892] - File copy is scheduled on a full FS
 
 New Feature
-+++++++++++
+-----------
 * [EOS-1872] - "Super" graceful FST shutdown
 * There is a new dependency on protobuf3 packages both at build time and run time.
   These packages can be downloaded from the citrine-depend yum repository:
   http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/
 
 Improvement
-+++++++++++
+-----------
 * [EOS-1581] - RFE: better error messages from the eos client, remove 'error: errc=0 msg=""'
 
 
@@ -540,7 +540,7 @@ Improvement
 2017-06-14
 
 Bugfix
-++++++
+------
 * [EOS-162] - RFE: auto-refill spaces from "spare", up to "nominalsize"
 * [EOS-455] - RFE: drop either fid: or fxid:, use the other consistently
 * [EOS-1299] - MGM node and fs printout with long hostname
@@ -551,15 +551,15 @@ Bugfix
 * Fix fsck bug mixing information from different types of issues
 
 Task
-+++++
+-----
 * [EOS-1851] - mount.eos assumes sysv or systemd present
 
 Improvement
-+++++++++++
+-----------
 * [EOS-1875] - RFE: isolate eos client from LD_LIBRARY_PATH via RPATH
 
 Support
-+++++++
+-------
 * [EOS-1064] - get the year information for EOS file
 
 
@@ -569,7 +569,7 @@ Support
 2017-05-17
 
 Bugfix
-++++++
+------
 * MGM: Take headroom into account when scheduling for placement
 * MGM: Add protection in case the bookingsize is explicitly set to 0
 * ARCHIVE: Use the MgmOfsAlias consistently otherwise the newly generated archive file will contain invalid JSON lines.
@@ -581,7 +581,7 @@ Bugfix
 2017-05-15
 
 Bugfix
-++++++
+------
 * Fix response for xrdfs query checksum to display "adler32" instead of "adler" as checksum type
 * Fix launch of the follower thread for the MGM slave
 
@@ -592,7 +592,7 @@ Bugfix
 2017-05-12
 
 Bugfix
-++++++
+------
 * [EOS-1833] - eosfuse.cc uses a free'd fuse_req_t -> segfault
 * [EOS-1781] - MGM crash in GeoBalancer
 * [EOS-1642] - "Bad address" on EOS FUSE should be "Permission denied"
@@ -600,15 +600,15 @@ Bugfix
 
 
 Task
-++++
+----
 * [EOS-1848] - selinux error when uninstalling eos-fuse-core
 
 User Documentation
-++++++++++++++++++
+------------------
 * [EOS-1826] - Missing dependencies on the front page
 
 Suggestion
-++++++++++
+----------
 * [EOS-1827] - Ancient version of zmq.hpp causing issues when compiling with new zmq.h (taken from system)
 * [EOS-1828] - Utils.hh in qclient #include cannot find header
 * [EOS-1831] - CMAKE, microhttpd, and client
@@ -616,12 +616,12 @@ Suggestion
 
 
 ``v4.1.3 Citrine``
-++++++++++
+==================
 
 2016-09-15
 
 Bugfix
-+++++++
+-------
 
 * [EOS-1606] - Reading root files error when using eos 4.1.1
 * [EOS-1609] - eos -b problem : *** Error in `/usr/bin/eos': free():
@@ -633,7 +633,7 @@ Bugfix
 2016-07-22
 
 Bugfix
-+++++++
+-------
 
 - FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
         does not fail on the fst (using only unix) when using XRootD >= 4.4
@@ -645,7 +645,7 @@ Bugfix
 2016-07-21
 
 Bugfix
-+++++++
+-------
 
 - SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
         to keep all the necessary files and directories when doing an update.
@@ -656,7 +656,7 @@ Bugfix
 ===================
 
 Bugfix
-+++++++
+-------
 
 - MGM: add monitoring switch to space,group status function
 - MGM: draing mutex fix and fix double unlock when restarting a drain job
@@ -665,6 +665,6 @@ Bugfix
 - SPEC: remove directory creation scripting from spec files
 
 New Features
-++++++++++++
+------------
 
 - RPM: build one source RPM which creates by default only client RPMs with less dependencies

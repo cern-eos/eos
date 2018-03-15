@@ -105,10 +105,9 @@ A filesystem can be:
   
   - S3(s) storage
 
-.. line::
 
-| The type is configured by setting the mount point a filesystem when calling ``eos fs add``. The path can be a local directory starting with ``/`` or it can be ``s3(s)://`` , ``http(s)://`` , ``kinetic://`` , ``root://`` . 
-| To tag a filesystem as requiring an access through a proxy of a given proxygroup, the following eos command can be used:
+The type is configured by setting the mount point a filesystem when calling ``eos fs add``. The path can be a local directory starting with ``/`` or it can be ``s3(s)://`` , ``http(s)://`` , ``kinetic://`` , ``root://`` . 
+To tag a filesystem as requiring an access through a proxy of a given proxygroup, the following eos command can be used:
 
 ::
 
@@ -148,11 +147,10 @@ Note that if proxygroup is not define, it is equivalent to proxygroup having the
 Firewall entrypoints and direct acess
 -------------------------------------
 
-.. line::
 
-| EOS offers some functionalities to define hosts (gathered in proxygroups) acting as firewall entrypoints (fwep) and when they should be used.
-| First, it is possible to restrain target geotags that are directly accessible from client geotags (i.e no need to go through a fwep).
-| This can be done using the command
+EOS offers some functionalities to define hosts (gathered in proxygroups) acting as firewall entrypoints (fwep) and when they should be used.
+First, it is possible to restrain target geotags that are directly accessible from client geotags (i.e no need to go through a fwep).
+This can be done using the command
 
 ::
 
@@ -221,11 +219,10 @@ The node is just a standard proxy that can access all the possible types of file
 Forwarding gateway
 ~~~~~~~~~~~~~~~~~~
 
-.. line::
 
-| It is possible to use an XRootD forwarding daemon together with an FST daemon on fwep nodes.
-| With this configuration, the proxy node might not be able to serve the access to all types of filesystems.
-| If a client is scheduled to a filesystem of which the proxygroup is not supported by the scheduled fwep proxy, the scheduler will use the forwarding gateway running on that machine to forward the access to a proxy from the right proxygroup.    
+It is possible to use an XRootD forwarding daemon together with an FST daemon on fwep nodes.
+With this configuration, the proxy node might not be able to serve the access to all types of filesystems.
+If a client is scheduled to a filesystem of which the proxygroup is not supported by the scheduled fwep proxy, the scheduler will use the forwarding gateway running on that machine to forward the access to a proxy from the right proxygroup.    
 
 .. code-block:: bash
 
@@ -239,19 +236,16 @@ Forwarding gateway
 
 File scheduling through proxies
 -------------------------------
-.. line::
-| First some tools are mentioned to help to make the config right. 
-| Then, the scheduling procedure is detailed and some additional features are presented.
+First some tools are mentioned to help to make the config right. 
+Then, the scheduling procedure is detailed and some additional features are presented.
 
 Observing the state of the scheduler and the properties of the files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. line::
-
-| Proxy scheduling is part of the geoscheduling engine. (see :doc:`geoscheduling`)
-| As such, there is an easy way to check if all the proxys are well configured and then taken into account in the geoscheduling system as members of the expected proxygroups.
-| Proxys are organized in trees, one for each *proxygroup*. Those trees are automatically kept in sync with configurations of the nodes, including the config variable proxygroups. 
-| To review the snapshots, the following EOS command can be used.
+Proxy scheduling is part of the geoscheduling engine. (see :doc:`geoscheduling`)
+As such, there is an easy way to check if all the proxys are well configured and then taken into account in the geoscheduling system as members of the expected proxygroups.
+Proxys are organized in trees, one for each *proxygroup*. Those trees are automatically kept in sync with configurations of the nodes, including the config variable proxygroups. 
+To review the snapshots, the following EOS command can be used.
 
 ::
 
@@ -266,8 +260,6 @@ This can be carried out using the EOS command.
 
 Proxy scheduling logic
 ~~~~~~~~~~~~~~~~~~~~~~
-
-.. line::
 
 Here follows a sketch of the file scheduling algorithm with an emphasize on the proxy part. When an file access or placement is requested, the execution go through the following steps:
 
@@ -297,14 +289,12 @@ Note that having this variable undefined is equivalent to have it defined with a
 
 Usually the outcome of a proxy scheduling for a given filesystem would be the best possible and slightly randomized trade-off between proximity of the filesystem (or the client) and of the proxy and availability of ressource of the proxy. The algorithm which is used does not depend on the file, only on the geotags of the client, the geotag of the filesystem and the geotag of proxies in the proxygroup to be scheduled from.
 
-.. line::
-
-| When using file-sticky proxy scheduling, the behavior is different. 
-| First a starting point for the search is decided. If ``ProxyCloseToFs`` is false and that the client has a geotag, it is the client's geotag. Other wise, it is the filesystem's getag.
-| The starting point is projected on the considered proxygroup's scheduling tree. Then the resulting point is moved ``filestickyproxydepth`` steps uproot.
-| All the proxies in the subtree starting from there are then flated-out in an array. The proxies are sorted by id.  
-| The proxy is then selected using the inode number of the file to be accessed.
+When using file-sticky proxy scheduling, the behavior is different. 
+First a starting point for the search is decided. If ``ProxyCloseToFs`` is false and that the client has a geotag, it is the client's geotag. Other wise, it is the filesystem's getag.
+The starting point is projected on the considered proxygroup's scheduling tree. Then the resulting point is moved ``filestickyproxydepth`` steps uproot.
+All the proxies in the subtree starting from there are then flated-out in an array. The proxies are sorted by id.  
+The proxy is then selected using the inode number of the file to be accessed.
 
 
-| Choosing the value of ``filestickyproxydepth`` depends on where (in terms of geotag) are placed the proxys compared to the filesystems.
+Choosing the value of ``filestickyproxydepth`` depends on where (in terms of geotag) are placed the proxys compared to the filesystems.
    
