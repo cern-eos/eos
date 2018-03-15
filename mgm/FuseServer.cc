@@ -1741,7 +1741,7 @@ FuseServer::FillContainerCAP(uint64_t id,
           mode |= R_OK;
 
         if (acl.CanWrite() || acl.CanWriteOnce())
-          mode |= W_OK | SA_OK;
+          mode |= W_OK | SA_OK | D_OK;
 
         if (acl.CanBrowse())
           mode |= X_OK;
