@@ -26,6 +26,7 @@ To optimise the network path it is not enough to tag only the storage server. EO
 to a certain location. This is done via the **vid** command:
 
 .. code-block:: bash
+
    eos vid -h
    ... 
    vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>

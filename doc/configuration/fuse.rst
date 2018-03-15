@@ -18,7 +18,7 @@ There a two FUSE client modes available:
    ========= ===== ===================================================================
    eosd      !root An end-user private mount which is not shared between users 
    eosd      root  A system-wide mount shared between users
-   ========= ===================================================================
+   ========= =========================================================================
 
 
 **eosd** End-User mount
@@ -508,7 +508,7 @@ To export FUSE via NFS4 you have to disable(shorten) the attribute caching in th
 
 If you mount an instance as /eos you have to configure an NFS export like this in /etc/exports:
 
-   /eos *.cern.ch(fsid=131,rw,insecure,subtree_check,async,root_squash)
+   /eos \*.cern.ch(fsid=131,rw,insecure,subtree_check,async,root_squash)
 
 You have to start/reload your nfs4 server and then you should be able to access the NFS volume using
 

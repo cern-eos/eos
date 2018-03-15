@@ -118,6 +118,7 @@ Most people want to run a command whenever a file is placed, read or deleted. To
 As an example consider this simple echo command, which prints the path when a **closew** event is triggered: 
 
 .. code-block:: bash
+
    # define a workflow to echo the full path when a file is written
    eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::path>" /eos/dev/echo/
 
@@ -208,7 +209,7 @@ Here is an  example for a dynamic attribute:
 
 
 Configuring retry policies for  **bash:shell** workflows
-```````````````````````````````````````````````````````
+````````````````````````````````````````````````````````
 
 If a **bash:shell** workflow failes e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each 
 workflow the number of retries and the delay for retry can be defined via extended attributes. To reschedule a workflow after a failure the shell command has to return **EAGAIN** e.g. ``exit(11)``.

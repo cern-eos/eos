@@ -106,6 +106,7 @@ A filesystem can be:
   - S3(s) storage
 
 .. line::
+
 | The type is configured by setting the mount point a filesystem when calling ``eos fs add``. The path can be a local directory starting with ``/`` or it can be ``s3(s)://`` , ``http(s)://`` , ``kinetic://`` , ``root://`` . 
 | To tag a filesystem as requiring an access through a proxy of a given proxygroup, the following eos command can be used:
 

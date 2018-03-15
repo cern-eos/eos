@@ -67,7 +67,7 @@ CLI syntax
    group rm <group-name>                                         : remove group
 
 group set
---------
+---------
 
 Activate/Deactivate a group.
 

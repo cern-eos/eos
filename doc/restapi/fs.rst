@@ -119,7 +119,7 @@ CLI syntax
 .. code-block:: text
 
 fs config
---------
+---------
 
 Configure filesystems.
 
@@ -239,7 +239,7 @@ CLI syntax
       allows to drop all pending deletions on <fs-id>
 
 fs dumpmd
---------
+---------
 
 Dump meta data of a filesystem.
 

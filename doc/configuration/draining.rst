@@ -128,6 +128,7 @@ applied to all filesystems in that space when they are moved into or registered)
 One can see the settings via the space command:
 
 .. code-block:: bash
+
    EOS Console [root://localhost] |/> space status default
    # ------------------------------------------------------------------------------------
    # Space Variables

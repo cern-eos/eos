@@ -47,8 +47,6 @@ And now you are ready to use any command in eos for example find all files in /e
 
 You can also mount as FUSE mount for eos-head-iep-grid.saske.sk. First you need to install eos-fuse and edit /etc/sysconfig/eos on client machine
 
-|more| 
-
 .. note::
 
    To install eos-fuse follow instruction at :ref:`eos_base_install`

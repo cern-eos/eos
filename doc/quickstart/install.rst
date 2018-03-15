@@ -6,8 +6,6 @@
 Installation of EOS
 ===================
 
-|more|
-
 .. note::
    You need to add the XRootD and EOS repositories.
    Please follow instruction from :ref:`eos_base_setup_repos`

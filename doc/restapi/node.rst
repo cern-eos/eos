@@ -192,7 +192,7 @@ CLI syntax
    node gw <queue-name>|<host:port> <on|off>                : enable (on) or disable (off) node as a transfer gateway
 
 node status
---------
+-----------
 
 Show the status of a node.
 

@@ -146,7 +146,7 @@ Bug Fixes
 
 
 ``V0.3.258 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -155,7 +155,7 @@ Bug Fixes
 
 
 ``V0.3.257 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -171,7 +171,7 @@ Bug Fixes
 - MGM/CONSOLE: revive 'file layout' command and 'find -layoutstripes'
 
 ``V0.3.255 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -181,7 +181,7 @@ Bug Fixes
 
 
 ``V0.3.248 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -190,7 +190,7 @@ Bug Fixes
 
 
 ``V0.3.246 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -202,7 +202,7 @@ Bug Fixes
 
 
 ``V0.3.244 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -211,7 +211,7 @@ Bug Fixes
 
 
 ``V0.3.243 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -220,7 +220,7 @@ Bug Fixes
 
 
 ``V0.3.242 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -230,7 +230,7 @@ Bug Fixes
 - MGM: fix protection when listing too large recycle bins with 'recycle ls' (> 1Gb output)
 
 ``V0.3.241 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -238,7 +238,7 @@ Bug Fixes
 - FUSE: fix memory leak in opendir function not cleaning dirbuf struct
 
 ``V0.3.240 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -246,7 +246,7 @@ Bug Fixes
 - FST: implement fdellocate function for non-XFS detected filesystems (which used posix_fallocate)
 
 ``V0.3.239 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -255,7 +255,7 @@ Bug Fixes
 - COMMON: fix resolution of multipeo ../ path changes like /X/Y/Z/../../Z
 
 ``V0.3.238 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -263,7 +263,7 @@ Bug Fixes
 - FST: avoid SEGV during startup when calling RemoveGhostEntries (.eosscan exists on data path)
 
 ``V0.3.237 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -279,7 +279,7 @@ New Feature
 
 
 ``V0.3.236 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -287,7 +287,7 @@ Bug Fixes
 - NS: set 'pData' pointer to 0 in munmap function to switch back to traditional read function
 
 ``V0.3.235 Aquamarine``
-=====================
+=======================
 
 New Feature
 +++++++++++
@@ -431,10 +431,6 @@ New Feature
 - FST: allow 'eos.checksum=ignore' for file uploads to avoid checksum computation
 - FST: fix 'eoscp -a' and add 'eoscp -A <offset>' to upload a file to a certain offset
 
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 ``V0.3.223 Aquamarine``
 =======================
 
@@ -1844,7 +1840,7 @@ New Features
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
 ``V0.3.57 Beryl``
------------------
+=================
 
 New Features
 ++++++++++++
@@ -1860,7 +1856,7 @@ Bug Fixes
 - http: let HTTP clients see errors on PUT
 
 ``V0.3.53 Beryl``
------------------
+=================
 
 New Features
 ++++++++++++
@@ -1868,7 +1864,7 @@ New Features
 - [webdav] add support to do path replacments provdided by two special header flosg CBOX_CLIENT_MAPPING & CBOX_SERVER_MAPPING
 
 ``V0.3.51 Beryl``
------------------
+=================
 
 Bug Fixes
 +++++++++
@@ -1876,7 +1872,7 @@ Bug Fixes
 - fix wrong network traffic variable used in the scheduling implementation (used always 0 instead of real traffic)
 
 ``V0.3.49 Beryl``
------------------
+=================
 
 Bug Fixes
 +++++++++
@@ -1893,7 +1889,7 @@ New Features
 - enable MacOSX build and add packing script for DMG
 
 ``V0.3.47 Beryl``
------------------
+=================
 
 Bug Fixes
 +++++++++
@@ -1926,7 +1922,7 @@ New Features
 - extend 'space reset' command
 
 ``V0.3.37 Beryl``
------------------
+=================
 
 - add support for Owncloud chunked upload
 - add support for immutable namespace directories
@@ -1938,7 +1934,7 @@ New Features
 - fix tight thread locking delaying start-up
 
 ``V0.3.35``
------------
+===========
 
 Bug Fixes
 +++++++++
@@ -1948,7 +1944,7 @@ Bug Fixes
 - add option 'vst --upd target --self' to publish only the local instance VST statistics to InfluxDB
 
 ``V0.3.34``
------------
+===========
 
 New Features
 ++++++++++++
@@ -2006,7 +2002,7 @@ Bug Fixes
 
 
 ``V0.3.25``
------------
+===========
 
 New Features
 ++++++++++++

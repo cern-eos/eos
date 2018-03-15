@@ -45,7 +45,7 @@ The setup scripts will install all required packages.
 Quick Setup
 -----------
 
-Checkout the `uboxed <https://github.com/cernbox/uboxed>`_ project:
+Checkout the `UBoxed <https://github.com/cernbox/uboxed>`_ project:
 
 .. code-block:: bash
 
@@ -58,6 +58,7 @@ Install Services
 The platform dependent installation script will pull required software and install docker images for the four service components. The procedure is validated on CentOS 7 and Ubuntu platforms. The installation will take few minutes depending on your environment.
 
 .. code-block:: bash
+
   // CentOS 7
   ./SetupInstall-Centos7.sh
 

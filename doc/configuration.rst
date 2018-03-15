@@ -23,14 +23,15 @@ Configuration
    configuration/kinetic
    configuration/lru
    configuration/master
+   configuration/namespace
    configuration/permission
    configuration/proxys
    configuration/quota
    configuration/recyclebin
+   configuration/systemd
    configuration/scheduler
    configuration/transfer
    configuration/tty
-   configuration/namespace
    configuration/wfe
 
 
