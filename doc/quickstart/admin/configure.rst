@@ -6,7 +6,7 @@
 EOS admin configuration
 =======================
 
-EOS distinguished two types of node types:
+EOS distinguished two type of nodes:
 
 * the MGM node (namespace node)
 * the FST nodes (storage nodes)
@@ -159,7 +159,7 @@ Now we are going to add filesystems (partitions) to the storage node
    
    /dev/sdb1 /data01  ext4    defaults,user_xattr        0 0
    
-Let's assume that you have four partitions /data01 /data02 /data03 /data04. You have to change the ownership of all storage directories to daemon:daemon because all EOS daemons run under the ``daemon`` account.
+Let's assume that you have four partitions ``/data01 /data02 /data03 /data04``. You have to change the ownership of all storage directories to daemon:daemon because all EOS daemons run under the ``daemon`` account.
 
 .. code-block:: bash
 

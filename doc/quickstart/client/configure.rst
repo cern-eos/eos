@@ -14,7 +14,7 @@ You need to setup two variables in your environment to direct the **eos** CLI to
    export EOS_HOME="<home dir in eos space>"
 
 
-For example for MGM at eosfoo.ch and home directory in EOS for user bar /eos/foo/users/b/bar/
+For example for MGM at eosfoo.ch and home directory in EOS for user bar ``/eos/foo/users/b/bar/``
 
 .. code-block:: text
 
@@ -38,14 +38,14 @@ and now we can invoce the CLI
    EOS Console [root://eosfoo.ch] |/> cd
    EOS Console [root://eosfoo.ch] |/eos/foo/users/b/bar/>
 
-And now you are ready to use any command in EOS. E.G.  find all files under the /eos/foo/users/b/bar/ directory
+And now you are ready to use any command in EOS. E.G.  find all files under the ``/eos/foo/users/b/bar/`` directory
 
 .. code-block:: text
 
    EOS Console [root://eosfoo.ch] |/> find -f /eos/foo/users/b/bar/
    /eos/foo/users/b/bar/test.txt
 
-You can also mount EOS using FUSE mount from eosfoo.ch. First you need to install the eos-fuse RPM and edit /etc/sysconfig/eos on your client machine
+You can also mount EOS using FUSE mount from eosfoo.ch. First you need to install the eos-fuse RPM and edit ``/etc/sysconfig/eos[_env]`` on your client machine
 
 .. note::
 
