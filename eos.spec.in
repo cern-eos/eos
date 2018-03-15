@@ -528,6 +528,8 @@ The new EOS fuse core containing eosxd.
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %attr(755,daemon,daemon) /var/log/eos/
 %attr(755,daemon,daemon) /var/log/eos/fusex/
+%attr(755,daemon,daemon) /var/cache/eos/
+%attr(755,daemon,daemon) /var/cache/eos/fusex/
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf

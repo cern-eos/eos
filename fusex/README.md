@@ -17,7 +17,7 @@ This
   "remotemountdir" : "/eos/",
   "localmountdir" : "/eos/",
   "statisticfile" : "stats",
-  "mdcachedir" : "/var/eos/fusex/md",
+  "mdcachedir" : "/var/cache/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
 
@@ -64,8 +64,8 @@ You also need to define a local cache directory (location) where small files are
   "cache" : {
     "type" : "disk",
     "size-mb" : 32768,
-    "location" : "/var/eos/fusex/cache/",
-    "journal" : "/var/eos/fusex/journal/",
+    "location" : "/var/cache/eos/fusex/cache/",
+    "journal" : "/var/cache/eos/fusex/journal/",
     "read-ahead-strategy" : "dynamic",
     "read-ahead-bytes-nominal" : 1048576,
     "read-ahead-bytes-max" : 8388608

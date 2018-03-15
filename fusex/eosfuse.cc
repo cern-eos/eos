@@ -251,7 +251,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             if (geteuid()) {
               root["mdcachedir"] = "/var/tmp/eos/fusex/md-cache/";
             } else {
-              root["mdcachedir"] = "/var/eos/fusex/md-cache/";
+              root["mdcachedir"] = "/var/cache/eos/fusex/md-cache/";
             }
 
             fprintf(stderr, "# enabling stable inodes with md-cache in '%s'\n",
@@ -731,11 +731,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     } else {
       if (!cconfig.location.length()) {
-        cconfig.location = "/var/eos/fusex/cache/";
+        cconfig.location = "/var/cache/eos/fusex/cache/";
       }
 
       if (!cconfig.journal.length()) {
-        cconfig.journal = "/var/eos/fusex/cache/";
+        cconfig.journal = "/var/cache/eos/fusex/cache/";
       }
 
       // default cache size 32 GB
