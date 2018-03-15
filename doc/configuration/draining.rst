@@ -3,6 +3,8 @@
 .. index::
    single: Drain System
 
+.. _draining:
+
 Drain System
 ============
 
