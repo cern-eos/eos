@@ -26,6 +26,7 @@ Configuration
    configuration/namespace
    configuration/permission
    configuration/proxys
+   configuration/quarkdb
    configuration/quota
    configuration/recyclebin
    configuration/scheduler
