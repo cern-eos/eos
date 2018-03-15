@@ -7,8 +7,8 @@
 
 
 
-QuarkDB Configuration
-=====================
+QuarkDB
+=======
 
 `QuarkDB <https://quarkdb.web.cern.ch/docs/master>`_ is a highly available datastore that implements a small subset of the redis command set. It is built on top of rocksdb, an embeddable, transactional key-value store. High availability is achieved through multiple replicated nodes and the raft distributed consensus algorithm. 
 
@@ -22,7 +22,9 @@ QuarkDB has the best performance when storing KV data on an SSD. To guarantee hi
 Installation
 ------------
 
-We currently provide RPMs for QuarkDB on CentOS 7. Configure first the repository file `/etc/yum.repos.d/quarkdb.repo`:
+We currently provide RPMs for QuarkDB on CentOS 7. 
+
+You need to configure first a YUM repository file `/etc/yum.repos.d/quarkdb.repo`:
 
 .. code-block:: bash
 
@@ -41,20 +43,24 @@ Install the relevant RPMs on all three nodes:
 
 .. note::
 
-   QuarkDB has a dependency on `XRootD <http://xrootd.org>`_ (see :ref:`eos_base_setup_repos` or use the EPEL repository).
+   QuarkDB has also a dependency on `XRootD <http://xrootd.org>`_ (see :ref:`eos_base_setup_repos` or use XRootD from the EPEL repository).
    The **redis** package is installed to get access to the **redis-cli** command.
 
 Configuration
 -------------
 
-On each of the nodes we have to create a DB directory using `quarkdb-create`. Each node in the cluster has to use an agreed `cluster-id` to allow to peer between the three QuarkDB cluster nodes. The `cluster-id` can be the instance name or a UUID.
+On each of the nodes we have to create a DB directory using `quarkdb-create`. 
+
+Each node in the cluster has to use an agreed `cluster-id` to allow to peer between the three QuarkDB cluster nodes. The `cluster-id` can be e.g. the EOS instance name or an UUID.
 
 .. code-block:: bash
 
    //  node 1 
    quarkdb-create --path /ssd/quarkdb/node-1 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
 
-QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_. To start QuarkDB as an XRootD service you have first to create one configuration file `/etc/xrootd/xrootd-quarkdb.cf` per machine:
+QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_. 
+
+To start QuarkDB as an XRootD service you have first to create one configuration file `/etc/xrootd/xrootd-quarkdb.cf` per node referencing the node with `redis.myself`:
 
 .. code-block:: bash
 
@@ -86,26 +92,26 @@ QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_. To start
 Service Management - start and stop
 -----------------------------------
 
-The QuarkDB service is managed via **systemd** on CentOS7:
+The QuarkDB service is managed via **systemd** on CentOS 7:
 
 .. code-block:: bash
 
-   // start
+   # start
    systemctl start xrootd@quarkdb
 
-   // stop 
+   # stop 
    systemctl stop  xrootd@quarkdb
 
-   // status
+   # status
    systemctl status xrootd@quarkdb
 
-   // restart
+   # restart
    systemctl restart xrootd@quarkdb
 
 Checking your cluster
 -----------------------
 
-Using the raft algorith the available nodes elect a leader, when at least two out of three nodes are availab. 
+Using the raft algorith the available nodes elect a leader when at least two out of three nodes are available. 
 
 You can verify the state of each QuarkDB node using the redis-cli:
 
@@ -134,9 +140,9 @@ You can verify the state of each QuarkDB node using the redis-cli:
    18) REPLICA node2.foo.bar:7777 ONLINE | UP-TO-DATE | NEXT-INDEX 21
    19) REPLICA node3.foo.bar:7777 ONLINE | UP-TO-DATE | NEXT-INDEX 21
 
-The above output yields, that node1.foo.bar is currently the leader. All redis commands are issued against the leader.
+The above output yields that node1.foo.bar is currently the leader. Most redis commands are typically issued against a leader.
 
-You can verify that your cluster is operational:
+You can verify that your cluster is operational setting and getting a key on the leader:
 
 .. code-block:: bash
 
@@ -150,9 +156,9 @@ You can verify that your cluster is operational:
 Security
 --------
 
-Currently QuarkDB is deployed without TLS. To make sure no third party access or tampers your KV storage you should configure the firewall accordingly that only MGM and FST nodes have direct access to QuarkDB (by default on port 7777).
+.. warning::
 
-This will change in the future.
+   Currently QuarkDB is deployed without TLS. To make sure no third party access or tampers your KV storage you should configure the firewall accordingly that only MGM and FST nodes have direct access to QuarkDB (by default on port 7777). This will change in the future.
 
 Source Code
 -----------
