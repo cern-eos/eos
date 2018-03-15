@@ -1,4 +1,4 @@
-AC_INIT([eos apmon], [2.2.24])
+AC_INIT([eos apmon], [2.2.25])
 AC_PREREQ(2.53)
 AC_CONFIG_SRCDIR([etc/init.d/eosapmond])
 
