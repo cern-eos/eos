@@ -163,7 +163,7 @@ Bug Fixes
 - FST: protect against 0 pointer access if not local fmd is available for a scanned file
 
 ``V0.3.256 Aquamarine``
-=====================
+=======================
 
 Bug Fixes
 +++++++++
@@ -596,7 +596,7 @@ Bug Fix
 - FST: fix 'ScanDir' funcionality to deal properly with files which get opened during a scan for update and don't flag them as checksum error files
 - FST: ignore flagged checksum errors when updating a file
 
-``V0.3.209 Aquamarine`
+``V0.3.209 Aquamarine``
 =======================
 
 Bug Fix
@@ -1977,8 +1977,8 @@ Bug Fixes
 - fix embedded HTTP server configuration (thread-per-client model using poll)
 - fix S3 escaping for signature checks (make Cyberduck compatible)
 
-``V0.3.28`
-----------
+``V0.3.28``
+-----------
 
 New Features
 ++++++++++++
