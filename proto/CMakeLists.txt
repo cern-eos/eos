@@ -70,16 +70,17 @@ PROTOBUF_GENERATE_CPP(DRAIN_SRCS DRAIN_HDRS common/cli_proto/Drain.proto)
 PROTOBUF_GENERATE_CPP(FIND_SRCS FIND_HDRS common/cli_proto/Find.proto)
 PROTOBUF_GENERATE_CPP(FS_SRCS FS_HDRS common/cli_proto/Fs.proto)
 PROTOBUF_GENERATE_CPP(RM_SRCS RM_HDRS common/cli_proto/Rm.proto)
+PROTOBUF_GENERATE_CPP(STAGER_RM_SRCS STAGER_RM_HDRS common/cli_proto/StagerRm.proto)
 PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
 PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
 
 set(CLI_PROTO_SRCS
   ${NS_SRCS} ${ACL_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} ${REQ_SRCS} ${REP_SRCS}
-  ${FS_SRCS} ${RM_SRCS})
+  ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS})
 
 set(CLI_PROTO_HDRS
   ${NS_HDRS} ${ACL_HDRS} ${DRAIN_HDRS} ${FIND_HDRS} ${REQ_HDRS} ${REP_HDRS}
-  ${FS_HDRS} ${RM_HDRS})
+  ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS})
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}

@@ -27,6 +27,7 @@
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/DrainCmd.hh"
+#include "mgm/proc/admin/StagerRmCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -197,6 +198,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kRm:
     cmd.reset(new RmCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kStagerRm:
+    cmd.reset(new StagerRmCmd(std::move(req), vid));
     break;
 
   default:

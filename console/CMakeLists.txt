@@ -110,7 +110,7 @@ add_library(
   commands/com_vid.cc
   commands/com_vst.cc
   commands/com_whoami.cc
-  commands/com_who.cc commands/com_protorm.cc)
+  commands/com_who.cc commands/com_protorm.cc commands/com_stagerrm.cc)
 
 add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)
 

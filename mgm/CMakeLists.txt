@@ -173,7 +173,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
-  ${FUSEX_SRCS})
+  ${FUSEX_SRCS} proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh)
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto-Objects so we guarantee that the protocol
