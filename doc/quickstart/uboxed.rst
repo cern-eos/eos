@@ -5,14 +5,14 @@
 
 .. _uboxed: https://github.com/cernbox/uboxed
 
-UBoxed Docker Installation
-==========================
+Scientific Services Installation: EOS, CERNBox, SWAN and CVMFS
+==============================================================
 
-`UBoxed <https://github.com/cernbox/uboxed>`_ is a self-contained docker demo configuration for scientific and general purpose use. It encapsulates four compontents:
+We have bundled a demonstration setup of four CERN developed cloud and anlysis platform services called `UBoxed <https://github.com/cernbox/uboxed>`_. It encapsulates four compontents:
 
-- `EOS <https://eos.cern.ch>`_ - storage and namespace server
-- `CERNBox <https://cernbox.web.cern.ch>`_ - dropbox-like add-on for sync-and-share service on top of EOS
-- `SWAN <https://swan.web.cern.ch>`_ - Service for Web based Analysys - Jupyter notebook interface
+- `EOS <http://eos.cern.ch>`_ - scalable storage platform with data, metadata and messaging server components
+- `CERNBox <https://cernbox.web.cern.ch>`_ - dropbox-like add-on for sync-and-share services on top of EOS
+- `SWAN <https://swan.web.cern.ch>`_ - service for web based interactive analysis with jupyter notebook interface
 - `CVMFS <https://cvmfs.web.cern.ch>`_ - CernVM file system - a scalable software distribution service
 
 
@@ -22,14 +22,14 @@ Preparation
 The setup scripts will install all required packages. 
 
 .. note::
-   Make sure you have no other web server listening on the standard ports. Make sure you have atleast 6GB of free space under ``/var/lib/docker/volumes/``. 
+   Make sure you have no other web server listening on the standard ports. Make sure you have atleast 30GB of free space under ``/var/lib/docker/``.
 
 .. note::
    The installation requires atleast docker version 17.03 - if you have an older one we recommend to uninstall it let
    the setup script take care of pulling a newer version.
    
 .. note::
-   In certain environments docker container cannot resolve external domain addresses because nameserver accesss to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json``. 
+   In certain environments docker container cannot resolve external domain addresses because nameserver accesss to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json`` and restart the docker daemon
    For the CERN DNS server that would be e.g.
 
 .. code-block:: bash
@@ -38,6 +38,9 @@ The setup scripts will install all required packages.
    {
      "dns" : ["137.138.17.5", "137.138.17.5"]
    }
+
+   // el7
+   systemctl restart docker
 
 Quick Setup
 -----------
@@ -52,7 +55,7 @@ Checkout the `uboxed <https://github.com/cernbox/uboxed>`_ project:
 Install Services
 ++++++++++++++++
 
-The platform dependent installation script will pull required software and install docker images for the four service components. This will take few minutes depending on your environment.
+The platform dependent installation script will pull required software and install docker images for the four service components. The procedure is validated on CentOS 7 and Ubuntu platforms. The installation will take few minutes depending on your environment.
 
 .. code-block:: bash
   // CentOS 7
