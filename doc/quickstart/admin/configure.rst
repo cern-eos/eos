@@ -6,40 +6,45 @@
 EOS admin configuration
 =======================
 
-There are two types of nodes
+EOS distinguished two types of node types:
+
 * the MGM node (namespace node)
 * the FST nodes (storage nodes)
 
-Copy example config file to /etc/sysconfig/eos
+Copy an example config file to /etc/sysconfig/eos
 
-.. code-block:: text
-   
+.. code-block:: bash
+
+   // SysV flavour
    cp /etc/sysconfig/eos.example /etc/sysconfig/eos
+   // systemd flavour
+   cp /etc/sysconfig/eos_env.example /etc/sysconfig/eos_env
 
 Setup MGM
 ---------
-Change following variables in /etc/sysconfig/eos
+Change the following variables in /etc/sysconfig/eos[_env]
 
-Form MGM you should set following roles
+Define three roles of daemons to run on this node:
 
-.. code-block:: text
+.. code-block:: bash
 
    export XRD_ROLES="mq mgm fst"
 
-Set eos name
+In this example we will run the message broker (MQ), the namespace (MGM) and the storage (FST) service all on one machine.
+
+Define your EOS instance name
 
 .. note::
 
-   EOS_INSTANCE_NAME has to start with "eos" and has form "eos<name>". I will use <name> test for in this instruction, but you can
-   pick any name you like.
+   EOS_INSTANCE_NAME has to start with "eos" and has the form "eos<name>". We will use <name> test in this instruction.
 
-.. code-block:: text
+.. code-block:: bash
 
    export EOS_INSTANCE_NAME=eostest
 
-change following variables 
+Adjust the following variables according to your MGM hostanme
 
-.. code-block:: text
+.. code-block:: bash
 
    export EOS_BROKER_URL=root://localhost:1097//eos/
    export EOS_MGM_MASTER1=<MGM hostname>
@@ -47,59 +52,66 @@ change following variables
    export EOS_MGM_ALIAS=<MGM hostname>
    export EOS_FUSE_MGM_ALIAS=<MGM hostname>
 
-in /etc/xrd.cf.mgm change security setting as you need
+In /etc/xrd.cf.mgm change security setting as you need
 
-.. code-block:: text
+.. code-block:: bash
 
    # Example disable krb5 and gsi
    #sec.protocol krb5
    #sec.protocol gsi
    sec.protbind * only sss unix
 
-If you are using systemd (el-7) you have to add these lines (e.g. at the end) to the sysconfig file:
+Let's start EOS
 
-.. code-block:: text
+.. code-block:: bash
 
-   which systemctl >& /dev/null
-   if [ $? -eq 0 ]; then
-     alias service="service --skip-redirect"
-   fi
-
-Let's start eos
-
-.. code-block:: text
-
+   // SysV flavour		
    bash> service eos start
 
-and let's enable sss security
+   // systemd flavour
+   bash> systemctl start eos@*
 
-.. code-block:: text
+For details for `systemd` support see :ref:`systemd`
+
+Enable shared secret `sss` security
+
+.. code-block:: bash
 
    eos -b vid enable sss
 
-and let's define sub-spaces 
+EOS uses a space and scheduling group concept
+
+* spaces = made by groups
+* groups = made by group of filesystems
+* filesystems = mount point
+
+The `default` space name is **default**. Groups in the **default** space are numbered **default.0** .. **default.<n>**. Each group can contain an arbitrary number of filesystems.
 
 .. note::
 
-   You should have atleast as many subspaces as the number of filesystems per storage node. 
+   You should have atleast as many scheduling groups as the number of filesystems per storage node. The maximum number of 
+   filesystems in one EOS instance is limited to 64k.
    
-if you have 20 disks on the storage nodes you do
+If you have 20 disks on storage nodes you create 20 groups in space **default**
 
-.. code-block:: text
+.. code-block:: bash
 
    for name in `seq 1 20`; do eos -b group set default.$name on; done
 
-Now you should see at lease one node (FST) via eos console (eos -b)
+You can list your single storage node and your group configuration doing
 
+.. code-block:: bash
+
+   eos node ls
+   eos group ls
    
 .. note::
 
-   We see our MGM node because we added "fst" in XRD_ROLES. You can remove if you don't want to user your MGM machine as FST.
+   We see also our MGM node because we added "fst" in XRD_ROLES. You can remove if you don't want to use your MGM machine as a storage srever.
 
+To start a FUSE mount on MGM you can do
 
-To create fuse mount on MGM you can do
-
-.. code-block:: text
+.. code-block:: bash
 
    bash> mkdir /eos/
    bash> service eosd start
@@ -107,37 +119,39 @@ To create fuse mount on MGM you can do
 Setup FST
 ---------
 
-Let's create empty eos config file in /etc/sysconfig/eos and change <MGM hostname>
+We will now setup a storage node on a different machine than the MGM node.
 
-.. code-block:: text
+We create an empty eos config file in /etc/sysconfig/eos[_env] and change <MGM hostname> accordingly to our MGM hostname
+
+.. code-block:: bash
+
+   // for systemd based configurations omit the export statement
 
    DAEMON_COREFILE_LIMIT=unlimited
    export XRD_ROLES="fst"
    export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
    export EOS_BROKER_URL=root://<MGM hostname>:1097//eos/
 
-.. code-block:: text
+.. code-block:: bash
 
+   // SysV flavour
    bash> service eos start
 
-Now on MGM node we should see our new FST
+   // systemd flavour
+   bash> systemctl start eos@fst
 
-.. code-block:: text
+Now on the MGM node we should see a new FST running
 
-   eos -b node ls
+.. code-block:: bash
 
-you should see something similar
-
-.. code-block:: text
-
-   [root@eos-head-iep-grid ~]# eos -b node ls
+   [root@eosfoo.ch ~]# eos node ls
    #-----------------------------------------------------------------------------------------------------------------------------
    #     type #                       hostport #   status #     status # txgw #gw-queued # gw-ntx #gw-rate # heartbeatdelta #nofs
    #-----------------------------------------------------------------------------------------------------------------------------
-   nodesview   eos-data-iep-grid.saske.sk:1095     online           on    off          0       10      120                1     1
-   nodesview   eos-head-iep-grid.saske.sk:1095     online           on    off          0       10      120                1     1
+   nodesview                      eosfoo.ch:1095   online           on    off          0       10      120                1     1
+   nodesview                      eosfst.ch:1095   online           on    off          0       10      120                1     1
    
-Now, let's add some file systems (some disk partitions)
+Now we are going to add filesystems (partitions) to the storage node
 
 .. note::
 
@@ -145,63 +159,85 @@ Now, let's add some file systems (some disk partitions)
    
    /dev/sdb1 /data01  ext4    defaults,user_xattr        0 0
    
-Let's assume that you have 4 partitions /data01 /data02 /data03 /data04. You have to change owner to daemon:daemon
+Let's assume that you have four partitions /data01 /data02 /data03 /data04. You have to change the ownership of all storage directories to daemon:daemon because all EOS daemons run under the ``daemon`` account.
 
-.. code-block:: text
+.. code-block:: bash
 
    chown -R daemon:daemon /data*
    
-and register them on MGM via
+Register them towards the MGM via
 
-.. code-block:: text
+.. code-block:: bash
 
    eosfstregister /data default:4
    
 .. note::
 
-   !!! i have no idea how to unregister !!!!
+   If you want to remove filesystems, they have to be in state ``empty`` (see :ref:`draining`) and then can be deleted via `eos fs rm <fsid>`
 
-Finish MGM
-----------
+Configure MGM
+-------------
 
-To enable all hosts and filesystems in default space do following:
+To enable all hosts and filesystems in the **default** space do
 
-.. code-block:: text
+.. code-block:: bash
 
-   eos -b space set default on
+   eos space set default on
 
-To see our space you do
+You can check the status of your space with
 
-.. code-block:: text
+.. code-block:: bash
 
-   eos -b space ls
+   eos space ls
+   eos space status default
    
-And you should see space in "RW" and then you are ready to go.
+If ``space ls`` shows non zero as **rw** space, you have successfully configured your EOS instance to store data.
 
-Testing MGM
------------
+Configure MGM space
+-------------------
 
-Preapre for testing let's do following changes
+There are some space related parameters to modify the behaviour of EOS
 
-.. code-block:: text
+.. code-block:: bash
 
    # disable quota for first tests
-   eos -b space quota default off
+   eos space quota default off
    
    # disable balancer
-   eos -b space config default space.balancer=off
+   eos space config default space.balancer=off
    
    # set balancer threshold to 5%
-   eos -b space config default space.balancer.threshold=5
+   eos space config default space.balancer.threshold=5
    
    # set checksum scan interval to 1 week
-   eos -b space config default space.scaninterval=604800
+   eos space config default space.scaninterval=604800
    
    # set drain delay for IO errors to 1 hours
-   eos -b space config default space.graceperiod=3600
+   eos space config default space.graceperiod=3600
    
    # set max drain time to 1 day
-   eos -b space config default space.drainperiod=86400
+   eos space config default space.drainperiod=86400
+
+Basic Testing
+-------------
+
+You can create a test directory, upload and download a file as a first proof of concept test:
+
+.. code-block:: bash
+
+   # create a test directory
+   eos mkdir /eos/testarea/
+   # open the permissions
+   eos chmode 777 /eos/testarea/
+   # upload a test file
+   eos cp /etc/group /eos/testarea/file.1
+   # download a test file
+   eos cp /eos/testarea/file.1 /tmp/group
+   # compare the two files
+   diff /etc/group /tmp/group
+   # inspect the physical location and meta data of the uploaded file
+   eos file info /eos/testarea/file.1
+
 
 Enable kerberos security
 ------------------------
@@ -211,9 +247,17 @@ Enable kerberos security
    
    krb5
 
+
+Setup AUTH service
+------------------
+
+If an MGM has to handle more than 32k clients it is recommended to deploy a scalable front-end 
+service called AUTH. 
+
 Setup AUTH plugin
------------------
-The authentication plugin is inteded to be used as an OFS library with a 
+*****************
+
+The authentication plugin is intended to be used as an OFS library with a 
 vanilla XRootD server. What it does is to connect using ZMQ sockets to the 
 real MGM nodes (in general it should connect to a master and a slave MGM). 
 It does this by reading out the endpoints it needs to connect to from the 
@@ -230,7 +274,8 @@ at the same time.
 There are several tunable parameters for this configuration (auth + MGMs):
 
 AUTH - configuration
---------------------
+********************
+
 - **eosauth.mastermgm** and **eosauth.slavemgm** - contain the hostnames and the
    ports to which ZMQ can connect to the MGM nodes so that it can forward
    requests and receive responses. Only the mastermgm parameter is mandatory
@@ -242,7 +287,8 @@ AUTH - configuration
     The default size is 10 sockets.
 
 MGM - configuration
--------------------
+******************* 
+
 - **mgmofs.auththreads** - since we now receive requests using ZMQ, we no longer
     use the default thread pool from XRootD and we need threads for dealing
     with the requests. This parameter sets the thread pool size when starting

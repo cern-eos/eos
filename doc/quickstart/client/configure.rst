@@ -6,7 +6,7 @@
 EOS client configuration
 ========================
 
-You need to setup two variables
+You need to setup two variables in your environment to direct the **eos** CLI to connect to a given EOS instance.
 
 .. code-block:: text
 
@@ -14,38 +14,38 @@ You need to setup two variables
    export EOS_HOME="<home dir in eos space>"
 
 
-For example for MGM at eos-head-iep-grid.saske.sk and home directory in eos for mvala user /eos/saske.sk/users/m/mvala
+For example for MGM at eosfoo.ch and home directory in EOS for user bar /eos/foo/users/b/bar/
 
 .. code-block:: text
 
-   export EOS_MGM_URL="root://eos-head-iep-grid.saske.sk"
-   export EOS_HOME="/eos/saske.sk/users/m/mvala"
+   export EOS_MGM_URL="root://eosfoo.ch"
+   export EOS_HOME="/eos/foo/users/b/bar/"
 
-and now we can run eos
+and now we can invoce the CLI
 
 .. code-block:: text
 
-   mvala@lx001.saske.sk ~ $ eos
+   me@myhost.ch ~ $ eos
    # ---------------------------------------------------------------------------
-   # EOS  Copyright (C) 2011 CERN/Switzerland
+   # EOS  Copyright (C) 2018 CERN/Switzerland
    # This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.
    # This is free software, and you are welcome to redistribute it 
    # under certain conditions; type `license' for details.
    # ---------------------------------------------------------------------------
-   EOS_INSTANCE=eossaske.sk
-   EOS_SERVER_VERSION=0.2.29 EOS_SERVER_RELEASE=1
-   EOS_CLIENT_VERSION=0.2.29 EOS_CLIENT_RELEASE=3
-   EOS Console [root://eos-head-iep-grid.saske.sk] |/> cd
-   EOS Console [root://eos-head-iep-grid.saske.sk] |/eos/saske.sk/users/m/mvala/>
+   EOS_INSTANCE=eosfoo.ch
+   EOS_SERVER_VERSION=4.2.18 EOS_SERVER_RELEASE=1
+   EOS_CLIENT_VERSION=4.2.18 EOS_CLIENT_RELEASE=3
+   EOS Console [root://eosfoo.ch] |/> cd
+   EOS Console [root://eosfoo.ch] |/eos/foo/users/b/bar/>
 
-And now you are ready to use any command in eos for example find all files in /eos/saske.sk/users/m/mvala/ dir
+And now you are ready to use any command in EOS. E.G.  find all files under the /eos/foo/users/b/bar/ directory
 
 .. code-block:: text
 
-   EOS Console [root://eos-head-iep-grid.saske.sk] |/> find -f /eos/saske.sk/users/m/mvala/
-   /eos/saske.sk/users/m/mvala/test.txt
+   EOS Console [root://eosfoo.ch] |/> find -f /eos/foo/users/b/bar/
+   /eos/foo/users/b/bar/test.txt
 
-You can also mount as FUSE mount for eos-head-iep-grid.saske.sk. First you need to install eos-fuse and edit /etc/sysconfig/eos on client machine
+You can also mount EOS using FUSE mount from eosfoo.ch. First you need to install the eos-fuse RPM and edit /etc/sysconfig/eos on your client machine
 
 .. note::
 
@@ -60,15 +60,16 @@ You can also mount as FUSE mount for eos-head-iep-grid.saske.sk. First you need 
    # The mount directory for 'eosd'
    export EOS_FUSE_MOUNTDIR=/eos/
    # The MGM host from where to do the inital mount
-   export EOS_FUSE_MGM_ALIAS=eos-head-iep-grid.saske.sk
+   export EOS_FUSE_MGM_ALIAS=eosfoo.ch
    
 
-And let's start eosd service
+You can start the mount as the **eosd** service
 
 .. code-block:: text
 
    # in sl5 and sl6
    service eosd start
-   # or in fedora 18 and above
+   # in CentOS 7 or in fedora 18 and above
    systemclt start eosd
+
 
