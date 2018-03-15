@@ -340,7 +340,7 @@ eos_docs:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y make python-sphinx sssd-client sudo which
+    - yum install --nogpg -y make python-sphinx sssd-client sudo which git
     - cd doc
     - export PYTHONPATH=`pwd`/_themes/
     - make html
