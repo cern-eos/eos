@@ -21,3 +21,4 @@ The `traditional` service deployment is done via YUM and explained here.
    quickstart/install
    quickstart/client/configure
    quickstart/admin/configure
+   quickstart/ns_quarkdb
