@@ -56,10 +56,10 @@ A rule is defined in the following way:
 
 .. code-block:: bash
 
-   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxomqc(!d)(+d)(!u)(+u)}
+   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqci(!d)(+d)(!u)(+u)}
 
 A rule has three colon separated fields. It starts with the type of rule: 
-User (u), Group (g) or eGroup (egroup). The second field specifies the name or 
+User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or 
 the unix ID of user/group rules and the eGroup name for eGroups  
 The last field contains the rule definition. 
 
@@ -81,7 +81,7 @@ The following tags compose a rule:
    +u  overwrite a '!u' rule and allow updates for files 
    q   grant 'set quota' permissions on a quota node
    c   grant 'change owner' permission on directory children
-   
+   i   set the immutable flag    
    =============================================================================
 
 A complex example is shown here:
@@ -107,6 +107,15 @@ A complex example is shown here:
    Write-once and '!d' or '!u' rules remove permissions which can only be regained 
    by a second rule adding the '+u' or '+d' flag e.g. if the matching user ACL 
    forbids deletion it is not granted if a group rule does not forbid deletion!
+
+It is possible to write rules, which apply to everyone:
+
+.. code-block:: bash
+
+   sys.acl="z:i"
+ 
+   # this directory is immutable for everybody
+
 
 Finally an ACL is set e.g.:
 
@@ -285,3 +294,29 @@ Example:
    success: mode of file/directory <dir> is now '770'
 
 When the mask attribute is set the !m flag is automatically disabled even if it is given in the ACL.
+
+ACL CLI
++++++++
+
+To provide atomic add,remove and replacement of permissions one can take advantage of the ``eos acl`` command instead of modifying directly the `sys.acl` attribute:
+
+.. code-block:: bash
+
+   Usage: eos acl [-l|--list] [-R|--recursive][--sys|--user] <rule> <path>
+
+       --help           Print help
+   -R, --recursive      Apply on directories recursively
+   -l, --lists          List ACL rules
+       --user           Set user.acl rules on directory
+       --sys            Set sys.acl rules on directory
+   <rule> is created based on chmod rules. 
+   Every rule begins with [u|g|egroup] followed with : and identifier.
+
+   Afterwards can be:
+   = for setting new permission .
+   : for modification of existing permission.
+  
+   This is followed by the rule definition.
+   Every ACL flag can be added with + or removed with -, or in case
+   of setting new ACL permission just enter the ACL flag.
+
