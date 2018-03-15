@@ -26,6 +26,7 @@
 #undef __USE_FILE_OFFSET64
 #include <fts.h>
 #define __USE_FILE_OFFSET64
+#include <sys/statvfs.h>
 
 /* -------------------------------------------------------------------------- */
 dircleaner::dircleaner(const std::string _path,
@@ -266,6 +267,24 @@ dircleaner::leveler(ThreadAssistant &assistant)
   {
     assistant.wait_for(std::chrono::seconds(15));
     if(assistant.terminationRequested()) return;
+
+    // check the partition status
+    struct statvfs svfs;
+    int rsfs = statvfs(path.c_str(), &svfs);
+    if (!rsfs) {
+      uint64_t free_partition_bytes = svfs.f_bavail * svfs.f_bsize;
+      uint64_t total_partition_bytes = svfs.f_blocks * svfs.f_frsize;
+      double filled = 100.0 * free_partition_bytes / total_partition_bytes;
+      eos_static_info("diskspace on partition path %s free-bytes=%lu total-bytes=%lu filled=%.02f %%", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
+      if ( filled > 95.0) {
+	// we force a complete cleanup of the cache if disk space runs low
+	eos_static_warning("diskspace on partition path %s less than 5% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
+	cleanall(trim_suffix);
+      }
+    } else {
+      eos_static_err("statvfs on path=%s failed with retc=%d errno=%d", path.c_str(), rsfs, errno);
+    }
+
 
     std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
     trim(!n % (1 * 60 * 4)); // forced trim every hour
