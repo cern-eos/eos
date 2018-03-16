@@ -12,7 +12,6 @@ Releases
    releases/amber
    releases/beryl
    releases/citrine
-   releases/diamond
 
 .. epigraph::
 

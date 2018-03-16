@@ -1,4 +1,4 @@
-.. _clientcommands:
+.. _restapi:
 
 REST API
 ================

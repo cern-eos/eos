@@ -1,7 +1,7 @@
 .. highlight:: rst
 
 .. index::
-   pair: Quarkdb
+   single:: QuarkDB
 
 .. _quarkdb:
 
@@ -17,7 +17,7 @@ The EOS CITRINE version allows to persist the namespace in QuarkDB avoiding the 
 Preparation
 -----------
 
-QuarkDB has the best performance when storing KV data on an SSD. To guarantee high-availability with predictable performance you should have three homogeneous nodes. In theory it also possible to have only one high-performance node with an SSD, but there is currently no way to set a leader preference. 
+QuarkDB has the best performance when storing KV data on an SSD. To guarantee high-availability with predictable performance you should have atleast three homogeneous nodes. 
 
 Installation
 ------------
@@ -49,14 +49,23 @@ Install the relevant RPMs on all three nodes:
 Configuration
 -------------
 
-On each of the nodes we have to create a DB directory using `quarkdb-create`. 
+On each of the nodes we have to create a DB directory using `quarkdb-create`. The given path has **not** to exist!
 
 Each node in the cluster has to use an agreed `cluster-id` to allow to peer between the three QuarkDB cluster nodes. The `cluster-id` can be e.g. the EOS instance name or an UUID.
 
 .. code-block:: bash
 
-   //  node 1 
-   quarkdb-create --path /ssd/quarkdb/node-1 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
+   // node 1 
+   quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
+   chown -R daemon:daemon /var/lib/quarkdb/node-3
+
+   // node 2
+   quarkdb-create --path /var/lib/quarkdb/node-2 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
+   chown -R daemon:daemon /var/lib/quarkdb/node-2
+
+   // node 3
+   quarkdb-create --path /var/lib/quarkdb/node-3 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
+   chown -R daemon:daemon /var/lib/quarkdb/node-3
 
 QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_. 
 
@@ -68,7 +77,7 @@ To start QuarkDB as an XRootD service you have first to create one configuration
    xrd.port 7777
    xrd.protocol redis:7777 libXrdQuarkDB.so
    redis.mode raft
-   redis.database /ssd/quarkdb/node-1
+   redis.database /var/lib/quarkdb/node-1
    redis.myself node1.foo.bar:7777
 
 .. code-block:: bash
@@ -77,7 +86,7 @@ To start QuarkDB as an XRootD service you have first to create one configuration
    xrd.port 7777
    xrd.protocol redis:7777 libXrdQuarkDB.so
    redis.mode raft
-   redis.database /ssd/quarkdb/node-1
+   redis.database /var/lib/quarkdb/node-1
    redis.myself node2.foo.bar:7777
 
 .. code-block:: bash
@@ -86,7 +95,7 @@ To start QuarkDB as an XRootD service you have first to create one configuration
    xrd.port 7777
    xrd.protocol redis:7777 libXrdQuarkDB.so
    redis.mode raft
-   redis.database /ssd/quarkdb/node-1
+   redis.database /var/lib/quarkdb/node-1
    redis.myself node3.foo.bar:7777
 
 Service Management - start and stop
@@ -153,12 +162,34 @@ You can verify that your cluster is operational setting and getting a key on the
    node1.foo.bar:7777> get testkey
    "hello"
 
+Running a single node cluster
+-----------------------------
+
+If you want to test a simplified setup, you can do the pervious steps on a single node and start the cluster with configuration file referencing `redis.mode standalone`:
+
+.. code-block:: bash
+
+   # xrootd@quarkdb node 1
+   xrd.port 7777
+   xrd.protocol redis:7777 libXrdQuarkDB.so
+   redis.mode standalone
+   redis.database /var/lib/quarkdb/node-1
+   redis.myself node1.foo.bar:7777
+
+
+Extending/Modifying your QuarkDB cluster
+----------------------------------------
+
+Sometimes you will need to replace, add or remove a node of your QuarkDB cluster. This can be done without downtime. Please refer to the QuarkDB `Membership update documentation http://quarkdb.web.cern.ch/quarkdb/docs/master/MEMBERSHIP.html`_.
+
+
+
 Security
 --------
 
 .. warning::
 
-   Currently QuarkDB is deployed without TLS. To make sure no third party access or tampers your KV storage you should configure the firewall accordingly that only MGM and FST nodes have direct access to QuarkDB (by default on port 7777). This will change in the future.
+   Currently QuarkDB is deployed without TLS. To make sure no third party accesses or tampers your KV storage you should configure the firewall accordingly that only MGM and FST nodes have direct access to QuarkDB (by default on port 7777). This will be improved in the near future.
 
 Source Code
 -----------
@@ -179,3 +210,7 @@ To build QuarkDB manually do
 
 Build dependencies can be installed using/running `utils/el7-packages.sh`.
 
+Further documentation
+---------------------
+
+For details refer to the main `QuarkDB Documentation <http://quarkdb.web.cern.ch/quarkdb/docs/master/>`_.

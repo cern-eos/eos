@@ -2,7 +2,6 @@
 
 .. index::
    single:: WFE - Work Flow Engine
-   see: WFE Configuration
 
 WFE Engine
 ==========

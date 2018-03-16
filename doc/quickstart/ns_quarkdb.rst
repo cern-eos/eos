@@ -6,7 +6,7 @@
 Namespace in QuarkDB configuration
 ===================================
 
-The following steps assume we're configuring an MGM node together with a QuarkDB cluster on tha same machine. The QuarkDB cluster will consist of 3 instances running on different ports on the localhost. The operating system is **CentOS7**.
+The following steps assume we are configuring an MGM node together with a QuarkDB cluster on the same machine. The QuarkDB cluster will consist of three instances running on different ports. The operating system is **CentOS7**.
 
 Installing packages
 --------------------
@@ -93,7 +93,7 @@ Using this as a reference, we start customizing the configuration files for our 
      chown -R daemon:daemon /var/spool/quarkdb/
    done
 
-All instances will run as user *daemon* and that's why also the ownership of the storage locations needs to be changed accordingly. For changing the ownership of the processes and the location of the log files, we can customize the systemd start-up script as follows:
+All instances will run as user *daemon*. The ownership of the storage locations needs to be changed accordingly. For changing the ownership of the processes and the location of the log files, we can customize the systemd start-up script as follows:
 
 .. code-block:: bash
 
@@ -179,4 +179,6 @@ Start the MGM daemon as a master:
     systemctl start eos@master
     systemctl start eos@mgm
 
-In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Futhermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition.
+In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Futhermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
+
+For further information see :ref:`quarkdb`.
