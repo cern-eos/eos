@@ -3,6 +3,12 @@
 Quickstart Guide
 ===============================
 
+.. image:: start.jpg
+   :height: 100px
+   :width: 100px
+   :align: left
+   :target: quickstart.html
+ 
 There are two easy ways to get an EOS instance installed. The first option is to use a dockerized demo installation, which installs either a standalone EOS storage system or the scientific service bundle made of EOS, SWAN, CERNBox and CVMFS.
 
 .. toctree::

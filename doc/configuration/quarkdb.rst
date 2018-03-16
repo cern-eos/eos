@@ -3,7 +3,7 @@
 .. index::
    single:: QuarkDB
 
-.. _quarkdb:
+.. _quarkdbconf:
 
 
 

@@ -6,7 +6,14 @@
 Releases
 ========
 
+.. image:: citrine.jpg
+   :scale: 12%
+   :align: left
+   :target: releases/citrine.html
+
 EOS releases are named after gemstones. The actively developed version is called CITRINE.
+
+
 
 .. toctree::
    :maxdepth: 1
@@ -24,6 +31,8 @@ EOS releases are named after gemstones. The actively developed version is called
    :doc:`releases/beryl`             0.3.267-aquamarine  2nd EOS Generation  :doc:`releases/beryl-release`
    :doc:`releases/citrine`           4.2.16              3rd EOS Generation  :doc:`releases/citrine-release`
    ================================= =================== =================== =================================
+
+
 
 
 

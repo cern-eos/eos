@@ -6,7 +6,13 @@
 Namespace in QuarkDB configuration
 ===================================
 
+.. image:: quarkdb.jpg
+   :scale: 40%
+   :align: left
+
 The following steps assume we are configuring an MGM node together with a QuarkDB cluster on the same machine. The QuarkDB cluster will consist of three instances running on different ports. The operating system is **CentOS7**.
+
+| 
 
 Installing packages
 --------------------
@@ -181,4 +187,4 @@ Start the MGM daemon as a master:
 
 In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Futhermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
 
-For further information see :ref:`quarkdb`.
+For further information see :ref:`quarkdbconf`.
