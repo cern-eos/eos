@@ -28,7 +28,15 @@ EOSMGMNAMESPACE_BEGIN
 
 eos::console::ReplyProto
 eos::mgm::StagerRmCmd::ProcessRequest() {
-  return eos::console::ReplyProto();
+  eos::console::ReplyProto reply;
+  std::ostringstream outStream;
+  std::ostringstream errStream;
+
+  auto path = mReqProto.stagerrm().path();
+
+
+
+  return reply;
 }
 
 EOSMGMNAMESPACE_END

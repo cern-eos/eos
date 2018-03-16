@@ -176,8 +176,7 @@ public:
     int  DoIt(bool issync=false);
 
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
-                                  const cta::xrd::Request& request, const std::string& hostPort,
-                                  const std::string& endPoint);
+                                  const cta::xrd::Request& request);
 
     // -------------------------------------------------------------------------
     // persistency related methods

@@ -99,8 +99,8 @@ XrdMgmOfs::InitializeFileView()
     BootFileId = 0;
   }
   time_t tstart = time(0);
-  std::string oldstallrule = "";
-  std::string oldstallcomment = "";
+  std::string oldstallrule;
+  std::string oldstallcomment;
   bool oldstallglobal = false;
   // set the client stall
   {
@@ -123,15 +123,15 @@ XrdMgmOfs::InitializeFileView()
   eos_notice("starting eos file view initialize2");
 
   try {
-    time_t t1 = time(0);
+    time_t t1 = time(nullptr);
     eosView->initialize2();
-    time_t t2 = time(0);
+    time_t t2 = time(nullptr);
     {
       eos_notice("eos file view after initialize2");
       eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
       eos_notice("starting eos file view initialize3");
       eosView->initialize3();
-      time_t t3 = time(0);
+      time_t t3 = time(nullptr);
       eos_notice("eos file view initialize2: %d seconds", t2 - t1);
       eos_notice("eos file view initialize3: %d seconds", t3 - t2);
       BootFileId = gOFS->eosFileService->getFirstFreeId();
@@ -235,18 +235,18 @@ XrdMgmOfs::InitializeFileView()
       if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the file changlog\"");
         Initialized = kFailed;
-        return 0;
+        return nullptr;
       }
 
       if (::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the container changlog\"");
         Initialized = kFailed;
-        return 0;
+        return nullptr;
       }
 
-      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      auto* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      auto* eos_chlog_filesvc =
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_dirsvc && eos_chlog_filesvc) {
@@ -275,7 +275,7 @@ XrdMgmOfs::InitializeFileView()
       }
     }
 
-    time_t tstop = time(0);
+    time_t tstop = time(nullptr);
     MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d "
                                    "seconds", (tstop - tstart)));
     {
@@ -300,7 +300,7 @@ XrdMgmOfs::InitializeFileView()
       XrdSysMutexHelper lock(InitializationMutex);
       Initialized = kFailed;
     }
-    time_t tstop = time(0);
+    time_t tstop = time(nullptr);
     errno = e.getErrno();
     eos_crit("namespace file loading initialization failed after %d seconds",
              (tstop - tstart));
@@ -310,7 +310,7 @@ XrdMgmOfs::InitializeFileView()
 
   {
     XrdSysMutexHelper lock(InitializationMutex);
-    InitializationTime = (time(0) - InitializationTime);
+    InitializationTime = (time(nullptr) - InitializationTime);
 
     // grab process status after boot
     if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
@@ -320,7 +320,7 @@ XrdMgmOfs::InitializeFileView()
 
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
-  return 0;
+  return nullptr;
 }
 
 void XrdMgmOfs::StartHeapProfiling(int sig)
@@ -378,7 +378,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
-  StartTime = time(NULL);
+  StartTime = time(nullptr);
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   // set connection window short
@@ -387,7 +387,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-  UTF8 = getenv("EOS_UTF8") ? true : false;
+  UTF8 = getenv("EOS_UTF8") != nullptr;
   Shutdown = false;
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
@@ -484,7 +484,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                   " directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
-      ;
     }
 
     // Own the directory by daemon
@@ -494,7 +493,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
-      ;
     }
   }
 
@@ -502,7 +500,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   bool ConfigAutoSave = false;
   MgmConfigAutoLoad = "";
   long myPort = 0;
-  std::string ns_lib_path {""};
+  std::string ns_lib_path;
 
   if (getenv("XRDDEBUG")) {
     gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
@@ -677,7 +675,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         if (!strcmp("capability", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config",
-                        "argument 2 for capbility missing. Can be true/lazy/1 or false/0");
+                        "argument 2 for capability missing. Can be true/lazy/1 or false/0");
             NoGo = 1;
           } else {
             if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
@@ -877,7 +875,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
 
             if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the meta data changelog "
+              Eroute.Emsg("Config", "cannot access the meta data changelog "
                           "directory for r/w!", MgmMetaLogDir.c_str());
               NoGo = 1;
             } else {
@@ -1107,6 +1105,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             Eroute.Say("=====> mgmofs.authport: ", val, "");
             mFrontendPort = atoi(val);
+          }
+        }
+
+        if (!strcmp("protowfhostport", var)) {
+          val = Config.GetWord();
+          if (val != nullptr) {
+            ProtoWFHostPort = val;
+          }
+        }
+
+        if (!strcmp("protowfendpoint", var)) {
+          val = Config.GetWord();
+          if (val != nullptr) {
+            ProtoWFEndpoint = val;
           }
         }
       }

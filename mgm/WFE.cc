@@ -1612,10 +1612,6 @@ WFE::Job::DoIt(bool issync)
         }
       } else if (method == "proto") {
         auto event = mActions[0].mEvent;
-        auto params = eos::common::StringTokenizer::split<std::vector<std::string>>
-                      (args, ' ');
-        auto hostPort = params[0];
-        auto endPoint = std::string{"/"} + params[1];
 
         storetime = (time_t) mActions[0].mTime;
         Move(mActions[0].mQueue, "r", storetime, mRetry);
@@ -1644,7 +1640,7 @@ WFE::Job::DoIt(bool issync)
                        }
         );
         eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(),
-                        hostPort.c_str());
+                        gOFS->ProtoWFHostPort.c_str());
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
@@ -1935,15 +1931,15 @@ WFE::Job::DoIt(bool issync)
         }
 
         if (event == "sync::delete") {
-          auto sendRequestAsync = [fullPath, request, hostPort, endPoint] (Job jobCopy) {
-            SendProtoWFRequest(&jobCopy, fullPath, request, hostPort, endPoint);
+          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
+            SendProtoWFRequest(&jobCopy, fullPath, request);
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
         }
         else {
-          return SendProtoWFRequest(this, fullPath, request, hostPort, endPoint);
+          return SendProtoWFRequest(this, fullPath, request);
         }
       } else {
         storetime = 0;
@@ -1970,9 +1966,17 @@ WFE::Job::DoIt(bool issync)
 }
 
 int
-WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request,
-                             const std::string& hostPort, const std::string& endPoint) {
-  XrdSsiPbServiceType service(hostPort, endPoint, XrdSsiPb::DefaultResponseBufferSize, 120);
+WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request) {
+  if (gOFS->ProtoWFHostPort.empty() || gOFS->ProtoWFEndpoint.empty()) {
+    eos_static_err(
+      "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
+    );
+    return ENOTCONN;
+  }
+
+  // Instantiate service object only once, static is thread-safe
+  static XrdSsiPbServiceType service(gOFS->ProtoWFHostPort, gOFS->ProtoWFEndpoint,
+                                     XrdSsiPb::DefaultResponseBufferSize, 120);
   cta::xrd::Response response;
 
   try {
