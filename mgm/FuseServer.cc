@@ -1684,19 +1684,19 @@ FuseServer::FillContainerCAP(uint64_t id,
         }
 
         if (acl.CanWrite() || acl.CanWriteOnce()) {
-          mode |= W_OK | SA_OK | D_OK;
+          mode |= W_OK | SA_OK | D_OK | M_OK;
         }
 
         if (acl.CanBrowse()) {
           mode |= X_OK;
         }
 
-        if (acl.CanChmod()) {
-          mode |= M_OK;
-        }
-
         if (acl.CanNotChmod()) {
           mode &= ~M_OK;
+        }
+
+        if (acl.CanChmod()) {
+          mode |= M_OK;
         }
 
         if (acl.CanChown()) {
