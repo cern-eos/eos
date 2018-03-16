@@ -1432,7 +1432,8 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     if (!md->id() || (md->deleted() && !md->lookup_is())) {
       rc = md->deleted() ? ENOENT : md->err();
     } else {
-      cap::shared_cap pcap = Instance().caps.acquire(req, md->pid() ? md->pid() : 1,
+      fuse_ino_t cap_ino =  S_ISDIR(md->mode()) ? ino : md->pid();
+      cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                              S_IFDIR | X_OK | R_OK);
       XrdSysMutexHelper capLock(pcap->Locker());
 
