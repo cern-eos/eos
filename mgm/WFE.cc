@@ -1779,8 +1779,8 @@ WFE::Job::DoIt(bool issync)
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
               notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
               notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-              notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
             }
 
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
@@ -1801,8 +1801,8 @@ WFE::Job::DoIt(bool issync)
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
             notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
             notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
           }
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
@@ -1816,8 +1816,8 @@ WFE::Job::DoIt(bool issync)
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
             notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
             notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
           }
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
@@ -1835,8 +1835,8 @@ WFE::Job::DoIt(bool issync)
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
             notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
             notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
-            notification->mutable_cli()->mutable_user()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
 
             notification->mutable_file()->set_size(fmd->getSize());
             notification->mutable_file()->mutable_cks()->set_type(
