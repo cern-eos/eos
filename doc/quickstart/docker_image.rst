@@ -8,6 +8,10 @@
 EOS Docker Installation
 =======================
 
+.. image:: docker.jpg
+   :scale: 50 %
+   :align: center   
+
 A docker installation is the easiest way to go if you want to try EOS and get up a test instance in short time. 
 We provide EOS docker images with all the necessary components installed and ready to use.
 

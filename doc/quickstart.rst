@@ -11,7 +11,7 @@ There are two easy ways to get an EOS instance installed. The first option is to
    quickstart/docker_image
    quickstart/uboxed
 
-The `traditional` service deployment is done via YUM and explained here.
+The `conventional` service deployment is done via YUM and explained here.
 
 
 .. toctree::

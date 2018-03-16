@@ -3,8 +3,16 @@
 
 .. _eos_base_install:
 
-Installation of EOS
-===================
+RPM installation
+================
+
+.. image:: rpm.jpg
+   :scale: 50%
+   :align: left
+
+|
+|
+
 
 .. note::
    You need to add the XRootD and EOS repositories.
@@ -12,7 +20,7 @@ Installation of EOS
 
 
 
-Install eos via yum
+Install EOS via yum
 -------------------
 
 For client

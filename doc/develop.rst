@@ -5,6 +5,9 @@
 Develop
 =======================
 
+.. image:: cpp.jpg
+   :scale: 40%
+   :align: left
 
 Source Code
 -------------------
@@ -14,62 +17,19 @@ For development clone the GIT source tree ...
 
    git clone https://gitlab.cern.ch/dss/eos.git
 
+   cd eos
+   git submodule update --recursive --init
+   
 Create a build directory ...
 
 .. code-block:: bash
 
-   cd eos
    mkdir build
    cd build
 
-
 Dependencies
 ----------------
-.. warning:: Before compilation of the master branch you have to make sure that you installed the packaged listed in the following table ...
-
-.. epigraph::
-
-   ===============================  =========
-   Package                          Version                        
-   ===============================  =========
-   xrootd-server                    = 4.7                       
-   xrootd-server-devel              = 4.7                       
-   xrootd-private-devel             = 4.7                       
-   xrootd-cl-devel                  = 4.7                       
-   readline-devel                   default                        
-   readline                         default
-   ncurses-devel                    default                        
-   ncurses-static		    default
-   ncurses                          default
-   libattr-devel                    default                        
-   libattr                          default
-   openldap-devel                   default                        
-   openldap                         default
-   e2fsprogs-devel                  default
-   e2fsprogs                        default                        
-   zlib-devel                       default                        
-   openssl-devel                    default                        
-   ncurses-devel                    default                        
-   xfsprogs-devel                   default
-   xfsprogs                         default                        
-   fuse-devel                       >= 2.7  
-   fuse-libs                        >= 2.7                       
-   fuse                             >= 2.7                         
-   leveldb-devel                    >= 1.7 
-   leveldb                          >= 1.7                        
-   git                              default                        
-   cmake                            >= 2.8                           
-   sparsehash-devel                 default
-   libmicrohttpd                    EOS rpm 
-   libmicrohttpd-devel              EOS rpm
-   libuuid                          default
-   libuuid-devel                    default
-   zeromq                           default
-   zeromq-devel                     default
-   protobuf                         default
-   protobuf-devel                   default
-   perl-Time-HiRes                  default
-   ===============================  =========
+.. warning:: Before compilation of the master branch you have to make sure that you installed all required dependencies.
 
 There are two convenience scripts to install all dependencies in the EOS source tree:
 

@@ -2,6 +2,8 @@
 
 Introduction
 =======================
+.. image:: lhc.jpg
+   :align: center
 
 History
 -------
@@ -14,7 +16,7 @@ Goal
 The main goal of the project is to provide fast and reliable disk only storage technology for CERN `LHC <https://home.cern/topics/large-hadron-collider>`_ use cases. The following picture demonstrates the main use case at CERN:
 
 .. image:: eos-usage-cern.jpg
-   :scale: 25 %
+   :scale: 40 %
    :align: center
 
 
@@ -39,16 +41,21 @@ EOS is made by three components:
 * **MQ** - message broker for asynchronous messaging
 
 .. image:: eos-base-arch.jpg
-   :scale: 25 %
+   :scale: 20 %
    :align: center
 
 The initial architecture is using an in-memory namespace implementation with a master-slave high-availability model. This implementation provides very low-latency for meta data acccess. 
 
 Since the CITRINE release the architecture has been modified to provide optinal an in-memory namespace cache and a KV store for persistency. This was necessary to overcome the scalability limitation of the meta-data service given by the maximum available RAM of **MGM** nodes.
 
+EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.  
+
 .. image:: eos-architecture.jpg
-   :scale: 25 %
+   :scale: 30 %
    :align: center
+
+
+
 
 Storage Concepts
 ----------------
@@ -76,7 +83,7 @@ A **space** is used to reference a physical location when files are placed by th
 Protocols and Clients
 ---------------------
 
-EOS is based on the `XRootD Framework <https://xrootd.org>`_.  The native protocol is the **xrootd** protocol, which providess additional functionalities like vector reads, third party copy transfers etc. 
+The native protocol is the **xrootd** protocol, which providess additional functionalities like vector reads, third party copy transfers etc. 
 
 A second embedded protocol is **http/webdav** currently implemented using `libmicrohttpd`. 
 
@@ -88,7 +95,7 @@ EOS can be used like a filesystem using FUSE clients. There are two implementati
 EOS has been extended to work simliar to `Owncloud <owncloud.org>`_ as a sync and share platform. The branded product is called `CERNBox <https://cernbox.web.cern.ch>`_. 
 
 .. IMAGE:: cernbox.jpg
-   :scale: 50%
+   :scale: 40%
    :align: center
 
 
@@ -98,7 +105,7 @@ Architecture Roadmap
 The target architecture for the next major release version is shown in the following figure:
 
 .. IMAGE:: roadmap-2018.jpg
-   :scale: 50%
+   :scale: 60%
    :align: center
 
 The goal is to reach full scalability and high-availability of all service components and to embed better external storage resources like shared filesystems and cloud storage.

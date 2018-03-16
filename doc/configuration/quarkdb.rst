@@ -12,6 +12,10 @@ QuarkDB
 
 `QuarkDB <https://quarkdb.web.cern.ch/docs/master>`_ is a highly available datastore that implements a small subset of the redis command set. It is built on top of rocksdb, an embeddable, transactional key-value store. High availability is achieved through multiple replicated nodes and the raft distributed consensus algorithm. 
 
+.. image:: raft.jpg
+   :scale: 100%
+   :align: center
+
 The EOS CITRINE version allows to persist the namespace in QuarkDB avoiding the high memory footprint of the in-memory namespace. QuarkDB is considered like a database as an external component which you need to install, configure and manage separatly.
 
 Preparation

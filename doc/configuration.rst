@@ -7,6 +7,12 @@
 Configuration
 =============
 
+.. image:: configuration.jpg
+   :scale: 20%
+   :align: left
+
+This chapter discusses several components of EOS and how they are configured. 
+
 .. toctree::
    :maxdepth: 1
 

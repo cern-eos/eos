@@ -6,6 +6,8 @@
 Releases
 ========
 
+EOS releases are named after gemstones. The actively developed version is called CITRINE.
+
 .. toctree::
    :maxdepth: 1
 
