@@ -15,6 +15,9 @@ eos_clone_docker:
   script:
     - yum install --nogpg -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - cd eos-docker
+    - git checkout xrootd_testing_runtime
+    - cd ..
     - echo -e '[eos-depend]\nname=EOS dependencies \nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=1\n' > eos-docker/eos.repo
   artifacts:
     expire_in: 1 day
