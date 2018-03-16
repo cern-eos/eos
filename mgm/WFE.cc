@@ -1786,12 +1786,10 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
 
-            char buffer[1024];
-            StringConversion::FastUnsignedToAsciiHex(mFid, buffer);
             std::ostringstream destStream;
             destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                       << std::string{buffer}
-                       << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
+                       << StringConversion::FastUnsignedToAsciiHex(mFid);
+            destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
             notification->mutable_transport()->set_dst_url(destStream.str());
           }
         } else if (event == "sync::openw") {
