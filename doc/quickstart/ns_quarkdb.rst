@@ -190,12 +190,12 @@ At this point you should have the following process running on the local machine
  .. code-block:: bash
 
     ps aux | grep xrootd 
-daemon    3658  0.5  0.3 1920252 28028 ?       Ssl  Mar15  30:25 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb1.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb1.pid -n quarkdb1
-daemon    4369  0.1  0.2 1067196 21688 ?       Ssl  Mar15  10:10 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb2.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb2.pid -n quarkdb2
-daemon    4409  0.1  0.2 1133760 17600 ?       Ssl  Mar15  10:01 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb3.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb3.pid -n quarkdb3
-daemon    4896  0.0  0.2 110324 18240 ?        Ssl  Mar15   0:00 /usr/bin/xrootd -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrdlog.sync -s /tmp/xrootd.sync.pid -Rdaemon
-daemon    5105  0.5  3.0 1457476 225548 ?      Ssl  Mar15  31:22 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
-daemon    5146  0.0  0.3 340884 22972 ?        S    Mar15   0:00 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
+    daemon    3658  0.5  0.3 1920252 28028 ?       Ssl  Mar15  30:25 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb1.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb1.pid -n quarkdb1
+    daemon    4369  0.1  0.2 1067196 21688 ?       Ssl  Mar15  10:10 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb2.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb2.pid -n quarkdb2
+    daemon    4409  0.1  0.2 1133760 17600 ?       Ssl  Mar15  10:01 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb3.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb3.pid -n quarkdb3
+    daemon    4896  0.0  0.2 110324 18240 ?        Ssl  Mar15   0:00 /usr/bin/xrootd -n sync -c /etc/xrd.cf.sync -l /var/log/eos/xrdlog.sync -s /tmp/xrootd.sync.pid -Rdaemon
+    daemon    5105  0.5  3.0 1457476 225548 ?      Ssl  Mar15  31:22 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
+    daemon    5146  0.0  0.3 340884 22972 ?        S    Mar15   0:00 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
 
 
 In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Futhermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
