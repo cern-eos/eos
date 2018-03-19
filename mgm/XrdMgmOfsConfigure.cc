@@ -414,6 +414,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
   eos::common::StringConversion::InitLookupTables();
+  // Enable TPC on the MGM for 0-size files
+  XrdOucEnv::Export("XRDTPC", "1");
 
   if (getenv("EOS_VST_BROKER_URL")) {
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
