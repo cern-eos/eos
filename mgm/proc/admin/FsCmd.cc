@@ -439,7 +439,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
     if (statusProto.id_case() == eos::console::FsProto::StatusProto::kNodeQueue) {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      const std::string queuepath = statusProto.nodequeue();
+      const std::string& queuepath = statusProto.nodequeue();
       auto pos = queuepath.find("/fst");
       const std::string queue = queuepath.substr(0, pos + 4);
       const std::string mount = queuepath.substr(pos + 4);

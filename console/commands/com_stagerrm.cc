@@ -62,19 +62,23 @@ bool
 StagerRmHelper::ParseCommand(const char* arg) {
   eos::console::StagerRmProto* stagerRm = mReq.mutable_stagerrm();
   eos::common::StringTokenizer tokenizer(arg);
+
   XrdOucString path = tokenizer.GetLine();
+  path = tokenizer.GetToken();
+  while (path != "") {
+    // remove escaped blanks
+    while (path.replace("\\ ", " "));
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "));
+    if (path != "") {
+      path = abspath(path.c_str());
+      stagerRm->add_path(path.c_str());
+    }
 
-  if (path.length() == 0) {
-    return false;
+    path = tokenizer.GetToken();
   }
 
-  path = abspath(path.c_str());
-  stagerRm->set_path(path.c_str());
-
-  return true;
+  // at least 1 path has to be given
+  return stagerRm->path_size() > 0;
 }
 
 //------------------------------------------------------------------------------
@@ -102,9 +106,9 @@ int com_stagerrm(char* arg)
 
 void com_stagerrm_help() {
   std::ostringstream oss;
-  oss << "Usage: stagerrm <path>"
+  oss << "Usage: stagerrm <path0 path1 ...>"
       << std::endl
-      << "       Removes all disk replicas of the file with the given path"
+      << "       Removes all disk replicas of the given files separated by space"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
