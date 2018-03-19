@@ -110,6 +110,8 @@ void*
 BalancerGroup::Balance()
 {
   //@todo: implements the balancing activity by selecting the Source and target FSs and the source file to move
+  //@todo: it should select a configurable portion of file to move ( e.g. 100 ) from the source FS and then iterate again to the next FS
+
   return 0;
 }
 
@@ -184,7 +186,7 @@ BalancerGroup::SelectSourceFS()
 // Select target file system (using the GeoTreeEngine)
 //------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t
-BalancerGroup::SelectTargetFS(eos::common::FileSystem::fsid_t sourceFS)
+BalancerGroup::SelectTargetFS(eos::common::FileId::fileid_t fileId, eos::common::FileSystem::fsid_t sourceFS)
 {
 
   eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
@@ -194,7 +196,6 @@ BalancerGroup::SelectTargetFS(eos::common::FileSystem::fsid_t sourceFS)
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::FileSystem* source_fs = 0;
   std::shared_ptr<eos::IFileMD> fmd = nullptr;
-  eos::common::FileId::fileid_t fileId = SelectFileToBalance(sourceFS);
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
     fmd =  gOFS->eosFileService->getFileMD(fileId);
@@ -269,10 +270,10 @@ BalancerGroup::SelectTargetFS(eos::common::FileSystem::fsid_t sourceFS)
   
 }
 
-eos::common::FileId::fileid_t
-BalancerGroup::SelectFileToBalance(eos::common::FileSystem::fsid_t sourceFS)
-{
- //@todo select the best file to move
- return 0;
+std::set<BalancerJob::FileBalanceInfo>
+BalancerGroup::SelectFilesToBalance(eos::common::FileSystem::fsid_t sourceFS)
+{ 
+  std::set<eos::mgm::BalancerJob::FileBalanceInfo> info;
+  return info;
 }
 EOSMGMNAMESPACE_END

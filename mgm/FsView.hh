@@ -32,6 +32,7 @@
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
+#include "mgm/balancer/BalancerGroup.hh"
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -583,6 +584,8 @@ public:
   {
     return gConfigQueuePrefix.c_str();
   }
+
+  BalancerGroup* mBalancer; ///< Balancer thread for the group
 
 protected:
   unsigned int mIndex; ///< Group index i.e 0,1,2,3 ...

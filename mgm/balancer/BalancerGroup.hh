@@ -45,7 +45,10 @@ public:
   //  @param spaceName spaceName
   //----------------------------------------------------------------------------
   BalancerGroup(const std::string& groupName, const std::string& spaceName):
-    mThread(), mGroup(groupName), mSpace(spaceName) {}
+    mThread() {
+      mGroup = groupName;
+      mSpace = spaceName;
+    }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -86,7 +89,7 @@ private:
   //!
   ///! @return if successful then target file system, othewise 0
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(eos::common::FileSystem::fsid_t );
+  eos::common::FileSystem::fsid_t SelectTargetFS(eos::common::FileId::fileid_t, eos::common::FileSystem::fsid_t);
 
   //----------------------------------------------------------------------------
   //! Select source file system 
@@ -95,7 +98,7 @@ private:
   //---------------------------------------------------------------------------- 
   eos::common::FileSystem::fsid_t SelectSourceFS();
 
-  eos::common::FileId::fileid_t SelectFileToBalance(eos::common::FileSystem::fsid_t);
+  std::set<BalancerJob::FileBalanceInfo> SelectFilesToBalance(eos::common::FileSystem::fsid_t);
 
   //----------------------------------------------------------------------------
   //! Set initial balancer counters and status

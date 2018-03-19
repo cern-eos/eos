@@ -177,28 +177,15 @@ Balancer::Balance(void)
           (*git)->SetConfigMember("stat.balancing", "balancing", false,
                                     "", true);
 
-          //check if a thread for the group has been already created
-          mBalancerMutex.Lock();
-          auto it_balancers = mBalancerMap.find(group);
-          if (it_balancers != mBalancerMap.end()) {
-            //if the balancer is alreeady running do nothing
-          }else {
-            shared_ptr<BalancerGroup> balance_group = shared_ptr<BalancerGroup>(new BalancerGroup(group,mSpaceName));
-            mBalancerMap.insert(std::make_pair(group,
-                                   balance_group));
-            balance_group->Start();
-          }  
-          mBalancerMutex.UnLock(); 
+          if ((*git)->mBalancer != nullptr) {
+            delete (*git)->mBalancer;
+          }
+            
+          (*git)->mBalancer = new BalancerGroup(group,mSpaceName);
+          (*git)->mBalancer->Start();
               
         } else {
-           mBalancerMutex.Lock();
-           //we should stop the BalancingGroup thread if existing
-           auto it_balancers = mBalancerMap.find(group);
-       
-           if (it_balancers != mBalancerMap.end()) {
-              mBalancerMap.erase(it_balancers);
-           } 
-           mBalancerMutex.UnLock();  
+           delete (*git)->mBalancer;
 
            if ((*git)->GetConfigMember("stat.balancing") != "idle") {
               (*git)->SetConfigMember("stat.balancing", "idle",
