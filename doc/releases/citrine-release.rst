@@ -15,6 +15,66 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.2.18 Citrine``
+===================
+
+2018-03-20
+
+Bug
+----
+
+* [EOS-2249] - Citrine generation of corrupted configuration
+* [EOS-2288] - headroom is not propagated from space to fs
+* [EOS-2334] - Failed "proto:" workflow notifications do not end up in either the ../e/.. or ../f/.. workflow queues
+* [EOS-2360] - FST aborts with "pure virtual method called", "terminate called without an active exception" on XrdXrootdProtocol::fsError
+* [EOS-2413] - Crash while handling a protobuf reply
+* [EOS-2419] - Segfault around TableFormatter (when printing FSes)
+* [EOS-2424] - proper automatic lock cleanups
+* [EOS-2428] - draining jobs create .xsmap files on the source and destination FSTs
+* [EOS-2429] - FuseServer does not grant SA_OK permission if ACL only allows to be a writer
+* [EOS-2432] - eosapmond init script for CC7 sources /etc/sysconfig/eos
+* [EOS-2433] - Wrong traffic accounting for TPC/RAIN/Replication
+* [EOS-2436] - FUSEX: permission problem in listing shared folder
+* [EOS-2438] - FUSEX: chmod +x does not work
+* [EOS-2439] - FUSEX: possible issue with sys.auth=*
+* [EOS-2442] - TPC of 0-size file fails
+
+Improvement
+-----------
+
+* [EOS-2423] - EOS_FST_NO_SSS_ENFORCEMENT breaks writes
+* [EOS-2430] - fusex cache should not use /var/eos
+
+Question
+--------
+
+* [EOS-2431] - fusex cache cleanup
+
+
+``v4.2.17 Citrine``
+===================
+
+2018-03-15
+
+Bug
+---
+
+* [EOS-2292] - eosd 4.2.4-1 segmentation fault in SWAN
+* [EOS-2322] - eosd 4.2.4-1 segmentation fault on swan003
+* [EOS-2388] - Fuse::utimes only honours posix permissions, but not ACLs
+* [EOS-2402] - FST abort in eos::fst::FmdDbMapHandler::ResyncAllFromQdb (EOSPPS)
+* [EOS-2403] - eosd 4.2.4-1 SegFaults on swan001
+* [EOS-2404] - eosd 4.2.4-1 SegFaults on swan002
+
+Improvement
+-----------
+
+* [EOS-2389] - Classify checksum errors during scan
+* [EOS-2398] - Apply quota settings relativly quick in time on the FUSEX clients
+* [EOS-2408] - Proper error messages for user in case of synchronous workflow failure
+
+
 ``v4.2.16 Citrine``
 ===================
 
