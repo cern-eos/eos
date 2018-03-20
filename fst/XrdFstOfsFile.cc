@@ -1967,8 +1967,10 @@ XrdFstOfsFile::close()
 
     if (!deleteOnClose) {
       // Prepare a report and add to the report queue
-      if ((mTpcFlag != kTpcSrcSetup) && (mTpcFlag != kTpcSrcCanDo)) {
-        // We don't want a report for the source tpc setup or can do open
+      if (mTpcFlag != kTpcSrcCanDo) {
+        // We don't want a report for the source tpc setup. The kTpcSrcRead
+        // stage actually uses the opaque info from kTpcSrcSetup and that's
+        // why we also generate a report at this stage.
         XrdOucString reportString = "";
         MakeReportEnv(reportString);
         gOFS.ReportQueueMutex.Lock();
@@ -2260,7 +2262,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer()) {
+    if (layOut->IsEntryServer() || IsRainLayout(lid)) {
       XrdSysMutexHelper vecLock(vecMutex);
       rvec.push_back(rc);
     }
@@ -2467,7 +2469,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
   if (rc != buffer_size) {
     // Tag an io error
     writeErrorFlag = kOfsIoError;
-  };
+  }
 
   // Account seeks for monitoring
   if (wOffset != static_cast<unsigned long long>(fileOffset)) {
@@ -2494,7 +2496,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer()) {
+    if (layOut->IsEntryServer() || IsRainLayout(lid)) {
       XrdSysMutexHelper(vecMutex);
       wvec.push_back(rc);
     }
@@ -3082,6 +3084,24 @@ XrdFstOfsFile::CheckFstValidity(XrdOucEnv& env_opaque) const
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Check if layout encoding indicates a RAIN layout
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::IsRainLayout(unsigned long long lid)
+{
+  using eos::common::LayoutId;
+  unsigned long ltype = LayoutId::GetLayoutType(lid);
+
+  if ((ltype == LayoutId::kArchive) ||
+      (ltype == LayoutId::kRaidDP) ||
+      (ltype == LayoutId::kRaid6)) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 EOSFSTNAMESPACE_END

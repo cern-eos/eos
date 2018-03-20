@@ -562,6 +562,15 @@ private:
   //----------------------------------------------------------------------------
   bool CheckFstValidity(XrdOucEnv& env_opaque) const;
 
+  //----------------------------------------------------------------------------
+  //! Check if layout encoding indicates a RAIN layout
+  //!
+  //! @param lid layout id encoding
+  //!
+  //! @return true if RAIN layout, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsRainLayout(unsigned long long lid);
+
 #ifdef IN_TEST_HARNESS
 public:
 #endif
