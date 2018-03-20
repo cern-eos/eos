@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
@@ -1868,12 +1869,10 @@ WFE::Job::DoIt(bool issync)
                        << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
         } else if (event == "archived") {
-          static constexpr auto tapeFsid = 65535u;
-
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-            onlyTapeCopy = fmd->hasLocation(tapeFsid) && fmd->getLocations().size() == 1;
+            onlyTapeCopy = fmd->hasLocation(eos::common::TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
           if (onlyTapeCopy) {
@@ -1884,36 +1883,17 @@ WFE::Job::DoIt(bool issync)
             eos::common::Mapping::VirtualIdentity root_vid;
             eos::common::Mapping::Root(root_vid);
 
-            bool dropFailed = false;
-
-            decltype(fmd->getLocations()) locationsCopy;
-            {
-              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              locationsCopy = fmd->getLocations();
-            }
-
-            for (auto location : locationsCopy) {
-              if (location != tapeFsid) {
-                errInfo.clear();
-
-                if (gOFS->_dropstripe(fullPath.c_str(), errInfo, root_vid, location,
-                                      true) != 0) {
-                  eos_static_err("Could not delete file replica %s on filesystem %u. Reason: %s",
-                                 fullPath.c_str(), location, errInfo.getErrText());
-                  dropFailed = true;
-                }
-              }
-            }
-
             {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              if (!fmd->hasLocation(tapeFsid)) {
-                fmd->addLocation(tapeFsid);
+              if (!fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+                fmd->addLocation(eos::common::TAPE_FS_ID);
                 gOFS->eosView->updateFileStore(fmd.get());
               }
             }
 
-            if (dropFailed) {
+            if (gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
+              eos_static_err("Could not delete all file replicas of %s. Reason: %s",
+                             fullPath.c_str(), errInfo.getErrText());
               MoveToRetry(cmd);
               return EAGAIN;
             }

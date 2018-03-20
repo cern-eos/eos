@@ -187,7 +187,7 @@ XrdMgmOfs::_dropstripe(const char* path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param fsid filesystem id where to run the drop
- * @param forceRemove if true the stripe is immediatly dropped
+ * @param forceRemove if true the stripe is immediately dropped
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
@@ -260,6 +260,105 @@ XrdMgmOfs::_dropstripe(const char* path,
 
   if (errno) {
     return Emsg(epname, error, errno, "drop stripe", path);
+  }
+
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_dropallstripes(const char* path,
+                           XrdOucErrInfo& error,
+                           eos::common::Mapping::VirtualIdentity& vid,
+                           bool forceRemove)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a drop message to all filesystems where given file is located
+ *
+ * @param path file name to drop stripe
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param forceRemove if true the stripe is immediately dropped
+ *
+ * @return SFS_OK if success otherwise SFS_ERROR
+ *
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char* epname = "dropallstripes";
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
+  errno = 0;
+  EXEC_TIMING_BEGIN("DropAllStripes");
+  gOFS->MgmStats.Add("DropAllStripes", vid.uid, vid.gid, 1);
+  eos_debug("dropall");
+  eos::common::Path cPath(path);
+  // ---------------------------------------------------------------------------
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+  try {
+    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+  } catch (eos::MDException& e) {
+    dh.reset();
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
+  }
+
+  // Check permissions
+  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+    if (!errno) {
+      errno = EPERM;
+    }
+
+  if (errno) {
+    return Emsg(epname, error, errno, "drop all stripes", path);
+  }
+
+  // get the file
+  try {
+    fmd = gOFS->eosView->getFile(path);
+
+    // only on tape, we don't touch this file here
+    if (fmd->getLocations().size() == 1 && fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+      return SFS_OK;
+    }
+
+    for (auto location : fmd->getLocations()) {
+      if (location == eos::common::TAPE_FS_ID) {
+        continue;
+      }
+
+      if (!forceRemove) {
+        // we only unlink a location
+        fmd->unlinkLocation(location);
+        eos_debug("unlinking location %u", location);
+      } else {
+        // we unlink and remove a location by force
+        if (fmd->hasLocation(location)) {
+          fmd->unlinkLocation(location);
+        }
+
+        fmd->removeLocation(location);
+        eos_debug("removing/unlinking location %u", location);
+      }
+    }
+
+    // update the file store only once at the end
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& e) {
+    fmd.reset();
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  EXEC_TIMING_END("DropAllStripes");
+
+  if (errno) {
+    return Emsg(epname, error, errno, "drop all stripes", path);
   }
 
   return SFS_OK;

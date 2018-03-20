@@ -851,6 +851,14 @@ public:
                   bool forceRemove = false);
 
   // ---------------------------------------------------------------------------
+  // drop all stripes of a file
+  // ---------------------------------------------------------------------------
+  int _dropallstripes(const char* path,
+                      XrdOucErrInfo& error,
+                      eos::common::Mapping::VirtualIdentity& vid,
+                      bool forceRemove = false);
+
+  // ---------------------------------------------------------------------------
   // verify stripe by vid
   // ---------------------------------------------------------------------------
   int _verifystripe(const char* path,
