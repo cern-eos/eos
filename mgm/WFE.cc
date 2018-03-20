@@ -1952,9 +1952,16 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     return ENOTCONN;
   }
 
+  XrdSsiPb::Config config;
+  if(getenv("XRDDEBUG")) {
+    config.set("log", "all");
+  } else {
+    config.set("log", "info");
+  }
+  config.set("request_timeout", "120");
   // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFHostPort, gOFS->ProtoWFEndpoint,
-                                     XrdSsiPb::DefaultResponseBufferSize, 120);
+  static XrdSsiPbServiceType service(gOFS->ProtoWFHostPort, gOFS->ProtoWFEndpoint, config);
+
   cta::xrd::Response response;
 
   try {
