@@ -12,7 +12,7 @@ Scientific Services Installation: EOS, CERNBox, SWAN and CVMFS
    :scale: 35 %
    :align: left
 
-We have bundled a demonstration setup of four CERN developed cloud and anlysis platform services called `UBoxed <https://github.com/cernbox/uboxed>`_. It encapsulates four compontents:
+We have bundled a demonstration setup of four CERN developed cloud and analysis platform services called `UBoxed <https://github.com/cernbox/uboxed>`_. It encapsulates four components:
 
 - `EOS <http://eos.cern.ch>`_ - scalable storage platform with data, metadata and messaging server components
 - `CERNBox <https://cernbox.web.cern.ch>`_ - dropbox-like add-on for sync-and-share services on top of EOS

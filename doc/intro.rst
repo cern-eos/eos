@@ -92,7 +92,7 @@ EOS can be used like a filesystem using FUSE clients. There are two implementati
 * **eosd** - available for BERYL and CITRINE - limited POSIX conformity
 * **eosxd** - available for CITRINE - improved POSIX conformity, cross-client consistency aso. 
 
-EOS has been extended to work simliar to `Owncloud <owncloud.org>`_ as a sync and share platform. The branded product is called `CERNBox <https://cernbox.web.cern.ch>`_. 
+EOS has been extended to work simliar to `Owncloud <owncloud.org>`_ as a sync and share platform. The front-end service is called `CERNBox <https://cernbox.web.cern.ch>`_. 
 
 .. IMAGE:: cernbox.jpg
    :scale: 40%
