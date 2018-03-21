@@ -1949,7 +1949,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     eos_static_err(
       "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
     );
-    return ENOTCONN;
+    return EINVAL;
   }
 
   XrdSsiPb::Config config;
@@ -2007,13 +2007,13 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     case cta::xrd::Response::RSP_ERR_PROTOBUF:
     case cta::xrd::Response::RSP_INVALID:
       eos_static_err("%s %s", errorEnumMap[response.type()], response.message_txt().c_str());
-      jobPtr->MoveWithResults(EINVAL);
-      return EINVAL;
+      jobPtr->MoveWithResults(EPROTO);
+      return EPROTO;
 
     default:
       eos_static_err("Response:\n%s", response.DebugString().c_str());
-      jobPtr->MoveWithResults(EINVAL);
-      return EINVAL;
+      jobPtr->MoveWithResults(EPROTO);
+      return EPROTO;
   }
 }
 
