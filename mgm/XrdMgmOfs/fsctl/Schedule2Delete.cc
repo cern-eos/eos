@@ -74,7 +74,7 @@
 
       set_fids.reserve(num_files);
 
-      // Collect all the file ids to be deleted from the current file syste
+      // Collect all the file ids to be deleted from the current file system
       for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fslist[i]);
            (it_fid && it_fid->valid()); it_fid->next()) {
         set_fids.insert(it_fid->getElement());
