@@ -396,18 +396,18 @@
                             fid, source_fsid, locationfs[fsindex], target_fsid);
             XrdOucString replica_source_capability = "";
             XrdOucString sizestring;
-            unsigned long long target_lid = lid & 0xffffff0f;
+            using eos::common::LayoutId;
+            unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
-            if (LayoutId::GetBlockChecksum(lid) != LayoutId::kNone) {
-              // mask block checksums (e.g. for replica layouts)
-              target_lid &= 0xff0fffff;
+            // Mask block checksums (set to kNone) for replica layouts
+            if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
+              target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
             }
 
             replica_source_capability += "mgm.access=read";
             replica_source_capability += "&mgm.lid=";
             replica_source_capability +=
               StringConversion::GetSizeString(sizestring, (unsigned long long) target_lid);
-            // make's it a plain replica
             replica_source_capability += "&mgm.cid=";
             replica_source_capability +=
               StringConversion::GetSizeString(sizestring, cid);

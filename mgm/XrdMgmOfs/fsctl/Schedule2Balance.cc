@@ -259,12 +259,12 @@
                               fid, source_fsid, target_fsid);
               XrdOucString source_capability = "";
               XrdOucString sizestring;
-              unsigned long long target_lid = lid & 0xffffff0f;
+              using eos::common::LayoutId;
+              unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
-              if (eos::common::LayoutId::GetBlockChecksum(lid) !=
-                  eos::common::LayoutId::kNone) {
-                // mask block checksums (e.g. for replica layouts)
-                target_lid &= 0xff0fffff;
+              // Mask block checksums (set to kNone) for replica layouts
+              if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
+                target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
               }
 
               source_capability += "mgm.access=read";

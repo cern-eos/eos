@@ -394,6 +394,32 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Set file layout type in the layout encoding
+  //!
+  //! @param layout input layout encoding
+  //! @param ftype new file layout type
+  //!
+  //! @return new layout encoding
+  //--------------------------------------------------------------------------
+  static unsigned long
+  SetLayoutType(unsigned long layout, unsigned long ftype)
+  {
+    ftype &= 0xf;
+
+    if ((ftype < kPlain) || (ftype > kRaid6)) {
+      ftype = kPlain;
+    }
+
+    // Wipe out the old file layout type
+    unsigned long tmp = layout & 0xfffff0f;
+    // Shift to the right position
+    ftype <<= 4;
+    // Set the new file layout type
+    tmp |= ftype;
+    return tmp;
+  }
+
+  //--------------------------------------------------------------------------
   //! Return layout stripe enum
   //--------------------------------------------------------------------------
   static unsigned long
@@ -445,6 +471,32 @@ public:
     }
 
     return ((layout >> 20) & 0xf);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Set blockchecksum in the layout encoding
+  //!
+  //! @param layout input layout encoding
+  //! @param blockxs block checksum type
+  //!
+  //! @return new layout encoding
+  //--------------------------------------------------------------------------
+  static unsigned long
+  SetBlockChecksum(unsigned long layout, unsigned long blockxs)
+  {
+    blockxs &= 0xf;
+
+    if ((blockxs < kNone) || (blockxs > kXSmax)) {
+      blockxs = kNone;
+    }
+
+    // Wipe out the old blockxs type
+    unsigned long tmp = layout & 0xff0fffff;
+    // Shift the blockxs in the right position
+    blockxs <<= 20;
+    // Set the new blockxs value
+    tmp |= blockxs;
+    return tmp;
   }
 
   //--------------------------------------------------------------------------
