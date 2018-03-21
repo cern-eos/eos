@@ -1934,18 +1934,6 @@ WFE::Job::DoIt(bool issync)
           MoveWithResults(SFS_ERROR);
           return SFS_ERROR;
         }
-
-//        if (event == "sync::delete") {
-//          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
-//            SendProtoWFRequest(&jobCopy, fullPath, request);
-//          };
-//          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
-//          gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
-//          return SFS_OK;
-//        }
-//        else {
-//          return SendProtoWFRequest(this, fullPath, request);
-//        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
