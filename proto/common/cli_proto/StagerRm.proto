@@ -2,5 +2,5 @@ syntax="proto3";
 package eos.console;
 
 message StagerRmProto {
-    string Path = 1;
+    repeated string Path = 1;
 }
