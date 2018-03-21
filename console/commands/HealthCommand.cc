@@ -24,7 +24,6 @@
 #include <algorithm>
 #include "HealthCommand.hh"
 #include "common/StringTokenizer.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
 {
@@ -41,7 +40,7 @@ std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
     }
 
     return std::string(temp.begin() + pos + 1, temp.end());
-  } catch (std::string e) {
+  } catch (std::string& e) {
     m_error_message = e;
     throw std::string(" REGEX_ERROR: " + e);
   }
@@ -78,22 +77,22 @@ void FSInfo::ReadFromString(const std::string& input)
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    headroom = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    headroom = std::strtoull(input.substr(last, pos).c_str(),  nullptr, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    free_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    free_bytes = std::strtoull(input.substr(last, pos).c_str(),  nullptr, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    used_bytes = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    used_bytes = std::strtoull(input.substr(last, pos).c_str(),  nullptr, 10);
     last = ++pos;
   }
 
   if ((pos = input.find(' ',  last)) != std::string::npos) {
-    capacity = std::strtoull(input.substr(last, pos).c_str(),  NULL, 10);
+    capacity = std::strtoull(input.substr(last, pos).c_str(),  nullptr, 10);
     last = ++pos;
   }
 }
@@ -153,11 +152,11 @@ void HealthCommand::DeadNodesCheck()
       table_data.emplace_back();
 
       if (m_monitoring) {
-        table_data.back().push_back(TableCell("DeadNodesCheck", format_ss));
+        table_data.back().emplace_back("DeadNodesCheck", format_ss);
       }
 
-      table_data.back().push_back(TableCell(hostport, format_s));
-      table_data.back().push_back(TableCell(status, format_s));
+      table_data.back().emplace_back(hostport, format_s);
+      table_data.back().emplace_back(status, format_s);
       table.AddRows(table_data);
     }
   }
@@ -209,7 +208,7 @@ void HealthCommand::TooFullForDrainingCheck()
     std::string status = trigger ? "full" : "ok";
 
     if (trigger || m_all) {
-      data.push_back(std::make_tuple("FullDrainCheck", group->first.c_str(),
+      data.emplace_back(std::make_tuple("FullDrainCheck", group->first.c_str(),
                                      offline_used_space, summed_free_space, status));
     }
   }
@@ -221,13 +220,13 @@ void HealthCommand::TooFullForDrainingCheck()
     table_data.emplace_back();
 
     if (m_monitoring) {
-      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+      table_data.back().emplace_back(std::get<0>(it), format_ss);
     }
 
-    table_data.back().push_back(TableCell(std::get<1>(it), format_ss));
-    table_data.back().push_back(TableCell(std::get<2>(it), format_l, unit));
-    table_data.back().push_back(TableCell(std::get<3>(it), format_l, unit));
-    table_data.back().push_back(TableCell(std::get<4>(it), format_s));
+    table_data.back().emplace_back(std::get<1>(it), format_ss);
+    table_data.back().emplace_back(std::get<2>(it), format_l, unit);
+    table_data.back().emplace_back(std::get<3>(it), format_l, unit);
+    table_data.back().emplace_back(std::get<4>(it), format_s);
     table.AddRows(table_data);
   }
 
@@ -293,7 +292,7 @@ void HealthCommand::PlacementContentionCheck()
     }
 
     if (trigger || m_all) {
-      data.push_back(std::make_tuple("PlacementContentionCheck",
+      data.emplace_back(std::make_tuple("PlacementContentionCheck",
                                      group->first.c_str(), free_space_left, full_fs, contention, status));
     }
 
@@ -314,14 +313,14 @@ void HealthCommand::PlacementContentionCheck()
     table_data.emplace_back();
 
     if (m_monitoring) {
-      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
+      table_data.back().emplace_back(std::get<0>(it), format_ss);
     }
 
-    table_data.back().push_back(TableCell(std::get<1>(it), format_ss));
-    table_data.back().push_back(TableCell(std::get<2>(it), format_l));
-    table_data.back().push_back(TableCell(std::get<3>(it), format_l));
-    table_data.back().push_back(TableCell(std::get<4>(it), format_l, unit));
-    table_data.back().push_back(TableCell(std::get<5>(it), format_s));
+    table_data.back().emplace_back(std::get<1>(it), format_ss);
+    table_data.back().emplace_back(std::get<2>(it), format_l);
+    table_data.back().emplace_back(std::get<3>(it), format_l);
+    table_data.back().emplace_back(std::get<4>(it), format_l, unit);
+    table_data.back().emplace_back(std::get<5>(it), format_s);
     table.AddRows(table_data);
   }
 
@@ -353,14 +352,14 @@ void HealthCommand::PlacementContentionCheck()
   table_data.emplace_back();
 
   if (m_monitoring) {
-    table_data.back().push_back(TableCell("Summary", format_ss));
+    table_data.back().emplace_back("Summary", format_ss);
   }
 
-  table_data.back().push_back(TableCell(min, format_l, unit));
-  table_data.back().push_back(TableCell(avg, format_l, unit));
-  table_data.back().push_back(TableCell(max, format_l, unit));
-  table_data.back().push_back(TableCell(min_free_fs, format_l));
-  table_data.back().push_back(TableCell(critical_group, format_s));
+  table_data.back().emplace_back(min, format_l, unit);
+  table_data.back().emplace_back(avg, format_l, unit);
+  table_data.back().emplace_back(max, format_l, unit);
+  table_data.back().emplace_back(min_free_fs, format_l);
+  table_data.back().emplace_back(critical_group, format_s);
   table_summ.AddRows(table_data);
   m_output << table_summ.GenerateTable(HEADER).c_str();
 }
@@ -449,13 +448,13 @@ void HealthCommand::ParseCommand()
   eos::common::StringTokenizer m_subtokenizer(m_comm);
   m_subtokenizer.GetLine();
 
-  while ((temp = m_subtokenizer.GetToken()) != 0) {
+  while ((temp = m_subtokenizer.GetToken()) != nullptr) {
     token = std::string(temp);
     token.erase(std::find_if(token.rbegin(), token.rend(),
                              std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
                 token.end());
 
-    if (token == "") {
+    if (token.empty()) {
       continue;
     }
 
