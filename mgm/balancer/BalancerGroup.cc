@@ -37,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 BalancerGroup::~BalancerGroup()
 {
 
-  if (mThread.joinable()) {
+  if ( mThread.joinable()) {
     mThread.join();
   }
   SetInitialCounters();
@@ -94,14 +94,6 @@ BalancerGroup::GetSpaceConfiguration()
   }*/
 }
 
-//------------------------------------------------------------------------------
-// Start thread doing the balancing
-//------------------------------------------------------------------------------
-void BalancerGroup::Start()
-{
-  mThread = std::thread(&BalancerGroup::Balance, this);
-}
-
 
 //------------------------------------------------------------------------------
 // Method doing the balancing supervision
@@ -111,18 +103,19 @@ BalancerGroup::Balance()
 {
   //@todo: implements the balancing activity by selecting the Source and target FSs and the source file to move
   //@todo: it should select a configurable portion of file to move ( e.g. 100 ) from the source FS and then iterate again to the next FS
+  while(true)
+  {
+    if (!mBalanceStop) {
+      eos_info("starting balancing group=%s", mGroup.c_str());
+      sleep(100000000);
 
+    } else {
+      eos_info("stopping balancing group=%s",mGroup.c_str());
+
+    }
+
+  }
   return 0;
-}
-
-
-//------------------------------------------------------------------------------
-// Stop Balancing  the attached group
-//------------------------------------------------------------------------------
-void
-BalancerGroup::BalancerGroupStop()
-{
-  mBalanceStop = true;
 }
 
 //------------------------------------------------------------------------------

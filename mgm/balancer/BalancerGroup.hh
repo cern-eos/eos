@@ -44,12 +44,14 @@ public:
   //! @param groupName groupName
   //  @param spaceName spaceName
   //----------------------------------------------------------------------------
-  BalancerGroup(const std::string& groupName, const std::string& spaceName):
-    mThread() {
-      mGroup = groupName;
-      mSpace = spaceName;
-    }
+  BalancerGroup(const std::string& groupName, const std::string& spaceName)
+  {
+    mGroup = groupName;
+    mSpace = spaceName;
+    mThread = std::thread(&BalancerGroup::Balance, this);
+  }
 
+  BalancerGroup() = delete;
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -58,8 +60,22 @@ public:
   //----------------------------------------------------------------------------
   //! Stop balancing the group
   //---------------------------------------------------------------------------
-  void BalancerGroupStop();
-
+  inline void BalancerGroupStop() {
+    mBalanceStop = true;
+  }
+  //----------------------------------------------------------------------------
+  // Start balancing the group
+  //-----------------------------------------------------------------------
+  inline void BalancerGroupStart() {
+    mBalanceStop = false;
+  }
+  //----------------------------------------------------------------------------
+  // Check if the balancer is running
+  // ---------------------------------------------------------------------------
+  inline bool const isBalancerGroupRunning() const
+  {
+    return !mBalanceStop;
+  }
   //---------------------------------------------------------------------------
   //! Get the group name
   //---------------------------------------------------------------------------
@@ -76,7 +92,6 @@ public:
     return mSpace;
   }
 
-  void Start();
 
 private:
   //----------------------------------------------------------------------------

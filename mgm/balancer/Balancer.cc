@@ -144,13 +144,13 @@ Balancer::Balance(void)
       auto set_fsgrps = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()];
 
       // Loop over all groups
-      for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
+      for (auto grp : set_fsgrps) {
         total_files = 0;
 
-        for (auto it = (*git)->begin(); it != (*git)->end(); ++it) {
-          if (FsView::gFsView.mIdView.count(*it)) {
-            eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
-            total_files += fs->GetLongLong("stat.balancer.running");
+        for (auto fs :*grp) {
+          if (FsView::gFsView.mIdView.count(fs)) {
+            eos::common::FileSystem* fsptr = FsView::gFsView.mIdView[fs];
+            total_files += fsptr->GetLongLong("stat.balancer.running");
           }
 
           // Set transfer running by group
@@ -158,8 +158,8 @@ Balancer::Balance(void)
           snprintf(srunning, sizeof(srunning) - 1, "%lu", (unsigned long) total_files);
           std::string brunning = srunning;
 
-          if ((*git)->GetConfigMember("stat.balancing.running") != brunning) {
-            (*git)->SetConfigMember("stat.balancing.running",
+          if (grp->GetConfigMember("stat.balancing.running") != brunning) {
+            grp->SetConfigMember("stat.balancing.running",
                                     brunning, false, "", true);
           }
         }
@@ -167,36 +167,39 @@ Balancer::Balance(void)
         double dev = 0;
         double avg = 0;
 
-        std::string group = std::string((*git)->GetMember("name").c_str());
+        std::string group = std::string(grp->GetMember("name").c_str());
 
         //if the standard MaxStandardDevitaion is > of the configured threshould we start the balancing
-        if ((dev = (*git)->MaxAbsDeviation("stat.statfs.filled", false)) >
+        if ((dev = grp->MaxAbsDeviation("stat.statfs.filled", false)) >
             SpaceDifferenceThreshold) {
-          avg = (*git)->AverageDouble("stat.statfs.filled", false);
+          avg = grp->AverageDouble("stat.statfs.filled", false);
           
-          (*git)->SetConfigMember("stat.balancing", "balancing", false,
+          grp->SetConfigMember("stat.balancing", "balancing", false,
                                     "", true);
 
-          if ((*git)->mBalancer != nullptr) {
-            delete (*git)->mBalancer;
+          if ( grp->mBalancerGroup == nullptr) {
+            grp->mBalancerGroup = std::unique_ptr<BalancerGroup>(new BalancerGroup(group,mSpaceName));
+            eos_static_info("creating new BalancerGroup for group=%s", group.c_str());
           }
-            
-          (*git)->mBalancer = new BalancerGroup(group,mSpaceName);
-          (*git)->mBalancer->Start();
-              
+          if (!grp->mBalancerGroup->isBalancerGroupRunning()) {
+            grp->mBalancerGroup->BalancerGroupStart();
+          }
         } else {
-           delete (*git)->mBalancer;
-
-           if ((*git)->GetConfigMember("stat.balancing") != "idle") {
-              (*git)->SetConfigMember("stat.balancing", "idle",
+         if (grp->mBalancerGroup != nullptr && grp->mBalancerGroup->isBalancerGroupRunning()) {
+           grp->mBalancerGroup->BalancerGroupStop();
+           eos_static_info("stopping BalancerGroup for group=%s", group.c_str());
+         }
+           
+         if (grp->GetConfigMember("stat.balancing") != "idle") {
+           grp->SetConfigMember("stat.balancing", "idle",
                                           false, "", true);
-           }
+         }
         }
 
         XrdOucString sizestring1;
         XrdOucString sizestring2;
-        eos_static_debug("space=%-10s group=%-20s deviation=%-10s threshold=%-10s",
-                         mSpaceName.c_str(), (*git)->GetMember("name").c_str(),
+        eos_static_info("space=%-10s group=%-20s deviation=%-10s threshold=%-10s",
+                         mSpaceName.c_str(), grp->GetMember("name").c_str(),
                          eos::common::StringConversion::GetReadableSizeString(sizestring1,
                              (unsigned long long) dev, "B"),
                          eos::common::StringConversion::GetReadableSizeString(sizestring2,
@@ -206,13 +209,13 @@ Balancer::Balance(void)
       if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
         auto set_fsgrps = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()];
 
-        for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
-          if ((*git)->GetConfigMember("stat.balancing.running") != "0") {
-            (*git)->SetConfigMember("stat.balancing.running", "0", false,
+        for (auto grp : set_fsgrps) {
+          if (grp->GetConfigMember("stat.balancing.running") != "0") {
+            grp->SetConfigMember("stat.balancing.running", "0", false,
                                     "", true);
           }
-          if ((*git)->GetConfigMember("stat.balancing") != "idle") {
-            (*git)->SetConfigMember("stat.balancing", "idle", false,
+          if (grp->GetConfigMember("stat.balancing") != "idle") {
+            grp->SetConfigMember("stat.balancing", "idle", false,
                                     "", true);
           }
         }
@@ -224,7 +227,7 @@ Balancer::Balance(void)
     XrdSysTimer sleeper;
 
     // Wait a while ...
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
       sleeper.Snooze(1);
       XrdSysThread::CancelPoint();
     }
