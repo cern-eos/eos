@@ -88,68 +88,6 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
   reply.set_std_err(errStream.str());
   reply.set_std_out(retc == 0 ? "success: removed all replicas for all given files" : "");
   return reply;
-
-//  XrdOucErrInfo errInfo;
-//  const auto& path = stagerRm.path();
-//
-//  // check if this file exists
-//  XrdSfsFileExistence file_exists;
-//  if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
-//    errStream << "error: unable to run exists on path '" << path << "'";
-//    retc = errno;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  }
-//
-//  if (file_exists == XrdSfsFileExistNo) {
-//    errStream << "error: no such file with path '" << path << "'";
-//    retc = ENODATA;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  } else if (file_exists == XrdSfsFileExistIsDirectory) {
-//    errStream << "error: given path is a directory '" << path << "'";
-//    retc = EINVAL;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  }
-//
-//  struct stat buf;
-//  if (gOFS->_stat(path.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) != 0) {
-//    errStream << "error: unable to run stat for replicas on path '" << path << "'";
-//    retc = EINVAL;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  }
-//
-//  // we don't remove anything if it's not on tape
-//  if ((buf.st_mode & EOS_TAPE_MODE_T) == 0) {
-//    errStream << "error: no tape replicas for file '" << path << "'";
-//    retc = EINVAL;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  }
-//
-//  eos::common::Mapping::VirtualIdentity root_vid;
-//  eos::common::Mapping::Root(root_vid);
-//
-//  if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, true) != 0) {
-//    eos_static_err("Could not delete all replicas of %s. Reason: %s",
-//                   path.c_str(), errInfo.getErrText());
-//    errStream << "error: could not delete all replicas of '" << path << "'";
-//    retc = SFS_ERROR;
-//    reply.set_retc(retc);
-//    reply.set_std_err(errStream.str());
-//    return reply;
-//  }
-//
-//  reply.set_retc(retc);
-//  reply.set_std_out("success: removed all replicas for all given files");
-//  return reply;
 }
 
 EOSMGMNAMESPACE_END
