@@ -39,7 +39,7 @@ public:
   //----------------------------------------------------------------------------
   StagerRmHelper()
   {
-    mIsAdmin = true;
+    mIsAdmin = false;
     mHighlight = true;
   }
 
@@ -111,6 +111,7 @@ void com_stagerrm_help() {
   oss << "Usage: stagerrm <path0 path1 ...>"
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
+      << "       This command required write and p acl flag permission"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

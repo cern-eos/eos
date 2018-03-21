@@ -22,9 +22,10 @@
  ************************************************************************/
 
 
+#include "common/Path.hh"
 #include "StagerRmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "namespace/interface/IView.hh"
+#include "mgm/Acl.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,6 +42,16 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
   eos::common::Mapping::Root(root_vid);
   for (auto i = 0; i < stagerRm.path_size(); i++) {
     const auto& path = stagerRm.path(i);
+
+    // check that we have the correct permission
+    eos::common::Path cPath(path.c_str());
+    errInfo.clear();
+    if (gOFS->_access(cPath.GetParentPath(), P_OK, errInfo, mVid, "") != 0) {
+      errStream << "error: you don't have 'p' acl flag permission on path '"
+                << cPath.GetParentPath() << "'" << std::endl;
+      retc = EPERM;
+      continue;
+    }
 
     // check if this file exists
     XrdSfsFileExistence file_exists;
