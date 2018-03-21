@@ -148,7 +148,7 @@ Example for a build
 
 Example for the latest release
 
-.. code-block:: bash
+.. parsed-literal::
 
    docker pull gitlab-registry.cern.ch/dss/eos:|version| 
 
