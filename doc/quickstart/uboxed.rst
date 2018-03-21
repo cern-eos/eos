@@ -20,7 +20,7 @@ We have bundled a demonstration setup of four CERN developed cloud and analysis 
 - `CVMFS <https://cvmfs.web.cern.ch>`_ - CernVM file system - a scalable software distribution service
 
 .. image:: uboxed.jpg
-   :scale: 50 %
+   :width: 530px
    :align: center
 
 Preparation

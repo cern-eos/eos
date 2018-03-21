@@ -8,7 +8,7 @@ EOS - Open Storage Documentation
 
 .. image:: cc.jpg
    :height: 100px
-   :width: 600px
+   :width: 530px
    :align: center
 
 .. epigraph::
@@ -30,8 +30,8 @@ EOS - Open Storage Documentation
    restapi
 
 .. image:: grafana.jpg
-   :height: 150px
-   :width: 600px
+   :height: 130px
+   :width: 530px
    :align: center
 
 

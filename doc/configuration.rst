@@ -8,7 +8,7 @@ Configuration
 =============
 
 .. image:: configuration.jpg
-   :scale: 20%
+   :width: 530px	  
    :align: left
 
 This chapter discusses several components of EOS and how they are configured. 

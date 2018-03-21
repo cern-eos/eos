@@ -3,6 +3,7 @@
 Introduction
 =======================
 .. image:: lhc.jpg
+   :width: 530px
    :align: center
 
 History
@@ -16,7 +17,7 @@ Goal
 The main goal of the project is to provide fast and reliable disk only storage technology for CERN `LHC <https://home.cern/topics/large-hadron-collider>`_ use cases. The following picture demonstrates the main use case at CERN:
 
 .. image:: eos-usage-cern.jpg
-   :scale: 40 %
+   :width: 530px
    :align: center
 
 
@@ -41,7 +42,7 @@ EOS is made by three components:
 * **MQ** - message broker for asynchronous messaging
 
 .. image:: eos-base-arch.jpg
-   :scale: 20 %
+   :width: 530px
    :align: center
 
 The initial architecture is using an in-memory namespace implementation with a master-slave high-availability model. This implementation provides very low-latency for meta data acccess. 
@@ -51,7 +52,7 @@ Since the CITRINE release the architecture has been modified to provide optinal 
 EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.  
 
 .. image:: eos-architecture.jpg
-   :scale: 30 %
+   :width: 530px
    :align: center
 
 
@@ -95,7 +96,7 @@ EOS can be used like a filesystem using FUSE clients. There are two implementati
 EOS has been extended to work simliar to `Owncloud <owncloud.org>`_ as a sync and share platform. The front-end service is called `CERNBox <https://cernbox.web.cern.ch>`_. 
 
 .. IMAGE:: cernbox.jpg
-   :scale: 40%
+   :width: 530px
    :align: center
 
 
@@ -105,7 +106,7 @@ Architecture Roadmap
 The target architecture for the next major release version is shown in the following figure:
 
 .. IMAGE:: roadmap-2018.jpg
-   :scale: 60%
+   :width: 530px
    :align: center
 
 The goal is to reach full scalability and high-availability of all service components and to embed better external storage resources like shared filesystems and cloud storage.
