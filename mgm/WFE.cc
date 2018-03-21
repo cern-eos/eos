@@ -1745,16 +1745,20 @@ WFE::Job::DoIt(bool issync)
           if (onDisk) {
             if (retrieveCntr != 0) {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-              gOFS->eosView->updateFileStore(fmd.get());
+              try {
+                fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+                gOFS->eosView->updateFileStore(fmd.get());
+              } catch (eos::MDException& ex) {}
             }
           } else {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
             onGoingRetrieve = (retrieveCntr != 0);
 
-            fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
-            gOFS->eosView->updateFileStore(fmd.get());
+            try {
+              fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
+              gOFS->eosView->updateFileStore(fmd.get());
+            } catch (eos::MDException& ex) {}
           }
 
           if (onDisk) {
@@ -1791,6 +1795,17 @@ WFE::Job::DoIt(bool issync)
                        << StringConversion::FastUnsignedToAsciiHex(mFid);
             destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
             notification->mutable_transport()->set_dst_url(destStream.str());
+
+            int sendResult = SendProtoWFRequest(this, fullPath, request);
+            if (sendResult != 0) {
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              try {
+                fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+                gOFS->eosView->updateFileStore(fmd.get());
+              } catch (eos::MDException& ex) {}
+            }
+
+            return sendResult;
           }
         } else if (event == "sync::openw") {
           collectAttributes();
@@ -1807,6 +1822,8 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
+
+          return SendProtoWFRequest(this, fullPath, request);
         } else if (event == "sync::create") {
           collectAttributes();
 
@@ -1822,9 +1839,18 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
+
+          return SendProtoWFRequest(this, fullPath, request);
         } else if (event == "sync::delete") {
           collectAttributes();
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
+
+          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
+            SendProtoWFRequest(&jobCopy, fullPath, request);
+          };
+          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
+          gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
+          return SFS_OK;
         } else if (event == "closew") {
           collectAttributes();
 
@@ -1867,6 +1893,8 @@ WFE::Job::DoIt(bool issync)
                        << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                        << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
+
+          return SendProtoWFRequest(this, fullPath, request);
         } else if (event == "archived") {
           bool onlyTapeCopy = false;
           {
@@ -1907,17 +1935,17 @@ WFE::Job::DoIt(bool issync)
           return SFS_ERROR;
         }
 
-        if (event == "sync::delete") {
-          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
-            SendProtoWFRequest(&jobCopy, fullPath, request);
-          };
-          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
-          gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
-          return SFS_OK;
-        }
-        else {
-          return SendProtoWFRequest(this, fullPath, request);
-        }
+//        if (event == "sync::delete") {
+//          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
+//            SendProtoWFRequest(&jobCopy, fullPath, request);
+//          };
+//          auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
+//          gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
+//          return SFS_OK;
+//        }
+//        else {
+//          return SendProtoWFRequest(this, fullPath, request);
+//        }
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
@@ -1969,8 +1997,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
-    jobPtr->MoveWithResults(SFS_ERROR);
-    return SFS_ERROR;
+    jobPtr->MoveWithResults(ENOTCONN);
+    return ENOTCONN;
   }
 
   std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
