@@ -82,7 +82,7 @@ To connect to EOS using the *eos* shell CLI running in the MGM container you can
     nodesview  eos-fst5-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
     nodesview  eos-fst6-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2    
 
-You can mounting EOS to the client container using FUSE and KRB5 authentication.
+You can mount EOS to the client container using FUSE and KRB5 authentication.
 
 .. code-block:: bash
 
@@ -114,7 +114,7 @@ You can mounting EOS to the client container using FUSE and KRB5 authentication.
    drwxr-xr-x. 18 root root 4096 Mar 14 10:16 ..
    drwxrwxr-x.  1 root root    0 Jan  1  1970 dockertest
 
-Or by running the the EOS instance testsuite
+Or by running the EOS instance testsuite
 
 .. code-block:: bash
 
@@ -131,7 +131,7 @@ Image Repository
 -------------------
 
 You can get the images for each automatic build and for each release.
-The release images are tagged with the release version. Regular images are tagged with the build id of their originating piepline.
+The release images are tagged with the release version. Regular images are tagged with the build id of their originating pipeline.
 
 Docker images are accessible from the project's `registry <https://gitlab.cern.ch/dss/eos/container_registry>`_.
 
@@ -150,7 +150,7 @@ Example for the latest release
 
 .. code-block:: bash
 
-   docker pull gitlab-registry.cern.ch/dss/eos: |version| 
+   docker pull gitlab-registry.cern.ch/dss/eos:|version| 
 
 Selfmade images
 ---------------
