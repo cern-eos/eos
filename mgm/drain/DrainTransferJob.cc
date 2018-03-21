@@ -106,61 +106,55 @@ DrainTransferJob::DoIt()
     target_fs->SnapShotFileSystem(dst_snapshot);
   }
   uint64_t lid = fdrain.mProto.layout_id();
+  // Prepare the TPC copy job
+  XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
+  XrdCl::URL url_dst = BuildTpcDst(fdrain, dst_snapshot);
 
-  if ((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP) ||
-      (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) {
-    // @todo (amanzi): to be implemented - run TPC with reconstruction
-  } else {
-    // Prepare the TPC copy job
-    XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
-    XrdCl::URL url_dst = BuildTpcDst(fdrain, dst_snapshot);
+  if (!url_src.IsValid()) {
+    ReportError("msg=\"invalid src url\"");
+    return;
+  }
 
-    if (!url_src.IsValid()) {
-      ReportError("msg=\"invalid src url\"");
-      return;
-    }
+  if (!url_dst.IsValid()) {
+    ReportError("msg=\"invalid dst url\"");
+    return;
+  }
 
-    if (!url_dst.IsValid()) {
-      ReportError("msg=\"invalid dst url\"");
-      return;
-    }
+  XrdCl::PropertyList properties;
+  properties.Set("force", true);
+  properties.Set("posc", false);
+  properties.Set("coerce", false);
+  properties.Set("source", url_src);
+  properties.Set("target", url_dst);
+  properties.Set("sourceLimit", (uint16_t) 1);
+  properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+  properties.Set("parallelChunks", (uint8_t) 1);
+  properties.Set("tpcTimeout",  900);
 
-    XrdCl::PropertyList properties;
-    properties.Set("force", true);
-    properties.Set("posc", false);
-    properties.Set("coerce", false);
-    properties.Set("source", url_src);
-    properties.Set("target", url_dst);
-    properties.Set("sourceLimit", (uint16_t) 1);
-    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-    properties.Set("parallelChunks", (uint8_t) 1);
-    properties.Set("tpcTimeout",  900);
+  // Non-empty files run with TPC only
+  if (fdrain.mProto.size()) {
+    properties.Set("thirdParty", "only");
+  }
 
-    // Non-empty files run with TPC only
-    if (fdrain.mProto.size()) {
-      properties.Set("thirdParty", "only");
-    }
+  // Create the process job
+  XrdCl::PropertyList result;
+  XrdCl::CopyProcess cpy;
+  cpy.AddJob(properties, &result);
+  XrdCl::XRootDStatus prepare_st = cpy.Prepare();
+  eos_info("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
+           url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
 
-    // Create the process job
-    XrdCl::PropertyList result;
-    XrdCl::CopyProcess cpy;
-    cpy.AddJob(properties, &result);
-    XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_info("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
-             url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
+  if (prepare_st.IsOK()) {
+    XrdCl::XRootDStatus tpc_st = cpy.Run(0);
 
-    if (prepare_st.IsOK()) {
-      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
-
-      if (!tpc_st.IsOK()) {
-        ReportError(tpc_st.ToStr().c_str());
-      } else {
-        eos_info("msg=\"drain job completed successfully");
-        mStatus.store(Status::OK);
-      }
+    if (!tpc_st.IsOK()) {
+      ReportError(tpc_st.ToStr().c_str());
     } else {
-      ReportError("msg=\"failed to prepare drain job\"");
+      eos_info("msg=\"drain job completed successfully");
+      mStatus.store(Status::OK);
     }
+  } else {
+    ReportError("msg=\"failed to prepare drain job\"");
   }
 }
 
