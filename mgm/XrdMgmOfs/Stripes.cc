@@ -322,12 +322,12 @@ XrdMgmOfs::_dropallstripes(const char* path,
     fmd = gOFS->eosView->getFile(path);
 
     // only on tape, we don't touch this file here
-    if (fmd->getLocations().size() == 1 && fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+    if (fmd->getLocations().size() == 1 && fmd->hasLocation(TAPE_FS_ID)) {
       return SFS_OK;
     }
 
     for (auto location : fmd->getLocations()) {
-      if (location == eos::common::TAPE_FS_ID) {
+      if (location == TAPE_FS_ID) {
         continue;
       }
 

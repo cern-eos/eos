@@ -26,6 +26,8 @@
 #include "StagerRmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Constants.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -92,6 +94,17 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
                      path.c_str(), errInfo.getErrText());
       errStream << "error: could not delete all replicas of '" << path << "'" << std::endl;
       retc = SFS_ERROR;
+    } else {
+      // reset the retrieves counter in case of success
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      try {
+        auto fmd = gOFS->eosView->getFile(path);
+        fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+        gOFS->eosView->updateFileStore(fmd.get());
+      } catch (eos::MDException& ex) {
+        eos_static_err("Could not reset retrieves counter for file %s. Try setting the %s attribute to 0.",
+                       path.c_str(), RETRIEVES_ATTR_NAME);
+      }
     }
   }
 

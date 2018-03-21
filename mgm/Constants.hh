@@ -24,10 +24,11 @@
 
 #pragma once
 
-#include "Namespace.hh"
+#include "mgm/Namespace.hh"
 
-EOSCOMMONNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN
 
 static constexpr auto TAPE_FS_ID = 65535u;
+static constexpr auto RETRIEVES_ATTR_NAME = "sys.retrieves";
 
-EOSCOMMONNAMESPACE_END
+EOSMGMNAMESPACE_END

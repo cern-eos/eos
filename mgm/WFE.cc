@@ -21,12 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
+#include "mgm/Constants.hh"
 #include "mgm/Quota.hh"
 #include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
@@ -1710,7 +1710,6 @@ WFE::Job::DoIt(bool issync)
         };
 
         if (event == "sync::prepare") {
-          constexpr static auto retrievesAttrName = "sys.retrieves";
           struct stat buf;
           XrdOucErrInfo errInfo;
 
@@ -1733,8 +1732,8 @@ WFE::Job::DoIt(bool issync)
           auto retrieveCntr = 0ul;
           try {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-            if (fmd->hasAttribute(retrievesAttrName)) {
-              retrieveCntr = std::stoul(fmd->getAttribute(retrievesAttrName));
+            if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
+              retrieveCntr = std::stoul(fmd->getAttribute(RETRIEVES_ATTR_NAME));
             }
           } catch (eos::MDException& ex) {
             eos_static_err("Could not determine ongoing retrieves for file %s.",
@@ -1746,7 +1745,7 @@ WFE::Job::DoIt(bool issync)
           if (onDisk) {
             if (retrieveCntr != 0) {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->setAttribute(retrievesAttrName, "0");
+              fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
               gOFS->eosView->updateFileStore(fmd.get());
             }
           } else {
@@ -1754,7 +1753,7 @@ WFE::Job::DoIt(bool issync)
 
             onGoingRetrieve = (retrieveCntr != 0);
 
-            fmd->setAttribute(retrievesAttrName, std::to_string(++retrieveCntr));
+            fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
             gOFS->eosView->updateFileStore(fmd.get());
           }
 
@@ -1769,7 +1768,7 @@ WFE::Job::DoIt(bool issync)
             MoveWithResults(ENODATA);
             return ENODATA;
           } else if (onGoingRetrieve) {
-            eos_static_info("File %s is already being retrieved by %ul clients.",
+            eos_static_info("File %s is already being retrieved by %u clients.",
                             fullPath.c_str(), retrieveCntr);
             MoveWithResults(SFS_OK);
             return SFS_OK;
@@ -1872,7 +1871,7 @@ WFE::Job::DoIt(bool issync)
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-            onlyTapeCopy = fmd->hasLocation(eos::common::TAPE_FS_ID) && fmd->getLocations().size() == 1;
+            onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
           if (onlyTapeCopy) {
@@ -1885,8 +1884,8 @@ WFE::Job::DoIt(bool issync)
 
             {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              if (!fmd->hasLocation(eos::common::TAPE_FS_ID)) {
-                fmd->addLocation(eos::common::TAPE_FS_ID);
+              if (!fmd->hasLocation(TAPE_FS_ID)) {
+                fmd->addLocation(TAPE_FS_ID);
                 gOFS->eosView->updateFileStore(fmd.get());
               }
             }
