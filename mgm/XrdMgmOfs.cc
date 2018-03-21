@@ -489,11 +489,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     args.Arg2Len = prep_info.length();
     eos_static_info("prep-info=%s", prep_info.c_str());
 
-    if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
-                         args,
-                         error,
-                         &lClient) != SFS_DATA) {
-      retc = Emsg(epname, error, ENOTCONN,
+    int ret_wfe = 0;
+    if ((ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
+                                    args,
+                                    error,
+                                    &lClient)) != SFS_DATA) {
+      retc = Emsg(epname, error, ret_wfe,
                   "prepare - synchronous prepare workflow error", prep_path.c_str());
     }
   }
