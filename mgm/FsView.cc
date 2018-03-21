@@ -866,7 +866,7 @@ FsSpace::FsSpace(const char* name)
 {
   mName = name;
   mType = "spaceview";
-  mBalancer = new Balancer(name);
+  mBalancer = std::unique_ptr<Balancer>(new Balancer(name));
   mConverter = new Converter(name);
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);

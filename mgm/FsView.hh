@@ -490,7 +490,7 @@ public:
     return gConfigQueuePrefix.c_str();
   }
 
-  Balancer* mBalancer; ///< Threaded object supervising space balancing
+  std::unique_ptr<Balancer> mBalancer; ///< Threaded object supervising space balancing
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
