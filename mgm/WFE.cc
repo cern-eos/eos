@@ -1789,6 +1789,8 @@ WFE::Job::DoIt(bool issync)
 
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
+            notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+            notification->mutable_file()->set_fid(mFid);
 
             std::ostringstream destStream;
             destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
