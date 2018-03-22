@@ -1845,6 +1845,9 @@ WFE::Job::DoIt(bool issync)
         } else if (event == "sync::delete") {
           collectAttributes();
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
+          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+          notification->mutable_file()->set_lpath(fullPath);
+          notification->mutable_file()->set_fid(mFid);
 
           auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
             SendProtoWFRequest(&jobCopy, fullPath, request);
