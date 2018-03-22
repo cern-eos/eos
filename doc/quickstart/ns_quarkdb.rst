@@ -104,8 +104,8 @@ All instances will run as user *daemon*. The ownership of the storage locations 
 .. code-block:: bash
 
    for i in {1..3}; do
-     mkdir -p /usr/lib/systemd/system/xrootd@quarkdb${i}.service.d
-   echo -e "[Service] \nExecStart= \nExecStart=/usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /var/run/quarkdb/xrootd-%i.pid -n %i \nUser=daemon \nGroup=daemon \n" > /usr/lib/systemd/system/xrootd@quarkdb${i}.service.d/custom.conf
+     mkdir -p /etc/systemd/system/xrootd@quarkdb${i}.service.d
+   echo -e "[Service] \nExecStart= \nExecStart=/usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /var/run/quarkdb/xrootd-%i.pid -n %i \nUser=daemon \nGroup=daemon \n" > /etc/systemd/system/xrootd@quarkdb${i}.service.d/custom.conf
    done
 
 The next step is to initialize the **QuarkDB** database directory using the ``quarkdb-create`` command. For more details please consult the `QuarkDB documentation <https://quarkdb.web.cern.ch/quarkdb/docs/master/>`_.
