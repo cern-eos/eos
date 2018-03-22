@@ -175,7 +175,7 @@ To integrate the MGM service with the **QuarkDB** cluster we need to make severa
 
     .. code-block:: bash
 
-       mgm.qdbcluster localhost:7001 localhost:7002 localhost:7003
+       mgmofs.qdbcluster localhost:7001 localhost:7002 localhost:7003
 
 
 Start the MGM daemon as a master:
@@ -185,7 +185,7 @@ Start the MGM daemon as a master:
     systemctl start eos@master
     systemctl start eos@mgm
 
-At this point you should have the following process running on the local machine:
+At this point you should have the following processes running on the local machine:
 
  .. code-block:: bash
 
@@ -198,6 +198,6 @@ At this point you should have the following process running on the local machine
     daemon    5146  0.0  0.3 340884 22972 ?        S    Mar15   0:00 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
 
 
-In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Futhermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
+In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Furthermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
 
 For further information see :ref:`quarkdbconf`.

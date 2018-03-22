@@ -1895,7 +1895,7 @@ Master::BootNamespace()
   } else {
     if (gOFS->mQdbCluster.empty()) {
       eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
-      MasterLog(eos_err("msg=\"mgm.qdbcluster configuration is missing\""));
+      MasterLog(eos_err("msg=\"mgmofs.qdbcluster configuration is missing\""));
       return false;
     } else {
       std::string instance_name = gOFS->MgmOfsInstanceName.c_str();

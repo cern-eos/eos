@@ -184,7 +184,7 @@ If you want to test a simplified setup, you can do the pervious steps on a singl
 Extending/Modifying your QuarkDB cluster
 ----------------------------------------
 
-Sometimes you will need to replace, add or remove a node of your QuarkDB cluster. This can be done without downtime. Please refer to the QuarkDB `Membership update documentation http://quarkdb.web.cern.ch/quarkdb/docs/master/MEMBERSHIP.html`_.
+Sometimes you will need to replace, add or remove a node of your QuarkDB cluster. This can be done without downtime. Please refer to the QuarkDB `Membership update documentation <http://quarkdb.web.cern.ch/quarkdb/docs/master/MEMBERSHIP.html>`_.
 
 
 
