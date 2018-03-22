@@ -22,17 +22,14 @@
  ************************************************************************/
 
 #include <cfloat>
-#include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
 #include "mgm/Converter.hh"
-#include "common/StringConversion.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#ifndef EOSMGMFSVIEWTEST
 #include "mgm/GeoTreeEngine.hh"
-#endif
+#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/StringConversion.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,12 +38,8 @@ std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
 std::string FsNode::gManagerId;
-
 bool FsSpace::gDisableDefaults = false;
-
-#ifndef EOSMGMFSVIEWTEST
-IConfigEngine* FsView::ConfEngine = 0;
-#endif
+IConfigEngine* FsView::sConfEngine = 0;
 
 //------------------------------------------------------------------------------
 // Destructor - destructs all the branches starting at this node
@@ -80,9 +73,7 @@ GeoTree::~GeoTree()
 }
 
 //------------------------------------------------------------------------------
-// @brief Insert a FileSystem into the tree
-// @param fs the fsid of the FileSystem
-// @return true if success, false if failure
+// Insert a FileSystem into the tree
 //------------------------------------------------------------------------------
 bool GeoTree::insert(const fsid_t& fs)
 {
@@ -184,8 +175,7 @@ bool GeoTree::insert(const fsid_t& fs)
 }
 
 //------------------------------------------------------------------------------
-// @brief Number of FileSystems in the tree
-// @return the number of FileSystems in the tree
+// Get number of file systems in the tree
 //------------------------------------------------------------------------------
 size_t GeoTree::size() const
 {
@@ -193,9 +183,7 @@ size_t GeoTree::size() const
 }
 
 //------------------------------------------------------------------------------
-// @brief Remove a FileSystem from the tree
-// @param fs the fsid of the FileSystem
-// @return true if success, false if failure
+// Remove a file system from the tree
 //------------------------------------------------------------------------------
 bool GeoTree::erase(const fsid_t& fs)
 {
@@ -268,10 +256,7 @@ bool GeoTree::erase(const fsid_t& fs)
 }
 
 //------------------------------------------------------------------------------
-// @brief Get the geotag at which a file system is stored in the tree
-// @param fs the fsid of the FileSystem
-// @param geoTag returns the geotag if fs was found in the tree
-// @return true if success, false if failure
+// Get the geotag at which the fs is stored if found
 //------------------------------------------------------------------------------
 bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
 {
@@ -285,9 +270,7 @@ bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
 }
 
 //------------------------------------------------------------------------------
-// @brief Get the geotag of FileSystem
-// @param fs the fsid of the FileSystem
-// @return return the geotag if found
+// Get file system geotag
 //------------------------------------------------------------------------------
 std::string GeoTree::getGeoTag(const fsid_t& fs) const
 {
@@ -406,12 +389,7 @@ GeoTree::const_iterator GeoTree::find(const fsid_t& fsid) const
 }
 
 //------------------------------------------------------------------------------
-// @brief Run an aggregator through the tree
-// @param aggregator the aggregator to be run
-// @return true if success, false if failure
-//
-// At any depth level, the aggregator is fed ONLY with the data
-// of the ONE deeper level in the tree
+// Run an aggregator through the tree
 //------------------------------------------------------------------------------
 bool GeoTree::runAggregator(GeoTreeAggregator* aggregator) const
 {
@@ -461,9 +439,7 @@ bool GeoTree::runAggregator(GeoTreeAggregator* aggregator) const
 }
 
 //------------------------------------------------------------------------------
-// @brief Recursive debug helper function to display the tree
-// @param el the tree element to start the display from
-// @param fullgeotag the full geotag of the element
+// Recursive debug helper function to display the tree
 //------------------------------------------------------------------------------
 char* GeoTree::dumpTree(char* buffer, GeoTreeElement* el,
                         std::string fullgeotag) const
@@ -527,7 +503,7 @@ char* GeoTree::dumpLevels(char* buffer) const
 }
 
 //------------------------------------------------------------------------------
-// @brief Debug helper function to display all the content of the tree
+// Debug helper function to display all the content of the tree
 //------------------------------------------------------------------------------
 char* GeoTree::dump(char* buffer) const
 {
@@ -885,13 +861,11 @@ LongLongAggregator::deepAggregate(
 
 //----------------------------------------------------------------------------
 // Constructor
-// @param name name of the space to construct
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
 {
   mName = name;
   mType = "spaceview";
-#ifndef EOSMGMFSVIEWTEST
   mBalancer = new Balancer(name);
   mConverter = new Converter(name);
   mGroupBalancer = new GroupBalancer(name);
@@ -1022,58 +996,13 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("wfe.ntx", "1", true, "/eos/*/mgm");
     }
   }
-
-#endif
 }
 
 //----------------------------------------------------------------------------
-// Stop function stopping threads before destruction
+// Destructor
 //----------------------------------------------------------------------------
-void FsSpace::Stop()
-{
-#ifndef EOSMGMFSVIEWTEST
-
-  if (mBalancer) {
-    mBalancer->Stop();
-  }
-
-  if (mConverter) {
-    mConverter->Stop();
-  }
-
-  if (mGroupBalancer) {
-    mGroupBalancer->Stop();
-  }
-
-  if (mGeoBalancer) {
-    mGeoBalancer->Stop();
-  }
-
-#endif
-}
-
-//----------------------------------------------------------------------------
-// Synchronously join threads before destruction
-//----------------------------------------------------------------------------
-void FsSpace::Join()
-{
-#ifndef EOSMGMFSVIEWTEST
-
-  if (mGroupBalancer) {
-    mGroupBalancer->Join();
-  }
-
-  if (mGeoBalancer) {
-    mGeoBalancer->Join();
-  }
-
-#endif
-}
-
 FsSpace::~FsSpace()
 {
-#ifndef EOSMGMFSVIEWTEST
-
   if (mBalancer) {
     delete mBalancer;
   }
@@ -1094,7 +1023,42 @@ FsSpace::~FsSpace()
   mConverter = nullptr;
   mGroupBalancer = nullptr;
   mGeoBalancer = nullptr;
-#endif
+}
+
+//----------------------------------------------------------------------------
+// Stop function stopping threads before destruction
+//----------------------------------------------------------------------------
+void FsSpace::Stop()
+{
+  if (mBalancer) {
+    mBalancer->Stop();
+  }
+
+  if (mConverter) {
+    mConverter->Stop();
+  }
+
+  if (mGroupBalancer) {
+    mGroupBalancer->Stop();
+  }
+
+  if (mGeoBalancer) {
+    mGeoBalancer->Stop();
+  }
+}
+
+//----------------------------------------------------------------------------
+// Synchronously join threads before destruction
+//----------------------------------------------------------------------------
+void FsSpace::Join()
+{
+  if (mGroupBalancer) {
+    mGroupBalancer->Join();
+  }
+
+  if (mGeoBalancer) {
+    mGeoBalancer->Join();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1601,7 +1565,6 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
     return false;
   }
 
-  // Create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
@@ -1667,8 +1630,6 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
                 snapshot.mId, fs);
     }
 
-#ifndef EOSMGMFSVIEWTEST
-
     if (registerInGeoTreeEngine &&
         !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[snapshot.mGroup], false)) {
       // Roll back the changes
@@ -1685,7 +1646,6 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
       return false;
     }
 
-#endif
     mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
     // Align view by spacename
@@ -1726,25 +1686,19 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
 }
 
 //------------------------------------------------------------------------------
-// @brief Store the filesystem configuration in the configuration engine
-// @param fs filesystem object to store
+// Store the filesystem configuration in the configuration engine
 //------------------------------------------------------------------------------
 void
 FsView::StoreFsConfig(FileSystem* fs)
 {
-#ifndef EOSMGMFSVIEWTEST
-
   if (fs) {
     std::string key, val;
     fs->CreateConfig(key, val);
 
-    if (FsView::ConfEngine) {
-      FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+    if (FsView::sConfEngine) {
+      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
     }
   }
-
-#endif
-  return;
 }
 
 //------------------------------------------------------------------------------
@@ -1761,11 +1715,9 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot1)) {
-#ifndef EOSMGMFSVIEWTEST
     fs->SetString("schedgroup", group.c_str());
     FsGroup* oldgroup = mGroupView.count(snapshot1.mGroup) ?
                         mGroupView[snapshot1.mGroup] : NULL;
-#endif
 
     if (fs->SnapShotFileSystem(snapshot)) {
       // Remove from the original space
@@ -1784,7 +1736,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
       // Remove from the original group
       if (mGroupView.count(snapshot1.mGroup)) {
         FsGroup* group = mGroupView[snapshot1.mGroup];
-#ifndef EOSMGMFSVIEWTEST
 
         if (!gGeoTreeEngine.removeFsFromGroup(fs, group, false)) {
           // roll-back
@@ -1806,7 +1757,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
           return false;
         }
 
-#endif
         group->erase(snapshot1.mId);
         eos_debug("unregister group %s from group view",
                   group->GetMember("name").c_str());
@@ -1836,8 +1786,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 
-#ifndef EOSMGMFSVIEWTEST
-
       if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], false)) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
@@ -1861,7 +1809,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
         return false;
       }
 
-#endif
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
       // Check if we have already a space view
@@ -1886,9 +1833,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 }
 
 //------------------------------------------------------------------------------
-// Unregister a filesystem from the filesystem view
-// @param fs filesystem to unregister
-// @return true if done otherwise false
+// Remove a file system
 //------------------------------------------------------------------------------
 bool
 FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
@@ -1897,16 +1842,13 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     return false;
   }
 
-#ifndef EOSMGMFSVIEWTEST
   // Delete in the configuration engine
   std::string key = fs->GetQueuePath();
 
-  if (FsView::ConfEngine) {
-    FsView::ConfEngine->DeleteConfigValue("fs", key.c_str());
+  if (FsView::sConfEngine) {
+    FsView::sConfEngine->DeleteConfigValue("fs", key.c_str());
   }
 
-#endif
-  // Create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
@@ -1933,7 +1875,6 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     // Remove fs from group view & evt. remove group view
     if (mGroupView.count(snapshot.mGroup)) {
       FsGroup* group = mGroupView[snapshot.mGroup];
-#ifndef EOSMGMFSVIEWTEST
 
       if (unregisterInGeoTreeEngine
           && !gGeoTreeEngine.removeFsFromGroup(fs, group, false)) {
@@ -1949,7 +1890,6 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
         return false;
       }
 
-#endif
       group->erase(snapshot.mId);
       eos_debug("unregister group %s from group view",
                 group->GetMember("name").c_str());
@@ -2229,13 +2169,10 @@ FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
   char value[1024];
   snprintf(value, sizeof(value) - 1, "%llu", (unsigned long long) fsid);
   std::string svalue = value;
-#ifndef EOSMGMFSVIEWTEST
 
   if (!SetGlobalConfig(key, value)) {
     eos_static_err("unable to set nextfsid in global config");
   }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -2254,10 +2191,8 @@ FsView::FindByQueuePath(std::string& queuepath)
   return 0;
 }
 
-#ifndef EOSMGMFSVIEWTEST
-
 //------------------------------------------------------------------------------
-// SetGlobalConfig
+// Set global config
 //------------------------------------------------------------------------------
 bool
 FsView::SetGlobalConfig(std::string key, std::string value)
@@ -2271,22 +2206,20 @@ FsView::SetGlobalConfig(std::string key, std::string value)
     hash->Set(key.c_str(), value.c_str());
   }
 
-#ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
   std::string ckey = MgmConfigQueueName.c_str();
   ckey += "#";
   ckey += key;
 
-  if (FsView::ConfEngine) {
-    FsView::ConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
+  if (FsView::sConfEngine) {
+    FsView::sConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
   }
 
-#endif
   return true;
 }
 
 //------------------------------------------------------------------------------
-// GetGlobalConfig
+// Get global config
 //------------------------------------------------------------------------------
 std::string
 FsView::GetGlobalConfig(std::string key)
@@ -2301,8 +2234,6 @@ FsView::GetGlobalConfig(std::string key)
 
   return "";
 }
-
-#endif
 
 //------------------------------------------------------------------------------
 // Static thread startup function calling HeartBeatCheck
@@ -2321,7 +2252,7 @@ FsView::HeartBeatCheck()
 {
   XrdSysThread::SetCancelOn();
 
-  while (1) {
+  while (true) {
     {
       // quickly go through all heartbeats
       eos::common::RWMutexReadLock lock(ViewMutex);
@@ -2399,8 +2330,7 @@ FsView::HeartBeatCheck()
         }
       }
     }
-    XrdSysTimer sleeper;
-    sleeper.Snooze(10);
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     XrdSysThread::CancelPoint();
   }
 
@@ -2500,7 +2430,9 @@ FsNode::~FsNode()
   FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get host snapshot
+//------------------------------------------------------------------------------
 bool
 FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
 {
@@ -2511,11 +2443,11 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
   }
 
   XrdMqSharedHash* hash = NULL;
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                 GetConfigQueuePrefix(), mName.c_str());
+  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+                                GetConfigQueuePrefix(), mName.c_str());
 
-  if ((hash = som->GetObject(nodeconfigname.c_str(), "hash"))) {
-    host.mQueue = nodeconfigname;
+  if ((hash = som->GetObject(node_cfg_name.c_str(), "hash"))) {
+    host.mQueue = node_cfg_name;
     host.mHost        = GetMember("host");
     host.mHostPort        = GetMember("hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
@@ -2535,7 +2467,7 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
       som->HashMutex.UnLockRead();
     }
 
-    host.mQueue = nodeconfigname;
+    host.mQueue = node_cfg_name;
     host.mHost = mName;
     host.mHostPort = "";
     host.mGeoTag        = "";
@@ -2549,7 +2481,7 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
 }
 
 //------------------------------------------------------------------------------
-// GetMember
+// Get member
 //------------------------------------------------------------------------------
 std::string
 FsNode::GetMember(const std::string& member) const
@@ -2563,7 +2495,9 @@ FsNode::GetMember(const std::string& member) const
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check for heartbeat for given file system
+//------------------------------------------------------------------------------
 bool
 FsNode::HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs)
 {
@@ -2578,7 +2512,9 @@ FsNode::HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get node active status
+//------------------------------------------------------------------------------
 eos::common::FileSystem::fsactive_t
 FsNode::GetActiveStatus()
 {
@@ -2591,7 +2527,9 @@ FsNode::GetActiveStatus()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Set node active status
+//------------------------------------------------------------------------------
 bool
 FsNode::SetActiveStatus(eos::common::FileSystem::fsactive_t active)
 {
@@ -2606,30 +2544,29 @@ FsNode::SetActiveStatus(eos::common::FileSystem::fsactive_t active)
 // Set a configuration member variable (stored in the config engine)
 // If 'isstatus'=true we just store the value in the shared hash but don't flush
 // it into the configuration engine.
-//   => is used to set status variables on config queues (baseview queues)
+// => is used to set status variables on config queues (baseview queues)
 //------------------------------------------------------------------------------
 bool
 BaseView::SetConfigMember(std::string key, std::string value, bool create,
                           std::string broadcastqueue, bool isstatus)
 {
   bool success = false;
-#ifndef EOSMGMFSVIEWTEST
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                 GetConfigQueuePrefix(), mName.c_str());
+  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+                                GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            nodeconfigname.c_str());
+                            node_cfg_name.c_str());
 
   if (!hash && create) {
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
-    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(),
+    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(node_cfg_name.c_str(),
         broadcastqueue.c_str())) {
       success = false;
     }
 
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+    hash = eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
   }
 
   if (hash) {
@@ -2642,7 +2579,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
         // we have to register this queue into the gw set for fast lookups
         FsView::gFsView.mGwNodes.insert(broadcastqueue);
         // clear the queue if a machine is enabled
-        // TODO (esindril): Clear also takes the HashMutex lock again - this
+        // @todo (esindril): Clear also takes the HashMutex lock again - this
         // is undefined behaviour !!!
         FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
       } else {
@@ -2654,15 +2591,14 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
   // Register in the configuration engine
-  if ((!isstatus) && (FsView::ConfEngine)) {
-    nodeconfigname += "#";
-    nodeconfigname += key;
+  if ((!isstatus) && (FsView::sConfEngine)) {
+    node_cfg_name += "#";
+    node_cfg_name += key;
     std::string confval = value;
-    FsView::ConfEngine->SetConfigValue("global", nodeconfigname.c_str(),
-                                       confval.c_str());
+    FsView::sConfEngine->SetConfigValue("global", node_cfg_name.c_str(),
+                                        confval.c_str());
   }
 
-#endif
   return success;
 }
 
@@ -2672,19 +2608,17 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
 std::string
 BaseView::GetConfigMember(std::string key)
 {
-#ifndef EOSMGMFSVIEWTEST
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                 GetConfigQueuePrefix(), mName.c_str());
+  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+                                GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            nodeconfigname.c_str());
+                            node_cfg_name.c_str());
 
   if (hash) {
     return hash->Get(key.c_str());
   }
 
-#endif
-  return "";
+  return std::string();
 }
 
 //------------------------------------------------------------------------------
@@ -2693,19 +2627,17 @@ BaseView::GetConfigMember(std::string key)
 bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
-#ifndef EOSMGMFSVIEWTEST
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                 GetConfigQueuePrefix(), mName.c_str());
+  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+                                GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            nodeconfigname.c_str());
+                            node_cfg_name.c_str());
 
   if (hash) {
     keys = hash->GetKeys();
     return true;
   }
 
-#endif
   return false;
 }
 
@@ -2909,8 +2841,6 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
   out = table.GenerateTable(HEADER, selections).c_str();
 }
 
-#ifndef EOSMGMFSVIEWTEST
-
 //------------------------------------------------------------------------------
 // Converts a config engine definition for a filesystem into the FsView
 // representation.
@@ -3077,7 +3007,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
   return success;
 }
-#endif
 
 //------------------------------------------------------------------------------
 // Computes the sum for <param> as long
@@ -4077,14 +4006,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
   }
 }
 
-#ifndef EOSMGMFSVIEWTEST
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FsGroup::~FsGroup()
-{}
-
 //------------------------------------------------------------------------------
 // If a filesystem has not yet these parameters defined, we inherit them from
 // the space configuration. This function has to be called with the a read lock
@@ -4139,7 +4060,7 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
 }
 
 //------------------------------------------------------------------------------
-// Re-evaluates the drainnig states in all groups and resets the state
+// Re-evaluates the drainnig state in all groups and resets the state
 //------------------------------------------------------------------------------
 void
 FsSpace::ResetDraining()
@@ -4197,6 +4118,5 @@ FsSpace::ResetDraining()
     }
   }
 }
-#endif
 
 EOSMGMNAMESPACE_END

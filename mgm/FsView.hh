@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
+#include "mgm/IConfigEngine.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -37,11 +38,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
-#include <map>
-#include <set>
-#ifndef EOSMGMFSVIEWTEST
-#include "mgm/IConfigEngine.hh"
-#endif
+
 //------------------------------------------------------------------------------
 //! @file FsView.hh
 //! @brief Class representing the cluster configuration of EOS
@@ -105,6 +102,9 @@ public:
 class GeoTreeAggregator
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   virtual ~GeoTreeAggregator() = default;
 
   // Initialize the aggregator
@@ -150,22 +150,7 @@ class GeoTree
   typedef GeoTreeLeaf tLeaf;
   typedef GeoTreeNode tNode;
 
-  //! The root branch of the tree
-  tElement* pRoot;
-
-  //! All the elements of the tree collected by depth
-  std::vector<std::set<tElement*, GeoTreeNodeOrderHelper > > pLevels;
-
-  //! All the leaves of the tree
-  std::map<fsid_t, tElement*> pLeaves;
-
-  //----------------------------------------------------------------------------
-  //! Get the geotag of FileSystem
-  //----------------------------------------------------------------------------
-  std::string getGeoTag(const fsid_t& fs) const;
-
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -177,24 +162,92 @@ public:
   virtual ~GeoTree();
 
   //----------------------------------------------------------------------------
-  //! Insert a FileSystem into the tree
+  //! Insert a file system into the tree
+  //!
+  //! @parma fs file system id
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool insert(const fsid_t& fs);
 
   //----------------------------------------------------------------------------
-  //! Remove a FileSystem from the tree
+  //! Remove a file system from the tree
+  //!
+  //! @parma fs file system id
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool erase(const fsid_t& fs);
 
   //----------------------------------------------------------------------------
   //! Get the geotag at which the fs is stored if found
+  //!
+  //! @param fs file system id
+  //! @param geoTag returned geotag if fs found
+  //!
+  // @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool getGeoTagInTree(const fsid_t& fs , std::string& geoTag);
 
   //----------------------------------------------------------------------------
-  //! Number of FileSystems in the tree
+  //! Get number of file systems in the tree
   //----------------------------------------------------------------------------
   size_t size() const;
+
+  //----------------------------------------------------------------------------
+  //! Run an aggregator through the tree
+  //! @note At any depth level, the aggregator is fed ONLY with the data of
+  //! the ONE deeper level in the tree
+  //!
+  //! @param aggregator the aggregator to be run
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool runAggregator(GeoTreeAggregator* aggregator) const;
+
+  //----------------------------------------------------------------------------
+  //! Run an aggregator through the tree
+  //----------------------------------------------------------------------------
+  bool runDeepAggregator(GeoTreeAggregator* aggregator)
+  {
+    // loop over the last level of Aggregate and call AggregateDeepLeaves
+    // loop from end-1 to beginning in mLevels and call AggregateDeppNodes
+    // NOT IMPLEMENTED
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Recursive debug helper function to display the tree
+  //!
+  //! @param buffer output buffer
+  //! @param el the tree element to start the display from
+  //! @param fullgeotag the full geotag of the element
+  //!
+  //! @return buffer output
+  //----------------------------------------------------------------------------
+  char* dumpTree(char* buffer, GeoTreeElement* el,
+                 std::string fullgeotag = "") const;
+
+  //----------------------------------------------------------------------------
+  //! Debug helper function to display the leaves in the tree
+  //!
+  //! @param buffer output buffer
+  //----------------------------------------------------------------------------
+  char* dumpLeaves(char* buffer) const;
+
+  //----------------------------------------------------------------------------
+  //! Debug helper function to display the elements of the tree sorted by levels
+  //!
+  //! @param buffer output buffer
+  //----------------------------------------------------------------------------
+  char* dumpLevels(char* buffer) const;
+
+  //----------------------------------------------------------------------------
+  //! Debug helper function to display all the content of the tree
+  //!
+  //! @param buffer output buffer
+  //----------------------------------------------------------------------------
+  char* dump(char* buffer) const;
 
   //----------------------------------------------------------------------------
   //! STL const_iterator class
@@ -226,42 +279,20 @@ public:
   const_iterator cend() const;
   const_iterator find(const fsid_t& fsid) const;
 
+private:
   //----------------------------------------------------------------------------
-  //! Run an aggregator through the tree
+  //! Get file system geotag
+  //!
+  //! @param fs file system id
+  //!
+  //! @return geotag
   //----------------------------------------------------------------------------
-  bool runAggregator(GeoTreeAggregator* aggregator) const;
+  std::string getGeoTag(const fsid_t& fs) const;
 
-  //----------------------------------------------------------------------------
-  //! Run an aggregator through the tree
-  //----------------------------------------------------------------------------
-  bool runDeepAggregator(GeoTreeAggregator* aggregator)
-  {
-    // loop over the last level of Aggregate and call AggregateDeepLeaves
-    // loop from end-1 to beginning in mLevels and call AggregateDeppNodes
-    // NOT IMPLEMENTED
-    return false;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Recursive debug helper function to display the tree
-  //----------------------------------------------------------------------------
-  char* dumpTree(char* buffer, GeoTreeElement* el,
-                 std::string fullgeotag = "") const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display the leaves in the tree
-  //----------------------------------------------------------------------------
-  char* dumpLeaves(char* buffer) const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display the elements of the tree sorted by levels
-  //----------------------------------------------------------------------------
-  char* dumpLevels(char* buffer) const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display all the content of the tree
-  //----------------------------------------------------------------------------
-  char* dump(char* buffer) const;
+  tElement* pRoot;   ///< The root branch of the tree
+  //! All the elements of the tree collected by depth
+  std::vector<std::set<tElement*, GeoTreeNodeOrderHelper > > pLevels;
+  std::map<fsid_t, tElement*> pLeaves; ///< All the leaves of the tree
 };
 
 //------------------------------------------------------------------------------
@@ -269,38 +300,21 @@ public:
 //------------------------------------------------------------------------------
 class BaseView : public GeoTree
 {
-private:
-  //! Last heartbeat time
-  time_t mHeartBeat;
-
-  //! Status of the base view (meaning depends on inheritor)
-  std::string mStatus;
-
-  //! Size of the base object (meaning depends on inheritor)
-  std::string mSize;
-
-  //! Number of items in queue (meaning depends on inheritor)
-  size_t mInQueue;
-
 public:
-
   std::string mName; ///< Name of the base view
   std::string mType; ///< type of the base view
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  BaseView()
-  {
-    mStatus = "unknown";
-    mHeartBeat = 0;
-    mInQueue = 0;
-  }
+  BaseView():
+    mHeartBeat(0), mStatus("unknown"), mInQueue(0)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~BaseView() {};
+  virtual ~BaseView() = default;
 
   //----------------------------------------------------------------------------
   //! Return the configuration queue prefix
@@ -311,19 +325,6 @@ public:
   {
     return "";
   }
-
-  //----------------------------------------------------------------------------
-  //! Print the view contents
-  //!
-  //! @param table table info
-  //! @param table_format format for table from MGM side
-  //! @param table_mq_format format for table from MQ side
-  //! @param outdepth ouput depth for geoscheduling
-  //! @param filter view filter
-  //----------------------------------------------------------------------------
-  void Print(TableFormatterBase& table, std::string table_format,
-             const std::string& table_mq_format, unsigned outdepth,
-             const std::string& filter = "");
 
   //----------------------------------------------------------------------------
   //! Return a member variable in the view
@@ -344,6 +345,19 @@ public:
   virtual std::string GetConfigMember(std::string key);
 
   //----------------------------------------------------------------------------
+  //! Print the view contents
+  //!
+  //! @param table table info
+  //! @param table_format format for table from MGM side
+  //! @param table_mq_format format for table from MQ side
+  //! @param outdepth ouput depth for geoscheduling
+  //! @param filter view filter
+  //----------------------------------------------------------------------------
+  void Print(TableFormatterBase& table, std::string table_format,
+             const std::string& table_mq_format, unsigned outdepth,
+             const std::string& filter = "");
+
+  //----------------------------------------------------------------------------
   //! Return all configuration keys
   //----------------------------------------------------------------------------
   bool GetConfigKeys(std::vector<std::string>& keys);
@@ -355,6 +369,14 @@ public:
   void SetHeartBeat(time_t hb)
   {
     mHeartBeat = hb;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the heartbeat timestamp
+  //----------------------------------------------------------------------------
+  time_t GetHeartBeat()
+  {
+    return mHeartBeat;
   }
 
   //----------------------------------------------------------------------------
@@ -375,15 +397,8 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get the heartbeat time
-  //----------------------------------------------------------------------------
-  time_t GetHeartBeat()
-  {
-    return mHeartBeat;
-  }
-
-  //----------------------------------------------------------------------------
   //! Set the queue size
+  //!
   //! @param iq size to set a s queue size variable
   //----------------------------------------------------------------------------
   void SetInQueue(size_t iq)
@@ -394,38 +409,45 @@ public:
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as long long
   //----------------------------------------------------------------------------
-  long long SumLongLong(const char* param, bool lock = true,
-                        const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  long long
+  SumLongLong(const char* param, bool lock = true,
+              const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as double
   //----------------------------------------------------------------------------
-  double SumDouble(const char* param, bool lock = true,
-                   const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  SumDouble(const char* param, bool lock = true,
+            const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the average of <param> as double
   //----------------------------------------------------------------------------
-  double AverageDouble(const char* param, bool lock = true,
-                       const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  AverageDouble(const char* param, bool lock = true,
+                const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the maximum deviation from the average in a group
   //---------------------------------------------------------------------------
-  double MaxAbsDeviation(const char* param, bool lock = true,
-                         const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  MaxAbsDeviation(const char* param, bool lock = true,
+                  const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
-  double MaxDeviation(const char* param, bool lock = true,
-                      const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  MaxDeviation(const char* param, bool lock = true,
+               const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
-  double MinDeviation(const char* param, bool lock = true,
-                      const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  MinDeviation(const char* param, bool lock = true,
+               const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the standard deviation of <param> as double
   //----------------------------------------------------------------------------
-  double SigmaDouble(const char* param, bool lock = true,
-                     const std::set<eos::common::FileSystem::fsid_t>* subset = NULL);
+  double
+  SigmaDouble(const char* param, bool lock = true,
+              const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the number of fsid considered for average
@@ -440,30 +462,49 @@ public:
   //----------------------------------------------------------------------------
   long long TotalCount(bool lock,
                        const std::set<eos::common::FileSystem::fsid_t>* subset);
+
+private:
+  time_t mHeartBeat; ///< Last heartbeat time
+  std::string mStatus; ///< Status (meaning depends on inheritor)
+  std::string mSize; ///< Size of base object (meaning depends on inheritor)
+  size_t mInQueue; ///< Number of items in queue(meaning depends on inheritor)
 };
 
 //------------------------------------------------------------------------------
-//! Class describing a space (set of filesystems)
+//! Class FsSpace describing a space (set of filesystems)
 //------------------------------------------------------------------------------
 class FsSpace: public BaseView
 {
 public:
-#ifndef EOSMGMFSVIEWTEST
+  //! Set when a configuration gets loaded to avoid overwriting of the loaded
+  //! values by default values
+  static bool gDisableDefaults;
+  static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
+
+  //----------------------------------------------------------------------------
+  //! Get the configuration queeu prefix
+  //----------------------------------------------------------------------------
+  static const char* sGetConfigQueuePrefix()
+  {
+    return gConfigQueuePrefix.c_str();
+  }
+
   Balancer* mBalancer; ///< Threaded object supervising space balancing
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
-#endif
-
-  //! Set when a configuration gets loaded to avoid overwriting of the loaded
-  //! values by default values
-  static bool gDisableDefaults;
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
   //! @param name name of the space to construct
   //----------------------------------------------------------------------------
   FsSpace(const char* name);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~FsSpace();
 
   //----------------------------------------------------------------------------
   //! Stop function stopping threads before destruction
@@ -476,24 +517,9 @@ public:
   void Join();
 
   //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~FsSpace();
-
-  static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
-
-  //----------------------------------------------------------------------------
   //! Get the configuration queue prefix
   //----------------------------------------------------------------------------
   virtual const char* GetConfigQueuePrefix() const
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the configuration queeu prefix
-  //----------------------------------------------------------------------------
-  static const char* sGetConfigQueuePrefix()
   {
     return gConfigQueuePrefix.c_str();
   }
@@ -510,38 +536,37 @@ public:
 };
 
 //------------------------------------------------------------------------------
-//! Class describing a group (set of filesystems)
+//! Class FsGroup describing a group (set of filesystems)
 //------------------------------------------------------------------------------
 class FsGroup : public BaseView
 {
   friend class FsView;
-
-protected:
-  //! Index of the described group (normally 0,1,2,3...)
-  unsigned int mIndex;
-
 public:
+  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
+
+  //----------------------------------------------------------------------------
+  //! Return the configuration queue prefix
+  //----------------------------------------------------------------------------
+  static const char* sGetConfigQueuePrefix()
+  {
+    return gConfigQueuePrefix.c_str();
+  }
 
   //----------------------------------------------------------------------------
   //! Constructor
   //! @param name name of the group e.g. 'default.0'
   //----------------------------------------------------------------------------
-  FsGroup(const char* name)
+  FsGroup(const char* name):
+    mIndex(0)
   {
     mName = name;
     mType = "groupview";
-    mIndex = 0;
   }
-
-#ifdef EOSMGMFSVIEWTEST
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FsGroup() {};
-#else
-  virtual ~FsGroup();
-#endif
+  virtual ~FsGroup() = default;
 
   //----------------------------------------------------------------------------
   //! Return index of the group
@@ -551,8 +576,6 @@ public:
     return mIndex;
   }
 
-  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
-
   //----------------------------------------------------------------------------
   //! Return the configuration queue prefix (virtual function)
   //----------------------------------------------------------------------------
@@ -561,37 +584,42 @@ public:
     return gConfigQueuePrefix.c_str();
   }
 
-  //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix
-  //----------------------------------------------------------------------------
-  static const char* sGetConfigQueuePrefix()
-  {
-    return gConfigQueuePrefix.c_str();
-  }
+protected:
+  unsigned int mIndex; ///< Group index i.e 0,1,2,3 ...
 };
 
 //------------------------------------------------------------------------------
-//! Class describing a group (set of filesystems)
+//! Class FsNode describing a node (set of filesystems)
 //------------------------------------------------------------------------------
 class FsNode : public BaseView
 {
 public:
-
   static std::string gManagerId; ///< Name of the responsible manager
   eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
 
-  // Snapshoting
+  //----------------------------------------------------------------------------
+  //! Snapshoting
+  //----------------------------------------------------------------------------
   bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
 
-  // check heartbeat
+  //----------------------------------------------------------------------------
+  //! Check heartbeat
+  //!
+  //! @param fs file system info
+  //!
+  //! @return true if successful, othewise false
+  //----------------------------------------------------------------------------
   bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
 
-  // get active status
+  //----------------------------------------------------------------------------
+  //! Get active status
+  //----------------------------------------------------------------------------
   eos::common::FileSystem::fsactive_t GetActiveStatus();
 
-  // set active status
+  //----------------------------------------------------------------------------
+  //! Set active status
+  //----------------------------------------------------------------------------
   bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
-
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -626,8 +654,6 @@ public:
   //----------------------------------------------------------------------------
   void SetNodeConfigDefault()
   {
-#ifndef EOSMGMFSVIEWTEST
-
     // Define the manager ID
     if (!(GetConfigMember("manager").length())) {
       SetConfigMember("manager", gManagerId, true, mName.c_str(), true);
@@ -677,8 +703,6 @@ public:
     if (!(GetConfigMember("domain").length())) {
       SetConfigMember("domain", "MGM", true, mName.c_str(), true);
     }
-
-#endif
   }
 
   static std::string gConfigQueuePrefix; ///< Configuration queue prefix
@@ -710,22 +734,16 @@ private:
   bool mIsHeartbeatOn; ///< True if heartbeat thread is running
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
-
   //! Mutex protecting all ...Map variables
   eos::common::RWMutex MapMutex;
-
   //! Map translating a file system ID to a unique ID
   std::map<eos::common::FileSystem::fsid_t, std::string> Fs2UuidMap;
-
   //! Map translating a unique ID to a filesystem ID
   std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
 
 public:
-
-#ifndef EOSMGMFSVIEWTEST
-  static IConfigEngine* ConfEngine;
-#endif
+  static IConfigEngine* sConfEngine;
 
   //----------------------------------------------------------------------------
   //! Add or modify a filesystem
@@ -749,12 +767,19 @@ public:
 
   //----------------------------------------------------------------------------
   //! Store the filesystem configuration into the config engine. Should be
-  //! called whenever a filesystem wide parameters is changed
+  //! called whenever a filesystem wide parameters is changed.
+  //!
+  //! @param fs file sytem object
   //----------------------------------------------------------------------------
   void StoreFsConfig(FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Remove a filesystem
+  //!
+  //! @param fs file system object
+  //! @param unregisterInGeoTreeEngine'
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine = true);
 
@@ -916,9 +941,7 @@ public:
     hbthread(), mIsHeartbeatOn(false), NextFsId(0)
   {
     MgmConfigQueueName = "";
-#ifndef EOSMGMFSVIEWTEST
-    ConfEngine = 0;
-#endif
+    sConfEngine = nullptr;
 
     if (start_heartbeat) {
       mIsHeartbeatOn = true;
@@ -961,14 +984,12 @@ public:
     MgmConfigQueueName = mgmconfigqueue;
   }
 
-#ifndef EOSMGMFSVIEWTEST
-
   //----------------------------------------------------------------------------
   //! Set the configuration engine object
   //----------------------------------------------------------------------------
   void SetConfigEngine(IConfigEngine* engine)
   {
-    ConfEngine = engine;
+    sConfEngine = engine;
   }
 
   //----------------------------------------------------------------------------
@@ -990,8 +1011,6 @@ public:
   //! Get a global configuration value
   //----------------------------------------------------------------------------
   std::string GetGlobalConfig(std::string key);
-
-#endif
 
   //----------------------------------------------------------------------------
   //! Set the next available filesystem ID

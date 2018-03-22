@@ -202,8 +202,8 @@ xrdmgmofs_shutdown(int sig)
 
   if (gOFS->ConfEngine) {
     delete gOFS->ConfEngine;
-    gOFS->ConfEngine = 0;
-    FsView::ConfEngine = 0;
+    gOFS->ConfEngine = nullptr;
+    FsView::sConfEngine = nullptr;
   }
 
   gOFS->eosViewRWMutex.UnLockWrite();
