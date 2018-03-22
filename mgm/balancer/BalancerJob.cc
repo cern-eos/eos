@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "mgm/GeoTreeEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -81,6 +82,10 @@ BalancerJob::DoIt()
     ReportError(e.what());
     return;
   }
+  if (!SelectDstFs(fbalance)) {
+    ReportError("msg=\"failed to select destination file system\"");
+    return;
+  }
 
   // Take snapshots of the source and target file systems
   eos::common::FileSystem::fs_snapshot dst_snapshot;
@@ -98,63 +103,57 @@ BalancerJob::DoIt()
     source_fs->SnapShotFileSystem(src_snapshot);
     target_fs->SnapShotFileSystem(dst_snapshot);
   }
-  uint64_t lid = fbalance.mProto.layout_id();
 
-  if ((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP) ||
-      (LayoutId::GetLayoutType(lid) == LayoutId::kRaid6)) {
-    // @todo (amanzi): to be implemented - run TPC with reconstruction
-  } else {
-    // Prepare the TPC copy job
-    XrdCl::URL url_src = BuildTpcSrc(fbalance, src_snapshot);
-    XrdCl::URL url_dst = BuildTpcDst(fbalance, dst_snapshot);
+  // Prepare the TPC copy job
+  XrdCl::URL url_src = BuildTpcSrc(fbalance, src_snapshot);
+  XrdCl::URL url_dst = BuildTpcDst(fbalance, dst_snapshot);
 
-    if (!url_src.IsValid()) {
-      ReportError("msg=\"invalid src url\"");
-      return;
-    }
+  if (!url_src.IsValid()) {
+    ReportError("msg=\"invalid src url\"");
+    return;
+  }
 
-    if (!url_dst.IsValid()) {
-      ReportError("msg=\"invalid dst url\"");
-      return;
-    }
+  if (!url_dst.IsValid()) {
+    ReportError("msg=\"invalid dst url\"");
+    return;
+  }
 
-    XrdCl::PropertyList properties;
-    properties.Set("force", true);
-    properties.Set("posc", false);
-    properties.Set("coerce", false);
-    properties.Set("source", url_src);
-    properties.Set("target", url_dst);
-    properties.Set("sourceLimit", (uint16_t) 1);
-    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-    properties.Set("parallelChunks", (uint8_t) 1);
-    properties.Set("tpcTimeout",  900);
+  XrdCl::PropertyList properties;
+  properties.Set("force", true);
+  properties.Set("posc", false);
+  properties.Set("coerce", false);
+  properties.Set("source", url_src);
+  properties.Set("target", url_dst);
+  properties.Set("sourceLimit", (uint16_t) 1);
+  properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+  properties.Set("parallelChunks", (uint8_t) 1);
+  properties.Set("tpcTimeout",  900);
 
-    // Non-empty files run with TPC only
-    if (fbalance.mProto.size()) {
-      properties.Set("thirdParty", "only");
-    }
+  // Non-empty files run with TPC only
+  if (fbalance.mProto.size()) {
+    properties.Set("thirdParty", "only");
+  }
 
-    // Create the process job
-    XrdCl::PropertyList result;
-    XrdCl::CopyProcess cpy;
-    cpy.AddJob(properties, &result);
-    XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_notice("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
+  // Create the process job
+  XrdCl::PropertyList result;
+  XrdCl::CopyProcess cpy;
+  cpy.AddJob(properties, &result);
+  XrdCl::XRootDStatus prepare_st = cpy.Prepare();
+  eos_notice("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
                url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
 
-    if (prepare_st.IsOK()) {
-      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
+  if (prepare_st.IsOK()) {
+    XrdCl::XRootDStatus tpc_st = cpy.Run(0);
 
-      if (!tpc_st.IsOK()) {
-        ReportError(tpc_st.ToStr().c_str());
-      } else {
-        eos_notice("msg=\"balance job completed successfully");
-        mStatus = Status::OK;
-      }
+    if (!tpc_st.IsOK()) {
+      ReportError(tpc_st.ToStr().c_str());
     } else {
-      ReportError("msg=\"failed to prepare balance job\"");
+      eos_notice("msg=\"balance job completed successfully");
+      mStatus = Status::OK;
     }
-  }
+  } else {
+    ReportError("msg=\"failed to prepare balance job\"");
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -355,4 +354,71 @@ BalancerJob::BuildTpcDst(const FileBalanceInfo& fbalance,
   return url_dst;
 }
 
+//------------------------------------------------------------------------------
+// Select destiantion file system for current transfer
+//------------------------------------------------------------------------------
+bool
+BalancerJob::SelectDstFs(const FileBalanceInfo& fbalancer)
+{
+  if (mFsIdTarget) {
+    return true;
+  }
+
+  unsigned int nfilesystems = 1;
+  unsigned int ncollocatedfs = 0;
+  std::vector<FileSystem::fsid_t> new_repl;
+  eos::common::FileSystem::fs_snapshot source_snapshot;
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
+  source_fs->SnapShotFileSystem(source_snapshot);
+  FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
+  // Check other replicas for the file
+  std::vector<std::string> fsid_geotags;
+  std::vector<FileSystem::fsid_t> existing_repl;
+
+  for (auto elem : fbalancer.mProto.locations()) {
+    existing_repl.push_back(elem);
+    eos_static_info("msg=\"balancer placement exisring locations=%d",elem);
+  }
+
+  if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
+    eos_err("msg=\"fid=%llu failed to retrieve info for existing replicas\"",
+            mFileId);
+    return false;
+  }
+
+  bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
+               group, nfilesystems,
+               &new_repl,
+               (ino64_t) fbalancer.mProto.id(),
+               NULL, // entrypoints
+               NULL, // firewall
+               GeoTreeEngine::balancing,
+               &existing_repl,
+               &fsid_geotags,
+               fbalancer.mProto.size(),
+               "",// start from geotag
+               "",// client geo tag
+               ncollocatedfs,
+               NULL, // excludeFS
+               &fsid_geotags, // excludeGeoTags
+               NULL);
+
+  if (!res || new_repl.empty())  {
+    eos_err("msg=\"fid=%llu could not place new replica\"", mFileId);
+    return false;
+  }
+
+  std::ostringstream oss;
+
+  for (auto elem : new_repl) {
+    oss << " " << (unsigned long)(elem);
+  }
+
+  eos_static_info("msg=\"balancer placement retc=%d with source fsid=%d and dest fsids=%s", (int)res, mFsIdSource,
+                   oss.str().c_str());
+  // Return only one fs now
+  mFsIdTarget = new_repl[0];
+  return true;
+}
 EOSMGMNAMESPACE_END

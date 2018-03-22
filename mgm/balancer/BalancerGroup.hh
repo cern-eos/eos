@@ -27,6 +27,8 @@
 #include "mgm/FileSystem.hh"
 #include "common/Logging.hh"
 #include "mgm/balancer/BalancerJob.hh"
+#include "common/ThreadPool.hh"
+#include <chrono>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -100,28 +102,34 @@ private:
   void* Balance();
 
   //----------------------------------------------------------------------------
-  //! Select target file system 
-  //!
-  ///! @return if successful then target file system, othewise 0
+  // Thread pool
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t SelectTargetFS(eos::common::FileId::fileid_t, eos::common::FileSystem::fsid_t);
+  eos::common::ThreadPool mThreadPool;
 
   //----------------------------------------------------------------------------
   //! Select source file system 
   //!
-  ///! @return if successful then source file system, othewise 0
+  //! @return if successful then source file system, othewise 0
   //---------------------------------------------------------------------------- 
   eos::common::FileSystem::fsid_t SelectSourceFS();
 
-  std::set<BalancerJob::FileBalanceInfo> SelectFilesToBalance(eos::common::FileSystem::fsid_t);
+  //----------------------------------------------------------------------------
+  //! Select a bunch of files to balance from the fs
+  //!
+  //! @return set of file to balance
+  std::set<eos::common::FileId::fileid_t> SelectFilesToBalance(eos::common::FileSystem::fsid_t);
 
+
+  uint64_t CollectBalanceJobs(eos::common::FileSystem::fsid_t, const std::set<eos::common::FileId::fileid_t>&);
   //----------------------------------------------------------------------------
   //! Set initial balancer counters and status
   //----------------------------------------------------------------------------
   void SetInitialCounters();
   
   void GetSpaceConfiguration();
-  
+ 
+  uint64_t CollectBalancingJobs(); 
+
   std::thread mThread; ///< Thread supervisioning the group balancing
 
   std::string mSpace; ///< Space where fs resides
@@ -131,9 +139,10 @@ private:
   //! Collection of failed balancer jobs
   std::vector<shared_ptr<BalancerJob>> mJobsFailed;
   //! Collection of running balancer jobs
-  std::vector<shared_ptr<BalancerJob>> mJobsRunning;
+  std::map<std::shared_ptr<BalancerJob>, std::future<void>> mJobsRunning;
   bool mBalanceStop = false; ///< Flag to cancel an ongoing draining
   unsigned int maxParallelJobs = 10; ///< Max number of parallel balancer jobs
+  unsigned int filesToBalance = 100; ///<Max Files to balance per each iteration //to parametrize
 };
 
 EOSMGMNAMESPACE_END

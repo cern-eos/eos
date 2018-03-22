@@ -155,7 +155,7 @@ private:
   XrdCl::URL BuildTpcDst(const FileBalanceInfo& fbalance,
                          const eos::common::FileSystem::fs_snapshot& fs);
 
-
+  bool SelectDstFs(const FileBalanceInfo& fbalance);
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system
   eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;

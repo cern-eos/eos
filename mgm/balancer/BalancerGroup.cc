@@ -28,8 +28,11 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include <sstream>
+#include <future>
 
 EOSMGMNAMESPACE_BEGIN
+
+using namespace std::chrono;
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -49,25 +52,8 @@ BalancerGroup::~BalancerGroup()
 void
 BalancerGroup::SetInitialCounters()
 {
-  //@todo: put hear what is now done in the Balancer to broadast the FSTs(if needed)
-  /*if (FsView::gFsView.mIdView.count(mFsId)) {
-    fs = FsView::gFsView.mIdView[mFsId];
+  //@todo: do we need it?
 
-    if (fs) {
-      fs->OpenTransaction();
-      fs->SetLongLong("stat.drainbytesleft", 0);
-      fs->SetLongLong("stat.drainfiles", 0);
-      fs->SetLongLong("stat.timeleft", 0);
-      fs->SetLongLong("stat.drainprogress", 0);
-      fs->SetLongLong("stat.drainretry", 0);
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-      fs->CloseTransaction();
-    }
-  }
-  
-  
-  FsView::gFsView.StoreFsConfig(fs);
- */
 }
 
 
@@ -77,21 +63,14 @@ BalancerGroup::SetInitialCounters()
 void
 BalancerGroup::GetSpaceConfiguration()
 {
-  //@todo: check if we need to get some soace configuration here
-  /*
   if (FsView::gFsView.mSpaceView.count(mSpace)) {
     auto space = FsView::gFsView.mSpaceView[mSpace];
 
-    if (space->GetConfigMember("drainer.retries") != "") {
-      mMaxRetries = std::stoi(space->GetConfigMember("drainer.retries"));
-      eos_static_debug("setting retries to:%u", mMaxRetries);
-    }
-
-    if (space->GetConfigMember("drainer.fs.ntx") != "") {
-      maxParallelJobs =  std::stoi(space->GetConfigMember("drainer.fs.ntx"));
+    if (space->GetConfigMember("balancer.node.rate") != "") {
+      maxParallelJobs =  std::stoi(space->GetConfigMember("balancer.node.rate"));
       eos_static_debug("setting paralleljobs to:%u", maxParallelJobs);
     }
-  }*/
+  }
 }
 
 
@@ -107,11 +86,55 @@ BalancerGroup::Balance()
   {
     if (!mBalanceStop) {
       eos_info("starting balancing group=%s", mGroup.c_str());
-      sleep(100000000);
 
+      GetSpaceConfiguration();
+
+      eos::common::FileSystem::fsid_t sourceFS = SelectSourceFS();
+
+      eos_info("selected FS=%d", sourceFS);
+  
+      std::set<eos::common::FileId::fileid_t> filesToBalance = SelectFilesToBalance(sourceFS);
+
+      if (filesToBalance.size() == 0) {
+        continue;
+      }
+      if (CollectBalanceJobs(sourceFS, filesToBalance) == 0) {
+        continue;
+      }
+
+      do { // Loop to balance the files
+        auto it_job = mJobsPending.begin();
+
+        while ((mJobsRunning.size() <= maxParallelJobs) &&
+             (it_job != mJobsPending.end())) {
+          std::this_thread::sleep_for(milliseconds(200));
+          auto job = *it_job;
+          mJobsRunning.emplace(*it_job, mThreadPool.PushTask<void>(
+                               [job] {job->Start();}));
+          it_job = mJobsPending.erase(it_job);
+        }
+
+        for (auto it = mJobsRunning.begin(); it !=  mJobsRunning.end();) {
+          if (it->first->GetStatus() == BalancerJob::OK) {
+            it->second.get();
+            it = mJobsRunning.erase(it);
+          } else if (it->first->GetStatus() == BalancerJob::Failed) {
+            it->second.get();
+            mJobsFailed.push_back(it->first);
+            it = mJobsRunning.erase(it);
+          } else {
+            ++it;
+          }
+        }
+
+        if (mJobsRunning.size() > maxParallelJobs) {
+          std::this_thread::sleep_for(seconds(1));
+        }
+      } while (mJobsPending.size() != 0);
+      //wait for the original file to be dropped
+      sleep(70); 
     } else {
-      eos_info("stopping balancing group=%s",mGroup.c_str());
-
+       sleep(1);
     }
 
   }
@@ -175,98 +198,33 @@ BalancerGroup::SelectSourceFS()
   return source_fsid;
 }
 
+
 //------------------------------------------------------------------------------
-// Select target file system (using the GeoTreeEngine)
+// Collect and prepare all the Balancing jobs
 //------------------------------------------------------------------------------
-eos::common::FileSystem::fsid_t
-BalancerGroup::SelectTargetFS(eos::common::FileId::fileid_t fileId, eos::common::FileSystem::fsid_t sourceFS)
+uint64_t
+BalancerGroup::CollectBalanceJobs(eos::common::FileSystem::fsid_t sourceFS, 
+                        const std::set<eos::common::FileId::fileid_t>& inputFiles)
 {
-
-  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
-  std::vector<FileSystem::fsid_t>* newReplicas = new
-  std::vector<FileSystem::fsid_t>();
-  std::vector<FileSystem::fsid_t> existingReplicas;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem* source_fs = 0;
-  std::shared_ptr<eos::IFileMD> fmd = nullptr;
-  {
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-    fmd =  gOFS->eosFileService->getFileMD(fileId);
-    existingReplicas = static_cast<std::vector<FileSystem::fsid_t>>
-                     (fmd->getLocations());
+  for (auto info: inputFiles) {
+    mJobsPending.emplace_back(new BalancerJob(info, sourceFS, 0));
   }
-  unsigned int nfilesystems = 1;
-  unsigned int ncollocatedfs = 0;
-  source_fs = FsView::gFsView.mIdView[sourceFS];
-  source_fs->SnapShotFileSystem(source_snapshot);
-  FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
-  //check other replicas for the file
-  std::vector<std::string> fsidsgeotags;
-
-  if (!gGeoTreeEngine.getInfosFromFsIds(existingReplicas,
-                                        &fsidsgeotags,
-                                        0, 0)) {
-    eos_notice("could not retrieve info for all avoid fsids");
-    delete newReplicas;
-    return 0;
-  }
-
-  auto repl = existingReplicas.begin();
-
-  while (repl != existingReplicas.end()) {
-    eos_static_debug("existing replicas: %d", *repl);
-    repl++;
-  }
-
-  auto geo = fsidsgeotags.begin();
-
-  while (geo != fsidsgeotags.end()) {
-    eos_static_debug("geotags: %s", (*geo).c_str());
-    geo++;
-  }
-  bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
-               group, nfilesystems,
-               newReplicas,
-               (ino64_t) fmd->getId(),
-               NULL, //entrypoints
-               NULL, //firewall
-               GeoTreeEngine::balancing,
-               &existingReplicas,
-               &fsidsgeotags,
-               fmd->getSize(),
-               "",//start from geotag
-               "",//client geo tag
-               ncollocatedfs,
-               NULL, //excludeFS
-               &fsidsgeotags, //excludeGeoTags
-               NULL);
-
-  if (res) {
-    std::ostringstream oss;
-
-    for (auto it = newReplicas->begin(); it != newReplicas->end(); ++it) {
-      oss << " " << (unsigned long)(*it);
-    }
-
-    eos_static_debug("GeoTree Balancing Placement returned %d with fs id's -> %s",
-                     (int)res, oss.str().c_str());
-    //return only one FS now
-    eos::common::FileSystem::fsid_t targetFS = *newReplicas->begin();
-    delete newReplicas;
-    return targetFS;
-  } else {
-    eos_notice("could not place the replica");
-    delete newReplicas;
-    return 0;
-  }
-
-  
+  return inputFiles.size();
 }
 
-std::set<BalancerJob::FileBalanceInfo>
+std::set<eos::common::FileId::fileid_t>
 BalancerGroup::SelectFilesToBalance(eos::common::FileSystem::fsid_t sourceFS)
 { 
-  std::set<eos::mgm::BalancerJob::FileBalanceInfo> info;
+  //here we may also check if the files can be balanced out using the GeoTreEngine
+  unsigned int nfiles=0;
+  std::set<eos::common::FileId::fileid_t> info;
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  auto it_fid = gOFS->eosFsView->getFileList(sourceFS);
+  while((nfiles < filesToBalance) && (it_fid && it_fid->valid())) {
+      it_fid->next();
+      info.emplace(it_fid->getElement()); 
+      nfiles++;
+  }
   return info;
 }
 EOSMGMNAMESPACE_END
