@@ -1285,17 +1285,16 @@ public:
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
-  bool MgmOfsCentralDraining; //Central drainer enabled/disabled
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining
   std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToDrainFid;
   XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
-  std::map<eos::common::FileSystem::fsid_t, time_t>
-  ScheduledToBalanceFid; // map with scheduled fids for balancing
-  XrdSysMutex
-  ScheduledToBalanceFidMutex; ///< mutex protecting ScheduledToBalanceFid
-
+  //! Map with scheduled fids for balancing
+  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToBalanceFid;
+  //! Mutex protecting ScheduledToBalanceFid
+  XrdSysMutex ScheduledToBalanceFidMutex;
+  bool MgmOfsCentralDraining; //Central drainer enabled/disabled
   time_t StartTime; ///< out starttime
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
@@ -1453,9 +1452,9 @@ public:
 
   //! Map remembering 'healing' inodes
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
-  XrdSysMutex MgmHealMapMutex; ///< mutex protecting the help map
+  XrdSysMutex MgmHealMapMutex; ///< mutex protecting the heal map
 
-  //!  Master/Slave configuration/failover class
+  //! Master/Slave configuration/failover class
   std::unique_ptr<Master> MasterPtr;
   Master& MgmMaster;
 
@@ -1465,15 +1464,14 @@ public:
   std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;
   XrdSysMutex DumpmdTimeMapMutex; ///< mutex protecting the 'dumpmd' time
 
-  ///< Global path remapping
+  //! Global path remapping
   std::map<std::string, std::string> PathMap;
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
-  XrdMqSharedObjectChangeNotifier
-  ObjectNotifier; ///< Shared Hash/Queue Object Change Notifier
-  Drainer* DrainerEngine; ///< Drainer management thread
-
+  //! Shared Hash/Queue Object Change Notifier
+  XrdMqSharedObjectChangeNotifier ObjectNotifier;
+  Drainer* DrainerEngine; ///< Centralized draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   //! LRU object running the LRU policy engine

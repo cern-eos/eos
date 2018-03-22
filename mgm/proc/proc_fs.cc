@@ -363,14 +363,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             FsView::gFsView.StoreFsConfig(fs);
           } else {
             if ((key == "configstatus") && (value == "empty")) {
-              bool isempty = true;
-
               // Check if this filesystem is really empty
-              if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId())) {
-                isempty = false;
-              }
-
-              if (!isempty) {
+              if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId()) != 0) {
                 stdErr = "error: the filesystem is not empty, therefore it can't be removed\n";
                 stdErr += "# -------------------------------------------------------------------\n";
                 stdErr += "# You can inspect the registered files via the command:\n";

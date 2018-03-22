@@ -21,16 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/FileSystem.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::StartDrainJob ()
+FileSystem::StartDrainJob()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Start a drain job on this filesystem
@@ -38,15 +35,15 @@ FileSystem::StartDrainJob ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (!ShouldBroadCast())
-  {
+  if (!ShouldBroadCast()) {
     // this is a filesystem on a ro-slave MGM e.g. it does not drain
     return true;
   }
+
   // check if there is already a drainjob
   mDrainJobMutex.Lock();
-  if (mDrainJob)
-  {
+
+  if (mDrainJob) {
     mDrainJobMutex.UnLock();
     return false;
   }
@@ -59,7 +56,7 @@ FileSystem::StartDrainJob ()
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::StopDrainJob ()
+FileSystem::StopDrainJob()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Stop a drain job on this filesystem
@@ -69,124 +66,84 @@ FileSystem::StopDrainJob ()
 {
   eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 
-  if ((isstatus == kDrainDead) || (isstatus == kDrain))
-  {
+  if ((isstatus == kDrainDead) || (isstatus == kDrain)) {
     // if this is in drain mode, we leave the drain job
     return false;
   }
 
   mDrainJobMutex.Lock();
-  if (mDrainJob)
-  {
+
+  if (mDrainJob) {
     delete mDrainJob;
     mDrainJob = 0;
     SetDrainStatus(eos::common::FileSystem::kNoDrain);
     mDrainJobMutex.UnLock();
     return true;
   }
+
   mDrainJobMutex.UnLock();
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------
+// Set the configuration status of a file system. This can be used to trigger
+// the draining.
+//----------------------------------------------------------------------------
 bool
-FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status, bool centraldrain)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief Set the configuration status of this filesystem
- * @return true if successfull otherwise false
- *
- * Depending on the given status this routine also manages drain jobs on the
- * underlying filesystem.
- */
-/*----------------------------------------------------------------------------*/
+FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
+                            bool centraldrain)
 {
-  //this is specific for distribured drain implementation
-  if (!centraldrain ) {
-    //----------------------------------------------------------------
-    // catch any status change from/to 'drain' or 'draindead'
-    //----------------------------------------------------------------
-
-    // check the current status
+  if (!centraldrain) {
     eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 
-    if ((isstatus == kDrainDead) || (isstatus == kDrain))
-    {
-      // stop draining
-      mDrainJobMutex.Lock();
-      if (mDrainJob)
-      {
+    if ((isstatus == kDrainDead) || (isstatus == kDrain)) {
+      // Stop draining
+      XrdSysMutexHelper scop_lock(mDrainJobMutex);
+
+      if (mDrainJob) {
         delete mDrainJob;
         mDrainJob = 0;
         SetDrainStatus(eos::common::FileSystem::kNoDrain);
-        mDrainJobMutex.UnLock();
-      }
-      else
-      {
-        mDrainJobMutex.UnLock();
       }
     }
 
-    if ((status == kDrain) || (status == kDrainDead))
-    {
-      // -------------------------------------------------------------------------
-      // create a drain job
-      // -------------------------------------------------------------------------
-      mDrainJobMutex.Lock();
+    if ((status == kDrain) || (status == kDrainDead)) {
+      // Create a drain job
+      XrdSysMutexHelper scope_lock(mDrainJobMutex);
 
-      // -------------------------------------------------------------------------
-      // check if there is still a drain job
-      // -------------------------------------------------------------------------
-      if (mDrainJob)
-      {
+      // Check if there is still a drain job
+      if (mDrainJob) {
         delete mDrainJob;
         mDrainJob = 0;
       }
-      if (!ShouldBroadCast())
-      {
-        // -----------------------------------------------------------------------
-        // this is a filesystem on a ro-slave MGM e.g. it does not drain
-        // -----------------------------------------------------------------------
-      }
-      else
-      {
+
+      if (ShouldBroadCast()) {
         mDrainJob = new DrainJob(GetId());
+      } else {
+        // this is a filesystem on a ro-slave MGM e.g. it does not drain
       }
-      mDrainJobMutex.UnLock();
-    }
-    else
-    {
-      if (status == kEmpty)
-      {
+    } else {
+      if (status == kEmpty) {
         SetDrainStatus(eos::common::FileSystem::kDrained);
         SetLongLong("stat.drainprogress", 100);
-      }
-      else
-      {
+      } else {
         SetDrainStatus(eos::common::FileSystem::kNoDrain);
       }
     }
   }
+
   return eos::common::FileSystem::SetConfigStatus(status);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Set a 'key' describing the filesystem
+//------------------------------------------------------------------------------
 bool
-FileSystem::SetString (const char* key, const char* str, bool broadcast)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Set a 'key' describing the filesystem
- * @param key key to set
- * @param str value of the key
- * @param broadcast if true broadcast the change around
- * @return true if successfull otherwise false
- */
-/*----------------------------------------------------------------------------*/
+FileSystem::SetString(const char* key, const char* str, bool broadcast)
 {
   std::string skey = key;
-  std::string sval = str;
-  if (skey == "configstatus")
-  {
+
+  if (skey == "configstatus") {
     return SetConfigStatus(GetConfigStatusFromString(str));
   }
 

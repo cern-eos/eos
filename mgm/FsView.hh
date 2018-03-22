@@ -105,8 +105,7 @@ public:
 class GeoTreeAggregator
 {
 public:
-  virtual ~GeoTreeAggregator()
-  {};
+  virtual ~GeoTreeAggregator() = default;
 
   // Initialize the aggregator
   virtual bool init(const std::vector<std::string>& geotags,
@@ -114,8 +113,7 @@ public:
 
   // Aggregate the leaves at the last level of the tree
   virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t>&
-                               leaves,
-                               const size_t& idx) = 0;
+                               leaves, const size_t& idx) = 0;
 
   //----------------------------------------------------------------------------
   // Aggregate the nodes at intermediate levels
@@ -595,13 +593,11 @@ public:
   bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
 
 
-  // ---------------------------------------------------------------------------
-  /**
-   * @brief Constructor
-   * @param name nodeview name
-   */
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param name nodeview name
+  //----------------------------------------------------------------------------
   FsNode(const char* name)
   {
     mName = name;

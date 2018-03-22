@@ -105,7 +105,6 @@ DrainTransferJob::DoIt()
     source_fs->SnapShotFileSystem(src_snapshot);
     target_fs->SnapShotFileSystem(dst_snapshot);
   }
-  uint64_t lid = fdrain.mProto.layout_id();
   // Prepare the TPC copy job
   XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
   XrdCl::URL url_dst = BuildTpcDst(fdrain, dst_snapshot);

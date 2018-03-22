@@ -34,7 +34,6 @@
  * @brief Class implementing egroup support via LDAP queries
  *
  */
-
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
@@ -48,39 +47,22 @@ class DrainJob;
 /*----------------------------------------------------------------------------*/
 class FileSystem : public eos::common::FileSystem
 {
-private:
-  /// Mutex protecting the DrainJob object in a filesystem
-  XrdSysMutex mDrainJobMutex;
-
-  /// Drainjob object associated with a filesystem
-  DrainJob* mDrainJob;
 public:
-
-  /*--------------------------------------------------------------------------*/
-  /**
-   * @brief Constructor
-   * @param queuepath describing a filesystem like /eos/<host:port>/fst/data01/
-   * @param queue associated to a filesystem like /eos/<host:port>/fst
-   * @param som external shared object manager object
-   */
-
-  /*--------------------------------------------------------------------------*/
+  //----------------------------------------------------------------------------
+  //! @brief Constructor
+  //!
+  //! @param queuepath describing a filesystem like /eos/<host:port>/fst/data01/
+  //! @param queue associated to a filesystem like /eos/<host:port>/fst
+  //! @param som external shared object manager object
+  //----------------------------------------------------------------------------
   FileSystem(const char* queuepath, const char* queue,
-             XrdMqSharedObjectManager* som) : eos::common::FileSystem(queuepath, queue, som)
-  {
-    mDrainJob = 0;
-  }
+             XrdMqSharedObjectManager* som) :
+    eos::common::FileSystem(queuepath, queue, som), mDrainJob(0) {}
 
-  /*--------------------------------------------------------------------------*/
-  /**
-   * @brief Destructor
-   *
-   * Eventually removes also an associated DrainJob.
-   */
-
-  /*--------------------------------------------------------------------------*/
-  virtual
-  ~FileSystem()
+  //----------------------------------------------------------------------------
+  //! Destructor - needs to kill any on-going drain jobs
+  //----------------------------------------------------------------------------
+  virtual ~FileSystem()
   {
     mDrainJobMutex.Lock();
 
@@ -92,15 +74,12 @@ public:
     mDrainJobMutex.UnLock();
   }
 
-  /*--------------------------------------------------------------------------*/
-  /**
-   * @brief Return the current broadcasting setting
-   * @return true if broadcasting otherwise false
-   */
-
-  /*--------------------------------------------------------------------------*/
-  bool
-  ShouldBroadCast()
+  //----------------------------------------------------------------------------
+  //! @brief Return the current broadcasting setting
+  //!
+  //! @return true if broadcasting otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldBroadCast()
   {
     if (mSom) {
       return mSom->ShouldBroadCast();
@@ -109,20 +88,49 @@ public:
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // this methods are overwriting the base class implementation
-  // to catch any status change to/from 'drain' or 'draindead'
-  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status, bool centraldrain = false);
-  bool SetString(const char* key, const char* str, bool broadcast = true);
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Set the configuration status of a file system. This can be used to trigger
+  //! the draining.
+  //! @note Must be called wiht a lock on FsView::ViewMutex
+  //!
+  //! @param status file system status
+  //! @param bool centraldrain - to be dropped
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
+                       bool centraldrain = false);
 
+  //----------------------------------------------------------------------------
+  //! Set a 'key' describing the filesystem
+  //! @note Must be called wiht a lock on FsView::ViewMutex
+  //!
+  //! @param key key to set
+  //! @param str value of the key
+  //! @param broadcast if true broadcast the change around
+  //!
+  //! @return true if successfull otherwise false
+  //----------------------------------------------------------------------------
+  bool SetString(const char* key, const char* str, bool broadcast = true);
+
+  //----------------------------------------------------------------------------
   // starts a drain job with the opserror flag -
   // this is triggered by stat.errc!= 0 via the FsListener Thread
+  //----------------------------------------------------------------------------
   bool StartDrainJob();
 
+  //----------------------------------------------------------------------------
   // stops  a drain job with the opserror flag -
   // this is triggered by stat.errc = 0 via the FsListener Thread
+  //----------------------------------------------------------------------------
   bool StopDrainJob();
+
+private:
+  /// Mutex protecting the DrainJob object in a filesystem
+  XrdSysMutex mDrainJobMutex;
+
+  /// Drainjob object associated with a filesystem
+  DrainJob* mDrainJob;
 };
 
 EOSMGMNAMESPACE_END
