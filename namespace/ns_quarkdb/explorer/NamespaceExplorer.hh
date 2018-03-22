@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -32,8 +32,9 @@
 #include <vector>
 #include <deque>
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -52,14 +53,20 @@ struct NamespaceItem {
   eos::ns::ContainerMdProto containerMd;
 };
 
-// Represents a node in the search tree.
-class SearchNode {
+//------------------------------------------------------------------------------
+//! Represents a node in the search tree.
+//------------------------------------------------------------------------------
+class SearchNode
+{
 public:
-  SearchNode(qclient::QClient &qcl, id_t id, SearchNode *prnt);
-  id_t getID() const;
+  SearchNode(qclient::QClient& qcl, id_t id, SearchNode* prnt);
+  inline id_t getID() const
+  {
+    return id;
+  }
 
   // Return false if this node has no more files to output
-  bool fetchChild(eos::ns::FileMdProto &output); // sync, block if not available
+  bool fetchChild(eos::ns::FileMdProto& output); // sync, block if not available
 
   // Handle asynchronous operations - call this as often as possible!
   void handleAsync();
@@ -71,20 +78,26 @@ public:
   void activate();
 
   // Activate one specific contained child.
-  void activateOne(const std::string &name);
+  void activateOne(const std::string& name);
 
   // Clear children.
   void prefetchChildren();
 
-  bool isVisited();
-  void visit();
+  inline bool isVisited()
+  {
+    return visited;
+  }
+  inline void visit()
+  {
+    visited = true;
+  }
 
   eos::ns::ContainerMdProto& getContainerInfo();
 
 private:
-  qclient::QClient &qcl;
   id_t id;
-  SearchNode *parent = nullptr;
+  qclient::QClient& qcl;
+  SearchNode* parent = nullptr;
   bool visited = false;
 
   // First round of asynchronous requests fills out:
@@ -99,9 +112,8 @@ private:
   std::deque<std::unique_ptr<SearchNode>> children; // expanded containers
   bool childrenLoaded = false;
 
-  // TODO: Replace this mess with a nice iterator object which provides all
-  // children of a container, fully asynchronous with prefetching.
-
+  // @todo (gbitzes): Replace this mess with a nice iterator object which
+  // provides all children of a container, fully asynchronous with prefetching.
   void stageFileMds();
   void stageChildren();
 };
@@ -113,18 +125,20 @@ private:
 //!
 //! Implemented by simple DFS on the namespace.
 //------------------------------------------------------------------------------
-class NamespaceExplorer {
+class NamespaceExplorer
+{
 public:
   //----------------------------------------------------------------------------
   //! Inject the QClient to use directly in the constructor. No ownership of
   //! underlying object.
   //----------------------------------------------------------------------------
-  NamespaceExplorer(const std::string &path, const ExplorationOptions &options, qclient::QClient &qcl);
+  NamespaceExplorer(const std::string& path, const ExplorationOptions& options,
+                    qclient::QClient& qcl);
 
   //----------------------------------------------------------------------------
   //! Fetch next item.
   //----------------------------------------------------------------------------
-  bool fetch(NamespaceItem &result);
+  bool fetch(NamespaceItem& result);
 
 private:
   std::string buildStaticPath();
@@ -132,7 +146,7 @@ private:
 
   std::string path;
   ExplorationOptions options;
-  qclient::QClient &qcl;
+  qclient::QClient& qcl;
 
   std::vector<eos::ns::ContainerMdProto> staticPath;
   eos::ns::FileMdProto lastChunk;

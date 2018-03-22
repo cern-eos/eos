@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -27,49 +27,65 @@
 
 EOSNSNAMESPACE_BEGIN
 
-SearchNode::SearchNode(qclient::QClient &qcli, id_t d, eos::SearchNode *prnt)
-: qcl(qcli), id(d), parent(prnt), containerMd(MetadataFetcher::getContainerFromId(qcl, id)) {
-
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+SearchNode::SearchNode(qclient::QClient& qcli, id_t d, eos::SearchNode* prnt)
+  : id(d), qcl(qcli), parent(prnt),
+    containerMd(MetadataFetcher::getContainerFromId(qcl, id))
+{
   fileMap = MetadataFetcher::getFilesInContainer(qcl, id);
   containerMap = MetadataFetcher::getSubContainers(qcl, id);
 }
 
-void SearchNode::handleAsync() {
-  // Send off more requests if results are ready, otherwise do nothing.
-  // If search needs some result, it'll block.
-
-  if(!pendingFileMdsLoaded && fileMap.ready()) {
+//------------------------------------------------------------------------------
+// Send off more requests if results are ready, otherwise do nothing.
+// If search needs some result, it'll block.
+//------------------------------------------------------------------------------
+void SearchNode::handleAsync()
+{
+  if (!pendingFileMdsLoaded && fileMap.ready()) {
     stageFileMds();
   }
 
-  if(!childrenLoaded && containerMap.ready()) {
+  if (!childrenLoaded && containerMap.ready()) {
     stageChildren();
   }
 }
 
-void SearchNode::stageFileMds() {
-  // Unconditionally stage file mds, block if necessary. Call this only if:
-  // - Search really needs the result.
-  // - When prefetching, when you know fileMap is ready.
-  if(pendingFileMdsLoaded) return;
-  pendingFileMdsLoaded = true;
+//------------------------------------------------------------------------------
+// Unconditionally stage file mds, block if necessary. Call this only if:
+// - Search really needs the result.
+// - When prefetching, when you know fileMap is ready.
+//------------------------------------------------------------------------------
+void SearchNode::stageFileMds()
+{
+  if (pendingFileMdsLoaded) {
+    return;
+  }
 
+  pendingFileMdsLoaded = true;
   // fileMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
   std::map<std::string, id_t> sortedFileMap;
-  for(auto it = fileMap->begin(); it != fileMap->end(); it++) {
+
+  for (auto it = fileMap->begin(); it != fileMap->end(); it++) {
     sortedFileMap[it->first] = it->second;
   }
 
-  for(auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
+  for (auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
     pendingFileMds.push_back(MetadataFetcher::getFileFromId(qcl, it->second));
   }
 }
 
-std::unique_ptr<SearchNode> SearchNode::expand() {
+//------------------------------------------------------------------------------
+// Get more subcontainers if available
+//------------------------------------------------------------------------------
+std::unique_ptr<SearchNode> SearchNode::expand()
+{
   stageChildren();
 
-  if(children.empty()) {
+  if (children.empty()) {
     return {}; // nullptr, node has no more children to expand
   }
 
@@ -79,46 +95,57 @@ std::unique_ptr<SearchNode> SearchNode::expand() {
   return retval;
 }
 
-// TODO: Remove this eventually, once we are confident the two find
+//------------------------------------------------------------------------------
+// @todo (gbitzes): Remove this eventually, once we are confident the two find
 // implementations match, apart for the order.
+//------------------------------------------------------------------------------
 struct FilesystemEntryComparator {
-    bool operator() (const std::string& lhs, const std::string& rhs) const {
-        for(size_t i = 0; i < std::min(lhs.size(), rhs.size()); i++) {
-          if(lhs[i] != rhs[i]) {
-            return lhs[i] < rhs[i];
-          }
-        }
-        return lhs.size() > rhs.size();
+  bool operator()(const std::string& lhs, const std::string& rhs) const
+  {
+    for (size_t i = 0; i < std::min(lhs.size(), rhs.size()); i++) {
+      if (lhs[i] != rhs[i]) {
+        return lhs[i] < rhs[i];
+      }
     }
+
+    return lhs.size() > rhs.size();
+  }
 };
 
-void SearchNode::stageChildren() {
-  // Unconditionally stage container mds, block if necessary. Call this only if:
-  // - Search really needs the result.
-  // - When prefetching, when you know containerMap is ready.
-  if(childrenLoaded) return;
-  childrenLoaded = true;
+//------------------------------------------------------------------------------
+// Unconditionally stage container mds, block if necessary. Call this only if:
+// - Search really needs the result.
+// - When prefetching, when you know containerMap is ready.
+//------------------------------------------------------------------------------
+void SearchNode::stageChildren()
+{
+  if (childrenLoaded) {
+    return;
+  }
 
+  childrenLoaded = true;
   // containerMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
   std::map<std::string, id_t, FilesystemEntryComparator> sortedContainerMap;
-  for(auto it = containerMap->begin(); it != containerMap->end(); it++) {
+
+  for (auto it = containerMap->begin(); it != containerMap->end(); it++) {
     sortedContainerMap[it->first] = it->second;
   }
 
-  for(auto it = sortedContainerMap.begin(); it != sortedContainerMap.end(); it++) {
+  for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end();
+       it++) {
     children.emplace_back(new SearchNode(qcl, it->second, this));
   }
 }
 
-id_t SearchNode::getID() const {
-  return id;
-}
-
-bool SearchNode::fetchChild(eos::ns::FileMdProto &output) {
+//------------------------------------------------------------------------------
+// Fetch a file entry
+//------------------------------------------------------------------------------
+bool SearchNode::fetchChild(eos::ns::FileMdProto& output)
+{
   stageFileMds();
 
-  if(pendingFileMds.empty()) {
+  if (pendingFileMds.empty()) {
     return false;
   }
 
@@ -127,74 +154,72 @@ bool SearchNode::fetchChild(eos::ns::FileMdProto &output) {
   return true;
 }
 
-bool SearchNode::isVisited() {
-  return visited;
-}
-
-void SearchNode::visit() {
-  visited = true;
-}
-
-eos::ns::ContainerMdProto& SearchNode::getContainerInfo() {
+//------------------------------------------------------------------------------
+// Get container md proto info
+//------------------------------------------------------------------------------
+eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
+{
   return containerMd.get();
 }
 
-NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOptions &opts, qclient::QClient &qclient)
-: path(pth), options(opts), qcl(qclient) {
-
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+NamespaceExplorer::NamespaceExplorer(const std::string& pth,
+                                     const ExplorationOptions& opts,
+                                     qclient::QClient& qclient)
+  : path(pth), options(opts), qcl(qclient)
+{
   std::vector<std::string> pathParts;
-
   eos::PathProcessor::splitPath(pathParts, path);
-
   // This part is synchronous by necessity.
   staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, 1).get());
 
-  if(pathParts.empty()) {
+  if (pathParts.empty()) {
     // We're running a search on the root node, expand.
     dfsPath.emplace_back(new SearchNode(qcl, 1, nullptr));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
   // maybe move there?
-  for(size_t i = 0; i < pathParts.size(); i++) {
+  for (size_t i = 0; i < pathParts.size(); i++) {
     // We don't know if the last chunk of pathParts is supposed to be a container
     // or name..
     id_t parentID = staticPath.back().id();
-
     bool threw = false;
     id_t nextId = -1;
 
     try {
-      nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID, pathParts[i]).get();
-    }
-    catch(const MDException &exc) {
+      nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID,
+               pathParts[i]).get();
+    } catch (const MDException& exc) {
       threw = true;
       // Maybe the user called "Find" on a single file, and the last chunk is
       // actually a file. Weird, but possible.
 
-      if(i != pathParts.size() - 1) {
+      if (i != pathParts.size() - 1) {
         // Nope, not last part.
         throw;
       }
 
-      if(exc.getErrno() != ENOENT) {
+      if (exc.getErrno() != ENOENT) {
         // Nope, different kind of error
         throw;
       }
 
-      if(exc.getErrno() == ENOENT) {
+      if (exc.getErrno() == ENOENT) {
         // This may throw again, propagate to caller if so
-        id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID, pathParts[i]).get();
+        id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
+                      pathParts[i]).get();
         lastChunk = MetadataFetcher::getFileFromId(qcl, nextId).get();
         searchOnFile = true;
       }
     }
 
-    if(!threw) {
-      if(i != pathParts.size() - 1) {
+    if (!threw) {
+      if (i != pathParts.size() - 1) {
         staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
-      }
-      else {
+      } else {
         // Final node, expand
         dfsPath.emplace_back(new SearchNode(qcl, nextId, nullptr));
       }
@@ -202,35 +227,43 @@ NamespaceExplorer::NamespaceExplorer(const std::string &pth, const ExplorationOp
   }
 }
 
-std::string NamespaceExplorer::buildStaticPath() {
-  if(staticPath.size() == 1) {
+//------------------------------------------------------------------------------
+// Build static path
+//------------------------------------------------------------------------------
+std::string NamespaceExplorer::buildStaticPath()
+{
+  if (staticPath.size() == 1) {
     return "/";
   }
 
   // TODO: Cache this?
   std::stringstream ss;
-  for(size_t i = 0; i < staticPath.size(); i++) {
-    if(i == 0) {
+
+  for (size_t i = 0; i < staticPath.size(); i++) {
+    if (i == 0) {
       // Root node
       ss << "/";
-    }
-    else {
+    } else {
       ss << staticPath[i].name() << "/";
     }
   }
+
   return ss.str();
 }
 
-std::string NamespaceExplorer::buildDfsPath() {
+//------------------------------------------------------------------------------
+// Build depth-first-search path
+//------------------------------------------------------------------------------
+std::string NamespaceExplorer::buildDfsPath()
+{
   // TODO: cache this somehow?
   std::stringstream ss;
   ss << buildStaticPath();
 
-  for(size_t i = 0; i < dfsPath.size(); i++) {
-    if(dfsPath[i]->getContainerInfo().id() == 1) {
+  for (size_t i = 0; i < dfsPath.size(); i++) {
+    if (dfsPath[i]->getContainerInfo().id() == 1) {
       continue;
-    }
-    else {
+    } else {
       ss << dfsPath[i]->getContainerInfo().name() << "/";
     }
   }
@@ -238,26 +271,30 @@ std::string NamespaceExplorer::buildDfsPath() {
   return ss.str();
 }
 
-bool NamespaceExplorer::fetch(NamespaceItem &item) {
+//------------------------------------------------------------------------------
+// Fetch children under current path
+//------------------------------------------------------------------------------
+bool NamespaceExplorer::fetch(NamespaceItem& item)
+{
   // Handle weird case: Search was called on a single file
-  if(searchOnFile) {
-    if(searchOnFileEnded) return false;
+  if (searchOnFile) {
+    if (searchOnFileEnded) {
+      return false;
+    }
 
     item.fullPath = buildStaticPath() + lastChunk.name();
     item.isFile = true;
     item.fileMd = lastChunk;
-
     searchOnFileEnded = true;
     return true;
   }
 
-  while(!dfsPath.empty()) {
+  while (!dfsPath.empty()) {
     dfsPath.back()->handleAsync();
 
     // Has top node been visited yet?
-    if(!dfsPath.back()->isVisited()) {
+    if (!dfsPath.back()->isVisited()) {
       dfsPath.back()->visit();
-
       item.isFile = false;
       item.fullPath = buildDfsPath();
       item.containerMd = dfsPath.back()->getContainerInfo();
@@ -265,7 +302,7 @@ bool NamespaceExplorer::fetch(NamespaceItem &item) {
     }
 
     // Does the top node have any pending file children?
-    if(dfsPath.back()->fetchChild(item.fileMd)) {
+    if (dfsPath.back()->fetchChild(item.fileMd)) {
       item.isFile = true;
       item.fullPath = buildDfsPath() + item.fileMd.name();
       return true;
@@ -273,7 +310,8 @@ bool NamespaceExplorer::fetch(NamespaceItem &item) {
 
     // Can we expand this node?
     std::unique_ptr<SearchNode> child = dfsPath.back()->expand();
-    if(child) {
+
+    if (child) {
       dfsPath.push_back(std::move(child));
       continue;
     }
