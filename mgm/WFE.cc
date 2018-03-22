@@ -1730,35 +1730,34 @@ WFE::Job::DoIt(bool issync)
 
           bool onGoingRetrieve = true;
           auto retrieveCntr = 0ul;
-          try {
-            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-            if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
-              retrieveCntr = std::stoul(fmd->getAttribute(RETRIEVES_ATTR_NAME));
-            }
-          } catch (eos::MDException& ex) {
-            eos_static_err("Could not determine ongoing retrieves for file %s.",
-                           fullPath.c_str());
-            MoveWithResults(EAGAIN);
-            return EAGAIN;
-          }
+          if (!onDisk) {
+            eos::common::RWMutexWriteLock lock;
+            lock.Grab(gOFS->eosViewRWMutex);
 
-          if (onDisk) {
-            if (retrieveCntr != 0) {
-              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              try {
-                fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-                gOFS->eosView->updateFileStore(fmd.get());
-              } catch (eos::MDException& ex) {}
+            try {
+              if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
+                retrieveCntr = std::stoul(fmd->getAttribute(RETRIEVES_ATTR_NAME));
+              }
+            } catch (...) {
+              lock.Release();
+              eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
+                             fullPath.c_str(), RETRIEVES_ATTR_NAME);
+              MoveWithResults(EAGAIN);
+              return EAGAIN;
             }
-          } else {
-            eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
-            onGoingRetrieve = (retrieveCntr != 0);
+            onGoingRetrieve = (retrieveCntr != 0ul);
 
             try {
               fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
               gOFS->eosView->updateFileStore(fmd.get());
-            } catch (eos::MDException& ex) {}
+            } catch (eos::MDException& ex) {
+              lock.Release();
+              eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
+                             RETRIEVES_ATTR_NAME, fullPath.c_str());
+              MoveWithResults(EAGAIN);
+              return EAGAIN;
+            }
           }
 
           if (onDisk) {
