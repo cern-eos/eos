@@ -2620,18 +2620,21 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   }
 
   if (keys & (sfgBalthres | sfgFsfilled | sfgNomfilled)) {
-    auto nominal = fs->mNominalFilled;
-    auto filled = fs->mDiskFilled;
-    auto threshold = fs->mBalThresh;
-    bool balancing = false, balancer = false;
+    //@todo:chekc a way to enable/disable balancing
+    //now the fs are always marked as balancing/balancer
 
-    if (nominal && ((filled - threshold) >= nominal)) {
-      balancing = true;
-    }
+    //auto nominal = fs->mNominalFilled;
+    //auto filled = fs->mDiskFilled;
+    //auto threshold = fs->mBalThresh;
+    bool balancing = true, balancer = true;
 
-    if (nominal && ((filled + threshold) <= nominal)) {
-      balancer = true;
-    }
+    //if (nominal && ((filled - threshold) >= nominal)) {
+    // balancing = true;
+    //}
+
+    //if (nominal && ((filled + threshold) <= nominal)) {
+    //  balancer = true;
+    //}
 
     if (balancing) {
       if (ftIdx) {
