@@ -79,6 +79,7 @@ ProcCommand::Accounting()
         }
       }
     };
+
     Json::Value root;
     root["storageservice"]["name"] = gOFS->MgmOfsInstanceName.c_str();
     std::ostringstream version;
