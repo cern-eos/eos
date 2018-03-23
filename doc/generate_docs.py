@@ -234,7 +234,7 @@ def main():
 	sys.exit(EIO)
 
     # Generate the CLI commands documentation
-    cmd_lst = cmd_dict.keys()
+    cmd_lst = sorted(cmd_dict.keys())
     generate_summary_rst(cli_cmd_file, cmd_lst)
     generate_cmds_rst(cli_cmd_dir, cmd_dict)
 
