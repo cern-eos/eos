@@ -83,6 +83,7 @@ ProcCommand::Accounting()
     root["storageservice"]["name"] = gOFS->MgmOfsInstanceName.c_str();
     std::ostringstream version;
     version << VERSION << "-" << RELEASE;
+    root["storageservice"]["implementation"] = "EOS";
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
     auto capacityOnline = Json::UInt64{0};
