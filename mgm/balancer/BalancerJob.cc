@@ -177,6 +177,9 @@ BalancerJob::GetFileInfo(eos::common::FileId::fileid_t fileId)
       fbalance.mFullPath = gOFS->eosView->getUri(fmd.get());
       fbalance.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
                                  fmd->getChecksum().getSize());
+      for (auto loc : fmd->getLocations()) {
+        fbalance.mProto.add_locations(loc);
+      }
     } catch (eos::MDException& e) {
       oss << "fxid=" << eos::common::FileId::Fid2Hex(fileId)
           << " errno=" << e.getErrno()
@@ -378,7 +381,7 @@ BalancerJob::SelectDstFs(const FileBalanceInfo& fbalancer)
 
   for (auto elem : fbalancer.mProto.locations()) {
     existing_repl.push_back(elem);
-    eos_static_info("msg=\"balancer placement exisring locations=%d",elem);
+    eos_static_info("msg=\"balancer placement existing locations=%d",elem);
   }
 
   if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
