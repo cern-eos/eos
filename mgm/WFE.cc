@@ -1968,7 +1968,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     eos_static_err(
       "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
     );
-    return EINVAL;
+    jobPtr->MoveWithResults(ENOTCONN);
+    return ENOTCONN;
   }
 
   XrdSsiPb::Config config;

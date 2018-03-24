@@ -2425,7 +2425,10 @@ XrdMgmOfsFile::open(const char* inpath,
         try {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           gOFS->eosFileService->removeFile(fmd.get());
-        } catch (eos::MDException& ex) {}
+        } catch (eos::MDException& ex) {
+          eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
+                  ex.what());
+        }
 
         return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error", path);
       }
