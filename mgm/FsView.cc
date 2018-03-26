@@ -3971,12 +3971,15 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
   } else {
     //Get table from MQ side (second table)
     if (table_mq_format.length()) {
-      // If a format was given for the filesystem children, forward the print to
-      // the filesystems
-      for (auto& elem : FsView::gFsView.mIdView) {
-        if (elem.second) {
-          table_mq_header.clear();
-          elem.second->Print(table_mq_header, table_mq_data, table_mq_format, filter);
+      // If a format was given for the filesystem children, forward it
+      for (auto it = begin(); it != end(); ++it) {
+        auto it_fs = FsView::gFsView.mIdView.find(*it);
+
+        if (it_fs != FsView::gFsView.mIdView.end()) {
+          if (it_fs->second) {
+            table_mq_header.clear();
+            it_fs->second->Print(table_mq_header, table_mq_data, table_mq_format, filter);
+          }
         }
       }
     }
