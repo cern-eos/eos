@@ -2451,6 +2451,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       XrdSysMutexHelper pLock(pcap->Locker());
       Instance().caps.free_volume(pcap, freesize);
+      Instance().caps.free_inode(pcap);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
     }
   }

@@ -224,6 +224,13 @@ public:
     q->set_inode_quota(q->inode_quota() - 1);
   }
 
+  void free_inode(shared_cap cap)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    q->set_inode_quota(q->inode_quota() + 1);
+  }
+
   void book_volume(shared_cap cap, uint64_t size)
   {
     shared_quota q = quotamap.get(cap);
