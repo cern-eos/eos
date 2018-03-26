@@ -46,7 +46,7 @@ eos_rpm_slc6:
     - cd ..
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck --setopt=cern*.exclude=xrootd* --setopt=epel*.exclude=xrootd* -y /root/rpmbuild/SRPMS/*
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" /root/rpmbuild/SRPMS/*
+    - rpmbuild --rebuild --with server  --define "dist .slc6" --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" /root/rpmbuild/SRPMS/*
     - mkdir slc6_artifacts
     - cp -R /root/rpmbuild/SRPMS/ slc6_artifacts
     - cp -R build/RPMS slc6_artifacts
