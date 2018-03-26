@@ -274,7 +274,8 @@ dircleaner::leveler(ThreadAssistant &assistant)
     if (!rsfs) {
       uint64_t free_partition_bytes = svfs.f_bavail * svfs.f_bsize;
       uint64_t total_partition_bytes = svfs.f_blocks * svfs.f_frsize;
-      double filled = 100.0 * free_partition_bytes / total_partition_bytes;
+      double freep = 100.0 * free_partition_bytes / total_partition_bytes;
+      double filled = 100.0 - freep;
       eos_static_info("diskspace on partition path %s free-bytes=%lu total-bytes=%lu filled=%.02f %%", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
       if ( filled > 95.0) {
 	// we force a complete cleanup of the cache if disk space runs low
