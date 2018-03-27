@@ -1153,8 +1153,9 @@ data::datax::recover_write(fuse_req_t req)
 
   // check if the file has been created here and is still complete in the local caches
   if ( (mFlags & O_CREAT) &&
-       (mSize <= mFile->file()->prefetch_size()) &&
-       (mSize == (ssize_t)mFile->file()->size()) )
+       ( ((mSize <= mFile->file()->prefetch_size()) &&
+	  (mSize == (ssize_t)mFile->file()->size())) ||
+	 (mFile->journal() && mFile->journal()->first_flush()) ) ) // if the journal was not flushed yet and it is a creation, we have still all the data in the journal
   {
     eos_debug("recover from file cache");
     // this file can be recovered from the file start cache

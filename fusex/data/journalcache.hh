@@ -104,6 +104,11 @@ public:
     return set_attr("user.eos.cache.cookie", cookie);
   }
 
+  bool first_flush() 
+  {
+    return !nbFlushed?true:false;
+  }
+
   private:
 
 private:
@@ -129,6 +134,7 @@ private:
   // the value is the offset in the cache file
   interval_tree<uint64_t, uint64_t> journal;
   size_t                            nbAttached;
+  size_t                            nbFlushed;
   cachelock                         clck;
   XrdSysMutex                       mtx;
   bufferllmanager::shared_buffer    buffer;

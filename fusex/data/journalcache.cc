@@ -35,7 +35,7 @@
 std::string journalcache::sLocation;
 size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
 
-journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 )
+journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 ), nbFlushed( 0 )
 {
 }
 
@@ -428,6 +428,7 @@ int journalcache::remote_sync(cachesyncer& syncer)
     eos_static_debug("ret=%d truncatesize=%ld\n", ret, truncatesize);
     ret |= ::ftruncate(fd, 0);
     eos_static_debug("ret=%d errno=%d\n", ret, errno);
+    nbFlushed++;
   }
 
   clck.broadcast();
@@ -494,6 +495,8 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
   errno = 0;
   ret |= ::ftruncate(fd, 0);
   eos_static_debug("ret=%d errno=%d\n", ret, errno);
+
+  nbFlushed++;
 
   clck.broadcast();
   return ret;
