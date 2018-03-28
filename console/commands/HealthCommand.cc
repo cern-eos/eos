@@ -24,6 +24,7 @@
 #include <algorithm>
 #include "HealthCommand.hh"
 #include "common/StringTokenizer.hh"
+#include "console/commands/helpers/FsHelper.hh"
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
 {
@@ -116,8 +117,8 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m",
-                                    true)) {
+  if (m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m",
+                                    true) != 0) {
     throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 
@@ -366,12 +367,19 @@ void HealthCommand::PlacementContentionCheck()
 
 void HealthCommand::GetGroupsInfo()
 {
-  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m",
-                                    true)) {
-    throw std::string("MGMError: " + m_mgm_execute.GetError());
+  FsHelper fs;
+  fs.ParseCommand("ls -m");
+
+  if (fs.ExecuteWithoutPrint() != 0) {
+    throw std::string("MGMError: " + fs.GetError());
   }
 
-  std::string ret = m_mgm_execute.GetResult();
+//  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m",
+//                                    true)) {
+//    throw std::string("MGMError: " + m_mgm_execute.GetError());
+//  }
+
+  std::string ret = fs.GetResult();
 
   if (ret.empty()) {
     throw std::string("There is no FileSystems registered!");
@@ -397,13 +405,13 @@ void HealthCommand::GetGroupsInfo()
     temp.id         = std::stoi(str_temp.empty() ? "0" : str_temp);
     temp.path       = extractor.GetValue("path");
     str_temp = extractor.GetValue("headroom");
-    temp.headroom   = std::stoll(str_temp.empty() ? "0" : str_temp);
+    temp.headroom   = std::stoul(str_temp.empty() ? "0" : str_temp);
     str_temp = extractor.GetValue("stat.statfs.freebytes");
-    temp.free_bytes = std::stoll(str_temp.empty() ? "0" : str_temp);
+    temp.free_bytes = std::stoul(str_temp.empty() ? "0" : str_temp);
     str_temp = extractor.GetValue("stat.statfs.usedbytes");
-    temp.used_bytes = std::stoll(str_temp.empty() ? "0" : str_temp);
+    temp.used_bytes = std::stoul(str_temp.empty() ? "0" : str_temp);
     str_temp = extractor.GetValue("stat.statfs.capacity");
-    temp.capacity   = std::stoll(str_temp.empty() ? "0" : str_temp);
+    temp.capacity   = std::stoul(str_temp.empty() ? "0" : str_temp);
 
     if (m_group_data.find(group) == m_group_data.end()) {
       FSInfoVec temp_vec;

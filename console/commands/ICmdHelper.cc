@@ -31,6 +31,27 @@
 int
 ICmdHelper::Execute()
 {
+  int retc = this->ExecuteWithoutPrint();
+
+  if (retc) {
+    if (mMgmExec.GetError().length()) {
+      std::cerr << mMgmExec.GetError() << std::endl;
+    }
+  } else {
+    if (!mIsSilent && !mMgmExec.GetResult().empty()) {
+      if (mHighlight) {
+        TextHighlight(mMgmExec.GetResult());
+      }
+
+      std::cout << this->GetResult();
+    }
+  }
+
+  return retc;
+}
+
+int
+ICmdHelper::ExecuteWithoutPrint() {
   if (!mReq.command_case()) {
     std::cerr << "error: generic request object not populated with command"
               << std::endl;
@@ -46,30 +67,7 @@ ICmdHelper::Execute()
 
   std::string cmd = "mgm.cmd.proto=";
   cmd += b64buff;
-  int retc = mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
-
-  if (retc) {
-    if (mMgmExec.GetError().length()) {
-      std::cerr << mMgmExec.GetError() << std::endl;
-    }
-  } else {
-    if (!mIsSilent && !mMgmExec.GetResult().empty()) {
-      if (mHighlight) {
-        TextHighlight(mMgmExec.GetResult());
-      }
-
-      // Add new line if necessary
-      std::string out = mMgmExec.GetResult();
-
-      if (*out.rbegin() != '\n') {
-        out += '\n';
-      }
-
-      std::cout << out;
-    }
-  }
-
-  return retc;
+  return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
 }
 
 //------------------------------------------------------------------------------
@@ -131,4 +129,21 @@ bool
 ICmdHelper::NeedsConfirmation()
 {
   return mNeedsConfirmation;
+}
+
+std::string
+ICmdHelper::GetResult() {
+  // Add new line if necessary
+  std::string out = mMgmExec.GetResult();
+
+  if (*out.rbegin() != '\n') {
+    out += '\n';
+  }
+
+  return out;
+}
+
+std::string
+ICmdHelper::GetError() {
+  return mMgmExec.GetError();
 }

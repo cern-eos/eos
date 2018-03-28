@@ -34,7 +34,7 @@ int com_health(char* arg1)
     } else {
       health.Execute();
     }
-  } catch (std::string e) {
+  } catch (std::string& e) {
     std::cout << "Error: " << e << std::endl;
   }
 

@@ -46,8 +46,9 @@ add_library(
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
   MgmExecute.cc MgmExecute.hh
-  commands/ICmdHelper.cc    commands/ICmdHelper.hh
-  commands/HealthCommand.cc commands/HealthCommand.hh
+  commands/ICmdHelper.cc       commands/ICmdHelper.hh
+  commands/helpers/FsHelper.cc commands/helpers/FsHelper.hh
+  commands/HealthCommand.cc    commands/HealthCommand.hh
   commands/com_access.cc
   commands/com_accounting.cc
   commands/com_acl.cc

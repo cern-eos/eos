@@ -29,44 +29,43 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Node()
 {
+  retc = SFS_OK;
+
   if (mSubCmd == "ls") {
-    {
-      std::string output;
-      std::string format;
-      std::string fqdn;
+    std::string output;
+    std::string format;
+    std::string fqdn;
 
-      if (pOpaque->Get("mgm.outhost")) {
-        fqdn = pOpaque->Get("mgm.outhost");
-      }
-
-      std::string mListFormat = "";
-      format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
-
-      if (mOutFormat == "l") {
-        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
-      }
-
-      if (fqdn != "brief") {
-        if (format.find("S") != std::string::npos) {
-          format.replace(format.find("S"), 1, "s");
-        }
-
-        if (mListFormat.find("S") != std::string::npos) {
-          mListFormat.replace(mListFormat.find("S"), 1, "s");
-        }
-      }
-
-      eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-      FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
-      stdOut += output.c_str();
+    if (pOpaque->Get("mgm.outhost")) {
+      fqdn = pOpaque->Get("mgm.outhost");
     }
-  }
 
-  if (mSubCmd == "status") {
+    std::string mListFormat;
+    format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
+
+    if (mOutFormat == "l") {
+      mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
+    }
+
+    if (fqdn != "brief") {
+      if (format.find('S') != std::string::npos) {
+        format.replace(format.find('S'), 1, "s");
+      }
+
+      if (mListFormat.find('S') != std::string::npos) {
+        mListFormat.replace(mListFormat.find('S'), 1, "s");
+      }
+    }
+
+    eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+    FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
+    stdOut += output.c_str();
+  }
+  else if (mSubCmd == "status") {
     std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-    if ((node.find(":") == std::string::npos)) {
+    if ((node.find(':') == std::string::npos)) {
       node += ":1095"; // default eos fst port
     }
 
@@ -87,7 +86,7 @@ ProcCommand::Node()
         char line[2048];
         std::string val;
         val = FsView::gFsView.mNodeView[node]->GetConfigMember(
-                keylist[i].c_str()).c_str();
+                keylist[i]);
 
         if (val.substr(0, 7) == "base64:") {
           val = "base64:...";
@@ -107,8 +106,7 @@ ProcCommand::Node()
       retc = ENOENT;
     }
   }
-
-  if (mSubCmd == "set") {
+  else if (mSubCmd == "set") {
     std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                            "";
     std::string status = (pOpaque->Get("mgm.node.state")) ?
@@ -124,7 +122,7 @@ ProcCommand::Node()
       status = txgw;
     }
 
-    if (action.size()) {
+    if (!action.empty()) {
       // we are setting a proxygroup
       key = "proxygroups";
       status = (pOpaque->Get("mgm.node.proxygroup")) ?
@@ -140,7 +138,7 @@ ProcCommand::Node()
       stdErr = "error: illegal parameters";
       retc = EINVAL;
     } else {
-      if ((nodename.find(":") == std::string::npos)) {
+      if ((nodename.find(':') == std::string::npos)) {
         nodename += ":1095"; // default eos fst port
       }
 
@@ -156,17 +154,17 @@ ProcCommand::Node()
         rnodename.erase(0, 5);
         size_t dpos;
 
-        if ((dpos = rnodename.find(":")) != std::string::npos) {
+        if ((dpos = rnodename.find(':')) != std::string::npos) {
           rnodename.erase(dpos);
         }
 
-        if ((dpos = rnodename.find(".")) != std::string::npos) {
+        if ((dpos = rnodename.find('.')) != std::string::npos) {
           rnodename.erase(dpos);
         }
 
         size_t addpos = 0;
 
-        if ((addpos = tident.find("@")) != std::string::npos) {
+        if ((addpos = tident.find('@')) != std::string::npos) {
           tident.erase(0, addpos + 1);
         }
       }
@@ -195,7 +193,7 @@ ProcCommand::Node()
       }
 
       if (!retc) {
-        if (action.size()) {
+        if (!action.empty()) {
           // we need to take the previous version of groupproxys to update it
           std::string proxygroups = FsView::gFsView.mNodeView[nodename]->GetConfigMember(
                                       key);
@@ -204,7 +202,7 @@ ProcCommand::Node()
           std::set<std::string> groups;
           std::string::size_type pos1 = 0, pos2 = 0;
 
-          if (proxygroups.size())
+          if (!proxygroups.empty())
             do {
               pos2 = proxygroups.find(',', pos1);
               groups.insert(proxygroups.substr(pos1,
@@ -231,7 +229,7 @@ ProcCommand::Node()
               proxygroups.append(*it + ",");
             }
 
-            if (proxygroups.size()) {
+            if (!proxygroups.empty()) {
               proxygroups.resize(proxygroups.size() - 1);
             }
           }
@@ -241,22 +239,21 @@ ProcCommand::Node()
         }
 
         if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
-            nodename.c_str())) {
+            nodename)) {
           retc = EIO;
           stdErr = "error: cannot set node config value";
         }
 
         // set also the manager name
         if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-            FsNode::gManagerId, true, nodename.c_str(), true)) {
+            FsNode::gManagerId, true, nodename, true)) {
           retc = EIO;
           stdErr = "error: cannot set the manager name";
         }
       }
     }
   }
-
-  if (mSubCmd == "rm") {
+  else if (mSubCmd == "rm") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                              "";
@@ -265,7 +262,7 @@ ProcCommand::Node()
         stdErr = "error: illegal parameters";
         retc = EINVAL;
       } else {
-        if ((nodename.find(":") == std::string::npos)) {
+        if ((nodename.find(':') == std::string::npos)) {
           nodename += ":1095"; // default eos fst port
         }
 
@@ -283,7 +280,7 @@ ProcCommand::Node()
           retc = ENOENT;
         } else {
           // Remove a node only if it has no heartbeat anymore
-          if ((time(NULL) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
+          if ((time(nullptr) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
             stdErr = "error: this node was still sending a heartbeat < 5 "
                      "seconds ago - stop the FST daemon first!\n";
             retc = EBUSY;
@@ -337,8 +334,7 @@ ProcCommand::Node()
       stdErr = "error: you have to take role 'root' to execute this command";
     }
   }
-
-  if (mSubCmd == "config") {
+  else if (mSubCmd == "config") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string identifier = (pOpaque->Get("mgm.node.name")) ?
                                pOpaque->Get("mgm.node.name") : "";
@@ -353,9 +349,9 @@ ProcCommand::Node()
       } else {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         std::vector<FsNode*> nodes;
-        FileSystem* fs = 0;
+        FileSystem* fs = nullptr;
 
-        if ((identifier.find("*") != std::string::npos)) {
+        if ((identifier.find('*') != std::string::npos)) {
           // apply this to all nodes !
           std::map<std::string, FsNode*>::const_iterator it;
 
@@ -367,7 +363,7 @@ ProcCommand::Node()
           // by host:port name
           std::string path = identifier;
 
-          if ((identifier.find(":") == std::string::npos)) {
+          if ((identifier.find(':') == std::string::npos)) {
             identifier += ":1095"; // default eos fst port
           }
 
@@ -428,7 +424,7 @@ ProcCommand::Node()
               } else {
                 if (nodes[i]->SetConfigMember(key, value, false)) {
                   stdOut += "success: number of gateway transfer slots set to gw.ntx=";
-                  stdOut += (int) slots;
+                  stdOut += slots;
                 } else {
                   stdErr += "error: failed to store the config value gw.ntx\n";
                   retc = EFAULT;
@@ -446,7 +442,7 @@ ProcCommand::Node()
               } else {
                 if (nodes[i]->SetConfigMember(key, value, false)) {
                   stdOut += "success: gateway transfer rate set to gw.rate=";
-                  stdOut += (int) bw;
+                  stdOut += bw;
                   stdOut += " Mb/s";
                 } else {
                   stdErr += "error: failed to store the config value gw.rate\n";
@@ -503,7 +499,7 @@ ProcCommand::Node()
           stdOut += "\n";
         }
 
-        if (!nodes.size()) {
+        if (nodes.empty()) {
           retc = EINVAL;
           stdErr = "error: cannot find node <";
           stdErr += identifier.c_str();
@@ -515,8 +511,7 @@ ProcCommand::Node()
       stdErr = "error: you have to take role 'root' to execute this command";
     }
   }
-
-  if (mSubCmd == "register") {
+  else if (mSubCmd == "register") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       XrdOucString registernode = pOpaque->Get("mgm.node.name");
       XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
@@ -572,8 +567,12 @@ ProcCommand::Node()
       retc = EPERM;
     }
   }
+  else {
+    stdErr = "error: no such subcommand for node!";
+    retc = EINVAL;
+  }
 
-  return SFS_OK;
+  return retc;
 }
 
 EOSMGMNAMESPACE_END
