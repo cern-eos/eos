@@ -1261,7 +1261,6 @@ public:
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
   ///< are saved for fast find functionality
-  XrdOucString AuthLib; ///< path to a possible authorizationn library
   //! Path to namespace changelog file for files
   XrdOucString MgmNsFileChangeLogFile;
   ///< Path to namespace changelog file for directories
@@ -1432,7 +1431,7 @@ public:
   //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
-  XrdAccAuthorize* Authorization; ///< Authorization service
+  XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
 
   //! Mgm Namespace Statistics
   std::unique_ptr<Stat> MgmStatsPtr;

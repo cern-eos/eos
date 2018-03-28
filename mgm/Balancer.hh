@@ -25,10 +25,7 @@
 #define __EOSMGM_BALANCER__
 
 #include "mgm/Namespace.hh"
-#include "common/Logging.hh"
 #include <string>
-#include <cstring>
-
 
 EOSMGMNAMESPACE_BEGIN
 

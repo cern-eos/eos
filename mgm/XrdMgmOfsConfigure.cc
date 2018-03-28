@@ -375,9 +375,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   int cfgFD, retc, NoGo = 0;
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
-  bool authorize = false;
-  AuthLib = "";
-  Authorization = 0;
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
@@ -748,37 +745,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
         }
 
-        if (!strcmp("authlib", var)) {
-          if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
-            Eroute.Emsg("Config", "I cannot acccess you authorization library!");
-            NoGo = 1;
-          } else {
-            AuthLib = val;
-          }
-
-          Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
-        }
-
-        if (!strcmp("authorize", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
-                        "Must be <true>, <false>, <1> or <0>!");
-            NoGo = 1;
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              authorize = true;
-            }
-          }
-
-          if (authorize) {
-            Eroute.Say("=====> mgmofs.authorize : true");
-          } else {
-            Eroute.Say("=====> mgmofs.authorize : false");
-          }
-        }
-
         if (!strcmp("errorlog", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
@@ -1076,7 +1042,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             {"sync", TRACE_sync},
             {"truncate", TRACE_truncate},
             {"write", TRACE_write},
-            {"authorize", TRACE_authorize},
             {"map", TRACE_map},
             {"role", TRACE_role},
             {"access", TRACE_access},
@@ -1147,7 +1112,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    close(cfgFD);
+    if ((retc = Config.LastError())) {
+      NoGo = Eroute.Emsg("Config", -retc, "read config file", ConfigFN);
+    }
+
+    Config.Close();
+  }
+
+  if (NoGo) {
+    return NoGo;
   }
 
   if (MgmRedirector) {
@@ -1218,61 +1191,48 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Setup the circular in-memory logging buffer
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   // Configure log-file fan out
-  std::vector<std::string> lFanOutTags;
-  lFanOutTags.push_back("Balancer");
-  lFanOutTags.push_back("Converter");
-  lFanOutTags.push_back("DrainJob");
-  lFanOutTags.push_back("ZMQ");
-  lFanOutTags.push_back("MetadataFlusher");
-  lFanOutTags.push_back("Http");
-  lFanOutTags.push_back("Master");
-  lFanOutTags.push_back("Recycle");
-  lFanOutTags.push_back("LRU");
-  lFanOutTags.push_back("WFE");
-  lFanOutTags.push_back("WFE::Job");
-  lFanOutTags.push_back("GroupBalancer");
-  lFanOutTags.push_back("GeoBalancer");
-  lFanOutTags.push_back("GeoTreeEngine");
-  lFanOutTags.push_back("#");
-  // get the XRootD log directory
+  std::vector<std::string> lFanOutTags {"Balancer", "Converter", "DrainJob",
+                                        "ZMQ", "MetadataFlusher", "Http", "Master", "Recycle", "LRU",
+                                        "WFE", "WFE::Job", "GroupBalancer", "GeoBalancer", "GeoTreeEngine",
+                                        "#"};
+  // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
 
   if (logdir) {
-    for (size_t i = 0; i < lFanOutTags.size(); i++) {
-      std::string lLogFile = logdir;
-      lLogFile += "/";
+    for (size_t i = 0; i < lFanOutTags.size(); ++i) {
+      std::string log_path = logdir;
+      log_path += "/";
 
       if (lFanOutTags[i] == "#") {
-        lLogFile += "Clients";
+        log_path += "Clients";
       } else {
-        lLogFile += lFanOutTags[i];
+        log_path += lFanOutTags[i];
       }
 
-      lLogFile += ".log";
-      FILE* fp = fopen(lLogFile.c_str(), "a+");
+      log_path += ".log";
+      FILE* fp = fopen(log_path.c_str(), "a+");
 
       if (fp) {
         g_logging.AddFanOut(lFanOutTags[i].c_str(), fp);
       } else {
-        fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+        fprintf(stderr, "error: failed to open sub-logfile=%s", log_path.c_str());
       }
     }
+
+    // Add some alias for the logging
+    g_logging.AddFanOutAlias("HttpHandler", "Http");
+    g_logging.AddFanOutAlias("HttpServer", "Http");
+    g_logging.AddFanOutAlias("ProtocolHandler", "Http");
+    g_logging.AddFanOutAlias("PropFindResponse", "Http");
+    g_logging.AddFanOutAlias("WebDAV", "Http");
+    g_logging.AddFanOutAlias("WebDAVHandler", "Http");
+    g_logging.AddFanOutAlias("WebDAVReponse", "Http");
+    g_logging.AddFanOutAlias("S3", "Http");
+    g_logging.AddFanOutAlias("S3Store", "Http");
+    g_logging.AddFanOutAlias("S3Handler", "Http");
   }
 
-  // Add some alias for the logging
-  g_logging.AddFanOutAlias("HttpHandler", "Http");
-  g_logging.AddFanOutAlias("HttpServer", "Http");
-  g_logging.AddFanOutAlias("ProtocolHandler", "Http");
-  g_logging.AddFanOutAlias("S3", "Http");
-  g_logging.AddFanOutAlias("S3Store", "Http");
-  g_logging.AddFanOutAlias("WebDAV", "Http");
-  g_logging.AddFanOutAlias("PropFindResponse", "Http");
-  g_logging.AddFanOutAlias("WebDAVHandler", "Http");
-  g_logging.AddFanOutAlias("WebDAVReponse", "Http");
-  g_logging.AddFanOutAlias("S3Handler", "Http");
-  g_logging.AddFanOutAlias("S3Store", "Http");
-  g_logging.SetUnit(MgmOfsBrokerUrl.c_str());
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
   XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
   int rrc = system(ttybroadcastkillline.c_str());
@@ -1308,12 +1268,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = *eDest;
 
-  // check if mgmofsfs has been set
-
-  if (!MgmOfsName.length())
-    Eroute.Say("Config error: no mgmofs fs has been defined (mgmofs.fs /...)", "",
-               "");
-  else {
+  if (!MgmOfsName.length()) {
+    Eroute.Say("Config error: no mgmofs fs has been defined (mgmofs.fs /...)",
+               "", "");
+  } else {
     Eroute.Say("=====> mgmofs.fs: ", MgmOfsName.c_str(), "");
   }
 
@@ -1323,42 +1281,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.errorlog : disabled");
   }
 
-  // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
+  // We need to specify this if the server was not started with the explicit
+  // manager option ... e.g. see XrdOfs
   Eroute.Say("=====> all.role: ", role.c_str(), "");
 
   if (role == "manager") {
     putenv((char*) "XRDREDIRECT=R");
   }
 
-  if ((AuthLib != "") && (authorize)) {
-    // load the authorization plugin
-    XrdSysPlugin* myLib;
-    XrdAccAuthorize * (*ep)(XrdSysLogger*, const char*, const char*);
-    // Authorization comes from the library or we use the default
-    //
-    Authorization = XrdAccAuthorizeObject(Eroute.logger(), ConfigFN, 0);
-
-    if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib.c_str()))) {
-      Eroute.Emsg("Config", "Failed to load authorization library!");
-      NoGo = 1;
-    } else {
-      ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*, const char*))
-           (myLib->getPlugin("XrdAccAuthorizeObject"));
-
-      if (!ep) {
-        Eroute.Emsg("Config", "Failed to get authorization library plugin!");
-        NoGo = 1;
-      } else {
-        Authorization = ep(Eroute.logger(), ConfigFN, 0);
-      }
-    }
-  }
-
-  if ((retc = Config.LastError())) {
-    NoGo = Eroute.Emsg("Config", -retc, "read config file", ConfigFN);
-  }
-
-  Config.Close();
   XrdOucString unit = "mgm@";
   unit += ManagerId;
   g_logging.SetLogPriority(LOG_INFO);
@@ -1414,7 +1344,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                        MgmOfsConfigEngineRedisHost.c_str(),
                                        MgmOfsConfigEngineRedisPort);
   } else {
-    Eroute.Emsg("Config", "Invalid Config Engine Type!",
+    Eroute.Emsg("Config", "Unknown configuration engine type!",
                 MgmOfsConfigEngineType.c_str());
     NoGo = 1;
   }
@@ -1495,11 +1425,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  // ----------------------------------------------------------
-  // create global visible configuration parameters
-  // we create 3 queues
+  // Create global visible configuration parameters using 3 queues
   // "/eos/<instance>/"
-  // ----------------------------------------------------------
   XrdOucString configbasequeue = "/config/";
   configbasequeue += MgmOfsInstanceName.c_str();
   MgmConfigQueue = configbasequeue;
@@ -1557,7 +1484,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdOucString subpath = MgmOfsInstanceName;
 
   // Remove leading "eos" from the instance name when building the proc path for
-  // "aesthetic" reasons.
+  // "aesthetic" reasons
   if (subpath.beginswith("eos")) {
     subpath.erase(0, 3);
   }
@@ -1809,7 +1736,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  // Set also the archiverd ZMQ endpoint were client requests are sent
+  // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();

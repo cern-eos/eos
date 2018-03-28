@@ -24,24 +24,20 @@
 #ifndef __EOSMGM_GROUPBALANCER__
 #define __EOSMGM_GROUPBALANCER__
 
-/* -------------------------------------------------------------------------- */
 #include "mgm/Namespace.hh"
-#include "common/Logging.hh"
 #include "common/FileId.hh"
-/* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
-/* -------------------------------------------------------------------------- */
 #include <vector>
 #include <string>
 #include <deque>
 #include <cstring>
 #include <ctime>
+#include <map>
 /* -------------------------------------------------------------------------- */
 /**
  * @file GroupBalancer.hh
  *
  * @brief Balancing among groups
- *
  */
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
@@ -54,25 +50,28 @@ class FsGroup;
  *
  * It holds the capacity and the current used space of a group.
  */
-
 /*----------------------------------------------------------------------------*/
-class GroupSize {
+class GroupSize
+{
 public:
-  GroupSize (uint64_t usedBytes, uint64_t capacity);
-  void swapFile (GroupSize *toGroup, uint64_t size);
+  GroupSize(uint64_t usedBytes, uint64_t capacity);
+  void swapFile(GroupSize* toGroup, uint64_t size);
 
   uint64_t
-  usedBytes () const {
+  usedBytes() const
+  {
     return mSize;
   };
 
   uint64_t
-  capacity () const {
+  capacity() const
+  {
     return mCapacity;
   };
 
   double
-  filled () const {
+  filled() const
+  {
     return (double) mSize / (double) mCapacity;
   };
 
@@ -87,9 +86,9 @@ private:
  *
  * For it to work, the Converter also needs to be enabled.
  */
-
 /*----------------------------------------------------------------------------*/
-class GroupBalancer {
+class GroupBalancer
+{
 private:
   /// thread id
   pthread_t mThread;
@@ -104,7 +103,7 @@ private:
   /// groups whose size is under the average size of the groups
   std::map<std::string, FsGroup*> mGroupsUnderAvg;
   /// groups' sizes cache
-  std::map<std::string, GroupSize *> mGroupSizes;
+  std::map<std::string, GroupSize*> mGroupSizes;
   /// average filled percentage in groups
   double mAvgUsedSize;
 
@@ -114,69 +113,68 @@ private:
   /// transfers scheduled (maps files' ids with their path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
 
-  std::string getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
-                                        FsGroup *group,
-                                        uint64_t *size);
+  std::string getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
+      FsGroup* group,
+      uint64_t* size);
 
-  eos::common::FileId::fileid_t chooseFidFromGroup (FsGroup *group);
+  eos::common::FileId::fileid_t chooseFidFromGroup(FsGroup* group);
 
-  void populateGroupsInfo (void);
+  void populateGroupsInfo(void);
 
-  void clearCachedSizes (void);
+  void clearCachedSizes(void);
 
-  void updateGroupAvgCache (FsGroup *group);
+  void updateGroupAvgCache(FsGroup* group);
 
-  void fillGroupsByAvg (void);
+  void fillGroupsByAvg(void);
 
-  void recalculateAvg (void);
+  void recalculateAvg(void);
 
-  void prepareTransfers (int nrTransfers);
+  void prepareTransfers(int nrTransfers);
 
-  void prepareTransfer (void);
+  void prepareTransfer(void);
 
-  void scheduleTransfer (eos::common::FileId::fileid_t fid,
-                         FsGroup *sourceGroup,
-                         FsGroup *targetGroup);
+  void scheduleTransfer(eos::common::FileId::fileid_t fid,
+                        FsGroup* sourceGroup,
+                        FsGroup* targetGroup);
 
-  int getRandom (int max);
+  int getRandom(int max);
 
-  bool cacheExpired (void);
+  bool cacheExpired(void);
 
-  void updateTransferList (void);
+  void updateTransferList(void);
 
 public:
 
   // ---------------------------------------------------------------------------
   // Constructor (per space)
   // ---------------------------------------------------------------------------
-  GroupBalancer (const char* spacename);
+  GroupBalancer(const char* spacename);
 
   // ---------------------------------------------------------------------------
   // Destructor
   // ---------------------------------------------------------------------------
-  ~GroupBalancer ();
+  ~GroupBalancer();
 
   // ---------------------------------------------------------------------------
   // thread stop function
   // ---------------------------------------------------------------------------
-  void Stop ();
+  void Stop();
 
   // ---------------------------------------------------------------------------
   // thread join function
   // ---------------------------------------------------------------------------
-  void Join ();
+  void Join();
 
   // ---------------------------------------------------------------------------
   // Service thread static startup function
   // ---------------------------------------------------------------------------
-  static void* StaticGroupBalancer (void*);
+  static void* StaticGroupBalancer(void*);
 
   // ---------------------------------------------------------------------------
   // Service implementation e.g. eternal conversion loop running third-party
   // conversion
   // ---------------------------------------------------------------------------
-  void* GroupBalance (void);
-
+  void* GroupBalance(void);
 };
 
 EOSMGMNAMESPACE_END
