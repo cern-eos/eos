@@ -176,7 +176,7 @@ public:
     int  DoIt(bool issync=false);
 
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
-                                  const cta::xrd::Request& request);
+                                  const cta::xrd::Request& request, bool retry = false);
 
     // -------------------------------------------------------------------------
     // persistency related methods
@@ -229,7 +229,7 @@ public:
     int mRetry;///! number of retries
 
   private:
-    void MoveToRetry(std::shared_ptr<eos::IContainerMD>& ccmd);
+    void MoveToRetry(const std::string& filePath);
     void MoveWithResults(int rcode);
   };
 

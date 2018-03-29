@@ -1898,7 +1898,7 @@ WFE::Job::DoIt(bool issync)
                        << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
           notification->mutable_transport()->set_report_url(reportStream.str());
 
-          return SendProtoWFRequest(this, fullPath, request);
+          return SendProtoWFRequest(this, fullPath, request, true);
         } else if (event == "archived") {
           bool onlyTapeCopy = false;
           {
@@ -1925,7 +1925,7 @@ WFE::Job::DoIt(bool issync)
             if (gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
               eos_static_err("Could not delete all file replicas of %s. Reason: %s",
                              fullPath.c_str(), errInfo.getErrText());
-              MoveToRetry(cmd);
+              MoveToRetry(fullPath);
               return EAGAIN;
             }
           }
@@ -1963,7 +1963,8 @@ WFE::Job::DoIt(bool issync)
 }
 
 int
-WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta::xrd::Request& request) {
+WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
+                             const cta::xrd::Request& request, bool retry) {
   if (gOFS->ProtoWFHostPort.empty() || gOFS->ProtoWFEndpoint.empty()) {
     eos_static_err(
       "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
@@ -1990,7 +1991,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
-    jobPtr->MoveWithResults(ENOTCONN);
+    retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
 
@@ -2027,38 +2028,53 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath, const cta
     case cta::xrd::Response::RSP_ERR_PROTOBUF:
     case cta::xrd::Response::RSP_INVALID:
       eos_static_err("%s %s", errorEnumMap[response.type()], response.message_txt().c_str());
-      jobPtr->MoveWithResults(EPROTO);
+      retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
       return EPROTO;
 
     default:
       eos_static_err("Response:\n%s", response.DebugString().c_str());
-      jobPtr->MoveWithResults(EPROTO);
+      retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
       return EPROTO;
   }
 }
 
 void
-WFE::Job::MoveToRetry(std::shared_ptr<eos::IContainerMD>& ccmd) {
+WFE::Job::MoveToRetry(const std::string& filePath) {
   int retry = 0, delay = 0;
-  try {
-    std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." +
-                            mActions[0].mWorkflow + ".retry.max";
-    std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." +
-                            mActions[0].mWorkflow + ".retry.delay";
-    eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
-    retry = std::stoi(ccmd->getAttribute(retryattr));
-    delay = std::stoi(ccmd->getAttribute(delayattr));
-  } catch (eos::MDException& e) {
-    MoveWithResults(SFS_ERROR);
+  std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." +
+                          mActions[0].mWorkflow + ".retry.max";
+  std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." +
+                          mActions[0].mWorkflow + ".retry.delay";
+  eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
+
+  {
+    eos::common::Path cPath(filePath.c_str());
+    auto parentPath = cPath.GetParentPath();
+
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    auto cmd = gOFS->eosView->getContainer(parentPath);
+    try {
+      retry = std::stoi(cmd->getAttribute(retryattr));
+    } catch (...) {
+      // retry 5 times by default
+      retry = 5;
+    }
+
+    try {
+      delay = std::stoi(cmd->getAttribute(delayattr));
+    } catch (...) {
+      // retry after 1 minute by default
+      delay = 60;
+    }
   }
 
   if (!IsSync() && (mRetry < retry)) {
     time_t storetime = (time_t) mActions[0].mTime + delay;
-    // can retry
     Move("r", "e", storetime, ++mRetry);
-    Results("e", EAGAIN , "scheduled for retry", storetime);
-  }
-  else {
+    Results("e", EAGAIN, "scheduled for retry", storetime);
+  } else {
+    eos_static_err("WF event finally failed for %s event of %s file after %d retries.",
+                   mActions[0].mEvent.c_str(), filePath.c_str(), mRetry);
     MoveWithResults(SFS_ERROR);
   }
 }
