@@ -1945,13 +1945,7 @@ Quota::Create(const std::string& path)
   if (pMapQuota.count(path) == 0) {
     SpaceQuota* squota = new SpaceQuota(path.c_str());
     pMapQuota[path] = squota;
-
-    if (squota->GetQuotaNode()) {
-      pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
-    } else {
-      eos_static_crit("path=%s created quota but no ns quota attached!",
-                      path.c_str());
-    }
+    pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
   }
 }
 
