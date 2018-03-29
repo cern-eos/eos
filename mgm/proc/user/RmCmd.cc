@@ -32,18 +32,18 @@
 EOSMGMNAMESPACE_BEGIN
 
 eos::console::ReplyProto
-eos::mgm::RmCmd::ProcessRequest() {
+eos::mgm::RmCmd::ProcessRequest()
+{
   eos::console::ReplyProto reply;
   std::ostringstream outStream;
   std::ostringstream errStream;
-
   eos::console::RmProto rm = mReqProto.rm();
   auto recursive = rm.recursive();
   auto force = rm.bypassrecycle();
-
   std::string spath;
+
   if (rm.path().empty()) {
-    XrdOucString pathOut;
+    XrdOucString pathOut = "";
     GetPathFromFid(pathOut, rm.fileid(), "Cannot get fid");
     spath = pathOut.c_str();
   } else {
@@ -51,18 +51,19 @@ eos::mgm::RmCmd::ProcessRequest() {
   }
 
   eos::common::Path cPath(spath.c_str());
-
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
-  if (IsOperationAllowed(spath.c_str()) == SFS_OK) { // This is the not allowed case now
+  if (IsOperationAllowed(spath.c_str()) ==
+      SFS_OK) { // This is the not allowed case now
     reply.set_std_err(stdErr.c_str());
     reply.set_retc(EACCES);
     return reply;
   }
 
   if (force && (vid.uid)) {
-    errStream << "warning: removing the force flag - this is only allowed for the 'root' role!\n";
+    errStream <<
+              "warning: removing the force flag - this is only allowed for the 'root' role!\n";
     force = false;
   }
 
@@ -80,10 +81,10 @@ eos::mgm::RmCmd::ProcessRequest() {
     // check if this file exists
     XrdSfsFileExistence file_exists;
     XrdOucErrInfo errInfo;
+
     if (gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr)) {
       errStream << "error: unable to run exists on path '" << spath << "'";
       retc = errno;
-
       reply.set_std_err(std::move(errStream.str()));
       reply.set_retc(retc);
       return reply;
@@ -154,13 +155,13 @@ eos::mgm::RmCmd::ProcessRequest() {
       std::map<std::string, std::set<std::string>> found;
       std::map<std::string, std::set<std::string>>::const_reverse_iterator rfoundit;
       std::set<std::string>::const_iterator fileit;
-
       errInfo.clear();
+
       if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, found)) {
         errStream << "error: unable to remove file/directory";
         retc = errno;
       } else {
-        XrdOucString recyclingAttribute;
+        XrdOucString recyclingAttribute = "";
 
         if (!force) {
           // only recycle if there is no '-f' flag
@@ -205,10 +206,11 @@ eos::mgm::RmCmd::ProcessRequest() {
               }
 
               fspath += entry;
-
               errInfo.clear();
+
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
-                errStream << "error: unable to remove file - bulk deletion aborted" << std::endl;
+                errStream << "error: unable to remove file - bulk deletion aborted" <<
+                          std::endl;
                 retc = errno;
                 reply.set_std_err(std::move(errStream.str()));
                 reply.set_retc(retc);
@@ -227,9 +229,11 @@ eos::mgm::RmCmd::ProcessRequest() {
             }
 
             errInfo.clear();
+
             if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr, true)
                 && (errno != ENOENT)) {
-              errStream << "error: unable to remove directory - bulk deletion aborted" << std::endl;
+              errStream << "error: unable to remove directory - bulk deletion aborted" <<
+                        std::endl;
               retc = errno;
               reply.set_std_err(std::move(errStream.str()));
               reply.set_retc(retc);
@@ -240,6 +244,7 @@ eos::mgm::RmCmd::ProcessRequest() {
           struct stat buf;
 
           errInfo.clear();
+
           if (gOFS->_stat(spath.c_str(), &buf, errInfo, mVid, "")) {
             errStream << "error: failed to stat bulk deletion directory: " << spath;
             retc = errno;
@@ -253,10 +258,11 @@ eos::mgm::RmCmd::ProcessRequest() {
                                      &mVid, buf.st_uid, buf.st_gid,
                                      (unsigned long long) buf.st_ino);
           int rc = 0;
-
           errInfo.clear();
+
           if ((rc = lRecycle.ToGarbage("rm-r", errInfo))) {
-            errStream << "error: failed to recycle path " << spath << std::endl << errInfo.getErrText();
+            errStream << "error: failed to recycle path " << spath << std::endl <<
+                      errInfo.getErrText();
             reply.set_std_err(std::move(errStream.str()));
             reply.set_retc(errInfo.getErrInfo());
             return reply;
@@ -286,8 +292,8 @@ eos::mgm::RmCmd::ProcessRequest() {
               }
 
               fspath += entry;
-
               errInfo.clear();
+
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
                              force)) {
                 errStream << "error: unable to remove file : " << std::endl;
@@ -309,6 +315,7 @@ eos::mgm::RmCmd::ProcessRequest() {
             }
 
             errInfo.clear();
+
             if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr)) {
               if (errno != ENOENT) {
                 errStream << "error: unable to remove directory : " << rfoundit->first.c_str()
@@ -322,6 +329,7 @@ eos::mgm::RmCmd::ProcessRequest() {
     } else {
       for (const auto& it : rmList) {
         errInfo.clear();
+
         if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
                        force) && (errno != ENOENT)) {
           errStream << "error: unable to remove file/directory '" << it << "'";
@@ -334,7 +342,6 @@ eos::mgm::RmCmd::ProcessRequest() {
   reply.set_retc(retc);
   reply.set_std_out(std::move(outStream.str()));
   reply.set_std_err(std::move(errStream.str()));
-
   return reply;
 }
 
