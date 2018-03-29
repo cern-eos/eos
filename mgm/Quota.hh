@@ -204,7 +204,7 @@ private:
   //! Update ns quota node address referred to by current space quota
   //!
   //! @return true if update successful, otherwise false
-  //! @warning Caller needs to hold a read-lock on eosViewRWMutexo
+  //! @warning Caller needs to hold a read-lock on eosViewRWMutex
   //----------------------------------------------------------------------------
   bool UpdateQuotaNodeAddress();
 

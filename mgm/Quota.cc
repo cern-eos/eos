@@ -72,7 +72,12 @@ SpaceQuota::SpaceQuota(const char* path):
   if (quotadir) {
     try {
       mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
-      eos_static_info("Found ns quota node for path=%s", path);
+
+      if (mQuotaNode) {
+        eos_static_info("Found ns quota node for path=%s", path);
+      } else {
+        eos_static_info("No ns quota found for path=%s", path);
+      }
     } catch (eos::MDException& e) {
       mQuotaNode = (eos::IQuotaNode*)0;
     }
@@ -82,7 +87,8 @@ SpaceQuota::SpaceQuota(const char* path):
         mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
       } catch (eos::MDException& e) {
         mQuotaNode = (eos::IQuotaNode*)0;
-        eos_static_crit("Cannot register quota node %s", path);
+        eos_static_crit("Cannot register quota node %s, errmsg=%s",
+                        path, e.what());
       }
     }
   }
