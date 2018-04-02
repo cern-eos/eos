@@ -177,6 +177,7 @@ add_library(
 # buffer files are generated when we try to build XrdEosMgm
 #-------------------------------------------------------------------------------
 add_dependencies(XrdEosMgm-Objects EosProtobuf)
+add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DBACKWARD_HAS_DW=1 -DDAEMONGID=${DAEMONGID})
