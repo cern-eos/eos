@@ -31,10 +31,8 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
-#include <vector>
-/*----------------------------------------------------------------------------*/
 
-extern XrdOucString serveruri;
+//extern XrdOucString serveruri;
 //extern char* com_fileinfo (char* arg1);
 extern int com_transfer(char* argin);
 
@@ -206,7 +204,7 @@ com_cp(char* argin)
                                 while (option.replace("#AND#", "&")) {}
                               }
 
-                              source_list.push_back(option.c_str());
+                              source_list.emplace_back(option);
                               break;
                             }
                           }
@@ -221,7 +219,7 @@ com_cp(char* argin)
         }
       }
     }
-  } while (1);
+  } while (true);
 
   if (silent) {
     noprogress = true;
@@ -236,7 +234,7 @@ com_cp(char* argin)
 
   do {
     if (lastarg.length()) {
-      source_list.push_back(nextarg.c_str());
+      source_list.emplace_back(nextarg);
       nextarg = lastarg;
       lastarg = subtokenizer.GetToken();
     } else {
@@ -248,7 +246,7 @@ com_cp(char* argin)
 
       break;
     }
-  } while (1);
+  } while (true);
 
   if (debug) {
     for (size_t l = 0; l < source_list.size(); l++) {
@@ -294,7 +292,7 @@ com_cp(char* argin)
            (source_find_list[l].endswith("/")))) {
         arg1 = source_find_list[l];
         eos::common::Path cPath(arg1.c_str());
-        std::string dname = "";
+        std::string dname;
         XrdOucString l = "eos -b ";
 
         if (user_role.length() && group_role.length()) {
@@ -365,7 +363,7 @@ com_cp(char* argin)
             fprintf(stdout, "[eos-cp] add file %s\n", fullpath.c_str());
           }
 
-          source_list.push_back(fullpath.c_str());
+          source_list.emplace_back(fullpath);
         }
 
         pclose(fp);
@@ -375,7 +373,7 @@ com_cp(char* argin)
           source_find_list[l] += source_opaque;
         }
 
-        source_list.push_back(source_find_list[l].c_str());
+        source_list.emplace_back(source_find_list[l]);
       }
     }
   } else {
@@ -444,7 +442,7 @@ com_cp(char* argin)
       }
 
       if (l.length()) {
-        char* f2c = 0;
+        char* f2c = nullptr;
         size_t len = 4096;
 
         while ((getline(&f2c, &len, fp)) != -1) {
@@ -462,14 +460,14 @@ com_cp(char* argin)
             sf2c += source_opaque;
           }
 
-          source_list.push_back(sf2c.c_str());
+          source_list.emplace_back(sf2c);
           source_base_list.push_back(source_find_list[nfile]);
 
           if (f2c) {
             free(f2c);
           }
 
-          f2c = 0;
+          f2c = nullptr;
         }
       }
 
@@ -480,7 +478,7 @@ com_cp(char* argin)
   }
 
   // check if there is any file in the list
-  if (!source_list.size()) {
+  if (source_list.empty()) {
     fprintf(stderr, "warning: there is no file to copy!\n");
     //    fprintf(stderr,"error: your source seems not to exist or does not match any file!\n");
     global_retc = 0;
@@ -582,7 +580,7 @@ com_cp(char* argin)
         mtime.tv_sec = buf.st_mtime;
         mtime.tv_nsec = 0;
         // store the a/m-time
-        source_utime.push_back(std::make_pair(atime, mtime));
+        source_utime.emplace_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
@@ -599,7 +597,7 @@ com_cp(char* argin)
       XrdOucString hostport;
       XrdOucString protocol;
       XrdOucString sPath;
-      const char* v = 0;
+      const char* v = nullptr;
 
       if (!(v = eos::common::StringConversion::ParseUrl(source_list[nfile].c_str(),
                 protocol, hostport))) {
@@ -728,7 +726,7 @@ com_cp(char* argin)
         mtime.tv_sec = buf.st_mtime;
         mtime.tv_nsec = 0;
         // store the a/m-time
-        source_utime.push_back(std::make_pair(atime, mtime));
+        source_utime.emplace_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
@@ -762,7 +760,7 @@ com_cp(char* argin)
         mtime.tv_sec = buf.st_mtime;
         mtime.tv_nsec = 0;
         // store the a/m-time
-        source_utime.push_back(std::make_pair(atime, mtime));
+        source_utime.emplace_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
@@ -871,7 +869,7 @@ com_cp(char* argin)
         // append the source directory structure
         XrdOucString targetname = source_list[nfile];
         std::string prefix = source_base_list[nfile].c_str();
-        prefix.erase(prefix.rfind("/", prefix.length() - 2));
+        prefix.erase(prefix.rfind('/', prefix.length() - 2));
         targetname.replace(prefix.c_str(), "");
 
         if (targetname[0] == '/') {
@@ -1303,7 +1301,7 @@ com_cp(char* argin)
             return (0);
           }
 
-          XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+          auto* fs = new XrdCl::FileSystem(url);
 
           if (!fs) {
             fprintf(stderr, "erroe: failed to get new FS object. \n");
@@ -1311,7 +1309,7 @@ com_cp(char* argin)
           }
 
           XrdCl::Buffer arg;
-          XrdCl::Buffer* response = 0;
+          XrdCl::Buffer* response = nullptr;
           XrdCl::XRootDStatus status;
           arg.FromString(targetfile.c_str());
           status = fs->Query(XrdCl::QueryCode::Checksum, arg, response);
