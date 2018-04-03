@@ -43,7 +43,7 @@ Workflow::Trigger(std::string event, std::string workflow,
   errno = 0;
 
   if (workflow == "none" && vid.sudoer) {
-    eos_static_info("\"none\" workflow has been called by sudoer, we are ignoring the event");
+    eos_static_info("\"none\" workflow has been called by sudoer, ignoring the event");
     return 0;
   }
 
@@ -79,7 +79,7 @@ Workflow::Trigger(std::string event, std::string workflow,
       }
 
       errno = retc;
-      return -1;
+      return retc;
     } else {
       errno = ENOKEY;
     }
@@ -93,9 +93,9 @@ Workflow::Trigger(std::string event, std::string workflow,
       mAction = (*mAttr)[key];
       int retc = Create(vid);
 
-      if (retc) {
+      if (retc != 0) {
         errno = retc;
-        return -1;
+        return retc;
       }
 
       return 0;
