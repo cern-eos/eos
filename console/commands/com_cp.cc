@@ -204,7 +204,7 @@ com_cp(char* argin)
                                 while (option.replace("#AND#", "&")) {}
                               }
 
-                              source_list.emplace_back(option);
+                              source_list.emplace_back(option.c_str());
                               break;
                             }
                           }
@@ -234,7 +234,7 @@ com_cp(char* argin)
 
   do {
     if (lastarg.length()) {
-      source_list.emplace_back(nextarg);
+      source_list.emplace_back(nextarg.c_str());
       nextarg = lastarg;
       lastarg = subtokenizer.GetToken();
     } else {
@@ -363,7 +363,7 @@ com_cp(char* argin)
             fprintf(stdout, "[eos-cp] add file %s\n", fullpath.c_str());
           }
 
-          source_list.emplace_back(fullpath);
+          source_list.emplace_back(fullpath.c_str());
         }
 
         pclose(fp);
@@ -373,7 +373,7 @@ com_cp(char* argin)
           source_find_list[l] += source_opaque;
         }
 
-        source_list.emplace_back(source_find_list[l]);
+        source_list.emplace_back(source_find_list[l].c_str());
       }
     }
   } else {
@@ -460,7 +460,7 @@ com_cp(char* argin)
             sf2c += source_opaque;
           }
 
-          source_list.emplace_back(sf2c);
+          source_list.emplace_back(sf2c.c_str());
           source_base_list.push_back(source_find_list[nfile]);
 
           if (f2c) {
