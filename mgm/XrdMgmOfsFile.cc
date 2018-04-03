@@ -48,6 +48,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
+#include "Constants.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1211,9 +1212,9 @@ XrdMgmOfsFile::open(const char* inpath,
   } else {
     // Access existing file - fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
-      int loc = fmd->getLocation(i);
+      auto loc = fmd->getLocation(i);
 
-      if (loc) {
+      if (loc != 0 && loc != eos::mgm::TAPE_FS_ID) {
         selectedfs.push_back(loc);
       }
     }
@@ -1221,7 +1222,7 @@ XrdMgmOfsFile::open(const char* inpath,
     if (selectedfs.empty()) {
       // this file has not a single existing replica
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
-      return Emsg(epname, error, ENODEV, "open - no replica exists", path);
+      return Emsg(epname, error, ENODEV, "open - no disk replica exists", path);
     }
 
     /// ###############
@@ -2095,11 +2096,11 @@ XrdMgmOfsFile::open(const char* inpath,
       if (FsView::gFsView.mIdView.count(selectedfs[i])) {
         repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
       } else {
-        repfilesystem = 0;
+        repfilesystem = nullptr;
       }
 
       if (!repfilesystem) {
-        // don't fail IO on a shadow file system but throw a ciritical error message
+        // don't fail IO on a shadow file system but throw a critical error message
         eos_crit("msg=\"Unable to get replica filesystem information\" "
                  "path=\"%s\" fsid=%d", path, selectedfs[i]);
         continue;

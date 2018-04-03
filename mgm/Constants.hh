@@ -25,10 +25,12 @@
 #pragma once
 
 #include "mgm/Namespace.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-static constexpr auto TAPE_FS_ID = 65535u;
+static constexpr decltype(gOFS->eosFileService->getFileMD(0)->getLocation(0)) TAPE_FS_ID = 65535;
 static constexpr auto RETRIEVES_ATTR_NAME = "sys.retrieves";
 
 EOSMGMNAMESPACE_END
