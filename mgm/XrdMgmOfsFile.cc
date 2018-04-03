@@ -2424,7 +2424,7 @@ XrdMgmOfsFile::open(const char* inpath,
         // Remove the file from the namespace in this case
         try {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-          gOFS->eosFileService->removeFile(fmd.get());
+          gOFS->eosView->removeFile(fmd.get());
         } catch (eos::MDException& ex) {
           eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
                   ex.what());
