@@ -76,7 +76,7 @@ ProcCommand::Rm()
     // check if this file exists
     XrdSfsFileExistence file_exists;
 
-    if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, 0)) {
+    if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, nullptr)) {
       stdErr += "error: unable to run exists on path '";
       stdErr += spath.c_str();
       stdErr += "'";
@@ -99,7 +99,7 @@ ProcCommand::Rm()
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
       regex_t regex_filter;
-      // Adding regex anchors for begining and end of string
+      // Adding regex anchors for beginning and end of string
       XrdOucString filter_temp = "^";
       // Changing wildcard * into regex syntax
       filter.replace("*", ".*");
@@ -117,7 +117,7 @@ ProcCommand::Rm()
 
       XrdMgmOfsDirectory dir;
       // list the path and match against filter
-      int listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
+      int listrc = dir.open(spath.c_str(), *pVid, nullptr);
 
       if (!listrc) {
         const char* val;
@@ -132,7 +132,7 @@ ProcCommand::Rm()
             continue;
           }
 
-          if (!regexec(&regex_filter, entry.c_str(), 0, NULL, 0)) {
+          if (!regexec(&regex_filter, entry.c_str(), 0, nullptr, 0)) {
             rmList.insert(mpath.c_str());
           }
         }
@@ -205,7 +205,7 @@ ProcCommand::Rm()
 
               fspath += entry;
 
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, true)) {
+              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
                 stdErr += "error: unable to remove file - bulk deletion aborted\n";
                 retc = errno;
                 return SFS_OK;
@@ -216,13 +216,13 @@ ProcCommand::Rm()
           // delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
-            std::string fspath = rfoundit->first.c_str();
+            std::string fspath = rfoundit->first;
 
             if (fspath == "/") {
               continue;
             }
 
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0,
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, nullptr,
                               true) && (errno != ENOENT)) {
               stdErr += "error: unable to remove directory - bulk deletion aborted\n";
               retc = errno;
@@ -291,13 +291,13 @@ ProcCommand::Rm()
           // delete directories starting at the deepest level
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
-            std::string fspath = rfoundit->first.c_str();
+            std::string fspath = rfoundit->first;
 
             if (fspath == "/") {
               continue;
             }
 
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0)) {
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, nullptr)) {
               if (errno != ENOENT) {
                 stdErr += "error: unable to remove directory : ";
                 stdErr += rfoundit->first.c_str();
@@ -311,7 +311,7 @@ ProcCommand::Rm()
       }
     } else {
       for (auto it = rmList.begin(); it != rmList.end(); ++it) {
-        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0, false, false,
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, nullptr, false, false,
                        force) && (errno != ENOENT)) {
           stdErr += "error: unable to remove file/directory '";
           stdErr += it->c_str();
