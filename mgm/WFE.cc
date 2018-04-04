@@ -2057,14 +2057,14 @@ WFE::Job::MoveToRetry(const std::string& filePath) {
       retry = std::stoi(cmd->getAttribute(retryattr));
     } catch (...) {
       // retry 5 times by default
-      retry = 5;
+      retry = 25;
     }
 
     try {
       delay = std::stoi(cmd->getAttribute(delayattr));
     } catch (...) {
       // retry after 5 minutes by default and one final longer wait
-      delay = mRetry == retry - 1 ? 1800 : 300;
+      delay = mRetry == retry - 1 ? 7200 : 3600;
     }
   }
 
