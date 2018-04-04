@@ -1959,7 +1959,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, bool retry) {
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err(
-      "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
+      "You are running proto wf jobs without specifying mgmofs.protowfendpoint or mgmofs.protowfresource in the MGM config file."
     );
     jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
