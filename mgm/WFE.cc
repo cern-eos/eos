@@ -1780,8 +1780,6 @@ WFE::Job::DoIt(bool issync)
 
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-              notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
               notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
               notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
             }
@@ -1813,8 +1811,6 @@ WFE::Job::DoIt(bool issync)
 
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
             notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
             notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
           }
@@ -1830,8 +1826,6 @@ WFE::Job::DoIt(bool issync)
 
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
             notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
             notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
           }
@@ -1861,8 +1855,6 @@ WFE::Job::DoIt(bool issync)
           std::ostringstream checksum;
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_uid(fmd->getCUid());
-            notification->mutable_file()->mutable_owner()->set_gid(fmd->getCGid());
             notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
             notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
 
