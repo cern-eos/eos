@@ -1641,7 +1641,7 @@ WFE::Job::DoIt(bool issync)
                        }
         );
         eos_static_info("%s %s %s", eventUpperCase.c_str(), fullPath.c_str(),
-                        gOFS->ProtoWFHostPort.c_str());
+                        gOFS->ProtoWFEndPoint.c_str());
 
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
@@ -1957,7 +1957,7 @@ WFE::Job::DoIt(bool issync)
 int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, bool retry) {
-  if (gOFS->ProtoWFHostPort.empty() || gOFS->ProtoWFEndpoint.empty()) {
+  if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err(
       "You are running proto wf jobs without specifying mgmofs.protowfhostport or mgmofs.protowfendpoint in the MGM config file."
     );
@@ -1973,7 +1973,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   }
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFHostPort, gOFS->ProtoWFEndpoint, config);
+  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource, config);
 
   cta::xrd::Response response;
 

@@ -1292,8 +1292,8 @@ public:
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
-  std::string ProtoWFHostPort; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
-  std::string ProtoWFEndpoint; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
+  std::string ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
+  std::string ProtoWFResource; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining

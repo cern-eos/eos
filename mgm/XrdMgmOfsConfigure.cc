@@ -1108,17 +1108,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("protowfhostport", var)) {
-          val = Config.GetWord();
-          if (val != nullptr) {
-            ProtoWFHostPort = val;
-          }
-        }
-
         if (!strcmp("protowfendpoint", var)) {
           val = Config.GetWord();
           if (val != nullptr) {
-            ProtoWFEndpoint = val;
+            ProtoWFEndPoint = val;
+          }
+        }
+
+        if (!strcmp("protowfresource", var)) {
+          val = Config.GetWord();
+          if (val != nullptr) {
+            ProtoWFResource = val;
           }
         }
       }
