@@ -155,7 +155,7 @@ WFE::WFEr()
   time_t cleanuptime = 0;
   eos_static_info("msg=\"async WFE thread started\"");
 
-  while (1) {
+  while (true) {
     // -------------------------------------------------------------------------
     // every now and then we wake up
     // -------------------------------------------------------------------------
@@ -205,7 +205,7 @@ WFE::WFEr()
       // -------------------------------------------------------------------------
       gOFS->MgmStats.Add("WFEFind", 0, 0, 1);
       EXEC_TIMING_BEGIN("WFEFind");
-      // prepare four queries today, yestereday for queued and error jobs
+      // prepare four queries today, yesterday for queued and error jobs
       std::string queries[4];
 
       for (size_t i = 0; i < 4; ++i) {
@@ -294,7 +294,7 @@ WFE::WFEr()
                   XrdSysMutexHelper sLock(gSchedulerMutex);
                   time_t storetime = 0;
                   // move job into the scheduled queue
-                  job->Move("q", "s", storetime);
+                  job->Move(job->mActions[0].mQueue, "s", storetime);
                   job->mActions[0].mQueue = "s";
                   job->mActions[0].mTime = storetime;
                   XrdOucString tst;
@@ -472,7 +472,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   workflowpath += mActions[action].mEvent;
   mWorkflowPath = workflowpath;
 
-  if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, 0)) {
+  if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, nullptr)) {
     eos_static_err("msg=\"failed to create workflow entry\" path=\"%s\"",
                    workflowpath.c_str());
     return -1;
@@ -481,7 +481,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
-                      0,
+                      nullptr,
                       "sys.action",
                       mActions[0].mAction.c_str())) {
     eos_static_err("msg=\"failed to store workflow action\" path=\"%s\" action=\"%s\"",
@@ -495,7 +495,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
-                      0,
+                      nullptr,
                       "sys.vid",
                       vids.c_str())) {
     eos_static_err("msg=\"failed to store workflow vid\" path=\"%s\" vid=\"%s\"",
@@ -505,12 +505,12 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   }
 
   XrdOucString sretry;
-  sretry += (int) retry;
+  sretry += retry;
 
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
-                      0,
+                      nullptr,
                       "sys.wfe.retry",
                       sretry.c_str())) {
     eos_static_err("msg=\"failed to store workflow retry count\" path=\"%s\" retry=\"%d\"",
@@ -519,7 +519,6 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     return -1;
   }
 
-  mRetry = retry;
   return SFS_OK;
 }
 
@@ -558,7 +557,7 @@ WFE::Job::Load(std::string path2entry)
     eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
     XrdOucString action;
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
                          "sys.action", action)) {
       time_t t_when = strtoull(when.c_str(), 0, 10);
       AddAction(action.c_str(), event, t_when, workflow, q);
@@ -568,7 +567,7 @@ WFE::Job::Load(std::string path2entry)
 
     XrdOucString vidstring;
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
                          "sys.vid", vidstring)) {
       if (!eos::common::Mapping::VidFromString(mVid, vidstring.c_str())) {
         eos_static_crit("parsing of %s failed - setting nobody\n", vidstring.c_str());
@@ -581,9 +580,9 @@ WFE::Job::Load(std::string path2entry)
 
     XrdOucString sretry;
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, 0,
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
                          "sys.wfe.retry", sretry)) {
-      mRetry = (int)strtoul(sretry.c_str(), 0, 10);
+      mRetry = (int)strtoul(sretry.c_str(), nullptr, 10);
     } else {
       eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
     }
@@ -607,8 +606,9 @@ WFE::Job::Move(std::string from_queue, std::string to_queue, time_t& when,
 /*----------------------------------------------------------------------------*/
 {
   if (Save(to_queue, when, 0, retry) == SFS_OK) {
+    mActions[0].mQueue = to_queue;
     if ((from_queue != to_queue) && (Delete(from_queue) == SFS_ERROR)) {
-      eos_static_err("msg=\"failed to remove for move from queue\"%s\" to  queue=\"%s\"",
+      eos_static_err("msg=\"failed to remove for move from queue\"%s\" to queue=\"%s\"",
                      from_queue.c_str(), to_queue.c_str());
     }
   } else {
@@ -2063,8 +2063,8 @@ WFE::Job::MoveToRetry(const std::string& filePath) {
     try {
       delay = std::stoi(cmd->getAttribute(delayattr));
     } catch (...) {
-      // retry after 1 minute by default
-      delay = 60;
+      // retry after 5 minutes by default and one final longer wait
+      delay = mRetry == retry - 1 ? 1800 : 300;
     }
   }
 
@@ -2075,19 +2075,19 @@ WFE::Job::MoveToRetry(const std::string& filePath) {
   } else {
     eos_static_err("WF event finally failed for %s event of %s file after %d retries.",
                    mActions[0].mEvent.c_str(), filePath.c_str(), mRetry);
-    MoveWithResults(SFS_ERROR);
+    MoveWithResults(SFS_ERROR, "e");
   }
 }
 
 void
-WFE::Job::MoveWithResults(int rcode) {
+WFE::Job::MoveWithResults(int rcode, std::string fromQueue) {
   time_t storetime = 0;
   if (rcode == 0) {
-    Move("r", "d", storetime);
+    Move(fromQueue, "d", storetime);
     Results("d", rcode , "moved to done", storetime);
   }
   else {
-    Move("r", "f", storetime);
+    Move(fromQueue, "f", storetime);
     Results("f", rcode , "moved to failed", storetime);
   }
 }

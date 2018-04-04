@@ -175,6 +175,12 @@ public:
 
     int  DoIt(bool issync=false);
 
+    //! @brief This method is used for communicating proto event requests
+    //! @param jobPtr pointer to the job of the event
+    //! @param fullPath path of the file which trigered the event
+    //! @param request the protobuf request object
+    //! @param retry should retry the request
+    //! @return whether it was successful or not
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, bool retry = false);
 
@@ -229,8 +235,13 @@ public:
     int mRetry;///! number of retries
 
   private:
+    //! @brief moving proto wf event jobs to retry queue
+    //! @param filePath the path of the file concerned
     void MoveToRetry(const std::string& filePath);
-    void MoveWithResults(int rcode);
+
+    //! @brief move to queues based on the results
+    //! @param rcode the return code of the job
+    void MoveWithResults(int rcode, std::string fromQueue = "r");
   };
 
   XrdSysCondVar* GetSignal()
