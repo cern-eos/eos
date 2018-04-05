@@ -172,7 +172,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     if ((ioLocal) && (i == replica_index)) {
       // Only the referenced entry URL does local IO
       mReplicaUrl.push_back(mLocalPath);
-      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath.c_str(), mOfsFile,
+      FileIo* file = FileIoPlugin::GetIoObject(mLocalPath, mOfsFile,
                      mSecEntity);
 
       // evt. mark an IO module as talking to external storage
@@ -202,7 +202,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
           eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
           eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
           eos::common::StringConversion::MaskTag(maskUrl, "authz");
-          FileIo* file = FileIoPlugin::GetIoObject(mReplicaUrl[i].c_str(), mOfsFile,
+          FileIo* file = FileIoPlugin::GetIoObject(mReplicaUrl[i], mOfsFile,
                          mSecEntity);
 
           // Write case
