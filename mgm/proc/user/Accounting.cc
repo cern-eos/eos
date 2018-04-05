@@ -81,46 +81,12 @@ ProcCommand::Accounting()
     };
 
     Json::Value root;
-    root["storageservice"]["name"] = gOFS->MgmOfsInstanceName.c_str();
-    std::ostringstream version;
-    version << VERSION << "-" << RELEASE;
-    root["storageservice"]["implementation"] = "EOS";
-    root["storageservice"]["implementationversion"] = version.str().c_str();
-    root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
-    auto capacityOnline = Json::UInt64{0};
-    auto usedOnline = Json::UInt64{0};
-    auto capacityOffline = Json::UInt64{0};
-    auto usedOffline = Json::UInt64{0};
-    {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-      for (const auto& space : FsView::gFsView.mIdView) {
-        if (space.second == nullptr)
-        {
-          eos_static_crit("found illegal pointer in filesystem view");
-          continue;
-        }
-
-        auto status = space.second->GetString("stat.active");
-        if (status == "online") {
-          capacityOnline += space.second->GetLongLong("stat.statfs.capacity");
-          usedOnline += space.second->GetLongLong("stat.statfs.usedbytes");
-        }
-        else if (status == "offline") {
-          capacityOffline += space.second->GetLongLong("stat.statfs.capacity");
-          usedOffline += space.second->GetLongLong("stat.statfs.usedbytes");
-        }
-      }
-    }
-
-    root["storageservice"]["storagecapacity"]["online"]["totalsize"] = capacityOnline;
-    root["storageservice"]["storagecapacity"]["online"]["usedsize"] = usedOnline;
-    root["storageservice"]["storagecapacity"]["offline"]["totalsize"] = capacityOffline;
-    root["storageservice"]["storagecapacity"]["offline"]["usedsize"] = usedOffline;
 
     Json::Value storageShare;
     eos::IContainerMD::XAttrMap attributes;
     XrdOucErrInfo errInfo;
+
+    // start with extended attributes so they can't overwrite fields
     gOFS->_attr_ls(gOFS->MgmProcPath.c_str(), errInfo, vid, nullptr,
                    attributes);
 
@@ -132,6 +98,15 @@ ProcCommand::Accounting()
       root["storageservice"][member] = storageShare[member];
     }
 
+    root["storageservice"]["name"] = gOFS->MgmOfsInstanceName.c_str();
+    std::ostringstream version;
+    version << VERSION << "-" << RELEASE;
+    root["storageservice"]["implementation"] = "EOS";
+    root["storageservice"]["implementationversion"] = version.str().c_str();
+    root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
+    
+    auto capacityOnline = Json::UInt64{0};
+    auto usedOnline = Json::UInt64{0};
     for (const auto& quota : Quota::GetAllGroupsLogicalQuotaValues()) {
       storageShare.clear();
       attributes.clear();
@@ -142,13 +117,24 @@ ProcCommand::Accounting()
         processAccountingAttribute(attr, storageShare);
       }
 
+      auto usedSizeofShare = Json::UInt64{std::get<0>(quota.second)};
+      auto totalSizeofShare = Json::UInt64{std::get<1>(quota.second)};
+
+      capacityOnline += totalSizeofShare;
+      usedOnline += usedSizeofShare;
+
       storageShare["path"].append(quota.first);
-      storageShare["usedsize"] = Json::UInt64{std::get<0>(quota.second)};
-      storageShare["totalsize"] = Json::UInt64{std::get<1>(quota.second)};
+      storageShare["usedsize"] = usedSizeofShare;
+      storageShare["totalsize"] = totalSizeofShare;
       storageShare["numberoffiles"] = Json::UInt64{std::get<2>(quota.second)};
       storageShare["timestamp"] = Json::Int64{std::time(nullptr)};
       root["storageservice"]["storageshares"].append(storageShare);
     }
+
+    root["storageservice"]["storagecapacity"]["online"]["totalsize"] = capacityOnline;
+    root["storageservice"]["storagecapacity"]["online"]["usedsize"] = usedOnline;
+    root["storageservice"]["storagecapacity"]["offline"]["totalsize"] = Json::UInt64{0};
+    root["storageservice"]["storagecapacity"]["offline"]["usedsize"] = Json::UInt64{0};
 
     Json::StyledWriter writer;
     return new std::string(writer.write(root));
