@@ -343,9 +343,9 @@ bool
 StringConversion::SplitKeyValue(std::string keyval, std::string& key,
                                 std::string& value, std::string split)
 {
-  int equalpos = keyval.find(split.c_str());
+  auto equalpos = keyval.find(split);
 
-  if (equalpos != STR_NPOS) {
+  if (equalpos != std::string::npos) {
     key.assign(keyval, 0, equalpos);
     value.assign(keyval, equalpos + 1, keyval.length() - (equalpos + 1));
     return true;

@@ -783,8 +783,16 @@ WFE::Job::DoIt(bool issync)
   time_t storetime = 0;
 
   if (mActions[0].mQueue == "s" || mActions[0].mQueue == "e") {
-    if (eos::common::StringConversion::SplitKeyValue(mActions[0].mAction, method,
-        args, ":")) {
+    bool actionParsed = false;
+    if (mActions[0].mAction.find(':') == std::string::npos) {
+      method = mActions[0].mAction;
+      actionParsed = true;
+    } else {
+      actionParsed = eos::common::StringConversion::SplitKeyValue(mActions[0].mAction, method,
+                                                                  args, ":");
+    }
+
+    if (actionParsed) {
       if (method == "mail") {
         std::string recipient;
         std::string freetext;
