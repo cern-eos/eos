@@ -1914,7 +1914,14 @@ WFE::Job::DoIt(bool issync)
               }
             }
 
-            if (gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
+            bool dropAllStripes = true;
+            {
+              std::string dropDiskVal;
+              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              dropAllStripes = !(gOFS->_attr_get(*cmd, "sys.wfe.archived.dropdiskreplicas", dropDiskVal)) || dropDiskVal == "1";
+            }
+
+            if (dropAllStripes && gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
               eos_static_err("Could not delete all file replicas of %s. Reason: %s",
                              fullPath.c_str(), errInfo.getErrText());
               MoveToRetry(fullPath);
