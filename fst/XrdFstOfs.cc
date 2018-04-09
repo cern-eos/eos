@@ -471,7 +471,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
               NoGo = 1;
             } else {
               mQcl.reset(new ::qclient::QClient(mQdbMembers, true,
-              {true, std::chrono::seconds(60)}));
+              qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60))));
             }
           }
         }

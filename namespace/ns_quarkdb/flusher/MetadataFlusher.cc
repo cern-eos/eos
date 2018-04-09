@@ -50,14 +50,8 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
                                  const qclient::Members& qdb_members):
   id(basename(path.c_str())),
   notifier(*this),
-  qcl(qdb_members, true,
-{
-  false, std::chrono::seconds(0)
-}),
-backgroundFlusher(qcl, notifier, 200000 /* size limit */,
-                  20000 /* pipeline length */,
-                  new qclient::RocksDBPersistency(path)),
-sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
+  backgroundFlusher(qdb_members, notifier, new qclient::RocksDBPersistency(path)),
+  sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
 }

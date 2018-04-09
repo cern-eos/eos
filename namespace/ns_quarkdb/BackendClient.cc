@@ -79,7 +79,7 @@ BackendClient::getInstance(const std::string& host, uint32_t port)
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
     instance = new qclient::QClient(host_tmp, port, true,
-    {true, std::chrono::seconds(60)});
+      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
     pMapClients.insert(std::make_pair(qdb_id, instance));
 
     if (is_default) {
@@ -114,7 +114,7 @@ BackendClient::getInstance(const qclient::Members& qdb_members,
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
     instance = new qclient::QClient(qdb_members, true,
-    {true, std::chrono::seconds(60)});
+      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];
@@ -151,7 +151,7 @@ BackendClient::getInstance(const std::string& qdb_cluster,
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
     instance = new qclient::QClient(qdb_members, true,
-    {true, std::chrono::seconds(60)});
+      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];

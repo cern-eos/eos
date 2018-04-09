@@ -1232,7 +1232,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
   std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, true,
-  {true, seconds(60)}));
+  qclient::RetryStrategy::WithTimeout(seconds(60))));
   qclient::QSet qset(*qcl.get(),  eos::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 

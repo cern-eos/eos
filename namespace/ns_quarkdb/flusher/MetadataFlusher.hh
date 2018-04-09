@@ -103,7 +103,6 @@ private:
   std::string id;
 
   FlusherNotifier notifier;
-  qclient::QClient qcl;
   qclient::BackgroundFlusher backgroundFlusher;
   qclient::AssistedThread sizePrinter;
 };
