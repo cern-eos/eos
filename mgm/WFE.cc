@@ -1933,14 +1933,27 @@ WFE::Job::DoIt(bool issync)
             {
               std::string dropDiskVal;
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              dropAllStripes = !(gOFS->_attr_get(*cmd, "sys.wfe.archived.dropdiskreplicas", dropDiskVal)) || dropDiskVal == "1";
+              dropAllStripes =
+                !(gOFS->_attr_get(*cmd, "sys.wfe.archived.dropdiskreplicas", dropDiskVal)) || dropDiskVal == "1";
             }
 
-            if (dropAllStripes && gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
-              eos_static_err("Could not delete all file replicas of %s. Reason: %s",
-                             fullPath.c_str(), errInfo.getErrText());
-              MoveToRetry(fullPath);
-              return EAGAIN;
+            if (dropAllStripes) {
+              if (gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
+                eos_static_err("Could not delete all file replicas of %s. Reason: %s",
+                               fullPath.c_str(), errInfo.getErrText());
+                MoveToRetry(fullPath);
+                return EAGAIN;
+              } else {
+                // reset the retrieves counter in case all disk replicas are dropped
+                try {
+                  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+                  fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+                  gOFS->eosView->updateFileStore(fmd.get());
+                } catch (eos::MDException& ex) {
+                  eos_static_err("Could not reset retrieves counter for file %s. Try setting the %s attribute to 0.",
+                                 fullPath.c_str(), RETRIEVES_ATTR_NAME);
+                }
+              }
             }
           }
 
