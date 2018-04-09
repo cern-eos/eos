@@ -448,9 +448,16 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
                      lError,
                      rootvid,
                      "")) {
-      eos_static_err("msg=\"failed to create workflow directory\" path=\"%s\"",
-                     workflowdir.c_str());
-      return -1;
+      // check if it has been created in the meanwhile as the stat and mkdir are not atomic together
+      if (gOFS->_stat(workflowdir.c_str(),
+                      &buf,
+                      lError,
+                      rootvid,
+                      "")) {
+        eos_static_err("msg=\"failed to create workflow directory\" path=\"%s\"",
+                       workflowdir.c_str());
+        return -1;
+      }
     }
   }
 
