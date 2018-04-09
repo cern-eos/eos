@@ -554,7 +554,7 @@ public:
            struct stat* buf,
            XrdOucErrInfo& out_error,
            const XrdSecEntity* client = 0,
-           const char* opaque = 0);
+           const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // stat file and get the checksum info
@@ -588,8 +588,8 @@ public:
   stat(const char* Name,
        mode_t& mode,
        XrdOucErrInfo& out_error,
-       const XrdSecEntity* client = 0,
-       const char* opaque = 0)
+       const XrdSecEntity* client = nullptr,
+       const char* opaque = nullptr) override
   {
     struct stat bfr;
     int rc = stat(Name, &bfr, out_error, client, opaque);
