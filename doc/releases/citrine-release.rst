@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.2.19 Citrine``
+===================
+
+2018-04-10
+
+Bug
+----
+
+* [EOS-2440] - `eos health` is broken
+* [EOS-2457] - EOSPPS: several problems with `eos node ls -l`
+* [EOS-2466] - 'eos rm' on a file without a container triggers an unhandled error
+* [EOS-2475] - accounting: storagecapacity should be sum of storageshares
+
+Task
+----
+
+* [EOS-1955] - .xsmap file still being created (balancing? recycle bin?), causes "corrupted block checksum"
+
+
 ``v4.2.18 Citrine``
 ===================
 
