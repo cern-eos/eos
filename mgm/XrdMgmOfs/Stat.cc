@@ -98,9 +98,9 @@ XrdMgmOfs::stat(const char* inpath,
                  buf->st_nlink) > 0;
   bool onTape = (buf->st_mode & EOS_TAPE_MODE_T) != 0;
   if (!onDisk && onTape) {
-    buf->st_mode |= XrdCl::StatInfo::Offline;
+    buf->st_rdev |= XRDSFS_OFFLINE;
   } else {
-    buf->st_mode &= ~(XrdCl::StatInfo::Offline);
+    buf->st_rdev &= ~XRDSFS_OFFLINE;
   }
 
   if (rc && (errno == ENOENT)) {
