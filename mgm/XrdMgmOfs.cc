@@ -75,7 +75,6 @@
 #include <XrdSys/XrdSysTimer.hh>
 #include <XrdSec/XrdSecInterface.hh>
 #include <XrdSfs/XrdSfsAio.hh>
-#include <XrdSfs/XrdSfsFlags.hh>
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #ifdef __APPLE__
