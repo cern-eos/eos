@@ -645,6 +645,11 @@ HierarchicalView::getUri(const IFileMD* file) const
     throw ex;
   }
 
+  // Complain if container ID is zero, this shouldn't be happening
+  if(file->getContainerId() == 0) {
+    eos_static_err("fid=%llu msg=\"found file with invalid (0) parent container\" ", file->getContainerId());
+  }
+
   // Get the uri
   std::shared_ptr<IContainerMD> cont =
     pContainerSvc->getContainerMD(file->getContainerId());
