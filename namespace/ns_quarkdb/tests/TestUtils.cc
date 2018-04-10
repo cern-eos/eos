@@ -35,7 +35,7 @@ EOSNSTESTING_BEGIN
 
 FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
 : members(mbr) {
-  qclient::RetryStrategy strategy {true, std::chrono::seconds(10)};
+  qclient::RetryStrategy strategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(10));
   qclient::QClient qcl(members, true, strategy);
   qcl.exec("FLUSHALL").get();
   qcl.exec("SET", "QDB-INSTANCE-FOR-EOS-NS-TESTS", "YES");
@@ -168,11 +168,10 @@ void NsTestsFixture::shut_down_everything() {
     quotaFlusherPtr->synchronize();
     quotaFlusherPtr = nullptr;
   }
-  
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
-  qclient::RetryStrategy retryStrategy {true, std::chrono::seconds(60) };
+  qclient::RetryStrategy retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60));
   return std::unique_ptr<qclient::QClient>(
     new qclient::QClient(getMembers(), true, retryStrategy)
   );
