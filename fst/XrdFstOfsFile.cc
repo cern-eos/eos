@@ -760,8 +760,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                        " of file ", capOpaque->Env(envlen));
     }
 
-    if (isRW) {
-      // File does not exist, keep the create lfag
+    if (isRW || (capOpaque->Get("mgm.zerosize"))) {
+      // File does not exist, keep the create flag for writers and readers with 0-size at MGM
       isCreation = true;
       openSize = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
