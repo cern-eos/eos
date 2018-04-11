@@ -178,20 +178,14 @@
     eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
                      "n_source_fids=%llu", target_snapshot.mGroup.c_str(),
                      gposition, source_fsid, target_fsid, nfids);
-    unsigned long long rpos = (unsigned long long)((0.999999 * random() * nfids) /
-                              RAND_MAX);
 
-    for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
-         (it_fid && it_fid->valid()); it_fid->next()) {
-      // Jump to randomly chosen point
-      if (rpos > 0) {
-        --rpos;
-        continue;
+    for(unsigned long long attempts = 0; attempts < nfids; attempts++) {
+      eos::IFileMD::id_t fid;
+      if(!gOFS->eosFsView->getApproximatelyRandomFileInFs(source_fsid, fid)) {
+        break;
       }
 
       // check that the target does not have this file
-      eos::IFileMD::id_t fid = it_fid->getElement();
-
       if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
         // Iterate to the next file, we have this file already
         eos_static_debug("skip fid=%ld - existing on target", fid);
