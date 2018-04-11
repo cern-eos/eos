@@ -200,6 +200,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-ioping
 %{_sbindir}/eos-iobw
 %{_sbindir}/eos-iops
+%{_sbindir}/eos-filter-stacktrace
 %{_libdir}/libEosProtobuf.so.%{version}
 %{_libdir}/libEosProtobuf.so.%{major_version}
 %{_libdir}/libeosCommonServer.so.%{version}
