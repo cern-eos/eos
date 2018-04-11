@@ -1810,6 +1810,12 @@ WFE::Job::DoIt(bool issync)
             destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" << RETRIEVE_WRITTEN_WORKFLOW_NAME;
             notification->mutable_transport()->set_dst_url(destStream.str());
 
+            std::ostringstream errorReportStream;
+            errorReportStream << "eosQuery://" << gOFS->HostName
+                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << StringConversion::FastUnsignedToAsciiHex(mFid)
+                              << "&mgm.logid=cta&mgm.event=retrievefailed&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+            notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+
             // Reset the error attribute before sending prepare request
             try {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -1936,7 +1942,7 @@ WFE::Job::DoIt(bool issync)
 
             return SendProtoWFRequest(this, fullPath, request, true);
           }
-        } else if (event == "archived") {
+        } if (event == "archived") {
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -1989,8 +1995,23 @@ WFE::Job::DoIt(bool issync)
 
           MoveWithResults(SFS_OK);
           return SFS_OK;
-        }
-        else {
+        } else if (event == "retrievefailed") {
+          try {
+            eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+            fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+            // todo @jmakai change this generic message
+            fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare failed");
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& ex) {
+            eos_static_err("Could not reset retrieves counter and set error attribute for file %s.",
+                           fullPath.c_str());
+            MoveWithResults(SFS_ERROR);
+            return SFS_ERROR;
+          }
+
+          MoveWithResults(SFS_OK);
+          return SFS_OK;
+        } else {
           eos_static_err("Unknown event %s for proto workflow", event.c_str());
           MoveWithResults(SFS_ERROR);
           return SFS_ERROR;
