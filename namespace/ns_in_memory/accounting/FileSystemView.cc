@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
+#include "namespace/utils/FileListRandomPicker.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -162,9 +163,9 @@ void FileSystemView::fileMDRead(IFileMD* obj)
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get iterator to list of files on a particular file system
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
 {
@@ -174,6 +175,19 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pFiles[location]));
+}
+
+//------------------------------------------------------------------------------
+// Get an approximately random file residing within the given filesystem.
+//------------------------------------------------------------------------------
+bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location,
+    IFileMD::id_t &retval) {
+
+  if (pFiles.size() <= location) {
+    return false;
+  }
+
+  return pickRandomFile(pFiles[location], retval);
 }
 
 //------------------------------------------------------------------------------

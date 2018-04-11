@@ -255,6 +255,51 @@ TEST_F(FileSystemViewF, BasicSanity)
 }
 
 //------------------------------------------------------------------------------
+// Test retrieval of random file ids in a filesystem view
+//------------------------------------------------------------------------------
+TEST_F(FileSystemViewF, RandomFilePicking)
+{
+  view()->createContainer("/test/", true);
+  for(size_t i = 1; i < 200; i++) {
+    std::shared_ptr<eos::IFileMD> file = view()->createFile(SSTR("/test/" << i));
+
+    // Even files go to fs #1, odd go to #2
+    if(i % 2 == 0) {
+      file->addLocation(1);
+    }
+    else {
+      file->addLocation(2);
+    }
+
+    view()->updateFileStore(file.get());
+  }
+
+  mdFlusher()->synchronize();
+  for(size_t i = 0; i < 1000; i++) {
+    eos::IFileMD::id_t randomPick;
+    ASSERT_TRUE(fsview()->getApproximatelyRandomFileInFs(1, randomPick));
+    ASSERT_TRUE(randomPick % 2 == 0);
+
+    if(i < 10) {
+      std::cout << "Random file in fs #1: " << randomPick << std::endl;
+    }
+
+    randomPick;
+    ASSERT_TRUE(fsview()->getApproximatelyRandomFileInFs(2, randomPick));
+    ASSERT_TRUE(randomPick % 2 == 1);
+
+    if(i < 10) {
+      std::cout << "Random file in fs #2: " << randomPick << std::endl;
+    }
+  }
+
+  eos::IFileMD::id_t randomPick;
+  ASSERT_FALSE(fsview()->getApproximatelyRandomFileInFs(3, randomPick));
+  ASSERT_FALSE(fsview()->getApproximatelyRandomFileInFs(5, randomPick));
+  ASSERT_FALSE(fsview()->getApproximatelyRandomFileInFs(4, randomPick));
+}
+
+//------------------------------------------------------------------------------
 // Test file iterator on top of QHash object
 //------------------------------------------------------------------------------
 TEST_F(FileSystemViewF, FileIterator)

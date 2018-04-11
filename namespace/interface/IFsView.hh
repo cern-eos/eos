@@ -123,6 +123,17 @@ public:
       getFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get an approximately random file residing within the given filesystem.
+  //!
+  //! @param location file system id
+  //! @param retval a file id residing within the given filesystem
+  //!
+  //! @return bool indicating whether the operation was successful
+  //----------------------------------------------------------------------------
+  virtual bool getApproximatelyRandomFileInFs(IFileMD::location_t location,
+    IFileMD::id_t &retval) = 0;
+
+  //----------------------------------------------------------------------------
   //! Get number of files on the given file system
   //!
   //! @param fs_id file system id

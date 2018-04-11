@@ -492,19 +492,11 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   int attempts = 10;
 
   while (attempts-- > 0) {
-    rndIndex = getRandom(fsid_size - 1);
 
-    for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-         (it_fid && it_fid->valid()); it_fid->next()) {
-      // Jump to random location
-      if (rndIndex > 0) {
-        --rndIndex;
-        continue;
-      }
-
-      if (mTransfers.count(it_fid->getElement()) == 0) {
-        return it_fid->getElement();
-      }
+    eos::IFileMD::id_t randomPick;
+    if(gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
+       mTransfers.count(randomPick) == 0) {
+      return randomPick;
     }
   }
 

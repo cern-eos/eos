@@ -46,6 +46,7 @@ add_library(
   # Namespace utils
   utils/DataHelper.cc
   utils/Descriptor.cc
+  utils/FileListRandomPicker.cc
   utils/ThreadUtils.cc
   utils/TestHelpers.cc
   utils/Buffer.hh)

@@ -82,6 +82,17 @@ public:
       getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
+  //! Get an approximately random file residing within the given filesystem.
+  //!
+  //! @param location file system id
+  //! @param retval a file id residing within the given filesystem
+  //!
+  //! @return bool indicating whether the operation was successful
+  //----------------------------------------------------------------------------
+  bool getApproximatelyRandomFileInFs(IFileMD::location_t location,
+    IFileMD::id_t &retval) override;
+
+  //----------------------------------------------------------------------------
   //! Get number of files on the given file system
   //!
   //! @param fs_id file system id

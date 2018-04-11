@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/utils/FileListRandomPicker.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -297,6 +298,20 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
   CacheFiles(location);
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new FileIterator(pFiles[location]));
+}
+
+//----------------------------------------------------------------------------
+// Get an approximately random file residing within the given filesystem.
+//----------------------------------------------------------------------------
+bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location,
+    IFileMD::id_t &retval) {
+
+  if (pFiles.find(location) == pFiles.end()) {
+    return false;
+  }
+
+  CacheFiles(location);
+  return pickRandomFile(pFiles[location], retval);
 }
 
 //------------------------------------------------------------------------------
