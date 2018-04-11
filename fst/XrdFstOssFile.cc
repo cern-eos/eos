@@ -109,6 +109,8 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
     mIsRW = true;
   }
 
+  if (getenv("EOS_FST_BLOCKXS")) // disable blockchecksum support by default in this branch
+  {
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
     //..........................................................................
@@ -148,6 +150,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
         return -EIO;
       }
     }
+  }
   }
 
   //............................................................................
