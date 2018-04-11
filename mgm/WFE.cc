@@ -1816,7 +1816,10 @@ WFE::Job::DoIt(bool issync)
               fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
               gOFS->eosView->updateFileStore(fmd.get());
             } catch (eos::MDException& ex) {
-              eos_static_err("Could not reset error attribute for retrieved file.");
+              // Fail in case we cannot reset the error attribute
+              eos_static_crit("Could not reset error attribute for retrieved file.");
+              MoveWithResults(EAGAIN);
+              return EAGAIN;
             }
 
             int sendResult = SendProtoWFRequest(this, fullPath, request);
