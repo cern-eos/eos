@@ -1807,14 +1807,24 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream destStream;
             destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
                        << StringConversion::FastUnsignedToAsciiHex(mFid);
-            destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=none";
+            destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" << RETRIEVE_WRITTEN_WORKFLOW_NAME;
             notification->mutable_transport()->set_dst_url(destStream.str());
+
+            // Reset the error attribute before sending prepare request
+            try {
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
+              gOFS->eosView->updateFileStore(fmd.get());
+            } catch (eos::MDException& ex) {
+              eos_static_err("Could not reset error attribute for retrieved file.");
+            }
 
             int sendResult = SendProtoWFRequest(this, fullPath, request);
             if (sendResult != 0) {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
               try {
                 fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+                fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare handshake failed");
                 gOFS->eosView->updateFileStore(fmd.get());
               } catch (eos::MDException& ex) {}
             }
@@ -1865,47 +1875,64 @@ WFE::Job::DoIt(bool issync)
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
         } else if (event == "closew") {
-          collectAttributes();
-
-          std::ostringstream checksum;
-          {
-            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
-
-            notification->mutable_file()->set_size(fmd->getSize());
-            notification->mutable_file()->mutable_cks()->set_type(
-              eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
-
-            for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-                 i++) {
-              char hb[4];
-              sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-              checksum << hb;
+          if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
+            // reset the retrieves counter and error message in case the retrieved file has been written to disk
+            try {
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+              fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
+              gOFS->eosView->updateFileStore(fmd.get());
+            } catch (eos::MDException& ex) {
+              eos_static_err("Could not reset retrieves counter and error attribute for file %s.",
+                             fullPath.c_str());
             }
+
+            MoveWithResults(SFS_OK);
+            return SFS_OK;
+          } else {
+
+            collectAttributes();
+
+            std::ostringstream checksum;
+            {
+              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+
+              notification->mutable_file()->set_size(fmd->getSize());
+              notification->mutable_file()->mutable_cks()->set_type(
+                eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
+
+              for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+                   i++) {
+                char hb[4];
+                sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+                checksum << hb;
+              }
+            }
+
+            notification->mutable_file()->mutable_cks()->set_value(checksum.str());
+
+            notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
+            notification->mutable_wf()->mutable_instance()->set_name(
+              gOFS->MgmOfsInstanceName.c_str());
+            notification->mutable_file()->set_lpath(fullPath);
+            notification->mutable_file()->set_fid(mFid);
+
+            auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
+            std::ostringstream srcStream;
+            srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+                      << fxidString;
+            notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
+
+            std::ostringstream reportStream;
+            reportStream << "eosQuery://" << gOFS->HostName
+                         << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                         << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+            notification->mutable_transport()->set_report_url(reportStream.str());
+
+            return SendProtoWFRequest(this, fullPath, request, true);
           }
-
-          notification->mutable_file()->mutable_cks()->set_value(checksum.str());
-
-          notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
-          notification->mutable_wf()->mutable_instance()->set_name(
-            gOFS->MgmOfsInstanceName.c_str());
-          notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->set_fid(mFid);
-
-          auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
-          std::ostringstream srcStream;
-          srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                    << fxidString;
-          notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-
-          std::ostringstream reportStream;
-          reportStream << "eosQuery://" << gOFS->HostName
-                       << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                       << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
-          notification->mutable_transport()->set_report_url(reportStream.str());
-
-          return SendProtoWFRequest(this, fullPath, request, true);
         } else if (event == "archived") {
           bool onlyTapeCopy = false;
           {
@@ -2083,14 +2110,14 @@ WFE::Job::MoveToRetry(const std::string& filePath) {
     try {
       retry = std::stoi(cmd->getAttribute(retryattr));
     } catch (...) {
-      // retry 5 times by default
+      // retry 25 times by default
       retry = 25;
     }
 
     try {
       delay = std::stoi(cmd->getAttribute(delayattr));
     } catch (...) {
-      // retry after 5 minutes by default and one final longer wait
+      // retry after 1 hour by default and one final longer wait
       delay = mRetry == retry - 1 ? 7200 : 3600;
     }
   }

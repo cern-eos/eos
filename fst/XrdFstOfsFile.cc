@@ -1611,7 +1611,7 @@ XrdFstOfsFile::close()
           // the entry server has to truncate only if this is not a recovery action
           if (layOut->IsEntryServer() && !store_recovery) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
-                     (unsigned long long) maxOffsetWritten);
+                     maxOffsetWritten);
             layOut->Truncate(maxOffsetWritten);
           }
         } else {
@@ -2055,8 +2055,8 @@ XrdFstOfsFile::close()
 
         eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d "
                  "fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"),
-                 (unsigned long long) fileid,
-                 (int) fsid, capOpaque->Get("mgm.path"), fstPath.c_str(), rcode);
+                 fileid, (int) fsid,
+                 capOpaque->Get("mgm.path"), fstPath.c_str(), rcode);
       }
 
       rc = SFS_ERROR;
