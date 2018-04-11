@@ -1686,9 +1686,11 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
     } else {
-      if (!isFuse && !fmd->getSize()) {
+      if (!fmd->getSize()) {
         // 0-size files can be read from the MGM if this is not FUSE access!
         isZeroSizeFile = true;
+      }
+      if (!isFuse) {
         return SFS_OK;
       }
     }
@@ -1852,6 +1854,12 @@ XrdMgmOfsFile::open(const char* inpath,
   {
     capability += "&mgm.repairread=1";
   }
+
+  if (isZeroSizeFile)
+  {
+    capability += "&mgm.zerosize=1";
+  }
+
   XrdOucString infolog = "";
   XrdOucString piolist = "";
 
