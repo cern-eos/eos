@@ -182,7 +182,8 @@ public:
     //! @param retry should retry the request
     //! @return whether it was successful or not
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
-                                  const cta::xrd::Request& request, bool retry = false);
+                                  const cta::xrd::Request& request, std::string& errorMsg,
+                                  bool retry = false);
 
     // -------------------------------------------------------------------------
     // persistency related methods

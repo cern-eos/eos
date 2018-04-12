@@ -1828,13 +1828,20 @@ WFE::Job::DoIt(bool issync)
               return EAGAIN;
             }
 
-            int sendResult = SendProtoWFRequest(this, fullPath, request);
+            std::string errorMsg;
+            int sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
             if (sendResult != 0) {
+              // Create human readable timestamp with the error message
+              auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+              std::string ctime = std::ctime(&time);
+              std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
+                (errorMsg.empty() ? "Prepare handshake failed" : errorMsg);
+
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
               try {
                 // Set counter to 0 in case of failure so it can be retried
                 fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-                fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare handshake failed");
+                fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, errorMsgAttr);
                 gOFS->eosView->updateFileStore(fmd.get());
               } catch (eos::MDException& ex) {}
             }
@@ -1890,7 +1897,8 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
             notification->mutable_file()->set_fid(mFid);
 
-            return SendProtoWFRequest(this, fullPath, request);
+            std::string errorMsg;
+            return SendProtoWFRequest(this, fullPath, request, errorMsg);
           } else {
             // retrieve counter hasn't reached 0 yet, we just return OK
             MoveWithResults(SFS_OK);
@@ -1910,7 +1918,8 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
 
-          return SendProtoWFRequest(this, fullPath, request);
+          std::string errorMsg;
+          return SendProtoWFRequest(this, fullPath, request, errorMsg);
         } else if (event == "sync::create") {
           collectAttributes();
 
@@ -1925,7 +1934,8 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
 
-          return SendProtoWFRequest(this, fullPath, request);
+          std::string errorMsg;
+          return SendProtoWFRequest(this, fullPath, request, errorMsg);
         } else if (event == "sync::delete") {
           collectAttributes();
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
@@ -1934,7 +1944,8 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_fid(mFid);
 
           auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
-            SendProtoWFRequest(&jobCopy, fullPath, request);
+            std::string errorMsg;
+            SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
@@ -1996,7 +2007,8 @@ WFE::Job::DoIt(bool issync)
                          << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
             notification->mutable_transport()->set_report_url(reportStream.str());
 
-            return SendProtoWFRequest(this, fullPath, request, true);
+            std::string errorMsg;
+            return SendProtoWFRequest(this, fullPath, request, errorMsg, true);
           }
         } else if (event == "archived") {
           bool onlyTapeCopy = false;
@@ -2098,7 +2110,7 @@ WFE::Job::DoIt(bool issync)
 
 int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
-                             const cta::xrd::Request& request, bool retry) {
+                             const cta::xrd::Request& request, std::string& errorMsg, bool retry) {
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err(
       "You are running proto wf jobs without specifying mgmofs.protowfendpoint or mgmofs.protowfresource in the MGM config file."
@@ -2125,6 +2137,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
+    errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
@@ -2163,6 +2176,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     case cta::xrd::Response::RSP_INVALID:
       eos_static_err("%s %s", errorEnumMap[response.type()], response.message_txt().c_str());
       retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
+      errorMsg = response.message_txt();
       return EPROTO;
 
     default:
