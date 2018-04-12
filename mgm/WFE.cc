@@ -1942,7 +1942,7 @@ WFE::Job::DoIt(bool issync)
 
             return SendProtoWFRequest(this, fullPath, request, true);
           }
-        } if (event == "archived") {
+        } else if (event == "archived") {
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
