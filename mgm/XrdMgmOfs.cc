@@ -385,6 +385,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
 
+  std::string event = pargs.opts & Prep_FRESH ? "sync::abort_prepare" : "sync::prepare";
+
   // check that all files exist
   while (pptr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
@@ -408,8 +410,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                  nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
 
-      for (auto& attrEntry : attributes) {
-        foundPrepareTag |= attrEntry.first.find("sys.workflow.sync::prepare") == 0;
+      std::string eventAttr = "sys.workflow." + event;
+      for (const auto& attrEntry : attributes) {
+        foundPrepareTag |= attrEntry.first.find(eventAttr) == 0;
       }
 
       if (foundPrepareTag) {
@@ -457,8 +460,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                              *pathPair.second : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
-    prep_info += "&";
-    prep_info += "&mgm.event=sync::prepare";
+//    prep_info += "&";
+    prep_info += "&mgm.event=";
+    prep_info += event.c_str();
     prep_info += "&mgm.workflow=";
 
     if (prep_env.Get("eos.workflow")) {

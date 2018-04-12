@@ -205,5 +205,5 @@
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
   EXEC_TIMING_END("Event");
-  return SFS_DATA;
+  return rc == 0 ? SFS_DATA : rc;
 }

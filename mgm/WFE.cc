@@ -1813,7 +1813,7 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << StringConversion::FastUnsignedToAsciiHex(mFid)
-                              << "&mgm.logid=cta&mgm.event=retrievefailed&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                              << "&mgm.logid=cta&mgm.event=retrieve_failed&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             // Reset the error attribute before sending prepare request
@@ -1832,6 +1832,7 @@ WFE::Job::DoIt(bool issync)
             if (sendResult != 0) {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
               try {
+                // Set counter to 0 in case of failure so it can be retried
                 fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
                 fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare handshake failed");
                 gOFS->eosView->updateFileStore(fmd.get());
@@ -1839,6 +1840,61 @@ WFE::Job::DoIt(bool issync)
             }
 
             return sendResult;
+          }
+        } else if (event == "sync::abort_prepare") {
+          auto retrieveCntr = 0;
+          bool shouldAbort = false;
+          {
+            eos::common::RWMutexWriteLock lock;
+            lock.Grab(gOFS->eosViewRWMutex);
+
+            try {
+              if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
+                retrieveCntr = std::stoi(fmd->getAttribute(RETRIEVES_ATTR_NAME));
+              }
+            } catch (...) {
+              lock.Release();
+              eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
+                             fullPath.c_str(), RETRIEVES_ATTR_NAME);
+              MoveWithResults(EAGAIN);
+              return EAGAIN;
+            }
+
+            shouldAbort = (--retrieveCntr == 0);
+
+            try {
+              if (retrieveCntr >= 0) {
+                fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr));
+                gOFS->eosView->updateFileStore(fmd.get());
+              }
+            } catch (eos::MDException& ex) {
+              lock.Release();
+              eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
+                             RETRIEVES_ATTR_NAME, fullPath.c_str());
+              MoveWithResults(EAGAIN);
+              return EAGAIN;
+            }
+          }
+
+          if (shouldAbort) {
+            collectAttributes();
+
+            {
+              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+            }
+
+            notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
+            notification->mutable_file()->set_lpath(fullPath);
+            notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+            notification->mutable_file()->set_fid(mFid);
+
+            return SendProtoWFRequest(this, fullPath, request);
+          } else {
+            // retrieve counter hasn't reached 0 yet, we just return OK
+            MoveWithResults(SFS_OK);
+            return SFS_OK;
           }
         } else if (event == "sync::openw") {
           collectAttributes();
@@ -1995,7 +2051,7 @@ WFE::Job::DoIt(bool issync)
 
           MoveWithResults(SFS_OK);
           return SFS_OK;
-        } else if (event == "retrievefailed") {
+        } else if (event == "retrieve_failed") {
           try {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
             fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
