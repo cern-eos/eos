@@ -27,7 +27,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 #include "common/Logging.hh"
 #include <memory>
 #include <map>

@@ -26,7 +26,7 @@
 
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
-#include "ShardedCache.hh"
+#include "common/ShardedCache.hh"
 #include "BoundIdentityProvider.hh"
 
 class ProcessCacheEntry

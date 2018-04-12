@@ -28,7 +28,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
 /*----------------------------------------------------------------------------*/

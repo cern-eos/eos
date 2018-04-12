@@ -34,7 +34,7 @@
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 #include "misc/FuseId.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>

@@ -26,7 +26,7 @@
 #define FUSE_EOSFUSE_HH_
 
 #include "misc/MacOSXHelper.hh"
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -225,7 +225,7 @@ public:
       uint32_t nocache_graceperiod;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
-    
+
     typedef struct recovery {
       int read;
       int write;
@@ -235,7 +235,7 @@ public:
       int write_open_noserver;
       size_t read_open_noserver_retrywindow;
       size_t write_open_noserver_retrywindow;
-    } recovery_t; 
+    } recovery_t;
 
     recovery_t recovery;
     options_t options;
@@ -313,7 +313,7 @@ private:
   cfg_t config;
 
   stringTS lastMgmHostPort;
- 
+
   std::unique_ptr<kv> mKV;
   Stat fusestat;
 

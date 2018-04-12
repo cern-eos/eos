@@ -25,7 +25,7 @@
 #define __CREDENTIALCACHE__HH__
 
 #include "CredentialFinder.hh"
-#include "ShardedCache.hh"
+#include "common/ShardedCache.hh"
 
 struct CredInfoHasher {
   static uint64_t hash(const CredInfo& key)

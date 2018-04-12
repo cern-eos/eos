@@ -21,12 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __SHARDED_CACHE__HH__
-#define __SHARDED_CACHE__HH__
+#ifndef SHARDED_CACHE__HH__
+#define SHARDED_CACHE__HH__
 
-#include "Utils.hh"
-#include "common/RWMutex.hh"
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 
 #ifdef __APPLE__
 #include <cmath>

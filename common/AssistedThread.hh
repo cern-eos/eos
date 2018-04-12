@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_ASSISTED_THREAD_H__
-#define FUSE_ASSISTED_THREAD_H__
+#ifndef COMMON_ASSISTED_THREAD_H__
+#define COMMON_ASSISTED_THREAD_H__
 
 #include <atomic>
 #include <thread>

@@ -32,7 +32,7 @@
 #include "data/cachehandler.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
-#include "misc/AssistedThread.hh"
+#include "common/AssistedThread.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
@@ -61,7 +61,7 @@ public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
 	      mPrefetchHandler(0),
-	      mWaitForOpen(false), 
+	      mWaitForOpen(false),
 	      mSimulateWriteErrorInFlush(false),
 	      mSimulateWriteErrorInFlusher(false),
 	      mFlags(0)
@@ -172,7 +172,7 @@ public:
 
     static bufferllmanager sBufferManager;
 
-    bool simulate_write_error_in_flusher() 
+    bool simulate_write_error_in_flusher()
     {
       return mSimulateWriteErrorInFlusher;
     }
