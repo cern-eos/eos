@@ -1655,7 +1655,7 @@ WFE::Job::DoIt(bool issync)
                          return std::toupper(c);
                        }
         );
-        eos_static_info("%s %s %s %s", mActions[0].mWorkflow, eventUpperCase.c_str(),
+        eos_static_info("%s %s %s %s", mActions[0].mWorkflow.c_str(), eventUpperCase.c_str(),
                         fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
 
         cta::xrd::Request request;
