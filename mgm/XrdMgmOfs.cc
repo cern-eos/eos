@@ -460,7 +460,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                              *pathPair.second : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
-//    prep_info += "&";
     prep_info += "&mgm.event=";
     prep_info += event.c_str();
     prep_info += "&mgm.workflow=";
