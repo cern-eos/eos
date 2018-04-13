@@ -28,6 +28,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/WFE.hh"
 #include "mgm/FsView.hh"
+#include "mgm/Constants.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -47,7 +48,8 @@ Workflow::Trigger(std::string event, std::string workflow,
     return 0;
   }
 
-  if (workflow != "default" && !vid.sudoer) {
+  if ((workflow == RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
+      || (workflow == "none" && !vid.sudoer)) {
     workflow = "default";
   }
 

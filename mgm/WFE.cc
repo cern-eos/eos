@@ -2161,7 +2161,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     case cta::xrd::Response::RSP_ERR_USER:
     case cta::xrd::Response::RSP_ERR_PROTOBUF:
     case cta::xrd::Response::RSP_INVALID:
-      eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], response.message_txt().c_str());
+      eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], fullPath.c_str(), response.message_txt().c_str());
       retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
       errorMsg = response.message_txt();
       return EPROTO;
