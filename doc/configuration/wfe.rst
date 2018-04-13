@@ -12,18 +12,20 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
 
 .. epigraph::
 
-   ============== ==================================================================================================
-   Event          Description
-   ============== ==================================================================================================
-   sync::create   event is triggered at the MGM when a file is being created (synchronous event)
-   sync::openw    event is triggered at the MGM when a 'file open for write' (synchronous event)
-   open           event is triggered at the MGM when a 'file open'
-                  - if the return of an open call is ENONET a workflow defined stall time is returned 
-   sync::prepare  event is triggered at the MGM when a 'prepare' is issued (synchronous event)
-   closer         event is triggered via the MGM when a read-open file is closed on an FST. 
-   closew         event is triggered via the MGM when a write-open file is closed on an FST
-   sync::delete   event is triggered at the MGM when a file has been deleted (synchronous event)
-   ============== ==================================================================================================
+   ===================  ==================================================================================================
+   Event                Description
+   ===================  ==================================================================================================
+   sync::create         event is triggered at the MGM when a file is being created (synchronous event)
+   sync::openw          event is triggered at the MGM when a 'file open for write' (synchronous event)
+   open                 event is triggered at the MGM when a 'file open'
+                        - if the return of an open call is ENONET a workflow defined stall time is returned
+   sync::prepare        event is triggered at the MGM when a 'prepare' is issued (synchronous event)
+   sync::abort_prepare  event is triggered at the MGM when xrdfs prepare -f issued (synchronous event)
+   retrieve_failed      event is triggered at the MGM when a retrieval of a file has failed
+   closer               event is triggered via the MGM when a read-open file is closed on an FST.
+   closew               event is triggered via the MGM when a write-open file is closed on an FST
+   sync::delete         event is triggered at the MGM when a file has been deleted (synchronous event)
+   ==============       ==================================================================================================
 
 Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
 It allows you to execute any shell command as a workflow. This target provides a large set of template parameters
