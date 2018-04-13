@@ -2033,13 +2033,17 @@ WFE::Job::DoIt(bool issync)
             }
 
             bool dropAllStripes = true;
-            {
-              std::string dropDiskVal;
-              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              dropAllStripes =
-                !(gOFS->_attr_get(*cmd, "sys.wfe.archived.dropdiskreplicas", dropDiskVal)) || dropDiskVal == "1";
+            IContainerMD::XAttrMap parentDirAttributes;
+            if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
+                               errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
+              for (const auto& attrPair : parentDirAttributes) {
+                if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" && attrPair.second == "0") {
+                  dropAllStripes = false;
+                }
+              }
             }
 
+            errInfo.clear();
             if (dropAllStripes && gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, true) != 0) {
               eos_static_err("Could not delete all file replicas of %s. Reason: %s",
                              fullPath.c_str(), errInfo.getErrText());
