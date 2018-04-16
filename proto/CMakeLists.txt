@@ -37,9 +37,8 @@ set_source_files_properties(
   ${NS_PROTO_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(EosNsQuarkdbProto-Objects OBJECT)
-
-target_sources(EosNsQuarkdbProto-Objects PUBLIC
+add_library(
+  EosNsQuarkdbProto-Objects OBJECT
   ${NS_PROTO_SRCS}  ${NS_PROTO_HDRS})
 
 set_target_properties(EosNsQuarkdbProto-Objects PROPERTIES
@@ -56,9 +55,7 @@ set_source_files_properties(
   ${FMDBASE_HDRS}
   PROPERTIES GENERATED TRUE)
 
-add_library(EosFstProto-Objects OBJECT)
-
-target_sources(EosFstProto-Objects PUBLIC
+add_library(EosFstProto-Objects OBJECT
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})
 
@@ -89,15 +86,13 @@ set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(EosCliProto-Objects OBJECT)
-target_sources(EosCliProto-Objects PUBLIC
+add_library(EosCliProto-Objects OBJECT
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
+
 set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(EosProtobuf SHARED)
-
-target_sources(EosProtobuf PUBLIC
+add_library(EosProtobuf SHARED
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
