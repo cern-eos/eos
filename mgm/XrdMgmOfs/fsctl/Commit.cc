@@ -245,6 +245,16 @@
 	    if (ScheduledToBalanceFid.count(fid))
 	      ScheduledToBalanceFid.erase(fid);
 	  }
+
+	  // check if we have this replica in the unlink list                                                                    
+          if (fusex && fmd->hasUnlinkedLocation((unsigned short) fsid))
+	  {
+	    eos_thread_err("suppressing possible recovery replica for fid=%lu on unlinked fsid=%llu- rejecting replica", fmd->getId(), fsid);
+	    // this happens when a FUSEX recovery has been triggered, to avoid to reattach replicas,                             	    // we clean them up here                                                                                            
+	    return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE] - suppressing recovery replica",
+			  "");
+	  }
+
           if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
 	  {
             // we check filesize and the checksum only for replica layouts
