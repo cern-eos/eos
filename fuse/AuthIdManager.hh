@@ -30,6 +30,7 @@
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
+#include "common/ShardedCache.hh"
 #include "ProcCache.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -167,7 +168,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   AuthIdManager():
-    connectionId(0), mCleanupThread()
+    connectionId(0), uidCache(16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */ ), mCleanupThread()
   {
     resize(proccachenbins);
   }
@@ -183,6 +184,39 @@ protected:
   std::vector<std::map<pid_t, std::string> > pid2StrongLogin;
   // maps (sessionid,userid) -> ( credinfo )
   std::vector<std::map<pid_t, std::map<uid_t, CredInfo>  >> siduid2credinfo;
+  // maps (uid, sId, credential mtime) -> xrootd connection id
+  struct CredKey {
+    uid_t uid;
+    std::string sId;
+    time_t mtime;
+
+    bool operator<(const CredKey& src) const {
+      if (uid != src.uid) {
+        return uid < src.uid;
+      }
+
+      if (sId != src.sId) {
+        return sId < src.sId;
+      }
+
+      return mtime < src.mtime;
+    }
+  };
+
+  struct CredKeyHasher {
+    static uint64_t hash(const CredKey& key) {
+      uint64_t result = key.uid;
+      result += key.mtime;
+
+      for(size_t i = 0; i < key.sId.size(); i++) {
+        result += key.sId[i];
+      }
+
+      return result;
+    }
+  };
+
+  ShardedCache<CredKey, uint64_t, CredKeyHasher> uidCache;
   static uint64_t sConIdCount;
   std::set<pid_t> runningPids;
   pthread_t mCleanupThread;
@@ -666,7 +700,22 @@ protected:
         gProcCache(sid).SetAuthMethod(sid, newauthmeth);
       }
 
-      authid = getNewConId(uid, gid, pid);
+      // Cache connection ID based on (uid, sId, credential mtime) to avoid
+      // opening too many connections towards the MGM
+
+      CredKey credKey;
+      credKey.uid = uid;
+      credKey.sId = sId;
+      credKey.mtime = credinfo.lmtime;
+
+      std::shared_ptr<uint64_t> cachedConnection = uidCache.retrieve(credKey);
+      if(cachedConnection) {
+        authid = *cachedConnection;
+      }
+      else {
+        authid = getNewConId(uid, gid, pid);
+        uidCache.store(credKey, new uint64_t(authid));
+      }
 
       if (!authid) {
         eos_static_alert("running out of XRootD connections");
