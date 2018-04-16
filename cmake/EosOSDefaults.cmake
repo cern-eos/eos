@@ -76,9 +76,4 @@ endif()
 
 include(CheckCXXCompilerFlag)
 
-check_cxx_compiler_flag(-std=c++1y HAVE_STD_CPP1Y_FLAG)
-if (NOT HAVE_STD_CPP1Y_FLAG)
-  message(FATAL_ERROR "Compiler with -std=c++1y support required.")
-endif ()
-
 set(CPP11_FLAG -std=c++1y)
