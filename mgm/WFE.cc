@@ -551,6 +551,11 @@ WFE::Job::Load(std::string path2entry)
   q.erase(q.rfind('/'));
   q.erase(q.rfind('/'));
   q.erase(0, q.rfind('/') + 1);
+  std::string savedAtDay = path2entry;
+  savedAtDay.erase(savedAtDay.rfind('/'));
+  savedAtDay.erase(savedAtDay.rfind('/'));
+  savedAtDay.erase(savedAtDay.rfind('/'));
+  savedAtDay.erase(0, savedAtDay.rfind('/') + 1);
   std::string when;
   std::string idevent;
   std::string id;
@@ -567,7 +572,7 @@ WFE::Job::Load(std::string path2entry)
     if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
                          "sys.action", action)) {
       time_t t_when = strtoull(when.c_str(), 0, 10);
-      AddAction(action.c_str(), event, t_when, workflow, q);
+      AddAction(action.c_str(), event, t_when, savedAtDay, workflow, q);
     } else {
       eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
     }
@@ -679,7 +684,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
-                      0,
+                      nullptr,
                       "sys.wfe.retc",
                       sretc.c_str())) {
     eos_static_err("msg=\"failed to store workflow return code\" path=\"%s\" retc=\"%s\"",
@@ -691,7 +696,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
-                      0,
+                      nullptr,
                       "sys.wfe.log",
                       log.c_str())) {
     eos_static_err("msg=\"failed to store workflow log\" path=\"%s\" log=\"%s\"",
@@ -721,7 +726,8 @@ WFE::Job::Delete(std::string queue)
 
   std::string workflowdir = gOFS->MgmProcWorkflowPath.c_str();
   workflowdir += "/";
-  workflowdir += mActions[0].mDay;
+  // We have to remove from the day when it was saved
+  workflowdir += mActions[0].mSavedOnDay;
   workflowdir += "/";
   workflowdir += queue;
   workflowdir += "/";

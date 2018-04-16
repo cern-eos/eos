@@ -136,11 +136,18 @@ public:
         mDay = eos::common::Timing::UnixTimstamp_to_Day(when);
       }
 
+      Action(std::string a, std::string e, time_t when, std::string savedOnDay, std::string workflow,
+             std::string queue) : Action (a, e, when, workflow, queue)
+      {
+        mSavedOnDay = savedOnDay;
+      }
+
       std::string mAction;
       std::string mEvent;
       time_t mTime; //! unix timestamp
       std::string mWhen; //! string with unix timestamp
       std::string mDay; //! string with yearmonthday
+      std::string mSavedOnDay; //! string with yearmonthday
       std::string mWorkflow;
       std::string mQueue;
     };
@@ -226,7 +233,18 @@ public:
                       (unsigned long long) mFid);
     }
 
-    bool IsSync(const std::string& event="" ) {return ( (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::");}
+    void AddAction(const std::string& action,
+                   const std::string& event,
+                   time_t when,
+                   const std::string& savedOnDay,
+                   const std::string& workflow,
+                   const std::string& queue)
+    {
+      AddAction(action, event, when, workflow, queue);
+      mActions[mActions.size() - 1].mSavedOnDay = savedOnDay;
+    }
+
+    bool IsSync(const std::string& event="" ) {return (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::";}
 
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
@@ -251,7 +269,7 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! Decrement the number of active jobs in the workflow enging
+  //! Decrement the number of active jobs in the workflow engine
   // ---------------------------------------------------------------------------
 
   void DecActiveJobs()
