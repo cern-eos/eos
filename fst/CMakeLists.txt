@@ -327,7 +327,6 @@ set(XRDEOSFST_SRCS
   io/local/LocalIo.cc  io/local/LocalIo.hh)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
-add_dependencies(XrdEosFst-Objects EosNsQuarkdbProto-Objects)
 
 set_target_properties(
   XrdEosFst-Objects
