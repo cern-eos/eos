@@ -77,7 +77,7 @@ eos::IView* bootNamespace(const std::string& dirLog,
 //------------------------------------------------------------------------------
 // Close the namespace
 //------------------------------------------------------------------------------
-void closeNamespace(eos::IView* view) throw(eos::MDException)
+void closeNamespace(eos::IView* view)
 {
   eos::IContainerMDSvc* contSvc = view->getContainerMDSvc();
   eos::IFileMDSvc*      fileSvc = view->getFileMDSvc();
