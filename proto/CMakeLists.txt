@@ -35,10 +35,9 @@ set(NS_PROTO_HDRS ${FMD_HDRS} ${CMD_HDRS})
 set_source_files_properties(
   ${NS_PROTO_SRCS}
   ${NS_PROTO_HDRS}
-  PROPERTIES GENERATED 1)
+  PROPERTIES GENERATED TRUE)
 
-add_library(
-  EosNsQuarkdbProto-Objects OBJECT
+add_library(EosNsQuarkdbProto-Objects OBJECT
   ${NS_PROTO_SRCS}  ${NS_PROTO_HDRS})
 
 target_sources(EosNsQuarkdbProto-Objects PUBLIC
