@@ -677,66 +677,17 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
         XrdCl::URL url(mFile->GetLastTriedUrl());
         const std::string& username = url.GetUserName();
-        /*
-        =======================================================================================
-        This is a hackish fix to the loss of strong credentials while being redirected
-        The open will follow redirects until we get a permission denied on an mgm because
-        authenticated using unix
-        At this point, it is too late to retry with the same connection which is using unix.
-        We then try again with another connection incrementing the first letter of the username
-        We iterate that process as long the failing location changes.
-        NOTE1: this fixes only the redirect problem on open. It does not fix the problem for
-        other access, especially XrdCl::FileSystem operations
-        NOTE2: the main use case of this is a recoverable error on open on the fst ( fmd error
-        on RO open for example ). We then get redirected to the mgm possibly with a different
-        hostname and a new connection is being created and the credentials are lost).
-        NOTE3: the previous use case is also fixed on server side using the standard XRootD
-        fail recovery procedure on open which goes back to the mgm using the previous
-        connection. This is implemented on server side starting from eos-citrine 4.0.20.
-        =======================================================================================
-        This is useful only  when the server runs eos 0.3 as there, when a
-        recoverable error happens on an fst open, the client gets redirected to
-        the mgm instead of falling back to it as the last redirector.
-        Then, it does not reuse the channel which is already open as for a fall-back.
-        */
+
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          _lasturl.c_str(), mFile->GetLastTriedUrl().c_str(), _path.c_str());
 
-        // if it's the same url regardless of the username, we fail
-        if (!username.empty() && username[0] != '*'
-            && static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
-            kXR_NotAuthorized
-            && (_lasturl.empty() || (_pos = _lasturl.find('@')) != std::string::npos)
-            && (pos = mFile->GetLastTriedUrl().find('@')) != std::string::npos) {
-          // if it's the same url regardless of the username, we fail
-          if (!strcmp(_lasturl.c_str() + _pos, mFile->GetLastTriedUrl().c_str() + pos)) {
-            eos_static_err("using a new connection did not fix at %s",
-                           mFile->GetLastTriedUrl().c_str());
-            errno = EPERM;
-            return -1;
-          }
-
-          _lasturl = mFile->GetLastTriedUrl();
-          _path = mFile->GetLastTriedUrl();
-          size_t p;
-
-          // increment the first character of the login until we reach Z
-          // it forces a new connection to be used , as the previous is most likely used by unix
-          // it forces a new connection to be used , as the previous is most likely used by unix
-          if ((p = _path.find('@')) != std::string::npos) {
-            if (_path[p - 8] != 'Z') {
-              _path[p - 8]++;
-            } else {
-              eos_static_warning("reached maximum number of redirects for strong authentication");
-              errno = EPERM;
-              return -1;
-            }
-          }
-
-          sopaque = "";
-          eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
-                           mFile->GetLastTriedUrl().c_str());
+	if ( static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
+	     kXR_NotAuthorized )
+	{
+	  eos_static_err("permission denied");
+	  errno = EPERM;
+	  return -1;
         } else {
           eos_static_err("error while openning");
           return -1;
