@@ -374,11 +374,6 @@ void HealthCommand::GetGroupsInfo()
     throw std::string("MGMError: " + fs.GetError());
   }
 
-//  if (!m_mgm_execute.ExecuteCommand("mgm.cmd=fs&mgm.subcmd=ls&mgm.outformat=m",
-//                                    true)) {
-//    throw std::string("MGMError: " + m_mgm_execute.GetError());
-//  }
-
   std::string ret = fs.GetResult();
 
   if (ret.empty()) {
