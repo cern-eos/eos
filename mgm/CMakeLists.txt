@@ -59,6 +59,9 @@ add_library(
   EosMgmProto-Objects OBJECT
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
+target_sources(EosMgmProto-Objects PUBLIC
+  ${FUSEX_SRCS} ${FUSEX_HDRS})
+
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
