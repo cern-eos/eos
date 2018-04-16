@@ -1689,9 +1689,9 @@ XrdMgmOfsFile::open(const char* inpath,
       if (!fmd->getSize()) {
         // 0-size files can be read from the MGM if this is not FUSE access!
         isZeroSizeFile = true;
-      }
-      if (!isFuse) {
-        return SFS_OK;
+	if (!isFuse) {
+	  return SFS_OK;
+	}
       }
     }
   }
