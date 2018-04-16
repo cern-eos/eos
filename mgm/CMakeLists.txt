@@ -55,8 +55,9 @@ set_source_files_properties(
   ${FUSEX_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(
-  EosMgmProto-Objects OBJECT
+add_library(EosMgmProto-Objects OBJECT)
+
+target_sources(EosMgmProto-Objects PUBLIC
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
 #-------------------------------------------------------------------------------
