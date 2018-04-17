@@ -116,6 +116,10 @@ error_retc_map(int retc)
     errno = EDQUOT;
   }
 
+  if (retc == kXR_noserver) {
+    errno = ENETUNREACH;
+  }
+
   if (retc) {
     return -1;
   }
