@@ -1252,6 +1252,21 @@ XrdMgmOfsFile::open(const char* inpath,
 
     retc = Quota::FileAccess(&acsargs);
 
+    if (acsargs.isRW)
+    {
+      // if this is an update, we don't have to send the client to cgi excluded locations, 
+      // we tell that the file is unreachable
+      for (size_t k = 0; k < selectedfs.size(); k++) {
+
+          // if the fs is available
+          if (std::find(unavailfs.begin(), unavailfs.end(),
+                        selectedfs[k]) != unavailfs.end()) {
+	    eos_info("location %d is excluded as an unavailable filesystem - returning ENETUNREACH", selectedfs[k]);
+	    retc = ENETUNREACH;
+	  }
+      }
+    }
+
     if ( ((retc == ENETUNREACH) || (retc == EROFS)) && 
 	 ( ((!fmd->getSize()) && (!bookingsize)) || (isRepair) ) ) {
       const char* containertag = 0;
