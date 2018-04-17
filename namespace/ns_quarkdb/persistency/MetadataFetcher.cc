@@ -335,97 +335,6 @@ MetadataFetcher::getContainerFromId(qclient::QClient& qcl, id_t id)
 }
 
 //------------------------------------------------------------------------------
-//! Class IDFromNameFecher - retrive the file/container id given the name and
-//! the parent id.
-//------------------------------------------------------------------------------
-class IDFromNameFetcher : public qclient::QCallback
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param cont true if container, otherwise is file
-  //----------------------------------------------------------------------------
-  IDFromNameFetcher(bool is_cont) : mIsContainer(is_cont) {}
-
-  //----------------------------------------------------------------------------
-  //! Initialize
-  //----------------------------------------------------------------------------
-  std::future<id_t>
-  initialize(qclient::QClient& qcl, id_t prnt, const std::string& nm)
-  {
-    mParentId = prnt;
-    mName = nm;
-    std::future<id_t> fut = mPromise.get_future();
-
-    if (mIsContainer) {
-      qcl.execCB(this, "HGET", SSTR(mParentId << constants::sMapDirsSuffix),
-                 mName);
-    } else {
-      qcl.execCB(this, "HGET", SSTR(mParentId << constants::sMapFilesSuffix),
-                 mName);
-    }
-
-    return fut;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Handle response
-  //!
-  //! @param reply holds a redis reply object
-  //----------------------------------------------------------------------------
-  virtual void handleResponse(redisReplyPtr&& reply) override
-  {
-    MDStatus status = ensureStringReply(reply);
-
-    if (!status.ok()) {
-      return set_exception(status);
-    }
-
-    int64_t retval;
-    status = Serialization::deserialize(reply->str, reply->len, retval);
-
-    if (!status.ok()) {
-      return set_exception(status);
-    }
-
-    // If we've made it this far, it's a success
-    return set_value(retval);
-  }
-
-private:
-  //----------------------------------------------------------------------------
-  //! Return the matching id by passing it to the promise
-  //!
-  //! @param file/container id
-  //----------------------------------------------------------------------------
-  void set_value(const int64_t retval)
-  {
-    mPromise.set_value(retval);
-    delete this; // harakiri
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return exception by passing it to the promise
-  //!
-  //! @param status error return status
-  //----------------------------------------------------------------------------
-  void set_exception(const MDStatus& status)
-  {
-    mPromise.set_exception(
-      make_mdexception(status.getErrno(), "Error while fetching Container/File "
-                       "ID out of parent id " << mParentId << " and name "
-                       << mName << ": " << status.getError()));
-    delete this; // harakiri
-  }
-
-  std::promise<id_t> mPromise;
-  bool mIsContainer;
-  id_t mParentId;
-  std::string mName;
-};
-
-//------------------------------------------------------------------------------
 // Class MetadataFetcher
 //------------------------------------------------------------------------------
 
@@ -468,25 +377,43 @@ MetadataFetcher::getSubContainers(qclient::QClient& qcl, id_t container)
 }
 
 //------------------------------------------------------------------------------
+// Parse response when looking up a ContainerID / FileID from (parent id, name)
+//------------------------------------------------------------------------------
+static id_t parseIDFromNameResponse(redisReplyPtr reply,
+  id_t parentID, const std::string &name) {
+
+  std::string errorPrefix = SSTR("Error while fetching FileID / ContainerID out of (parent id, name) = "
+    "(" << parentID << ", " << name << "): ");
+
+  ensureStringReply(reply).throwIfNotOk(errorPrefix);
+
+  int64_t retval;
+  Serialization::deserialize(reply->str, reply->len, retval)
+    .throwIfNotOk(errorPrefix);
+
+  return retval;
+}
+
+//------------------------------------------------------------------------------
 // Fetch a file id given its parent and its name
 //------------------------------------------------------------------------------
-std::future<id_t>
+folly::Future<id_t>
 MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
                                    const std::string& name)
 {
-  IDFromNameFetcher* fetcher = new IDFromNameFetcher(false);
-  return fetcher->initialize(qcl, parent_id, name);
+  return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapFilesSuffix), name)
+    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name));
 }
 
 //------------------------------------------------------------------------------
 // Fetch a container id given its parent and its name
 //------------------------------------------------------------------------------
-std::future<id_t>
+folly::Future<id_t>
 MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, id_t parent_id,
                                         const std::string& name)
 {
-  IDFromNameFetcher* fetcher = new IDFromNameFetcher(true);
-  return fetcher->initialize(qcl, parent_id, name);
+  return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapDirsSuffix), name)
+    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name));
 }
 
 EOSNSNAMESPACE_END

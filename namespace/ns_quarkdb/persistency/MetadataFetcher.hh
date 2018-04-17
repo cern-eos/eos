@@ -97,7 +97,7 @@ public:
   //!
   //! @return future holding the id of the file
   //----------------------------------------------------------------------------
-  static std::future<id_t>
+  static folly::Future<id_t>
   getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
                     const std::string& name);
 
@@ -110,7 +110,7 @@ public:
   //!
   //! @return future holding the id of the subcontainer
   //----------------------------------------------------------------------------
-  static std::future<id_t>
+  static folly::Future<id_t>
   getContainerIDFromName(qclient::QClient& qcl, id_t parent_id,
                          const std::string& name);
 
