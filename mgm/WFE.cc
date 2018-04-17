@@ -280,7 +280,7 @@ WFE::WFEr()
                 // stop scheduling if there are too many jobs running
                 if (lWFEntx <= GetActiveJobs()) {
                   if (lWFEntx > 0) {
-                    mDoneSignal.Wait(2);
+                    mDoneSignal.WaitMS(100);
 
                     if (lWFEntx <= GetActiveJobs()) {
                       delete job;
