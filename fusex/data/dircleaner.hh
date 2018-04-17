@@ -85,7 +85,6 @@ public:
       totalsize = 0;
       totalfiles = 0;
     }
-
     // thread safe get size
     int64_t get_size()
     {
@@ -103,7 +102,7 @@ public:
   } tree_info_t;
 
   dircleaner(const std::string _path = "/tmp/", int64_t _maxsize = 0 ,
-             int64_t _maxfiles = 0);
+             int64_t _maxfiles = 0, float _clean_threshold = 85.0);
   virtual ~dircleaner();
 
   bool has_suffix(const std::string& str, const std::string& suffix);
@@ -129,6 +128,7 @@ private:
 
   int64_t max_files;
   int64_t max_size;
+  float clean_threshold;
 
   tree_info_t treeinfo;
   tree_info_t externaltreeinfo;

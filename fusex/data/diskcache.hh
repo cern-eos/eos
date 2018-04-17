@@ -74,6 +74,7 @@ private:
   XrdSysMutex mMutex;
   int location(std::string& path, bool mkpath = true);
   static off_t sMaxSize;
+  static float sCleanThreshold;
 
   fuse_ino_t ino;
   size_t nattached;

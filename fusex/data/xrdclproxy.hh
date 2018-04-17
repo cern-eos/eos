@@ -126,7 +126,12 @@ namespace XrdCl
 	// we wait that the situation relaxes
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	if (!(cnt%1000))
-	  eos_static_warning("inflight-buffer exceeds maximum of %lu bytes or too many buffers in flight (>16384)", max_inflight_size);
+	{
+	  if (inflight_size >= max_inflight_size)
+	    eos_static_warning("inflight-buffer exceeds maximum number of %lu bytes [%ld/%ld]", inflight_size, max_inflight_size);
+	  if (inflight_buffers >= 16384)
+	    eos_static_warning("inflight-buffer exceeds maximum number of buffers in flight [%ld/%ld]", inflight_buffers, 16384);
+	}
 	cnt++;
       } while (1);
 
@@ -490,6 +495,12 @@ namespace XrdCl
     {
       // needs WriteCondVar locked
       return ChunkMap().size()?true:false;
+    }
+
+    bool HasTooManyWritesInFlight()
+    {
+      XrdSysCondVarHelper lLock(WriteCondVar());
+      return (ChunkMap().size()  > 1024);
     }
 
     void DropReadAhead()

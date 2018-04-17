@@ -31,10 +31,11 @@
 /* -------------------------------------------------------------------------- */
 dircleaner::dircleaner(const std::string _path,
                        int64_t _maxsize,
-                       int64_t _maxfiles) : path(_path),
-max_files(_maxfiles),
-max_size(_maxsize)
-
+                       int64_t _maxfiles,
+		       float _clean_threshold) : path(_path),
+						 max_files(_maxfiles),
+						 max_size(_maxsize),
+						 clean_threshold(_clean_threshold)
 /* -------------------------------------------------------------------------- */
 {
   if (max_files | max_size)
@@ -277,7 +278,7 @@ dircleaner::leveler(ThreadAssistant &assistant)
       double freep = 100.0 * free_partition_bytes / total_partition_bytes;
       double filled = 100.0 - freep;
       eos_static_info("diskspace on partition path %s free-bytes=%lu total-bytes=%lu filled=%.02f %%", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
-      if ( filled > 95.0) {
+      if ( filled > clean_threshold) {
 	// we force a complete cleanup of the cache if disk space runs low
 	eos_static_warning("diskspace on partition path %s less than 5% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
 	cleanall(trim_suffix);

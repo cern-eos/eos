@@ -209,6 +209,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 
   bool journal_recovery = false;
 
+
   if (mFile->journal() && mFile->has_xrdiorw(req)) {
     eos_info("flushing journal");
 
@@ -277,7 +278,6 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 	  }
 	}
       } 
-
       // truncate the journal
       if (mFile->journal()->reset()) {
 	char msg[1024];
@@ -703,7 +703,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     case XrdCl::Proxy::OPENED:
     case XrdCl::Proxy::WAITWRITE:
     default:
-      eos_crit("triggering write recovery");
+      eos_crit("triggering write recovery state = %d", proxy->stateTS());
       return recover_write(req);
       eos_crit("default action");
     }
@@ -1633,8 +1633,20 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
     XrdCl::XRootDStatus status =
       mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
-
-
+    
+    // test if we switch to xoff mode, where we only write into the journal
+    size_t cnt=0;
+    while (mFile->xrdiorw(req)->HasTooManyWritesInFlight())
+    {
+      if (!cnt%1000)
+	eos_warning("doing XOFF");
+      mXoff = true;
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      cnt++;
+    }
+    
+    mXoff = false;
+    
     if (!status.IsOK())
     {
       errno = XrdCl::Proxy::status2errno (status);

@@ -37,6 +37,8 @@
 std::string diskcache::sLocation;
 bufferllmanager diskcache::sBufferManager;
 off_t diskcache::sMaxSize = 2 * 1024 * 1024ll;
+float diskcache::sCleanThreshold = 85.0;
+
 shared_ptr<dircleaner> diskcache::sDirCleaner;
 
 /* -------------------------------------------------------------------------- */
@@ -55,6 +57,9 @@ diskcache::init(const cacheconfig& config)
     diskcache::sMaxSize = config.per_file_cache_max_size;
   }
 
+  if (config.clean_threshold) {
+    diskcache::sCleanThreshold = config.clean_threshold;
+  }
   return 0;
 }
 

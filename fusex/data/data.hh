@@ -64,7 +64,7 @@ public:
 	      mWaitForOpen(false),
 	      mSimulateWriteErrorInFlush(false),
 	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0)
+	      mFlags(0), mXoff(false)
 
     {}
 
@@ -201,6 +201,8 @@ public:
     bool mSimulateWriteErrorInFlush;
     bool mSimulateWriteErrorInFlusher;
     int mFlags;
+
+    bool mXoff; 
   };
 
   typedef std::shared_ptr<datax> shared_data;

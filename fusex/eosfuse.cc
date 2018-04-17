@@ -729,6 +729,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["cache"]["size-mb"].asString().length()) {
         root["cache"]["size-mb"] = 512;
       }
+
+      // default cleaning threshold
+      if (!root["cache"]["clean-threshold"].asString().length()) {
+        root["cache"]["clean-threshold"] = 85.0;
+      }
     } else {
       if (!cconfig.location.length()) {
         cconfig.location = "/var/cache/eos/fusex/cache/";
@@ -741,6 +746,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       // default cache size 1 GB
       if (!root["cache"]["size-mb"].asString().length()) {
         root["cache"]["size-mb"] = 1000;
+      }
+
+      // default cleaning threshold
+      if (!root["cache"]["clean-threshold"].asString().length()) {
+        root["cache"]["clean-threshold"] = 85.0;
       }
     }
 
@@ -818,6 +828,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                                       * 1024;
     cconfig.per_file_journal_max_size =
       root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
+
+    cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
     int rc = 0;
 
     if ((rc = cachehandler::instance().init(cconfig))) {
@@ -1154,13 +1166,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.no_xattr,
 		       config.options.nocache_graceperiod
                       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s",
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
                        cconfig.max_read_ahead_size,
                        cconfig.total_file_cache_size,
                        cconfig.location.c_str(),
-                       cconfig.journal.c_str());
+                       cconfig.journal.c_str(),
+		       cconfig.clean_threshold);
     eos_static_warning("read-recovery          := enabled:%d ropen:%d ropen-noserv:%d ropen-noserv-window:%u",
                        config.recovery.read,
                        config.recovery.read_open,

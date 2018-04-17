@@ -335,54 +335,55 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
 {
   eos_static_debug("");
 
-  XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
-  if (status->IsOK())
   {
-
-    proxy()->set_state(OPENED);
-
-    openLock.UnLock();
-
-    XrdSysCondVarHelper writeLock(proxy()->WriteCondVar());
-    while (proxy()->WriteQueue().size())
+    XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
+    if (status->IsOK())
     {
-      write_handler handler = proxy()->WriteQueue().front();
-      XRootDStatus status;
-      eos_static_debug("sending scheduled write request: off=%ld size=%lu timeout=%hu",
-      handler->offset(),
-      handler->vbuffer().size(),
-      handler->timeout());
-
-      writeLock.UnLock();
-      status = proxy()->WriteAsync ( (uint64_t)handler->offset(),
-        (uint32_t)(handler->vbuffer().size()),
-        0,
-        handler,
-        handler->timeout()
-      );
-
-      writeLock.Lock(&proxy()->WriteCondVar());
-      proxy()->WriteQueue().pop_front();
-
-      if (!status.IsOK())
+      proxy()->set_state(OPENED);
+      
+      openLock.UnLock();
+      
+      XrdSysCondVarHelper writeLock(proxy()->WriteCondVar());
+      while (proxy()->WriteQueue().size())
       {
-        proxy()->set_writestate(&status);
+	write_handler handler = proxy()->WriteQueue().front();
+	XRootDStatus status;
+	eos_static_debug("sending scheduled write request: off=%ld size=%lu timeout=%hu",
+			 handler->offset(),
+			 handler->vbuffer().size(),
+			 handler->timeout());
+	
+	writeLock.UnLock();
+	status = proxy()->WriteAsync ( (uint64_t)handler->offset(),
+				       (uint32_t)(handler->vbuffer().size()),
+				       0,
+				       handler,
+				       handler->timeout()
+				       );
+	
+	writeLock.Lock(&proxy()->WriteCondVar());
+	proxy()->WriteQueue().pop_front();
+	
+	if (!status.IsOK())
+	{
+	  proxy()->set_writestate(&status);
+	}
       }
+      
+      writeLock.UnLock();
+      openLock.Lock(&proxy()->OpenCondVar());
     }
+    else
+    {
+      proxy()->set_state(FAILED, status);
+    }
+    
+    proxy()->OpenCondVar().Signal();
 
-    writeLock.UnLock();
-    openLock.Lock(&proxy()->OpenCondVar());
+    delete hostList;
+    delete status;
+    if (response) delete response;
   }
-  else
-  {
-    proxy()->set_state(FAILED, status);
-  }
-
-  proxy()->OpenCondVar().Signal();
-
-  delete hostList;
-  delete status;
-  if (response) delete response;
 
   mProxy->CheckSelfDestruction();
 }
@@ -690,6 +691,11 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
       no_chunks_left = false;
   }
 
+  {
+    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
+    mProxy->ChunkMap().erase((uint64_t)this);
+  }
+
   if (no_chunks_left)
   {
     if (mProxy->close_after_write())
@@ -698,10 +704,6 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
       // send an asynchronous close now
       XrdCl::XRootDStatus status = mProxy->CloseAsync(mProxy->close_after_write_timeout());
     }
-  }
-  {
-    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-    mProxy->ChunkMap().erase((uint64_t)this);
   }
 
   if (no_chunks_left)
