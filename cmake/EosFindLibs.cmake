@@ -125,6 +125,11 @@ else()
   message(STATUS "Running CMake in package only mode.")
   # Fake function for building the SRPMS in build system
   function(PROTOBUF_GENERATE_CPP SRCS HDRS)
+    # This is just a hack to be able to run cmake >= 3.11 with -DPACKAGEONLY
+    # enabled. Otherwise the protobuf libraries built using add_library will
+    # complain as they have no SOURCE files.
+    set(${SRCS} "${CMAKE_SOURCE_DIR}/common/Assert.hh" PARENT_SCOPE)
+    set(${HDRS} "${CMAKE_SOURCE_DIR}/common/Assert.hh" PARENT_SCOPE)
     return()
   endfunction()
 endif()
