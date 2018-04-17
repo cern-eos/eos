@@ -485,6 +485,9 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     return -1;
   }
 
+  //Store which day it is stored for
+  mActions[action].mSavedOnDay = mActions[action].mDay;
+
   if (gOFS->_attr_set(workflowpath.c_str(),
                       lError,
                       rootvid,
@@ -617,9 +620,10 @@ WFE::Job::Move(std::string from_queue, std::string to_queue, time_t& when,
  */
 /*----------------------------------------------------------------------------*/
 {
+  auto fromDay = mActions[0].mSavedOnDay;
   if (Save(to_queue, when, 0, retry) == SFS_OK) {
     mActions[0].mQueue = to_queue;
-    if ((from_queue != to_queue) && (Delete(from_queue) == SFS_ERROR)) {
+    if ((from_queue != to_queue) && (Delete(from_queue, fromDay) == SFS_ERROR)) {
       eos_static_err("msg=\"failed to remove for move from queue=\"%s\" to queue=\"%s\"",
                      from_queue.c_str(), to_queue.c_str());
     }
@@ -712,7 +716,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
 
 /*----------------------------------------------------------------------------*/
 int
-WFE::Job::Delete(std::string queue)
+WFE::Job::Delete(std::string queue, std::string fromDay)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief delete a workflow job from a queue
@@ -727,7 +731,7 @@ WFE::Job::Delete(std::string queue)
   std::string workflowdir = gOFS->MgmProcWorkflowPath.c_str();
   workflowdir += "/";
   // We have to remove from the day when it was saved
-  workflowdir += mActions[0].mSavedOnDay;
+  workflowdir += fromDay;
   workflowdir += "/";
   workflowdir += queue;
   workflowdir += "/";

@@ -204,7 +204,7 @@ public:
 
     int Results(std::string queue, int retc, XrdOucString log, time_t when);
 
-    int Delete(std::string queue);
+    int Delete(std::string queue, std::string fromDay);
 
     // -------------------------------------------------------------------------
 
