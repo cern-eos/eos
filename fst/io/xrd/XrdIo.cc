@@ -196,13 +196,23 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   // Final path + opaque info used in the open
   std::string request;
   ProcessOpaqueInfo(opaque, request);
-
+  
   if (mXrdFile) {
     delete mXrdFile;
     mXrdFile = NULL;
   }
 
   mXrdFile = new XrdCl::File();
+
+  mTargetUrl.FromString(request);
+
+  AssignConnection();
+  DumpConnectionPool();
+
+  if (mConnectionId) {
+    eos_info("connection-id=%d.%s", mConnectionId,
+             mTargetUrl.GetHostName().c_str());
+  }
 
   // Disable recovery on read and write
   if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
@@ -214,7 +224,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(
                                           flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl,
+  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(), flags_xrdcl, mode_xrdcl,
                                timeout);
   mXrdFile->GetProperty("LastURL", mLastTriedUrl);
 
@@ -223,7 +233,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     eos_err("error= \"open failed url=%s, errno=%i, errc=%i, msg=%s\"",
-            request.c_str(), mLastErrNo, mLastErrCode, mLastErrMsg.c_str());
+            mTargetUrl.GetURL().c_str(), mLastErrNo, mLastErrCode, mLastErrMsg.c_str());
     errno = status.errNo;
     return SFS_ERROR;
   } else {
@@ -1575,7 +1585,8 @@ XrdIo::AssignConnection()
 {
   // Select a slot in our connection pool, if there is not already a user
   // name selected
-  if (mTargetUrl.GetUserName() == "") {
+
+  if (getenv("EOS_FST_XRDIO_USE_CONNECTION_POOL")) {
     std::string lTargetHost = mTargetUrl.GetHostName();
     XrdSysMutexHelper sLock(sConnectionPoolMutex);
     uint32_t max_size_pool = sConnectionPoolMaxSize;
