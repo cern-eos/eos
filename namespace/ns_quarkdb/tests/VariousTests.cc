@@ -138,7 +138,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
     FAIL();
   }
   catch(const MDException &exc) {
-    ASSERT_STREQ(exc.what(), "Error while fetching FileMD #1 protobuf from QDB: Received unexpected response: (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
+    ASSERT_STREQ(exc.what(), "Error while fetching FileMD #1 protobuf from QDB: Received unexpected response, was expecting string: (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
   }
 }
 

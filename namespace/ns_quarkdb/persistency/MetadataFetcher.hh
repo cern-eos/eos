@@ -28,6 +28,7 @@
 #include "proto/FileMd.pb.h"
 #include "proto/ContainerMd.pb.h"
 #include <future>
+#include <folly/futures/Future.h>
 
 //! Forward declaration
 namespace qclient
@@ -51,7 +52,7 @@ public:
   //!
   //! @return future holding the file metadata object
   //----------------------------------------------------------------------------
-  static std::future<eos::ns::FileMdProto>
+  static folly::Future<eos::ns::FileMdProto>
   getFileFromId(qclient::QClient& qcl, id_t id);
 
   //----------------------------------------------------------------------------
