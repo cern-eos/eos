@@ -185,6 +185,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
+  if (rate_limit(tv, priority, file, line))
+    return "";
+
   if (gToSysLog) {
     syslog(priority, "%s", ptr);
   }
@@ -192,49 +195,45 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   if (gLogFanOut.size()) {
     // we do log-message fanout
     if (gLogFanOut.count("*")) {
-      if (!rate_limit(tv,priority, file, line))
-	fprintf(gLogFanOut["*"], "%s\n", buffer);
+
+      fprintf(gLogFanOut["*"], "%s\n", buffer);
       fflush(gLogFanOut["*"]);
     }
 
     if (gLogFanOut.count(File.c_str())) {
       buffer[15] = 0;
-      if (!rate_limit(tv,priority, file, line))
-	fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
-		buffer,
-		GetLogColour(GetPriorityString(priority)),
-		GetPriorityString(priority),
-		EOS_TEXTNORMAL,
-		sourceline,
-		ptr);
+      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
+	      buffer,
+	      GetLogColour(GetPriorityString(priority)),
+	      GetPriorityString(priority),
+	      EOS_TEXTNORMAL,
+	      sourceline,
+	      ptr);
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
     } else {
       if (gLogFanOut.count("#")) {
         buffer[15] = 0;
-	if (!rate_limit(tv,priority, file, line))
-	  fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
-		  buffer,
-		  GetLogColour(GetPriorityString(priority)),
-		  GetPriorityString(priority),
-		  EOS_TEXTNORMAL,
-		  vid.uid,
-		  vid.gid,
-		  truncname.c_str(),
-		  func,
-		  ptr
-		  );
+	fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+		buffer,
+		GetLogColour(GetPriorityString(priority)),
+		GetPriorityString(priority),
+		EOS_TEXTNORMAL,
+		vid.uid,
+		vid.gid,
+		truncname.c_str(),
+		func,
+		ptr
+		);
         fflush(gLogFanOut["#"]);
         buffer[15] = ' ';
       }
     }
 
-    if (!rate_limit(tv,priority, file, line))
-      fprintf(stderr, "%s\n", buffer);
+    fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
   } else {
-    if (!rate_limit(tv,priority, file, line))
-      fprintf(stderr, "%s\n", buffer);
+    fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
   }
 
@@ -258,11 +257,11 @@ Logging::rate_limit(struct timeval &tv, int priority, const char* file, int line
   static int last_priority = priority;
   static struct timeval last_tv;
 
-  
+
   if ( (line == last_line ) &&
        (priority == last_priority) &&
        (last_file == file ) &&
-       (priority < LOG_WARNING) )
+       (priority <= LOG_WARNING) )
   {
     float elapsed = (1.0*(tv.tv_sec - last_tv.tv_sec)) - ((tv.tv_usec - last_tv.tv_usec)/ 1000000.0);
     if ( elapsed < 5.0)
