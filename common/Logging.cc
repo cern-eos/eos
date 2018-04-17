@@ -92,7 +92,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
              const char* msg, ...)
 {
   static int logmsgbuffersize = 1024 * 1024;
-
+  
   // short cut if log messages are masked
   if (!((LOG_MASK(priority) & gLogMask))) {
     return "";
@@ -192,44 +192,49 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   if (gLogFanOut.size()) {
     // we do log-message fanout
     if (gLogFanOut.count("*")) {
-      fprintf(gLogFanOut["*"], "%s\n", buffer);
+      if (!rate_limit(tv,priority, file, line))
+	fprintf(gLogFanOut["*"], "%s\n", buffer);
       fflush(gLogFanOut["*"]);
     }
 
     if (gLogFanOut.count(File.c_str())) {
       buffer[15] = 0;
-      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
-              buffer,
-              GetLogColour(GetPriorityString(priority)),
-              GetPriorityString(priority),
-              EOS_TEXTNORMAL,
-              sourceline,
-              ptr);
+      if (!rate_limit(tv,priority, file, line))
+	fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
+		buffer,
+		GetLogColour(GetPriorityString(priority)),
+		GetPriorityString(priority),
+		EOS_TEXTNORMAL,
+		sourceline,
+		ptr);
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
     } else {
       if (gLogFanOut.count("#")) {
         buffer[15] = 0;
-        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
-                buffer,
-                GetLogColour(GetPriorityString(priority)),
-                GetPriorityString(priority),
-                EOS_TEXTNORMAL,
-                vid.uid,
-                vid.gid,
-                truncname.c_str(),
-                func,
-                ptr
-               );
+	if (!rate_limit(tv,priority, file, line))
+	  fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+		  buffer,
+		  GetLogColour(GetPriorityString(priority)),
+		  GetPriorityString(priority),
+		  EOS_TEXTNORMAL,
+		  vid.uid,
+		  vid.gid,
+		  truncname.c_str(),
+		  func,
+		  ptr
+		  );
         fflush(gLogFanOut["#"]);
         buffer[15] = ' ';
       }
     }
 
-    fprintf(stderr, "%s\n", buffer);
+    if (!rate_limit(tv,priority, file, line))
+      fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
   } else {
-    fprintf(stderr, "%s\n", buffer);
+    if (!rate_limit(tv,priority, file, line))
+      fprintf(stderr, "%s\n", buffer);
     fflush(stderr);
   }
 
@@ -244,6 +249,46 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   return rptr;
 }
 
+bool 
+Logging::rate_limit(struct timeval &tv, int priority, const char* file, int line)
+{
+  static bool do_limit = false;
+  static std::string last_file = "";
+  static int last_line = 0;
+  static int last_priority = priority;
+  static struct timeval last_tv;
 
+  
+  if ( (line == last_line ) &&
+       (priority == last_priority) &&
+       (last_file == file ) &&
+       (priority < LOG_WARNING) )
+  {
+    float elapsed = (1.0*(tv.tv_sec - last_tv.tv_sec)) - ((tv.tv_usec - last_tv.tv_usec)/ 1000000.0);
+    if ( elapsed < 5.0)
+    {
+      if (!do_limit)
+	fprintf(stderr,"                 ---- high rate error messages suppressed ----\n");
+      do_limit = true;
+    }
+    else
+    {
+      do_limit = false;
+    }
+  }
+  else
+  {
+    do_limit = false;
+  }
+
+  if (!do_limit)
+  {
+    last_tv = tv;
+    last_line = line;
+    last_file = file;
+    last_priority = priority;
+  }
+  return do_limit;
+}
 
 EOSCOMMONNAMESPACE_END

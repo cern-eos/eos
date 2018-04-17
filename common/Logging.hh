@@ -536,6 +536,20 @@ public:
                   const char* logid, const Mapping::VirtualIdentity& vid,
                   const char* cident, int priority, const char* msg, ...);
 
+
+  //----------------------------------------------------------------------------
+  //! estimates log message distance and similiary to suppress log messages
+  //! 
+  //! @param time of the message
+  //! @param priority of the message
+  //! @param source file name
+  //! @param line in source file
+  //!
+  //! @return true if it should be suppressed, otherwise false
+  //---------------------------------------------------------------------------
+
+  bool rate_limit(struct timeval &tv, int priority, const char* file, int line);
+
 private:
   //----------------------------------------------------------------------------
   //! Constructor - use GetInstance to get singleton object
