@@ -102,7 +102,7 @@ private:
   bool visited = false;
 
   // First round of asynchronous requests fills out:
-  common::FutureWrapper<eos::ns::ContainerMdProto> containerMd;
+  folly::Future<eos::ns::ContainerMdProto> containerMd;
   common::FutureWrapper<IContainerMD::FileMap> fileMap;
   common::FutureWrapper<IContainerMD::ContainerMap> containerMap;
 

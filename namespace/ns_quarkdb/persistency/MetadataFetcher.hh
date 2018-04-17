@@ -19,7 +19,6 @@
 //------------------------------------------------------------------------------
 //! @author Georgios Bitzes <georgios.bitzes@cern.ch>
 //! @brief Class to retrieve metadata from the backend - no caching!
-//!        TODO: Make asynchronous, try building continuations out of std::future
 //------------------------------------------------------------------------------
 
 #pragma once
@@ -63,7 +62,7 @@ public:
   //!
   //! @return future holding the container metadata object
   //----------------------------------------------------------------------------
-  static std::future<eos::ns::ContainerMdProto>
+  static folly::Future<eos::ns::ContainerMdProto>
   getContainerFromId(qclient::QClient& qcl, id_t id);
 
   //----------------------------------------------------------------------------
