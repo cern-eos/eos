@@ -32,24 +32,12 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "TestUtils.hh"
-#include <folly/futures/Future.h>
 
 using namespace eos;
 
 class VariousTests : public eos::ns::testing::NsTestsFixture {};
 class NamespaceExplorerF : public eos::ns::testing::NsTestsFixture {};
 class FileMDFetching : public eos::ns::testing::NsTestsFixture {};
-
-bool validateReply(qclient::redisReplyPtr reply) {
-  if(reply->type != REDIS_REPLY_STRING) return false;
-  if(std::string(reply->str, reply->len) != "ayy-lmao") return false;
-  return true;
-}
-
-TEST_F(VariousTests, FollyWithGloriousContinuations) {
-  folly::Future<bool> ok = qcl().follyExec("PING", "ayy-lmao").then(validateReply);
-  ASSERT_TRUE(ok.get());
-}
 
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
@@ -138,7 +126,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
     FAIL();
   }
   catch(const MDException &exc) {
-    ASSERT_STREQ(exc.what(), "Error while fetching FileMD #1 protobuf from QDB: Received unexpected response, was expecting string: (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
+    ASSERT_STREQ(exc.what(), "Error while fetching FileMD #1 protobuf from QDB: Received unexpected response: (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
   }
 }
 

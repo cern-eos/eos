@@ -100,10 +100,6 @@ namespace eos
 	return pTmpMessage;
       }
 
-      void wrapAndRethrow(const std::string &prefix) const {
-        throw_mdexception(pErrorNo, SSTR(prefix << pMessage.str()));
-      }
-
     private:
       //------------------------------------------------------------------------
       // Data members
@@ -133,9 +129,9 @@ namespace eos
     std::string getError() const { return err; }
     int getErrno() const { return localerrno; }
 
-    void throwIfNotOk(const std::string &prefix = {}) {
+    void throwIfNotOk() {
       if(!ok()) {
-        throw_mdexception(localerrno, SSTR(prefix << err));
+        throw_mdexception(localerrno, err);
       }
     }
   private:

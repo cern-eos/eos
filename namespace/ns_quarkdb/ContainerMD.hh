@@ -29,7 +29,6 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "proto/ContainerMd.pb.h"
-#include "common/FutureWrapper.hh"
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -407,7 +406,8 @@ public:
   //----------------------------------------------------------------------------
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override {
-    return mSubcontainers->begin();
+    waitOnContainerMap();
+    return mSubcontainers.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -415,7 +415,8 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override {
-    return mSubcontainers->end();
+    waitOnContainerMap();
+    return mSubcontainers.end();
   }
 
   //----------------------------------------------------------------------------
@@ -423,7 +424,8 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override {
-    return mFiles->begin();
+    waitOnFileMap();
+    return mFiles.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -431,10 +433,45 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override {
-    return mFiles->end();
+    waitOnFileMap();
+    return mFiles.end();
   }
 
+protected:
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
+
 private:
+  //----------------------------------------------------------------------------
+  //! Load FileMap
+  //----------------------------------------------------------------------------
+  void waitOnFileMap() {
+    std::lock_guard<std::mutex> lock(mFilesMtx);
+    if(!pFilesLoaded) {
+      // Attention, there's a trap here: pFilesLoaded must be set to true
+      // before getting the future - if the future throws, we don't want
+      // to call .get() on it again later.
+
+      pFilesLoaded = true;
+      mFiles = mFilesFuture.get();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Load ContainerMap
+  //----------------------------------------------------------------------------
+  void waitOnContainerMap() {
+    std::lock_guard<std::mutex> lock(mSubcontainersMtx);
+    if(!pSubContainersLoaded) {
+      // Attention, there's a trap here: pSubContainersLoaded must be set to true
+      // before getting the future - if the future throws, we don't want
+      // to call .get() on it again later.
+
+      pSubContainersLoaded = true;
+      mSubcontainers = mSubcontainersFuture.get();
+    }
+  }
+
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
@@ -446,8 +483,15 @@ private:
   qclient::QHash pDirsMap;              ///< Map holding info about subcontainers
   uint64_t mClock;                      ///< Value tracking changes
 
-  common::FutureWrapper<ContainerMap> mSubcontainers;
-  common::FutureWrapper<FileMap> mFiles;
+  std::future<ContainerMap> mSubcontainersFuture;
+  std::future<FileMap> mFilesFuture;
+
+  std::mutex mSubcontainersMtx;
+  std::mutex mFilesMtx;
+
+  bool pSubContainersLoaded = true;
+  bool pFilesLoaded = true;
+
 };
 
 EOSNSNAMESPACE_END

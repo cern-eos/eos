@@ -33,7 +33,6 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}
   ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -216,7 +215,6 @@ target_link_libraries(
   EosNsQuarkdb-Shared
   eosCapability-Static
   XrdSsiPbEosCta
-  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
@@ -282,7 +280,6 @@ if(Linux)
     eosCommonServer
     eosCapability-Static
     XrdSsiPbEosCta
-    ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}

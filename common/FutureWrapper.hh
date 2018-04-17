@@ -23,7 +23,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include <folly/futures/Future.h>
+#include <future>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -49,21 +49,21 @@ public:
   //----------------------------------------------------------------------------
   //! Empty constructor
   //----------------------------------------------------------------------------
-  FutureWrapper() : mFut(folly::makeFuture<T>(T())), mArrived(true) {}
+  FutureWrapper() {}
 
   //----------------------------------------------------------------------------
   //! Constructor, takes an existing future object
   //!
   //! @param future object to take ownership
   //----------------------------------------------------------------------------
-  FutureWrapper(folly::Future<T>&& future) : mFut(std::move(future)) {}
+  FutureWrapper(std::future<T>&& future) : mFut(std::move(future)) {}
 
   //----------------------------------------------------------------------------
   //! Constructor, takes a promise
   //!
   //! @param promise promise used to get a future
   //----------------------------------------------------------------------------
-  FutureWrapper(folly::Promise<T>& promise) : mFut(promise.getFuture()) {}
+  FutureWrapper(std::promise<T>& promise) : mFut(promise.get_future()) {}
 
   //----------------------------------------------------------------------------
   //! Check if accessing the object might block. Exception safe - if the
@@ -76,7 +76,7 @@ public:
       return true;
     }
 
-    return mFut.isReady();
+    return mFut.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
   }
 
   //----------------------------------------------------------------------------
@@ -135,7 +135,7 @@ private:
     }
   }
 
-  folly::Future<T> mFut;
+  std::future<T> mFut;
   bool mArrived = false;
   std::exception_ptr mException;
   T mObj;

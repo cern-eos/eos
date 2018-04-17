@@ -96,7 +96,6 @@ if(NOT PACKAGEONLY)
 
   # The server build also requires
   if (NOT CLIENT)
-    find_package(eosfolly REQUIRED)
     find_package(ldap REQUIRED)
     if (BUILD_TESTS)
       # @todo (esindril): Completely drop cppunit once everything is moved

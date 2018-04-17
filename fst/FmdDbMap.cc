@@ -1250,7 +1250,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   eos_info("resyncing %llu files for file_system %u", total, fsid);
   uint64_t num_files = 0;
   auto it = file_ids.begin();
-  std::list<folly::Future<eos::ns::FileMdProto>> files;
+  std::list<std::future<eos::ns::FileMdProto>> files;
 
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {

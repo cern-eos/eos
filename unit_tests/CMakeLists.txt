@@ -28,7 +28,6 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${FOLLY_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
