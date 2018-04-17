@@ -159,7 +159,7 @@ bool SearchNode::fetchChild(eos::ns::FileMdProto& output)
 //------------------------------------------------------------------------------
 eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 {
-  return containerMd.wait().value();
+  return containerMd.get();
 }
 
 //------------------------------------------------------------------------------

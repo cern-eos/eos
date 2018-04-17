@@ -107,13 +107,13 @@ public:
   //! @param qcl qclient object
   //! @param trg target container id
   //----------------------------------------------------------------------------
-  std::future<ContainerType> initialize(qclient::QClient& qcl, id_t trg)
+  folly::Future<ContainerType> initialize(qclient::QClient& qcl, id_t trg)
   {
     mQcl = &qcl;
     mTarget = trg;
     mContents.set_deleted_key("");
     mContents.set_empty_key("##_EMPTY_##");
-    std::future<ContainerType> fut = mPromise.get_future();
+    folly::Future<ContainerType> fut = mPromise.getFuture();
     // There's a particularly evil race condition here: From the point we call
     // execCB and onwards, we must assume that the callback has arrived,
     // and *this has been destroyed already.
@@ -174,7 +174,7 @@ public:
 
     // Fire off next request?
     if (cursor == "0") {
-      mPromise.set_value(std::move(mContents));
+      mPromise.setValue(std::move(mContents));
       delete this;
       return;
     }
@@ -201,7 +201,7 @@ private:
   //----------------------------------------------------------------------------
   void set_exception(int err, const std::string& msg)
   {
-    mPromise.set_exception(
+    mPromise.setException(
       make_mdexception(err, SSTR("Error while fetching file/container map for "
                                  "container #" << mTarget << " from QDB: "
                                  << msg)));
@@ -211,7 +211,7 @@ private:
   qclient::QClient* mQcl;
   id_t mTarget;
   ContainerType mContents;
-  std::promise<ContainerType> mPromise;
+  folly::Promise<ContainerType> mPromise;
 };
 
 //------------------------------------------------------------------------------
@@ -283,7 +283,7 @@ std::string MetadataFetcher::keySubFiles(id_t id)
 //------------------------------------------------------------------------------
 // Fetch all files for current id
 //------------------------------------------------------------------------------
-std::future<IContainerMD::FileMap>
+folly::Future<IContainerMD::FileMap>
 MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, id_t container)
 {
   MapFetcher<MapFetcherFileTrait>* fetcher = new
@@ -294,7 +294,7 @@ MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, id_t container)
 //------------------------------------------------------------------------------
 // Fetch all subcontaniers for current id
 //------------------------------------------------------------------------------
-std::future<IContainerMD::ContainerMap>
+folly::Future<IContainerMD::ContainerMap>
 MetadataFetcher::getSubContainers(qclient::QClient& qcl, id_t container)
 {
   MapFetcher<MapFetcherContainerTrait>* fetcher =

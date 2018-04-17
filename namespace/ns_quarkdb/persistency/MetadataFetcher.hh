@@ -73,7 +73,7 @@ public:
   //!
   //! @return future the map of files
   //----------------------------------------------------------------------------
-  static std::future<IContainerMD::FileMap>
+  static folly::Future<IContainerMD::FileMap>
   getFilesInContainer(qclient::QClient& qcl, id_t container);
 
   //----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ public:
   //!
   //! @return future the map of subcontainers
   //----------------------------------------------------------------------------
-  static std::future<IContainerMD::ContainerMap>
+  static folly::Future<IContainerMD::ContainerMap>
   getSubContainers(qclient::QClient& qcl, id_t container);
 
   //----------------------------------------------------------------------------

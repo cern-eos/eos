@@ -43,10 +43,10 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
 
-  mSubcontainers.set_deleted_key("");
-  mFiles.set_deleted_key("");
-  mSubcontainers.set_empty_key("##_EMPTY_##");
-  mFiles.set_empty_key("##_EMPTY_##");
+  mSubcontainers->set_deleted_key("");
+  mFiles->set_deleted_key("");
+  mSubcontainers->set_empty_key("##_EMPTY_##");
+  mFiles->set_empty_key("##_EMPTY_##");
 
   mCont.set_id(id);
   mCont.set_mode(040755);
@@ -126,11 +126,9 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  waitOnContainerMap();
+  auto iter = mSubcontainers->find(name);
 
-  auto iter = mSubcontainers.find(name);
-
-  if (iter == mSubcontainers.end()) {
+  if (iter == mSubcontainers->end()) {
     return nullptr;
   }
 
@@ -145,7 +143,7 @@ ContainerMD::findContainer(const std::string& name)
   // Curate the list of subcontainers in case entry is not found
   if (cont == nullptr) {
     pFlusher->hdel(pDirsKey, name);
-    mSubcontainers.erase(iter);
+    mSubcontainers->erase(iter);
   }
 
   return cont;
@@ -157,17 +155,16 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  waitOnContainerMap();
-  auto it = mSubcontainers.find(name);
+  auto it = mSubcontainers->find(name);
 
-  if (it == mSubcontainers.end()) {
+  if (it == mSubcontainers->end()) {
     MDException e(ENOENT);
     e.getMessage()  << __FUNCTION__ << " Container " << name << " not found";
     throw e;
   }
 
-  mSubcontainers.erase(it);
-  mSubcontainers.resize(0);
+  mSubcontainers->erase(it);
+  mSubcontainers->resize(0);
   // Delete container also from KV backend
   pFlusher->hdel(pDirsKey, name);
 }
@@ -178,9 +175,8 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
-  waitOnContainerMap();
   container->setParentId(mCont.id());
-  auto ret = mSubcontainers.insert(std::make_pair(container->getName(),
+  auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                    container->getId()));
 
   // @todo (esindril): Here we (should ?!) follow the behaviour of the namespace
@@ -204,11 +200,9 @@ ContainerMD::addContainer(IContainerMD* container)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  waitOnFileMap();
+  auto iter = mFiles->find(name);
 
-  auto iter = mFiles.find(name);
-
-  if (iter == mFiles.end()) {
+  if (iter == mFiles->end()) {
     return nullptr;
   }
 
@@ -223,7 +217,7 @@ ContainerMD::findFile(const std::string& name)
   // Curate the list of files in case file entry is not found
   if (file == nullptr) {
     pFlusher->hdel(pFilesKey, name);
-    mFiles.erase(iter);
+    mFiles->erase(iter);
   }
 
   return file;
@@ -235,10 +229,8 @@ ContainerMD::findFile(const std::string& name)
 void
 ContainerMD::addFile(IFileMD* file)
 {
-  waitOnFileMap();
-
   file->setContainerId(mCont.id());
-  (void)mFiles.insert(std::make_pair(file->getName(), file->getId()));
+  (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
   // @todo (esindril): Here we follow the behaviour of the namespace in memory
   // and don't do any extra checks but this can lead to multiple accounting
   // of this file in the quota view since the listeners are notified every
@@ -263,14 +255,12 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  waitOnFileMap();
+  auto iter = mFiles->find(name);
 
-  auto iter = mFiles.find(name);
-
-  if (iter != mFiles.end()) {
+  if (iter != mFiles->end()) {
     IFileMD::id_t id = iter->second;
-    mFiles.erase(iter);
-    mFiles.resize(0);
+    mFiles->erase(iter);
+    mFiles->resize(0);
     // Do async call to KV backend
     pFlusher->hdel(pFilesKey, name);
 
@@ -295,8 +285,7 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
-  waitOnFileMap();
-  return mFiles.size();
+  return mFiles->size();
 }
 
 //----------------------------------------------------------------------------
@@ -305,8 +294,7 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
-  waitOnContainerMap();
-  return mSubcontainers.size();
+  return mSubcontainers->size();
 }
 
 //------------------------------------------------------------------------
@@ -316,18 +304,15 @@ ContainerMD::getNumContainers()
 void
 ContainerMD::cleanUp()
 {
-  waitOnFileMap();
-  waitOnContainerMap();
-
-  for (const auto& elem : mFiles) {
+  for (const auto& elem : mFiles.get()) {
     auto file = pFileSvc->getFileMD(elem.second);
     pFileSvc->removeFile(file.get());
   }
 
-  mFiles.clear();
+  mFiles->clear();
 
   // Remove all subcontainers
-  for (const auto& elem : mSubcontainers) {
+  for (const auto& elem : mSubcontainers.get()) {
     auto cont = pContSvc->getContainerMD(elem.second);
 
     if (cont->getId() != getId()) {
@@ -337,7 +322,7 @@ ContainerMD::cleanUp()
     pContSvc->removeContainer(cont.get());
   }
 
-  mSubcontainers.clear();
+  mSubcontainers->clear();
   // Delete files and subcontainers map from the KV backend
   pFlusher->del(pFilesKey);
   pFlusher->del(pDirsKey);
@@ -706,9 +691,6 @@ ContainerMD::serialize(Buffer& buffer)
 void
 ContainerMD::loadChildren()
 {
-  std::lock_guard<std::mutex> lock(mFilesMtx);
-  std::lock_guard<std::mutex> lock2(mSubcontainersMtx);
-
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pFilesMap.setKey(pFilesKey);
@@ -716,18 +698,13 @@ ContainerMD::loadChildren()
   pDirsMap.setKey(pDirsKey);
 
   if(pQcl) {
-    pFilesLoaded = false;
-    pSubContainersLoaded = false;
-
-    mFilesFuture = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
-    mSubcontainersFuture = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
+    mFiles = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
+    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
   }
   else {
     // I think this case only happens inside some tests.. remove eventually?
-    pFilesLoaded = true;
-    pSubContainersLoaded = true;
-    mFiles.clear();
-    mSubcontainers.clear();
+    mFiles->clear();
+    mSubcontainers->clear();
   }
 }
 
