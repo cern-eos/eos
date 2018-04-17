@@ -687,9 +687,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 	{
 	  eos_static_err("permission denied");
 	  errno = EPERM;
+	  mClose = true; // avoid that MakeOpen calls open again and again if there are still writes
 	  return -1;
         } else {
           eos_static_err("error while openning");
+	  mClose = true; // avoid that MakeOpen calls open again and again fi there are still writes
           return -1;
         }
       } else {
