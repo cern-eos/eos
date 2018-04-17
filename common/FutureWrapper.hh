@@ -49,7 +49,7 @@ public:
   //----------------------------------------------------------------------------
   //! Empty constructor
   //----------------------------------------------------------------------------
-  FutureWrapper() : mFut(folly::Future<T>::makeEmpty()), mArrived(true) {}
+  FutureWrapper() : mFut(folly::makeFuture<T>(T())), mArrived(true) {}
 
   //----------------------------------------------------------------------------
   //! Constructor, takes an existing future object
