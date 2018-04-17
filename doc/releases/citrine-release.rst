@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.20 Citrine``
+===================
+
+2018-04-17
+
+Improvements
+------------
+
+FST: make the connection pool configurable by defining EOS_FST_XRDIO_USE_CONNECTION_POOL
+FUSE: avoid that FUSE calls open in a loop for every write in the outgoing write-back cache if the file open failed
+FUSE: remove 'dangerous' recovery functionality which is unnecessary with xrootd 4
+FUSE: Try to re-use connections towards the MGM when using the same credential file
+
 
 ``v4.2.19 Citrine``
 ===================
