@@ -21,7 +21,8 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
                         - if the return of an open call is ENONET a workflow defined stall time is returned
    sync::prepare        event is triggered at the MGM when a 'prepare' is issued (synchronous event)
    sync::abort_prepare  event is triggered at the MGM when xrdfs prepare -f issued (synchronous event)
-   retrieve_failed      event is triggered at the MGM when a retrieval of a file has failed
+   retrieve_failed      event is triggered with an error message at the MGM when the retrieval of a file has failed
+   archive_failed       event is triggered with an error message at the MGM when the archival of a file has failed
    closer               event is triggered via the MGM when a read-open file is closed on an FST.
    closew               event is triggered via the MGM when a write-open file is closed on an FST
    sync::delete         event is triggered at the MGM when a file has been deleted (synchronous event)
