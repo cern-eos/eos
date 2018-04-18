@@ -135,7 +135,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               eos::IContainerMD::XAttrMap attrmap;
 
               if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
-                                  (const char*) 0, attrmap, false)) {
+                                  (const char*) 0, attrmap, !take_lock)) {
                 for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
                   XrdOucString akey = it->first.c_str();
 
@@ -153,7 +153,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               XrdOucString attr = "";
 
               if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
-                                   (const char*) 0, key, attr, false)) {
+                                   (const char*) 0, key, attr, !take_lock)) {
                 found_dirs[deepness + 1].push_back(fpath.c_str());
 
                 if ((val == std::string("*")) || (attr == val)) {
