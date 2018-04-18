@@ -36,6 +36,7 @@
   char* auid = env.Get("mgm.ruid");
   char* agid = env.Get("mgm.rgid");
   char* asec = env.Get("mgm.sec");
+  char* errmsg = env.Get("mgm.errmsg");
 
   eos::common::Mapping::VirtualIdentity localVid;
   eos::common::Mapping::Nobody(localVid);
@@ -71,7 +72,7 @@
     ThreadLogId.SetLogId(alogid, tident);
   }
 
-  bool isPrepare = std::string(aevent).find("prepare") != std::string::npos;
+  bool isPrepare = aevent != nullptr && std::string(aevent).find("prepare") != std::string::npos;
 
   // check that we have write permission on path
   eos_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u", vid.prot.c_str(), vid.uid, vid.gid);
@@ -181,8 +182,15 @@
   // load the corresponding workflow
   workflow.Init(&attr, path, fid);
 
+  std::string decodedErrorMessage;
+  if (errmsg != nullptr) {
+    if (!eos::common::SymKey::Base64Decode(errmsg, decodedErrorMessage)) {
+      decodedErrorMessage = "";
+    }
+  }
+
   // trigger the specified event
-  int rc = workflow.Trigger(event, aworkflow, localVid);
+  int rc = workflow.Trigger(event, aworkflow, localVid, decodedErrorMessage);
 
   if (rc == -1)
   {

@@ -36,8 +36,8 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
 int
-Workflow::Trigger(std::string event, std::string workflow,
-                  eos::common::Mapping::VirtualIdentity& vid)
+Workflow::Trigger(const std::string& event, std::string workflow,
+                  eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
 {
   eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(),
                   workflow.c_str());
@@ -149,10 +149,10 @@ Workflow::Attach(const char* path)
 
 /*----------------------------------------------------------------------------*/
 int
-Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
+Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
 {
   int retc = 0;
-  WFE::Job job(mFid, vid);
+  WFE::Job job(mFid, vid, errorMessage);
   time_t t = time(nullptr);
 
   if (job.IsSync(mEvent)) {

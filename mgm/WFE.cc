@@ -1814,16 +1814,16 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
             notification->mutable_file()->set_fid(mFid);
 
+            auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
             std::ostringstream destStream;
-            destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                       << StringConversion::FastUnsignedToAsciiHex(mFid);
+            destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << fxidString;
             destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" << RETRIEVE_WRITTEN_WORKFLOW_NAME;
             notification->mutable_transport()->set_dst_url(destStream.str());
 
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
-                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << StringConversion::FastUnsignedToAsciiHex(mFid)
-                              << "&mgm.logid=cta&mgm.event=retrieve_failed&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                              << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             // Reset the error attribute before sending prepare request
@@ -2016,6 +2016,12 @@ WFE::Job::DoIt(bool issync)
                          << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
             notification->mutable_transport()->set_report_url(reportStream.str());
 
+            std::ostringstream errorReportStream;
+            errorReportStream << "eosQuery://" << gOFS->HostName
+                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+            notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+
             std::string errorMsg;
             return SendProtoWFRequest(this, fullPath, request, errorMsg, true);
           }
@@ -2064,12 +2070,11 @@ WFE::Job::DoIt(bool issync)
 
           MoveWithResults(SFS_OK);
           return SFS_OK;
-        } else if (event == "retrieve_failed") {
+        } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
           try {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
             fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-            // todo @jmakai change this generic message
-            fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare failed");
+            fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& ex) {
             eos_static_err("Could not reset retrieves counter and set error attribute for file %s.",
@@ -2078,6 +2083,9 @@ WFE::Job::DoIt(bool issync)
             return SFS_ERROR;
           }
 
+          MoveWithResults(SFS_OK);
+          return SFS_OK;
+        } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
           MoveWithResults(SFS_OK);
           return SFS_OK;
         } else {

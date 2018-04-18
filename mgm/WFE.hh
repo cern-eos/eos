@@ -137,9 +137,9 @@ public:
       }
 
       Action(std::string a, std::string e, time_t when, std::string savedOnDay, std::string workflow,
-             std::string queue) : Action (a, e, when, workflow, queue)
+             std::string queue) : Action (std::move(a), std::move(e), when, std::move(workflow), std::move(queue))
       {
-        mSavedOnDay = savedOnDay;
+        mSavedOnDay = std::move(savedOnDay);
       }
 
       std::string mAction;
@@ -159,11 +159,12 @@ public:
     }
 
     Job(eos::common::FileId::fileid_t fid,
-        eos::common::Mapping::VirtualIdentity& vid)
+        eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "")
     {
       mFid = fid;
       mRetry = 0;
       eos::common::Mapping::Copy(vid, mVid);
+      mErrorMesssage = errorMessage;
     }
 
     ~Job() override = default;
@@ -174,6 +175,7 @@ public:
       mFid = other.mFid;
       mDescription = other.mDescription;
       mRetry = other.mRetry;
+      mErrorMesssage = other.mErrorMesssage;
     }
     // ---------------------------------------------------------------------------
     // Job execution function
@@ -251,6 +253,7 @@ public:
     std::string mDescription;
     eos::common::Mapping::VirtualIdentity mVid;
     std::string mWorkflowPath;
+    std::string mErrorMesssage;
     int mRetry;///! number of retries
 
   private:

@@ -35,21 +35,20 @@ class Workflow
 {
 public:
   Workflow():
-    mAttr(0), mPath(""), mFid(0), mEvent(""), mWorkflow(""), mAction("")
+    mAttr(nullptr), mPath(""), mFid(0), mEvent(""), mWorkflow(""), mAction("")
   {}
 
-  ~Workflow()
-  {}
+  ~Workflow() = default;
 
   void Init(eos::IContainerMD::XAttrMap* attr, std::string path = "",
             eos::common::FileId::fileid_t fid = 0)
   {
     mAttr = attr;
-    mPath = path;
+    mPath = std::move(path);
     mFid = fid;
   }
 
-  void SetFile(std::string path = "", eos::common::FileId::fileid_t fid = 0)
+  void SetFile(const std::string& path = "", eos::common::FileId::fileid_t fid = 0)
   {
     if (path.length()) {
       mPath = path;
@@ -59,8 +58,9 @@ public:
       mFid = fid;
     }
   }
-  int Trigger(std::string event, std::string workflow,
-              eos::common::Mapping::VirtualIdentity& vid);
+
+  int Trigger(const std::string& event, std::string workflow,
+              eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "");
 
   std::string getCGICloseW(std::string workflow);
 
@@ -75,11 +75,11 @@ public:
     mFid = 0;
     mEvent = "";
     mWorkflow = "";
-    mAttr = 0;
+    mAttr = nullptr;
     mAction = "";
   }
 
-  int Create(eos::common::Mapping::VirtualIdentity& vid);
+  int Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "");
 
   bool Attach(const char* path);
 

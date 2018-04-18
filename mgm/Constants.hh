@@ -34,5 +34,7 @@ static constexpr decltype(gOFS->eosFileService->getFileMD(0)->getLocation(0)) TA
 static constexpr auto RETRIEVES_ATTR_NAME = "sys.retrieves";
 static constexpr auto RETRIEVES_ERROR_ATTR_NAME = "sys.retrieves.error";
 static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
+static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "retrieve_failed";
+static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "archive_failed";
 
 EOSMGMNAMESPACE_END
