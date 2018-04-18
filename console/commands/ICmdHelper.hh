@@ -64,7 +64,7 @@ public:
   //!
   //! @return command return code
   //----------------------------------------------------------------------------
-  int Execute();
+  int Execute(bool printError = true);
 
   int ExecuteWithoutPrint();
 

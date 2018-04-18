@@ -29,12 +29,12 @@
 // Execute command and display any output information
 //------------------------------------------------------------------------------
 int
-ICmdHelper::Execute()
+ICmdHelper::Execute(bool printError)
 {
   int retc = this->ExecuteWithoutPrint();
 
   if (retc) {
-    if (mMgmExec.GetError().length()) {
+    if (printError && mMgmExec.GetError().length()) {
       std::cerr << mMgmExec.GetError() << std::endl;
     }
   } else {

@@ -26,6 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
+extern int com_rm(char*);
 void com_rm_help();
 
 //------------------------------------------------------------------------------
@@ -139,7 +140,17 @@ int com_protorm(char* arg)
     return EINTR;
   }
 
-  global_retc = rm.Execute();
+  global_retc = rm.Execute(false);
+
+  // fix for aquamarine server for new proto commands
+  if (global_retc != 0) {
+    if (rm.GetError().find("no such user command") != std::string::npos) {
+      global_retc = com_rm(arg);
+    } else {
+      std::cerr << rm.GetError() << std::endl;
+    }
+  }
+
   return global_retc;
 }
 

@@ -362,7 +362,7 @@ ProcCommand::open(const char* inpath, const char* info,
       stdErr += "errro: no such user command '";
       stdErr += mCmd;
       stdErr += "'";
-      retc = EINVAL;
+      retc = ENOTSUP;
     }
 
     MakeResult();
