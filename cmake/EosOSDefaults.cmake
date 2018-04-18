@@ -68,12 +68,14 @@ endif()
 #-------------------------------------------------------------------------------
 # Check for Gcc >=4.4 and C++11 feature support detection
 #-------------------------------------------------------------------------------
+include(CheckCXXCompilerFlag)
+
 if(CMAKE_COMPILER_IS_GNUCXX)
+  set(CPP11_FLAG -std=c++1y)
+
   if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.4.0)
     message(FATAL_ERROR "GCC version needs to be at least 4.4!")
   endif()
+else()
+  set(CPP11_FLAG -std=c++11)
 endif()
-
-include(CheckCXXCompilerFlag)
-
-set(CPP11_FLAG -std=c++1y)
