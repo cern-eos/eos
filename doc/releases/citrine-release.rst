@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.21 Citrine``
+===================
+
+2018-04-18
+
+Bug
+----
+
+* [EOS-2510] - eos native client is not working correctly against eosuser
+
+New
+----
+
+* XrootD 4.8.2 readiness and required
+
 ``v4.2.20 Citrine``
 ===================
 
