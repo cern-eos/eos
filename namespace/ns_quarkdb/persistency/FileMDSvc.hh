@@ -34,7 +34,6 @@ EOSNSNAMESPACE_BEGIN
 
 class IQuotaStats;
 class MetadataFlusher;
-class MetadataProvider;
 
 //------------------------------------------------------------------------------
 //! FileMDSvc based on Redis
@@ -191,8 +190,8 @@ private:
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider; ///< Provides next free inode
+  LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
   std::atomic<uint64_t> mNumFiles; ///< Total number of fileso
-  std::unique_ptr<MetadataProvider> mMetadataProvider; ///< Provides metadata from backend
 };
 
 EOSNSNAMESPACE_END

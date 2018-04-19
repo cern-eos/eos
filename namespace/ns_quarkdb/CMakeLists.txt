@@ -56,7 +56,6 @@ add_library(
   persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
   persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
   persistency/MetadataFetcher.cc     persistency/MetadataFetcher.hh
-  persistency/MetadataProvider.cc    persistency/MetadataProvider.hh
   persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
   persistency/Serialization.cc       persistency/Serialization.hh
   explorer/NamespaceExplorer.cc      explorer/NamespaceExplorer.hh

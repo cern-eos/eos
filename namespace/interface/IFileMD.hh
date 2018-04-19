@@ -402,8 +402,6 @@ private:
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
 
-using IFileMDPtr = std::shared_ptr<IFileMD>;
-
 EOSNSNAMESPACE_END
 
 #endif // EOS_NS_IFILE_MD_HH
