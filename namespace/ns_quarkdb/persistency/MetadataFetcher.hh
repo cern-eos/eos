@@ -19,7 +19,6 @@
 //------------------------------------------------------------------------------
 //! @author Georgios Bitzes <georgios.bitzes@cern.ch>
 //! @brief Class to retrieve metadata from the backend - no caching!
-//!        TODO: Make asynchronous, try building continuations out of std::future
 //------------------------------------------------------------------------------
 
 #pragma once
@@ -28,6 +27,7 @@
 #include "proto/FileMd.pb.h"
 #include "proto/ContainerMd.pb.h"
 #include <future>
+#include <folly/futures/Future.h>
 
 //! Forward declaration
 namespace qclient
@@ -51,7 +51,7 @@ public:
   //!
   //! @return future holding the file metadata object
   //----------------------------------------------------------------------------
-  static std::future<eos::ns::FileMdProto>
+  static folly::Future<eos::ns::FileMdProto>
   getFileFromId(qclient::QClient& qcl, id_t id);
 
   //----------------------------------------------------------------------------
@@ -62,7 +62,7 @@ public:
   //!
   //! @return future holding the container metadata object
   //----------------------------------------------------------------------------
-  static std::future<eos::ns::ContainerMdProto>
+  static folly::Future<eos::ns::ContainerMdProto>
   getContainerFromId(qclient::QClient& qcl, id_t id);
 
   //----------------------------------------------------------------------------
@@ -73,7 +73,7 @@ public:
   //!
   //! @return future the map of files
   //----------------------------------------------------------------------------
-  static std::future<IContainerMD::FileMap>
+  static folly::Future<IContainerMD::FileMap>
   getFilesInContainer(qclient::QClient& qcl, id_t container);
 
   //----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ public:
   //!
   //! @return future the map of subcontainers
   //----------------------------------------------------------------------------
-  static std::future<IContainerMD::ContainerMap>
+  static folly::Future<IContainerMD::ContainerMap>
   getSubContainers(qclient::QClient& qcl, id_t container);
 
   //----------------------------------------------------------------------------
@@ -96,7 +96,7 @@ public:
   //!
   //! @return future holding the id of the file
   //----------------------------------------------------------------------------
-  static std::future<id_t>
+  static folly::Future<id_t>
   getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
                     const std::string& name);
 
@@ -109,7 +109,7 @@ public:
   //!
   //! @return future holding the id of the subcontainer
   //----------------------------------------------------------------------------
-  static std::future<id_t>
+  static folly::Future<id_t>
   getContainerIDFromName(qclient::QClient& qcl, id_t parent_id,
                          const std::string& name);
 

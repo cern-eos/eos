@@ -30,8 +30,8 @@ include_directories(
  ${SPARSEHASH_INCLUDE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
  ${XROOTD_INCLUDE_DIR}
+ ${FOLLY_INCLUDE_DIRS}
 )
-
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -87,6 +87,8 @@ target_link_libraries(
   EosCrc32c-Static
   qclient
   rocksdb
+  dl
+  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${BZ2_LIBRARY}
   ${UUID_LIBRARIES}
@@ -105,6 +107,7 @@ target_link_libraries(
   EosCrc32c-Static
   qclient
   rocksdb
+  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${BZ2_LIBRARY}
   ${UUID_LIBRARIES}
@@ -135,6 +138,7 @@ if (Linux)
     EosCrc32c-Static
     qclient
     rocksdb
+    ${FOLLY_LIBRARIES}
     ${BZ2_LIBRARY}
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
@@ -171,6 +175,7 @@ add_executable(eos_ns_convert
 target_link_libraries(eos_ns_convert
   jemalloc
   qclient
+  ${FOLLY_LIBRARIES}
   eosCommon
   EosCrc32c-Static
   EosNsInMemory-Static

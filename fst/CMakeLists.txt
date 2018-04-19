@@ -48,6 +48,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
+  ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
