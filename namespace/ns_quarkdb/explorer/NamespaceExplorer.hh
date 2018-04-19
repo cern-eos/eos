@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <folly/futures/Future.h>
 
 namespace qclient
 {
@@ -106,7 +107,7 @@ private:
   common::FutureWrapper<IContainerMD::ContainerMap> containerMap;
 
   // Second and final round fills out:
-  std::deque<std::future<eos::ns::FileMdProto>> pendingFileMds;
+  std::deque<folly::Future<eos::ns::FileMdProto>> pendingFileMds;
   bool pendingFileMdsLoaded = false;
 
   std::deque<std::unique_ptr<SearchNode>> children; // expanded containers

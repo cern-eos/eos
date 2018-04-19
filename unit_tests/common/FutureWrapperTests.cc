@@ -28,21 +28,21 @@
 EOSCOMMONTESTING_BEGIN
 
 TEST(FutureWrapper, BasicSanity) {
-  std::promise<int> promise;
-  common::FutureWrapper<int> fut(promise.get_future());
+  folly::Promise<int> promise;
+  common::FutureWrapper<int> fut(promise.getFuture());
   ASSERT_FALSE(fut.ready());
 
-  promise.set_value(5);
+  promise.setValue(5);
   ASSERT_TRUE(fut.ready());
   ASSERT_EQ(fut.get(), 5);
 }
 
 TEST(FutureWrapper, Exception) {
-  std::promise<int> promise;
-  common::FutureWrapper<int> fut(promise.get_future());
+  folly::Promise<int> promise;
+  common::FutureWrapper<int> fut(promise.getFuture());
   ASSERT_FALSE(fut.ready());
 
-  promise.set_exception(std::make_exception_ptr(std::string("something terrible happened")));
+  promise.setException(std::make_exception_ptr(std::string("something terrible happened")));
   ASSERT_TRUE(fut.ready());
 
   try {
