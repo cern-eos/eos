@@ -576,6 +576,7 @@ eos_publish_artifacts:
     - if [ "$BUILD_TYPE" == "tag" ]; then echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${BRANCH}/tag/latest_version; fi
   tags:
     - docker-cc7
+  retry: 2
   only:
     - master
     - cta_integration
@@ -598,6 +599,7 @@ eos_publish_debian_artifacts:
   dependencies:
     - eos_deb_ubuntu_artful
   allow_failure: true
+  retry: 2
   only:
     - master
     - tags
