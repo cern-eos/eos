@@ -2044,8 +2044,11 @@ WFE::Job::DoIt(bool issync)
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
               if (!fmd->hasLocation(TAPE_FS_ID)) {
                 fmd->addLocation(TAPE_FS_ID);
-                gOFS->eosView->updateFileStore(fmd.get());
               }
+
+              // Reset the error message
+              fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
+              gOFS->eosView->updateFileStore(fmd.get());
             }
 
             bool dropAllStripes = true;
@@ -2077,7 +2080,7 @@ WFE::Job::DoIt(bool issync)
             fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& ex) {
-            eos_static_err("Could not reset retrieves counter and set error attribute for file %s.",
+            eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
                            fullPath.c_str());
             MoveWithResults(SFS_ERROR);
             return SFS_ERROR;
@@ -2086,6 +2089,17 @@ WFE::Job::DoIt(bool issync)
           MoveWithResults(SFS_OK);
           return SFS_OK;
         } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
+          try {
+            eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+            fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& ex) {
+            eos_static_err("Could not set archive error attribute for file %s.",
+                           fullPath.c_str());
+            MoveWithResults(SFS_ERROR);
+            return SFS_ERROR;
+          }
+
           MoveWithResults(SFS_OK);
           return SFS_OK;
         } else {
