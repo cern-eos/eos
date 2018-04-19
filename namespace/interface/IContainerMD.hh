@@ -384,6 +384,8 @@ private:
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
 
+using IContainerMDPtr = std::shared_ptr<IContainerMD>;
+
 EOSNSNAMESPACE_END
 
 #endif // EOS_NS_ICONTAINER_MD_HH

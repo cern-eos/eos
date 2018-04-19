@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <numeric>
 
@@ -46,7 +47,7 @@ void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets)
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
-    mMetaMap(), mFileCache(10e8), mNumFiles(0ull) {}
+    mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -90,8 +91,10 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
+  mMetadataProvider.reset(new MetadataProvider(*pQcl, pContSvc, this));
+
   if (config.find(cache_size) != config.end()) {
-    mFileCache.set_max_size(std::stoull(config.at(cache_size)));
+    mMetadataProvider->setFileMDCacheSize(std::stoull(config.at(cache_size)));
   }
 }
 
@@ -158,26 +161,12 @@ FileMDSvc::SafetyCheck()
 std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
-  auto file = mFileCache.get(id);
-
-  if (file != nullptr) {
-    if (file->isDeleted()) {
-      MDException e(ENOENT);
-      e.getMessage() << __FUNCTION__ << " File #" << id << " not found";
-      throw e;
-    } else {
-      if (clock) {
-        *clock = file->getClock();
-      }
-
-      return file;
-    }
+  IFileMDPtr file = mMetadataProvider->retrieveFileMD(id).get();
+  if(file && clock) {
+    *clock = file->getClock();
   }
 
-  // If not in cache, then get info from KV store
-  std::shared_ptr<FileMD> retval = std::make_shared<FileMD>(0, this);
-  retval->initialize(MetadataFetcher::getFileFromId(*pQcl, id).get());
-  return mFileCache.put(retval->getId(), retval);
+  return file;
 }
 
 //------------------------------------------------------------------------------
@@ -188,7 +177,7 @@ FileMDSvc::createFile()
 {
   uint64_t free_id = mInodeProvider.reserve();
   std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
-  file = mFileCache.put(free_id, file);
+  mMetadataProvider->insertFileMD(free_id, file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   ++mNumFiles;

@@ -78,6 +78,7 @@ TEST_F(FileMDSvcF, LoadTest)
   std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc()->getFileMD(id1);
   std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc()->getFileMD(id3);
   std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc()->getFileMD(id5);
+  ASSERT_THROW(fileSvc()->getFileMD(1337), eos::MDException);
   ASSERT_TRUE(fileRec1 != nullptr);
   ASSERT_TRUE(fileRec3 != nullptr);
   ASSERT_TRUE(fileRec5 != nullptr);
