@@ -514,6 +514,18 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     return -1;
   }
 
+  if (gOFS->_attr_set(workflowpath.c_str(),
+                      lError,
+                      rootvid,
+                      nullptr,
+                      "sys.wfe.errmsg",
+                      mErrorMesssage.c_str())) {
+    eos_static_err("msg=\"failed to store workflow errmsg\" path=\"%s\" errmsg=\"%s\"",
+                   workflowpath.c_str(),
+                   mErrorMesssage.c_str());
+    return -1;
+  }
+
   XrdOucString sretry;
   sretry += retry;
 
@@ -598,6 +610,15 @@ WFE::Job::Load(std::string path2entry)
     if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
                          "sys.wfe.retry", sretry)) {
       mRetry = (int)strtoul(sretry.c_str(), nullptr, 10);
+    } else {
+      eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+    }
+
+    XrdOucString errorMessage;
+
+    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
+                         "sys.wfe.errmsg", errorMessage)) {
+      mErrorMesssage = errorMessage.c_str();
     } else {
       eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
     }

@@ -64,7 +64,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid);
+      int retc = Create(vid, errorMessage);
 
       if (!retc) {
         if ((workflow == "enonet")) {
@@ -93,7 +93,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid);
+      int retc = Create(vid, errorMessage);
 
       if (retc != 0) {
         errno = retc;
