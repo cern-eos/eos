@@ -150,8 +150,16 @@ ProcCommand::FuseX()
     }
 
     if (errno) {
-      eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
-              errno, emsg.c_str());
+      if (errno != ENOENT) 
+      {
+	eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+		errno, emsg.c_str());
+      }
+      else
+      {
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+		errno, emsg.c_str());
+      }
       return gOFS->Emsg("FuseX", *mError, errno, "get-if-clock",
                         emsg.c_str());
     }
