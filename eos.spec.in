@@ -27,6 +27,13 @@
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
 #-------------------------------------------------------------------------------
+# Custom strip command for SLC6, CC7
+#-------------------------------------------------------------------------------
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%endif
+
+#-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
 Summary: The EOS project
@@ -93,10 +100,13 @@ BuildRequires: bzip2-devel
 Requires: bzip2
 %endif
 
-# Install gcc 4.8 on SLC6
-%if 0%{distribution} == 6
-BuildRequires: devtoolset-2-gcc-c++
-BuildRequires: devtoolset-2-binutils-devel
+# Install newer gcc on SLC6 + CC7
+%if 0%{distribution} == 7
+BuildRequires: centos-release-scl
+%endif
+
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: devtoolset-6
 %endif
 
 %if %{use_systemd}
@@ -113,14 +123,14 @@ test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 mkdir -p build
 cd build
 %if %{?_with_server:0}%{!?_with_server:1}
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1 -DFUSEXCLIENT=1"
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+scl enable devtoolset-6 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1 -DFUSEXCLIENT=1"
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1 -DFUSEXCLIENT=1
 %endif
 %else
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-scl enable devtoolset-2 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+scl enable devtoolset-6 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFUSEXCLIENT=1
 %endif
