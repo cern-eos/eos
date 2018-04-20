@@ -168,8 +168,9 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   AuthIdManager():
-    connectionId(0), uidCache(16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */ ), mCleanupThread()
+    connectionId(0), mCleanupThread()
   {
+    uidCache = new ShardedCache<CredKey, uint64_t, CredKeyHasher>(16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */ );
     resize(proccachenbins);
   }
 
@@ -216,7 +217,7 @@ protected:
     }
   };
 
-  ShardedCache<CredKey, uint64_t, CredKeyHasher> uidCache;
+  ShardedCache<CredKey, uint64_t, CredKeyHasher> *uidCache = nullptr;
   static uint64_t sConIdCount;
   std::set<pid_t> runningPids;
   pthread_t mCleanupThread;
@@ -708,13 +709,13 @@ protected:
       credKey.sId = sId;
       credKey.mtime = credinfo.lmtime;
 
-      std::shared_ptr<uint64_t> cachedConnection = uidCache.retrieve(credKey);
+      std::shared_ptr<uint64_t> cachedConnection = uidCache->retrieve(credKey);
       if(cachedConnection) {
         authid = *cachedConnection;
       }
       else {
         authid = getNewConId(uid, gid, pid);
-        uidCache.store(credKey, new uint64_t(authid));
+        uidCache->store(credKey, new uint64_t(authid));
       }
 
       if (!authid) {
