@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <string>
 
-#define	P_OK	8		/* Test for workflow permission.  */
+#define P_OK  8   /* Test for workflow permission.  */
 
 class XrdOucErrInfo;
 
@@ -77,8 +77,10 @@ public:
   //! @param acl_val acl string which is modified in-place
   //! @param to_string by default false, if true convert uid/gids(s) from
   //!        numeric to string representation
+  //!
+  //! @return 0 if conversion successful
   //----------------------------------------------------------------------------
-  static void ConvertIds(std::string& acl_val, bool to_string = false);
+  static int ConvertIds(std::string& acl_val, bool to_string = false);
 
   //----------------------------------------------------------------------------
   //! Default Constructor
@@ -108,8 +110,8 @@ public:
   /*---------------------------------------------------------------------------*/
   //! Constructor from XAttrMap
   /*---------------------------------------------------------------------------*/
-  Acl (eos::IContainerMD::XAttrMap& xattrmap,
-       eos::common::Mapping::VirtualIdentity &vid);
+  Acl(eos::IContainerMD::XAttrMap& xattrmap,
+      eos::common::Mapping::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Constructor by path

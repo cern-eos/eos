@@ -85,7 +85,8 @@ private:
     nU = 1 << 7,   // 128  - !u
     pU = 1 << 8,   // 256  - +u
     Q  = 1 << 9,   // 512  -  q
-    C  = 1 << 10   // 1024 -  c
+    C  = 1 << 10,  // 1024 -  c
+    WO = 1 << 11   // 2048 - wo
   };
 
   std::string mId; ///< Rule identifier extracted from command line

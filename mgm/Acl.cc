@@ -48,12 +48,13 @@ Acl::Acl(std::string sysacl, std::string useracl,
 //!
 //------------------------------------------------------------------------------
 
-Acl::Acl (eos::IContainerMD::XAttrMap& attrmap,
-     eos::common::Mapping::VirtualIdentity &vid)
+Acl::Acl(eos::IContainerMD::XAttrMap& attrmap,
+         eos::common::Mapping::VirtualIdentity& vid)
 {
   // define the acl rules from the attributes
   Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+      attrmap.count("sys.eval.useracl"));
 }
 
 
@@ -372,11 +373,11 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
 //------------------------------------------------------------------------------
 // Convert acl rules to numeric uid/gid if needed
 //------------------------------------------------------------------------------
-void
+int
 Acl::ConvertIds(std::string& acl_val, bool to_string)
 {
   if (acl_val.empty()) {
-    return;
+    return 0;
   }
 
   bool is_uid, is_gid;
@@ -463,6 +464,7 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
         // Print error message but still return the original value that we have
         eos_static_err(oss.str().c_str());
         string_id = sid;
+        return 1;
       }
 
       oss << tokens[0] << ':' << string_id << ':' << tokens[2] << ',';
@@ -476,6 +478,8 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
   if (*acl_val.rbegin() == ',') {
     acl_val.pop_back();
   }
+
+  return 0;
 }
 
 EOSMGMNAMESPACE_END

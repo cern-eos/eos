@@ -221,7 +221,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         }
 
         // Convert to numeric representation
-        Acl::ConvertIds(val);
+        if (Acl::ConvertIds(val)) {
+          errno = EINVAL;
+          return Emsg(epname, error, errno, "set attribute (failed id conver)", path);
+        }
       }
 
       dh->setAttribute(key, val.c_str());
@@ -402,11 +405,12 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 // Get extended attribute for a given md object - low-level API.
 //------------------------------------------------------------------------------
 template<typename T>
-static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
+static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
+{
   //------------------------------------------------------------------------------
   // First, check if the cmd itself contains the attribute.
   //------------------------------------------------------------------------------
-  if(md.hasAttribute(key)) {
+  if (md.hasAttribute(key)) {
     rvalue = md.getAttribute(key);
     return true;
   }
@@ -415,7 +419,8 @@ static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
   // Nope.. does the fmd have linked attributes?
   //----------------------------------------------------------------------------
   const std::string kMagicKey = "sys.attr.link";
-  if(!md.hasAttribute(kMagicKey)) {
+
+  if (!md.hasAttribute(kMagicKey)) {
     // Nope
     return false;
   }
@@ -429,11 +434,10 @@ static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
 
   try {
     dh = gOFS->eosView->getContainer(linkedContainer.c_str());
-  }
-  catch(eos::MDException &e) {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
+                   e.getErrno(), e.getMessage().str().c_str());
     return false;
   }
 
@@ -442,7 +446,7 @@ static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
   //----------------------------------------------------------------------------
   // We have the linked container, lookup.
   //----------------------------------------------------------------------------
-  if(!dh->hasAttribute(key)) {
+  if (!dh->hasAttribute(key)) {
     return false;
   }
 
@@ -454,7 +458,9 @@ static bool attrGetInternal(T &md, std::string key, std::string& rvalue) {
 // Get extended attribute for a given cmd - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(eos::IContainerMD &cmd, std::string key, std::string& rvalue) {
+XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
+                     std::string& rvalue)
+{
   return attrGetInternal(cmd, key, rvalue);
 }
 
@@ -462,7 +468,8 @@ XrdMgmOfs::_attr_get(eos::IContainerMD &cmd, std::string key, std::string& rvalu
 // Get extended attribute for a given fmd - low-level API.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::_attr_get(eos::IFileMD &fmd, std::string key, std::string& rvalue) {
+XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
+{
   return attrGetInternal(fmd, key, rvalue);
 }
 

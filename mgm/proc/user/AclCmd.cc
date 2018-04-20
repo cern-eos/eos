@@ -56,6 +56,8 @@ AclCmd::ProcessRequest()
       reply.set_std_err(stdErr.c_str());
       reply.set_retc(ENODATA);
     } else {
+      // Convert to username if possible, ignore errors
+      (void) Acl::ConvertIds(acl_val, true);
       reply.set_std_out(acl_val);
       reply.set_retc(0);
     }
@@ -92,7 +94,6 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
   }
 
   acl = value.c_str();
-  Acl::ConvertIds(acl, true);
 }
 
 //------------------------------------------------------------------------------
@@ -103,7 +104,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
-    stdErr = "error: failed to parse input rule";
+    stdErr = "error: failed to parse input rule or unknown id";
     return EINVAL;
   }
 
@@ -173,7 +174,15 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
       break;
 
     case 'w' :
-      rule_int = rule_int | AclCmd::W;
+
+      // Check for wo case
+      if ((i + 1 < size) && single_acl.at(i + 1) == 'o') {
+        i++;
+        rule_int = rule_int | AclCmd::WO;
+      } else {
+        rule_int = rule_int | AclCmd::W;
+      }
+
       break;
 
     case 'x' :
@@ -315,7 +324,16 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
     }
 
     if (*flag == 'w') {
-      curr_lambda(AclCmd::W);
+      auto temp_iter = flag;
+      ++temp_iter;
+
+      if ((temp_iter != input.end()) && (*temp_iter == 'o')) {
+        curr_lambda(AclCmd::WO);
+        ++flag;
+      } else {
+        curr_lambda(AclCmd::W);
+      }
+
       continue;
     }
 
@@ -410,7 +428,17 @@ bool AclCmd::ParseRule(const std::string& input)
       return false;
     }
 
+    // Convert it to numeric format, add dummy ":r" and then remove it so that
+    // the format is what ConvertIds expects
+    id += ":r";
+
+    if (Acl::ConvertIds(id, false)) {
+      return false;
+    }
+
+    id = id.erase(id.rfind(':'));
     mId = id;
+    eos_info("mId=%s", mId.c_str());
     srule = std::string(input.begin() + pos_equal + 1, input.end());
 
     if (!GetRuleBitmask(srule, mSet)) {
@@ -431,6 +459,15 @@ bool AclCmd::ParseRule(const std::string& input)
         return false;
       }
 
+      // Convert it to numeric format, add dummy ":r" and then remove it so that
+      // the format is what ConvertIds expects
+      id += ":r";
+
+      if (Acl::ConvertIds(id, false)) {
+        return false;
+      }
+
+      id = id.erase(id.rfind(':'));
       mId = id;
       srule = std::string(input.begin() + pos_del_last + 1, input.end());
 
@@ -525,6 +562,10 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 
   if (in & AclCmd::W) {
     ret.append("w");
+  }
+
+  if (in & AclCmd::WO) {
+    ret.append("wo");
   }
 
   if (in & AclCmd::X) {
