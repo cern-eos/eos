@@ -2022,7 +2022,7 @@ Quota::QuotaBySpace(const eos::IContainerMD::id_t qino, uid_t uid, gid_t gid,
 //------------------------------------------------------------------------------
 int
 Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
-                    long long avail_files, long long& avail_bytes)
+                    long long& avail_files, long long& avail_bytes)
 {
   long long maxbytes_user, maxbytes_group, maxbytes_project;
   long long freebytes_user, freebytes_group, freebytes_project;

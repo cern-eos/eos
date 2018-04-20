@@ -639,7 +639,7 @@ private:
   //! @note locks should be taken outside this method
   //----------------------------------------------------------------------------
   static int GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
-                          long long avail_files, long long& avail_bytes);
+                          long long& avail_files, long long& avail_bytes);
 
   //----------------------------------------------------------------------------
   //! Get space quota object for exact path
