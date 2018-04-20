@@ -35,11 +35,13 @@ struct cacheconfig
   cache_t type;
   std::string location;
   uint64_t total_file_cache_size; // total size of the file cache
+  uint64_t total_file_cache_inodes; // max number of inodes in the file cache
   uint64_t per_file_cache_max_size; // per file maximum file cache size
   uint64_t total_file_journal_size; // total size of the journal cache
   uint64_t per_file_journal_max_size; // per file maximum journal cache size
   uint64_t default_read_ahead_size; // start value for read-ahead
   uint64_t max_read_ahead_size; // max value for read-ahead
+
   float clean_threshold; // filling percentage of the cache disk when we start to delete
   std::string read_ahead_strategy; // string values 'none', 'static', 'dynamic'
   std::string journal;

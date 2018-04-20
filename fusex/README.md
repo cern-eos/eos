@@ -64,6 +64,7 @@ You also need to define a local cache directory (location) where small files are
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
+    "size-ino" : 65536, 
     "clean-threshold" : 85.0, 
     "location" : "/var/cache/eos/fusex/cache/",
     "journal" : "/var/cache/eos/fusex/journal/",

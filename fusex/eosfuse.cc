@@ -730,6 +730,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["cache"]["size-mb"] = 512;
       }
 
+      // default cache size 64k inodes
+      if (!root["cache"]["size-ino"].asString().length()) {
+        root["cache"]["size-ino"] = 65536;
+      }
+
       // default cleaning threshold
       if (!root["cache"]["clean-threshold"].asString().length()) {
         root["cache"]["clean-threshold"] = 85.0;
@@ -747,6 +752,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["cache"]["size-mb"].asString().length()) {
         root["cache"]["size-mb"] = 1000;
       }
+
+      // default cache size 64k indoes
+      if (!root["cache"]["size-ino"].asString().length()) {
+        root["cache"]["size-ino"] = 65536;
+      }
+
 
       // default cleaning threshold
       if (!root["cache"]["clean-threshold"].asString().length()) {
@@ -822,6 +833,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
                                     1024;
+    cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
+
     cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64() *
                                       1024 * 1024;
     cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()
@@ -1166,11 +1179,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.no_xattr,
 		       config.options.nocache_graceperiod
                       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
                        cconfig.max_read_ahead_size,
                        cconfig.total_file_cache_size,
+                       cconfig.total_file_cache_inodes,
                        cconfig.location.c_str(),
                        cconfig.journal.c_str(),
 		       cconfig.clean_threshold);
