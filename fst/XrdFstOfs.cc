@@ -784,7 +784,7 @@ XrdFstOfs::stat(const char* path,
 int
 XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
                        const char* manager, XrdOucString& capOpaqueFile,
-                       XrdOucString* return_result, unsigned short timeout)
+                       XrdOucString* return_result, unsigned short timeout, bool retry)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -867,7 +867,7 @@ again:
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
                      status.code);
 
-      if ((status.code >= 100) && (status.code <= 300) && (!timeout)) {
+      if (retry && (status.code >= 100) && (status.code <= 300) && (!timeout)) {
         // implement automatic retry - network errors will be cured at some point
         delete fs;
         XrdSysTimer sleeper;

@@ -302,7 +302,8 @@ public:
                   const char* manager,
                   XrdOucString& capOpaqueFile,
                   XrdOucString* return_result = 0,
-                  unsigned short timeout = 0);
+                  unsigned short timeout = 0,
+                  bool retry = true);
 
   //----------------------------------------------------------------------------
   //! Function dealing with plugin calls

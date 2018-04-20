@@ -1974,14 +1974,14 @@ WFE::Job::DoIt(bool issync)
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
 
-          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
+          auto sendRequestAsync = [fullPath, request](Job jobCopy) {
             std::string errorMsg;
             SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
-        } else if (event == "closew") {
+        } else if (event.find("closew") != std::string::npos) {
           if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // reset the retrieves counter and error message in case the retrieved file has been written to disk
             try {
@@ -2044,7 +2044,7 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             std::string errorMsg;
-            return SendProtoWFRequest(this, fullPath, request, errorMsg, true);
+            return SendProtoWFRequest(this, fullPath, request, errorMsg, !IsSync(event));
           }
         } else if (event == "archived") {
           bool onlyTapeCopy = false;
