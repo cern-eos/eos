@@ -86,9 +86,9 @@ You can modify some of the XrdCl variables, however it is recommended not to cha
     "TimeoutResolution" : 1,
     "ConnectionWindow": 10,
     "ConnectionRetry" : 0,
-    "StreamErrorWindow" : 30,
-    "RequestTimeout" : 15,
-    "StreamTimeout" : 30,
+    "StreamErrorWindow" : 60,
+    "RequestTimeout" : 30,
+    "StreamTimeout" : 60,
     "RedirectLimit" : 3,
     "LogLevel" : "None"
   },

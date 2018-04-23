@@ -434,15 +434,24 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
     XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
     XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 30);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 15);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 60);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 30);
+    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 60);
     XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
 
     for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
       if (root["xrdcl"].isMember(*it)) {
         XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(),
                                             root["xrdcl"][it->c_str()].asInt());
+
+	if (*it == "RequestTimeout")
+	{
+	  int rtimeout = root["xrdcl"][it->c_str()].asInt();
+	  if (rtimeout > XrdCl::Proxy::chunk_timeout())
+	  {
+	    XrdCl::Proxy::chunk_timeout(rtimeout + 60);
+	  }
+	}
       }
     }
 
@@ -1213,8 +1222,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
-    eos_static_warning("xrdcl-options          := %s log-level=%s",
-                       xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str());
+    eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
+                       xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
+		       XrdCl::Proxy::sChunkTimeout);
     fusesession = fuse_lowlevel_new(&args,
                                     &(get_operations()),
                                     sizeof(operations), NULL);

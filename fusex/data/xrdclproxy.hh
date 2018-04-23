@@ -648,6 +648,11 @@ namespace XrdCl
         return mProxy;
       }
 
+      void disable()
+      {
+	mProxy = 0;
+      }
+      
       void copy(const void* cbuffer, size_t size)
       {
         mBuffer->resize(size);
@@ -777,6 +782,11 @@ namespace XrdCl
         return mEOF;
       }
 
+      void disable()
+      {
+	mProxy = 0;
+      }
+
       virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
                                    XrdCl::AnyObject* pResponse);
 
@@ -797,6 +807,9 @@ namespace XrdCl
 
     typedef std::map<uint64_t, write_handler> chunk_map;
     typedef std::map<uint64_t, read_handler> chunk_rmap;
+
+    typedef std::vector<write_handler> chunk_vector;
+    typedef std::vector<read_handler> chunk_rvector;
 
     // ---------------------------------------------------------------------- //
     write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset=0, uint16_t timeout=0);
@@ -918,6 +931,9 @@ namespace XrdCl
 
     void CheckSelfDestruction();
 
+    static ssize_t chunk_timeout(ssize_t to=0) { if (to) sChunkTimeout = to; return sChunkTimeout; }
+    static ssize_t sChunkTimeout; // time after we move an inflight chunk out of a proxy object into the static map
+
   private:
     OPEN_STATE open_state;
     struct timespec open_state_time;
@@ -930,6 +946,11 @@ namespace XrdCl
     chunk_map XWriteAsyncChunks;
     chunk_rmap XReadAsyncChunks;
 
+    // this static map will take over chunks where we don't see callbacks in a reasonable time
+    static chunk_vector sTimeoutWriteAsyncChunks;
+    static chunk_rvector sTimeoutReadAsyncChunks;
+    static XrdSysMutex sTimeoutAsyncChunksMutex;
+    
     XRootDStatus XReadState;
     XRootDStatus XWriteState;
 

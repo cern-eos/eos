@@ -30,6 +30,11 @@
 using namespace XrdCl;
 
 
+XrdCl::Proxy::chunk_vector XrdCl::Proxy::sTimeoutWriteAsyncChunks;
+XrdCl::Proxy::chunk_rvector XrdCl::Proxy::sTimeoutReadAsyncChunks;
+XrdSysMutex XrdCl::Proxy::sTimeoutAsyncChunksMutex;
+ssize_t XrdCl::Proxy::sChunkTimeout = 300;
+
 XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
 XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
 
@@ -677,18 +682,27 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
   eos_static_debug("");
   bool no_chunks_left = true;
   {
-    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-    if (!status->IsOK())
+    if (proxy())
     {
-
-      mProxy->set_writestate(status);
+      XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
+      if (!status->IsOK())
+      {
+	mProxy->set_writestate(status);
+      }
+      mProxy->WriteCondVar().Signal();
     }
-    mProxy->WriteCondVar().Signal();
     delete response;
     delete status;
-    if ( (mProxy->ChunkMap().size() > 1 ) ||
-	 (!mProxy->ChunkMap().count( (uint64_t) this)) )
-      no_chunks_left = false;
+    if (proxy())
+    {
+      if ( (mProxy->ChunkMap().size() > 1 ) ||
+	   (!mProxy->ChunkMap().count( (uint64_t) this)) )
+	no_chunks_left = false;
+    }
+    else
+    {
+      return;
+    }
   }
 
   {
@@ -825,12 +839,31 @@ XrdCl::Proxy::WaitWrite()
   }
 
   {
+    time_t wait_start = time(NULL);
     XrdSysCondVarHelper lLock(WriteCondVar());
 
     while ( ChunkMap().size() )
     {
       eos_debug("     [..] map-size=%lu", ChunkMap().size());
       WriteCondVar().WaitMS(1000);
+      time_t wait_stop  = time(NULL);
+      if ( ChunkMap().size() && ((wait_stop-wait_start) > sChunkTimeout))
+      {
+	// move all pending chunks to the static map
+	// in principle this is not supposed to happen
+	XrdSysMutexHelper chunkLock(sTimeoutAsyncChunksMutex);
+	eos_err("discarding %d chunks  in-flight for writing", ChunkMap().size());
+	for (auto it = ChunkMap().begin(); it != ChunkMap().end(); ++it) {
+	  it->second->disable();
+	  sTimeoutWriteAsyncChunks.push_back(it->second);
+	}
+	ChunkMap().clear();
+	return XRootDStatus(XrdCl::stFatal,
+			    suDone,
+			    XrdCl::errSocketTimeout,
+			    "request timeout"
+			    );
+      }
     }
     eos_debug(" [..] map-size=%lu", ChunkMap().size());
   }
@@ -909,6 +942,8 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     ReadCondVar().Signal();
   }
 
+  if (!proxy())
+    return;
   if (!mProxy->HasReadsInFlight())
     mProxy->CheckSelfDestruction();
 }
@@ -956,10 +991,29 @@ XrdCl::Proxy::WaitRead(read_handler handler)
   eos_debug("");
   XrdSysCondVarHelper lLock(handler->ReadCondVar());
 
+  time_t wait_start = time(NULL);
   while ( !handler->done() )
   {
-
     handler->ReadCondVar().WaitMS(1000);
+    time_t wait_stop  = time(NULL);
+    if ( ((wait_stop-wait_start) > sChunkTimeout) )
+    {
+      // move the pending chunk to the static map
+      // in principle this is not supposed to happen
+      XrdSysMutexHelper chunkLock(sTimeoutAsyncChunksMutex);
+      eos_err("discarding %d chunks  in-flight for writing", ChunkMap().size());
+      for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
+	it->second->disable();
+	sTimeoutReadAsyncChunks.push_back(it->second);
+      }
+      ChunkRMap().clear();
+
+      return XRootDStatus(XrdCl::stFatal,
+			  suDone,
+			  XrdCl::errSocketTimeout,
+			  "request timeout"
+			  );
+    }
   }
   eos_debug(" [..] read-size=%lu", handler->vbuffer().size());
   return handler->Status();
