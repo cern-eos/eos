@@ -219,7 +219,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int retc = SFS_OK;
   Path = path;
   gettimeofday(&openTime, &tz);
-  XrdOucString stringOpaque = opaque;
+  XrdOucString stringOpaque = (opaque ? opaque : "");
   XrdOucString opaqueCheckSum = "";
   XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
