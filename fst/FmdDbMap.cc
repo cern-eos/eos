@@ -27,6 +27,7 @@
 #include "proto/ConsoleRequest.pb.h"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "fst/Config.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
@@ -137,7 +138,7 @@ int
 FmdDbMapHandler::GetMgmFmd(const char* manager,
                            eos::common::FileId::fileid_t fid, struct Fmd& fmd)
 {
-  if ((!manager) || (!fid)) {
+  if (!fid) {
     return EINVAL;
   }
 
@@ -150,16 +151,26 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   XrdOucString fmdquery = "/?xrd.wantprot=sss&mgm.pcmd=getfmd&mgm.getfmd.fid=";
   fmdquery += sfmd;
   XrdOucString address = "root://";
-  address += manager;
+  std::string current_mgr;
+
+  if (!manager) {
+    // Use the broadcasted manager name
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    current_mgr = Config::gConfig.Manager.c_str();
+  } else {
+    current_mgr = manager;
+  }
+
+  address += current_mgr.c_str();
   address += "//dummy";
   XrdCl::URL url(address.c_str());
+again:
 
   if (!url.IsValid()) {
     eos_static_err("error=URL is not valid: %s", address.c_str());
     return EINVAL;
   }
 
-again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
   if (!fs) {
@@ -173,7 +184,7 @@ again:
   if (status.IsOK()) {
     rc = 0;
     eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
-                     manager, fid);
+                     current_mgr.c_str(), fid);
   } else {
     eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
                    status.code);
@@ -183,12 +194,24 @@ again:
       XrdSysTimer sleeper;
       sleeper.Snooze(1);
       eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
+
+      if (!manager) {
+        // Use the broadcasted manager name
+        XrdSysMutexHelper lock(Config::gConfig.Mutex);
+        current_mgr = Config::gConfig.Manager.c_str();
+        address = "root://";
+        address += current_mgr.c_str();
+        address += "//dummy";
+        url.Clear();
+        url.FromString(address.c_str());
+      }
+
       goto again;
     }
 
     rc = ECOMM;
     eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
-                   manager, fid);
+                   current_mgr.c_str(), fid);
   }
 
   delete fs;
@@ -201,7 +224,7 @@ again:
   // Check if response contains any data
   if (!response->GetBuffer()) {
     eos_static_info("Unable to retrieve meta data from mgm %s for fid=%08llx, "
-                    "result data is empty", manager, fid);
+                    "result data is empty", current_mgr.c_str(), fid);
     delete response;
     return ENODATA;
   }
@@ -211,7 +234,7 @@ again:
   if ((sresult.find("getfmd: retc=0 ")) == std::string::npos) {
     // Remote side couldn't get the record
     eos_static_info("Unable to retrieve meta data on remote mgm %s for "
-                    "fid=%08llx - result=%s", manager, fid,
+                    "fid=%08llx - result=%s", current_mgr.c_str(), fid,
                     response->GetBuffer());
     delete response;
     return ENODATA;
@@ -262,7 +285,17 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   eos::common::FileId::Fid2Hex(fid, shexfid);
   fmdquery += shexfid;
   XrdOucString address = "root://";
-  address += manager;
+  std::string current_mgr;
+
+  if (!manager) {
+    // Use the broadcasted manager name
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    current_mgr = Config::gConfig.Manager.c_str();
+  } else {
+    current_mgr = manager;
+  }
+
+  address += current_mgr.c_str();
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
@@ -284,11 +317,11 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   if (status.IsOK()) {
     rc = 0;
     eos_static_debug("scheduled a repair at %s for fid=%s ",
-                     manager, shexfid.c_str());
+                     current_mgr.c_str(), shexfid.c_str());
   } else {
     rc = ECOMM;
     eos_static_err("Unable to schedule repair at server %s for fid=%s",
-                   manager, shexfid.c_str());
+                   current_mgr.c_str(), shexfid.c_str());
   }
 
   if (rc) {
@@ -1232,7 +1265,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
   std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, true,
-  qclient::RetryStrategy::WithTimeout(seconds(60))));
+                                        qclient::RetryStrategy::WithTimeout(seconds(60))));
   qclient::QSet qset(*qcl.get(),  eos::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
