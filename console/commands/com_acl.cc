@@ -233,7 +233,7 @@ AclHelper::ParseCommand(const char* arg)
       continue;
     }
 
-    if ((token == "-l") || (token == "--lists")) {
+    if ((token == "-l") || (token == "--list")) {
       acl->set_op(AclProto::LIST);
       continue;
     }
@@ -365,7 +365,7 @@ void com_acl_help()
   std::cerr << "    --help           Print help" << std::endl;
   std::cerr << "-R, --recursive      Apply on directories recursively" <<
             std::endl;
-  std::cerr << "-l, --lists          List ACL rules" << std::endl;
+  std::cerr << "-l, --list          List ACL rules" << std::endl;
   std::cerr << "    --user           Set user.acl rules on directory" <<
             std::endl;
   std::cerr << "    --sys            Set sys.acl rules on directory" << std::endl;
