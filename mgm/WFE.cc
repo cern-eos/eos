@@ -2176,8 +2176,14 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   cta::xrd::Response response;
 
   try {
+    auto sentAt = std::chrono::steady_clock::now();
+
     auto future = service.Send(request, response);
     future.get();
+
+    auto receivedAt = std::chrono::steady_clock::now();
+    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
+    eos_static_info("SSI Protobuf sending time = %ld", timeSpent.count());
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
