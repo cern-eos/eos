@@ -622,8 +622,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     localPrefix.replace("#COL#", ":");
   } else {
     // Extract the local path prefix from the broadcasted configuration!
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
     fsid = atoi(sfsid ? sfsid : "0");
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
 
     if (fsid && gOFS.Storage->mFileSystemsMap.count(fsid)) {
       localPrefix = gOFS.Storage->mFileSystemsMap[fsid]->GetPath().c_str();
