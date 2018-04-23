@@ -46,6 +46,9 @@ static const std::string sMapMetaInfoKey{"meta_map"};
 static const std::string sLastUsedFid{"last_used_fid"};
 //! Field last used container id in meta info map
 static const std::string sLastUsedCid{"last_used_cid"};
+//! Set of orphans files, which are not anymore attached to a container
+//! they were unlinked but not removed yet
+static const std::string sOrphanFiles{"orphan_files"};
 }
 
 //! Variable associated with the QuotaView

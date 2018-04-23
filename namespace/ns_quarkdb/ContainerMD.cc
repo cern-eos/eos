@@ -42,12 +42,10 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
 {
-
   mSubcontainers->set_deleted_key("");
   mFiles->set_deleted_key("");
   mSubcontainers->set_empty_key("##_EMPTY_##");
   mFiles->set_empty_key("##_EMPTY_##");
-
   mCont.set_id(id);
   mCont.set_mode(040755);
 
@@ -177,7 +175,7 @@ ContainerMD::addContainer(IContainerMD* container)
 {
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
-                                   container->getId()));
+                                    container->getId()));
 
   // @todo (esindril): Here we (should ?!) follow the behaviour of the namespace
   // in memory and don't do any extra checks but this can lead to multiple
@@ -261,7 +259,6 @@ ContainerMD::removeFile(const std::string& name)
     IFileMD::id_t id = iter->second;
     mFiles->erase(iter);
     mFiles->resize(0);
-    // Do async call to KV backend
     pFlusher->hdel(pFilesKey, name);
 
     try {
@@ -697,11 +694,10 @@ ContainerMD::loadChildren()
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
   pDirsMap.setKey(pDirsKey);
 
-  if(pQcl) {
+  if (pQcl) {
     mFiles = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
     mSubcontainers = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
-  }
-  else {
+  } else {
     // I think this case only happens inside some tests.. remove eventually?
     mFiles->clear();
     mSubcontainers->clear();

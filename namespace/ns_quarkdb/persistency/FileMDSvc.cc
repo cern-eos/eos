@@ -206,6 +206,11 @@ FileMDSvc::updateStore(IFileMD* obj)
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
   std::string sid = stringify(obj->getId());
   pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
+
+  // If file is detached then add it to the list of orphans
+  if (obj->getContainerId() == 0) {
+    pFlusher->sadd(constants::sOrphanFiles, stringify(obj->getId()));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -216,6 +221,7 @@ FileMDSvc::removeFile(IFileMD* obj)
 {
   std::string sid = stringify(obj->getId());
   pFlusher->hdel(getBucketKey(obj->getId()), sid);
+  pFlusher->srem(constants::sOrphanFiles, sid);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   obj->setDeleted();
