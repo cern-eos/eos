@@ -182,6 +182,7 @@ BuildRequires: zeromq3, zeromq3-devel
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
 BuildRequires: eos-folly
+Requires: eos-folly
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.

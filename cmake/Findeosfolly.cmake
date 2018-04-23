@@ -21,7 +21,7 @@ else()
 
   find_library(
     EOS_FOLLY_LIBRARY
-    NAMES libeos-folly-with-deps.a
+    NAMES libfolly.so
     HINTS /opt/eos-folly ${EOS_FOLLY_ROOT_DIR}
     PATH_SUFFIXES lib lib64
   )
@@ -39,7 +39,7 @@ else()
 
     set(FOLLY_FOUND TRUE)
     set(FOLLY_INCLUDE_DIRS ${EOS_FOLLY_INCLUDE_DIRS})
-    set(FOLLY_LIBRARIES    ${EOS_FOLLY_LIBRARIES} dl event)
+    set(FOLLY_LIBRARIES    ${EOS_FOLLY_LIBRARIES})
 
     add_library(eosfolly STATIC IMPORTED)
     set_property(TARGET eosfolly PROPERTY IMPORTED_LOCATION ${EOS_FOLLY_LIBRARIES})
