@@ -209,6 +209,7 @@ AclHelper::ParseCommand(const char* arg)
   eos::console::AclProto* acl = mReq.mutable_acl();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
+  bool type_set = false;
 
   // Get opts
   while ((temp = tokenizer.GetToken()) != 0) {
@@ -240,11 +241,13 @@ AclHelper::ParseCommand(const char* arg)
 
     if (token == "--sys") {
       acl->set_sys_acl(true);
+      type_set = true;
       continue;
     }
 
     if (token == "--user") {
       acl->set_sys_acl(false);
+      type_set = true;
       continue;
     }
 
@@ -293,6 +296,11 @@ AclHelper::ParseCommand(const char* arg)
     return false;
   }
 
+  // If proc type not enforced try to deduce it
+  if (!type_set) {
+    return SetDefaultRole();
+  }
+
   return true;
 }
 
@@ -304,31 +312,27 @@ AclHelper::SetDefaultRole()
 {
   eos::console::AclProto* acl = mReq.mutable_acl();
 
-  if (!acl->sys_acl()) {
-    if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami", false)) {
-      std::string result = mMgmExec.GetResult();
-      size_t pos = 0;
+  if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami", false)) {
+    std::string result = mMgmExec.GetResult();
+    size_t pos = 0;
 
-      if ((pos = result.find("uid=")) != std::string::npos) {
-        if ((result.at(pos + 4) >= '0') && (result.at(pos + 4) <= '4') &&
-            (result.at(pos + 5) == ' ')) {
-          acl->set_sys_acl(true);
-        } else {
-          acl->set_sys_acl(false);
-        }
-
-        return true;
+    if ((pos = result.find("uid=")) != std::string::npos) {
+      if ((result.at(pos + 4) >= '0') && (result.at(pos + 4) <= '4') &&
+          (result.at(pos + 5) == ' ')) {
+        acl->set_sys_acl(true);
+      } else {
+        acl->set_sys_acl(false);
       }
 
-      std::cerr << "error: failed to get uid form whoami command" << std::endl;
-      return false;
+      return true;
     }
 
-    std::cerr << "error: failed to execute whoami command" << std::endl;
+    std::cerr << "error: failed to get uid form whoami command" << std::endl;
     return false;
   }
 
-  return true;
+  std::cerr << "error: failed to execute whoami command" << std::endl;
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -344,7 +348,7 @@ int com_acl(char* arg)
 
   AclHelper acl;
 
-  if (!acl.ParseCommand(arg) || !acl.SetDefaultRole()) {
+  if (!acl.ParseCommand(arg)) {
     com_acl_help();
     global_retc = EINVAL;
     return EINVAL;

@@ -2810,7 +2810,7 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
 
   TableFormatterBase table;
 
-  for (auto it = mGroupView.begin(); it != mGroupView.end(); it++) {
+  for (auto it = mGroupView.begin(); it != mGroupView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth);
   }
 
