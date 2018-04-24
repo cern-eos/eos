@@ -328,11 +328,10 @@ WFE::WFEr()
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
-    time_t snoozeinterval = 1;
     size_t snoozeloop = snoozetime / 1;
 
     for (size_t i = 0; i < snoozeloop; i++) {
-      sleeper.Snooze(snoozeinterval);
+      sleeper.Wait(100);
       {
         // check if the setting changes
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
