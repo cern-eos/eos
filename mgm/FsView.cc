@@ -1003,10 +1003,6 @@ FsSpace::FsSpace(const char* name)
 //----------------------------------------------------------------------------
 FsSpace::~FsSpace()
 {
-  if (mBalancer) {
-    delete mBalancer;
-  }
-
   if (mConverter) {
     delete mConverter;
   }
@@ -1019,7 +1015,6 @@ FsSpace::~FsSpace()
     delete mGeoBalancer;
   }
 
-  mBalancer = nullptr;
   mConverter = nullptr;
   mGroupBalancer = nullptr;
   mGeoBalancer = nullptr;

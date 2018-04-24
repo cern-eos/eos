@@ -490,7 +490,8 @@ public:
     return gConfigQueuePrefix.c_str();
   }
 
-  std::unique_ptr<Balancer> mBalancer; ///< Threaded object supervising space balancing
+  std::unique_ptr<Balancer>
+  mBalancer; ///< Threaded object supervising space balancing
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
   GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
@@ -585,7 +586,8 @@ public:
     return gConfigQueuePrefix.c_str();
   }
 
-  BalancerGroup* mBalancer; ///< Balancer thread for the group
+  std::unique_ptr<BalancerGroup>
+  mBalancerGroup; ///< Balancer thread for the group
 
 protected:
   unsigned int mIndex; ///< Group index i.e 0,1,2,3 ...
