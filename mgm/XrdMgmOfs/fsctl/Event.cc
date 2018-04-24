@@ -210,8 +210,15 @@
     }
   }
 
-  const char* ok = "OK";
-  error.setErrInfo(strlen(ok) + 1, ok);
+  if (rc != 0) {
+    std::ostringstream errStr;
+    errStr << "complete workflow - error while executing " << event << " workflow [" << MacroStringError(rc) << "]";
+    return Emsg(epname, error, rc, errStr.str().c_str(), spath);
+  } else {
+    const char* ok = "OK";
+    error.setErrInfo(strlen(ok) + 1, ok);
+  }
+
   EXEC_TIMING_END("Event");
-  return rc == 0 ? SFS_DATA : rc;
+  return SFS_DATA;
 }

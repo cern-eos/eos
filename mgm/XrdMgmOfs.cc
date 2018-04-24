@@ -790,3 +790,19 @@ XrdMgmOfs::IsNsBooted() const
   XrdSysMutexHelper lock(InitializationMutex);
   return Initialized == kBooted;
 }
+
+std::string
+XrdMgmOfs::MacroStringError(int errcode) {
+  if (errcode == ENOTCONN) {
+    return "ENOTCONN";
+  }
+  else if (errcode == EPROTO) {
+    return "EPROTO";
+  }
+  else if (errcode == EAGAIN) {
+    return "EAGAIN";
+  }
+  else {
+    return "EINVAL";
+  }
+}

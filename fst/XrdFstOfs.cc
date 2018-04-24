@@ -835,10 +835,11 @@ again:
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
 
   if (status.IsOK()) {
-    eos_debug("called MGM cache - %s", opaque.c_str());
+    eos_info("called MGM cache - %s", opaque.c_str());
     rc = SFS_OK;
   } else {
     msg = (status.GetErrorMessage().c_str());
+    cerr << "emsg: " << msg << endl;
     rc = SFS_ERROR;
 
     if (msg.find("[EIDRM]") != STR_NPOS) {
@@ -861,8 +862,21 @@ again:
       rc = -EADV;
     }
 
+    if (msg.find("[EAGAIN]") != STR_NPOS) {
+      rc = -EAGAIN;
+    }
+
+    if (msg.find("[ENOTCONN]") != STR_NPOS) {
+      rc = -ENOTCONN;
+    }
+
+    if (msg.find("[EPROTO]") != STR_NPOS) {
+      rc = -EPROTO;
+    }
+
+
     if (rc != SFS_ERROR) {
-      gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
+      return gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
     } else {
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
                      status.code);
@@ -889,7 +903,7 @@ again:
         goto again;
       }
 
-      gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
+      return gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
     }
   }
 
@@ -898,10 +912,7 @@ again:
   }
 
   delete fs;
-
-  if (response) {
-    delete response;
-  }
+  delete response;
 
   return rc;
 }

@@ -96,7 +96,6 @@ Workflow::Trigger(const std::string& event, std::string workflow,
       int retc = Create(vid, errorMessage);
 
       if (retc != 0) {
-        errno = retc;
         return retc;
       }
 
