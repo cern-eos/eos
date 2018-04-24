@@ -75,6 +75,10 @@ public:
   virtual void initialize() {}
   virtual void configure(const std::map<std::string, std::string>& config) {}
   virtual void finalize() {}
+  virtual folly::Future<std::shared_ptr<eos::IFileMD>> getFileMDFut(eos::IFileMD::id_t id)
+  {
+    return folly::makeFuture(getFileMD(id));
+  }
   virtual std::shared_ptr<eos::IFileMD> getFileMD(eos::IFileMD::id_t id)
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);

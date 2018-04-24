@@ -75,9 +75,25 @@ TEST_F(FileMDSvcF, LoadTest)
   ASSERT_EQ(fileSvc()->getNumFiles(), 3);
   fileSvc()->finalize();
   ASSERT_NO_THROW(fileSvc()->initialize());
+  shut_down_everything();
+
   std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc()->getFileMD(id1);
   std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc()->getFileMD(id3);
   std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc()->getFileMD(id5);
+
+  folly::Future<eos::IFileMDPtr> file1fut = fileSvc()->getFileMDFut(id1);
+  folly::Future<eos::IFileMDPtr> file1fut2 = fileSvc()->getFileMDFut(id1);
+  folly::Future<eos::IFileMDPtr> file1fut3 = fileSvc()->getFileMDFut(id1);
+
+  file1fut.wait();
+  file1fut2.wait();
+  file1fut3.wait();
+
+  // Ensure all futures point to the same underlying data in memory
+  ASSERT_TRUE(file1fut.value().get() == file1fut2.value().get());
+  ASSERT_TRUE(file1fut.value().get() == file1fut3.value().get());
+
+
   ASSERT_THROW(fileSvc()->getFileMD(1337), eos::MDException);
   ASSERT_TRUE(fileRec1 != nullptr);
   ASSERT_TRUE(fileRec3 != nullptr);
@@ -93,4 +109,5 @@ TEST_F(FileMDSvcF, LoadTest)
   mdFlusher()->synchronize();
   ASSERT_EQ(fileSvc()->getNumFiles(), 0);
   fileSvc()->finalize();
+
 }

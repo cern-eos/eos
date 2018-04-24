@@ -81,6 +81,12 @@ public:
   virtual void finalize() override {};
 
   //----------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID - asynchronous
+  //! API.
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> getFileMDFut(IFileMD::id_t id) override;
+
+  //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //!
   //! @param id file id

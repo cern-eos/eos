@@ -41,6 +41,7 @@ add_library(
 
 target_link_libraries(
   EosNsInMemoryTests PUBLIC
+  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${CPPUNIT_LIBRARIES}
   EosNsInMemory-Static)
@@ -55,4 +56,4 @@ set_target_properties(
 # ns-benchmark executables
 #-------------------------------------------------------------------------------
 add_executable(ns-benchmark NSBenchmark.cc)
-target_link_libraries(ns-benchmark PRIVATE EosNsInMemory-Static)
+target_link_libraries(ns-benchmark PRIVATE EosNsInMemory-Static ${FOLLY_LIBRARIES})

@@ -35,6 +35,7 @@ public:
   MOCK_METHOD0(initialize, void());
   MOCK_METHOD1(configure, void(const std::map<std::string, std::string>& config));
   MOCK_METHOD0(finalize, void());
+  MOCK_METHOD1(getFileMDFut, folly::Future<eos::IFileMDPtr>(eos::IFileMD::id_t id));
   MOCK_METHOD1(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id));
   MOCK_METHOD2(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id,
                uint64_t* clock));

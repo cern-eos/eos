@@ -24,7 +24,11 @@
 #-------------------------------------------------------------------------------
 # EosNsCommon-Sources library
 #-------------------------------------------------------------------------------
-include_directories(${CMAKE_SOURCE_DIR} ${XROOTD_INCLUDE_DIR})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIR}
+  ${FOLLY_INCLUDE_DIRS}
+)
 
 add_library(
   EosNsCommon-Objects OBJECT

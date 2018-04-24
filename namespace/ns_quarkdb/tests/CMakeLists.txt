@@ -22,8 +22,10 @@
 # ************************************************************************
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${FOLLY_INCLUDE_DIRS}
   "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include")
+  "${gmock_SOURCE_DIR}/include"
+)
 
 #-------------------------------------------------------------------------------
 # ProtoBuf representation tests

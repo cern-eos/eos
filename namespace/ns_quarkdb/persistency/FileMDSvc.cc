@@ -156,6 +156,15 @@ FileMDSvc::SafetyCheck()
 }
 
 //------------------------------------------------------------------------------
+// Get the file metadata information for the given file id - asynchronous API.
+//------------------------------------------------------------------------------
+folly::Future<IFileMDPtr>
+FileMDSvc::getFileMDFut(IFileMD::id_t id)
+{
+  return mMetadataProvider->retrieveFileMD(id);
+}
+
+//------------------------------------------------------------------------------
 // Get the file metadata information for the given file id
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>

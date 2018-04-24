@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/MDException.hh"
+#include <folly/futures/Future.h>
 #include <map>
 #include <string>
 
@@ -122,6 +123,11 @@ public:
   //! Finalize the file service
   //------------------------------------------------------------------------
   virtual void finalize() = 0;
+
+  //------------------------------------------------------------------------
+  //! Asynchronously get the file metadata information for the given file ID
+  //------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> getFileMDFut(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID

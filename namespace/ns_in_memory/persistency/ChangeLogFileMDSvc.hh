@@ -99,6 +99,15 @@ public:
   virtual void finalize() override;
 
   //----------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID - asynchronous
+  //! API, identical to synchronous one.
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> getFileMDFut(IFileMD::id_t id) override
+  {
+    return folly::makeFuture(getFileMD(id, 0));
+  }
+
+  //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) override
