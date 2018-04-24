@@ -4565,7 +4565,7 @@ filesystem::initlogging()
   FILE* fstderr;
 
   // Open log file
-  if (getuid()) {
+  if (getuid() || getenv("EOS_FUSE_PRIVATE_ROOT_MOUNT")) {
     fuse_shared = false; //eosfsd
     char logfile[1024];
 
