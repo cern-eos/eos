@@ -101,7 +101,7 @@ public:
 
         for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
           if ((*fs)->GetConfigStatus() != eos::common::FileSystem::eConfigStatus::kRO) {
-            (*fs)->SetConfigStatus(eos::common::FileSystem::eConfigStatus::kRO);
+            (*fs)->SetString("configstatus", "ro");
           }
         }
       }

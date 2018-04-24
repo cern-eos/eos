@@ -286,8 +286,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
     stdErr = "error: illegal parameters";
     retc = EINVAL;
   } else {
-    eos::common::RWMutexReadLock viewLock(FsView::gFsView.ViewMutex);
-    FileSystem* fs = 0;
+    FileSystem* fs = nullptr;
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
     if (fsid && FsView::gFsView.mIdView.count(fsid)) {
       // by filesystem id
@@ -338,11 +338,13 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       if (((key == "configstatus") &&
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
             eos::common::FileSystem::kUnknown)) ||
-          (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") ||
-            (key == "drainperiod") || (key == "proxygroup") ||
-            (key == "filestickyproxydepth") || (key == "forcegeotag")))) {
-        std::string nodename = fs->GetString("host");
+          (((key == "headroom") || (key == "scaninterval") ||
+            (key == "graceperiod") || (key == "drainperiod") ||
+            (key == "proxygroup") || (key == "filestickyproxydepth") ||
+            (key == "forcegeotag")))) {
+        // Check permissions
         size_t dpos = 0;
+        std::string nodename = fs->GetString("host");
 
         if ((dpos = nodename.find('.')) != std::string::npos) {
           nodename.erase(dpos);
@@ -355,54 +357,83 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           stdErr = "error: filesystems can only be configured as 'root' or "
                    "from the server mounting them using sss protocol\n";
           retc = EPERM;
-        } else {
-          if ((key == "headroom") || (key == "scaninterval") ||
-              (key == "graceperiod") || (key == "drainperiod")) {
-            fs->SetLongLong(key.c_str(),
-                            eos::common::StringConversion::GetSizeFromString(value.c_str()));
-            FsView::gFsView.StoreFsConfig(fs);
-          } else {
-            if ((key == "configstatus") && (value == "empty")) {
-              // Check if this filesystem is really empty
-              if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId()) != 0) {
-                stdErr = "error: the filesystem is not empty, therefore it can't be removed\n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# You can inspect the registered files via the command:\n";
-                stdErr += "# [eos] fs dumpmd ";
-                stdErr += (int) fs->GetId();
-                stdErr += " -path\n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# You can drain the filesystem if it is still operational via the command:\n";
-                stdErr += "# [eos] fs config ";
-                stdErr += (int) fs->GetId();
-                stdErr += " configstatus=drain\n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# You can drain the filesystem if it is unusable via the command:\n";
-                stdErr += "# [eos] fs config ";
-                stdErr += (int) fs->GetId();
-                stdErr += " configstatus=draindead\n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# You can force to remove these files via the command:\n";
-                stdErr += "# [eos] fs dropfiles ";
-                stdErr += (int) fs->GetId();
-                stdErr += "\n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# You can force to drop these files (brute force) via the command:\n";
-                stdErr += "# [eos] fs dropfiles ";
-                stdErr += (int) fs->GetId();
-                stdErr += "-f \n";
-                stdErr += "# -------------------------------------------------------------------\n";
-                stdErr += "# [eos] = 'eos -b' on MGM or 'eosadmin' on storage nodes\n";
-                retc = EPERM;
-              } else {
-                fs->SetString(key.c_str(), value.c_str());
-                FsView::gFsView.StoreFsConfig(fs);
-              }
-            } else {
-              fs->SetString(key.c_str(), value.c_str());
-              FsView::gFsView.StoreFsConfig(fs);
+          return retc;
+        }
+
+        if ((key == "headroom") || (key == "scaninterval") ||
+            (key == "graceperiod") || (key == "drainperiod")) {
+          fs->SetLongLong(key.c_str(),
+                          eos::common::StringConversion::GetSizeFromString(value.c_str()));
+          FsView::gFsView.StoreFsConfig(fs);
+        } else if (key == "configstatus") {
+          auto old_status = fs->GetConfigStatus();
+          auto new_status = eos::common::FileSystem::GetConfigStatusFromString(
+                              value.c_str());
+
+          if (!FileSystem::IsConfigTransition(old_status, new_status)) {
+            // nothing to do
+            return 0;
+          }
+
+          if (value == "empty") {
+            // Check if this filesystem is really empty
+            if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId()) != 0) {
+              std::ostringstream oss;
+              oss << "error: the filesystem is not empty, therefore it can't be removed\n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# You can inspect the registered files via the command:\n"
+                  << "# [eos] fs dumpmd " << fs->GetId() << " -path\n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# You can drain the filesystem if it is still operational via the command:\n"
+                  << "# [eos] fs config " << fs->GetId() << " configstatus=drain\n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# You can drain the filesystem if it is unusable via the command:\n"
+                  << "# [eos] fs config " << fs->GetId() << " configstatus=draindead\n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# You can force to remove these files via the command:\n"
+                  << "# [eos] fs dropfiles " << fs->GetId() << "\n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# You can force to drop these files (brute force) via the command:\n"
+                  << "# [eos] fs dropfiles " << fs->GetId() << " -f \n"
+                  << "# -------------------------------------------------------------------\n"
+                  << "# [eos] = 'eos -b' on MGM or 'eosadmin' on storage nodes\n";
+              stdErr = oss.str().c_str();
+              retc = EPERM;
+              return retc;
             }
           }
+
+          int drain_tx = FileSystem::IsDrainTransition(old_status, new_status);
+
+          if (drain_tx && FsView::gFsView.UseCentralDraining(fs)) {
+            // Centralized draining
+            if (drain_tx > 0) {
+              if (!gOFS->mDrainEngine.StartFsDrain(fs, 0, stdErr)) {
+                retc = EINVAL;
+                return retc;
+              }
+            } else {
+              if (!gOFS->mDrainEngine.StopFsDrain(fs, stdErr)) {
+                retc = EINVAL;
+                return retc;
+              }
+            }
+
+            if (!fs->SetConfigStatus(new_status, true)) {
+              stdErr = "error: failed to set new config status";
+              retc = EINVAL;
+              return retc;
+            }
+          } else {
+            // Distributed draining or simple change of status
+            fs->SetString(key.c_str(), value.c_str());
+          }
+
+          FsView::gFsView.StoreFsConfig(fs);
+        } else {
+          // Other proxy* key set
+          fs->SetString(key.c_str(), value.c_str());
+          FsView::gFsView.StoreFsConfig(fs);
         }
       } else {
         stdErr += "error: not an allowed parameter <";

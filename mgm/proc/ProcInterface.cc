@@ -26,7 +26,6 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/proc/admin/DrainCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -181,11 +180,6 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kNs:
     cmd.reset(new NsCmd(std::move(req), vid));
-    break;
-
-  case RequestProto::kDrain:
-    eos_static_debug("handling drain command");
-    cmd.reset(new DrainCmd(std::move(req), vid));
     break;
 
   case RequestProto::kFind:

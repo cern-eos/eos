@@ -442,15 +442,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the configuration status.
-  //----------------------------------------------------------------------------
-  bool
-  SetConfigStatus(fsstatus_t status)
-  {
-    return SetString("configstatus", GetConfigStatusAsString(status));
-  }
-
-  //----------------------------------------------------------------------------
   //! Store a given statfs struct into the hash representation
   //!
   //! @param statfs struct to read

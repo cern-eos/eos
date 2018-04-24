@@ -84,7 +84,6 @@ add_library(
   proc/admin/Backup.cc
   proc/admin/Config.cc
   proc/admin/Debug.cc
-  proc/admin/DrainCmd.cc
   proc/admin/Fs.cc
   proc/admin/FsCmd.cc
   proc/admin/Fsck.cc
@@ -138,7 +137,7 @@ add_library(
   DrainJob.cc
   Balancer.cc
   FileSystem.cc
-  drain/DrainFS.cc
+  drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc
   Egroup.cc

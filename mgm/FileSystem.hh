@@ -39,15 +39,37 @@ EOSMGMNAMESPACE_BEGIN
 
 class DrainJob;
 
-/*----------------------------------------------------------------------------*/
-/**
- *
- * @brief Class representing a filesystem on the MGM
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Class representing a filesystem on the MGM
+//------------------------------------------------------------------------------
 class FileSystem : public eos::common::FileSystem
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Check if this is a config transition or noop
+  //!
+  //! @param new_status new configuration status to be set
+  //! @param new_status new configuration status to be set
+  //!
+  //! @return true if transition, otherwise false
+  //----------------------------------------------------------------------------
+  static
+  bool IsConfigTransition(const eos::common::FileSystem::fsstatus_t old_status,
+                          const eos::common::FileSystem::fsstatus_t new_status);
+
+  //----------------------------------------------------------------------------
+  //! Check if this is a drain transition i.e. enables or disabled draining
+  //!
+  //! @param new_status new configuration status to be set
+  //! @param new_status new configuration status to be set
+  //!
+  //! @return 1 if draining enabled, -1 if draining disabled, 0 if not a drain
+  //!         transition
+  //----------------------------------------------------------------------------
+  static
+  int IsDrainTransition(const eos::common::FileSystem::fsstatus_t old_status,
+                        const eos::common::FileSystem::fsstatus_t new_status);
+
   //----------------------------------------------------------------------------
   //! @brief Constructor
   //!
@@ -57,7 +79,8 @@ public:
   //----------------------------------------------------------------------------
   FileSystem(const char* queuepath, const char* queue,
              XrdMqSharedObjectManager* som) :
-    eos::common::FileSystem(queuepath, queue, som), mDrainJob(0) {}
+    eos::common::FileSystem(queuepath, queue, som), mDrainJob(0)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor - needs to kill any on-going drain jobs

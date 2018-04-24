@@ -132,7 +132,8 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
     }
   }
 
-  return eos::common::FileSystem::SetConfigStatus(status);
+  std::string val = eos::common::FileSystem::GetConfigStatusAsString(status);
+  return eos::common::FileSystem::SetString("configstatus", val.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -148,6 +149,43 @@ FileSystem::SetString(const char* key, const char* str, bool broadcast)
   }
 
   return eos::common::FileSystem::SetString(key, str, broadcast);
+}
+
+
+//------------------------------------------------------------------------------
+// Check if this is a config transition or noop
+//------------------------------------------------------------------------------
+bool
+FileSystem::IsConfigTransition(const eos::common::FileSystem::fsstatus_t
+                               old_status,
+                               const eos::common::FileSystem::fsstatus_t new_status)
+{
+  return old_status != new_status;
+}
+
+//------------------------------------------------------------------------------
+// Check if this is a drain transition i.e. enables or disabled draining
+//------------------------------------------------------------------------------
+int
+FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
+                              old_status,
+                              const eos::common::FileSystem::fsstatus_t new_status)
+{
+  if ((old_status != eos::common::FileSystem::kDrain) &&
+      (old_status != eos::common::FileSystem::kDrainDead) &&
+      ((new_status == eos::common::FileSystem::kDrain) ||
+       (new_status == eos::common::FileSystem::kDrainDead))) {
+    return 1;
+  }
+
+  if ((old_status == eos::common::FileSystem::kDrain) &&
+      (old_status == eos::common::FileSystem::kDrainDead) &&
+      ((new_status != eos::common::FileSystem::kDrain) ||
+       (new_status != eos::common::FileSystem::kDrainDead))) {
+    return -1;
+  }
+
+  return 0;
 }
 
 EOSMGMNAMESPACE_END

@@ -2338,6 +2338,37 @@ FsView::HeartBeatCheck()
 }
 
 //------------------------------------------------------------------------------
+// Check if centralized draining is to be used for the given file system
+//------------------------------------------------------------------------------
+int
+FsView::UseCentralDraining(FileSystem* fs)
+{
+  eos::common::FileSystem::fs_snapshot_t snapshot;
+
+  if (fs->SnapShotFileSystem(snapshot)) {
+    auto it = mSpaceView.find(snapshot.mSpace);
+
+    if (it == mSpaceView.end()) {
+      eos_crit("fsid=%lu attached to unknown space=%s", snapshot.mId,
+               snapshot.mSpace.c_str());
+      return -1;
+    }
+
+    FsSpace* space = it->second;
+
+    // Check if space has centralized draining enabled
+    if (space->GetConfigMember("drainer.central") == "on") {
+      return 1;
+    }
+
+    return 0;
+  } else {
+    eos_err("failed to take file system snapshot");
+    return -1;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Return a view member variable
 //------------------------------------------------------------------------------
 std::string

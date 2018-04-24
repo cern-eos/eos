@@ -35,9 +35,10 @@ struct MockFileSystem {
 
   MockFileSystem() : status(eos::common::FileSystem::kRW) {}
 
-  void SetConfigStatus(fsstatus_t status)
+  void SetString(const std::string& key, const std::string& val)
   {
-    this->status = status;
+    this->status = (fsstatus_t)eos::common::FileSystem::GetConfigStatusFromString(
+                     val.c_str());
   }
 
   fsstatus_t GetConfigStatus(bool cached = false)
@@ -117,7 +118,7 @@ VarPartitionMonitoringTest()
   context.mFsMutex.LockWrite();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
+    (*fs)->SetString("configstatus", "rw");
   }
 
   context.mFsMutex.UnLockWrite();
@@ -137,7 +138,7 @@ VarPartitionMonitoringTest()
   context.mFsMutex.LockWrite();
 
   for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    (*fs)->SetConfigStatus(eos::common::FileSystem::kRW);
+    (*fs)->SetString("configstatus", "rw");
   }
 
   context.mFsMutex.UnLockWrite();

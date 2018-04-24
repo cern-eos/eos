@@ -27,7 +27,6 @@
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "proto/FileMd.pb.h"
-#include <thread>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -39,7 +38,7 @@ class DrainTransferJob: public eos::common::LogId
 {
 public:
   //! Status of a drain transfer job
-  enum Status {OK, Running, Failed, Ready};
+  enum class Status {OK, Running, Failed, Ready};
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -51,18 +50,18 @@ public:
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
                    eos::common::FileSystem::fsid_t fsid_trg = 0):
-    mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg), mThread(),
-    mStatus(Ready) {}
+    mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
+    mStatus(Status::Ready) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~DrainTransferJob();
+  ~DrainTransferJob() = default;
 
   //----------------------------------------------------------------------------
-  //! Start thread doing the draining
+  //! Execute a third-party transfer
   //----------------------------------------------------------------------------
-  void Start();
+  Status DoIt();
 
   //----------------------------------------------------------------------------
   //! Log error message and save it
@@ -118,11 +117,6 @@ private:
     std::string mFullPath;
     eos::ns::FileMdProto mProto;
   };
-
-  //----------------------------------------------------------------------------
-  //! Method executed by the drainer thread where all the work is done
-  //----------------------------------------------------------------------------
-  void DoIt();
 
   //----------------------------------------------------------------------------
   //! Get file metadata info. Depending on the MGM configuration this will use

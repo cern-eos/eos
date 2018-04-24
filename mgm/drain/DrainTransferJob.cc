@@ -28,26 +28,12 @@
 #include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
-#include "common/Path.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 
-
 EOSMGMNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-DrainTransferJob::~DrainTransferJob()
-{
-  eos_debug("Destroying transfer job");
-
-  if (mThread.joinable()) {
-    mThread.join();
-  }
-}
 
 //------------------------------------------------------------------------------
 // Save error message and set the status accordingly
@@ -60,17 +46,9 @@ void DrainTransferJob::ReportError(const std::string& error)
 }
 
 //------------------------------------------------------------------------------
-// Start thread doing the draining
+// Execute a thrid-party transfer
 //------------------------------------------------------------------------------
-void DrainTransferJob::Start()
-{
-  mThread = std::thread(&DrainTransferJob::DoIt, this);
-}
-
-//------------------------------------------------------------------------------
-// Implement the thrid-party transfer
-//------------------------------------------------------------------------------
-void
+DrainTransferJob::Status
 DrainTransferJob::DoIt()
 {
   using eos::common::LayoutId;
@@ -81,12 +59,12 @@ DrainTransferJob::DoIt()
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
     ReportError(std::string(e.what()));
-    return;
+    return mStatus;
   }
 
   if (!SelectDstFs(fdrain)) {
     ReportError("msg=\"failed to select destination file system\"");
-    return;
+    return mStatus;
   }
 
   // Take snapshots of the source and target file systems
@@ -99,7 +77,7 @@ DrainTransferJob::DoIt()
 
     if (!target_fs || !source_fs) {
       ReportError("msg=\"source/taget file system not found\"");
-      return;
+      return mStatus;
     }
 
     source_fs->SnapShotFileSystem(src_snapshot);
@@ -111,12 +89,12 @@ DrainTransferJob::DoIt()
 
   if (!url_src.IsValid()) {
     ReportError("msg=\"invalid src url\"");
-    return;
+    return mStatus;
   }
 
   if (!url_dst.IsValid()) {
     ReportError("msg=\"invalid dst url\"");
-    return;
+    return mStatus;
   }
 
   XrdCl::PropertyList properties;
@@ -155,6 +133,8 @@ DrainTransferJob::DoIt()
   } else {
     ReportError("msg=\"failed to prepare drain job\"");
   }
+
+  return mStatus;
 }
 
 //------------------------------------------------------------------------------
@@ -178,6 +158,11 @@ DrainTransferJob::GetFileInfo() const
       fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
       fdrain.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
                                  fmd->getChecksum().getSize());
+      auto vect_locations = fmd->getLocations();
+
+      for (const auto loc : vect_locations) {
+        fdrain.mProto.add_locations(loc);
+      }
     } catch (eos::MDException& e) {
       oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
           << " errno=" << e.getErrno()

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file Drainer.hh
-//! @@author Andrea Manzi - CERN
+//! @author Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -25,13 +25,14 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/ThreadPool.hh"
+#include "mgm/drain/DrainFs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
-class DrainFS;
 class DrainTransferJob;
 class TableFormatterBase;
+class FileSystem;
 
 //------------------------------------------------------------------------------
 //! @brief Class running the centralized draining
@@ -40,9 +41,9 @@ class Drainer: public eos::common::LogId
 {
 public:
 
-  //! Map node to vector of draining file systems
-  typedef std::map<std::string, std::set<std::shared_ptr<eos::mgm::DrainFS>>>
-  DrainMap;
+  //! Map node to map of draining file systems and their associated futures
+  typedef
+  std::map<std::string, std::set<std::shared_ptr<eos::mgm::DrainFs>>> DrainMap;
 
   //----------------------------------------------------------------------------
   // Service thread static startup function
@@ -60,25 +61,40 @@ public:
   virtual ~Drainer();
 
   //----------------------------------------------------------------------------
+  //! Start drainer thread
+  //----------------------------------------------------------------------------
+  void Start();
+
+  //----------------------------------------------------------------------------
   //! Stop running thread
   //----------------------------------------------------------------------------
   void Stop();
 
   //----------------------------------------------------------------------------
   //! Start  of a given file system
+  //! @note This method must be called with a read lock on the FsView::ViewMutex
+  //!
+  //! @param fs file system object
+  //! @param dst_fsid destination file system, 0 if not chosen
+  //! @param err output error message
+  //!
+  //! @return true if drain started successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool StartFSDrain(unsigned int sourceFsId, unsigned int targetFsId,
-                    XrdOucString&);
+  bool StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
+                    XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
+  //! @note This method must be called with a read lock on the FsView::ViewMutex
+  //!
+  //! @param fs file system object
+  //! @param err output error message
+  //!
+  //! @return true if drain stopped successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool StopFSDrain(unsigned int fsId, XrdOucString&);
+  bool StopFsDrain(eos::mgm::FileSystem* fs, XrdOucString& err);
 
-  //----------------------------------------------------------------------------
-  //!  Clear the Draining info for the given FS
-  //---------------------------------------------------------------------------
-  bool ClearFSDrain(unsigned int fsId, XrdOucString&);
+  // @todo (esindril): to review
 
   //----------------------------------------------------------------------------
   //! Get draining status (global or specific to a fsid)
@@ -97,7 +113,7 @@ public:
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  void PrintTable(TableFormatterBase&, std::string, DrainFS* fs);
+  void PrintTable(TableFormatterBase&, std::string, DrainFs* fs);
 
   //----------------------------------------------------------------------------
   //!
@@ -105,17 +121,17 @@ public:
   void PrintJobsTable(TableFormatterBase&, DrainTransferJob*);
 
 private:
-
   //----------------------------------------------------------------------------
-  //!
+  //! Method doing the drain monitoring
   //----------------------------------------------------------------------------
   void* Drain(void);
 
-  pthread_t mThread;
-  //contains per space the max allowed fs draining per node
-  std::map<std::string, int> maxFSperNodeConfMap;
-  DrainMap  mDrainFS;
-  XrdSysMutex mDrainMutex, drainConfMutex;
+  pthread_t mThread; ///< Thread updating the drain configuration
+  //! Contains per space the max allowed fs draining per node
+  std::map<std::string, int> mCfgMap;
+  DrainMap mDrainFs; ///< Map of nodes to file systems draining
+  XrdSysMutex mDrainMutex; ///< Mutex protecting the drain map
+  XrdSysMutex mCfgMutex; ///< Mutex for drain config updates
   eos::common::ThreadPool mThreadPool; ///< Thread pool for drain jobs
 };
 

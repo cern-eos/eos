@@ -496,6 +496,10 @@ Storage::Boot(FileSystem* fs)
              (unsigned long) fsid);
   }
 
+  // @note the disk and mgm synchronization can end up in a state where files
+  // present on disk but not tracked by the MGM are still accounted in EOS. They
+  // are tracked in the local database and also show up in the "used_files" info
+  // displayed per file system.
   // Indicate the flag to unset the DB dirty flag at shutdown
   gFmdDbMapHandler.StayDirty(fsid, false);
 

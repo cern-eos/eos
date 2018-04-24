@@ -384,8 +384,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
-
-  std::string event = pargs.opts & Prep_FRESH ? "sync::abort_prepare" : "sync::prepare";
+  std::string event = pargs.opts & Prep_FRESH ? "sync::abort_prepare" :
+                      "sync::prepare";
 
   // check that all files exist
   while (pptr) {
@@ -409,8 +409,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                  nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
-
       std::string eventAttr = "sys.workflow." + event;
+
       for (const auto& attrEntry : attributes) {
         foundPrepareTag |= attrEntry.first.find(eventAttr) == 0;
       }
@@ -492,9 +492,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
     eos_static_info("prep-info=%s", prep_info.c_str());
-
     auto ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN, args,
                                     error, &lClient);
+
     if (ret_wfe != SFS_DATA) {
       retc = Emsg(epname, error, ret_wfe,
                   "prepare - synchronous prepare workflow error", prep_path.c_str());
@@ -780,7 +780,7 @@ XrdMgmOfs::FuseXCast(uint64_t inode)
 }
 
 //----------------------------------------------------------------------------
-//! Check if name space is booted
+// Check if name space is booted
 //----------------------------------------------------------------------------
 bool
 XrdMgmOfs::IsNsBooted() const

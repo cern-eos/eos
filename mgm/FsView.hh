@@ -729,21 +729,51 @@ public:
 //------------------------------------------------------------------------------
 class FsView : public eos::common::LogId
 {
-private:
-  pthread_t hbthread; ///< Thread ID of the heartbeat thread
-  bool mIsHeartbeatOn; ///< True if heartbeat thread is running
-  //! Next free filesystem ID if a new one has to be registered
-  eos::common::FileSystem::fsid_t NextFsId;
-  //! Mutex protecting all ...Map variables
-  eos::common::RWMutex MapMutex;
-  //! Map translating a file system ID to a unique ID
-  std::map<eos::common::FileSystem::fsid_t, std::string> Fs2UuidMap;
-  //! Map translating a unique ID to a filesystem ID
-  std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
-  std::string MgmConfigQueueName; ///< MGM configuration queue name
-
 public:
+  //! Static singleton object hosting the filesystem view object
+  static FsView gFsView;
   static IConfigEngine* sConfEngine;
+
+  //----------------------------------------------------------------------------
+  //! Return printout formats
+  //----------------------------------------------------------------------------
+  static std::string GetNodeFormat(std::string option);
+  static std::string GetGroupFormat(std::string option);
+  static std::string GetSpaceFormat(std::string option);
+  static std::string GetFileSystemFormat(std::string option);
+
+  //----------------------------------------------------------------------------
+  //! Static thread startup function
+  //----------------------------------------------------------------------------
+  static void* StaticHeartBeatCheck(void*);
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param start_heartbeat control wheather heartbeat thread is started - for
+  //!                        testing purposes
+  //----------------------------------------------------------------------------
+  FsView(bool start_heartbeat = true):
+    hbthread(), mIsHeartbeatOn(false), NextFsId(0)
+  {
+    MgmConfigQueueName = "";
+    sConfEngine = nullptr;
+
+    if (start_heartbeat) {
+      mIsHeartbeatOn = true;
+      XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck,
+                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                        "HeartBeat Thread");
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~FsView()
+  {
+    StopHeartBeat();
+  }
 
   //----------------------------------------------------------------------------
   //! Add or modify a filesystem
@@ -909,47 +939,14 @@ public:
                    const char* selection = 0, const std::string&  filter = "");
 
   //----------------------------------------------------------------------------
-  //! Return printout formats
-  //----------------------------------------------------------------------------
-  static std::string GetNodeFormat(std::string option);
-  static std::string GetGroupFormat(std::string option);
-  static std::string GetSpaceFormat(std::string option);
-  static std::string GetFileSystemFormat(std::string option);
-
-  //----------------------------------------------------------------------------
   //! Clear all mappings and filesystem objects obtaining locks
   //----------------------------------------------------------------------------
   void Reset();
 
   //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticHeartBeatCheck(void*);
-
-  //----------------------------------------------------------------------------
   //! Thread loop function checking heartbeats
   //----------------------------------------------------------------------------
   void* HeartBeatCheck();
-
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param start_heartbeat control wheather heartbeat thread is started - for
-  //!                        testing purposes
-  //----------------------------------------------------------------------------
-  FsView(bool start_heartbeat = true):
-    hbthread(), mIsHeartbeatOn(false), NextFsId(0)
-  {
-    MgmConfigQueueName = "";
-    sConfEngine = nullptr;
-
-    if (start_heartbeat) {
-      mIsHeartbeatOn = true;
-      XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck,
-                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                        "HeartBeat Thread");
-    }
-  }
 
   //----------------------------------------------------------------------------
   //! Stop the heartbeat thread
@@ -960,14 +957,6 @@ public:
       XrdSysThread::Cancel(hbthread);
       XrdSysThread::Join(hbthread, 0);
     }
-  }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~FsView()
-  {
-    StopHeartBeat();
   }
 
   //----------------------------------------------------------------------------
@@ -1017,8 +1006,29 @@ public:
   //----------------------------------------------------------------------------
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
 
-  //! Static singleton object hosting the filesystem view object
-  static FsView gFsView;
+  //----------------------------------------------------------------------------
+  //! Check if centralized draining is to be used for the given file system
+  //!
+  //! @param fs file system object
+  //!
+  //! @return 1 if central draining is enabled
+  //          0 if central draining is diabled (used distributed draining)
+  //         -1 if encountered critical error
+  //----------------------------------------------------------------------------
+  int UseCentralDraining(FileSystem* fs);
+
+private:
+  pthread_t hbthread; ///< Thread ID of the heartbeat thread
+  bool mIsHeartbeatOn; ///< True if heartbeat thread is running
+  //! Next free filesystem ID if a new one has to be registered
+  eos::common::FileSystem::fsid_t NextFsId;
+  //! Mutex protecting all ...Map variables
+  eos::common::RWMutex MapMutex;
+  //! Map translating a file system ID to a unique ID
+  std::map<eos::common::FileSystem::fsid_t, std::string> Fs2UuidMap;
+  //! Map translating a unique ID to a filesystem ID
+  std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
+  std::string MgmConfigQueueName; ///< MGM configuration queue name
 };
 
 //------------------------------------------------------------------------------

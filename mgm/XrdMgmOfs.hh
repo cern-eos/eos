@@ -106,6 +106,7 @@
 #include "common/FileSystem.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
+#include "mgm/drain/Drainer.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -143,7 +144,6 @@ namespace eos
 namespace mgm
 {
 class MgmOfsVstMessaging;
-class Drainer;
 class VstMessaging;
 class IConfigEngine;
 class HttpServer;
@@ -1292,8 +1292,10 @@ public:
   XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or redis)
   XrdOucString MgmOfsConfigEngineRedisHost; //Redis host
   int MgmOfsConfigEngineRedisPort; //Redis port
-  std::string ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
-  std::string ProtoWFResource; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
+  std::string
+  ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
+  std::string
+  ProtoWFResource; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining
@@ -1303,7 +1305,6 @@ public:
   std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToBalanceFid;
   //! Mutex protecting ScheduledToBalanceFid
   XrdSysMutex ScheduledToBalanceFidMutex;
-  bool MgmOfsCentralDraining; //Central drainer enabled/disabled
   time_t StartTime; ///< out starttime
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
@@ -1480,7 +1481,7 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
-  Drainer* DrainerEngine; ///< Centralized draining
+  Drainer mDrainEngine; ///< Centralized draning
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   //! LRU object running the LRU policy engine

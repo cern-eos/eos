@@ -60,9 +60,7 @@
 
 
 /******************************************************************************/
-/******************************************************************************/
 /* MGM File Interface                                                         */
-/******************************************************************************/
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
@@ -119,19 +117,16 @@ XrdMgmOfsFile::open(const char* inpath,
   bool isAtomicUpload = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
-  // flag indicating to drop the current disk replica in the policy space                                                       
+  // flag indicating to drop the current disk replica in the policy space
   bool isRepair = false;
-
   // flag indicating a read for repair (meaningfull only on the FST)
   bool isRepairRead = false;
-
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
   // list of filesystem IDs to reconstruct
   std::vector<unsigned int> PioReconstructFsList;
-  // list of filesystem IDs usable for replacement
+  // list of filesystem IDs usable for replacement of RAIN file
   std::vector<unsigned int> PioReplacementFsList;
-  // of RAIN files
   // tried hosts CGI
   std::string tried_cgi;
   // file size
@@ -714,8 +709,7 @@ XrdMgmOfsFile::open(const char* inpath,
     isRepair = true;
   }
 
-  if (openOpaque->Get("eos.repairread"))
-  {
+  if (openOpaque->Get("eos.repairread")) {
     isRepairRead = true;
   }
 
@@ -853,7 +847,7 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             gOFS->FuseXCast(cmd->getId());
-	          gOFS->FuseXCast(cmd->getParentId());
+            gOFS->FuseXCast(cmd->getParentId());
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1060,7 +1054,7 @@ XrdMgmOfsFile::open(const char* inpath,
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
         gOFS->FuseXCast(cmd->getId());
-	gOFS->FuseXCast(cmd->getParentId());
+        gOFS->FuseXCast(cmd->getParentId());
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -1253,23 +1247,22 @@ XrdMgmOfsFile::open(const char* inpath,
 
     retc = Quota::FileAccess(&acsargs);
 
-    if (acsargs.isRW)
-    {
-      // if this is an update, we don't have to send the client to cgi excluded locations, 
+    if (acsargs.isRW) {
+      // if this is an update, we don't have to send the client to cgi excluded locations,
       // we tell that the file is unreachable
       for (size_t k = 0; k < selectedfs.size(); k++) {
-
-          // if the fs is available
-          if (std::find(unavailfs.begin(), unavailfs.end(),
-                        selectedfs[k]) != unavailfs.end()) {
-	    eos_info("location %d is excluded as an unavailable filesystem - returning ENETUNREACH", selectedfs[k]);
-	    retc = ENETUNREACH;
-	  }
+        // if the fs is available
+        if (std::find(unavailfs.begin(), unavailfs.end(),
+                      selectedfs[k]) != unavailfs.end()) {
+          eos_info("location %d is excluded as an unavailable filesystem - returning ENETUNREACH",
+                   selectedfs[k]);
+          retc = ENETUNREACH;
+        }
       }
     }
 
-    if ( ((retc == ENETUNREACH) || (retc == EROFS)) && 
-	 ( ((!fmd->getSize()) && (!bookingsize)) || (isRepair) ) ) {
+    if (((retc == ENETUNREACH) || (retc == EROFS)) &&
+        (((!fmd->getSize()) && (!bookingsize)) || (isRepair))) {
       const char* containertag = 0;
 
       if (attrmap.count("user.tag")) {
@@ -1705,9 +1698,10 @@ XrdMgmOfsFile::open(const char* inpath,
       if (!fmd->getSize()) {
         // 0-size files can be read from the MGM if this is not FUSE access!
         isZeroSizeFile = true;
-	if (!isFuse) {
-	  return SFS_OK;
-	}
+
+        if (!isFuse) {
+          return SFS_OK;
+        }
       }
     }
   }
@@ -1866,13 +1860,11 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += (int) filesystem->GetId();
   }
 
-  if (isRepairRead)
-  {
+  if (isRepairRead) {
     capability += "&mgm.repairread=1";
   }
 
-  if (isZeroSizeFile)
-  {
+  if (isZeroSizeFile) {
     capability += "&mgm.zerosize=1";
   }
 
@@ -2035,7 +2027,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
       // add fsid=0 filesystems to the selection vector if it has less than the nominal replica
       auto selection_diff = (eos::common::LayoutId::GetStripeNumber(
-                              fmd->getLayoutId()) + 1) - selectedfs.size();
+                               fmd->getLayoutId()) + 1) - selectedfs.size();
       eos_info("selection-diff=%d %d/%d", selection_diff,
                (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
                selectedfs.size());
@@ -2364,7 +2356,6 @@ XrdMgmOfsFile::open(const char* inpath,
 
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(),
            ecode);
-
   delete capabilityenv;
 
   if (attrmap.count("sys.force.atime")) {
@@ -2412,15 +2403,18 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Also trigger synchronous create workflow event if it's defined
-  if(isCreation) {
+  if (isCreation) {
     errno = 0;
     workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
+                        openOpaque->Get("eos.workflow") : "default";
     auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid);
+
     if (ret_wfe < 0 && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::create\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+
       if (ret_wfe != 0) {
         // Remove the file from the namespace in this case
         try {
@@ -2431,24 +2425,29 @@ XrdMgmOfsFile::open(const char* inpath,
                   ex.what());
         }
 
-        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error", path);
+        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error",
+                    path);
       }
     }
   }
 
   // Also trigger synchronous open-write workflow event if it's defined
-  if(isRW) {
+  if (isRW) {
     errno = 0;
     workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
+                        openOpaque->Get("eos.workflow") : "default";
     auto ret_wfe = workflow.Trigger("sync::openw", std::string{workflowType}, vid);
+
     if (ret_wfe  < 0 && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::openw\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+
       if (ret_wfe != 0) {
         // Error from the workflow
-        rcode = Emsg(epname, error, ret_wfe, "open - synchronous openw workflow error", path);
+        rcode = Emsg(epname, error, ret_wfe, "open - synchronous openw workflow error",
+                     path);
       }
     }
   }

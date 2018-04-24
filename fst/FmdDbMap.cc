@@ -1080,8 +1080,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
   FmdHelper::Reset(fMd);
   int rc = 0;
 
-  if ((!(rc = GetMgmFmd(manager, fid, fMd))) ||
-      (rc == ENODATA)) {
+  if ((!(rc = GetMgmFmd(manager, fid, fMd))) || (rc == ENODATA)) {
     if (rc == ENODATA) {
       eos_warning("no such file on MGM for fid=%08llx", fid);
       fMd.set_fid(fid);
@@ -1112,7 +1111,6 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       }
     } else {
       if (fMd.layouterror() & LayoutId::kUnregistered) {
-        // This entry is deleted and we are not supposed to have it
         return true;
       }
     }

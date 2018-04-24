@@ -399,7 +399,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsConfigEngineType = "file";
   MgmOfsConfigEngineRedisHost = "localhost";
   MgmOfsConfigEngineRedisPort = 6379;
-  MgmOfsCentralDraining = false;
   MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
@@ -646,19 +645,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             Eroute.Say("=====> mgmofs.cfgredisport: ", val, "");
             MgmOfsConfigEngineRedisPort = atoi(val);
-          }
-        }
-
-        if (!strcmp("centraldraining", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for centraldraining invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.centraldraining: ", val, "");
-
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              MgmOfsCentralDraining = true;
-            }
           }
         }
 
@@ -1110,6 +1096,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("protowfendpoint", var)) {
           val = Config.GetWord();
+
           if (val != nullptr) {
             ProtoWFEndPoint = val;
           }
@@ -1117,6 +1104,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("protowfresource", var)) {
           val = Config.GetWord();
+
           if (val != nullptr) {
             ProtoWFResource = val;
           }
@@ -1896,11 +1884,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  // Start drainer engine
-  if (MgmOfsCentralDraining) {
-    DrainerEngine = new Drainer();
-  }
-
   XrdSysTimer sleeper;
   sleeper.Snooze(1);
 
@@ -2009,6 +1992,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   gGeoTreeEngine.forceRefresh();
   gGeoTreeEngine.StartUpdater();
+  // Start the drain engine
+  mDrainEngine.Start();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

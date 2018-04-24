@@ -525,6 +525,7 @@ ProcCommand::Space()
                 (key == "drainer.node.nfs") ||
                 (key == "drainer.retries") ||
                 (key == "drainer.fs.ntx") ||
+                (key == "drainer.central") ||
                 (key == "converter") ||
                 (key == "lru") ||
                 (key == "lru.interval") ||
@@ -546,7 +547,8 @@ ProcCommand::Space()
                   (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
                   (key == "geo.access.policy.read.exact") ||
-                  (key == "geo.access.policy.write.exact")) {
+                  (key == "geo.access.policy.write.exact") ||
+                  (key == "drainer.central")) {
                 if ((value != "on") && (value != "off")) {
                   retc = EINVAL;
                   stdErr = "error: value has to either on or off";

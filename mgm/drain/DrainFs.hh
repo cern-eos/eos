@@ -24,6 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
+#include "mgm/drain/DrainTransferJob.hh"
 #include "common/Logging.hh"
 #include <thread>
 #include <future>
@@ -39,16 +40,17 @@ class ThreadPool;
 
 EOSMGMNAMESPACE_BEGIN
 
-//! Forward declaratio
-class DrainTransferJob;
-
-
 //------------------------------------------------------------------------------
 //! @brief Class implementing the draining of a filesystem
 //------------------------------------------------------------------------------
-class DrainFS: public eos::common::LogId
+class DrainFs: public eos::common::LogId
 {
 public:
+  //----------------------------------------------------------------------------
+  //! State of the drain job
+  //----------------------------------------------------------------------------
+  enum class State {Done, Expired, Failed, Running, Stopped};
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -56,19 +58,19 @@ public:
   //! @param fs_id filesystem id
   //! @param target_fs_id file system where to drain
   //----------------------------------------------------------------------------
-  DrainFS(eos::common::ThreadPool& thread_pool,
+  DrainFs(eos::common::ThreadPool& thread_pool,
           eos::common::FileSystem::fsid_t fs_id,
           eos::common::FileSystem::fsid_t target_fs_id = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~DrainFS();
+  virtual ~DrainFs();
 
   //----------------------------------------------------------------------------
-  //! Stop draining attached file system
+  //! Signal the stop of the file system drain
   //---------------------------------------------------------------------------
-  void Stop();
+  void SignalStop();
 
   //----------------------------------------------------------------------------
   //! Get the list of failed drain jobs
@@ -84,10 +86,11 @@ public:
   //---------------------------------------------------------------------------
   inline eos::common::FileSystem::eDrainStatus GetDrainStatus() const
   {
-    return mDrainStatus;
+    return mStatus;
   }
+
   //---------------------------------------------------------------------------
-  //! Get the FS id
+  //! Get the file system id
   //---------------------------------------------------------------------------
   inline const eos::common::FileSystem::fsid_t GetFsId() const
   {
@@ -95,24 +98,34 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Start thread supervising the draining
+  //! Method draining the file system
+  //!
+  //! @return status of the file system at the end
   //----------------------------------------------------------------------------
-  void Start()
+  State DoIt();
+
+  //----------------------------------------------------------------------------
+  //! Set future holding the result of the drain
+  //!
+  //! @param future future object
+  //----------------------------------------------------------------------------
+  inline void SetFuture(std::future<State> future)
   {
-    mThread = std::thread(&DrainFS::DoIt, this);
+    std::swap(mFuture, future);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if drain fs is still running by inspecting the future object
+  //!
+  //! @return true if running, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool IsRunning() const
+  {
+    return (mFuture.wait_for(std::chrono::seconds(0)) !=
+            std::future_status::ready);
   }
 
 private:
-  //----------------------------------------------------------------------------
-  //! State of the drain job
-  //----------------------------------------------------------------------------
-  enum class State {DONE, EXPIRED, FAILED, CONTINUE};
-
-  //----------------------------------------------------------------------------
-  //! Method draining the file system
-  //----------------------------------------------------------------------------
-  void DoIt();
-
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
   //----------------------------------------------------------------------------
@@ -161,13 +174,17 @@ private:
   //---------------------------------------------------------------------------
   State UpdateProgress();
 
+  //----------------------------------------------------------------------------
+  //! Stop draining
+  //---------------------------------------------------------------------------
+  void Stop();
+
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
-  eos::common::FileSystem::eDrainStatus mDrainStatus;
-  std::thread mThread; ///< Thread supervising the draining
-  bool mDrainStop = false; ///< Flag to cancel an ongoing draining
-  int mMaxRetries = 1; ///< Max number of retries
-  unsigned int maxParallelJobs = 10; ///< Max number of parallel drain jobs
+  eos::common::FileSystem::eDrainStatus mStatus;
+  std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
+  std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
+  std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   uint64_t mTotalFiles; ///< Total number of files to drain
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
@@ -177,8 +194,10 @@ private:
   //! Collection of failed drain jobs
   std::list<shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
-  std::map<std::shared_ptr<DrainTransferJob>, std::future<void>> mJobsRunning;
+  std::map<std::shared_ptr<DrainTransferJob>,
+      std::future<DrainTransferJob::Status>> mJobsRunning;
   eos::common::ThreadPool& mThreadPool;
+  std::future<State> mFuture;
 };
 
 EOSMGMNAMESPACE_END
