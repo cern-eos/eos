@@ -1898,8 +1898,8 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
     if (squota) {
       bool has_quota = false;
       long long desired_vol = 1ll * nfilesystems * args->bookingsize;
-      has_quota = squota->CheckWriteQuota(args->vid->uid, args->vid->gid, desired_vol,
-                                          nfilesystems);
+      has_quota = squota->CheckWriteQuota(args->vid->uid, args->vid->gid,
+                                          desired_vol, 1);
 
       if (!has_quota) {
         eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
