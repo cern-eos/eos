@@ -138,7 +138,7 @@ bool GeoTreeEngine::forceRefreshSched()
   // => SCHED
   for (auto it = pFsId2FsPtr.begin(); it != pFsId2FsPtr.end(); it++) {
     if (it->second) {
-        gNotificationsBufferFs[it->second->GetQueuePath()] = (~0);
+      gNotificationsBufferFs[it->second->GetQueuePath()] = (~0);
     }
   }
 
@@ -2688,8 +2688,8 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     }
   }
 
-  size_t netSpeedClass =
-    0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
+  // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
+  size_t netSpeedClass = 0;
 
   if ((keys & sfgPubTmStmp) && fs->mPublishTimestamp) {
     pLatencySched.pGlobalLatencyStats.lastupdate = fs->mPublishTimestamp;
@@ -2757,10 +2757,10 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
 
   if (keys & (sfgDiskload | sfgInratemib | sfgOutratemib | sfgEthmib)) {
     netSpeedClass = round(log10(fs->mNetEthRateMiB * 8 * 1024 * 1024 + 1));
-    netSpeedClass = netSpeedClass > 8 ? netSpeedClass - 8 :
-                    0; // netSpeedClass 1 means 1Gbps
+    // netSpeedClass 1 means 1Gbps
+    netSpeedClass = netSpeedClass > 8 ? netSpeedClass - 8 : 0;
 
-    // check if netspeed calss need an update
+    // check if netspeed class needs an update
     if (entry->backgroundFastStruct->treeInfo->size() >= netSpeedClass + 1 &&
         (*entry->backgroundFastStruct->treeInfo)[ftIdx].netSpeedClass !=
         (unsigned char)netSpeedClass) {
@@ -3137,7 +3137,6 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
     }
 
     gOFS->ObjectManager.HashMutex.UnLockRead();
-
     pTreeMapMutex.LockRead();
 
     if (!pFsId2FsPtr.count(fsid)) {
@@ -3154,6 +3153,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
       pTreeMapMutex.UnLockRead();
       continue;
     }
+
     eos::common::FileSystem::fs_snapshot_t fs;
     filesystem->SnapShotFileSystem(fs, true);
 
