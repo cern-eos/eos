@@ -197,8 +197,11 @@ for name in `seq 2 128`; do
   ln passwd hardlink.$name >> /tmp/008-eos-hardlink-tests
   link_source=`stat -c %h passwd`;
   link_target=`stat -c %h hardlink.$name`; 
+  ino_source=`stat -c %i passwd`;
+  ino_target=`stat -c %i hardlink.$name`; 
   test "$name" == "$link_source" || exit 8
   test "$name" == "$link_target" || exit 8
+  test "$ino_source" == "$ino_target" || exit 8
   echo $name $link_source $link_target >> /tmp/008-eos-hardlink-tests
 done
 echo "008 ... remove hardlinks"
