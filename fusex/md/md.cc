@@ -492,7 +492,7 @@ metad::wait_deleted(fuse_req_t req,
     {
       while (1)
       {
-	// wait that the deletion entry is leavin the flush queue
+	// wait that the deletion entry is leaving the flush queue
 	mdflush.Lock();
 	if (mdqueue.count(md->id()))
 	{
