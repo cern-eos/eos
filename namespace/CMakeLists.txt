@@ -33,9 +33,12 @@ include_directories(
 add_library(
   EosNsCommon-Objects OBJECT
 
+  Constants.cc
   MDException.cc
   MDException.hh
-  Constants.cc
+
+  Prefetcher.cc
+  Prefetcher.hh
 
   # Namespace interface
   interface/IView.hh

@@ -34,6 +34,7 @@
 /*----------------------------------------------------------------------------*/
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -67,6 +68,8 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   d_pnt = &dirent_full.d_entry;
   eos::common::Mapping::Nobody(vid);
   eos::common::LogId();
+
+  prefetcher.reset(new eos::Prefetcher(gOFS->eosFileService, gOFS->eosDirectoryService));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -202,6 +205,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
       for (auto it = fit_begin; it != fit_end; ++it) {
         dh_list.insert(it->first);
+        prefetcher->stageFileMD(it->second);
       }
 
       // Collect all subcontainers
@@ -210,6 +214,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
       for (auto it = cit_begin; it != cit_end; ++it) {
         dh_list.insert(it->first);
+        prefetcher->stageContainerMD(it->second);
       }
 
       dh_list.insert(".");

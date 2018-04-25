@@ -24,9 +24,9 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file   XrdMgmOfsDirectory.hh
- * 
+ *
  * @brief  XRootD OFS plugin class implementing directory handling of EOS
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 
@@ -50,6 +50,7 @@
 namespace eos
 {
 class IContainerMD;
+class Prefetcher;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -79,7 +80,7 @@ public:
   int _open (const char *dirName,
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0);
-  
+
   // ---------------------------------------------------------------------------
   // return entry of an open directory
   // ---------------------------------------------------------------------------
@@ -145,6 +146,8 @@ private:
   std::shared_ptr<eos::IContainerMD> dh;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
+
+  std::shared_ptr<eos::Prefetcher> prefetcher;
 };
 
 
