@@ -946,7 +946,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         fprintf(stderr,
                 "error: failed to renice this process '%u', to maximum priority '%d'\n",
                 getpid(), -PRIO_MAX / 2);
-        exit(-1);
       }
 
       if (config.options.cpu_core_affinity > 0) {
