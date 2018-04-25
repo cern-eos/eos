@@ -377,9 +377,10 @@ public:
   void deserialize(Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
-  //! Initialize, and load children
+  //! Initialize, and inject children
   //----------------------------------------------------------------------------
-  void initialize(eos::ns::ContainerMdProto &&proto);
+  void initialize(eos::ns::ContainerMdProto &&proto,
+    IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap);
 
   //----------------------------------------------------------------------------
   //! Initialize, without loading children

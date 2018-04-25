@@ -178,46 +178,23 @@ ContainerMDSvc::SafetyCheck()
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 {
+  //----------------------------------------------------------------------------
   // Short-circuit for container zero, avoid a pointless roundtrip by failing
   // immediatelly. Happens for files which have been unlinked, but not removed
   // yet.
-
+  //----------------------------------------------------------------------------
   if(id == 0) {
     throw_mdexception(ENOENT, "Container #0 not found");
   }
 
-  // Do everything under lock to avoid submitting multiple requests for the
-  // same entry if it's big or backend is slow
-  std::lock_guard<std::mutex> lock(GetShardMutex(id));
-  // Check first in cache
-  std::shared_ptr<IContainerMD> cont = pMetadataProvider->retrieveContainerMDFromCache(id);
-
-  if (cont != nullptr) {
-    if (cont->isDeleted()) {
-      MDException e(ENOENT);
-      e.getMessage()  << __FUNCTION__ << " Container #" << id << " not found";
-      throw e;
-    } else {
-      if (clock) {
-        *clock = cont->getClock();
-      }
-
-      return cont;
-    }
+  //----------------------------------------------------------------------------
+  // Fetch from metadata provider.
+  //----------------------------------------------------------------------------
+  IContainerMDPtr container = pMetadataProvider->retrieveContainerMD(id).get();
+  if(container && clock) {
+    *clock = container->getClock();
   }
-
-  // If not in cache, then get it from the KV backend
-  cont = std::make_shared<ContainerMD>(0, pFileSvc, this);
-  std::static_pointer_cast<ContainerMD>(cont)->initialize
-  (MetadataFetcher::getContainerFromId(*pQcl, id).get());
-  eos_assert(cont->getId() == id);
-
-  if (clock) {
-    *clock = cont->getClock();
-  }
-
-  pMetadataProvider->insertContainerMD(cont->getId(), cont);
-  return cont;
+  return container;
 }
 
 //----------------------------------------------------------------------------

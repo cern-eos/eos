@@ -52,11 +52,6 @@ public:
   MetadataProvider(qclient::QClient &qcl, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
 
   //----------------------------------------------------------------------------
-  //! Retrieve ContainerMD by ID. TODO: Remove!
-  //----------------------------------------------------------------------------
-  eos::IContainerMDPtr retrieveContainerMDFromCache(id_t id);
-
-  //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID.
   //----------------------------------------------------------------------------
   folly::Future<IContainerMDPtr> retrieveContainerMD(id_t id);
@@ -92,6 +87,18 @@ private:
   //! staging area, and inserting into the cache.
   //----------------------------------------------------------------------------
   IFileMDPtr processIncomingFileMdProto(id_t id, eos::ns::FileMdProto proto);
+
+  //----------------------------------------------------------------------------
+  //! Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
+  //! ContainerMDPtr, and insert into the cache.
+  //----------------------------------------------------------------------------
+  IContainerMDPtr processIncomingContainerMD(id_t id,
+    std::tuple<
+      eos::ns::ContainerMdProto,
+      IContainerMD::FileMap,
+      IContainerMD::ContainerMap
+    >
+  );
 
   qclient::QClient &mQcl;
   IContainerMDSvc *mContSvc;

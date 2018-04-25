@@ -25,6 +25,7 @@
 #include "MetadataFetcher.hh"
 #include "MetadataProvider.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/MDException.hh"
 #include "common/Assert.hh"
 #include <functional>
@@ -42,30 +43,6 @@ MetadataProvider::MetadataProvider(qclient::QClient &qcl,
 : mQcl(qcl), mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(10e7), mFileCache(10e8) {
 
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
-}
-
-//------------------------------------------------------------------------------
-//! Retrieve ContainerMD by ID. TODO: Remove!
-//------------------------------------------------------------------------------
-IContainerMDPtr MetadataProvider::retrieveContainerMDFromCache(id_t id) {
-  std::lock_guard<std::mutex> lock(mMutex);
-
-  //----------------------------------------------------------------------------
-  // Check if a container with such ID exists.
-  //----------------------------------------------------------------------------
-  IContainerMDPtr result = mContainerCache.get(id);
-  if(result) {
-    //--------------------------------------------------------------------------
-    // Handle special case where we're dealing with a tombstone.
-    //--------------------------------------------------------------------------
-    if(result->isDeleted()) {
-      throw_mdexception(ENOENT, "Container #" << id << " does not exist (found deletion tombstone)");
-    }
-
-    return result;
-  }
-
-  return {};
 }
 
 //------------------------------------------------------------------------------
@@ -92,12 +69,39 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(id_t id) {
   // Nope.. is it inside the long-lived cache?
   //----------------------------------------------------------------------------
   IContainerMDPtr result = mContainerCache.get(id);
-  if(result) return folly::makeFuture<IContainerMDPtr>(std::move(result));
+  if(result) {
+    //--------------------------------------------------------------------------
+    // Handle special case where we're dealing with a tombstone.
+    //--------------------------------------------------------------------------
+    if(result->isDeleted()) {
+      return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #" << id << " does not exist (found deletion tombstone)"));
+    }
+
+    return folly::makeFuture<IContainerMDPtr>(std::move(result));
+  }
 
   //----------------------------------------------------------------------------
-  // Nope, need to fetch.
+  // Nope, need to fetch, and insert into the in-flight staging area. Merge
+  // three asynchronous operations into one.
   //----------------------------------------------------------------------------
-  // TODO
+  folly::Future<eos::ns::ContainerMdProto> protoFut = MetadataFetcher::getContainerFromId(mQcl, id);
+  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id);
+  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id);
+
+  folly::Future<IContainerMDPtr> fut = folly::collect(protoFut, fileMapFut, containerMapFut)
+    .via(mExecutor.get())
+    .then(std::bind(&MetadataProvider::processIncomingContainerMD, this, id, _1))
+    .onError([this, id](const folly::exception_wrapper& e) {
+      //------------------------------------------------------------------------
+      //! If the operation failed, clear the in-flight cache.
+      //------------------------------------------------------------------------
+      std::lock_guard<std::mutex> lock(mMutex);
+      mInFlightContainers.erase(id);
+      return folly::makeFuture<IContainerMDPtr>(e);
+    } );
+
+  mInFlightContainers[id] = folly::FutureSplitter<IContainerMDPtr>(std::move(fut));
+  return mInFlightContainers[id].getFuture();
 }
 
 //------------------------------------------------------------------------------
@@ -141,7 +145,7 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(id_t id) {
   folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(mQcl, id)
     .via(mExecutor.get())
     .then(std::bind(&MetadataProvider::processIncomingFileMdProto, this, id, _1))
-    .onError([=](const folly::exception_wrapper& e) {
+    .onError([this, id](const folly::exception_wrapper& e) {
       //------------------------------------------------------------------------
       //! If the operation failed, clear the in-flight cache.
       //------------------------------------------------------------------------
@@ -184,6 +188,51 @@ void MetadataProvider::setFileMDCacheSize(uint64_t size) {
 void MetadataProvider::setContainerMDCacheSize(uint64_t size) {
   std::lock_guard<std::mutex> lock(mMutex);
   mContainerCache.set_max_size(size);
+}
+
+//------------------------------------------------------------------------------
+// Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
+// ContainerMDPtr, and insert into the cache.
+//------------------------------------------------------------------------------
+IContainerMDPtr MetadataProvider::processIncomingContainerMD(id_t id,
+    std::tuple<
+      eos::ns::ContainerMdProto,
+      IContainerMD::FileMap,
+      IContainerMD::ContainerMap
+    > tup
+  ) {
+
+  //----------------------------------------------------------------------------
+  // Unpack tuple. (sigh)
+  //----------------------------------------------------------------------------
+  eos::ns::ContainerMdProto &proto = std::get<0>(tup);
+  IContainerMD::FileMap &fileMap = std::get<1>(tup);
+  IContainerMD::ContainerMap &containerMap = std::get<2>(tup);
+
+  //----------------------------------------------------------------------------
+  // Things look sane?
+  //----------------------------------------------------------------------------
+  eos_assert(proto.id() == id);
+
+  //----------------------------------------------------------------------------
+  // Yep, construct ContainerMD object..
+  //----------------------------------------------------------------------------
+  ContainerMD *containerMD = new ContainerMD(0, mFileSvc, mContSvc);
+  containerMD->initialize(std::move(proto), std::move(fileMap), std::move(containerMap));
+
+  //----------------------------------------------------------------------------
+  // Drop inFlightContainers future..
+  //----------------------------------------------------------------------------
+  auto it = mInFlightContainers.find(id);
+  eos_assert(it != mInFlightContainers.end());
+  mInFlightContainers.erase(it);
+
+  //----------------------------------------------------------------------------
+  // Insert into the cache..
+  //----------------------------------------------------------------------------
+  IContainerMDPtr item { containerMD };
+  mContainerCache.put(id, item);
+  return item;
 }
 
 //------------------------------------------------------------------------------

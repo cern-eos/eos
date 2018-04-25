@@ -715,14 +715,21 @@ ContainerMD::deserialize(Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Initialize from a ContainerMdProto object, then load children maps
-// asynchronously.
+// Initialize, inject children
 //------------------------------------------------------------------------------
 void
-ContainerMD::initialize(eos::ns::ContainerMdProto&& proto)
+ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
+    IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap)
 {
   mCont = std::move(proto);
-  loadChildren();
+  mFiles.get() = std::move(fileMap);
+  mSubcontainers.get() = std::move(containerMap);
+
+  // Rebuild the file and subcontainer keys
+  pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
+  pFilesMap.setKey(pFilesKey);
+  pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
+  pDirsMap.setKey(pDirsKey);
 }
 
 //------------------------------------------------------------------------------
