@@ -115,9 +115,14 @@ Workflow::getCGICloseW(std::string workflow)
 {
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
+  std::string syncKey = "sys.workflow.sync::closew." + workflow;
 
-  if (mAttr && (*mAttr).count(key)) {
-    cgi = "&mgm.event=close&mgm.workflow=";
+  // synchronous closew has priority
+  if (mAttr && (*mAttr).count(syncKey)) {
+    cgi = "&mgm.event=sync::closew&mgm.workflow=";
+    cgi += workflow;
+  } else if (mAttr && (*mAttr).count(key)) {
+    cgi = "&mgm.event=closew&mgm.workflow=";
     cgi += workflow;
   }
 
@@ -130,8 +135,13 @@ Workflow::getCGICloseR(std::string workflow)
 {
   std::string cgi;
   std::string key = "sys.workflow.closer." + workflow;
+  std::string syncKey = "sys.workflow.sync::closer." + workflow;
 
-  if (mAttr && (*mAttr).count(key)) {
+  // synchronous closer has priority
+  if (mAttr && (*mAttr).count(syncKey)) {
+    cgi = "&mgm.event=sync::close&mgm.workflow=";
+    cgi += workflow;
+  } else if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }

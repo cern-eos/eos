@@ -57,7 +57,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
   isCreation(false), isReplication(false), mIsInjection(false),
   mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
-  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
+  commitReconstruction(false), mEventOnClose(false), syncEventOnClose(false), mEventWorkflow(""),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
   fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
@@ -185,8 +185,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
+
   eos_info("path=%s info=%s isRW=%d open_mode=%x", mNsPath.c_str(),
            maskOpaque.c_str(), isRW, open_mode);
+
   // Process and filter open opaque information
   std::string out_opaque;
   std::string in_opaque = (opaque ? opaque : "");
@@ -1894,7 +1896,7 @@ XrdFstOfsFile::close()
     }
   }
 
-  if (!rc && mEventOnClose && layOut->IsEntryServer()) {
+  if (!rc && (mEventOnClose || syncEventOnClose) && layOut->IsEntryServer()) {
     //trigger an MGM event if asked from the entry point
     XrdOucString capOpaqueFile = "";
     XrdOucString eventType = "";
@@ -1904,12 +1906,12 @@ XrdFstOfsFile::close()
     capOpaqueFile += "&mgm.pcmd=event";
 
     // Set default workflow if nothing is specified
-    if (eventWorkflow.length() == 0) {
-      eventWorkflow = "default";
+    if (mEventWorkflow.length() == 0) {
+      mEventWorkflow = "default";
     }
 
     if (isRW) {
-      eventType = eventWorkflow == "default" ? "sync::closew" : "closew";
+      eventType = syncEventOnClose ? "sync::closew" : "closew";
     } else {
       eventType = "closer";
     }
@@ -2882,8 +2884,10 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
   if ((val = env.Get("mgm.event"))) {
     std::string event = val;
 
-    if (event == "close") {
+    if (event == "closew") {
       mEventOnClose = true;
+    } else if (event == "sync::closew") {
+      syncEventOnClose = true;
     }
 
     val = env.Get("mgm.workflow");
