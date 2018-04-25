@@ -1,3 +1,4 @@
+
 #! /bin/bash
 # ----------------------------------------------------------------------
 # File: eos-fusex-certify
@@ -181,6 +182,37 @@ cat 512M.2\#err_sim_flusher\# > /dev/null || exit 7
 rm -rf 512M.1\#err_sim_flush\#
 rm -rf 512M.2\#err_sim_flusher\#
 ) || exit 7
+fi
+##################################################
+if [ "$1" = "8" ] || [ "$1" = "" ]; then 
+time (
+echo "===================================================================="
+echo "008 ... eos-hardlink-tests"
+mkdir 008-eos-hardlink-tests
+cd 008-eos-hardlink-tests
+echo "008 ... create hardlinks"
+touch /tmp/008-eos-hardlink-tests
+cp /etc/passwd . 
+for name in `seq 2 128`; do 
+  ln passwd hardlink.$name >> /tmp/008-eos-hardlink-tests
+  link_source=`stat -c %h passwd`;
+  link_target=`stat -c %h hardlink.$name`; 
+  test "$name" == "$link_source" || exit 8
+  test "$name" == "$link_target" || exit 8
+  echo $name $link_source $link_target >> /tmp/008-eos-hardlink-tests
+done
+echo "008 ... remove hardlinks"
+for name in `seq 128 -1 2`; do 
+  link_source=`stat -c %h passwd`;
+  link_target=`stat -c %h hardlink.$name`; 
+  echo $name $link_source $link_target >> /tmp/008-eos-hardlink-tests
+  test "$name" == "$link_source" || exit 8
+  test "$name" == "$link_target" || exit 8
+  unlink hardlink.$name >> /tmp/008-eos-hardlink-tests
+done
+
+rm passwd   
+) || exit 8
 fi
 echo "===================================================================="
 echo "... :-) passed !"
