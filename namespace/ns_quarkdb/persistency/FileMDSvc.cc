@@ -92,6 +92,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   }
 
   mMetadataProvider.reset(new MetadataProvider(*pQcl, pContSvc, this));
+  static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider(mMetadataProvider.get());
 
   if (config.find(cache_size) != config.end()) {
     mMetadataProvider->setFileMDCacheSize(std::stoull(config.at(cache_size)));

@@ -22,6 +22,7 @@
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "common/Assert.hh"
 #include <memory>
@@ -56,8 +57,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
-    mMetaMap(), mContainerCache(10e7), mNumConts(0ull),
-    mShardMutexes(mNumMutexes + 1) {}
+    mMetaMap(), mNumConts(0ull), mShardMutexes(mNumMutexes + 1) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -103,7 +103,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   }
 
   if (config.find(cache_size) != config.end()) {
-    mContainerCache.set_max_size(std::stoull(config.at(cache_size)));
+    pMetadataProvider->setContainerMDCacheSize(std::stoull(config.at(cache_size)));
   }
 }
 
@@ -183,7 +183,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   // same entry if it's big or backend is slow
   std::lock_guard<std::mutex> lock(GetShardMutex(id));
   // Check first in cache
-  std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
+  std::shared_ptr<IContainerMD> cont = pMetadataProvider->retrieveContainerMDFromCache(id);
 
   if (cont != nullptr) {
     if (cont->isDeleted()) {
@@ -209,7 +209,8 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
     *clock = cont->getClock();
   }
 
-  return mContainerCache.put(cont->getId(), cont);
+  pMetadataProvider->insertContainerMD(cont->getId(), cont);
+  return cont;
 }
 
 //----------------------------------------------------------------------------
@@ -222,7 +223,8 @@ ContainerMDSvc::createContainer()
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
-  return mContainerCache.put(cont->getId(), cont);
+  pMetadataProvider->insertContainerMD(cont->getId(), cont);
+  return cont;
 }
 
 //----------------------------------------------------------------------------

@@ -52,6 +52,11 @@ public:
   MetadataProvider(qclient::QClient &qcl, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
 
   //----------------------------------------------------------------------------
+  //! Retrieve ContainerMD by ID. TODO: Remove!
+  //----------------------------------------------------------------------------
+  eos::IContainerMDPtr retrieveContainerMDFromCache(id_t id);
+
+  //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID.
   //----------------------------------------------------------------------------
   folly::Future<IContainerMDPtr> retrieveContainerMD(id_t id);
@@ -67,9 +72,19 @@ public:
   void insertFileMD(id_t id, IFileMDPtr item);
 
   //----------------------------------------------------------------------------
+  //! Insert newly created item into the cache.
+  //----------------------------------------------------------------------------
+  void insertContainerMD(id_t id, IContainerMDPtr item);
+
+  //----------------------------------------------------------------------------
   //! Change file cache size.
   //----------------------------------------------------------------------------
   void setFileMDCacheSize(uint64_t size);
+
+  //----------------------------------------------------------------------------
+  //! Change container cache size.
+  //----------------------------------------------------------------------------
+  void setContainerMDCacheSize(uint64_t size);
 
 private:
   //----------------------------------------------------------------------------

@@ -45,6 +45,30 @@ MetadataProvider::MetadataProvider(qclient::QClient &qcl,
 }
 
 //------------------------------------------------------------------------------
+//! Retrieve ContainerMD by ID. TODO: Remove!
+//------------------------------------------------------------------------------
+IContainerMDPtr MetadataProvider::retrieveContainerMDFromCache(id_t id) {
+  std::lock_guard<std::mutex> lock(mMutex);
+
+  //----------------------------------------------------------------------------
+  // Check if a container with such ID exists.
+  //----------------------------------------------------------------------------
+  IContainerMDPtr result = mContainerCache.get(id);
+  if(result) {
+    //--------------------------------------------------------------------------
+    // Handle special case where we're dealing with a tombstone.
+    //--------------------------------------------------------------------------
+    if(result->isDeleted()) {
+      throw_mdexception(ENOENT, "Container #" << id << " does not exist (found deletion tombstone)");
+    }
+
+    return result;
+  }
+
+  return {};
+}
+
+//------------------------------------------------------------------------------
 // Retrieve ContainerMD by ID.
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(id_t id) {
@@ -138,12 +162,28 @@ void MetadataProvider::insertFileMD(id_t id, IFileMDPtr item) {
   mFileCache.put(id, item);
 }
 
+//----------------------------------------------------------------------------
+//! Insert newly created item into the cache.
+//----------------------------------------------------------------------------
+void MetadataProvider::insertContainerMD(id_t id, IContainerMDPtr item) {
+  std::lock_guard<std::mutex> lock(mMutex);
+  mContainerCache.put(id, item);
+}
+
 //------------------------------------------------------------------------------
 // Change file cache size.
 //------------------------------------------------------------------------------
 void MetadataProvider::setFileMDCacheSize(uint64_t size) {
   std::lock_guard<std::mutex> lock(mMutex);
   mFileCache.set_max_size(size);
+}
+
+//------------------------------------------------------------------------------
+// Change container cache size.
+//------------------------------------------------------------------------------
+void MetadataProvider::setContainerMDCacheSize(uint64_t size) {
+  std::lock_guard<std::mutex> lock(mMutex);
+  mContainerCache.set_max_size(size);
 }
 
 //------------------------------------------------------------------------------
