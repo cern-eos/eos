@@ -471,7 +471,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
               NoGo = 1;
             } else {
               mQcl.reset(new ::qclient::QClient(mQdbMembers, true,
-              qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60))));
+                                                qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60))));
             }
           }
         }
@@ -805,7 +805,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
     address += manager;
   }
 
-  address += "//dummy";
+  address += "//dummy?xrd.wantprot=sss";
   XrdCl::URL url(address.c_str());
 
   if (!url.IsValid()) {
@@ -815,7 +815,6 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
 
   // Request sss authentication on the MGM side
   std::string opaque = capOpaqueFile.c_str();
-  opaque += "&xrd.wantprot=sss";
   // Get XrdCl::FileSystem object
   // !!! WATCH OUT: GOTO ANCHOR !!!
 again:
