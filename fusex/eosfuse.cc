@@ -73,6 +73,7 @@
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
 #include "md/md.hh"
+#include "md/kernelcache.hh"
 #include "kv/kv.hh"
 #include "data/cache.hh"
 #include "data/cachehandler.hh"
@@ -2446,6 +2447,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
   if (EOS_LOGS_DEBUG) eos_static_debug("parent=%#lx name=%s", parent, name);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
+
+  fuse_ino_t hardlink_target_ino = 0;
   Track::Monitor pmon(__func__, Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
@@ -2521,7 +2524,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
     }
 
     if (!rc) {
-      if (Instance().Config().options.rmdir_is_sync) {
+      if (tmd || Instance().Config().options.rmdir_is_sync) {
+	eos_static_warning("waiting for flush of  %d", del_ino);
         Instance().mds.wait_deleted(req, del_ino);
       }
 
@@ -2537,6 +2541,10 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       int rc = Instance().mds.refresh(req, tmd->id(), pcap->authid());
       if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink refresh rc=%d inode %#lx", rc, tmd->id());
+      if (!rc)
+      {
+	hardlink_target_ino = tmd->id();
+      }
     }
 
     if (pmd) {
@@ -2549,6 +2557,14 @@ EROFS  pathname refers to a file on a read-only filesystem.
   }
 
   fuse_reply_err(req, rc);
+
+  // the link count has changed and we have to tell the kernel cache
+  if (hardlink_target_ino && EosFuse::Instance().Config().options.md_kernelcache)
+  {
+    eos_static_warning("invalidating inode %d", hardlink_target_ino);
+    kernelcache::inval_inode(hardlink_target_ino, true);
+  }
+
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
