@@ -103,6 +103,15 @@ public:
     pFileSvc = file_svc;
   }
 
+
+  //----------------------------------------------------------------------------
+  //! Asynchronously get the container metadata information for the given ID
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getContainerMDFut(IContainerMD::id_t id) override
+  {
+    return folly::makeFuture(getContainerMD(id));
+  }
+
   //--------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //--------------------------------------------------------------------------

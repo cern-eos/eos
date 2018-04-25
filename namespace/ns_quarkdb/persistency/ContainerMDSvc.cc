@@ -173,10 +173,10 @@ ContainerMDSvc::SafetyCheck()
 }
 
 //------------------------------------------------------------------------------
-// Get the container metadata information
+// Asynchronously get the container metadata information for the given ID
 //------------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
+folly::Future<IContainerMDPtr>
+ContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
 {
   //----------------------------------------------------------------------------
   // Short-circuit for container zero, avoid a pointless roundtrip by failing
@@ -184,13 +184,19 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   // yet.
   //----------------------------------------------------------------------------
   if(id == 0) {
-    throw_mdexception(ENOENT, "Container #0 not found");
+    return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #0 not found"));
   }
 
-  //----------------------------------------------------------------------------
-  // Fetch from metadata provider.
-  //----------------------------------------------------------------------------
-  IContainerMDPtr container = pMetadataProvider->retrieveContainerMD(id).get();
+  return pMetadataProvider->retrieveContainerMD(id);
+}
+
+//------------------------------------------------------------------------------
+// Get the container metadata information
+//------------------------------------------------------------------------------
+IContainerMDPtr
+ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
+{
+  IContainerMDPtr container = getContainerMDFut(id).get();
   if(container && clock) {
     *clock = container->getClock();
   }

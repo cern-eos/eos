@@ -82,6 +82,11 @@ public:
   //------------------------------------------------------------------------
   virtual void finalize() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Asynchronously get the container metadata information for the given ID
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getContainerMDFut(IContainerMD::id_t id) = 0;
+
   //------------------------------------------------------------------------
   //! Get the container metadata information for the given ID
   //------------------------------------------------------------------------

@@ -85,9 +85,14 @@ public:
   virtual void finalize() override {};
 
   //----------------------------------------------------------------------------
+  //! Asynchronously get the container metadata information for the given ID
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getContainerMDFut(IContainerMD::id_t id) override;
+
+  //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD>
+  virtual IContainerMDPtr
   getContainerMD(IContainerMD::id_t id) override
   {
     return getContainerMD(id, 0);
