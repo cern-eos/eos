@@ -835,11 +835,10 @@ again:
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
 
   if (status.IsOK()) {
-    eos_info("called MGM cache - %s", opaque.c_str());
+    eos_debug("called MGM cache - %s", opaque.c_str());
     rc = SFS_OK;
   } else {
     msg = (status.GetErrorMessage().c_str());
-    cerr << "emsg: " << msg << endl;
     rc = SFS_ERROR;
 
     if (msg.find("[EIDRM]") != STR_NPOS) {
