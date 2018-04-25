@@ -120,6 +120,13 @@ ContainerMDSvc::initialize()
     throw e;
   }
 
+  if (pMetadataProvider == nullptr) {
+    MDException e(EINVAL);
+    e.getMessage()  << __FUNCTION__  << " No metadata provider set for "
+                    << "the container metadata service";
+    throw e;
+  }
+
   if ((pQcl == nullptr) || (pFlusher == nullptr)) {
     MDException e(EINVAL);
     e.getMessage()  << __FUNCTION__ << " No qclient/flusher initialized for "
