@@ -800,8 +800,8 @@ WFE::Job::DoIt(bool issync)
   // RAII: Async jobs reduce counter on all paths
   auto decrementJobs = [this] (void*) {
     if (!IsSync()) {
-      gOFS->WFEd.GetSignal()->Signal();
       gOFS->WFEd.DecActiveJobs();
+      gOFS->WFEd.GetSignal()->Signal();
     }
   };
 
