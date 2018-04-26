@@ -29,7 +29,8 @@
     "show-tree-size" : 0,
     "free-md-asap" : 1,
     "cpu-core-affinity" : 1,
-    "no-xattr" : 0
+    "no-xattr" : 0,
+    "no-link" : 1,
   },
   "auth" : {
     "shared-mount" : 1,
@@ -40,6 +41,8 @@
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
+    "size-ino" : 65536, 
+    "clean-threshold" : 85.0,
     "location" : "/var/eos/fusex/cache/",
     "journal" : " /var/eos/fusex/journal/",
     "read-ahead-strategy" : "dynamic",

@@ -47,6 +47,7 @@ This
     "free-md-asap" : 1,
     "cpu-core-affinity" : 1,
     "no-xattr" : 1,
+    "no-link" : 1,
     "nocache-graceperiod" : 5
   },
   "auth" : {

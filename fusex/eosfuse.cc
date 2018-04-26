@@ -422,6 +422,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["no-xattr"] = 0;
     }
 
+    if (!root["options"].isMember("no-link")) {
+      root["options"]["no-link"] = 1;
+    }
+
     if (!root["options"].isMember("nocache-graceperiod")) {
       root["options"]["nocache-graceperiod"] = 5;
     }
@@ -535,9 +539,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.free_md_asap = root["options"]["free-md-asap"].asInt();
     config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
     config.options.no_xattr = root["options"]["no-xattr"].asInt();
+    config.options.no_hardlinks = root["options"]["no-link"].asInt();
 
     if (config.options.no_xattr) {
       disable_xattr();
+    }
+
+    if (config.options.no_hardlinks) {
+      disable_link();
     }
 
     config.options.nocache_graceperiod = root["options"]["nocache-graceperiod"].asInt();
@@ -1169,7 +1178,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d nocache-graceperiod:%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d",
 		       config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1190,6 +1199,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.free_md_asap,
                        config.options.cpu_core_affinity,
                        config.options.no_xattr,
+                       config.options.no_hardlinks,
 		       config.options.nocache_graceperiod
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
@@ -2504,14 +2514,14 @@ EROFS  pathname refers to a file on a read-only filesystem.
 	    tmd = Instance().mds.get(req, local_ino, pcap->authid());	    /* the target of the link */
 	    attrMap = tmd->attr();
 	  }
-
+	  
 	  if (attrMap.count(k_nlink)) {
 	    nlink = std::stol(attrMap[k_nlink]);
 	    md->cap_count_reset();			    /* force refresh */
 	    if (tmd == NULL)				    /* the original target which must be refreshed later, even if logically deleted meanwhile */
-		tmd = md;
+	      tmd = md;
 	  } 
-
+	  
           if (nlink <= 0)				    /* don't bother updating, this is a real delete */
 	    freesize = md->size();
 
@@ -2545,14 +2555,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
       {
 	hardlink_target_ino = tmd->id();
       }
-    }
-
-    if (pmd) {
-      XrdSysMutexHelper pLock(pmd->Locker());
-      pmd->cap_count_reset();
-      pLock.UnLock();
-      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink tmpd get %s inode %#lx", pmd->name().c_str(), parent);
-      metad::shared_md tpmd = Instance().mds.get(req, parent, pcap->authid());
     }
   }
 

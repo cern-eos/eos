@@ -100,6 +100,11 @@ protected:
     operations.removexattr = 0;
   }
 
+  void disable_link()
+  {
+    operations.link = 0;
+  }
+
   //------------------------------------------------------------------------
   //! Constructor
   //!

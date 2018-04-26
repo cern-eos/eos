@@ -225,6 +225,7 @@ public:
       int cpu_core_affinity;
       mode_t overlay_mode;
       int no_xattr;
+      int no_hardlinks;
       uint32_t nocache_graceperiod;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
