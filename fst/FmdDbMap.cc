@@ -1647,8 +1647,9 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
   std::string b64buff;
 
   if (eos::common::SymKey::ProtobufBase64Encode(&request, b64buff)) {
-    cmd << "env XrdSecPROTOCOL=sss xrdcp -f -s \""
-        << "root://" << mgm_host.c_str() << "/"
+    // Increase the request timeout to 4 hours
+    cmd << "env XrdSecPROTOCOL=sss XRD_REQUESTTIMEOUT=14400 "
+        << "xrdcp -f -s \"root://" << mgm_host.c_str() << "/"
         << "/proc/admin/?mgm.cmd.proto=" << b64buff << "\" "
         << tmpfile;
     int rc = system(cmd.str().c_str());
