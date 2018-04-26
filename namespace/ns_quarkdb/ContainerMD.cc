@@ -208,32 +208,45 @@ ContainerMD::addContainer(IContainerMD* container)
 }
 
 //------------------------------------------------------------------------------
+// Find file, asynchronous API
+//------------------------------------------------------------------------------
+folly::Future<IFileMDPtr>
+ContainerMD::findFileFut(const std::string& name)
+{
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  auto iter = mFiles->find(name);
+
+  if(iter == mFiles->end()) {
+    //--------------------------------------------------------------------------
+    // Not found in file map, return result immediately.
+    //--------------------------------------------------------------------------
+    return IFileMDPtr();
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve result asynchronously from file service.
+  //----------------------------------------------------------------------------
+  folly::Future<IFileMDPtr> fut = pFileSvc->getFileMDFut(iter->second)
+    .onError([this, name](const folly::exception_wrapper& e) {
+      //------------------------------------------------------------------------
+      // Curate the list of files in case entry is not found.
+      //------------------------------------------------------------------------
+      std::lock_guard<std::recursive_mutex> lock(mMutex);
+      pFlusher->hdel(pFilesKey, name);
+      mFiles->erase(name);
+      return IFileMDPtr();
+    } );
+
+  return fut;
+}
+
+//------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  auto iter = mFiles->find(name);
-
-  if (iter == mFiles->end()) {
-    return nullptr;
-  }
-
-  std::shared_ptr<IFileMD> file;
-
-  try {
-    file = pFileSvc->getFileMD(iter->second);
-  } catch (MDException& e) {
-    file = nullptr;
-  }
-
-  // Curate the list of files in case file entry is not found
-  if (file == nullptr) {
-    pFlusher->hdel(pFilesKey, name);
-    mFiles->erase(iter);
-  }
-
-  return file;
+  return this->findFileFut(name).get();
 }
 
 //------------------------------------------------------------------------------

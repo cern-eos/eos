@@ -115,9 +115,14 @@ public:
   void removeFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find file, asynchronous API.
+  //----------------------------------------------------------------------------
+  folly::Future<IFileMDPtr> findFileFut(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  std::shared_ptr<IFileMD> findFile(const std::string& name) override;
+  IFileMDPtr findFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files

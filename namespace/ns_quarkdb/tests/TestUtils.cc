@@ -49,7 +49,7 @@ NsTestsFixture::NsTestsFixture() {
 
   srandom(time(nullptr));
   testconfig = {
-    {"qdb_cluster", "localhost:7778"},
+    {"qdb_cluster", "localhost:9999"},
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"}
   };

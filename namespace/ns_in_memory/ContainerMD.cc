@@ -165,6 +165,15 @@ ContainerMD::addContainer(IContainerMD* container)
 }
 
 //------------------------------------------------------------------------------
+// Find file, asynchronous API.
+//------------------------------------------------------------------------------
+folly::Future<IFileMDPtr>
+ContainerMD::findFileFut(const std::string& name)
+{
+  return this->findFile(name);
+}
+
+//------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>

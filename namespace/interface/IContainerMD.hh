@@ -47,6 +47,7 @@ class IFileMD;
 class IContainerMD;
 
 using IContainerMDPtr = std::shared_ptr<IContainerMD>;
+using IFileMDPtr = std::shared_ptr<IFileMD>;
 
 //------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
@@ -129,6 +130,11 @@ public:
   //! Remove file
   //----------------------------------------------------------------------------
   virtual void removeFile(const std::string& name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find file, asynchronous API
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> findFileFut(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find file

@@ -154,6 +154,11 @@ public:
   void removeFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find file, asynchronous API.
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> findFileFut(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> findFile(const std::string& name) override;
