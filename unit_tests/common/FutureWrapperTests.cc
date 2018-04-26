@@ -42,15 +42,15 @@ TEST(FutureWrapper, Exception) {
   common::FutureWrapper<int> fut(promise.getFuture());
   ASSERT_FALSE(fut.ready());
 
-  promise.setException(std::make_exception_ptr(std::string("something terrible happened")));
+  promise.setException(folly::exception_wrapper(std::runtime_error("something terrible happened")));
   ASSERT_TRUE(fut.ready());
 
   try {
     fut.get();
     FAIL(); // should never reach here
   }
-  catch(const std::string &exc) { // yes, you can use strings as exceptions
-    ASSERT_EQ(exc, "something terrible happened");
+  catch(const std::runtime_error &exc) { // yes, you can use strings as exceptions
+    ASSERT_EQ(exc.what(), "something terrible happened");
   }
 }
 

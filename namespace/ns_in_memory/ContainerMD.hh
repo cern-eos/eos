@@ -126,6 +126,11 @@ public:
   void removeContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find sub container, asynchronous API
+  //----------------------------------------------------------------------------
+  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Find sub container
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;

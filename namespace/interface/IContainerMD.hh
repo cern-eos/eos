@@ -36,6 +36,7 @@
 #include <set>
 #include <sys/time.h>
 #include <google/dense_hash_map>
+#include <folly/futures/Future.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -43,6 +44,9 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IFileMDSvc;
 class IFileMD;
+class IContainerMD;
+
+using IContainerMDPtr = std::shared_ptr<IContainerMD>;
 
 //------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
@@ -98,6 +102,12 @@ public:
   //! Remove container
   //----------------------------------------------------------------------------
   virtual void removeContainer(const std::string& name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find sub container, asynchronous API
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr>
+  findContainerFut(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Find sub container
@@ -383,8 +393,6 @@ private:
 
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
-
-using IContainerMDPtr = std::shared_ptr<IContainerMD>;
 
 EOSNSNAMESPACE_END
 

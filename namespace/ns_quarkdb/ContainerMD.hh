@@ -90,6 +90,11 @@ public:
   void removeContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find subcontainer, asynchronous API
+  //----------------------------------------------------------------------------
+  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Find subcontainer
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;
@@ -125,6 +130,7 @@ public:
   inline id_t
   getId() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.id();
   }
 
@@ -134,6 +140,7 @@ public:
   inline id_t
   getParentId() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.parent_id();
   }
 
@@ -143,6 +150,7 @@ public:
   void
   setParentId(id_t parentId) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_parent_id(parentId);
   }
 
@@ -152,6 +160,7 @@ public:
   inline uint16_t
   getFlags() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.flags();
   }
 
@@ -160,6 +169,7 @@ public:
   //----------------------------------------------------------------------------
   virtual void setFlags(uint16_t flags) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_flags(0x00ff & flags);
   }
 
@@ -219,6 +229,7 @@ public:
   inline uint64_t
   getTreeSize() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.tree_size();
   }
 
@@ -228,6 +239,7 @@ public:
   inline void
   setTreeSize(uint64_t treesize) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_tree_size(treesize);
   }
 
@@ -242,6 +254,7 @@ public:
   inline const std::string&
   getName() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.name();
   }
 
@@ -256,6 +269,7 @@ public:
   inline uid_t
   getCUid() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.uid();
   }
 
@@ -265,6 +279,7 @@ public:
   inline void
   setCUid(uid_t uid) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_uid(uid);
   }
 
@@ -274,6 +289,7 @@ public:
   inline gid_t
   getCGid() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.gid();
   }
 
@@ -283,6 +299,7 @@ public:
   inline void
   setCGid(gid_t gid) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_gid(gid);
   }
 
@@ -292,6 +309,7 @@ public:
   inline mode_t
   getMode() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.mode();
   }
 
@@ -301,6 +319,7 @@ public:
   inline void
   setMode(mode_t mode) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_mode(mode);
   }
 
@@ -310,6 +329,7 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value) override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     (*mCont.mutable_xattrs())[name] = value;
   }
 
@@ -324,6 +344,7 @@ public:
   bool
   hasAttribute(const std::string& name) const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return (mCont.xattrs().find(name) != mCont.xattrs().end());
   }
 
@@ -333,6 +354,7 @@ public:
   size_t
   numAttributes() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.xattrs().size();
   }
 
@@ -392,6 +414,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
   {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mClock;
   }
 
@@ -408,6 +431,7 @@ public:
   //----------------------------------------------------------------------------
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mSubcontainers->begin();
   }
 
@@ -416,6 +440,7 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mSubcontainers->end();
   }
 
@@ -424,6 +449,7 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mFiles->begin();
   }
 
@@ -432,10 +458,13 @@ public:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mFiles->end();
   }
 
 private:
+  mutable std::recursive_mutex mMutex;
+
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service

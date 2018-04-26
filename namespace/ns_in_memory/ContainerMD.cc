@@ -42,7 +42,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   mFiles.set_deleted_key("");
   mSubcontainers.set_empty_key("##_EMPTY_##");
   mFiles.set_empty_key("##_EMPTY_##");
-  
+
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
   pMTime.tv_sec = 0;
@@ -118,6 +118,15 @@ ContainerMD::InheritChildren(const IContainerMD& other)
   mFiles = otherContainer.mFiles;
   mSubcontainers = otherContainer.mSubcontainers;
   setTreeSize(otherContainer.getTreeSize());
+}
+
+//------------------------------------------------------------------------------
+// Find sub container, asynchronous API
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+ContainerMD::findContainerFut(const std::string& name)
+{
+  return folly::makeFuture<IContainerMDPtr>(this->findContainer(name));
 }
 
 //------------------------------------------------------------------------------

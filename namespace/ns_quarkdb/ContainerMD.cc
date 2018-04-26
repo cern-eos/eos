@@ -119,32 +119,45 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
+// Find subcontainer, asynchronous API
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+ContainerMD::findContainerFut(const std::string& name)
+{
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  auto iter = mSubcontainers->find(name);
+
+  if(iter == mSubcontainers->end()) {
+    //--------------------------------------------------------------------------
+    // Not found in subcontainer map, return result immediately.
+    //--------------------------------------------------------------------------
+    return IContainerMDPtr();
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve result asynchronously from container service.
+  //----------------------------------------------------------------------------
+  folly::Future<IContainerMDPtr> fut = pContSvc->getContainerMDFut(iter->second)
+    .onError([this, name](const folly::exception_wrapper& e) {
+      //------------------------------------------------------------------------
+      // Curate the list of subcontainers in case entry is not found.
+      //------------------------------------------------------------------------
+      std::lock_guard<std::recursive_mutex> lock(mMutex);
+      pFlusher->hdel(pDirsKey, name);
+      mSubcontainers->erase(name);
+      return IContainerMDPtr();
+    } );
+
+  return fut;
+}
+
+//------------------------------------------------------------------------------
 // Find subcontainer
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  auto iter = mSubcontainers->find(name);
-
-  if (iter == mSubcontainers->end()) {
-    return nullptr;
-  }
-
-  std::shared_ptr<IContainerMD> cont;
-
-  try {
-    cont = pContSvc->getContainerMD(iter->second);
-  } catch (const MDException& ex) {
-    cont = nullptr;
-  }
-
-  // Curate the list of subcontainers in case entry is not found
-  if (cont == nullptr) {
-    pFlusher->hdel(pDirsKey, name);
-    mSubcontainers->erase(iter);
-  }
-
-  return cont;
+  return findContainerFut(name).get();
 }
 
 //------------------------------------------------------------------------------
@@ -153,6 +166,7 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   auto it = mSubcontainers->find(name);
 
   if (it == mSubcontainers->end()) {
@@ -173,6 +187,7 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                     container->getId()));
@@ -291,6 +306,7 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   return mSubcontainers->size();
 }
 
@@ -301,6 +317,7 @@ ContainerMD::getNumContainers()
 void
 ContainerMD::cleanUp()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   for (const auto& elem : mFiles.get()) {
     auto file = pFileSvc->getFileMD(elem.second);
     pFileSvc->removeFile(file.get());
@@ -688,6 +705,8 @@ ContainerMD::serialize(Buffer& buffer)
 void
 ContainerMD::loadChildren()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pFilesMap.setKey(pFilesKey);
@@ -710,6 +729,7 @@ ContainerMD::loadChildren()
 void
 ContainerMD::deserialize(Buffer& buffer)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   Serialization::deserializeContainer(buffer, mCont);
   loadChildren();
 }
@@ -721,6 +741,8 @@ void
 ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
     IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
   mCont = std::move(proto);
   mFiles.get() = std::move(fileMap);
   mSubcontainers.get() = std::move(containerMap);
@@ -738,6 +760,7 @@ ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
 void
 ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mCont = std::move(proto);
 }
 
@@ -747,6 +770,7 @@ ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 eos::IFileMD::XAttrMap
 ContainerMD::getAttributes() const
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   XAttrMap xattrs;
 
   for (const auto& elem : mCont.xattrs()) {
@@ -762,7 +786,9 @@ ContainerMD::getAttributes() const
 void
 ContainerMD::getEnv(std::string& env, bool escapeAnd)
 {
-  env = "";
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  env.clear();
   std::ostringstream oss;
   std::string saveName = mCont.name();
 
