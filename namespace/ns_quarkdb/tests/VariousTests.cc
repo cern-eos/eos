@@ -109,6 +109,112 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_TRUE(fileMap.empty());
 }
 
+TEST_F(VariousTests, SymlinkExtravaganza) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  // Basic symlink sanity checks.
+  IFileMDPtr file1 = view()->createFile("/file1", true);
+  file1->setLink("/cont1");
+
+  IContainerMDPtr cont1 = view()->createContainer("/cont1", true);
+  IFileMDPtr awesomeFile = view()->createFile("/cont1/awesome-file", true);
+
+  fileSvc()->updateStore(file1.get());
+  fileSvc()->updateStore(awesomeFile.get());
+  containerSvc()->updateStore(cont1.get());
+
+  IContainerMDPtr cont2 = view()->getContainer("/file1", true);
+  ASSERT_TRUE(cont2.get() != nullptr);
+  ASSERT_EQ(cont1.get(), cont2.get());
+  ASSERT_THROW(view()->getContainer("/file1", false), MDException);
+
+  IFileMDPtr file2 = view()->createFile("/file2", true);
+  file2->setLink("/file1");
+  fileSvc()->updateStore(file2.get());
+
+  // TODO: The following should work, but it doesn't.
+  // IContainerMDPtr cont3 = view()->getContainer("/file2", true);
+  // ASSERT_TRUE(cont3.get() != nullptr);
+  // ASSERT_EQ(cont1.get(), cont3.get());
+
+  // Retrieve awesome-file through the symlink.
+  IFileMDPtr awesomeFile1 = view()->getFile("/file1/awesome-file", true);
+  ASSERT_TRUE(awesomeFile1.get() != nullptr);
+  ASSERT_EQ(awesomeFile.get(), awesomeFile1.get());
+
+  // Retrieve awesome-file through two levels of symlinks.
+  // TODO: The following should work, but it doesn't.
+  // IFileMDPtr awesomeFile2 = view()->getFile("/file2/awesome-file", true);
+  // ASSERT_TRUE(awesomeFile2.get() != nullptr);
+  // ASSERT_EQ(awesomeFile.get(), awesomeFile2.get());
+
+  // Let's create a symlink loop, composed of four files.
+  IFileMDPtr symlinkLoop1 = view()->createFile("/loop1", true);
+  IFileMDPtr symlinkLoop2 = view()->createFile("/loop2", true);
+  IFileMDPtr symlinkLoop3 = view()->createFile("/loop3", true);
+  IFileMDPtr symlinkLoop4 = view()->createFile("/loop4", true);
+
+  symlinkLoop1->setLink("/loop2");
+  symlinkLoop2->setLink("/loop3");
+  symlinkLoop3->setLink("/loop4");
+  symlinkLoop4->setLink("/loop1");
+
+  fileSvc()->updateStore(symlinkLoop1.get());
+  fileSvc()->updateStore(symlinkLoop2.get());
+  fileSvc()->updateStore(symlinkLoop3.get());
+  fileSvc()->updateStore(symlinkLoop4.get());
+
+  ASSERT_THROW(view()->getContainer("/loop1", true), MDException);
+  ASSERT_THROW(view()->getContainer("/loop2", true), MDException);
+  ASSERT_THROW(view()->getContainer("/loop3", true), MDException);
+  ASSERT_THROW(view()->getContainer("/loop4", true), MDException);
+
+  ASSERT_THROW(view()->getFile("/loop1", true), MDException);
+  ASSERT_THROW(view()->getFile("/loop2", true), MDException);
+  ASSERT_THROW(view()->getFile("/loop3", true), MDException);
+  ASSERT_THROW(view()->getFile("/loop4", true), MDException);
+
+  // Try out the following ridiculous situation:
+  //   /folder1/f2   -> /folder2
+  //   /folder2/f3   -> /folder3
+  //   /folder3/f4   -> /folder4
+  //   /folder4/f1   -> /folder1
+  //   /folder1/target-file
+  //
+  // We should be able to access target-file through
+  // /folder1/f2/f3/f4/f1/target-file
+
+  IContainerMDPtr folder1 = view()->createContainer("/folder1", true);
+  IContainerMDPtr folder2 = view()->createContainer("/folder2", true);
+  IContainerMDPtr folder3 = view()->createContainer("/folder3", true);
+  IContainerMDPtr folder4 = view()->createContainer("/folder4", true);
+
+  IFileMDPtr f2 = view()->createFile("/folder1/f2", true);
+  f2->setLink("/folder2");
+
+  IFileMDPtr f3 = view()->createFile("/folder2/f3", true);
+  f3->setLink("/folder3");
+
+  IFileMDPtr f4 = view()->createFile("/folder3/f4", true);
+  f4->setLink("/folder4");
+
+  IFileMDPtr f1 = view()->createFile("/folder4/f1", true);
+  f1->setLink("/folder1");
+
+  IFileMDPtr targetFile1 = view()->createFile("/folder1/target-file", true);
+
+  fileSvc()->updateStore(f1.get());
+  fileSvc()->updateStore(f2.get());
+  fileSvc()->updateStore(f3.get());
+  fileSvc()->updateStore(f4.get());
+  fileSvc()->updateStore(targetFile1.get());
+
+  IFileMDPtr targetFile2 = view()->getFile("/folder1/f2/f3/f4/f1/target-file", true);
+  ASSERT_TRUE(targetFile2.get() != nullptr);
+  ASSERT_EQ(targetFile1.get(), targetFile2.get());
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
