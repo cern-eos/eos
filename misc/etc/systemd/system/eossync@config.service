@@ -22,7 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOS-Sync: %i
-PartOf=eos.target
+PartOf=eossync.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env

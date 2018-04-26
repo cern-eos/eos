@@ -22,7 +22,7 @@
 # ************************************************************************
 [Unit]
 Description=EOS-Sync: %i
-PartOf=eos.target
+PartOf=eossync.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/eos_env
@@ -43,4 +43,4 @@ Restart=on-abort
 RestartSec=5
 
 [Install]
-WantedBy=eos.target
+WantedBy=eossync.target
