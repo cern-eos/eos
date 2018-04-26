@@ -1754,7 +1754,7 @@ WFE::Job::DoIt(bool issync)
           }
         };
 
-        if (event == "sync::prepare") {
+        if (event == "sync::prepare" || event == "prepare") {
           struct stat buf;
           XrdOucErrInfo errInfo;
 
@@ -1878,7 +1878,7 @@ WFE::Job::DoIt(bool issync)
 
             return sendResult;
           }
-        } else if (event == "sync::abort_prepare") {
+        } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
           auto retrieveCntr = 0;
           bool shouldAbort = false;
           {
@@ -1934,7 +1934,7 @@ WFE::Job::DoIt(bool issync)
             MoveWithResults(SFS_OK);
             return SFS_OK;
           }
-        } else if (event == "sync::openw") {
+        } else if (event == "sync::openw" || event == "openw") {
           collectAttributes();
 
           {
@@ -1950,7 +1950,7 @@ WFE::Job::DoIt(bool issync)
 
           std::string errorMsg;
           return SendProtoWFRequest(this, fullPath, request, errorMsg);
-        } else if (event == "sync::create") {
+        } else if (event == "sync::create" || event == "create") {
           collectAttributes();
 
           {
@@ -1966,7 +1966,7 @@ WFE::Job::DoIt(bool issync)
 
           std::string errorMsg;
           return SendProtoWFRequest(this, fullPath, request, errorMsg);
-        } else if (event == "sync::delete") {
+        } else if (event == "sync::delete" || event == "delete") {
           collectAttributes();
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
@@ -1980,7 +1980,7 @@ WFE::Job::DoIt(bool issync)
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
-        } else if (event.find("closew") != std::string::npos) {
+        } else if (event == "sync::closew" || event == "closew") {
           if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // reset the retrieves counter and error message in case the retrieved file has been written to disk
             try {
@@ -2045,7 +2045,7 @@ WFE::Job::DoIt(bool issync)
             std::string errorMsg;
             return SendProtoWFRequest(this, fullPath, request, errorMsg, !IsSync(event));
           }
-        } else if (event == "archived") {
+        } else if (event == "sync::archived" || event == "archived") {
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
