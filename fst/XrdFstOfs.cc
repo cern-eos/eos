@@ -784,7 +784,8 @@ XrdFstOfs::stat(const char* path,
 int
 XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
                        const char* manager, XrdOucString& capOpaqueFile,
-                       XrdOucString* return_result, unsigned short timeout, bool retry)
+                       XrdOucString* return_result, unsigned short timeout,
+                       bool linkPerThread, bool retry)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -793,6 +794,14 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
+
+  if (linkPerThread) {
+    std::ostringstream tidStr;
+    tidStr << std::this_thread::get_id();
+    address += tidStr.str().c_str();
+    address += "@";
+  }
+
   XrdOucString lManager;
   size_t tried = 0;
 

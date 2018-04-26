@@ -1937,7 +1937,7 @@ XrdFstOfsFile::close()
     eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
              mEventWorkflow.c_str());
     rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, false);
+                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, true, false);
   }
 
   eos_info("Return code rc=%i.", rc);
@@ -2497,10 +2497,10 @@ XrdFstOfsFile::DoTpcTransfer()
     src_cgi += gOFS.TpcMap[mIsTpcDst][mTpcKey.c_str()].org;
   }
 
-  XrdIo tpcIO(src_url.c_str());
+  XrdIo tpcIO(src_url);
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
-  if (tpcIO.fileOpen(0, 0, src_cgi.c_str())) {
+  if (tpcIO.fileOpen(0, 0, src_cgi)) {
     eos_err("msg=\"TPC open failed for url=%s cgi=%s\"", src_url.c_str(),
             src_cgi.c_str());
     XrdSysMutexHelper scope_lock(mTpcJobMutex);

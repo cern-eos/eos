@@ -303,6 +303,7 @@ public:
                   XrdOucString& capOpaqueFile,
                   XrdOucString* return_result = 0,
                   unsigned short timeout = 0,
+                  bool linkPerThread = false,
                   bool retry = true);
 
   //----------------------------------------------------------------------------
