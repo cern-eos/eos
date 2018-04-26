@@ -1074,6 +1074,12 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
+  // 0-size files can be read from the MGM if this is not FUSE access!
+  if (!isRW && !isFuse && !fmd->getSize()) {
+    isZeroSizeFile = true;
+    return SFS_OK;
+  }
+
   capability += "&mgm.ruid=";
   capability += (int) vid.uid;
   capability += "&mgm.rgid=";
