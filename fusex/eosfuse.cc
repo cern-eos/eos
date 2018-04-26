@@ -3105,11 +3105,10 @@ EosFuse::mknod(fuse_req_t req, fuse_ino_t parent, const char* name,
   int rc = 0;
   fuse_id id(req);
 
-  if (!S_ISREG(mode)) {
-    // we only implement files
-    rc = ENOSYS;
-  } else {
+  if (S_ISREG(mode) || S_ISFIFO(mode)) {
     create(req, parent, name, mode, 0);
+  } else {
+    rc = ENOSYS;
   }
 
   if (rc) {
@@ -3255,7 +3254,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         }
 
         md->set_err(0);
-        md->set_mode(mode | S_IFREG);
+        md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
         md->set_name(name);
