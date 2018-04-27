@@ -108,7 +108,6 @@ eos_rpm_slc6:
     expire_in: 1 day
     paths:
     - slc6_artifacts/
-  allow_failure: true
   tags:
     - docker-slc6
 
