@@ -25,6 +25,9 @@
 #include "namespace/utils/PathProcessor.hh"
 #include <cerrno>
 #include <ctime>
+#include <functional>
+
+using std::placeholders::_1;
 
 #ifdef __APPLE__
 #define EBADFD 77
@@ -350,51 +353,34 @@ HierarchicalView::removeFile(IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Get a container (directory)
+// Extract IContainerMDPtr out of PathLookupState
 //------------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-HierarchicalView::getContainer(const std::string& uri, bool follow,
-                               size_t* link_depth)
+static IContainerMDPtr extractContainerMDPtr(PathLookupState state) {
+  return state.current;
+}
+
+//------------------------------------------------------------------------------
+// Get a container (directory) asynchronously
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+HierarchicalView::getContainerFut(const std::string& uri, bool follow)
 {
   if (uri == "/") {
     return std::shared_ptr<IContainerMD> {pContainerSvc->getContainerMD(1)};
   }
 
-  size_t lLinkDepth = 0;
+  // Follow all symlinks for all containers, except last one if "follow" is set.
+  return lookupContainer(uri, 0, follow).then(extractContainerMDPtr);
+}
 
-  if (link_depth == nullptr) {
-    // use local variable in case
-    link_depth = &lLinkDepth;
-    (*link_depth)++;
-  }
-
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
-  size_t position = 0;
-  std::shared_ptr<IContainerMD> cont{nullptr};
-
-  if (follow) {
-    // Follow all symlinks for all containers
-    cont = findLastContainer(elements, elements.size(), position, link_depth);
-  } else {
-    // Follow all symlinks but not the final container
-    cont = findLastContainer(elements, elements.size() - 1, position, link_depth);
-    cont = cont->findContainer(elements[elements.size() - 1]);
-
-    if (cont) {
-      ++position;
-    }
-  }
-
-  if (position != (elements.size())) {
-    MDException e(ENOENT);
-    e.getMessage() << uri << ": No such file or directory";
-    throw e;
-  }
-
-  return cont;
+//------------------------------------------------------------------------------
+// Get a container (directory)
+//------------------------------------------------------------------------------
+IContainerMDPtr
+HierarchicalView::getContainer(const std::string& uri, bool follow,
+                               size_t* link_depth)
+{
+  return getContainerFut(uri, follow).get();
 }
 
 //------------------------------------------------------------------------------
@@ -511,6 +497,105 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
   // This is a two-step delete
   pContainerSvc->removeContainer(cont.get());
   parent->removeContainer(cont->getName());
+}
+
+//------------------------------------------------------------------------------
+//! Lookup symlink, expect to find a directory there.
+//------------------------------------------------------------------------------
+folly::Future<PathLookupState> HierarchicalView::lookupSymlink(IFileMDPtr symlink, size_t symlinkDepth)
+{
+  if(!symlink || !symlink->isLink()) {
+    //------------------------------------------------------------------------------
+    //! Nope, not a symlink.
+    //------------------------------------------------------------------------------
+    return folly::makeFuture<PathLookupState>(make_mdexception(ENOENT, "No such file or directory"));
+  }
+
+  return lookupContainer(symlink->getLink(), symlinkDepth, true);
+}
+
+//------------------------------------------------------------------------------
+//! Lookup a URL, while following symlinks.
+//------------------------------------------------------------------------------
+folly::Future<PathLookupState> HierarchicalView::lookupContainer(
+  const std::string &url, size_t symlinkDepth, bool follow)
+{
+  std::vector<std::string> chunks;
+  eos::PathProcessor::splitPath(chunks, url);
+  return lookupContainer(chunks, symlinkDepth, follow);
+}
+
+//------------------------------------------------------------------------------
+//! Lookup a URL, while following symlinks.
+//------------------------------------------------------------------------------
+folly::Future<PathLookupState> HierarchicalView::lookupContainer(
+    const std::vector<std::string> &chunks,
+    size_t symlinkDepth, bool follow)
+{
+
+  PathLookupState initialState;
+  initialState.current = pRoot;
+  initialState.symlinkDepth = symlinkDepth;
+
+  folly::Future<PathLookupState> fut = folly::makeFuture<PathLookupState>(std::move(initialState));
+
+  for(size_t i = 0; i < chunks.size(); i++) {
+    bool localFollow = true;
+    if(!follow && i == chunks.size() -1) localFollow = false;
+
+    fut = fut.then(std::bind(&HierarchicalView::lookupSubcontainer, this, _1, chunks[i], localFollow));
+  }
+
+  return fut;
+}
+
+//------------------------------------------------------------------------------
+//! Lookup a subdirectory, single shot.
+//------------------------------------------------------------------------------
+folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
+    PathLookupState parent, std::string name, bool follow)
+{
+  //----------------------------------------------------------------------------
+  // Symlink depth exceeded?
+  //----------------------------------------------------------------------------
+  if(parent.symlinkDepth > 255) {
+      return folly::makeFuture<PathLookupState>(make_mdexception(
+        ELOOP, "Too many symbolic links were encountered in translating the pathname"));
+  }
+
+  //----------------------------------------------------------------------------
+  // Lookup.
+  //----------------------------------------------------------------------------
+  folly::Future<PathLookupState> fut = parent.current->findContainerFut(name)
+    .then([this, parent, name, follow](IContainerMDPtr result) {
+
+      if(result) {
+        //----------------------------------------------------------------------
+        // Directory was found, all is OK, return a concrete result.
+        //----------------------------------------------------------------------
+        PathLookupState newState;
+        newState.current = result;
+        newState.symlinkDepth = parent.symlinkDepth;
+        return folly::makeFuture<PathLookupState>(std::move(newState));
+      }
+      else {
+        //----------------------------------------------------------------------
+        // Uh-oh.. maybe we're dealing with a symlink here, lookup a possible
+        // symlink, and return a future again.
+        //----------------------------------------------------------------------
+        if(!follow) {
+          //--------------------------------------------------------------------
+          // Not following symlinks, short circuit.
+          //--------------------------------------------------------------------
+          return folly::makeFuture<PathLookupState>(make_mdexception(ENOENT, "No such file or directory"));
+        }
+
+        return parent.current->findFileFut(name)
+          .then(std::bind(&HierarchicalView::lookupSymlink, this, _1, parent.symlinkDepth+1));
+      }
+    } );
+
+  return fut;
 }
 
 //------------------------------------------------------------------------------

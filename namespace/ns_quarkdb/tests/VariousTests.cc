@@ -133,10 +133,10 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   file2->setLink("/file1");
   fileSvc()->updateStore(file2.get());
 
-  // TODO: The following should work, but it doesn't.
-  // IContainerMDPtr cont3 = view()->getContainer("/file2", true);
-  // ASSERT_TRUE(cont3.get() != nullptr);
-  // ASSERT_EQ(cont1.get(), cont3.get());
+  // NOTE: The following does currently not work on citrine + old NS.
+  IContainerMDPtr cont3 = view()->getContainer("/file2", true);
+  ASSERT_TRUE(cont3.get() != nullptr);
+  ASSERT_EQ(cont1.get(), cont3.get());
 
   // Retrieve awesome-file through the symlink.
   IFileMDPtr awesomeFile1 = view()->getFile("/file1/awesome-file", true);
@@ -144,7 +144,7 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   ASSERT_EQ(awesomeFile.get(), awesomeFile1.get());
 
   // Retrieve awesome-file through two levels of symlinks.
-  // TODO: The following should work, but it doesn't.
+  // NOTE: The following does currently not work on citrine + old NS.
   // IFileMDPtr awesomeFile2 = view()->getFile("/file2/awesome-file", true);
   // ASSERT_TRUE(awesomeFile2.get() != nullptr);
   // ASSERT_EQ(awesomeFile.get(), awesomeFile2.get());

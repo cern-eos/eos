@@ -38,9 +38,9 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif(BUILD_TESTS)
 
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Build qclient static library
-#-----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 add_subdirectory(qclient)
 
 #-------------------------------------------------------------------------------
@@ -63,6 +63,7 @@ add_library(
   explorer/NamespaceExplorer.cc      explorer/NamespaceExplorer.hh
   flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh
   views/HierarchicalView.cc          views/HierarchicalView.hh
+                                     views/PathLookupState.hh
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
   accounting/FileSystemView.cc       accounting/FileSystemView.hh
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh

@@ -57,7 +57,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
-    mMetaMap(), mNumConts(0ull), mShardMutexes(mNumMutexes + 1) {}
+    mMetaMap(), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -379,16 +379,6 @@ ContainerMDSvc::ComputeNumberOfContainers()
   (void) ah.Wait();
   auto resp = ah.GetResponses();
   mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
-}
-
-//----------------------------------------------------------------------------
-//! Get a mutex for the current container id
-//----------------------------------------------------------------------------
-std::mutex&
-ContainerMDSvc::GetShardMutex(IContainerMD::id_t id)
-{
-  id = id & mNumMutexes;
-  return mShardMutexes[id];
 }
 
 //------------------------------------------------------------------------------

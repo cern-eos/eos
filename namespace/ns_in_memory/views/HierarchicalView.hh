@@ -165,6 +165,12 @@ public:
   virtual void removeFile(IFileMD* file) override;
 
   //------------------------------------------------------------------------
+  //! Get a container (directory) asynchronously
+  //------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getContainerFut(const std::string& uri,
+      bool follow = true) override;
+
+  //------------------------------------------------------------------------
   //! Get a container (directory)
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>

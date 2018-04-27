@@ -371,6 +371,14 @@ void HierarchicalView::removeFile(IFileMD* file)
 }
 
 //----------------------------------------------------------------------------
+// Get a container (directory) asynchronously
+//----------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+HierarchicalView::getContainerFut(const std::string& uri, bool follow) {
+  return folly::makeFuture<IContainerMDPtr>(getContainer(uri, follow));
+}
+
+//----------------------------------------------------------------------------
 // Get a container (directory)
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>

@@ -145,6 +145,12 @@ public:
   virtual void unlinkFile(eos::IFileMD* file) = 0;
 
   //------------------------------------------------------------------------
+  //! Get a container (directory) asynchronously
+  //------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getContainerFut(const std::string& uri,
+      bool follow = true) = 0;
+
+  //------------------------------------------------------------------------
   //! Get a container (directory)
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD> getContainer(const std::string& uri,
