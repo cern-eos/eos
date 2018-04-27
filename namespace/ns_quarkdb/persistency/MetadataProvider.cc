@@ -202,6 +202,8 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(id_t id,
     > tup
   ) {
 
+  std::lock_guard<std::mutex> lock(mMutex);
+
   //----------------------------------------------------------------------------
   // Unpack tuple. (sigh)
   //----------------------------------------------------------------------------
