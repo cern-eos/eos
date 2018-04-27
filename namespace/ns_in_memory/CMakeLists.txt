@@ -77,6 +77,7 @@ add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 target_link_libraries(
   EosNsInMemory
   EosNsCommon
+  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
@@ -92,6 +93,7 @@ if (Linux)
   target_link_libraries(
     EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
+    ${FOLLY_LIBRARIES}
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
