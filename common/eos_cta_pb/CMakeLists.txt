@@ -39,7 +39,6 @@ set_source_files_properties(
   PROPERTIES GENERATED 1)
 
 include_directories(${PROTOBUF3_INCLUDE_DIRS})
-add_library (XrdSsiPbEosCta ${EOS_CTA_PB_SRCS})
-set_target_properties(XrdSsiPbEosCta PROPERTIES LINKER_LANGUAGE CXX)
-set_target_properties(XrdSsiPbEosCta PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-target_link_libraries(XrdSsiPbEosCta ${PROTOBUF3_LIBRARIES})
+add_library (XrdSsiPbEosCta-Objects OBJECT
+  ${EOS_CTA_PB_SRCS})
+set_target_properties(XrdSsiPbEosCta-Objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)

@@ -29,7 +29,7 @@
 #include "common/Timing.hh"
 #include "common/FileId.hh"
 #include "common/ThreadPool.hh"
-#include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdJob.hh"

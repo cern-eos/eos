@@ -28,7 +28,7 @@
 #include "common/StringTokenizer.hh"
 #include "mgm/Constants.hh"
 #include "mgm/Quota.hh"
-#include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
+#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"

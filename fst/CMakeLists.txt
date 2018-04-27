@@ -347,10 +347,12 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 add_library(XrdEosFst-Shared SHARED
-  $<TARGET_OBJECTS:XrdEosFst-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -372,6 +374,7 @@ target_link_libraries(XrdEosFst PRIVATE
    ${NCURSES_LIBRARIES}
    ${XROOTD_CL_LIBRARY}
    ${XOORTD_UTILS_LIBRARY}
+   ${XROOTD_SSI_LIBRARY}
    ${OPENSSL_CRYPTO_LIBRARY}
    ${CMAKE_THREAD_LIBS_INIT})
 
@@ -390,6 +393,7 @@ target_link_libraries(XrdEosFst-Shared PUBLIC
   ${XROOTD_CL_LIBRARY}
   ${XOORTD_UTILS_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
+  ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
