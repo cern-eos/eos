@@ -32,6 +32,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileMD::FileMD()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   pFileMDSvc = nullptr;
 }
 
@@ -41,6 +42,7 @@ FileMD::FileMD()
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   pFileMDSvc(fileMDSvc), mClock(1)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mFile.set_id(id);
 }
 
@@ -50,6 +52,7 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
 FileMD*
 FileMD::clone() const
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   return new FileMD(*this);
 }
 
@@ -58,6 +61,7 @@ FileMD::clone() const
 //------------------------------------------------------------------------------
 FileMD::FileMD(const FileMD& other)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   *this = other;
 }
 
@@ -67,6 +71,7 @@ FileMD::FileMD(const FileMD& other)
 FileMD&
 FileMD::operator = (const FileMD& other)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mFile = other.mFile;
   mClock = other.mClock;
   pFileMDSvc   = 0;
@@ -79,6 +84,7 @@ FileMD::operator = (const FileMD& other)
 void
 FileMD::addLocation(location_t location)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   if (hasLocation(location)) {
     return;
   }
@@ -95,6 +101,7 @@ FileMD::addLocation(location_t location)
 void
 FileMD::replaceLocation(unsigned int index, location_t newlocation)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   location_t oldLocation = mFile.locations(index);
 
   if (oldLocation != newlocation) {
@@ -111,6 +118,7 @@ FileMD::replaceLocation(unsigned int index, location_t newlocation)
 void
 FileMD::removeLocation(location_t location)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   for (auto it = mFile.mutable_unlink_locations()->cbegin();
        it != mFile.mutable_unlink_locations()->cend(); ++it) {
     if (*it == location) {
@@ -129,6 +137,7 @@ FileMD::removeLocation(location_t location)
 void
 FileMD::removeAllLocations()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   // @note: This needs to be done like this since the FileSystemView checks at
   // each steps if there are any locations or unlinked locations and then adds
   // the file to the set of files without replicas.
@@ -148,6 +157,7 @@ FileMD::removeAllLocations()
 void
 FileMD::unlinkLocation(location_t location)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
@@ -167,6 +177,7 @@ FileMD::unlinkLocation(location_t location)
 void
 FileMD::unlinkAllLocations()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   for (auto it = mFile.locations().cbegin();
        it != mFile.locations().cend(); ++it) {
     mFile.add_unlink_locations(*it);
@@ -184,6 +195,7 @@ FileMD::unlinkAllLocations()
 void
 FileMD::getEnv(std::string& env, bool escapeAnd)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   env = "";
   std::ostringstream oss;
   std::string saveName = mFile.name();
@@ -247,6 +259,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
 void
 FileMD::serialize(eos::Buffer& buffer)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   if (pFileMDSvc == nullptr) {
     MDException ex(ENOTSUP);
     ex.getMessage() << "This was supposed to be a read only copy!";
@@ -288,6 +301,7 @@ FileMD::serialize(eos::Buffer& buffer)
 void
 FileMD::initialize(eos::ns::FileMdProto &&proto)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mFile = std::move(proto);
 }
 
@@ -297,6 +311,7 @@ FileMD::initialize(eos::ns::FileMdProto &&proto)
 void
 FileMD::deserialize(const eos::Buffer& buffer)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   Serialization::deserializeFile(buffer, mFile);
 }
 
@@ -306,6 +321,7 @@ FileMD::deserialize(const eos::Buffer& buffer)
 void
 FileMD::setSize(uint64_t size)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   int64_t sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
   mFile.set_size(size & 0x0000ffffffffffff);
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0, 0,
@@ -319,6 +335,7 @@ FileMD::setSize(uint64_t size)
 void
 FileMD::getCTime(ctime_t& ctime) const
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   (void) memcpy(&ctime, mFile.ctime().data(), sizeof(ctime_t));
 }
 
@@ -328,6 +345,7 @@ FileMD::getCTime(ctime_t& ctime) const
 void
 FileMD::setCTime(ctime_t ctime)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mFile.set_ctime(&ctime, sizeof(ctime));
 }
 
@@ -337,6 +355,7 @@ FileMD::setCTime(ctime_t ctime)
 void
 FileMD::setCTimeNow()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv;
@@ -355,6 +374,7 @@ FileMD::setCTimeNow()
 void
 FileMD::getMTime(ctime_t& mtime) const
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   (void) memcpy(&mtime, mFile.mtime().data(), sizeof(time_t));
 }
 
@@ -364,6 +384,7 @@ FileMD::getMTime(ctime_t& mtime) const
 void
 FileMD::setMTime(ctime_t mtime)
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   mFile.set_mtime(&mtime, sizeof(mtime));
 }
 
@@ -373,6 +394,7 @@ FileMD::setMTime(ctime_t mtime)
 void
 FileMD::setMTimeNow()
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   struct timespec tnow;
 #ifdef __APPLE__
   struct timeval tv;
@@ -391,6 +413,7 @@ FileMD::setMTimeNow()
 eos::IFileMD::XAttrMap
 FileMD::getAttributes() const
 {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   std::map<std::string, std::string> xattrs;
 
   for (const auto& elem : mFile.xattrs()) {
@@ -402,6 +425,7 @@ FileMD::getAttributes() const
 
 bool
 FileMD::hasUnlinkedLocation(IFileMD::location_t location) {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
   for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
     if (mFile.unlink_locations()[i] == location) {
       return true;
