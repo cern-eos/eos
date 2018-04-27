@@ -539,10 +539,10 @@ The new EOS fuse core containing eosxd.
 %{_bindir}/eosxd
 /sbin/mount.eosx
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
-%attr(755,daemon,daemon) /var/log/eos/
-%attr(755,daemon,daemon) /var/log/eos/fusex/
-%attr(755,daemon,daemon) /var/cache/eos/
-%attr(755,daemon,daemon) /var/cache/eos/fusex/
+%dir %attr(755,daemon,daemon) /var/log/eos/
+%dir %attr(755,daemon,daemon) /var/log/eos/fusex/
+%dir %attr(755,daemon,daemon) /var/cache/eos/
+%dir %attr(755,daemon,daemon) /var/cache/eos/fusex/
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
@@ -646,8 +646,8 @@ The EOS archive daemon.
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %config(noreplace) %{_sysconfdir}/eosarchived.conf
 %{_sysconfdir}/rc.d/init.d/eosarchived
-%{_localstatedir}/log/eos/archive/
-%{_localstatedir}/eos/archive/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/archive/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/eos/archive/
 
 %post -n eos-archive
 /sbin/chkconfig --add eosarchived
