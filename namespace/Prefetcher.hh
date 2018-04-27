@@ -30,13 +30,14 @@ EOSNSNAMESPACE_BEGIN
 
 class IContainerMDSvc;
 class IFileMDSvc;
+class IView;
 
 class Prefetcher {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Prefetcher(IFileMDSvc *file_svc, IContainerMDSvc *cont_svc);
+  Prefetcher(IView *view);
 
   //----------------------------------------------------------------------------
   //! Declare an intent to access FileMD with the given id soon
@@ -54,6 +55,7 @@ public:
   void wait();
 
 private:
+  IView           *pView;
   IFileMDSvc      *pFileMDSvc;
   IContainerMDSvc *pContainerMDSvc;
 

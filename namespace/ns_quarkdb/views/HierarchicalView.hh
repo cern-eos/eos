@@ -268,6 +268,13 @@ public:
   //----------------------------------------------------------------------------
   virtual void renameFile(IFileMD* file, const std::string& newName) override;
 
+  //----------------------------------------------------------------------------
+  //! Return whether this is an in-memory namespace.
+  //----------------------------------------------------------------------------
+  virtual bool inMemory() override {
+    return false;
+  }
+
 private:
   //----------------------------------------------------------------------------
   //! Get last existing container in the provided path

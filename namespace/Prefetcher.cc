@@ -23,6 +23,7 @@
 
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -30,15 +31,17 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Prefetcher::Prefetcher(IFileMDSvc *file_svc, IContainerMDSvc *cont_svc) {
-  pFileMDSvc = file_svc;
-  pContainerMDSvc = cont_svc;
+Prefetcher::Prefetcher(IView *view) {
+  pView = view;
+  pFileMDSvc = pView->getFileMDSvc();
+  pContainerMDSvc = pView->getContainerMDSvc();
 }
 
 //------------------------------------------------------------------------------
 // Declare an intent to access FileMD with the given id soon
 //------------------------------------------------------------------------------
 void Prefetcher::stageFileMD(id_t id) {
+  if(pView->inMemory()) return;
   mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
 }
 
@@ -46,6 +49,7 @@ void Prefetcher::stageFileMD(id_t id) {
 // Declare an intent to access ContainerMD with the given id soon
 //------------------------------------------------------------------------------
 void Prefetcher::stageContainerMD(id_t id) {
+  if(pView->inMemory()) return;
   mContainerMDs.emplace_back(pContainerMDSvc->getContainerMDFut(id));
 }
 
@@ -53,6 +57,7 @@ void Prefetcher::stageContainerMD(id_t id) {
 // Wait until all staged requests have been loaded in cache.
 //------------------------------------------------------------------------------
 void Prefetcher::wait() {
+  if(pView->inMemory()) return;
   for(size_t i = 0; i < mFileMDs.size(); i++) {
     mFileMDs[i].wait();
   }

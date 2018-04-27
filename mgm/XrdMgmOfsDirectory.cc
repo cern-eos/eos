@@ -69,7 +69,7 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   eos::common::Mapping::Nobody(vid);
   eos::common::LogId();
 
-  prefetcher.reset(new eos::Prefetcher(gOFS->eosFileService, gOFS->eosDirectoryService));
+  prefetcher.reset(new eos::Prefetcher(gOFS->eosView));
 }
 
 /*----------------------------------------------------------------------------*/
