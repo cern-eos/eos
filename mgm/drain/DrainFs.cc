@@ -104,7 +104,12 @@ DrainFs::DoIt()
     do { // Loop to drain the files
       if (mForceRetry.load()) {
         mForceRetry.store(false);
-        mJobsPending.insert(mJobsPending.end(), mJobsFailed.begin(), mJobsFailed.end());
+
+        for (const auto job : mJobsFailed) {
+          job->SetForce();
+          mJobsPending.push_back(job);
+        }
+
         mJobsFailed.clear();
       }
 

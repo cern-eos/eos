@@ -72,8 +72,6 @@ DrainTransferJob::DoIt()
   eos::common::FileSystem::fs_snapshot src_snapshot;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    // @todo (esindril): Support retries with new sources for drain dead
-    // cases. For RAIN files this should trigger a conversion with rewrite.
     eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
     eos::common::FileSystem* target_fs = FsView::gFsView.mIdView[mFsIdTarget];
 
@@ -86,10 +84,14 @@ DrainTransferJob::DoIt()
     target_fs->SnapShotFileSystem(dst_snapshot);
 
     // Try using a different source
-    if (src_snapshot.mDrainStatus == eos::common::FileSystem::kDrainDead) {
+    if (mForce) {
+      eos_debug("run transfer using different replica if possible");
+
       if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
           eos::common::LayoutId::kReplica) {
         // Pick up a new location as the source of the drain
+        bool found = false;
+
         for (const auto id : fdrain.mProto.locations()) {
           if (id != mFsIdSource) {
             auto it = FsView::gFsView.mIdView.find(id);
@@ -97,12 +99,25 @@ DrainTransferJob::DoIt()
             if (it != FsView::gFsView.mIdView.end()) {
               source_fs = FsView::gFsView.mIdView[id];
               source_fs->SnapShotFileSystem(src_snapshot);
-              break;
+
+              if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
+                found = true;
+                break;
+              }
             }
           }
         }
+
+        if (!found) {
+          std::ostringstream oss;
+          oss << "msg=\"fid=" << fdrain.mProto.id() << " has no available replicas"
+              << std::endl;
+          ReportError(oss.str());
+          return mStatus;
+        }
       } else {
         // For RAIN files we do a TPC copy with rename
+        // @todo (esindril)
       }
     }
   }

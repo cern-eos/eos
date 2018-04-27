@@ -51,7 +51,7 @@ public:
                    eos::common::FileSystem::fsid_t fsid_src,
                    eos::common::FileSystem::fsid_t fsid_trg = 0):
     mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mStatus(Status::Ready) {}
+    mStatus(Status::Ready), mForce(false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -106,6 +106,11 @@ public:
   inline const std::string& GetErrorString() const
   {
     return mErrorString;
+  }
+
+  inline void SetForce()
+  {
+    mForce = true;
   }
 
 private:
@@ -164,6 +169,7 @@ private:
   std::thread mThread; ///< Thread doing the draining
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
+  bool mForce; ///< When true tries to use other replicas as sources
 };
 
 EOSMGMNAMESPACE_END
