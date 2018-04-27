@@ -1843,7 +1843,7 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                              << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                              << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             // Reset the error attribute before sending prepare request
@@ -2039,7 +2039,7 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             std::string errorMsg;
