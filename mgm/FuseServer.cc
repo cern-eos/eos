@@ -28,6 +28,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Recycle.hh"
 #include "namespace/interface/IView.hh"
 #include <thread>
 #include <regex.h>
@@ -2911,64 +2912,82 @@ FuseServer::HandleMD(const std::string& id,
         gOFS->MgmStats.Add("FUSEx-DELETE", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
 
-        try {
-          // handle quota
-          eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+	eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
-          if (quotanode) {
-            quotanode->removeFile(fmd.get());
-          }
-        } catch (eos::MDException& e) {
-        }
-
-	bool doDelete = true;
-	uint64_t tgt_md_ino;
-
-	if (fmd->hasAttribute(k_mdino)) {	    /* this is a hard link, update reference count on underlying file */
-	  tgt_md_ino = std::stoll(fmd->getAttribute(k_mdino));
-	  uint64_t clock;
-
-	  /* gmd = the file holding the inode */
-	  std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
-	  long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
-
-	  if (nlink >= 0) {
-	    gmd->setAttribute(k_nlink, std::to_string(nlink));
-	    gOFS->eosFileService->updateStore(gmd.get());
-	    eos_static_info("hlnk nlink update on %s for %s now %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-	  } else {		// remove target file as well
-	    eos_static_info("hlnk unlink target %s for %s nlink %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-	    pcmd->removeFile(gmd->getName());
-	    gmd->setContainerId(0);
-	    gmd->unlinkAllLocations();
-            gOFS->eosFileService->updateStore(gmd.get());
+	// recycle bin - not for hardlinked files or hardlinks!
+	if (attrmap.count(Recycle::gRecyclingAttribute) &&
+	    (!fmd->hasAttribute(k_mdino)) && 
+	    (!fmd->hasAttribute(k_nlink))) {
+	  // translate to a path name and call the complex deletion function
+	  // this is vulnerable to a hard to trigger race conditions
+	  std::string fullpath = gOFS->eosView->getUri(fmd.get());
+	  gOFS->eosViewRWMutex.UnLockWrite();
+	  XrdOucErrInfo error;
+	  int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false);
+	  gOFS->eosViewRWMutex.LockWrite();
+	} else {
+	  try {
+	    // handle quota
+	    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+	    
+	    if (quotanode) {
+	      quotanode->removeFile(fmd.get());
+	    }
+	  } catch (eos::MDException& e) {
 	  }
-	} else if (fmd->hasAttribute(k_nlink)) {    /* this is a genuine file, potentially with hard links */
-	  tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
-	  /* reduce reference count, only remove file if negative (origin 0 == 1 file) */
-	  long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
-	  if (nlink >= 0) {  // hard links exist, just rename the file so the inode does not disappear
-	    char nameBuf[256];
-	    snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
-	    std::string tmpName = nameBuf;
-
-	    fmd->setAttribute(k_nlink, std::to_string(nlink));
-            eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(), tmpName.c_str(), nlink);
-            pcmd->removeFile(tmpName);	    	// if the target exists, remove it!
-            gOFS->eosView->renameFile(fmd.get(), tmpName);
-	    doDelete = false;
-	  } else
+	  
+	  bool doDelete = true;
+	  uint64_t tgt_md_ino;
+	  
+	  if (fmd->hasAttribute(k_mdino)) {	    /* this is a hard link, update reference count on underlying file */
+	    tgt_md_ino = std::stoll(fmd->getAttribute(k_mdino));
+	    uint64_t clock;
+	    
+	    /* gmd = the file holding the inode */
+	    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
+	    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
+	    
+	    if (nlink >= 0) {
+	      gmd->setAttribute(k_nlink, std::to_string(nlink));
+	      gOFS->eosFileService->updateStore(gmd.get());
+	      eos_static_info("hlnk nlink update on %s for %s now %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+	    } else {		// remove target file as well
+	      eos_static_info("hlnk unlink target %s for %s nlink %ld", gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+	      pcmd->removeFile(gmd->getName());
+	      gmd->setContainerId(0);
+	      gmd->unlinkAllLocations();
+	      gOFS->eosFileService->updateStore(gmd.get());
+	    }
+	  } else if (fmd->hasAttribute(k_nlink)) {    /* this is a genuine file, potentially with hard links */
+	    tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
+	    /* reduce reference count, only remove file if negative (origin 0 == 1 file) */
+	    long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
+	    if (nlink >= 0) {  // hard links exist, just rename the file so the inode does not disappear
+	      char nameBuf[256];
+	      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
+	      std::string tmpName = nameBuf;
+	      
+	      fmd->setAttribute(k_nlink, std::to_string(nlink));
+	      eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(), tmpName.c_str(), nlink);
+	      pcmd->removeFile(tmpName);	    	// if the target exists, remove it!
+	      gOFS->eosView->renameFile(fmd.get(), tmpName);
+	      doDelete = false;
+	    } else
 	      eos_static_info("hlnk nlink %ld for %s, will be deleted", nlink, fmd->getName().c_str());
-	}
-
-	if (doDelete) {
+	  }
+	  
+	  if (doDelete) {
 	    pcmd->removeFile(fmd->getName());
 	    fmd->setContainerId(0);
 	    fmd->unlinkAllLocations();
+	  }
+
+	  gOFS->eosFileService->updateStore(fmd.get());
+	  gOFS->eosDirectoryService->updateStore(pcmd.get());
+	  pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
 	}
-        gOFS->eosFileService->updateStore(fmd.get());
-        gOFS->eosDirectoryService->updateStore(pcmd.get());
-        pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
+
+
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
