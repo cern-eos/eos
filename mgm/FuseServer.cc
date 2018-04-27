@@ -2937,13 +2937,11 @@ FuseServer::HandleMD(const std::string& id,
 	  try {
 	    // handle quota
 	    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-
 	    if (quotanode) {
 	      quotanode->removeFile(fmd.get());
 	    }
 	  } catch (eos::MDException& e) {
 	  }
-
 	  bool doDelete = true;
 	  uint64_t tgt_md_ino;
 
