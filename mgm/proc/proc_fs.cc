@@ -405,14 +405,16 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 
           int drain_tx = FileSystem::IsDrainTransition(old_status, new_status);
 
-          if (drain_tx && FsView::gFsView.UseCentralDraining(fs)) {
+          if (FsView::gFsView.UseCentralDraining(fs)) {
             // Centralized draining
             if (drain_tx > 0) {
-              if (!gOFS->mDrainEngine.StartFsDrain(fs, 0, stdErr)) {
+              bool force = (drain_tx == 2);
+
+              if (!gOFS->mDrainEngine.StartFsDrain(fs, 0, stdErr, force)) {
                 retc = EINVAL;
                 return retc;
               }
-            } else {
+            } else if (drain_tx < 0) {
               if (!gOFS->mDrainEngine.StopFsDrain(fs, stdErr)) {
                 retc = EINVAL;
                 return retc;

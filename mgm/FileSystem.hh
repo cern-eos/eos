@@ -63,8 +63,8 @@ public:
   //! @param new_status new configuration status to be set
   //! @param new_status new configuration status to be set
   //!
-  //! @return 1 if draining enabled, -1 if draining disabled, 0 if not a drain
-  //!         transition
+  //! @return 1 if draining enabled, -1 if draining disabled, 2 if draining
+  //!         should be restarted, 0 if not a drain transition
   //----------------------------------------------------------------------------
   static
   int IsDrainTransition(const eos::common::FileSystem::fsstatus_t old_status,

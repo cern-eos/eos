@@ -125,6 +125,14 @@ public:
             std::future_status::ready);
   }
 
+  //----------------------------------------------------------------------------
+  //! Force retry any failed jobs
+  //----------------------------------------------------------------------------
+  inline void ForceRetry()
+  {
+    mForceRetry.store(true);
+  }
+
 private:
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
@@ -183,6 +191,7 @@ private:
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::FileSystem::eDrainStatus mStatus;
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
+  std::atomic<bool> mForceRetry; ///< Flag to retry failed transfers
   std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   uint64_t mTotalFiles; ///< Total number of files to drain

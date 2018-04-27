@@ -72,6 +72,8 @@ DrainTransferJob::DoIt()
   eos::common::FileSystem::fs_snapshot src_snapshot;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    // @todo (esindril): Support retries with new sources for drain dead
+    // cases. For RAIN files this should trigger a conversion with rewrite.
     eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
     eos::common::FileSystem* target_fs = FsView::gFsView.mIdView[mFsIdTarget];
 
@@ -82,6 +84,27 @@ DrainTransferJob::DoIt()
 
     source_fs->SnapShotFileSystem(src_snapshot);
     target_fs->SnapShotFileSystem(dst_snapshot);
+
+    // Try using a different source
+    if (src_snapshot.mDrainStatus == eos::common::FileSystem::kDrainDead) {
+      if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
+          eos::common::LayoutId::kReplica) {
+        // Pick up a new location as the source of the drain
+        for (const auto id : fdrain.mProto.locations()) {
+          if (id != mFsIdSource) {
+            auto it = FsView::gFsView.mIdView.find(id);
+
+            if (it != FsView::gFsView.mIdView.end()) {
+              source_fs = FsView::gFsView.mIdView[id];
+              source_fs->SnapShotFileSystem(src_snapshot);
+              break;
+            }
+          }
+        }
+      } else {
+        // For RAIN files we do a TPC copy with rename
+      }
+    }
   }
   // Prepare the TPC copy job
   XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
@@ -219,7 +242,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
              << "&mgm.manager=" << gOFS->ManagerId.c_str()
              << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
              << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
-             << "&mgm.drainfsid=" << mFsIdSource
+             //             << "&mgm.drainfsid=" << mFsIdSource
              << "&mgm.localprefix=" << fs.mPath.c_str()
              << "&mgm.fsid=" << fs.mId
              << "&mgm.sourcehostport=" << fs.mHostPort.c_str()

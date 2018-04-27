@@ -72,11 +72,11 @@ Drainer::~Drainer()
 //------------------------------------------------------------------------------
 bool
 Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
-                      XrdOucString& err)
+                      XrdOucString& err, bool force)
 {
   uint32_t src_fsid = fs->GetId();
   eos_info("fsid=%d start drain", src_fsid);
-  eos::common::FileSystem::fs_snapshot_t  src_snapshot;
+  eos::common::FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
   // Check that the destination fs, if specified, is in the same space and group
@@ -111,8 +111,13 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
     });
 
     if (it != it_drainfs->second.end()) {
-      err = "error: drain has already started for the given fs";
-      return false;
+      if (force) {
+        (*it)->ForceRetry();
+        return true;
+      } else {
+        err = "error: drain has already started for the given fs";
+        return false;
+      }
     } else {
       // Check if we have reached the max fs per node for this node
       if (it_drainfs->second.size() >= GetSpaceConf(src_snapshot.mSpace)) {

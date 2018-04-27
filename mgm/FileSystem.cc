@@ -185,6 +185,13 @@ FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
     return -1;
   }
 
+  if (((old_status == eos::common::FileSystem::kDrain) &&
+       (new_status == eos::common::FileSystem::kDrainDead)) ||
+      ((old_status == eos::common::FileSystem::kDrain) &&
+       (new_status == eos::common::FileSystem::kDrainDead))) {
+    return 2;
+  }
+
   return 0;
 }
 

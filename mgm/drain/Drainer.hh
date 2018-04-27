@@ -77,11 +77,12 @@ public:
   //! @param fs file system object
   //! @param dst_fsid destination file system, 0 if not chosen
   //! @param err output error message
+  //! @param force if true force restart of the drain job
   //!
   //! @return true if drain started successfully, otherwise false
   //----------------------------------------------------------------------------
   bool StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
-                    XrdOucString& err);
+                    XrdOucString& err, bool force = false);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
