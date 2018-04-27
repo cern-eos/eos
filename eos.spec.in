@@ -646,6 +646,8 @@ The EOS archive daemon.
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %config(noreplace) %{_sysconfdir}/eosarchived.conf
 %{_sysconfdir}/rc.d/init.d/eosarchived
+%{_localstatedir}/log/eos/archive/
+%{_localstatedir}/eos/archive/
 
 %post -n eos-archive
 /sbin/chkconfig --add eosarchived
@@ -656,7 +658,7 @@ sleep 2
 %preun -n eos-archive
 if [ $1 = 0 ]; then
   echo "Stopping EOS archive services"
-  /sbin/service eosarchvied stop > /dev/null 2>&1 || :
+  /sbin/service eosarchived stop > /dev/null 2>&1 || :
   /sbin/chkconfig --del eosarchived
 fi
 %endif
