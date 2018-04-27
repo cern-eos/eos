@@ -2988,7 +2988,6 @@ FuseServer::HandleMD(const std::string& id,
 	  pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
 	}
 
-
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
