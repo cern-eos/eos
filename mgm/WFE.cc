@@ -31,7 +31,6 @@
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"

@@ -306,6 +306,9 @@ public:
                   bool linkPerThread = false,
                   bool retry = true);
 
+  int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+                            const string& ownerGroupName, const string& instanceName);
+
   //----------------------------------------------------------------------------
   //! Function dealing with plugin calls
   //----------------------------------------------------------------------------
@@ -324,7 +327,7 @@ public:
   //----------------------------------------------------------------------------
   //! Allows to switch on error simulation in the OFS stack
   //!
-  //! @param tag type of simulation eroor
+  //! @param tag type of simulation error
   //----------------------------------------------------------------------------
   void SetSimulationError(const char* tag);
 

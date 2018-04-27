@@ -455,6 +455,18 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+        if (!strcmp("protowfendpoint", var)) {
+          if ((val = Config.GetWord())) {
+            eos::fst::Config::gConfig.FstProtoWFEndpoint = val;
+          }
+        }
+
+        if (!strcmp("protowfresource", var)) {
+          if ((val = Config.GetWord())) {
+            eos::fst::Config::gConfig.FstProtoWFResource = val;
+          }
+        }
+
         if (!strcmp("qdbcluster", var)) {
           std::string qdb_cluster;
 
@@ -1550,6 +1562,12 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
   }
 
   return all_done;
+}
+
+int
+XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+                                 const string& ownerGroupName, const string& instanceName) {
+  return 0;
 }
 
 EOSFSTNAMESPACE_END
