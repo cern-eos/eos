@@ -1248,7 +1248,7 @@ categorie="clean"
 # ------------------------------------------------------------------------------
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
+#runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
 ################################################################################
 # show test summary
 testout
