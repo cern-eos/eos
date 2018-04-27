@@ -268,4 +268,26 @@ IFileMDPtr MetadataProvider::processIncomingFileMdProto(id_t id, eos::ns::FileMd
   return item;
 }
 
+//------------------------------------------------------------------------------
+//! Get file cache statistics
+//------------------------------------------------------------------------------
+CacheStatistics MetadataProvider::getFileMDCacheStats() {
+  CacheStatistics stats;
+  stats.enabled = true;
+  stats.occupancy = mFileCache.size();
+  stats.maxSize = mFileCache.get_max_size();
+  return stats;
+}
+
+//------------------------------------------------------------------------------
+//! Get container cache statistics
+//------------------------------------------------------------------------------
+CacheStatistics MetadataProvider::getContainerMDCacheStats() {
+  CacheStatistics stats;
+  stats.enabled = true;
+  stats.occupancy = mContainerCache.size();
+  stats.maxSize = mContainerCache.get_max_size();
+  return stats;
+}
+
 EOSNSNAMESPACE_END

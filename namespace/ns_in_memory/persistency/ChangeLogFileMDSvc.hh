@@ -341,6 +341,14 @@ public:
     return;
   }
 
+  //----------------------------------------------------------------------------
+  //! No caching for in-memory namespace.
+  //----------------------------------------------------------------------------
+  virtual CacheStatistics getCacheStatistics() override
+  {
+    return {};
+  }
+
 private:
   //----------------------------------------------------------------------------
   // Placeholder for the record info

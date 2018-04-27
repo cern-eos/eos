@@ -42,6 +42,7 @@
 #undef protected
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/Misc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "namespace/utils/TestHelpers.hh"
@@ -116,6 +117,12 @@ public:
   {
     return 0;
   }
+
+  virtual eos::CacheStatistics getCacheStatistics()
+  {
+    return {};
+  }
+
 };
 
 //------------------------------------------------------------------------------

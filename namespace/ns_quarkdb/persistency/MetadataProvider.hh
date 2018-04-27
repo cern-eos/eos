@@ -26,6 +26,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
+#include "namespace/interface/Misc.hh"
 #include <qclient/QClient.hh>
 
 #include <folly/futures/Future.h>
@@ -80,6 +81,16 @@ public:
   //! Change container cache size.
   //----------------------------------------------------------------------------
   void setContainerMDCacheSize(uint64_t size);
+
+  //----------------------------------------------------------------------------
+  //! Get file cache statistics
+  //----------------------------------------------------------------------------
+  CacheStatistics getFileMDCacheStats();
+
+  //----------------------------------------------------------------------------
+  //! Get container cache statistics
+  //----------------------------------------------------------------------------
+  CacheStatistics getContainerMDCacheStats();
 
 private:
   //----------------------------------------------------------------------------

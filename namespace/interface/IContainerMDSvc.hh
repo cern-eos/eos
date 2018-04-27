@@ -167,6 +167,11 @@ public:
   //! Get first free container id
   //----------------------------------------------------------------------------
   virtual IContainerMD::id_t getFirstFreeId() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Retrieve file metadata cache statistics
+  //----------------------------------------------------------------------------
+  virtual CacheStatistics getCacheStatistics() = 0;
 };
 
 EOSNSNAMESPACE_END

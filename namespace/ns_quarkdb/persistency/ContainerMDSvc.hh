@@ -186,6 +186,11 @@ public:
   //----------------------------------------------------------------------------
   static void OverrideNumberOfBuckets(uint64_t buckets = 128 * 1024);
 
+  //----------------------------------------------------------------------------
+  //! Retrieve MD cache statistics.
+  //----------------------------------------------------------------------------
+  virtual CacheStatistics getCacheStatistics() override;
+
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 

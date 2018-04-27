@@ -340,4 +340,12 @@ FileMDSvc::ComputeNumberOfFiles()
   mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
 }
 
+//------------------------------------------------------------------------------
+//! Retrieve MD cache statistics.
+//------------------------------------------------------------------------------
+CacheStatistics FileMDSvc::getCacheStatistics()
+{
+  return mMetadataProvider->getFileMDCacheStats();
+}
+
 EOSNSNAMESPACE_END

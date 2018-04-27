@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/MDException.hh"
+#include "namespace/interface/Misc.hh"
 #include <folly/futures/Future.h>
 #include <map>
 #include <string>
@@ -195,6 +196,11 @@ public:
   //! Get first free file id
   //----------------------------------------------------------------------------
   virtual IFileMD::id_t getFirstFreeId() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Retrieve file metadata cache statistics
+  //----------------------------------------------------------------------------
+  virtual CacheStatistics getCacheStatistics() = 0;
 };
 
 EOSNSNAMESPACE_END

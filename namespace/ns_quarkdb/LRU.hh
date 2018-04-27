@@ -124,6 +124,18 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get maximmu cache size
+  //!
+  //! @return maximum cache size
+  //----------------------------------------------------------------------------
+  inline std::uint64_t
+  get_max_size() const
+  {
+    eos::common::RWMutexWriteLock lock_w(mMutex);
+    return mMaxSize;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set max size
   //!
   //! @param max_size new maximum number of entries

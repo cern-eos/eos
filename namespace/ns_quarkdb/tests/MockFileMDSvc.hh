@@ -49,6 +49,7 @@ public:
   MOCK_METHOD1(setContMDService, void(eos::IContainerMDSvc* cont_svc));
   MOCK_METHOD1(visit, void(eos::IFileVisitor* visitor));
   MOCK_METHOD0(getFirstFreeId, eos::IFileMD::id_t());
+  MOCK_METHOD0(getCacheStatistics, eos::CacheStatistics());
 };
 
 EOSNSTESTING_END

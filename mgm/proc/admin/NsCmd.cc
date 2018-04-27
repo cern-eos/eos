@@ -349,6 +349,18 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      current container id             " << cid_now
         << std::endl
         << line << std::endl;
+
+    CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
+    CacheStatistics containerCacheStats = gOFS->eosDirectoryService->getCacheStatistics();
+
+    if(fileCacheStats.enabled || containerCacheStats.enabled) {
+      oss << "ALL      File cache max size              " << fileCacheStats.maxSize << std::endl
+          << "ALL      File cache occupancy             " << fileCacheStats.occupancy << std::endl
+          << "ALL      Container cache max size         " << containerCacheStats.maxSize << std::endl
+          << "ALL      Container cache occupancy        " << containerCacheStats.occupancy << std::endl
+          << line << std::endl;
+    }
+
     // Do them one at a time otherwise sizestring is saved only the first time
     oss << "ALL      memory virtual                   "
         << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)

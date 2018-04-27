@@ -391,4 +391,13 @@ ContainerMDSvc::GetShardMutex(IContainerMD::id_t id)
   return mShardMutexes[id];
 }
 
+//------------------------------------------------------------------------------
+//! Retrieve MD cache statistics.
+//------------------------------------------------------------------------------
+CacheStatistics
+ContainerMDSvc::getCacheStatistics()
+{
+  return pMetadataProvider->getContainerMDCacheStats();
+}
+
 EOSNSNAMESPACE_END
