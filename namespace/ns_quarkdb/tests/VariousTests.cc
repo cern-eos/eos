@@ -137,6 +137,7 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   IContainerMDPtr cont3 = view()->getContainer("/file2", true);
   ASSERT_TRUE(cont3.get() != nullptr);
   ASSERT_EQ(cont1.get(), cont3.get());
+  ASSERT_THROW(view()->getFile("/file2", true), MDException); // it actually points to a container
 
   // Retrieve awesome-file through the symlink.
   IFileMDPtr awesomeFile1 = view()->getFile("/file1/awesome-file", true);
@@ -145,9 +146,10 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
 
   // Retrieve awesome-file through two levels of symlinks.
   // NOTE: The following does currently not work on citrine + old NS.
-  // IFileMDPtr awesomeFile2 = view()->getFile("/file2/awesome-file", true);
-  // ASSERT_TRUE(awesomeFile2.get() != nullptr);
-  // ASSERT_EQ(awesomeFile.get(), awesomeFile2.get());
+  IFileMDPtr awesomeFile2 = view()->getFile("/file2/awesome-file", true);
+  ASSERT_TRUE(awesomeFile2.get() != nullptr);
+  ASSERT_EQ(awesomeFile.get(), awesomeFile2.get());
+  ASSERT_THROW(view()->getContainer("/file2/awesome-file", true), MDException);
 
   // Let's create a symlink loop, composed of four files.
   IFileMDPtr symlinkLoop1 = view()->createFile("/loop1", true);
@@ -174,6 +176,14 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   ASSERT_THROW(view()->getFile("/loop2", true), MDException);
   ASSERT_THROW(view()->getFile("/loop3", true), MDException);
   ASSERT_THROW(view()->getFile("/loop4", true), MDException);
+
+  ASSERT_THROW(view()->getFile("/", true), MDException);
+
+  // But: We should be able to retrieve the loop-files with follow = false.
+  ASSERT_EQ(view()->getFile("/loop1", false), symlinkLoop1);
+  ASSERT_EQ(view()->getFile("/loop2", false), symlinkLoop2);
+  ASSERT_EQ(view()->getFile("/loop3", false), symlinkLoop3);
+  ASSERT_EQ(view()->getFile("/loop4", false), symlinkLoop4);
 
   // Try out the following ridiculous situation:
   //   /folder1/f2   -> /folder2
@@ -213,6 +223,11 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   IFileMDPtr targetFile2 = view()->getFile("/folder1/f2/f3/f4/f1/target-file", true);
   ASSERT_TRUE(targetFile2.get() != nullptr);
   ASSERT_EQ(targetFile1.get(), targetFile2.get());
+
+  IFileMDPtr symlinkFile = view()->getFile("/folder1/f2/f3/f4/f1", false);
+  ASSERT_EQ(view()->getUri(symlinkFile.get()), "/folder4/f1");
+  ASSERT_TRUE(symlinkFile->isLink());
+  ASSERT_EQ(symlinkFile->getLink(), "/folder1");
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {

@@ -112,6 +112,14 @@ void HierarchicalView::finalize()
   pQuotaStats = new QuotaStats();
 }
 
+//------------------------------------------------------------------------
+// Retrieve a file for given uri, asynchronously
+//------------------------------------------------------------------------
+folly::Future<IFileMDPtr> HierarchicalView::getFileFut(const std::string& uri, bool follow)
+{
+  return getFile(uri, follow);
+}
+
 //----------------------------------------------------------------------------
 // Retrieve a file for given uri
 //----------------------------------------------------------------------------

@@ -112,6 +112,11 @@ public:
   virtual void finalize() override;
 
   //------------------------------------------------------------------------
+  //! Retrieve a file for given uri, asynchronously
+  //------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr> getFileFut(const std::string& uri, bool follow = true) override;
+
+  //------------------------------------------------------------------------
   //! Retrieve a file for given uri
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFile(const std::string& uri,

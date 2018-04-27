@@ -37,6 +37,7 @@ EOSNSNAMESPACE_BEGIN
 struct PathLookupState {
 public:
   IContainerMDPtr current;
+  IFileMDPtr file;
   size_t symlinkDepth = 0;
 };
 

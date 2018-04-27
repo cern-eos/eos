@@ -109,6 +109,12 @@ public:
   virtual void finalize() override;
 
   //----------------------------------------------------------------------------
+  //! Retrieve a file for given uri, asynchronously
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IFileMDPtr>
+  getFileFut(const std::string& uri, bool follow = true) override;
+
+  //----------------------------------------------------------------------------
   //! Retrieve a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD>
@@ -271,9 +277,19 @@ private:
       size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
+  //! Lookup file, using the URL.
+  //----------------------------------------------------------------------------
+  folly::Future<PathLookupState> lookupFileURL(const std::string &uri, size_t symlinkDepth, bool follow);
+
+  //----------------------------------------------------------------------------
+  //! Lookup file inside a directory.
+  //----------------------------------------------------------------------------
+  folly::Future<PathLookupState> lookupFile(PathLookupState parent, std::string name, bool follow);
+
+  //----------------------------------------------------------------------------
   //! Lookup symlink, expect to find a directory there.
   //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupSymlink(IFileMDPtr symlink, size_t symlinkDepth);
+  folly::Future<PathLookupState> lookupContainerSymlink(IFileMDPtr symlink, size_t symlinkDepth);
 
   //----------------------------------------------------------------------------
   //! Lookup a subdirectory asynchronously, while following symlinks.

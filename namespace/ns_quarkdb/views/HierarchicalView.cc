@@ -144,67 +144,106 @@ HierarchicalView::finalize()
 }
 
 //------------------------------------------------------------------------------
+// Extract IFileMDPtr out of PathLookupState
+//------------------------------------------------------------------------------
+static IFileMDPtr extractFileMDPtr(PathLookupState state) {
+  return state.file;
+}
+
+//------------------------------------------------------------------------------
+// Retrieve a file for given uri, asynchronously
+//------------------------------------------------------------------------------
+folly::Future<IFileMDPtr>
+HierarchicalView::getFileFut(const std::string& uri, bool follow)
+{
+  return lookupFileURL(uri, 0, follow)
+    .then(extractFileMDPtr);
+}
+
+//----------------------------------------------------------------------------
+//! Lookup file, using the URL.
+//----------------------------------------------------------------------------
+folly::Future<PathLookupState> HierarchicalView::lookupFileURL(const std::string &uri, size_t symlinkDepth, bool follow)
+{
+  //----------------------------------------------------------------------------
+  //! Short-circuit for "/"
+  //----------------------------------------------------------------------------
+  if (uri == "/") {
+    return folly::makeFuture<PathLookupState>(make_mdexception(ENOENT, "/ is not a file"));
+  }
+
+  //----------------------------------------------------------------------------
+  //! Split URL into directories and filename
+  //----------------------------------------------------------------------------
+  std::vector<std::string> chunks;
+  eos::PathProcessor::splitPath(chunks, uri);
+
+  std::string filename = chunks.back();
+  chunks.pop_back();
+
+  //----------------------------------------------------------------------------
+  // We call getContainer with follow set to always true, since the callers
+  // "follow" value pertains only to the last chunk, the filename.
+  //----------------------------------------------------------------------------
+  return lookupContainer(chunks, symlinkDepth, true)
+    .then(std::bind(&HierarchicalView::lookupFile, this, _1, filename, follow));
+}
+
+//------------------------------------------------------------------------------
+//! Lookup file inside a directory.
+//------------------------------------------------------------------------------
+folly::Future<PathLookupState>
+HierarchicalView::lookupFile(PathLookupState parent, std::string name, bool follow)
+{
+  //----------------------------------------------------------------------------
+  // Symlink depth exceeded?
+  //----------------------------------------------------------------------------
+  if(parent.symlinkDepth > 255) {
+      return folly::makeFuture<PathLookupState>(make_mdexception(
+        ELOOP, "Too many symbolic links were encountered in translating the pathname"));
+  }
+
+  //----------------------------------------------------------------------------
+  // Lookup.
+  //----------------------------------------------------------------------------
+  folly::Future<PathLookupState> fut = parent.current->findFileFut(name)
+    .then([this, parent, name, follow](IFileMDPtr result) {
+
+      if(!result) {
+        //----------------------------------------------------------------------
+        // Nope, not found.
+        //----------------------------------------------------------------------
+        return folly::makeFuture<PathLookupState>(make_mdexception(ENOENT, "No such file or directory"));
+      }
+
+      //------------------------------------------------------------------------
+      // Easy case: This is not a symlink, or we're not following symlinks.
+      // Just give back result.
+      //------------------------------------------------------------------------
+      if(!follow || !result->isLink()) {
+        PathLookupState newState;
+        newState.file = result;
+        newState.symlinkDepth = parent.symlinkDepth;
+        return folly::makeFuture<PathLookupState>(std::move(newState));
+      }
+
+      //------------------------------------------------------------------------
+      // We have a symlink to follow.. return a future yet again.
+      //------------------------------------------------------------------------
+      return lookupFileURL(result->getLink(), parent.symlinkDepth+1, true);
+    } );
+
+  return fut;
+}
+
+//------------------------------------------------------------------------------
 // Retrieve a file for given uri
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
 HierarchicalView::getFile(const std::string& uri, bool follow,
                           size_t* link_depths)
 {
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  size_t lLinkDepths = 0;
-
-  if (uri == "/") {
-    MDException e(ENOENT);
-    e.getMessage() << " is not a file";
-    throw e;
-  }
-
-  size_t position;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
-  std::shared_ptr<IContainerMD> cont =
-    findLastContainer(elements, elements.size() - 1, position, link_depths);
-
-  if (position != elements.size() - 1) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container does not exist";
-    throw e;
-  }
-
-  std::shared_ptr<IFileMD> file{cont->findFile(elements[position])};
-
-  if (!file) {
-    MDException e(ENOENT);
-    e.getMessage() << "File " << uri << " does not exist";
-    throw e;
-  } else {
-    if (file->isLink() && follow) {
-      if (link_depths == nullptr) {
-        link_depths = &lLinkDepths;
-      }
-
-      (*link_depths)++;
-
-      if ((*link_depths) > 255) {
-        MDException e(ELOOP);
-        e.getMessage() << "Too many symbolic links were encountered in "
-                       "translating the pathname";
-        throw e;
-      }
-
-      std::string link = file->getLink();
-
-      if (link[0] != '/') {
-        link.insert(0, getUri(cont.get()));
-        eos::PathProcessor::absPath(link);
-      }
-
-      return getFile(link, true, link_depths);
-    }
-  }
-
-  return file;
+  return getFileFut(uri, follow).get();
 }
 
 //------------------------------------------------------------------------------
@@ -502,7 +541,7 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
 //------------------------------------------------------------------------------
 //! Lookup symlink, expect to find a directory there.
 //------------------------------------------------------------------------------
-folly::Future<PathLookupState> HierarchicalView::lookupSymlink(IFileMDPtr symlink, size_t symlinkDepth)
+folly::Future<PathLookupState> HierarchicalView::lookupContainerSymlink(IFileMDPtr symlink, size_t symlinkDepth)
 {
   if(!symlink || !symlink->isLink()) {
     //------------------------------------------------------------------------------
@@ -591,7 +630,7 @@ folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
         }
 
         return parent.current->findFileFut(name)
-          .then(std::bind(&HierarchicalView::lookupSymlink, this, _1, parent.symlinkDepth+1));
+          .then(std::bind(&HierarchicalView::lookupContainerSymlink, this, _1, parent.symlinkDepth+1));
       }
     } );
 
