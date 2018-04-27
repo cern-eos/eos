@@ -65,7 +65,7 @@ WFE::WFE()
   mActiveJobs = 0;
   eos::common::Mapping::Root(mRootVid);
   XrdSysMutexHelper sLock(gSchedulerMutex);
-  gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 10, 500, 100);
+  gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 10, 200, 80);
   gScheduler->Start();
 }
 
