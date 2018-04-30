@@ -76,6 +76,8 @@ public:
                     std::vector<eos::fusex::container>& cont
                    );
 
+  int rmRf(fuse_req_t req, eos::fusex::md* md);
+
   int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
             XrdSysMutex* locker);
   int putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,

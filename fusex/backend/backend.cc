@@ -404,6 +404,50 @@ backend::fetchResponse(std::string& requestURL,
   return 0;
 }
 
+
+int 
+/* -------------------------------------------------------------------------- */
+backend::rmRf(fuse_req_t req, eos::fusex::md* md)
+/* -------------------------------------------------------------------------- */
+{
+  fuse_id id(req);
+  XrdCl::URL url("root://" + hostport);
+  url.SetPath("/proc/user/");
+  XrdCl::URL::ParamsMap query;
+  query["mgm.cmd"] = "rm";
+  query["mgm.option"] = "r";
+  query["mgm.container.id"] = std::to_string(md->md_ino());
+  query["mgm.uuid"] = clientuuid;
+  query["mgm.retc"] = "1";
+  if (req)
+  {
+    query["mgm.cid"] = cap::capx::getclientid(req);
+  }
+  query["eos.app"] = "fuse";
+
+  if (req) 
+  {
+    fusexrdlogin::loginurl(url, query, req, 0);
+  }
+  url.SetParams(query);
+  std::unique_ptr <XrdCl::File> file(new XrdCl::File());
+
+  XrdCl::XRootDStatus status = file->Open(url.GetURL().c_str(),
+					  XrdCl::OpenFlags::Flags::Read);
+  if (status.IsOK())
+    return 0;
+  else
+  {
+    int retc = EIO;
+    if (status.code == XrdCl::errErrorResponse) {
+      return mapErrCode(status.errNo);
+    } else {
+      return EREMOTEIO;
+    }
+  }
+}
+
+
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
