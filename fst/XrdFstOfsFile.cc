@@ -64,7 +64,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   fMd = 0;
   checkSum = 0;
   layOut = 0;
-  isRW = 0;
+  isRW = false;
+  mIsTpcDst = false;
   isCreation = 0;
   commitReconstruction = 0;
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes = sXlBwdBytes = rOffset =
@@ -331,23 +332,27 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Determine the TPC step that we are in
   if (tpc_stage == "placement") {
     mTpcFlag = kTpcSrcCanDo;
+    mIsTpcDst = false;
   } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_dst.length()) {
     mTpcFlag = kTpcSrcSetup;
+    mIsTpcDst = false;
   } else if ((tpc_stage == "copy") && tpc_key.length() && tpc_src.length()) {
     mTpcFlag = kTpcDstSetup;
+    mIsTpcDst = true;
   } else if (tpc_key.length() && tpc_org.length()) {
     // Notice:
     // XRootD does not full follow the TPC specification and it doesn't set the
     // tpc.stage=copy in the TpcSrcRead step. The above condition should be:
     // else if ((tpc_stage == "copy") && tpc_key.length() && tpc_org.length()) {
     mTpcFlag = kTpcSrcRead;
+    mIsTpcDst = false;
   }
 
   if ((mTpcFlag == kTpcSrcSetup) || (mTpcFlag == kTpcDstSetup)) {
     // Create a TPC entry in the TpcMap
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
-    if (gOFS.TpcMap[isRW].count(tpc_key)) {
+    if (gOFS.TpcMap[mIsTpcDst].count(tpc_key)) {
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key replayed", path);
     }
 
@@ -361,14 +366,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     tpc_org += "@";
     tpc_org += origin_host;
     // Store the TPC initialization
-    gOFS.TpcMap[isRW][tpc_key].key = tpc_key;
-    gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
-    gOFS.TpcMap[isRW][tpc_key].src = tpc_src;
-    gOFS.TpcMap[isRW][tpc_key].dst = tpc_dst;
-    gOFS.TpcMap[isRW][tpc_key].path = path;
-    gOFS.TpcMap[isRW][tpc_key].lfn = tpc_lfn;
-    gOFS.TpcMap[isRW][tpc_key].opaque = stringOpaque.c_str();
-    gOFS.TpcMap[isRW][tpc_key].expires = time(NULL) + 60; // one minute that's fine
+    gOFS.TpcMap[mIsTpcDst][tpc_key].key = tpc_key;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].org = tpc_org;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].src = tpc_src;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].dst = tpc_dst;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].path = path;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].lfn = tpc_lfn;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].opaque = stringOpaque.c_str();
+    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(NULL) +
+        60; // one minute that's fine
     TpcKey = tpc_key.c_str();
 
     if (mTpcFlag == kTpcDstSetup) {
@@ -377,12 +383,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
 
       eos_info("msg=\"tpc dst session\" key=%s, org=%s, src=%s path=%s lfn=%s expires=%llu",
-               gOFS.TpcMap[isRW][tpc_key].key.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].org.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].src.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].path.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].lfn.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].expires);
+               gOFS.TpcMap[mIsTpcDst][tpc_key].key.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].src.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].lfn.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
     } else if (mTpcFlag == kTpcSrcSetup) {
       // For a TpcSrcSetup we need to store the decoded capability contents
       XrdOucEnv* saveOpaque = 0;
@@ -396,16 +402,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         return gOFS.Emsg(epname, error, caprc, "open - capability illegal",
                          Path.c_str());
       } else {
-        gOFS.TpcMap[isRW][tpc_key].capability = saveOpaque->Env(envlen);
+        gOFS.TpcMap[mIsTpcDst][tpc_key].capability = saveOpaque->Env(envlen);
         delete saveOpaque;
       }
 
       eos_info("msg=\"tpc src session\" key=%s, org=%s, dst=%s path=%s expires=%llu",
-               gOFS.TpcMap[isRW][tpc_key].key.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].org.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].dst.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].path.c_str(),
-               gOFS.TpcMap[isRW][tpc_key].expires);
+               gOFS.TpcMap[mIsTpcDst][tpc_key].key.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].dst.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
+               gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
     }
   } else if (mTpcFlag == kTpcSrcRead) {
     // Verify a TPC entry in the TpcMap since the destination's open can now
@@ -419,7 +425,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         // Briefly take lock and release it
         XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
-        if (gOFS.TpcMap[isRW].count(tpc_key)) {
+        if (gOFS.TpcMap[mIsTpcDst].count(tpc_key)) {
           exists = true;
           break;
         }
@@ -434,52 +440,53 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
     time_t now = time(NULL);
 
-    if (!gOFS.TpcMap[isRW].count(tpc_key)) {
+    if (!gOFS.TpcMap[mIsTpcDst].count(tpc_key)) {
       eos_err("tpc key=%s not valid", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid", path);
     }
 
-    if (gOFS.TpcMap[isRW][tpc_key].expires < now) {
+    if (gOFS.TpcMap[mIsTpcDst][tpc_key].expires < now) {
       eos_err("tpc key=%s expired", tpc_key.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
     }
 
     // We trust 'sss' anyway and we miss the host name in the 'sss' entity
-    if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)) {
+    if ((sec_protocol != "sss") &&
+        (gOFS.TpcMap[mIsTpcDst][tpc_key].org != tpc_org)) {
       eos_err("tpc origin missmatch tpc_org=%s, cached_org=%s", tpc_org.c_str(),
-              gOFS.TpcMap[isRW][tpc_key].org.c_str());
+              gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str());
       return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
     }
 
     // Grab the open information and expire entry
-    Path = gOFS.TpcMap[isRW][tpc_key].path.c_str();
-    stringOpaque = gOFS.TpcMap[isRW][tpc_key].opaque.c_str();
-    gOFS.TpcMap[isRW][tpc_key].expires = (now - 10);
+    Path = gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str();
+    stringOpaque = gOFS.TpcMap[mIsTpcDst][tpc_key].opaque.c_str();
+    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = (now - 10);
     // Store the provided origin to compare with our local connection
-    // gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
+    // gOFS.TpcMap[mIsTpcDst][tpc_key].org = tpc_org;
     TpcKey = tpc_key.c_str();
     eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
-             gOFS.TpcMap[isRW][tpc_key].key.c_str(),
-             gOFS.TpcMap[isRW][tpc_key].org.c_str(),
-             gOFS.TpcMap[isRW][tpc_key].src.c_str(),
-             gOFS.TpcMap[isRW][tpc_key].path.c_str(),
-             gOFS.TpcMap[isRW][tpc_key].expires);
+             gOFS.TpcMap[mIsTpcDst][tpc_key].key.c_str(),
+             gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str(),
+             gOFS.TpcMap[mIsTpcDst][tpc_key].src.c_str(),
+             gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
+             gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
   }
 
   // Expire keys which are more than one 4 hours expired
   if (mTpcFlag > kTpcNone) {
     time_t now = time(NULL);
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-    auto it = (gOFS.TpcMap[isRW]).begin();
-    auto del = (gOFS.TpcMap[isRW]).begin();
+    auto it = (gOFS.TpcMap[mIsTpcDst]).begin();
+    auto del = (gOFS.TpcMap[mIsTpcDst]).begin();
 
-    while (it != (gOFS.TpcMap[isRW]).end()) {
+    while (it != (gOFS.TpcMap[mIsTpcDst]).end()) {
       del = it;
       it++;
 
       if (now > (del->second.expires + (4 * 3600))) {
         eos_info("msg=\"expire tpc key\" key=%s", del->second.key.c_str());
-        gOFS.TpcMap[isRW].erase(del);
+        gOFS.TpcMap[mIsTpcDst].erase(del);
       }
     }
   }
@@ -511,12 +518,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // Grab the capability contents from the tpc key map
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
-    if (gOFS.TpcMap[isRW][tpc_key].capability.length()) {
+    if (gOFS.TpcMap[mIsTpcDst][tpc_key].capability.length()) {
       if (capOpaque) {
         delete capOpaque;
       }
 
-      capOpaque = new XrdOucEnv(gOFS.TpcMap[isRW][tpc_key].capability.c_str());
+      capOpaque = new XrdOucEnv(gOFS.TpcMap[mIsTpcDst][tpc_key].capability.c_str());
     } else {
       return gOFS.Emsg(epname, error, EINVAL, "open - capability not found "
                        "for tpc key %s", tpc_key.c_str());
@@ -1529,12 +1536,12 @@ XrdFstOfsFile::close()
     {
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
 
-      if (gOFS.TpcMap[isRW].count(TpcKey.c_str())) {
+      if (gOFS.TpcMap[mIsTpcDst].count(TpcKey.c_str())) {
         eos_info("msg=\"remove tpc key\" key=%s", TpcKey.c_str());
-        gOFS.TpcMap[isRW].erase(TpcKey.c_str());
+        gOFS.TpcMap[mIsTpcDst].erase(TpcKey.c_str());
 
         try {
-          gOFS.TpcMap[isRW].resize(0);
+          gOFS.TpcMap[mIsTpcDst].resize(0);
         } catch (const std::length_error& e) {}
       }
     }
@@ -2645,7 +2652,7 @@ XrdFstOfsFile::TpcValid()
 {
   XrdSysMutexHelper scope_lock(gOFS.TpcMapMutex);
 
-  if (TpcKey.length() &&  gOFS.TpcMap[isRW].count(TpcKey.c_str())) {
+  if (TpcKey.length() &&  gOFS.TpcMap[mIsTpcDst].count(TpcKey.c_str())) {
     return true;
   }
 
@@ -2760,14 +2767,14 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
     // Construct the source URL
     src_url = "root://";
-    src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].src;
+    src_url += gOFS.TpcMap[mIsTpcDst][TpcKey.c_str()].src;
     src_url += "/";
-    src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].lfn;
+    src_url += gOFS.TpcMap[mIsTpcDst][TpcKey.c_str()].lfn;
     src_url += "?fst.readahead=true";
     src_cgi = "tpc.key=";
     src_cgi += TpcKey.c_str();
     src_cgi += "&tpc.org=";
-    src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
+    src_cgi += gOFS.TpcMap[mIsTpcDst][TpcKey.c_str()].org;
   }
 
   XrdIo tpcIO(src_url.c_str());

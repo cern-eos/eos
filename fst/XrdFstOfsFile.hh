@@ -378,6 +378,7 @@ protected:
   bool hasWriteError;// indicator for write errros to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
   bool isRW; //! indicator that file is opened for rw
+  bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
   bool isInjection; //! indicator that the opened file is a file injection where the size and checksum must match
