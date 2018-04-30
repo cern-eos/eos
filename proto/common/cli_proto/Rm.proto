@@ -6,4 +6,5 @@ message RmProto {
     bool BypassRecycle = 2;
     uint64 Fileid  = 3;
     string Path = 4;
+    uint64 Containerid  = 5;
 }

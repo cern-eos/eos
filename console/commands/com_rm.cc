@@ -83,14 +83,21 @@ com_rm(char* arg1)
   if (!path.length()) {
     goto com_rm_usage;
   } else {
-    if (Path2FileDenominator(path)) {
+    unsigned long long id;
+    if (Path2FileDenominator(path, id)) {
       in += "&mgm.file.id=";
+      in += std::to_string(id).c_str();
     } else {
-      path = abspath(path.c_str());
-      in += "&mgm.path=";
+      if (Path2ContainerDenominator(path, id)) {
+	in += "&mgm.container.id=";
+	in += std::to_string(id).c_str();
+      } else {
+	path = abspath(path.c_str());
+	in += "&mgm.path=";
+	in += path;
+      }
     }
 
-    in += path;
     in += "&mgm.option=";
     in += option;
     cPath = new eos::common::Path(path.c_str());

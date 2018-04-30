@@ -38,11 +38,16 @@ ProcCommand::Rm()
 {
   XrdOucString spath = "";
   XrdOucString spathid = pOpaque->Get("mgm.file.id");
+  XrdOucString scontainerid = pOpaque->Get("mgm.container.id");
 
   if (spathid.length()) {
-    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "Cannot get fid");
+    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "error: ");
   } else {
-    spath = pOpaque->Get("mgm.path");
+    if (scontainerid.length()) {
+      GetPathFromCid(spath, std::strtoull(scontainerid.c_str(), nullptr, 10), "error: ");
+    } else {
+      spath = pOpaque->Get("mgm.path");
+    }
   }
 
   const char* inpath = spath.c_str();

@@ -105,13 +105,20 @@ RmHelper::ParseCommand(const char* arg) {
   auto id = 0ull;
   if (Path2FileDenominator(path, id)) {
     rm->set_fileid(id);
+    path="";
   } else {
-    path = abspath(path.c_str());
-    rm->set_path(path.c_str());
+    if (Path2ContainerDenominator(path, id)) {
+      rm->set_containerid(id);
+      path="";
+    } else {
+      path = abspath(path.c_str());
+      rm->set_path(path.c_str());
+    }
   }
 
   eos::common::Path cPath(path.c_str());
-  mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
+  if (path.length())
+    mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
 
   return true;
 }
@@ -156,9 +163,9 @@ int com_protorm(char* arg)
 
 void com_rm_help() {
   std::ostringstream oss;
-  oss << "Usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>]"
+  oss << "Usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
       << std::endl
-      << "           -r : remove files recursively"
+      << "           -r : remove files/directories recursively"
       << std::endl
       << "           -F : remove bypassing recycling policies (you have to take the root role to use this flag!)"
       << std::endl;

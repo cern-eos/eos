@@ -1246,6 +1246,38 @@ bool Path2FileDenominator(XrdOucString& input, unsigned long long& id)
 }
 
 //------------------------------------------------------------------------------
+// Extract container id specifier if input is in one of the following formats:
+// cxid:<hex_id> | cid:<dec_id>
+//------------------------------------------------------------------------------
+bool Path2ContainerDenominator(XrdOucString& input)
+{
+  if (RegWrapDenominator(input, "cxid:[a-fA-F0-9]+$")) {
+    std::string temp = std::to_string(strtoull(input.c_str(), 0, 16));
+    input = XrdOucString(temp.c_str());
+    return true;
+  }
+
+  return RegWrapDenominator(input, "cid:[0-9]+$");
+}
+
+//------------------------------------------------------------------------------
+// Extract container id specifier if input is in one of the following formats:
+// cxid:<hex_id> | cid:<dec_id>
+//------------------------------------------------------------------------------
+bool Path2ContainerDenominator(XrdOucString& input, unsigned long long& id)
+{
+  if (RegWrapDenominator(input, "cxid:[a-fA-F0-9]+$")) {
+    id = strtoull(input.c_str(), nullptr, 16);
+    return true;
+  } else if (RegWrapDenominator(input, "cid:[0-9]+$")) {
+    id = strtoull(input.c_str(), nullptr, 10);
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Check if MGM is online and reachable
 //------------------------------------------------------------------------------
 bool CheckMgmOnline(const std::string& uri)

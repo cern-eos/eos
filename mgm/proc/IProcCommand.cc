@@ -365,6 +365,35 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
   }
 }
 
+//------------------------------------------------------------------------------
+// Get a directory full path using the cid information stored in the opaque data
+//------------------------------------------------------------------------------
+void
+IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
+                             const std::string& err_msg)
+{
+  if (path == "") {
+    if (cid == 0ULL) {
+      stdErr += "error: cid unknown!";
+      retc = errno;
+      return;
+    }
+
+    try {
+      std::string temp =
+        gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(cid).get());
+      path = XrdOucString(temp.c_str());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      stdErr = err_msg.c_str();
+      stdErr += e.getMessage().str().c_str();
+      stdErr += "\n";
+      eos_debug("caught exception %d %s\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+}
+
 int
 IProcCommand::IsOperationAllowed(const char* inpath)
 {

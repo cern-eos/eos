@@ -44,8 +44,17 @@ eos::mgm::RmCmd::ProcessRequest()
 
   if (rm.path().empty()) {
     XrdOucString pathOut = "";
-    GetPathFromFid(pathOut, rm.fileid(), "Cannot get fid");
+    if (rm.fileid())
+      GetPathFromFid(pathOut, rm.fileid(), "error: ");
+    if (rm.containerid())
+      GetPathFromCid(pathOut, rm.containerid(), "error: ");
     spath = pathOut.c_str();
+    if (!spath.length())
+    {
+      reply.set_std_err(stdErr.c_str());
+      reply.set_retc(ENOENT);
+      return reply;
+    }
   } else {
     spath = rm.path();
   }

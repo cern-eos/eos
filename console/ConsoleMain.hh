@@ -120,6 +120,28 @@ bool Path2FileDenominator(XrdOucString& path);
 bool Path2FileDenominator(XrdOucString& path, unsigned long long& id);
 
 //------------------------------------------------------------------------------
+//! Extract container id specifier if input is in one of the following formats:
+//! cxid:<hex_id> | cid:<dec_id>
+//!
+//! @param input input following the above format or an actual path
+//!
+//! @return true if path is given as a file id specifier, otherwise false
+//------------------------------------------------------------------------------
+bool Path2ContainerDenominator(XrdOucString& path);
+
+//------------------------------------------------------------------------------
+//! Extract container id specifier if input is in one of the following formats:
+//! cxid:<hex_id> | cid:<dec_id>
+//!
+//! @param input input following the above format or an actual path
+//!
+//! @param id result with the extracted id
+//!
+//! @return true if path is given as a file id specifier, otherwise false
+//------------------------------------------------------------------------------
+bool Path2ContainerDenominator(XrdOucString& path, unsigned long long& id);
+
+//------------------------------------------------------------------------------
 //! Check if MGM is online and reachable
 //!
 //! @url uri where to connect to the MGM

@@ -192,6 +192,17 @@ protected:
                       const std::string& err_msg);
 
   //----------------------------------------------------------------------------
+  //! Get a containers's full path using the cid information stored in the opaque
+  //! data.
+  //!
+  //! @param path full path of the container
+  //! @param opaque request opaque information
+  //! @param err_msg error message to be displayed in case of exception
+  //----------------------------------------------------------------------------
+  void GetPathFromCid(XrdOucString& path, unsigned long long cid,
+                      const std::string& err_msg);
+
+  //----------------------------------------------------------------------------
   //! Format console reply as json output
   //!
   //! @param reply console command reply object
