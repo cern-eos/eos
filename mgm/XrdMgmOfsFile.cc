@@ -49,7 +49,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "Constants.hh"
+#include "common/Constants.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70

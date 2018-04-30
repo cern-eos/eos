@@ -47,8 +47,8 @@ public:
   XrdOucString FstHostPort; // <host>:<port>
   XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
-  XrdOucString FstProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)
-  XrdOucString FstProtoWFResource; //  proto wf resource (typically CTA frontend)
+  std::string ProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)
+  std::string ProtoWFResource; //  proto wf resource (typically CTA frontend)
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
   XrdOucString KeyTabAdler; // adler string of the keytab file

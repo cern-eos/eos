@@ -26,7 +26,7 @@
 #include "common/LayoutId.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
-#include "mgm/Constants.hh"
+#include "common/Constants.hh"
 #include "mgm/Quota.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
@@ -2181,7 +2181,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
-    eos_static_info("SSI Protobuf time for %s = %ld", jobPtr->mActions[0].mEvent.c_str(),timeSpent.count());
+    eos_static_info("SSI Protobuf time for %s = %ld", jobPtr->mActions[0].mEvent.c_str(), timeSpent.count());
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
@@ -2190,7 +2190,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
   errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
   errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
   errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
@@ -2286,6 +2286,30 @@ WFE::Job::MoveWithResults(int rcode, std::string fromQueue) {
     Move(fromQueue, "f", storetime);
     Results("f", rcode , "moved to failed", storetime);
   }
+}
+
+std::string
+WFE::GetGroupName(gid_t gid) {
+  int errc = 0;
+  auto group_name  = Mapping::GidToGroupName(gid, errc);
+
+  if (errc) {
+    group_name = "nobody";
+  }
+
+  return group_name;
+}
+
+std::string
+WFE::GetUserName(uid_t uid) {
+  int errc = 0;
+  auto user_name  = Mapping::UidToUserName(uid, errc);
+
+  if (errc) {
+    user_name = "nobody";
+  }
+
+  return user_name;
 }
 
 /*----------------------------------------------------------------------------*/

@@ -305,6 +305,10 @@ public:
     return mActiveJobs.load();
   }
 
+  static std::string GetUserName(uid_t uid);
+
+  static std::string GetGroupName(gid_t gid);
+
   /// the scheduler class is providing a destructor-less object,
   /// so we have to create once a singleton of this and keep/share it
   static XrdSysMutex gSchedulerMutex;

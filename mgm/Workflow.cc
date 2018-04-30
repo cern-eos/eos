@@ -28,7 +28,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/WFE.hh"
 #include "mgm/FsView.hh"
-#include "mgm/Constants.hh"
+#include "common/Constants.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -121,6 +121,10 @@ Workflow::getCGICloseW(std::string workflow)
   if (mAttr && (*mAttr).count(syncKey)) {
     cgi = "&mgm.event=sync::closew&mgm.workflow=";
     cgi += workflow;
+    cgi += "&mgm.instance=";
+    cgi += gOFS->MgmOfsInstanceName.c_str();
+    cgi += "&mgm.owner=";
+    cgi += "&mgm.ownergroup=";
   } else if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=closew&mgm.workflow=";
     cgi += workflow;

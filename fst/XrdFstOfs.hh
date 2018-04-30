@@ -307,7 +307,8 @@ public:
                   bool retry = true);
 
   int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
-                            const string& ownerGroupName, const string& instanceName);
+                            const string& ownerGroupName, const string& instanceName,
+                            const string& fullPath, const std::map<std::string, std::string>& xattrs);
 
   //----------------------------------------------------------------------------
   //! Function dealing with plugin calls

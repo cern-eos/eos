@@ -26,7 +26,7 @@
 #include "StagerRmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Acl.hh"
-#include "mgm/Constants.hh"
+#include "common/Constants.hh"
 #include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN

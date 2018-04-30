@@ -36,6 +36,10 @@
 #include "common/Statfs.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
+#include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
+#include "common/Constants.hh"
+#include "common/StringConversion.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -457,13 +461,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
         if (!strcmp("protowfendpoint", var)) {
           if ((val = Config.GetWord())) {
-            eos::fst::Config::gConfig.FstProtoWFEndpoint = val;
+            eos::fst::Config::gConfig.ProtoWFEndpoint = val;
           }
         }
 
         if (!strcmp("protowfresource", var)) {
           if ((val = Config.GetWord())) {
-            eos::fst::Config::gConfig.FstProtoWFResource = val;
+            eos::fst::Config::gConfig.ProtoWFResource = val;
           }
         }
 
@@ -1566,8 +1570,118 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
 
 int
 XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
-                                 const string& ownerGroupName, const string& instanceName) {
-  return 0;
+                                 const string& ownerGroupName, const string& instanceName,
+                                 const string& fullPath, const std::map<std::string, std::string>& xattrs) {
+  cta::xrd::Request request;
+  auto notification = request.mutable_notification();
+  notification->mutable_file()->mutable_owner()->set_username(ownerName);
+  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName);
+
+  notification->mutable_file()->set_size(fmd.size());
+  notification->mutable_file()->mutable_cks()->set_type(
+    eos::common::LayoutId::GetChecksumString(fmd.lid()));
+
+  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum());
+
+  notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
+  notification->mutable_wf()->mutable_instance()->set_name(instanceName);
+  notification->mutable_file()->set_lpath(fullPath);
+  notification->mutable_file()->set_fid(fmd.fid());
+
+  std::string managerName;
+  {
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    managerName = Config::gConfig.Manager.c_str();
+  }
+
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
+  std::ostringstream srcStream;
+  srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
+            << fxidString;
+  notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
+
+  std::ostringstream reportStream;
+  reportStream << "eosQuery://" << managerName
+               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+               << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+  notification->mutable_transport()->set_report_url(reportStream.str());
+
+  std::ostringstream errorReportStream;
+  errorReportStream << "eosQuery://" << managerName
+                    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+  notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+
+  for (const auto& attrPair : xattrs)
+  {
+    google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
+                                                             attrPair.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+  }
+
+  // Communication with service
+  std::string endPoint;
+  std::string resource;
+  {
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    endPoint = Config::gConfig.ProtoWFEndpoint;
+    resource = Config::gConfig.ProtoWFResource;
+  }
+
+  if (endPoint.empty() || resource.empty()) {
+    eos_static_err(
+      "You are running proto wf jobs without specifying fstofs.protowfendpoint or fstofs.protowfresource in the FST config file."
+    );
+    return ENOTCONN;
+  }
+
+  XrdSsiPb::Config config;
+  if(getenv("XRDDEBUG")) {
+    config.set("log", "all");
+  } else {
+    config.set("log", "info");
+  }
+  config.set("request_timeout", "120");
+  // Instantiate service object only once, static is also thread-safe
+  static XrdSsiPbServiceType service(endPoint, resource, config);
+
+  cta::xrd::Response response;
+
+  try {
+    auto sentAt = std::chrono::steady_clock::now();
+
+    auto future = service.Send(request, response);
+    future.get();
+
+    auto receivedAt = std::chrono::steady_clock::now();
+    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
+    eos_static_info("SSI Protobuf time for sync::closew = %ld", timeSpent.count());
+  } catch (std::runtime_error& error) {
+    eos_static_err("Could not send request to outside service. Reason: %s",
+                   error.what());
+    return ENOTCONN;
+  }
+
+  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
+  errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
+  errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
+  errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
+
+  switch (response.type()) {
+    case cta::xrd::Response::RSP_SUCCESS: return SFS_OK;
+
+    case cta::xrd::Response::RSP_ERR_CTA:
+    case cta::xrd::Response::RSP_ERR_USER:
+    case cta::xrd::Response::RSP_ERR_PROTOBUF:
+    case cta::xrd::Response::RSP_INVALID:
+      eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], fullPath.c_str(), response.message_txt().c_str());
+      return EPROTO;
+
+    default:
+      eos_static_err("Response:\n%s", response.DebugString().c_str());
+      return EPROTO;
+  }
 }
 
 EOSFSTNAMESPACE_END
