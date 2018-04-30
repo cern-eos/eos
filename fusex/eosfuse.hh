@@ -220,6 +220,7 @@ public:
       int global_locking;
       uint64_t fdlimit;
       int rm_rf_protect_levels;
+      int rm_rf_bulk;
       int show_tree_size;
       int free_md_asap;
       int cpu_core_affinity;
