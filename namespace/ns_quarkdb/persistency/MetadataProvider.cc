@@ -40,7 +40,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 MetadataProvider::MetadataProvider(qclient::QClient &qcl,
   IContainerMDSvc *contsvc, IFileMDSvc *filesvc)
-: mQcl(qcl), mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(1e7), mFileCache(1e8) {
+: mQcl(qcl), mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7) {
 
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
 }
