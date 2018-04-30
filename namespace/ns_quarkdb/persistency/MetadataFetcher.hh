@@ -23,6 +23,8 @@
 
 #pragma once
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include "namespace/Namespace.hh"
 #include "proto/FileMd.pb.h"
 #include "proto/ContainerMd.pb.h"
@@ -52,7 +54,7 @@ public:
   //! @return future holding the file metadata object
   //----------------------------------------------------------------------------
   static folly::Future<eos::ns::FileMdProto>
-  getFileFromId(qclient::QClient& qcl, id_t id);
+  getFileFromId(qclient::QClient& qcl, IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Fetch container metadata info for current id
@@ -63,7 +65,7 @@ public:
   //! @return future holding the container metadata object
   //----------------------------------------------------------------------------
   static folly::Future<eos::ns::ContainerMdProto>
-  getContainerFromId(qclient::QClient& qcl, id_t id);
+  getContainerFromId(qclient::QClient& qcl, IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Fetch file map for a container id
@@ -74,7 +76,7 @@ public:
   //! @return future the map of files
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::FileMap>
-  getFilesInContainer(qclient::QClient& qcl, id_t container);
+  getFilesInContainer(qclient::QClient& qcl, IContainerMD::id_t container);
 
   //----------------------------------------------------------------------------
   //! Fetch subcontainers map for a container id
@@ -85,7 +87,7 @@ public:
   //! @return future the map of subcontainers
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::ContainerMap>
-  getSubContainers(qclient::QClient& qcl, id_t container);
+  getSubContainers(qclient::QClient& qcl, IContainerMD::id_t container);
 
   //----------------------------------------------------------------------------
   //! Fetch a file id given its parent and its name
@@ -96,8 +98,8 @@ public:
   //!
   //! @return future holding the id of the file
   //----------------------------------------------------------------------------
-  static folly::Future<id_t>
-  getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
+  static folly::Future<IFileMD::id_t>
+  getFileIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
                     const std::string& name);
 
   //----------------------------------------------------------------------------
@@ -110,7 +112,7 @@ public:
   //! @return future holding the id of the subcontainer
   //----------------------------------------------------------------------------
   static folly::Future<id_t>
-  getContainerIDFromName(qclient::QClient& qcl, id_t parent_id,
+  getContainerIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
                          const std::string& name);
 
 private:
@@ -121,7 +123,7 @@ private:
   //!
   //! @return string representing the key
   //----------------------------------------------------------------------------
-  static std::string keySubContainers(id_t id);
+  static std::string keySubContainers(IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Construct hmap key of files in container
@@ -130,7 +132,7 @@ private:
   //!
   //! @return string representing the key
   //----------------------------------------------------------------------------
-  static std::string keySubFiles(id_t id);
+  static std::string keySubFiles(IContainerMD::id_t id);
 };
 
 EOSNSNAMESPACE_END

@@ -32,7 +32,7 @@ namespace eos
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
+FileMD::FileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
   IFileMD(),
   pId(id),
   pSize(0),

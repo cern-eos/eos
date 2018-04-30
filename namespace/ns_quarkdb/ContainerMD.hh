@@ -46,7 +46,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Constructor used for testing and dump command
@@ -132,7 +132,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  inline id_t
+  inline IContainerMD::id_t
   getId() const override
   {
     std::lock_guard<std::recursive_mutex> lock(mMutex);
@@ -142,7 +142,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
-  inline id_t
+  inline IContainerMD::id_t
   getParentId() const override
   {
     std::lock_guard<std::recursive_mutex> lock(mMutex);
@@ -153,7 +153,7 @@ public:
   //! Set parent id
   //----------------------------------------------------------------------------
   void
-  setParentId(id_t parentId) override
+  setParentId(IContainerMD::id_t parentId) override
   {
     std::lock_guard<std::recursive_mutex> lock(mMutex);
     mCont.set_parent_id(parentId);

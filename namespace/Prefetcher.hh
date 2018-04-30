@@ -42,12 +42,12 @@ public:
   //----------------------------------------------------------------------------
   //! Declare an intent to access FileMD with the given id soon
   //----------------------------------------------------------------------------
-  void stageFileMD(id_t id);
+  void stageFileMD(IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Declare an intent to access ContainerMD with the given id soon
   //----------------------------------------------------------------------------
-  void stageContainerMD(id_t id);
+  void stageContainerMD(IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Wait until all staged requests have been loaded in cache.

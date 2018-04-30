@@ -32,7 +32,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
+ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc):
   IContainerMD(), pId(id), pParentId(0), pFlags(0), pName(""), pCUid(0),
   pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),

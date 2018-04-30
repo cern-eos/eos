@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include <functional>
+#include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
@@ -65,7 +66,7 @@ MDStatus ensureStringReply(redisReplyPtr& reply)
 //! Struct MapFetcherFileTrait
 //------------------------------------------------------------------------------
 struct MapFetcherFileTrait {
-  static std::string getKey(id_t id)
+  static std::string getKey(IContainerMD::id_t id)
   {
     return SSTR(id << constants::sMapFilesSuffix);
   }
@@ -77,7 +78,7 @@ struct MapFetcherFileTrait {
 //! Struct MapFetcherContainerTrait
 //------------------------------------------------------------------------------
 struct MapFetcherContainerTrait {
-  static std::string getKey(id_t id)
+  static std::string getKey(IFileMD::id_t id)
   {
     return SSTR(id << constants::sMapDirsSuffix);
   }
@@ -107,7 +108,7 @@ public:
   //! @param qcl qclient object
   //! @param trg target container id
   //----------------------------------------------------------------------------
-  folly::Future<ContainerType> initialize(qclient::QClient& qcl, id_t trg)
+  folly::Future<ContainerType> initialize(qclient::QClient& qcl, IContainerMD::id_t trg)
   {
     mQcl = &qcl;
     mTarget = trg;
@@ -209,7 +210,7 @@ private:
   }
 
   qclient::QClient* mQcl;
-  id_t mTarget;
+  IContainerMD::id_t mTarget;
   ContainerType mContents;
   folly::Promise<ContainerType> mPromise;
 };
@@ -217,7 +218,7 @@ private:
 //------------------------------------------------------------------------------
 // Parse FileMDProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, id_t id) {
+static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, IFileMD::id_t id) {
   ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching FileMD #" << id << " protobuf from QDB: "));
 
   eos::ns::FileMdProto proto;
@@ -231,7 +232,7 @@ static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, id_t i
 // Fetch file metadata info for current id
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::FileMdProto>
-MetadataFetcher::getFileFromId(qclient::QClient& qcl, id_t id)
+MetadataFetcher::getFileFromId(qclient::QClient& qcl, IFileMD::id_t id)
 {
   return qcl.follyExec("HGET", FileMDSvc::getBucketKey(id), SSTR(id))
     .then(std::bind(parseFileMdProtoResponse, _1, id));
@@ -240,7 +241,7 @@ MetadataFetcher::getFileFromId(qclient::QClient& qcl, id_t id)
 //------------------------------------------------------------------------------
 // Parse ContainerMdProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr reply, id_t id) {
+static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr reply, IContainerMD::id_t id) {
   ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching ContainerMD #" << id << " protobuf from QDB: "));
 
   eos::ns::ContainerMdProto proto;
@@ -254,7 +255,7 @@ static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr rep
 // Fetch container metadata info for current id
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::ContainerMdProto>
-MetadataFetcher::getContainerFromId(qclient::QClient& qcl, id_t id)
+MetadataFetcher::getContainerFromId(qclient::QClient& qcl, IContainerMD::id_t id)
 {
   return qcl.follyExec("HGET", ContainerMDSvc::getBucketKey(id), SSTR(id))
     .then(std::bind(parseContainerMdProtoResponse, _1, id));
@@ -267,7 +268,7 @@ MetadataFetcher::getContainerFromId(qclient::QClient& qcl, id_t id)
 //------------------------------------------------------------------------------
 // Construct hmap key of subcontainers in container
 //------------------------------------------------------------------------------
-std::string MetadataFetcher::keySubContainers(id_t id)
+std::string MetadataFetcher::keySubContainers(IContainerMD::id_t id)
 {
   return SSTR(id << constants::sMapDirsSuffix);
 }
@@ -275,7 +276,7 @@ std::string MetadataFetcher::keySubContainers(id_t id)
 //------------------------------------------------------------------------------
 // Construct hmap key of files in container
 //------------------------------------------------------------------------------
-std::string MetadataFetcher::keySubFiles(id_t id)
+std::string MetadataFetcher::keySubFiles(IContainerMD::id_t id)
 {
   return SSTR(id << constants::sMapFilesSuffix);
 }
@@ -284,7 +285,7 @@ std::string MetadataFetcher::keySubFiles(id_t id)
 // Fetch all files for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::FileMap>
-MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, id_t container)
+MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, IContainerMD::id_t container)
 {
   MapFetcher<MapFetcherFileTrait>* fetcher = new
   MapFetcher<MapFetcherFileTrait>();
@@ -295,7 +296,7 @@ MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, id_t container)
 // Fetch all subcontaniers for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>
-MetadataFetcher::getSubContainers(qclient::QClient& qcl, id_t container)
+MetadataFetcher::getSubContainers(qclient::QClient& qcl, IContainerMD::id_t container)
 {
   MapFetcher<MapFetcherContainerTrait>* fetcher =
     new MapFetcher<MapFetcherContainerTrait>();
@@ -305,8 +306,8 @@ MetadataFetcher::getSubContainers(qclient::QClient& qcl, id_t container)
 //------------------------------------------------------------------------------
 // Parse response when looking up a ContainerID / FileID from (parent id, name)
 //------------------------------------------------------------------------------
-static id_t parseIDFromNameResponse(redisReplyPtr reply,
-  id_t parentID, const std::string &name) {
+static IFileMD::id_t parseIDFromNameResponse(redisReplyPtr reply,
+  IContainerMD::id_t parentID, const std::string &name) {
 
   std::string errorPrefix = SSTR("Error while fetching FileID / ContainerID out of (parent id, name) = "
     "(" << parentID << ", " << name << "): ");
@@ -323,8 +324,8 @@ static id_t parseIDFromNameResponse(redisReplyPtr reply,
 //------------------------------------------------------------------------------
 // Fetch a file id given its parent and its name
 //------------------------------------------------------------------------------
-folly::Future<id_t>
-MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
+folly::Future<IFileMD::id_t>
+MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
                                    const std::string& name)
 {
   return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapFilesSuffix), name)
@@ -335,7 +336,7 @@ MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, id_t parent_id,
 // Fetch a container id given its parent and its name
 //------------------------------------------------------------------------------
 folly::Future<id_t>
-MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, id_t parent_id,
+MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
                                         const std::string& name)
 {
   return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapDirsSuffix), name)

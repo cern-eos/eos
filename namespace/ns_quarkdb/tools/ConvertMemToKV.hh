@@ -148,7 +148,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConvertFileMD(id_t id, IFileMDSvc* fileMDSvc);
+  ConvertFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -180,7 +180,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConvertContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ConvertContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Destructor

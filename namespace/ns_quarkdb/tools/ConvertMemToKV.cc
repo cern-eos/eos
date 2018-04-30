@@ -46,7 +46,7 @@ std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConvertFileMD::ConvertFileMD(id_t id, IFileMDSvc* fileMDSvc):
+ConvertFileMD::ConvertFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
   eos::FileMD(id, fileMDSvc)
 {}
 
@@ -123,7 +123,7 @@ ConvertFileMD::serializeToStr(std::string& buffer)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConvertContainerMD::ConvertContainerMD(id_t id, IFileMDSvc* file_svc,
+ConvertContainerMD::ConvertContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
                                        IContainerMDSvc* cont_svc)
   : eos::ContainerMD(id, file_svc, cont_svc)
 {

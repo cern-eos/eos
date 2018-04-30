@@ -40,7 +40,7 @@ Prefetcher::Prefetcher(IView *view) {
 //------------------------------------------------------------------------------
 // Declare an intent to access FileMD with the given id soon
 //------------------------------------------------------------------------------
-void Prefetcher::stageFileMD(id_t id) {
+void Prefetcher::stageFileMD(IFileMD::id_t id) {
   if(pView->inMemory()) return;
   mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
 }
@@ -48,7 +48,7 @@ void Prefetcher::stageFileMD(id_t id) {
 //------------------------------------------------------------------------------
 // Declare an intent to access ContainerMD with the given id soon
 //------------------------------------------------------------------------------
-void Prefetcher::stageContainerMD(id_t id) {
+void Prefetcher::stageContainerMD(IContainerMD::id_t id) {
   if(pView->inMemory()) return;
   mContainerMDs.emplace_back(pContainerMDSvc->getContainerMDFut(id));
 }

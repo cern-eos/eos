@@ -130,13 +130,13 @@ void
 FileMDSvc::SafetyCheck()
 {
   std::string blob;
-  id_t free_id = getFirstFreeId();
+  IFileMD::id_t free_id = getFirstFreeId();
   std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
                                   100000, 150199, 200001, 1000002, 2000123
                                  };
 
   for (auto incr : offsets) {
-    id_t check_id = free_id + incr;
+    IFileMD::id_t check_id = free_id + incr;
 
     try {
       std::string sid = stringify(check_id);

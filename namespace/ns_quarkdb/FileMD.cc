@@ -39,7 +39,7 @@ FileMD::FileMD()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
+FileMD::FileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
   pFileMDSvc(fileMDSvc), mClock(1)
 {
   std::lock_guard<std::recursive_mutex> lock(mMutex);

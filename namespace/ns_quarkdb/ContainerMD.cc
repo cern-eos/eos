@@ -36,7 +36,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
+ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
   : IContainerMD(),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),

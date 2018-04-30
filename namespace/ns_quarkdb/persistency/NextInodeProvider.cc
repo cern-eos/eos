@@ -18,6 +18,7 @@
 
 #include "common/Logging.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "qclient/QHash.hh"
 #include <memory>
 #include <numeric>
@@ -40,7 +41,7 @@ int64_t NextInodeProvider::getFirstFreeId()
   std::lock_guard<std::mutex> lock(mMtx);
 
   if (mBlockEnd < mNextId) {
-    id_t id = 0;
+    IFileMD::id_t id = 0;
     std::string sval = pHash->hget(pField);
 
     if (!sval.empty()) {

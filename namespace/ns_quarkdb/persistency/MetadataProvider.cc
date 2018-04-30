@@ -48,7 +48,7 @@ MetadataProvider::MetadataProvider(qclient::QClient &qcl,
 //------------------------------------------------------------------------------
 // Retrieve ContainerMD by ID.
 //------------------------------------------------------------------------------
-folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(id_t id) {
+folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(IContainerMD::id_t id) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
@@ -107,7 +107,7 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(id_t id) {
 //------------------------------------------------------------------------------
 // Retrieve FileMD by ID.
 //------------------------------------------------------------------------------
-folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(id_t id) {
+folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(IFileMD::id_t id) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
@@ -161,7 +161,7 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(id_t id) {
 //------------------------------------------------------------------------------
 // Insert newly created item into the cache.
 //------------------------------------------------------------------------------
-void MetadataProvider::insertFileMD(id_t id, IFileMDPtr item) {
+void MetadataProvider::insertFileMD(IFileMD::id_t id, IFileMDPtr item) {
   std::lock_guard<std::mutex> lock(mMutex);
   mFileCache.put(id, item);
 }
@@ -169,7 +169,7 @@ void MetadataProvider::insertFileMD(id_t id, IFileMDPtr item) {
 //----------------------------------------------------------------------------
 //! Insert newly created item into the cache.
 //----------------------------------------------------------------------------
-void MetadataProvider::insertContainerMD(id_t id, IContainerMDPtr item) {
+void MetadataProvider::insertContainerMD(IContainerMD::id_t id, IContainerMDPtr item) {
   std::lock_guard<std::mutex> lock(mMutex);
   mContainerCache.put(id, item);
 }
@@ -194,7 +194,7 @@ void MetadataProvider::setContainerMDCacheSize(uint64_t size) {
 // Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
 // ContainerMDPtr, and insert into the cache.
 //------------------------------------------------------------------------------
-IContainerMDPtr MetadataProvider::processIncomingContainerMD(id_t id,
+IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t id,
     std::tuple<
       eos::ns::ContainerMdProto,
       IContainerMD::FileMap,
@@ -241,7 +241,7 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(id_t id,
 // Turn an incoming FileMDProto into FileMD, removing from the inFlight
 // staging area, and inserting into the cache.
 //------------------------------------------------------------------------------
-IFileMDPtr MetadataProvider::processIncomingFileMdProto(id_t id, eos::ns::FileMdProto proto) {
+IFileMDPtr MetadataProvider::processIncomingFileMdProto(IFileMD::id_t id, eos::ns::FileMdProto proto) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------

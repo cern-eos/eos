@@ -60,8 +60,8 @@ struct NamespaceItem {
 class SearchNode
 {
 public:
-  SearchNode(qclient::QClient& qcl, id_t id, SearchNode* prnt);
-  inline id_t getID() const
+  SearchNode(qclient::QClient& qcl, IContainerMD::id_t id, SearchNode* prnt);
+  inline IContainerMD::id_t getID() const
   {
     return id;
   }
@@ -96,7 +96,7 @@ public:
   eos::ns::ContainerMdProto& getContainerInfo();
 
 private:
-  id_t id;
+  IContainerMD::id_t id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
   bool visited = false;

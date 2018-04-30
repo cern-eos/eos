@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SearchNode::SearchNode(qclient::QClient& qcli, id_t d, eos::SearchNode* prnt)
+SearchNode::SearchNode(qclient::QClient& qcli, IContainerMD::id_t d, eos::SearchNode* prnt)
   : id(d), qcl(qcli), parent(prnt),
     containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
@@ -67,7 +67,7 @@ void SearchNode::stageFileMds()
   pendingFileMdsLoaded = true;
   // fileMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
-  std::map<std::string, id_t> sortedFileMap;
+  std::map<std::string, IFileMD::id_t> sortedFileMap;
 
   for (auto it = fileMap->begin(); it != fileMap->end(); it++) {
     sortedFileMap[it->first] = it->second;
@@ -126,7 +126,7 @@ void SearchNode::stageChildren()
   childrenLoaded = true;
   // containerMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
-  std::map<std::string, id_t, FilesystemEntryComparator> sortedContainerMap;
+  std::map<std::string, IContainerMD::id_t, FilesystemEntryComparator> sortedContainerMap;
 
   for (auto it = containerMap->begin(); it != containerMap->end(); it++) {
     sortedContainerMap[it->first] = it->second;
@@ -185,9 +185,9 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
   for (size_t i = 0; i < pathParts.size(); i++) {
     // We don't know if the last chunk of pathParts is supposed to be a container
     // or name..
-    id_t parentID = staticPath.back().id();
+    IContainerMD::id_t parentID = staticPath.back().id();
     bool threw = false;
-    id_t nextId = -1;
+    IContainerMD::id_t nextId = -1;
 
     try {
       nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID,
@@ -209,7 +209,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
       if (exc.getErrno() == ENOENT) {
         // This may throw again, propagate to caller if so
-        id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
+        IFileMD::id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
                       pathParts[i]).get();
         lastChunk = MetadataFetcher::getFileFromId(qcl, nextId).get();
         searchOnFile = true;

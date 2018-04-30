@@ -65,10 +65,10 @@ public:
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
   typedef google::dense_hash_map <
-  std::string, id_t,
+  std::string, IContainerMD::id_t,
       Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > ContainerMap;
   typedef google::dense_hash_map <
-  std::string, id_t,
+  std::string, IContainerMD::id_t,
       Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > FileMap;
 
   //----------------------------------------------------------------------------
@@ -159,17 +159,17 @@ public:
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  virtual id_t getId() const = 0;
+  virtual IContainerMD::id_t getId() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
-  virtual id_t getParentId() const = 0;
+  virtual IContainerMD::id_t getParentId() const = 0;
 
   //----------------------------------------------------------------------------
   //! Set parent id
   //----------------------------------------------------------------------------
-  virtual void setParentId(id_t parentId) = 0;
+  virtual void setParentId(IContainerMD::id_t parentId) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the flags

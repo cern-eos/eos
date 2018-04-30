@@ -86,7 +86,7 @@ public:
   //! @param file_svc file metadata service
   //! @param cont_svc container metadata service
   //----------------------------------------------------------------------------
-  ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -174,7 +174,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  id_t getId() const override
+  ContainerMD::id_t getId() const override
   {
     return pId;
   }
@@ -182,7 +182,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
-  id_t getParentId() const override
+  ContainerMD::id_t getParentId() const override
   {
     return pParentId;
   }
@@ -190,7 +190,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set parent id
   //----------------------------------------------------------------------------
-  void setParentId(id_t parentId) override
+  void setParentId(ContainerMD::id_t parentId) override
   {
     pParentId = parentId;
   }
@@ -567,16 +567,16 @@ public:
   }
 
 protected:
-  id_t         pId;
-  id_t         pParentId;
-  uint16_t     pFlags;
-  ctime_t      pCTime;
-  std::string  pName;
-  uid_t        pCUid;
-  gid_t        pCGid;
-  mode_t       pMode;
-  uint16_t     pACLId;
-  XAttrMap     pXAttrs;
+  ContainerMD::id_t   pId;
+  ContainerMD::id_t   pParentId;
+  uint16_t            pFlags;
+  ctime_t             pCTime;
+  std::string         pName;
+  uid_t               pCUid;
+  gid_t               pCGid;
+  mode_t              pMode;
+  uint16_t            pACLId;
+  XAttrMap            pXAttrs;
 
 #if __GNUC_PREREQ(4,8)
   // Atomic (thread-safe) types
