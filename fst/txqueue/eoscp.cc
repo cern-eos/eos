@@ -1588,9 +1588,9 @@ main(int argc, char* argv[])
         xrdcl_flags = XrdCl::OpenFlags::Update;
 
         if ((location.find("?") == std::string::npos)) {
-          location += "?fst.store=1";
+          location += "?eos.rain.store=1";
         } else {
-          location += "&fst.store=1";
+          location += "&eos.rain.store=1";
         }
       }
 

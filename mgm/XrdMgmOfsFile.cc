@@ -330,9 +330,7 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   {
-    // -------------------------------------------------------------------------
-    // discover PIO reconstruction filesystems (stripes to be replaced)
-    // -------------------------------------------------------------------------
+    // Discover PIO reconstruction filesystems (stripes to be replaced)
     std::string sPioRecoverFs = (openOpaque) ?
                                 (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
                                 : "";
@@ -340,10 +338,6 @@ XrdMgmOfsFile::open(const char* inpath,
     eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
 
     if (openOpaque->Get("eos.pio.recfs") && fsToken.empty()) {
-      // -----------------------------------------------------------------------
-      // if there is a list announced there should be atleast one filesystem
-      // mentioned for reconstruction
-      // -----------------------------------------------------------------------
       return Emsg(epname, error, EINVAL, "open - you specified a list of"
                   " reconstruction filesystems but the list is empty", path);
     }
@@ -355,13 +349,9 @@ XrdMgmOfsFile::open(const char* inpath,
       srfs += (int) rfs;
 
       if (errno || (srfs != fsToken[i].c_str())) {
-        return Emsg(epname,
-                    error,
-                    EINVAL,
-                    "open - you specified a list of "
-                    "reconstruction filesystems but "
-                    "the list contains non numerical or illegal id's",
-                    path);
+        return Emsg(epname, error, EINVAL, "open - you specified a list of "
+                    "reconstruction filesystems but the list contains non "
+                    "numerical or illegal id's", path);
       }
 
       // store in the reconstruction filesystem list
@@ -2048,15 +2038,13 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
 
-    // put all the replica urls into the capability
+    // Put all the replica urls into the capability
     for (unsigned int i = 0; i < selectedfs.size(); ++i) {
       if (!selectedfs[i]) {
         eos_err("0 filesystem in replica vector");
       }
 
-      // -----------------------------------------------------------------------
       // Logic to discover filesystems to be reconstructed
-      // -----------------------------------------------------------------------
       bool replace = false;
 
       if (isPioReconstruct) {
@@ -2069,25 +2057,19 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       if (replace) {
+        // If we don't find any replacement
         if (PioReplacementFsList.empty()) {
-          // if we don't have found any filesystem to be used as a replacement
-          return Emsg(epname,
-                      error,
-                      EIO,
-                      "get replacement file system",
-                      path);
+          return Emsg(epname, error, EIO, "get replacement file system", path);
         }
 
-        // ---------------------------------------------------------------------
-        // take one replacement filesystem from the replacement list
-        // ---------------------------------------------------------------------
+        // Take one replacement filesystem from the replacement list
         replacedfs[i] = selectedfs[i];
         selectedfs[i] = PioReplacementFsList.back();
+        PioReplacementFsList.pop_back();
         eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i],
                  selectedfs[i]);
-        PioReplacementFsList.pop_back();
       } else {
-        // there is no replacement happening
+        // There is no replacement happening
         replacedfs[i] = 0;
       }
 
@@ -2104,14 +2086,13 @@ XrdMgmOfsFile::open(const char* inpath,
         continue;
       } else {
         if (replace) {
-          // point at the right vector entry
           fsIndex = i;
 
           // Set the FST gateway if this is available otherwise the actual FST
           if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex) &&
               !(firewalleps[fsIndex].empty()) &&
               ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
-               (firewalleps[fsIndex] != filesystem->GetString("hostport")))) {
+               (firewalleps[fsIndex] != repfilesystem->GetString("hostport")))) {
             // Build the URL for the forwarding proxy and must have the following
             // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
             auto idx = firewalleps[fsIndex].rfind(':');
@@ -2130,8 +2111,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
             // check if we have to redirect to the fs host or to a proxy
             if (proxys[fsIndex].empty()) {
-              oss << filesystem->GetString("host").c_str() << ":" <<
-                  filesystem->GetString("port").c_str();
+              oss << repfilesystem->GetString("host").c_str() << ":" <<
+                  repfilesystem->GetString("port").c_str();
             } else {
               oss << proxys[fsIndex];
             }
@@ -2152,8 +2133,8 @@ XrdMgmOfsFile::open(const char* inpath,
               }
             } else {
               // There is no proxy to use
-              targethost  = filesystem->GetString("host").c_str();
-              targetport  = atoi(filesystem->GetString("port").c_str());
+              targethost  = repfilesystem->GetString("host").c_str();
+              targetport  = atoi(repfilesystem->GetString("port").c_str());
             }
 
             redirectionhost = targethost;
@@ -2303,6 +2284,11 @@ XrdMgmOfsFile::open(const char* inpath,
     redirectionhost += (int) fsIndex;
     redirectionhost += "&mgm.replicahead=";
     redirectionhost += (int) fsIndex;
+  }
+
+  // Add the store flag for RAIN reconstruct jobs
+  if (isPioReconstruct) {
+    redirectionhost += "&mgm.rain.store=1";
   }
 
   if (vid.prot == "https") {

@@ -245,8 +245,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
-  // For RAIN layouts if the opaque information contains the tag fst.store=1 the
-  // corrupted files are recovered back on disk. There is no other way to make
+  // For RAIN layouts if the opaque information contains the tag mgm.rain.store=1
+  // the corrupted files are recovered back on disk. There is no other way to make
   // the distinction between an open for write and open for recovery
   store_recovery = false;
   XrdOucEnv tmpOpaque(stringOpaque.c_str());
@@ -257,11 +257,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                      Path.c_str());
   }
 
-  if ((val = tmpOpaque.Get("fst.store"))) {
+  if ((val = tmpOpaque.Get("mgm.rain.store"))) {
     if (strncmp(val, "1", 1) == 0) {
+      eos_info("msg=\"enabling RAIN store recovery\"");
       store_recovery = true;
       open_mode = SFS_O_RDWR;
-      eos_info("msg=\"enabling RAIN store recovery\"");
     }
   }
 
