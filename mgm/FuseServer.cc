@@ -1467,7 +1467,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
     dir.set_gid(cmd->getCGid());
     dir.set_mode(cmd->getMode());
     // @todo (apeters): no hardlinks
-    dir.set_nlink(1);
+    dir.set_nlink(2);
     dir.set_name(cmd->getName());
     dir.set_fullpath(fullpath);
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
@@ -1576,10 +1576,10 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
     }
 
     /* hardlinks */
-    int nlink = 0;
+    int nlink = 1;
     if (fmd->hasAttribute(k_nlink)) {
-        nlink = std::stoi(fmd->getAttribute(k_nlink));
-	eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(), nlink);
+      nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1; 
+      eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(), nlink);
     }
     file.set_nlink(nlink);
     file.set_clock(clock);
@@ -2600,11 +2600,10 @@ FuseServer::HandleMD(const std::string& id,
 	    fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino));
 	    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile();
 
-	    int nlink;					/* here: 0 origin, 1 means file + one hard link */
-	    nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(k_nlink)) : 0;
+	    int nlink;
+	    nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(k_nlink))+1 : 1;
             eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
                           (long) fid, fmd->getName().c_str(), nlink, md.name().c_str());
-	    nlink += 1;
 	    fmd->setAttribute(k_nlink, std::to_string(nlink));
             gOFS->eosFileService->updateStore(fmd.get());
 
@@ -2612,8 +2611,11 @@ FuseServer::HandleMD(const std::string& id,
 	    gmd->setName(md.name());
             gOFS->eosFileService->updateStore(gmd.get());
 
-	    eos_static_debug("hlnk %s mdino %s %s nlink %s", gmd->getName().c_str(), gmd->getAttribute(k_mdino).c_str(),
-			fmd->getName().c_str(), fmd->getAttribute(k_nlink).c_str());
+	    eos_static_debug("hlnk %s mdino %s %s nlink %s", 
+			     gmd->getName().c_str(), 
+			     gmd->getAttribute(k_mdino).c_str(),
+			     fmd->getName().c_str(), 
+			     fmd->getAttribute(k_nlink).c_str());
 
 	    pcmd->addFile(gmd.get());
             gOFS->eosView->updateContainerStore(pcmd.get());
@@ -2960,7 +2962,6 @@ FuseServer::HandleMD(const std::string& id,
 	    }
 	  } else if (fmd->hasAttribute(k_nlink)) {    /* this is a genuine file, potentially with hard links */
 	    tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
-	    /* reduce reference count, only remove file if negative (origin 0 == 1 file) */
 	    long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
 	    if (nlink >= 0) {  // hard links exist, just rename the file so the inode does not disappear
 	      char nameBuf[256];
