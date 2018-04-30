@@ -241,7 +241,7 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
         continue;
       }
 
-      mMap.erase((*iter)->getId());
+      mMap.erase(IdT((*iter)->getId()));
       iter = mList.erase(iter);
     }
   }

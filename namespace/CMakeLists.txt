@@ -45,6 +45,7 @@ add_library(
   interface/IFsView.hh
   interface/IFileMDSvc.hh
   interface/IContainerMDSvc.hh
+  interface/Identifiers.hh
   interface/IFileMD.hh
   interface/IContainerMD.hh
   interface/IChLogContainerMDSvc.hh

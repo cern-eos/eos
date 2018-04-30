@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,114 +17,120 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-//! @author Georgios Bitzes <georgios.bitzes@cern.ch>
-//! @brief Asynchronous metadata retrieval from QDB, with caching support.
+// author: Georgios Bitzes <georgios.bitzes@cern.ch>
+// desc:   Phantom types for file and container identifiers
 //------------------------------------------------------------------------------
 
-#pragma once
-#include "namespace/interface/Identifiers.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IContainerMD.hh"
+#ifndef EOS_NS_I_IDENTIFIERS_HH
+#define EOS_NS_I_IDENTIFIERS_HH
+
 #include "namespace/Namespace.hh"
-#include "namespace/ns_quarkdb/LRU.hh"
-#include "namespace/interface/Misc.hh"
-#include <qclient/QClient.hh>
-
-#include <folly/futures/Future.h>
-#include <folly/futures/FutureSplitter.h>
-
-namespace folly {
-  class Executor;
-}
 
 EOSNSNAMESPACE_BEGIN
 
-class IContainerMDSvc;
-class IFileMDSvc;
+//------------------------------------------------------------------------------
+//! Phantom types: strongly typed uint64_t, identifying files and containers.
+//!
+//! Unless explicitly asked with obj.(get/set)UnderlyingUInt64(), this will
+//! generate glorious compiler errors when you try to misuse, such as adding
+//! two FileIdentifiers together (which makes zero sense), accidentally store
+//! them as int32, or try to mix them up.
+//!
+//! Bugs which would previously be detectable only at runtime, will now generate
+//! compiler errors.
+//!
+//! Conversion to/from uint64_t should happen only when absolutely necessary,
+//! at the boundaries of serialization / deserialization.
+//!
+//! Any sensible compiler should generate the same machine code, as with a plain
+//! uint64_t - there should be no performance penalty.
+//------------------------------------------------------------------------------
+
 
 //------------------------------------------------------------------------------
-//! Class MetadataProvider
+//! FileIdentifier class
 //------------------------------------------------------------------------------
-class MetadataProvider
-{
+class FileIdentifier {
 public:
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Prevent implicit conversions between this type and uint64_t, by making
+  //! the constructor explicit.
   //----------------------------------------------------------------------------
-  MetadataProvider(qclient::QClient &qcl, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
+  explicit FileIdentifier(uint64_t src) : val(src) {}
 
   //----------------------------------------------------------------------------
-  //! Retrieve ContainerMD by ID.
+  //! Construct empty FileIdentifier.
   //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> retrieveContainerMD(IContainerMD::id_t id);
+  FileIdentifier() : val(0) {}
 
   //----------------------------------------------------------------------------
-  //! Retrieve FileMD by ID.
+  //! Retrieve the underlying uint64_t. Use this only if you have to, ie
+  //! when serializing to disk.
   //----------------------------------------------------------------------------
-  folly::Future<IFileMDPtr> retrieveFileMD(IFileMD::id_t id);
+  uint64_t getUnderlyingUInt64() const {
+    return val;
+  }
 
   //----------------------------------------------------------------------------
-  //! Insert newly created item into the cache.
+  //! Comparison operator, so we can store those as keys in maps, etc.
   //----------------------------------------------------------------------------
-  void insertFileMD(IFileMD::id_t id, IFileMDPtr item);
+  bool operator<(const FileIdentifier &other) const {
+    return val < other.val;
+  }
 
   //----------------------------------------------------------------------------
-  //! Insert newly created item into the cache.
+  //! Equality operator.
   //----------------------------------------------------------------------------
-  void insertContainerMD(IContainerMD::id_t id, IContainerMDPtr item);
-
-  //----------------------------------------------------------------------------
-  //! Change file cache size.
-  //----------------------------------------------------------------------------
-  void setFileMDCacheSize(uint64_t size);
-
-  //----------------------------------------------------------------------------
-  //! Change container cache size.
-  //----------------------------------------------------------------------------
-  void setContainerMDCacheSize(uint64_t size);
-
-  //----------------------------------------------------------------------------
-  //! Get file cache statistics
-  //----------------------------------------------------------------------------
-  CacheStatistics getFileMDCacheStats();
-
-  //----------------------------------------------------------------------------
-  //! Get container cache statistics
-  //----------------------------------------------------------------------------
-  CacheStatistics getContainerMDCacheStats();
+  bool operator==(const FileIdentifier &other) const {
+    return val == other.val;
+  }
 
 private:
+  uint64_t val;
+};
+
+//------------------------------------------------------------------------------
+//! ContainerIdentifier class
+//------------------------------------------------------------------------------
+class ContainerIdentifier {
+public:
   //----------------------------------------------------------------------------
-  //! Turn an incoming FileMDProto into FileMD, removing from the inFlight
-  //! staging area, and inserting into the cache.
+  //! Prevent implicit conversions between this type and uint64_t, by making
+  //! the constructor explicit.
   //----------------------------------------------------------------------------
-  IFileMDPtr processIncomingFileMdProto(IFileMD::id_t id, eos::ns::FileMdProto proto);
+  explicit ContainerIdentifier(uint64_t src) : val(src) {}
 
   //----------------------------------------------------------------------------
-  //! Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
-  //! ContainerMDPtr, and insert into the cache.
+  //! Construct empty ContainerIdentifier.
   //----------------------------------------------------------------------------
-  IContainerMDPtr processIncomingContainerMD(IContainerMD::id_t id,
-    std::tuple<
-      eos::ns::ContainerMdProto,
-      IContainerMD::FileMap,
-      IContainerMD::ContainerMap
-    >
-  );
+  ContainerIdentifier() : val(0) {}
 
-  qclient::QClient &mQcl;
-  IContainerMDSvc *mContSvc;
-  IFileMDSvc *mFileSvc;
+  //----------------------------------------------------------------------------
+  //! Retrieve the underlying uint64_t. Use this only if you have to, ie
+  //! when serializing to disk.
+  //----------------------------------------------------------------------------
+  uint64_t getUnderlyingUInt64() const {
+    return val;
+  }
 
-  std::mutex mMutex;
-  std::map<ContainerIdentifier, folly::FutureSplitter<IContainerMDPtr>> mInFlightContainers;
-  std::map<FileIdentifier, folly::FutureSplitter<IFileMDPtr>> mInFlightFiles;
+  //----------------------------------------------------------------------------
+  //! Comparison operator, so we can store those as keys in maps, etc.
+  //----------------------------------------------------------------------------
+  bool operator<(const ContainerIdentifier &other) const {
+    return val < other.val;
+  }
 
-  LRU<ContainerIdentifier, IContainerMD> mContainerCache;
-  LRU<FileIdentifier, IFileMD> mFileCache;
+  //----------------------------------------------------------------------------
+  //! Equality operator.
+  //----------------------------------------------------------------------------
+  bool operator==(const ContainerIdentifier &other) const {
+    return val == other.val;
+  }
 
-  std::unique_ptr<folly::Executor> mExecutor;
-
+private:
+  uint64_t val;
 };
 
 EOSNSNAMESPACE_END
+
+#endif
