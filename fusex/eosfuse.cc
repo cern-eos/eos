@@ -438,6 +438,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["rm-rf-protect-levels"] = 1;
     }
 
+    if (!root["options"].isMember("rm-rf-bulk")) {
+      root["options"]["rm-rf-bulk"] = 0;
+    }
+
     // xrdcl default options
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
     XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
@@ -535,6 +539,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.options.rm_rf_protect_levels =
       root["options"]["rm-rf-protect-levels"].asInt();
+    config.options.rm_rf_bulk =
+      root["options"]["rm-rf-bulk"].asInt();
     config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
     config.options.free_md_asap = root["options"]["free-md-asap"].asInt();
     config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
@@ -1178,7 +1184,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d",
 		       config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1200,7 +1206,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.cpu_core_affinity,
                        config.options.no_xattr,
                        config.options.no_hardlinks,
-		       config.options.nocache_graceperiod
+		       config.options.nocache_graceperiod,
+		       config.options.rm_rf_protect_levels,
+		       config.options.rm_rf_bulk
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
@@ -1957,8 +1965,28 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   fuse_id id(req);
 
   metad::shared_md md;
-  rc = listdir(req, ino , md);
 
+  if (isRecursiveRm(req) && 
+      Instance().Config().options.rm_rf_bulk) {
+    eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+    md = Instance().mds.get(req, ino);
+    {
+      XrdSysMutexHelper mLock(md->Locker());
+      if (!md->id() || md->deleted()) {
+	rc = md->deleted() ? ENOENT : md->err();
+      } else {
+	rc = Instance().mds.rmrf(req, md);
+      }    
+    }
+    if (!rc)
+    {
+      // invalide this directory
+      Instance().mds.cleanup(md);
+    }
+  }
+  
+  rc = listdir(req, ino , md);
+  
   if (!rc)
   {
     XrdSysMutexHelper mLock(md->Locker());
@@ -1966,19 +1994,19 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       rc = md->deleted() ? ENOENT : md->err();
     } else {
       eos_static_info("%s", md->dump().c_str());
-
+      
       if (isRecursiveRm(req) &&
-          Instance().mds.calculateDepth(md) <=
-          Instance().Config().options.rm_rf_protect_levels) {
-        eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
-        rc = EPERM; // you shall not pass, muahahahahah
+	  Instance().mds.calculateDepth(md) <=
+	  Instance().Config().options.rm_rf_protect_levels) {
+	eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+	rc = EPERM; // you shall not pass, muahahahahah
       } else {
-        auto md_fh = new opendir_t;
-        md_fh->md = md;
+	auto md_fh = new opendir_t;
+	md_fh->md = md;
 	md->opendir_inc();
-        // fh contains a dummy 0 pointer
-        eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
-        fi->fh = (unsigned long) md_fh;
+	// fh contains a dummy 0 pointer
+	eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
+	fi->fh = (unsigned long) md_fh;
       }
     }
   }
