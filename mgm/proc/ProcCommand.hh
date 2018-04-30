@@ -308,6 +308,7 @@ private:
   bool mJsonFormat; ///< indicates JSON format
   bool mHttpFormat; ///< indicates HTTP format
   bool mClosed; ///< indicates the proc command has been closed already
+  bool mSendRetc; //< indicates to return the return code to the open call
   XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------

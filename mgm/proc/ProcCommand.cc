@@ -40,7 +40,7 @@ ProcCommand::ProcCommand():
   mOutDepth(0), fstdout(0), fstderr(0), fresultStream(0), fstdoutfilename(""),
   fstderrfilename(""), fresultStreamfilename(""), mError(0), mComment(""),
   mLen(0), mAdminCmd(false), mUserCmd(false), mFuseFormat(false),
-  mJsonFormat(false), mHttpFormat(false), mClosed(false), mJsonCallback("")
+  mJsonFormat(false), mHttpFormat(false), mClosed(false), mJsonCallback(""), mSendRetc(false)
 {
   mExecTime = time(NULL);
 }
@@ -196,6 +196,8 @@ ProcCommand::open(const char* inpath, const char* info,
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
   mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
+  mSendRetc = pOpaque->Get("mgm.retc") ? true : false;
+  
   eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(),
                    sinfo.c_str());
   int envlen = 0;
@@ -365,8 +367,18 @@ ProcCommand::open(const char* inpath, const char* info,
       retc = ENOTSUP;
     }
 
-    MakeResult();
-    return SFS_OK;
+    if (mSendRetc) {
+      // client wants return code on open
+      if (retc) 
+	return gOFS->Emsg((const char*) "open", *error, retc,
+			  "execute command", ininfo);
+      else
+	return SFS_OK;
+    } else {
+      // client gets result stream
+      MakeResult();
+      return SFS_OK;
+    }
   }
 
   // If neither admin nor proc command
