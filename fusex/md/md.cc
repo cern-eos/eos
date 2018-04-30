@@ -1232,6 +1232,15 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
 }
 
 /* -------------------------------------------------------------------------- */
+int 
+metad::rmrf(fuse_req_t req, shared_md md)
+{
+  int rc = mdbackend->rmRf(req, &(*md));
+  return rc;
+}
+
+
+/* -------------------------------------------------------------------------- */
 std::string
 metad::dump_md(shared_md md, bool lock)
 {
@@ -2213,6 +2222,35 @@ metad::calculateDepth(shared_md md)
 
   XrdSysMutexHelper mmLock(pmd->Locker());
   return calculateDepth(pmd) + 1;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+metad::calculateLocalPath(shared_md md)
+{
+  std::string lpath = "/";
+
+  if (md->id() == 1 || md->id() == 0) {
+    return lpath;
+  }
+  
+  fuse_ino_t pino = md->pid();
+
+  if (pino == 1 || pino == 0) {
+    lpath += md->name();
+    return lpath;
+  }
+
+  shared_md pmd;
+
+  if (!mdmap.retrieveTS(pino, pmd)) {
+    eos_static_warning("could not lookup parent ino=%d of %d when calculating depth..",
+                       pino, md->id());
+    return "";
+  }
+
+  XrdSysMutexHelper mmLock(pmd->Locker());
+  return calculateLocalPath(pmd) + lpath;
 }
 
 /* -------------------------------------------------------------------------- */

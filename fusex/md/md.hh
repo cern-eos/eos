@@ -434,6 +434,10 @@ public:
                    fuse_ino_t parent,
                    const char* name);
 
+  shared_md lookup_ll(fuse_req_t req,
+		      fuse_ino_t parent,
+		      const char* name);
+
   int forget(fuse_req_t req,
              fuse_ino_t ino,
              int nlookup);
@@ -479,6 +483,8 @@ public:
           std::string newname,
           std::string authid1, std::string authid2);
 
+  int rmrf(fuse_req_t req, shared_md md);
+
   std::string dump_md(shared_md md, bool lock = true);
   std::string dump_md(eos::fusex::md& md);
   std::string dump_container(eos::fusex::container& cont);
@@ -498,6 +504,8 @@ public:
   int connect(std::string zmqtarget, std::string zmqidentity="", std::string zmqname="", std::string zmqclienthost="", std::string zmqclientuuid="");
 
   int calculateDepth(shared_md md);
+
+  std::string calculateLocalPath(shared_md md);
 
   void cleanup(shared_md md);
   void cleanup(fuse_ino_t ino, bool force=false);
