@@ -1205,7 +1205,7 @@ XrdMgmOfsFile::open(const char* inpath,
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
       auto loc = fmd->getLocation(i);
 
-      if (loc != 0 && loc != eos::mgm::TAPE_FS_ID) {
+      if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
         selectedfs.push_back(loc);
       }
     }

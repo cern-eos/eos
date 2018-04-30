@@ -48,7 +48,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
     return 0;
   }
 
-  if ((workflow == RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
+  if ((workflow == eos::common::RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
       || (workflow == "none" && !vid.sudoer)) {
     workflow = "default";
   }

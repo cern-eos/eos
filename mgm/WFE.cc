@@ -32,6 +32,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -1690,30 +1691,8 @@ WFE::Job::DoIt(bool issync)
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
 
-        static auto getUserName = [] (uid_t uid) {
-          int errc = 0;
-          auto user_name  = Mapping::UidToUserName(uid, errc);
-
-          if (errc) {
-            user_name = "nobody";
-          }
-
-          return user_name;
-        };
-
-        static auto getGroupName = [] (gid_t gid) {
-          int errc = 0;
-          auto group_name  = Mapping::GidToGroupName(gid, errc);
-
-          if (errc) {
-            group_name = "nobody";
-          }
-
-          return group_name;
-        };
-
-        notification->mutable_cli()->mutable_user()->set_username(getUserName(mVid.uid));
-        notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(mVid.gid));
+        notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+        notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
 
         auto collectAttributes = [&notification, &fullPath] {
           eos::common::Mapping::VirtualIdentity rootvid;
@@ -1824,8 +1803,8 @@ WFE::Job::DoIt(bool issync)
 
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
             }
 
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
@@ -1917,8 +1896,8 @@ WFE::Job::DoIt(bool issync)
 
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
             }
 
             notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
@@ -1938,8 +1917,8 @@ WFE::Job::DoIt(bool issync)
 
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
           }
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
@@ -1954,8 +1933,8 @@ WFE::Job::DoIt(bool issync)
 
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
           }
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
@@ -2000,8 +1979,8 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream checksum;
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
 
               notification->mutable_file()->set_size(fmd->getSize());
               notification->mutable_file()->mutable_cks()->set_type(

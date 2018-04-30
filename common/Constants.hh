@@ -24,13 +24,11 @@
 
 #pragma once
 
-#include "mgm/Namespace.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "namespace/interface/IView.hh"
+#include "common/Namespace.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-static constexpr decltype(gOFS->eosFileService->getFileMD(0)->getLocation(0)) TAPE_FS_ID = 65535;
+static constexpr auto TAPE_FS_ID = 65535u;
 static constexpr auto RETRIEVES_ATTR_NAME = "sys.retrieves";
 static constexpr auto RETRIEVES_ERROR_ATTR_NAME = "sys.retrieve.error";
 static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
@@ -38,4 +36,4 @@ static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
 static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "archive_failed";
 
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END

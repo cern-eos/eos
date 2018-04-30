@@ -1572,6 +1572,8 @@ int
 XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
                                  const string& ownerGroupName, const string& instanceName,
                                  const string& fullPath, const std::map<std::string, std::string>& xattrs) {
+  using namespace eos::common;
+
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_file()->mutable_owner()->set_username(ownerName);

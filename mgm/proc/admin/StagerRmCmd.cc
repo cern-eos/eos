@@ -99,11 +99,11 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       try {
         auto fmd = gOFS->eosView->getFile(path);
-        fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+        fmd->setAttribute(eos::common::RETRIEVES_ATTR_NAME, "0");
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& ex) {
         eos_static_err("Could not reset retrieves counter for file %s. Try setting the %s attribute to 0.",
-                       path.c_str(), RETRIEVES_ATTR_NAME);
+                       path.c_str(), eos::common::RETRIEVES_ATTR_NAME);
       }
     }
   }
