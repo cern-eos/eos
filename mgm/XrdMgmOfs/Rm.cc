@@ -150,11 +150,15 @@ XrdMgmOfs::_rem(const char* path,
 
     if (fmd->hasAttribute("sys.eos.mdino") || fmd->hasAttribute("sys.eos.nlink")) {
       eos_static_info("hlnk rm target fid %#lx", fid);
-      bool ok = false;
+      bool ok = true;
       if (fmd->hasAttribute("sys.eos.nlink")) {
-	  long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
-          eos_static_info("hlnk rm target nlink %ld", nlink);
-	  ok = (nlink == 0) && strncmp(fmd->getName().c_str(), "...eos.ino...", 13);		/* 0-origin - nlink=0 means just this file */
+	long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
+	eos_static_info("hlnk rm target nlink %ld", nlink);
+	ok = (nlink == 0) && (strncmp(fmd->getName().c_str(), "...eos.ino...", 13));
+	if (!vid.uid) // allow root to delete whatever is needed
+	{
+	  ok = true;
+	}
       }
 
       if (!ok) {
