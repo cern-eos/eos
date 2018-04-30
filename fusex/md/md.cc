@@ -305,7 +305,7 @@ metad::mdx::convert(struct fuse_entry_param& e)
   e.attr.st_dev = 0;
   e.attr.st_ino = id();
   e.attr.st_mode = mode();
-  e.attr.st_nlink = nlink() + 1;
+  e.attr.st_nlink = nlink();
   if (attrMap.count(k_mdino)) {
       uint64_t mdino = std::stoll(attrMap[k_mdino]);
       uint64_t local_ino = EosFuse::Instance().mds.inomap.forward(mdino);
@@ -314,7 +314,7 @@ metad::mdx::convert(struct fuse_entry_param& e)
 	  eos_static_err("converting hard-link %s target inode %#lx remote %#lx not in cache, nlink set to %d", name().c_str(), local_ino, mdino, e.attr.st_nlink);
       } else {
 	  if (EOS_LOGS_DEBUG) eos_static_debug("hlnk convert name=%s id=%#lx target local_ino=%#lx nlink0=", name().c_str(), id(), local_ino, tmd->nlink());
-	  e.attr.st_nlink = tmd->nlink() + 1;
+	  e.attr.st_nlink = tmd->nlink();
       }
 
       e.ino = e.attr.st_ino = local_ino;
@@ -802,73 +802,6 @@ metad::get(fuse_req_t req,
   }
 
   return md;
-}
-
-/* -------------------------------------------------------------------------- */
-int
-metad::refresh(fuse_req_t req, fuse_ino_t ino, std::string authid)
-{
-  shared_md md;
-
-  if (!mdmap.retrieveTS(ino, md)) {
-      return ENOENT;
-  }
-
-  if ( EOS_LOGS_DEBUG ) {
-      eos_static_debug("MD:\n%s", (!md) ? "<empty>" : dump_md(md).c_str());
-  }
-
-
-  int rc = 0; // response code to a backend getMD call
-  std::vector<eos::fusex::container> contv; // response container
-  eos_static_info("ino=%#lx type=%d", md->md_ino(), md->type());
-  rc = mdbackend->getMD(req, md->md_ino(), md->clock(), contv, false, authid);
-
-  if (!rc) {
-    // -------------------------------------------------------------------------
-    // we need to store all response data and eventually create missing
-    // hierarchical entries
-    // -------------------------------------------------------------------------
-    eos_static_debug("apply vector=%d", contv.size());
-
-    for (auto it = contv.begin(); it != contv.end(); ++it) {
-      if (it->ref_inode_()) {
-        if (ino) {
-          // the response contains the remote inode according to the request
-          inomap.insert(it->ref_inode_(), ino);
-        }
-
-        uint64_t l_ino;
-
-        // store the retrieved meta data blob
-        if (!(l_ino = apply(req, *it, false))) {
-          eos_static_crit("msg=\"failed to apply response\"");
-        } else {
-          ino = l_ino;
-        }
-      } else {
-        // we didn't get the md back
-      }
-    }
-
-    /*
-    // if the md record was returned, it is accessible after the apply function
-    // attached it. We should also attach to the parent to be able to add
-    // a not yet published child entry at the parent.
-    mdmap.retrieveWithParentTS(ino, md, pmd);
-
-    eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
-                    pmd ? pmd->id() : 0, name, listing);
-    */
-
-  }
-
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("MD:\n%s", dump_md(md).c_str());
-  }
-
-
-  return rc;
 }
 
 /* -------------------------------------------------------------------------- */

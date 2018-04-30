@@ -2362,6 +2362,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_nlink(2);
         md->set_creator(true);
         std::string imply_authid = eos::common::StringConversion::random_uuidstring();
         eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
@@ -2503,9 +2504,10 @@ EROFS  pathname refers to a file on a read-only filesystem.
           eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
           rc = EPERM; // you shall not pass, muahahahahah
         } else {
+	  del_ino = md->id();
+
 	  int nlink = 0;				    /* nlink has 0-origin (0 = simple file, 1 = inode has two names) */
 	  auto attrMap = md->attr();
-
           pmd = Instance().mds.get(req, parent, pcap->authid());
 
 	  if (attrMap.count(k_mdino)) {			    /* This is a hard link */
@@ -2513,29 +2515,74 @@ EROFS  pathname refers to a file on a read-only filesystem.
 	    uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
 	    tmd = Instance().mds.get(req, local_ino, pcap->authid());	    /* the target of the link */
 	    attrMap = tmd->attr();
+	    hardlink_target_ino = tmd->id();
 	  }
 	  
-	  if (attrMap.count(k_nlink)) {
-	    nlink = std::stol(attrMap[k_nlink]);
-	    md->cap_count_reset();			    /* force refresh */
-	    if (tmd == NULL)				    /* the original target which must be refreshed later, even if logically deleted meanwhile */
-	      tmd = md;
-	  } 
-	  
+	  if (tmd) {
+	    // update the counting on the target
+	    auto attrMap = tmd->attr();
+	    if (attrMap.count(k_nlink)) {
+	      nlink = std::stol(attrMap[k_nlink]);
+	      // do the counting locally
+	      if (nlink>0) {
+		auto wAttrMap = tmd->mutable_attr();
+		(*wAttrMap)[k_nlink] = std::to_string(nlink-1);
+		eos_static_debug("setting link count to %d-1", nlink);
+	      } 
+	      tmd->set_nlink(nlink);
+	    }
+	  } else {
+	    if (attrMap.count(k_nlink)) {
+	      nlink = std::stol(attrMap[k_nlink]);
+	      if (nlink != 0)
+		tmd = md;
+	      if (nlink>0) {
+		auto wAttrMap = tmd->mutable_attr();
+		(*wAttrMap)[k_nlink] = std::to_string(nlink-1);
+		eos_static_debug("setting link count to %d-1", nlink);
+	      } 
+	      if (tmd)
+		tmd->set_nlink(nlink);
+	    }
+	  }
+	    
           if (nlink <= 0)				    /* don't bother updating, this is a real delete */
 	    freesize = md->size();
 
           if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink, Instance().mds.dump_md(md, false).c_str());
-          Instance().datas.unlink(req, md->id());
-          Instance().mds.remove(req, pmd, md, pcap->authid());
-          del_ino = md->id();
+
+	  // we have to signal the unlink always to 'the' target inode of a hardlink
+	  if (hardlink_target_ino)
+	    Instance().datas.unlink(req, hardlink_target_ino);
+	  else
+	    Instance().datas.unlink(req, md->id());
+
+	  if (md != tmd) {
+	    Instance().mds.remove(req, pmd, md, pcap->authid());
+	    if (tmd && (tmd->nlink()==0))
+	    {
+	      // delete the target locally
+	      Instance().mds.remove(req, pmd, tmd, pcap->authid(), false);
+	    }
+	  }
+	  else {
+	    // if a hardlink target is deleted, we create a shadow entry until all
+	    // references are removed
+	    char nameBuf[256];
+	    snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", md->md_ino());
+	    std::string newname = nameBuf;
+	    md->Locker().UnLock();
+	    Instance().mds.mv(req, pmd, pmd, md, newname, pcap->authid(),
+			      pcap->authid());
+	    md->Locker().Lock();
+	  }
         }
       }
     }
 
     if (!rc) {
-      if (tmd || Instance().Config().options.rmdir_is_sync) {
-	eos_static_warning("waiting for flush of  %d", del_ino);
+      if (hardlink_target_ino || Instance().Config().options.rmdir_is_sync) {
+	eos_static_debug("waiting for flush of  %d", del_ino);
         Instance().mds.wait_deleted(req, del_ino);
       }
 
@@ -2543,18 +2590,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
       Instance().caps.free_volume(pcap, freesize);
       Instance().caps.free_inode(pcap);
       eos_static_debug("freeing %llu bytes on cap ", freesize);
-    }
-
-    if (tmd) {		/* link target, need to update as nlink has been decreased (on the server) */
-      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink refresh inode %#lx",  tmd->id());
-      if (tmd->getop() == tmd->RM) tmd->setop_none();		/* in case we just deleted it: we need to refresh it nevertheless */
-
-      int rc = Instance().mds.refresh(req, tmd->id(), pcap->authid());
-      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk unlink refresh rc=%d inode %#lx", rc, tmd->id());
-      if (!rc)
-      {
-	hardlink_target_ino = tmd->id();
-      }
     }
   }
 
@@ -3143,6 +3178,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+	md->set_nlink(1);
         md->set_creator(true);
         // avoid lock-order violation
         {
@@ -4326,6 +4362,25 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent, const char* new
         md->set_uid(tmd->uid());
         md->set_gid(tmd->gid());
 	md->set_size(tmd->size());
+
+	// increase the link count of the target
+	auto attrMap = tmd->attr();	
+	size_t nlink = 1;
+
+	if (attrMap.count(k_nlink)) 
+	{
+	  nlink += std::stol(attrMap[k_nlink]);
+	}
+	
+	auto wAttrMap = tmd->mutable_attr();
+	(*wAttrMap)[k_nlink] = std::to_string(nlink);
+	eos_static_debug("setting link count to %d",nlink);
+
+	auto sAttrMap = md->mutable_attr();
+	(*sAttrMap)[k_mdino] = std::to_string(tmd->md_ino());
+
+	tmd->set_nlink(nlink+1);
+	  
 	tmd->Locker().UnLock();
 
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
@@ -4334,21 +4389,14 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent, const char* new
 	md->set_target("");
 	md->Locker().UnLock();
 
-	if (rc==0) {
-          int rc2 = Instance().mds.refresh(req, tmd->id(), pcap->authid());	/* corrects the nlink count among other things */
-          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk refresh target rc=%d inode %#lx", rc2, tmd->id());
-
-          rc2 = Instance().mds.refresh(req, md->id(), pcap->authid());
-          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk refresh link rc=%d link inode %#lx", rc2, md->id());
-
-	  { 
-		XrdSysMutexHelper tmLock(tmd->Locker());
-		memset(&e, 0, sizeof(e));
-		tmd->convert(e);
-		if (EOS_LOGS_DEBUG) eos_static_debug("hlnk tmd %s %s", tmd->name().c_str(), tmd->dump(e).c_str());
-		fuse_reply_entry(req, &e);			    /* hereafter the req may no longer be valid, hence this had better be the last action */
-	  } 
-
+	if (!rc)
+	{ 
+	  XrdSysMutexHelper tmLock(tmd->Locker());
+	  memset(&e, 0, sizeof(e));
+	  tmd->convert(e);
+	  if (EOS_LOGS_DEBUG) eos_static_debug("hlnk tmd %s %s", tmd->name().c_str(), tmd->dump(e).c_str());
+	  // reply with the target entry
+	  fuse_reply_entry(req, &e);
 	}
       }
     }
