@@ -1567,7 +1567,6 @@ public:
   int mFstGwPort; ///< FST gateway redirect port, default 1094
   std::string mQdbCluster; ///< Quardb cluster info host1:port1 host2:port2 etc.
 
-
   int mHttpdPort; ///< port of the http server, default 8000
 
 private:
