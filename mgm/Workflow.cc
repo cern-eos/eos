@@ -119,12 +119,40 @@ Workflow::getCGICloseW(std::string workflow)
 
   // synchronous closew has priority
   if (mAttr && (*mAttr).count(syncKey)) {
+    std::string owner, ownerGroup, fullPath;
+    try {
+      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      fullPath = gOFS->eosView->getUri(fmd.get());
+      owner = WFE::GetUserName(fmd->getCUid());
+      ownerGroup = WFE::GetGroupName(fmd->getCGid());
+    } catch (eos::MDException& e) {
+      return "";
+    }
+
+    auto attributes = WFE::CollectAttributes(fullPath);
+
+    std::ostringstream attrStream;
+    std::string separator;
+    for (const auto& attribute : attributes) {
+      attrStream << separator << attribute.first << "=" << attribute.second;
+      separator = ";;;";
+    }
+
+    auto attrStr = attrStream.str();
+    std::string attrEncoded;
+    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(), attrEncoded);
+
     cgi = "&mgm.event=sync::closew&mgm.workflow=";
     cgi += workflow;
     cgi += "&mgm.instance=";
     cgi += gOFS->MgmOfsInstanceName.c_str();
     cgi += "&mgm.owner=";
+    cgi += owner;
     cgi += "&mgm.ownergroup=";
+    cgi += ownerGroup;
+    cgi += "&mgm.attributes=";
+    cgi += attrEncoded;
   } else if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=closew&mgm.workflow=";
     cgi += workflow;

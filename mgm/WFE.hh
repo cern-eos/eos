@@ -309,6 +309,8 @@ public:
 
   static std::string GetGroupName(gid_t gid);
 
+  static IContainerMD::XAttrMap CollectAttributes(const std::string& fullPath);
+
   /// the scheduler class is providing a destructor-less object,
   /// so we have to create once a singleton of this and keep/share it
   static XrdSysMutex gSchedulerMutex;

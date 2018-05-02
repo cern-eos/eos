@@ -1916,6 +1916,19 @@ XrdFstOfsFile::close()
       eventType = "closer";
     }
 
+    if (syncEventOnClose) {
+      std::string decodedAttributes;
+      eos::common::SymKey::Base64Decode(eventAttributes.c_str(), decodedAttributes);
+      std::map<std::string, std::string> attributes;
+      eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(), attributes, "=", ";;;", nullptr);
+
+      rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, eventOwner, eventOwnerGroup, eventInstance, capOpaque->Get("mgm.path"), attributes);
+
+      if (rc == SFS_OK) {
+        return rc;
+      }
+    }
+
     capOpaqueFile += "&mgm.event=";
     capOpaqueFile += eventType;
 
@@ -2892,6 +2905,18 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
 
     val = env.Get("mgm.workflow");
     mEventWorkflow = (val ? val : "");
+
+    val = env.Get("mgm.instance");
+    eventInstance = val ? val : "";
+
+    val = env.Get("mgm.owner");
+    eventOwner = val ? val : "";
+
+    val = env.Get("mgm.ownergroup");
+    eventOwnerGroup = val ? val : "";
+
+    val = env.Get("mgm.attributes");
+    eventAttributes = val ? val : "";
   }
 
   if ((val = env.Get("eos.injection"))) {

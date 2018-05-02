@@ -1641,7 +1641,7 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
   if(getenv("XRDDEBUG")) {
     config.set("log", "all");
   } else {
-    config.set("log", "info");
+    config.set("log", "all");
   }
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is also thread-safe

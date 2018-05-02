@@ -1695,40 +1695,9 @@ WFE::Job::DoIt(bool issync)
         notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
 
         auto collectAttributes = [&notification, &fullPath] {
-          eos::common::Mapping::VirtualIdentity rootvid;
-          eos::common::Mapping::Root(rootvid);
-          XrdOucErrInfo errInfo;
-          IContainerMD::XAttrMap fileAttributes, parentDirAttributes;
-
-          if (gOFS->_attr_ls(fullPath.c_str(),
-                             errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
-            for (const auto& fileAttrPair : fileAttributes)
-            {
-              if (fileAttrPair.first.find("sys.") == 0 ||
-                  fileAttrPair.first.find("user.") == 0) {
-                continue;
-              }
-
-              google::protobuf::MapPair<std::string, std::string> attr(fileAttrPair.first,
-                                                                       fileAttrPair.second);
-              notification->mutable_file()->mutable_xattr()->insert(attr);
-            }
-          }
-
-          errInfo.clear();
-          if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
-                             errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
-            for (const auto& dirAttrPair : parentDirAttributes)
-            {
-              if (dirAttrPair.first.find("sys.") == 0 ||
-                  dirAttrPair.first.find("user.") == 0) {
-                continue;
-              }
-
-              google::protobuf::MapPair<std::string, std::string> attr(dirAttrPair.first,
-                                                                       dirAttrPair.second);
-              notification->mutable_file()->mutable_xattr()->insert(attr);
-            }
+          for (const auto& attribute : CollectAttributes(fullPath)) {
+            google::protobuf::MapPair<std::string, std::string> attr(attribute.first, attribute.second);
+            notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
 
@@ -2310,6 +2279,39 @@ WFE::PublishActiveJobs()
    true,
    "/eos/*/mgm",
    true);
+}
+
+IContainerMD::XAttrMap
+WFE::CollectAttributes(const std::string& fullPath) {
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo errInfo;
+  IContainerMD::XAttrMap fileAttributes, parentDirAttributes, result;
+
+  if (gOFS->_attr_ls(fullPath.c_str(),
+                     errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
+    for (const auto& fileAttrPair : fileAttributes)
+    {
+      if (fileAttrPair.first.find("sys.") != 0 &&
+          fileAttrPair.first.find("user.") != 0) {
+        result.insert(fileAttrPair);
+      }
+    }
+  }
+
+  errInfo.clear();
+  if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
+                     errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
+    for (const auto& dirAttrPair : parentDirAttributes)
+    {
+      if (dirAttrPair.first.find("sys.") != 0 &&
+          dirAttrPair.first.find("user.") != 0) {
+        result.insert(dirAttrPair);
+      }
+    }
+  }
+
+  return result;
 }
 
 EOSMGMNAMESPACE_END
