@@ -3004,8 +3004,6 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
                gOFS.TpcMap[mIsTpcDst][tpc_key].dst.c_str(),
                gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
                gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
-      // @todo (esindril) this can be removed as it's dealt with in fst open
-      return SFS_OK;
     }
   } else if (mTpcFlag == kTpcSrcRead) {
     // Verify a TPC entry in the TpcMap since the destination's open can now
