@@ -686,7 +686,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.StartDumper(dumperfile.c_str());
   XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server
-  mHttpd = new HttpServer(8001);
+  mHttpdPort = 8001;
+  if (getenv("EOS_FST_HTTP_PORT")) {
+    mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
+  }
+
+  mHttpd = new HttpServer(mHttpdPort);
 
   if (mHttpd) {
     mHttpd->Start();
@@ -713,8 +718,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     close(fd);
   }
 
-  eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s",
-             mHostName, myPort, VERSION, RELEASE, keytabcks.c_str());
+  eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s",
+             mHostName, myPort, mHttpdPort, VERSION, RELEASE, keytabcks.c_str());
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
   return 0;
 }

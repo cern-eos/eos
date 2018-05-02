@@ -113,6 +113,14 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------
+# HTTP server ports
+
+# MGM
+# EOS_MGM_HTTP_PORT=8000
+
+# FST
+# EOS_FST_HTTP_PORT=8001
+
 
 # HTTP uses by default one thread per connection
 # EOS_HTTP_THREADPOOL="threads"

@@ -153,7 +153,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
     response = HttpServer::HttpRedirect(url + "eos/" + instance.c_str(),
                                         gOFS->HostName,
-                                        8000, false);
+                                        gOFS->mHttpdPort, false);
     return response;
   }
 
@@ -646,10 +646,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
       if (rc != SFS_OK) {
         if (rc == SFS_REDIRECT) {
-          // the embedded server on FSTs is hardcoded to run on port 8001
           response = HttpServer::HttpRedirect(request->GetUrl(),
                                               file->error.getErrText(),
-                                              8001, false);
+                                              file->error.getErrInfo(), false);
         } else if (rc == SFS_ERROR) {
           if (file->error.getErrInfo() == ENODEV) {
             response = new eos::common::PlainHttpResponse();
@@ -873,7 +872,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
             // MGM redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
                                                 redirection_cgi,
-                                                8000, false);
+                                                gOFS->mHttpdPort, false);
           } else {
             if (isOcChunked) {
               redirection_cgi += eos::common::OwnCloud::HeaderToQuery(ocHeader).c_str();
@@ -882,7 +881,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
             // FST redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
                                                 redirection_cgi,
-                                                8001, false);
+                                                file->error.getErrInfo(), false);
           }
         } else if (rc == SFS_ERROR) {
           if (file->error.getErrInfo() == ENOENT) {

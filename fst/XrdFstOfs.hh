@@ -382,9 +382,10 @@ public:
   const char* mHostName; ///< FST hostname
   std::unique_ptr<qclient::QClient> mQcl; ///< Qclient object
   qclient::Members mQdbMembers; ///< QDB member endpoints
-
+  int mHttpdPort; ///< listening port of the http server
 private:
   HttpServer* mHttpd; ///< Embedded http server
+
   bool Simulate_IO_read_error; ///< simulate an IO error on read
   bool Simulate_IO_write_error; ///< simulate an IO error on write
   bool Simulate_XS_read_error; ///< simulate a checksum error on read
