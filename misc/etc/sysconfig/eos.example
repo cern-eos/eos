@@ -406,6 +406,14 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------
+# HTTP server ports
+
+# MGM
+#export EOS_MGM_HTTP_PORT=8000 
+
+# FST
+#export EOS_FST_HTTP_PORT=8001
+
 # HTTP uses by default one thread per connection
 #export EOS_HTTP_THREADPOOL="threads"
 
@@ -418,6 +426,8 @@ export EOS_HTTP_THREADPOOL_SIZE=16
 export EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # timeout after which an idel connection is considered to be closed (default 2 min)
 #export EOS_HTTP_CONNETION_TIMEOUT=120
+
+
 
 # ------------------------------------------------------------------
 # Federation Configuration

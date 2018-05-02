@@ -354,6 +354,8 @@ Storage::Publish()
                                              mFsVect[i]->getIOPS());
           success &= mFsVect[i]->SetDouble("stat.disk.bw",
                                            mFsVect[i]->getSeqBandwidth()); // in MB
+
+	  success &= mFsVect[i]->SetLongLong("stat.http.port", gOFS.mHttpdPort);
           {
             // we have to set something which is not empty to update the value
             if (!r_open_hotfiles.length()) {
@@ -424,6 +426,8 @@ Storage::Publish()
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
             hash->Set("stat.geotag", lNodeGeoTag.c_str());
+	    hash->Set("http.port", gOFS.mHttpdPort);
+
             hash->Set("debug.state",
                       eos::common::StringConversion::ToLower
                       (g_logging.GetPriorityString

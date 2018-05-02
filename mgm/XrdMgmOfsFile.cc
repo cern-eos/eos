@@ -365,6 +365,7 @@ XrdMgmOfsFile::open(const char* inpath,
   XrdOucString redirectionhost = "invalid?";
   XrdOucString targethost = "";
   int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
+  int targethttpport = gOFS->mHttpdPort;
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
@@ -1754,9 +1755,11 @@ XrdMgmOfsFile::open(const char* inpath,
         targethost = firewalleps[fsIndex].substr(0, idx).c_str();
         targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                           std::string::npos).c_str());
+	targethttpport = 8001;
       } else {
         targethost = firewalleps[fsIndex].c_str();
         targetport = 0;
+	targethttpport = 8001;
       }
 
       std::ostringstream oss;
@@ -1776,15 +1779,18 @@ XrdMgmOfsFile::open(const char* inpath,
       if (proxys[fsIndex].empty()) { // there is no proxy to use
         targethost  = filesystem->GetString("host").c_str();
         targetport  = atoi(filesystem->GetString("port").c_str());
+        targethttpport  = atoi(filesystem->GetString("stat.http.port").c_str());
       } else { // we have a proxy to use
         auto idx = proxys[fsIndex].rfind(':');
 
         if (idx != std::string::npos) {
           targethost = proxys[fsIndex].substr(0, idx).c_str();
           targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
+	  targethttpport = 8001;
         } else {
           targethost = proxys[fsIndex].c_str();
           targetport = 0;
+	  targethttpport = 0;
         }
       }
 
@@ -1807,6 +1813,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // There is no proxy or firewall entry point to use
     targethost  = filesystem->GetString("host").c_str();
     targetport  = atoi(filesystem->GetString("port").c_str());
+    targethttpport  = atoi(filesystem->GetString("stat.http.port").c_str());
     redirectionhost = targethost;
     redirectionhost += "?";
   }
@@ -2134,9 +2141,11 @@ XrdMgmOfsFile::open(const char* inpath,
               targethost = firewalleps[fsIndex].substr(0, idx).c_str();
               targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                                 std::string::npos).c_str());
+	      targethttpport = 8001;
             } else {
               targethost = firewalleps[fsIndex].c_str();
               targetport = 0;
+	      targethttpport = 0;
             }
 
             std::ostringstream oss;
@@ -2160,14 +2169,17 @@ XrdMgmOfsFile::open(const char* inpath,
               if (idx != std::string::npos) {
                 targethost = proxys[fsIndex].substr(0, idx).c_str();
                 targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
+		targethttpport = 8001;
               } else {
                 targethost = proxys[fsIndex].c_str();
                 targetport = 0;
+		targethttpport = 0;
               }
             } else {
               // There is no proxy to use
               targethost  = repfilesystem->GetString("host").c_str();
               targetport  = atoi(repfilesystem->GetString("port").c_str());
+              targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
             }
 
             redirectionhost = targethost;
@@ -2382,7 +2394,12 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Always redirect
-  ecode = targetport;
+  if ( (vid.prot == "https") || 
+       (vid.prot == "http") )
+    ecode = targethttpport;
+  else
+    ecode = targetport;
+
   rcode = SFS_REDIRECT;
   error.setErrInfo(ecode, redirectionhost.c_str());
 

@@ -174,16 +174,21 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mHttpdPort(8000), mQdbCluster(""),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;
+
+  if (getenv("EOS_MGM_HTTP_PORT")) {
+    mHttpdPort = strtol(getenv("EOS_MGM_HTTP_PORT"), 0, 10);
+  }
+
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
-  Httpd.reset(new eos::mgm::HttpServer());
+  Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
 }

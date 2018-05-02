@@ -78,6 +78,11 @@ public:
   virtual ~HttpServer () {};
 
   /**
+   * Return port number of service
+   */
+  int Port() { return mPort; }
+
+  /**
    * Start the listening HTTP server
    *
    * @return true if server running otherwise false

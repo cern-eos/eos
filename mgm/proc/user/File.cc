@@ -493,7 +493,9 @@ ProcCommand::File()
       } else {
         XrdOucString httppath = "http://";
         httppath += gOFS->HostName;
-        httppath += ":8000/";
+	httppath += ":";
+	httppath += gOFS->mHttpdPort;
+        httppath += "/";
         size_t qpos = sharepath.find("?");
         std::string httpunenc = sharepath;
         httpunenc.erase(qpos);
