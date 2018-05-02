@@ -65,7 +65,7 @@ Storage::Create(const char* meta_dir)
 //------------------------------------------------------------------------------
 Storage::Storage(const char* meta_dir)
 {
-  SetLogId("FstOfsStorage");
+  SetLogId("FstOfsStorage", "<service>");
   XrdOucString mkmetalogdir = "mkdir -p ";
   mkmetalogdir += meta_dir;
   mkmetalogdir += " >& /dev/null";

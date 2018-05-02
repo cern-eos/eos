@@ -69,7 +69,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   int replica_head = -1;
   bool is_gateway = false;
   bool is_head_server = false;
-  const char* index = mOfsFile->openOpaque->Get("mgm.replicaindex");
+  const char* index = mOfsFile->mOpenOpaque->Get("mgm.replicaindex");
 
   if (index) {
     replica_index = atoi(index);
@@ -87,7 +87,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     is_gateway = true;
   }
 
-  const char* head = mOfsFile->openOpaque->Get("mgm.replicahead");
+  const char* head = mOfsFile->mOpenOpaque->Get("mgm.replicahead");
 
   if (head) {
     replica_head = atoi(head);
@@ -121,8 +121,8 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   int envlen;
-  XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
-  XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
+  XrdOucString remoteOpenOpaque = mOfsFile->mOpenOpaque->Env(envlen);
+  XrdOucString remoteOpenPath = mOfsFile->mOpenOpaque->Get("mgm.path");
 
   // Only a gateway or head server needs to contact others
   if (is_gateway || is_head_server) {
@@ -132,7 +132,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     for (int i = 0; i < mNumReplicas; i++) {
       XrdOucString reptag = "mgm.url";
       reptag += i;
-      const char* rep = mOfsFile->capOpaque->Get(reptag.c_str());
+      const char* rep = mOfsFile->mCapOpaque->Get(reptag.c_str());
 
       if (!rep) {
         eos_err("Failed to open replica - missing url for replica %s",
@@ -147,7 +147,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       replica_url += remoteOpenPath.c_str();
       replica_url += "?";
       // Prepare the index for the next target
-      remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
+      remoteOpenOpaque = mOfsFile->mOpenOpaque->Env(envlen);
 
       if (index) {
         XrdOucString oldindex = "mgm.replicaindex=";

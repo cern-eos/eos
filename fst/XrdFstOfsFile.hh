@@ -99,7 +99,7 @@ public:
 
   const char* GetETag()
   {
-    return ETag.c_str();
+    return mEtag.c_str();
   }
 
   //--------------------------------------------------------------------------
@@ -281,24 +281,25 @@ public:
   int truncateofs(XrdSfsFileOffset fileOffset);
 
   //--------------------------------------------------------------------------
-  //!
+  //! Get physical path on the FST (local)
   //--------------------------------------------------------------------------
-  std::string GetFstPath();
-
+  inline std::string GetFstPath()
+  {
+    return mFstPath.c_str();
+  }
 
   //--------------------------------------------------------------------------
   //! Return logical path
   //--------------------------------------------------------------------------
   std::string GetPath()
   {
-    return Path.c_str();
+    return mNsPath.c_str();
   }
 
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
   //--------------------------------------------------------------------------
   bool TpcValid();
-
 
   //--------------------------------------------------------------------------
   //! Return the file size seen at open time
@@ -321,7 +322,7 @@ public:
   //--------------------------------------------------------------------------
   eos::fst::CheckSum* GetChecksum()
   {
-    return checkSum;
+    return mCheckSum.get();
   }
 
   //--------------------------------------------------------------------------
@@ -334,7 +335,7 @@ public:
   //--------------------------------------------------------------------------
   bool IsChunkedUpload()
   {
-    return isOCchunk;
+    return mIsOCchunk;
   }
 
   //--------------------------------------------------------------------------
@@ -342,9 +343,9 @@ public:
   static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
-  XrdOucEnv* openOpaque;
-  XrdOucEnv* capOpaque;
-  XrdOucString fstPath;
+  std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (un-decrypted)
+  XrdOucEnv* mCapOpaque; ///< Capability opaque info (decrypted)
+  XrdOucString mFstPath; ///< Physical path on the FST
   off_t bookingsize;
   off_t targetsize;
   off_t minsize;
@@ -352,17 +353,16 @@ protected:
   bool viaDelete;
   bool remoteDelete;
   bool writeDelete;
-  bool store_recovery;
+  uint64_t mRainSize; ///< Rain file size used during reconstruction
 
-  XrdOucString Path; //! local storage path
+  XrdOucString mNsPath; /// Logical file path (from the namespace)
   XrdOucString localPrefix; //! prefix on the local storage
   XrdOucString RedirectManager; //! manager host where we bounce back
   XrdOucString SecString; //! string containing security summary
   XrdSysMutex ChecksumMutex; //! mutex protecting the checksum class
-  XrdOucString TpcKey; //! TPC key for a tpc file operation
-  XrdOucString ETag; //! current and new ETag (recomputed in close)
+  XrdOucString mTpcKey; //! TPC key for a tpc file operation
+  XrdOucString mEtag; //! current and new ETag (recomputed in close)
 
-  bool hasBlockXs; //! mark if file has blockxs assigned
   unsigned long long fileid; //! file id
   unsigned long fsid; //! file system id
   unsigned long lid; //! layout id
@@ -370,28 +370,34 @@ protected:
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
   bool mFusex; //! indicator that we are commiting from a fusex client
-  XrdOucString hostName; //! our hostname
 
   bool closed; //! indicator the file is closed
   bool opened; //! indicator that file is opened
-  bool haswrite; //! indicator that file was written/modified
+  bool mHasWrite; //! indicator that file was written/modified
   bool hasWriteError;// indicator for write errros to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
   bool isRW; //! indicator that file is opened for rw
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
+  bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
-  bool isInjection; //! indicator that the opened file is a file injection where the size and checksum must match
-  bool isReconstruction; //! indicator that the opened file is in a RAIN reconstruction process
-  bool deleteOnClose; //! indicator that the file has to be cleaned on close
-  bool eventOnClose; //! indicator to send a specified event to the mgm on close
-  XrdOucString
-  eventWorkflow; //! indicates the workflow to be triggered by an event
-  bool repairOnClose; //! indicator that the file should get repaired on close
-  bool commitReconstruction; //! indicator that this FST has to commmit after reconstruction
-  // <- if the reconstructed piece is not existing on disk we commit anyway since it is a creation.
-  // <- if it does exist maybe from a previous movement where the replica was not yet deleted, we would register another stripe without deleting one
-  // <- there fore we indicate with  openOpaque->Get("eos.pio.commitfs") which filesystem should actually commit during reconstruction
+  //! Indicate that the opened file is a file injection where the size and
+  //! checksum must match
+  bool mIsInjection;
+  bool mRainReconstruct; ///< indicator that the opened file is in a RAIN reconstruction process
+  bool deleteOnClose; ///< indicator that the file has to be cleaned on close
+  bool repairOnClose; ///< indicator that the file should get repaired on close
+  //! Indicator that this FST has to commmit after reconstruction
+  //! * if the reconstructed piece is not existing on disk we commit anyway
+  //! since it is a creation.
+  //! * if it does exist maybe from a previous movement where the replica was
+  //! not yet deleted, we would register another stripe without deleting one
+  //! * there fore we indicate with  mOpenOpaque->Get("eos.pio.commitfs") which
+  //! filesystem should actually commit during reconstruction
+  bool commitReconstruction;
+  bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
+  //! Indicates the workflow to be triggered by an event
+  XrdOucString mEventWorkflow;
 
   enum {
     kOfsIoError = 1, //! generic IO error
@@ -400,8 +406,7 @@ protected:
     kOfsSimulatedIoError = 4 //! simulated IO error
   };
 
-  bool isOCchunk; //! indicator this is an OC chunk upload
-
+  bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
 
   enum {
@@ -421,17 +426,15 @@ protected:
   };
 
   FmdHelper* fMd; //! pointer to the in-memory file meta data object
-  eos::fst::CheckSum* checkSum; //! pointer to a checksum object
+  std::unique_ptr<eos::fst::CheckSum> mCheckSum; //! Checksum object
   Layout* layOut; //! pointer to a layout object
-
-  unsigned long long
-  maxOffsetWritten; //! largest byte position written of a new created file
-
-  off_t openSize; //! file size when the file was opened
-  off_t closeSize; //! file size when the file was closed
 
 private:
   // File statistics for monitoring purposes
+  //! Largest byte position written of a newly created file
+  unsigned long long maxOffsetWritten;
+  off_t openSize; //! file size when the file was opened
+  off_t closeSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
   struct timeval closeTime; //! time when a file was closed
   struct timezone tz; //! timezone
@@ -473,6 +476,29 @@ private:
   XrdOucString tIdent; ///< tident
   //! Stat struct to check if a file is updated between open-close
   struct stat updateStat;
+
+  //--------------------------------------------------------------------------
+  //! Process open opaque information - this can come directly from the client
+  //! or from the MGM redirection but it's not encrypted but sent in plain
+  //! text in the URL
+  //!
+  //! @param in_opaque input opaque info
+  //! @param out_opaque output (processed) opaque info
+  //!
+  //! @return SFS_OK if succcessful, otherwise SFS_ERROR
+  //--------------------------------------------------------------------------
+  int ProcessOpenOpaque(const std::string& in_opaque, std::string& out_opaque);
+
+  //--------------------------------------------------------------------------
+  //! Process TPC (third-party-copy) opaque information i.e handle tags like
+  //! tpc.key, tpc.dst, tpc.stage etc
+  //!
+  //! @param opaque opaque information
+  //! @param client XrdSecEntity of client
+  //!
+  //! @return SFS_OK if succcessful, otherwise SFS_ERROR
+  //--------------------------------------------------------------------------
+  int ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client);
 
   //--------------------------------------------------------------------------
   //! Compute total time to serve read requests
@@ -579,12 +605,10 @@ public:
   //----------------------------------------------------------------------------
   //! Filter out particular tags from the opaque information
   //!
-  //! @param opaque original opaque information
+  //! @param opaque opaque information to process
   //! @param tags set of tags to be filtered out
-  //!
-  //! @return new opaque information
   //----------------------------------------------------------------------------
-  static std::string FilterTags(const std::string& opaque,
+  static void FilterTagsInPlace(std::string& opaque,
                                 const std::set<std::string> tags);
 
   int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error

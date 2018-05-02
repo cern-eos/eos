@@ -141,7 +141,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   // Get the index of the current stripe
-  const char* index = mOfsFile->openOpaque->Get("mgm.replicaindex");
+  const char* index = mOfsFile->mOpenOpaque->Get("mgm.replicaindex");
 
   if (index) {
     mPhysicalStripeIndex = atoi(index);
@@ -155,7 +155,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   // Get the index of the head stripe
-  const char* head = mOfsFile->openOpaque->Get("mgm.replicahead");
+  const char* head = mOfsFile->mOpenOpaque->Get("mgm.replicahead");
 
   if (head) {
     mStripeHead = atoi(head);
@@ -240,7 +240,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     for (unsigned int i = 0; i < mNbTotalFiles; i++) {
       XrdOucString stripetag = "mgm.url";
       stripetag += static_cast<int>(i);
-      const char* stripe = mOfsFile->capOpaque->Get(stripetag.c_str());
+      const char* stripe = mOfsFile->mCapOpaque->Get(stripetag.c_str());
 
       if (mOfsFile->isRW && (!stripe)) {
         eos_err("failed to open stripe - missing url for %s", stripetag.c_str());
@@ -276,13 +276,13 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           eos_info("Open remote stripe i=%i ", i);
           int envlen;
           const char* val;
-          XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
-          XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
+          XrdOucString remoteOpenOpaque = mOfsFile->mOpenOpaque->Env(envlen);
+          XrdOucString remoteOpenPath = mOfsFile->mOpenOpaque->Get("mgm.path");
           stripe_urls[i] += remoteOpenPath.c_str();
           stripe_urls[i] += "?";
 
           // Create the opaque information for the next stripe file
-          if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex"))) {
+          if ((val = mOfsFile->mOpenOpaque->Get("mgm.replicaindex"))) {
             XrdOucString oldindex = "mgm.replicaindex=";
             XrdOucString newindex = "mgm.replicaindex=";
             oldindex += val;
@@ -358,6 +358,8 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     // recovered in the above ValidateHeader method. For the rest of the
     // stripes it doesn't matter if they have or not the correct file size -
     // anyway we can not recover here :D
+    // @note: for TPC transfers we open the remote stipes only in the
+    // kTpcSrcRead or kTpcDstSetup stages.
     if (mIsEntryServer) {
       if (mHdrInfo[0]->IsValid()) {
         mFileSize = mHdrInfo[0]->GetSizeFile();
@@ -460,13 +462,13 @@ RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
     }
   }
 
-// For PIO if header invalid then we abort
+  // For PIO if header invalid then we abort
   if (!ValidateHeader()) {
     eos_err("headers invalid - can not continue");
     return SFS_ERROR;
   }
 
-// Get the size of the file
+  // Get the size of the file
   mFileSize = -1;
 
   for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
@@ -554,6 +556,7 @@ RaidMetaLayout::ValidateHeader()
 
         // If file successfully opened, we need to store the info
         if (mStoreRecovery && mStripe[physical_id]) {
+          eos_info("recovered header for stripe %i", mapPL[physical_id]);
           mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id], mTimeout);
         }
 
@@ -564,7 +567,7 @@ RaidMetaLayout::ValidateHeader()
 
   used_stripes.clear();
 
-// Populate the stripe url map
+  // Populate the stripe url map
   for (unsigned int i = 0; i < mNbTotalFiles; i++) {
     mapLP[mapPL[i]] = i;
     eos_debug("physica:%i, logical:%i", i, mapPL[i]);

@@ -582,7 +582,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return NoGo;
   }
 
-  Messaging->SetLogId("FstOfsMessaging");
+  Messaging->SetLogId("FstOfsMessaging", "<service>");
 
   if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
     Eroute.Emsg("Config", "cannot create messaging object(thread)");
