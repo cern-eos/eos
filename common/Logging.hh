@@ -217,16 +217,29 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Set's the logid
+  //----------------------------------------------------------------------------
+  void
+  SetLogId(const char* newlogid)
+  {
+    if (newlogid && (strncmp(newlogid, logId, sizeof(newlogid) - 1) != 0)) {
+      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+    }
+  }
+
+  //----------------------------------------------------------------------------
   //! Set's the logid and trace identifier
   //----------------------------------------------------------------------------
   void
-  SetLogId(const char* newlogid, const char* td = "<service>")
+  SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid != logId) {
       snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
     }
 
-    snprintf(cident, sizeof(cident) - 1, "%s", td);
+    if (td) {
+      snprintf(cident, sizeof(cident) - 1, "%s", td);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -247,7 +260,6 @@ public:
       vid.prot = client->prot;
     }
   }
-
 
   //----------------------------------------------------------------------------
   //! Set's the logid, vid and trace identifier
@@ -539,7 +551,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! estimates log message distance and similiary to suppress log messages
-  //! 
+  //!
   //! @param time of the message
   //! @param priority of the message
   //! @param source file name
@@ -548,7 +560,7 @@ public:
   //! @return true if it should be suppressed, otherwise false
   //---------------------------------------------------------------------------
 
-  bool rate_limit(struct timeval &tv, int priority, const char* file, int line);
+  bool rate_limit(struct timeval& tv, int priority, const char* file, int line);
 
 private:
   //----------------------------------------------------------------------------

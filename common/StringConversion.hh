@@ -165,13 +165,13 @@ public:
   GetSizeFromString(const char* sizestring);
 
   static unsigned long long
-  GetSizeFromString(const XrdOucString &sizestring)
+  GetSizeFromString(const XrdOucString& sizestring)
   {
     return GetSizeFromString(sizestring.c_str());
   }
 
   static unsigned long long
-  GetSizeFromString(const std::string &sizestring)
+  GetSizeFromString(const std::string& sizestring)
   {
     return GetSizeFromString(sizestring.c_str());
   }
@@ -579,14 +579,15 @@ public:
   FastUnsignedToAsciiHex(UnsignedType u)
   {
     std::ostringstream oss;
+
     if (!u) {
       oss << '0';
       return oss.str();
     }
 
     const int size = 2 * sizeof(UnsignedType);
-
     bool hasChars = false;
+
     for (int j = 1; j <= size; j++) {
       int digit = (u >> ((size - j) << 2)) & 15;
 
@@ -684,6 +685,25 @@ public:
       return out.str();
     } catch (fmt::FormatError& e) {
       return std::string("");
+    }
+  }
+
+  //------------------------------------------------------------------------------
+  //! Replace a substring with another substring in a string
+  //------------------------------------------------------------------------------
+  static void ReplaceStringInPlace(std::string& subject,
+                                   const std::string& search,
+                                   const std::string& replace)
+  {
+    if (subject.empty() || search.empty() || replace.empty()) {
+      return;
+    }
+
+    size_t pos = 0;
+
+    while ((pos = subject.find(search)) != std::string::npos) {
+      subject.replace(pos, search.length(), replace);
+      pos += replace.length();
     }
   }
 
