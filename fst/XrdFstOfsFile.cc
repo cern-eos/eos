@@ -3122,12 +3122,8 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
         return gOFS.Stall(error, 10, "FST still misses the required capability key");
       }
 
-      // No capability - go away!
-      // @todo (esindril): fix this
-      if (mNsPath != "/replicate:0") {
-        return gOFS.Emsg(epname, error, caprc, "open - capability illegal",
-                         mNsPath.c_str());
-      }
+      return gOFS.Emsg(epname, error, caprc, "open - capability illegal",
+                       mNsPath.c_str());
     }
   }
 
