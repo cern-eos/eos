@@ -143,6 +143,11 @@ SyncTimeAccounting::PropagateUpdates()
             break;
           }
 
+	  // If there was a temporary ETAG this has not to be removed
+	  if (cont->hasAttribute("sys.tmp.etag")) {
+	    cont->removeAttribute("sys.tmp.etag");
+	  }
+
           if (deepness == 0u) {
             cont->getMTime(mtime);
           }

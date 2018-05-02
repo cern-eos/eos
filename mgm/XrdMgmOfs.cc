@@ -174,7 +174,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mHttpdPort(8000), mQdbCluster(""),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),mHttpdPort(8000),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
