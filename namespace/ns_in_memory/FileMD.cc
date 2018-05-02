@@ -85,6 +85,7 @@ FileMD::operator = (const FileMD& other)
   pCTime       = other.pCTime;
   pMTime       = other.pMTime;
   pChecksum    = other.pChecksum;
+  pXAttrs      = other.pXAttrs;
   pFileMDSvc   = 0;
   return *this;
 }

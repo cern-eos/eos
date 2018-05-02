@@ -71,6 +71,10 @@ void SyncTimeAccounting::Propagate(IContainerMD::id_t id)
       if (!iCont->hasAttribute("sys.mtime.propagation"))
         return;
 
+      // If there was a temporary ETAG this has now to be removed
+      if (iCont->hasAttribute("sys.tmp.etag"))
+	iCont->removeAttribute("sys.tmp.etag");
+
       if (!deepness)
         iCont->getMTime(mTime);
 

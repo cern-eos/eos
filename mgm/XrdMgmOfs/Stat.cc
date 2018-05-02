@@ -252,6 +252,13 @@ XrdMgmOfs::_stat(const char* path,
                  (unsigned long long) buf->st_mtime);
         *etag = setag;
       }
+
+      // check for a forced etag
+      std::string tmpEtag = "sys.tmp.etag";
+      if (fmd->hasAttribute(tmpEtag))
+      {
+	*etag = fmd->getAttribute(tmpEtag);
+      }
     }
 
     EXEC_TIMING_END("Stat");
@@ -321,6 +328,12 @@ XrdMgmOfs::_stat(const char* path,
                (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime,
                (unsigned long) buf->st_atim.tv_nsec / 1000000);
       *etag = setag;
+      // check for a forced etag
+      std::string tmpEtag = "sys.tmp.etag";
+      if (cmd->hasAttribute(tmpEtag))
+      {
+	*etag = cmd->getAttribute(tmpEtag);
+      }
     }
 
     return SFS_OK;

@@ -426,10 +426,19 @@
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
 
         try {
+	  // check for a temporary Etag and remove it
+	  std::string tmpEtag = "sys.tmp.etag";
+	  if (fmd->hasAttribute(tmpEtag)) {
+	    fmd->removeAttribute(tmpEtag);
+	  }
+
           gOFS->eosView->updateFileStore(fmd.get());
           cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 
           if (isUpdate) {
+	    if (cmd->hasAttribute(tmpEtag)) {
+	      cmd->removeAttribute(tmpEtag);
+	    }
             // update parent mtime
             cmd->setMTimeNow();
             gOFS->eosView->updateContainerStore(cmd.get());
