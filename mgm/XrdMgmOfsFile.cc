@@ -962,7 +962,6 @@ XrdMgmOfsFile::open(const char* inpath,
   std::string targetgeotag;
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
-  // @todo (jmakai): fix this - the same lock is taken later on in ShouldStall-IsKnownNode
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;

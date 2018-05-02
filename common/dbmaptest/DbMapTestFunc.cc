@@ -286,12 +286,11 @@ main()
   // timestampstr \t seqid \t writer \t key \t val \t comment
   // at this point
   // the content of /tmp/testlog_no_slice.db should be
-  int totalcount = 0;
   // writer=TestMap_no_slice key=k1 value=v1 comment=r1
   retvec.clear();
   dbl_no_slice.getAll(&retvec);
   //cout<<retvec.size()<<endl;
-  assert((int)retvec.size() == totalcount + 3);
+  assert((int)retvec.size() == 3);
   // we add one because of the removal of k2 in the log, because of the key with the binary value and because of the protobuf entry
   // at this point
   vector<DbLog*> dblogs;

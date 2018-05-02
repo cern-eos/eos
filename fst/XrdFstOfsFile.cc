@@ -178,8 +178,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int envlen = 0;
   mNsPath = path;
   gettimeofday(&openTime, &tz);
-  XrdOucString opaqueCheckSum = "";
-  XrdOucString opaqueBlockCheckSum = "";
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
   bool isRepairRead = false;
   // Mask some opaque parameters to shorten the logging
@@ -575,7 +573,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   //----------------------------------------------------------------------------
-  // @todo (esindril): handle virtual idenity
+  // @todo (esindril): handle virtual idenity more elegantly
   // Get the identity
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
@@ -648,18 +646,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  // @todo (esindril): handle this
+  // @todo (esindril): handle this in ProcessCapOpaque
+  std::string opaqueCheckSum;
+
   if ((val = mOpenOpaque->Get("mgm.checksum"))) {
     opaqueCheckSum = val;
   }
 
-  if ((val = mOpenOpaque->Get("mgm.blockchecksum"))) {
-    opaqueBlockCheckSum = val;
-  }
-
   // Call the checksum factory function with the selected layout
-  if ((isRW && (opaqueCheckSum != "ignore")) ||
-      (opaqueCheckSum != "ignore")) {
+  if (opaqueCheckSum != "ignore") {
     mCheckSum.reset(eos::fst::ChecksumPlugins::GetChecksumObject(lid));
     eos_debug("checksum requested %d %u", mCheckSum.get(), lid);
   }
@@ -2003,7 +1998,6 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 int
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
 {
-  //  EPNAME("read");
   int rc = XrdOfsFile::read(fileOffset, amount);
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset, amount);
   return rc;
@@ -2081,8 +2075,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 // layout plugins
 //------------------------------------------------------------------------------
 XrdSfsXferSize
-XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
-                        uint32_t readCount)
+XrdFstOfsFile::readvofs(XrdOucIOVec* readV, uint32_t readCount)
 {
   eos_debug("read count=%i", readCount);
   gettimeofday(&cTime, &tz);
@@ -2093,7 +2086,7 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
   {
     XrdSysMutexHelper scope_lock(vecMutex);
 
-    // If this is the last read of sequential reading, we can verify the checksum now
+    // If this is the last read of sequential reading, we can verify the checksum
     for (uint32_t i = 0; i < readCount; ++i) {
       monReadSingleBytes.push_back(readV[i].size);
     }
@@ -2108,8 +2101,7 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
 // Vector read - OFS interface method
 //------------------------------------------------------------------------------
 XrdSfsXferSize
-XrdFstOfsFile::readv(XrdOucIOVec* readV,
-                     int readCount)
+XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
   eos_debug("read count=%i", readCount);
   // Copy the XrdOucIOVec structure to XrdCl::ChunkList
@@ -2140,8 +2132,7 @@ XrdFstOfsFile::read(XrdSfsAio* aioparm)
 // Write to OFS file
 //------------------------------------------------------------------------------
 XrdSfsXferSize
-XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
-                        const char* buffer,
+XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                         XrdSfsXferSize buffer_size)
 {
   if (gOFS.Simulate_IO_write_error) {
@@ -2235,8 +2226,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset,
 // Write
 //------------------------------------------------------------------------------
 XrdSfsXferSize
-XrdFstOfsFile::write(XrdSfsFileOffset fileOffset,
-                     const char* buffer,
+XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
   if (mIsDevNull) {
@@ -2849,6 +2839,7 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
   // just a temporary fix for an issue on the eos fuse.
   //----------------------------------------------------------------------------
   FilterTagsInPlace(out_opaque, {"xrdcl.secuid", "xrdcl.secgid"});
+  //----------------------------------------------------------------------------
   XrdOucEnv env(out_opaque.c_str());
 
   if (!CheckFstValidity(env)) {
@@ -2904,29 +2895,6 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
 
   return SFS_OK;
 }
-
-
-//------------------------------------------------------------------------------
-// Process capability opaque information - this is encrypted information sent
-// by the MGM to the FST
-//------------------------------------------------------------------------------
-// int
-// XrdFstOfsFile::ProcessCapOpaque(const std::string& opaque)
-// {
-//   // Handle checksum and blockchecksum information
-//   if ((val = mOpenOpaque->Get("mgm.checksum"))) {
-//     std::string opaque_xs = val;
-
-//     if (opaque_xs != "ignore") {
-
-//     }
-//     opaqueCheckSum = val;
-//   }
-
-//   if ((val = mOpenOpaque->Get("mgm.blockchecksum"))) {
-//     opaqueBlockCheckSum = val;
-//   }
-// }
 
 //------------------------------------------------------------------------------
 // Process TPC (third-party copy) opaque information i.e handle tags like
@@ -3165,5 +3133,24 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 
   return SFS_OK;
 }
+
+//------------------------------------------------------------------------------
+// @todo (esindril): for the future
+// Process capability opaque information - this is encrypted information sent
+// by the MGM to the FST
+//------------------------------------------------------------------------------
+// int
+// XrdFstOfsFile::ProcessCapOpaque(const std::string& opaque)
+// {
+//   // Handle checksum and blockchecksum information
+//   if ((val = mOpenOpaque->Get("mgm.checksum"))) {
+//     std::string opaque_xs = val;
+
+//     if (opaque_xs != "ignore") {
+
+//     }
+//     opaqueCheckSum = val;
+//   }
+// }
 
 EOSFSTNAMESPACE_END

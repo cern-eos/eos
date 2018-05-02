@@ -297,7 +297,8 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   status = xrdreq_retryonnullbuf(fs, arg, response);
 
   if (!status.IsOK()) {
-    if ((status.errNo == kXR_FSError || status.errNo == kXR_noserver) && mInlineRepair &&
+    if ((status.errNo == kXR_FSError || status.errNo == kXR_noserver) &&
+        mInlineRepair &&
         (((flags & SFS_O_WRONLY) || (flags & SFS_O_RDWR)) &&
          (!(flags & SFS_O_CREAT)))) {
       // FS io error state for writing we try to recover the file on the fly
@@ -640,7 +641,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     }
 
     std::string _lasturl, _path(path);
-    size_t pos, _pos(0);
     uint64_t count_retry = 0;
     uint64_t max_retries = 100;
     char* smax_retries = getenv("EOS_FUSE_OPEN_MAX_RETRIES");
@@ -676,22 +676,19 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         }
 
         XrdCl::URL url(mFile->GetLastTriedUrl());
-        const std::string& username = url.GetUserName();
-
         eos_static_debug("LastErrNo=%d  _lasturl=%s  LastUrl=%s  _path=%s",
                          static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo(),
                          _lasturl.c_str(), mFile->GetLastTriedUrl().c_str(), _path.c_str());
 
-	if ( static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
-	     kXR_NotAuthorized )
-	{
-	  eos_static_err("permission denied");
-	  errno = EPERM;
-	  mClose = true; // avoid that MakeOpen calls open again and again if there are still writes
-	  return -1;
+        if (static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrNo() ==
+            kXR_NotAuthorized) {
+          eos_static_err("permission denied");
+          errno = EPERM;
+          mClose = true; // avoid that MakeOpen calls open again and again if there are still writes
+          return -1;
         } else {
           eos_static_err("error while openning");
-	  mClose = true; // avoid that MakeOpen calls open again and again fi there are still writes
+          mClose = true; // avoid that MakeOpen calls open again and again fi there are still writes
           return -1;
         }
       } else {
