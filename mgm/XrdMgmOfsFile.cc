@@ -1864,6 +1864,15 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += "&mgm.zerosize=1";
   }
 
+  // Add the store flag for RAIN reconstruct jobs
+  if (isPioReconstruct) {
+    capability += "&mgm.rain.store=1";
+    // Append also the mgm.rain.size since we can't deduce at the FST during
+    // the recovery step and we need it for the stat information
+    capability += "&mgm.rain.size=";
+    capability += std::to_string(fmdsize).c_str();
+  }
+
   XrdOucString infolog = "";
   XrdOucString piolist = "";
 
@@ -2284,11 +2293,6 @@ XrdMgmOfsFile::open(const char* inpath,
     redirectionhost += (int) fsIndex;
     redirectionhost += "&mgm.replicahead=";
     redirectionhost += (int) fsIndex;
-  }
-
-  // Add the store flag for RAIN reconstruct jobs
-  if (isPioReconstruct) {
-    redirectionhost += "&mgm.rain.store=1";
   }
 
   if (vid.prot == "https") {
