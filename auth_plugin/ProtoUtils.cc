@@ -320,7 +320,7 @@ utils::ComputeHMAC(RequestProto*& req)
   std::string hmac = eos::common::SymKey::HmacSha1(smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(),
-                     hmac.length(), base64hmac);
+                     SHA_DIGEST_LENGTH, base64hmac);
 
   if (!do_encoding) {
     eos_static_err("unable to do base64encoding on HMAC");
