@@ -35,15 +35,17 @@ TEST(XrdFstOfsFileTest, FilterTags)
   std::set<std::string> tags {"xrdcl.secuid", "xrdcl.secgid"};
   std::string opaque =
     "eos.app=demo&oss.size=13&xrdcl.secuid=2134&xrdcl.secgid=99";
-  ASSERT_STREQ(eos::fst::XrdFstOfsFile::FilterTags(opaque, tags).c_str(),
-               "eos.app=demo&oss.size=13");
+  eos::fst::XrdFstOfsFile::FilterTagsInPlace(opaque, tags);
+  ASSERT_STREQ(opaque.c_str(), "eos.app=demo&oss.size=13");
   opaque = "eos.app=demo&oss.size=13";
-  ASSERT_STREQ(eos::fst::XrdFstOfsFile::FilterTags(opaque, tags).c_str(),
-               "eos.app=demo&oss.size=13");
+  eos::fst::XrdFstOfsFile::FilterTagsInPlace(opaque, tags);
+  ASSERT_STREQ(opaque.c_str(), "eos.app=demo&oss.size=13");
   opaque = "eos.app=demo&oss.size=13&xrdcl.secuid=2134&xrdcl.secgid=99&"
            "xrdcl.other=tag&eos.lfn=/some/dummy/path&";
-  ASSERT_STREQ(eos::fst::XrdFstOfsFile::FilterTags(opaque, tags).c_str(),
+  eos::fst::XrdFstOfsFile::FilterTagsInPlace(opaque, tags);
+  ASSERT_STREQ(opaque.c_str(),
                "eos.app=demo&oss.size=13&xrdcl.other=tag&eos.lfn=/some/dummy/path");
   opaque = "";
-  ASSERT_STREQ(eos::fst::XrdFstOfsFile::FilterTags(opaque, tags).c_str(), "");
+  eos::fst::XrdFstOfsFile::FilterTagsInPlace(opaque, tags);
+  ASSERT_STREQ(opaque.c_str(), "");
 }
