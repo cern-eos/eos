@@ -296,19 +296,21 @@ private:
   //----------------------------------------------------------------------------
   //! Lookup symlink, expect to find a directory there.
   //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainerSymlink(IFileMDPtr symlink, size_t symlinkDepth);
+  folly::Future<PathLookupState> lookupContainerSymlink(IFileMDPtr symlink, IContainerMDPtr parent, size_t symlinkDepth);
 
   //----------------------------------------------------------------------------
   //! Lookup a subdirectory asynchronously, while following symlinks.
   //----------------------------------------------------------------------------
   folly::Future<PathLookupState> lookupContainer(
+    IContainerMDPtr root,
     const std::vector<std::string> &chunks,
     size_t symlinkDepth, bool follow);
 
   //----------------------------------------------------------------------------
   //! Lookup a subdirectory asynchronously, while following symlinks.
   //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainer(const std::string &url,
+  folly::Future<PathLookupState> lookupContainer(IContainerMDPtr root,
+    const std::string &url,
     size_t symlinkDepth, bool follow);
 
   //----------------------------------------------------------------------------

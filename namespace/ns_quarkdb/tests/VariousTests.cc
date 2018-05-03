@@ -246,6 +246,22 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
 
   ASSERT_EQ(view()->getFile("/folder1/ff3", true), ff1);
   ASSERT_EQ(view()->getFile("/folder1/ff3", false), ff3);
+
+  // More relative symlinks
+  containerSvc()->updateStore(view()->createContainer("/eos", true).get());
+  containerSvc()->updateStore(view()->createContainer("/eos/dev", true).get());
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/test", true).get());
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/test/instancetest", true).get());
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/test/instancetest/ref", true).get());
+
+  IFileMDPtr touch = view()->createFile("/eos/dev/test/instancetest/ref/touch", true);
+  IFileMDPtr symdir = view()->createFile("/eos/dev/test/instancetest/symrel2", true);
+  symdir->setLink("../../test/instancetest/ref");
+
+  fileSvc()->updateStore(touch.get());
+  fileSvc()->updateStore(symdir.get());
+
+  ASSERT_EQ(view()->getFile("/eos/dev/test/instancetest/symrel2/touch", true), touch);
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
