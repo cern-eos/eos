@@ -218,12 +218,12 @@ private:
 //------------------------------------------------------------------------------
 // Parse FileMDProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, IFileMD::id_t id) {
-  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching FileMD #" << id << " protobuf from QDB: "));
+static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, FileIdentifier id) {
+  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
 
   eos::ns::FileMdProto proto;
   Serialization::deserialize(reply->str, reply->len, proto)
-  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id << " protobuf from QDB: "));
+  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
 
   return std::move(proto);
 }
@@ -232,21 +232,21 @@ static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, IFileM
 // Fetch file metadata info for current id
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::FileMdProto>
-MetadataFetcher::getFileFromId(qclient::QClient& qcl, IFileMD::id_t id)
+MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
 {
-  return qcl.follyExec("HGET", FileMDSvc::getBucketKey(id), SSTR(id))
+  return qcl.follyExec("HGET", FileMDSvc::getBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
     .then(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
 //------------------------------------------------------------------------------
 // Parse ContainerMdProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr reply, IContainerMD::id_t id) {
-  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching ContainerMD #" << id << " protobuf from QDB: "));
+static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr reply, ContainerIdentifier id) {
+  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching ContainerMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
 
   eos::ns::ContainerMdProto proto;
   Serialization::deserialize(reply->str, reply->len, proto)
-  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id << " protobuf from QDB: "));
+  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
 
   return std::move(proto);
 }
@@ -255,9 +255,9 @@ static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr rep
 // Fetch container metadata info for current id
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::ContainerMdProto>
-MetadataFetcher::getContainerFromId(qclient::QClient& qcl, IContainerMD::id_t id)
+MetadataFetcher::getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id)
 {
-  return qcl.follyExec("HGET", ContainerMDSvc::getBucketKey(id), SSTR(id))
+  return qcl.follyExec("HGET", ContainerMDSvc::getBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
     .then(std::bind(parseContainerMdProtoResponse, _1, id));
 }
 

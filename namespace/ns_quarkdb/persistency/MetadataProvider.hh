@@ -56,22 +56,22 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID.
   //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> retrieveContainerMD(IContainerMD::id_t id);
+  folly::Future<IContainerMDPtr> retrieveContainerMD(ContainerIdentifier id);
 
   //----------------------------------------------------------------------------
   //! Retrieve FileMD by ID.
   //----------------------------------------------------------------------------
-  folly::Future<IFileMDPtr> retrieveFileMD(IFileMD::id_t id);
+  folly::Future<IFileMDPtr> retrieveFileMD(FileIdentifier id);
 
   //----------------------------------------------------------------------------
   //! Insert newly created item into the cache.
   //----------------------------------------------------------------------------
-  void insertFileMD(IFileMD::id_t id, IFileMDPtr item);
+  void insertFileMD(FileIdentifier id, IFileMDPtr item);
 
   //----------------------------------------------------------------------------
   //! Insert newly created item into the cache.
   //----------------------------------------------------------------------------
-  void insertContainerMD(IContainerMD::id_t id, IContainerMDPtr item);
+  void insertContainerMD(ContainerIdentifier id, IContainerMDPtr item);
 
   //----------------------------------------------------------------------------
   //! Change file cache size.
@@ -98,13 +98,13 @@ private:
   //! Turn an incoming FileMDProto into FileMD, removing from the inFlight
   //! staging area, and inserting into the cache.
   //----------------------------------------------------------------------------
-  IFileMDPtr processIncomingFileMdProto(IFileMD::id_t id, eos::ns::FileMdProto proto);
+  IFileMDPtr processIncomingFileMdProto(FileIdentifier id, eos::ns::FileMdProto proto);
 
   //----------------------------------------------------------------------------
   //! Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
   //! ContainerMDPtr, and insert into the cache.
   //----------------------------------------------------------------------------
-  IContainerMDPtr processIncomingContainerMD(IContainerMD::id_t id,
+  IContainerMDPtr processIncomingContainerMD(ContainerIdentifier id,
     std::tuple<
       eos::ns::ContainerMdProto,
       IContainerMD::FileMap,

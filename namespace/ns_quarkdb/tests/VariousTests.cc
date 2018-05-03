@@ -279,7 +279,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
   qcl().exec("HSET", FileMDSvc::getBucketKey(1), "1", "chicken_chicken_chicken_chicken").get();
 
   try {
-    MetadataFetcher::getFileFromId(qcl(), 1).get();
+    MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();
     FAIL();
   }
   catch(const MDException &exc) {
@@ -292,7 +292,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
   qcl().exec("SADD", FileMDSvc::getBucketKey(1), "zzzz").get();
 
   try {
-    MetadataFetcher::getFileFromId(qcl(), 1).get();
+    MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();
     FAIL();
   }
   catch(const MDException &exc) {

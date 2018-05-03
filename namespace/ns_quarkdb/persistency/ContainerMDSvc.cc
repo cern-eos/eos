@@ -187,7 +187,7 @@ ContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
     return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #0 not found"));
   }
 
-  return pMetadataProvider->retrieveContainerMD(id);
+  return pMetadataProvider->retrieveContainerMD(ContainerIdentifier(id));
 }
 
 //------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ ContainerMDSvc::createContainer()
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
-  pMetadataProvider->insertContainerMD(cont->getId(), cont);
+  pMetadataProvider->insertContainerMD(ContainerIdentifier(cont->getId()), cont);
   return cont;
 }
 

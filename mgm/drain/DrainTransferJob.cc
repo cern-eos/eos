@@ -211,7 +211,7 @@ DrainTransferJob::GetFileInfo() const
   } else {
     qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
                             "drain");
-    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, mFileId).get();
+    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, FileIdentifier(mFileId)).get();
     std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
     // Get the full path to the file
     std::string dir_uri;

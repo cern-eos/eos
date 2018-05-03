@@ -1286,7 +1286,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), *it));
+    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), FileIdentifier(*it)));
     ++it;
   }
 
@@ -1329,7 +1329,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
 
     if (it != file_ids.end()) {
       ++num_files;
-      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), *it));
+      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), FileIdentifier(*it)));
       ++it;
     }
 

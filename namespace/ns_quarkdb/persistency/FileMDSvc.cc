@@ -162,7 +162,7 @@ FileMDSvc::SafetyCheck()
 folly::Future<IFileMDPtr>
 FileMDSvc::getFileMDFut(IFileMD::id_t id)
 {
-  return mMetadataProvider->retrieveFileMD(id);
+  return mMetadataProvider->retrieveFileMD(FileIdentifier(id));
 }
 
 //------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ FileMDSvc::getFileMDFut(IFileMD::id_t id)
 std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
-  IFileMDPtr file = mMetadataProvider->retrieveFileMD(id).get();
+  IFileMDPtr file = mMetadataProvider->retrieveFileMD(FileIdentifier(id)).get();
   if(file && clock) {
     *clock = file->getClock();
   }
@@ -187,7 +187,7 @@ FileMDSvc::createFile()
 {
   uint64_t free_id = mInodeProvider.reserve();
   std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
-  mMetadataProvider->insertFileMD(free_id, file);
+  mMetadataProvider->insertFileMD(FileIdentifier(free_id), file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   ++mNumFiles;

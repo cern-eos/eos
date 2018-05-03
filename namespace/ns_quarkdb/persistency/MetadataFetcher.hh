@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -54,7 +55,7 @@ public:
   //! @return future holding the file metadata object
   //----------------------------------------------------------------------------
   static folly::Future<eos::ns::FileMdProto>
-  getFileFromId(qclient::QClient& qcl, IFileMD::id_t id);
+  getFileFromId(qclient::QClient& qcl, FileIdentifier id);
 
   //----------------------------------------------------------------------------
   //! Fetch container metadata info for current id
@@ -65,7 +66,7 @@ public:
   //! @return future holding the container metadata object
   //----------------------------------------------------------------------------
   static folly::Future<eos::ns::ContainerMdProto>
-  getContainerFromId(qclient::QClient& qcl, IContainerMD::id_t id);
+  getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id);
 
   //----------------------------------------------------------------------------
   //! Fetch file map for a container id

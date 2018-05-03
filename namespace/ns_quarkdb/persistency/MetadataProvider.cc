@@ -48,14 +48,14 @@ MetadataProvider::MetadataProvider(qclient::QClient &qcl,
 //------------------------------------------------------------------------------
 // Retrieve ContainerMD by ID.
 //------------------------------------------------------------------------------
-folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(IContainerMD::id_t id) {
+folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerIdentifier id) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
   // A ContainerMD can be in three states: Not in cache, inside in-flight cache,
   // and cached. Is it inside in-flight cache?
   //----------------------------------------------------------------------------
-  auto it = mInFlightContainers.find(ContainerIdentifier(id));
+  auto it = mInFlightContainers.find(id);
   if(it != mInFlightContainers.end()) {
     //--------------------------------------------------------------------------
     // Cache hit: A container with such ID has been staged already. Once a
@@ -68,13 +68,13 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(IContainerM
   //----------------------------------------------------------------------------
   // Nope.. is it inside the long-lived cache?
   //----------------------------------------------------------------------------
-  IContainerMDPtr result = mContainerCache.get(ContainerIdentifier(id));
+  IContainerMDPtr result = mContainerCache.get(id);
   if(result) {
     //--------------------------------------------------------------------------
     // Handle special case where we're dealing with a tombstone.
     //--------------------------------------------------------------------------
     if(result->isDeleted()) {
-      return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #" << id << " does not exist (found deletion tombstone)"));
+      return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #" << id.getUnderlyingUInt64() << " does not exist (found deletion tombstone)"));
     }
 
     return folly::makeFuture<IContainerMDPtr>(std::move(result));
@@ -85,8 +85,8 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(IContainerM
   // three asynchronous operations into one.
   //----------------------------------------------------------------------------
   folly::Future<eos::ns::ContainerMdProto> protoFut = MetadataFetcher::getContainerFromId(mQcl, id);
-  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id);
-  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id);
+  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id.getUnderlyingUInt64());
+  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id.getUnderlyingUInt64());
 
   folly::Future<IContainerMDPtr> fut = folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor.get())
@@ -96,25 +96,25 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(IContainerM
       //! If the operation failed, clear the in-flight cache.
       //------------------------------------------------------------------------
       std::lock_guard<std::mutex> lock(mMutex);
-      mInFlightContainers.erase(ContainerIdentifier(id));
+      mInFlightContainers.erase(id);
       return folly::makeFuture<IContainerMDPtr>(e);
     } );
 
-  mInFlightContainers[ContainerIdentifier(id)] = folly::FutureSplitter<IContainerMDPtr>(std::move(fut));
-  return mInFlightContainers[ContainerIdentifier(id)].getFuture();
+  mInFlightContainers[id] = folly::FutureSplitter<IContainerMDPtr>(std::move(fut));
+  return mInFlightContainers[id].getFuture();
 }
 
 //------------------------------------------------------------------------------
 // Retrieve FileMD by ID.
 //------------------------------------------------------------------------------
-folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(IFileMD::id_t id) {
+folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(FileIdentifier id) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
   // A FileMD can be in three states: Not in cache, inside in-flight cache,
   // and cached. Is it inside in-flight cache?
   //----------------------------------------------------------------------------
-  auto it = mInFlightFiles.find(FileIdentifier(id));
+  auto it = mInFlightFiles.find(id);
   if(it != mInFlightFiles.end()) {
     //--------------------------------------------------------------------------
     // Cache hit: A container with such ID has been staged already. Once a
@@ -127,13 +127,13 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(IFileMD::id_t id) {
   //----------------------------------------------------------------------------
   // Nope.. is it inside the long-lived cache?
   //----------------------------------------------------------------------------
-  IFileMDPtr result = mFileCache.get(FileIdentifier(id));
+  IFileMDPtr result = mFileCache.get(id);
   if(result) {
     //--------------------------------------------------------------------------
     // Handle special case where we're dealing with a tombstone.
     //--------------------------------------------------------------------------
     if(result->isDeleted()) {
-      return folly::makeFuture<IFileMDPtr>(make_mdexception(ENOENT, "File #" << id << " does not exist (found deletion tombstone)"));
+      return folly::makeFuture<IFileMDPtr>(make_mdexception(ENOENT, "File #" << id.getUnderlyingUInt64() << " does not exist (found deletion tombstone)"));
     }
 
     return folly::makeFuture<IFileMDPtr>(std::move(result));
@@ -150,28 +150,28 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(IFileMD::id_t id) {
       //! If the operation failed, clear the in-flight cache.
       //------------------------------------------------------------------------
       std::lock_guard<std::mutex> lock(mMutex);
-      mInFlightFiles.erase(FileIdentifier(id));
+      mInFlightFiles.erase(id);
       return folly::makeFuture<IFileMDPtr>(e);
     } );
 
-  mInFlightFiles[FileIdentifier(id)] = folly::FutureSplitter<IFileMDPtr>(std::move(fut));
-  return mInFlightFiles[FileIdentifier(id)].getFuture();
+  mInFlightFiles[id] = folly::FutureSplitter<IFileMDPtr>(std::move(fut));
+  return mInFlightFiles[id].getFuture();
 }
 
 //------------------------------------------------------------------------------
 // Insert newly created item into the cache.
 //------------------------------------------------------------------------------
-void MetadataProvider::insertFileMD(IFileMD::id_t id, IFileMDPtr item) {
+void MetadataProvider::insertFileMD(FileIdentifier id, IFileMDPtr item) {
   std::lock_guard<std::mutex> lock(mMutex);
-  mFileCache.put(FileIdentifier(id), item);
+  mFileCache.put(id, item);
 }
 
 //----------------------------------------------------------------------------
 //! Insert newly created item into the cache.
 //----------------------------------------------------------------------------
-void MetadataProvider::insertContainerMD(IContainerMD::id_t id, IContainerMDPtr item) {
+void MetadataProvider::insertContainerMD(ContainerIdentifier id, IContainerMDPtr item) {
   std::lock_guard<std::mutex> lock(mMutex);
-  mContainerCache.put(ContainerIdentifier(id), item);
+  mContainerCache.put(id, item);
 }
 
 //------------------------------------------------------------------------------
@@ -194,7 +194,7 @@ void MetadataProvider::setContainerMDCacheSize(uint64_t size) {
 // Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
 // ContainerMDPtr, and insert into the cache.
 //------------------------------------------------------------------------------
-IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t id,
+IContainerMDPtr MetadataProvider::processIncomingContainerMD(ContainerIdentifier id,
     std::tuple<
       eos::ns::ContainerMdProto,
       IContainerMD::FileMap,
@@ -214,7 +214,7 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t 
   //----------------------------------------------------------------------------
   // Things look sane?
   //----------------------------------------------------------------------------
-  eos_assert(proto.id() == id);
+  eos_assert(proto.id() == id.getUnderlyingUInt64());
 
   //----------------------------------------------------------------------------
   // Yep, construct ContainerMD object..
@@ -225,7 +225,7 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t 
   //----------------------------------------------------------------------------
   // Drop inFlightContainers future..
   //----------------------------------------------------------------------------
-  auto it = mInFlightContainers.find(ContainerIdentifier(id));
+  auto it = mInFlightContainers.find(id);
   eos_assert(it != mInFlightContainers.end());
   mInFlightContainers.erase(it);
 
@@ -233,7 +233,7 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t 
   // Insert into the cache..
   //----------------------------------------------------------------------------
   IContainerMDPtr item { containerMD };
-  mContainerCache.put(ContainerIdentifier(id), item);
+  mContainerCache.put(id, item);
   return item;
 }
 
@@ -241,13 +241,13 @@ IContainerMDPtr MetadataProvider::processIncomingContainerMD(IContainerMD::id_t 
 // Turn an incoming FileMDProto into FileMD, removing from the inFlight
 // staging area, and inserting into the cache.
 //------------------------------------------------------------------------------
-IFileMDPtr MetadataProvider::processIncomingFileMdProto(IFileMD::id_t id, eos::ns::FileMdProto proto) {
+IFileMDPtr MetadataProvider::processIncomingFileMdProto(FileIdentifier id, eos::ns::FileMdProto proto) {
   std::lock_guard<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
   // Things look sane?
   //----------------------------------------------------------------------------
-  eos_assert(proto.id() == id);
+  eos_assert(proto.id() == id.getUnderlyingUInt64());
 
   //----------------------------------------------------------------------------
   // Yep, construct FileMD object..
@@ -258,7 +258,7 @@ IFileMDPtr MetadataProvider::processIncomingFileMdProto(IFileMD::id_t id, eos::n
   //----------------------------------------------------------------------------
   // Drop inFlightFiles future..
   //----------------------------------------------------------------------------
-  auto it = mInFlightFiles.find(FileIdentifier(id));
+  auto it = mInFlightFiles.find(id);
   eos_assert(it != mInFlightFiles.end());
   mInFlightFiles.erase(it);
 
@@ -266,7 +266,7 @@ IFileMDPtr MetadataProvider::processIncomingFileMdProto(IFileMD::id_t id, eos::n
   // Insert into the cache..
   //----------------------------------------------------------------------------
   IFileMDPtr item { fileMD };
-  mFileCache.put(FileIdentifier(id), item);
+  mFileCache.put(id, item);
   return item;
 }
 

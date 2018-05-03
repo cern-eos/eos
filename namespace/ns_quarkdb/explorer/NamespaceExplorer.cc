@@ -32,7 +32,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 SearchNode::SearchNode(qclient::QClient& qcli, IContainerMD::id_t d, eos::SearchNode* prnt)
   : id(d), qcl(qcli), parent(prnt),
-    containerMd(MetadataFetcher::getContainerFromId(qcl, id))
+    containerMd(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(id)))
 {
   fileMap = MetadataFetcher::getFilesInContainer(qcl, id);
   containerMap = MetadataFetcher::getSubContainers(qcl, id);
@@ -74,7 +74,7 @@ void SearchNode::stageFileMds()
   }
 
   for (auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
-    pendingFileMds.push_back(MetadataFetcher::getFileFromId(qcl, it->second));
+    pendingFileMds.push_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(it->second)));
   }
 }
 
@@ -173,7 +173,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
   std::vector<std::string> pathParts;
   eos::PathProcessor::splitPath(pathParts, path);
   // This part is synchronous by necessity.
-  staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, 1).get());
+  staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(1)).get());
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
@@ -211,14 +211,14 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
         // This may throw again, propagate to caller if so
         IFileMD::id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
                       pathParts[i]).get();
-        lastChunk = MetadataFetcher::getFileFromId(qcl, nextId).get();
+        lastChunk = MetadataFetcher::getFileFromId(qcl, FileIdentifier(nextId)).get();
         searchOnFile = true;
       }
     }
 
     if (!threw) {
       if (i != pathParts.size() - 1) {
-        staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
+        staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(nextId)).get());
       } else {
         // Final node, expand
         dfsPath.emplace_back(new SearchNode(qcl, nextId, nullptr));
