@@ -198,6 +198,7 @@ public:
   int Recycle();
   int Rm();
   int Rmdir();
+  int Route();
   int Version();
   int Who();
   int Whoami();

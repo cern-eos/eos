@@ -1139,6 +1139,8 @@ FindHelper::ParseCommand(const char* arg)
     path = abspath(path.c_str());
 
     find->set_path(path.c_str());
+
+    setenv("EOS_ROUTE", find->path().c_str(), 1);
   }
   else {
     return false;

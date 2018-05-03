@@ -67,6 +67,14 @@ ICmdHelper::ExecuteWithoutPrint() {
 
   std::string cmd = "mgm.cmd.proto=";
   cmd += b64buff;
+  if (getenv("EOS_ROUTE"))
+  {
+    XrdOucString route = getenv("EOS_ROUTE");
+    while(route.replace("&","#AND#")){}
+    cmd += "&eos.route=";
+    cmd += route.c_str();
+    unsetenv("EOS_ROUTE");
+  }
   return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
 }
 

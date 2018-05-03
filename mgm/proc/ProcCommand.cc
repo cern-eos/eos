@@ -349,6 +349,8 @@ ProcCommand::open(const char* inpath, const char* info,
       Find();
     } else if (mCmd == "map") {
       Map();
+    } else if (mCmd == "route") {
+      Route();
     } else if (mCmd == "member") {
       Member();
     } else if (mCmd == "attr") {

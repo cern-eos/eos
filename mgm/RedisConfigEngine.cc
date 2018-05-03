@@ -441,6 +441,7 @@ RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
         ((pinfo.option.find("p") != STR_NPOS) && (_key.beginswith("policy:"))) ||
         ((pinfo.option.find("g") != STR_NPOS) && (_key.beginswith("global:"))) ||
         ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("map:"))) ||
+        ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("route:"))) ||
         ((pinfo.option.find("s") != STR_NPOS) && (_key.beginswith("geosched:")))) {
       filtered = true;
     }

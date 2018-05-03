@@ -113,6 +113,7 @@ RmHelper::ParseCommand(const char* arg) {
     } else {
       path = abspath(path.c_str());
       rm->set_path(path.c_str());
+      setenv("EOS_ROUTE", path.c_str(), 1);
     }
   }
 

@@ -231,6 +231,14 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
       oss_err << "error: failed to apply config "
               << key << " => " << val->c_str() << std::endl;
     }
+  } else if (skey.beginswith("route:")) {
+    // Set a routing
+    skey.erase(0, 6);
+
+    if (!gOFS->AddPathRoute(skey.c_str(), sval.c_str())) {
+      oss_err << "error: failed to apply config "
+              << key << " => " << val->c_str() << std::endl;
+    }
   } else if (skey.beginswith("quota:")) {
     // Set a quota definition
     skey.erase(0, 6);
@@ -330,6 +338,7 @@ IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
         ((option.find("c") != STR_NPOS) && (skey.beginswith("comment-"))) ||
         ((option.find("g") != STR_NPOS) && (skey.beginswith("global:"))) ||
         ((option.find("m") != STR_NPOS) && (skey.beginswith("map:"))) ||
+        ((option.find("r") != STR_NPOS) && (skey.beginswith("route:"))) ||
         ((option.find("s") != STR_NPOS) && (skey.beginswith("geosched:")))) {
       *outstring += key;
       *outstring += " => ";
@@ -427,6 +436,13 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
 
     if (gOFS->PathMap.count(skey.c_str())) {
       gOFS->PathMap.erase(skey.c_str());
+    }
+  } else  if (skey.beginswith("route:")) {
+    skey.erase(0, 6);
+    eos::common::RWMutexWriteLock lock(gOFS->PathRouteMutex);
+
+    if (gOFS->PathRoute.count(skey.c_str())) {
+      gOFS->PathRoute.erase(skey.c_str());
     }
   } else if (skey.beginswith("quota:")) {
     // Remove quota definition
@@ -539,10 +555,10 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
   struct PrintInfo pinfo;
   const char* name = filter.Get("mgm.config.file");
   pinfo.out = &out;
-  pinfo.option = "vfqcgms";
+  pinfo.option = "vfqcgmrs";
 
   if (filter.Get("mgm.config.comment") || filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") ||
+      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") || filter.Get("mgm.config.route") || 
       filter.Get("mgm.config.policy") || filter.Get("mgm.config.quota") ||
       filter.Get("mgm.config.geosched") || filter.Get("mgm.config.vid")) {
     pinfo.option = "";
@@ -566,6 +582,10 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 
   if (filter.Get("mgm.config.map")) {
     pinfo.option += "m";
+  }
+
+  if (filter.Get("mgm.config.route")) {
+    pinfo.option += "r";
   }
 
   if (filter.Get("mgm.config.quota")) {
@@ -614,6 +634,7 @@ IConfigEngine::ResetConfig()
   }
   Access::Reset();
   gOFS->ResetPathMap();
+  gOFS->ResetPathRoute();
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   {

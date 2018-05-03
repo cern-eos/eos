@@ -618,6 +618,7 @@ FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
         ((pinfo.option.find("f") != STR_NPOS) && (line.beginswith("fs:"))) ||
         ((pinfo.option.find("g") != STR_NPOS) && (line.beginswith("global:"))) ||
         ((pinfo.option.find("m") != STR_NPOS) && (line.beginswith("map:"))) ||
+        ((pinfo.option.find("r") != STR_NPOS) && (line.beginswith("route:"))) ||
         ((pinfo.option.find("p") != STR_NPOS) && (line.beginswith("policy:"))) ||
         ((pinfo.option.find("q") != STR_NPOS) && (line.beginswith("quota:"))) ||
         ((pinfo.option.find("s") != STR_NPOS) && (line.beginswith("geosched:"))) ||
