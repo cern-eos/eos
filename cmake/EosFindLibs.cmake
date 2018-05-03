@@ -32,6 +32,7 @@ option(BUILD_TESTS "Build CppUnit tests" OFF)
 
 set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
 set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")
+set(EOS_RPATH "/usr/lib64/;/lib64/")
 
 if(NOT PACKAGEONLY)
   if(Linux)
