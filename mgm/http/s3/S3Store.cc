@@ -343,6 +343,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
       std::shared_ptr<eos::IFileMD> fmd;
 
       try {
+        fmd = gOFS->eosView->getFile(fullname);
         gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
         result += "<Contents>";
