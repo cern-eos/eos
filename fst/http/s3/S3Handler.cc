@@ -40,8 +40,8 @@ EOSFSTNAMESPACE_BEGIN
 bool
 S3Handler::Matches(const std::string& method, HeaderMap& headers)
 {
-  if (headers.count("Authorization")) {
-    if (headers["Authorization"].substr(0, 3) == "AWS") {
+  if (headers.count("authorization")) {
+    if (headers["authorization"].substr(0, 3) == "AWS") {
       eos_static_info("info=Matched S3 protocol for request");
       return true;
     }
