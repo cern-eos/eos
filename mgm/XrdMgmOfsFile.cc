@@ -2324,7 +2324,49 @@ XrdMgmOfsFile::open(const char* inpath,
     redirectionhost += "&mgm.mtime=0";
   }
 
-  // add workflow cgis
+  // Also trigger synchronous create workflow event if it's defined
+  if(isCreation) {
+    errno = 0;
+    workflow.SetFile(path, fileId);
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid);
+    if (ret_wfe < 0 && errno == ENOKEY) {
+      eos_info("msg=\"no workflow defined for sync::create\"");
+    } else {
+      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+      if (ret_wfe != 0) {
+        // Remove the file from the namespace in this case
+        try {
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          gOFS->eosView->removeFile(fmd.get());
+        } catch (eos::MDException& ex) {
+          eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
+                  ex.what());
+        }
+
+        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error", path);
+      }
+    }
+  }
+
+  // Also trigger synchronous open-write workflow event if it's defined
+  if(isRW) {
+    errno = 0;
+    workflow.SetFile(path, fileId);
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    auto ret_wfe = workflow.Trigger("sync::openw", std::string{workflowType}, vid);
+    if (ret_wfe  < 0 && errno == ENOKEY) {
+      eos_info("msg=\"no workflow defined for sync::openw\"");
+    } else {
+      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+      if (ret_wfe != 0) {
+        // Error from the workflow
+        rcode = Emsg(epname, error, ret_wfe, "open - synchronous openw workflow error", path);
+      }
+    }
+  }
+
+  // add workflow cgis, has to come after create workflow
   workflow.SetFile(path, fileId);
   if (isRW) {
     redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
@@ -2402,56 +2444,6 @@ XrdMgmOfsFile::open(const char* inpath,
         errno = e.getErrno();
         eos_warning("msg=\"failed to update access time\" path=\"%s\" ec=%d emsg=\"%s\"\n",
                     path, e.getErrno(), e.getMessage().str().c_str());
-      }
-    }
-  }
-
-  // Also trigger synchronous create workflow event if it's defined
-  if (isCreation) {
-    errno = 0;
-    workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
-                        openOpaque->Get("eos.workflow") : "default";
-    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid);
-
-    if (ret_wfe < 0 && errno == ENOKEY) {
-      eos_info("msg=\"no workflow defined for sync::create\"");
-    } else {
-      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-
-      if (ret_wfe != 0) {
-        // Remove the file from the namespace in this case
-        try {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-          gOFS->eosView->removeFile(fmd.get());
-        } catch (eos::MDException& ex) {
-          eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
-                  ex.what());
-        }
-
-        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error",
-                    path);
-      }
-    }
-  }
-
-  // Also trigger synchronous open-write workflow event if it's defined
-  if (isRW) {
-    errno = 0;
-    workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
-                        openOpaque->Get("eos.workflow") : "default";
-    auto ret_wfe = workflow.Trigger("sync::openw", std::string{workflowType}, vid);
-
-    if (ret_wfe  < 0 && errno == ENOKEY) {
-      eos_info("msg=\"no workflow defined for sync::openw\"");
-    } else {
-      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-
-      if (ret_wfe != 0) {
-        // Error from the workflow
-        rcode = Emsg(epname, error, ret_wfe, "open - synchronous openw workflow error",
-                     path);
       }
     }
   }
