@@ -470,7 +470,7 @@ HttpServer::HttpStall(const char* stallText, int seconds)
 void
 HttpServer::EncodeURI(std::string& cgi)
 {
-  // replace '+' '/' '='
+  // replace '+' '/' '=' '&' '#' '"'
   XrdOucString scgi = cgi.c_str();
 
   while (scgi.replace("+", "%2B")) {
@@ -488,6 +488,9 @@ HttpServer::EncodeURI(std::string& cgi)
   while (scgi.replace("#", "%23")) {
   }
 
+  while (scgi.replace("\"", "%22")) {
+  }
+
   cgi = "encURI=";
   cgi += scgi.c_str();
 }
@@ -496,7 +499,7 @@ HttpServer::EncodeURI(std::string& cgi)
 void
 HttpServer::DecodeURI(std::string& cgi)
 {
-  // replace "%2B" "%2F" "%3D"
+  // replace "%2B" "%2F" "%3D" "%26" "%23" "%22"
   XrdOucString scgi = cgi.c_str();
 
   while (scgi.replace("%2B", "+")) {
@@ -512,6 +515,9 @@ HttpServer::DecodeURI(std::string& cgi)
   }
 
   while (scgi.replace("%23", "#")) {
+  }
+
+  while (scgi.replace("%22", "\"")) {
   }
 
   if (scgi.beginswith("encURI=")) {
