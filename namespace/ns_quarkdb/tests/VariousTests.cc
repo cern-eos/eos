@@ -228,6 +228,24 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   ASSERT_EQ(view()->getUri(symlinkFile.get()), "/folder4/f1");
   ASSERT_TRUE(symlinkFile->isLink());
   ASSERT_EQ(symlinkFile->getLink(), "/folder1");
+
+  // Use relative symlinks
+  IFileMDPtr ff1 = view()->createFile("/ff1", true);
+  IFileMDPtr ff2 = view()->createFile("/ff2", true);
+  ff2->setLink("./ff1");
+
+  fileSvc()->updateStore(ff1.get());
+  fileSvc()->updateStore(ff2.get());
+
+  ASSERT_EQ(view()->getFile("/ff2", true), ff1);
+  ASSERT_EQ(view()->getFile("/ff2", false), ff2);
+
+  IFileMDPtr ff3 = view()->createFile("/folder1/ff3", true);
+  ff3->setLink("../ff1");
+  fileSvc()->updateStore(ff3.get());
+
+  ASSERT_EQ(view()->getFile("/folder1/ff3", true), ff1);
+  ASSERT_EQ(view()->getFile("/folder1/ff3", false), ff3);
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {

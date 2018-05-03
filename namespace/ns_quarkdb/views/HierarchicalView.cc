@@ -603,6 +603,37 @@ folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
   }
 
   //----------------------------------------------------------------------------
+  // Looking up "." ? Just return the directory itself.
+  //----------------------------------------------------------------------------
+  if(name == ".") {
+    return parent;
+  }
+
+  //----------------------------------------------------------------------------
+  // Looking up ".." ? Just return the parent directory.
+  //----------------------------------------------------------------------------
+  if(name == "..") {
+    return pContainerSvc->getContainerMDFut(parent.current->getParentId())
+      .then([this, parent](IContainerMDPtr result) {
+        if(!result) {
+          //--------------------------------------------------------------------
+          // This should not really happen.
+          //--------------------------------------------------------------------
+          eos_static_crit("Could not lookup parent %lld of ContainerID %lld, wtf", parent.current->getParentId(),  parent.current->getId());
+          return folly::makeFuture<PathLookupState>(make_mdexception(ENOENT, "No such file or directory"));
+        }
+
+        //----------------------------------------------------------------------
+        // Directory was found, all is OK, return a concrete result.
+        //----------------------------------------------------------------------
+        PathLookupState newState;
+        newState.current = result;
+        newState.symlinkDepth = parent.symlinkDepth;
+        return folly::makeFuture<PathLookupState>(std::move(newState));
+      } );
+  }
+
+  //----------------------------------------------------------------------------
   // Lookup.
   //----------------------------------------------------------------------------
   folly::Future<PathLookupState> fut = parent.current->findContainerFut(name)
