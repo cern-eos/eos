@@ -262,6 +262,9 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   fileSvc()->updateStore(symdir.get());
 
   ASSERT_EQ(view()->getFile("/eos/dev/test/instancetest/symrel2/touch", true), touch);
+
+  ASSERT_EQ(view()->getRealPath("/eos/dev/test/instancetest/symrel2/touch"), "/eos/dev/test/instancetest/ref/touch");
+  ASSERT_EQ(view()->getRealPath("/eos/dev/test/instancetest/symrel2"), "/eos/dev/test/instancetest/symrel2");
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {

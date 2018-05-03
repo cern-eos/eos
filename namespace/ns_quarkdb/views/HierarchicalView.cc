@@ -17,6 +17,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/Assert.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -329,21 +330,20 @@ HierarchicalView::removeLink(const std::string& uri)
 void
 HierarchicalView::unlinkFile(const std::string& uri)
 {
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
-  size_t position;
-  std::shared_ptr<IContainerMD> cont =
-    findLastContainer(elements, elements.size() - 1, position);
+  std::vector<std::string> chunks;
+  eos::PathProcessor::splitPath(chunks, uri);
 
-  if (position != elements.size() - 1) {
+  if(chunks.size() == 0) {
     MDException e(ENOENT);
-    e.getMessage() << "Container does not exist";
+    e.getMessage() << "Not a file";
     throw e;
   }
 
-  std::shared_ptr<IFileMD> file{cont->findFile(elements[position])};
+  std::string lastChunk = chunks[chunks.size()-1];
+  chunks.pop_back();
+
+  IContainerMDPtr parent = lookupContainer(pRoot, chunks, 0, true).get().current;
+  std::shared_ptr<IFileMD> file = parent->findFile(lastChunk);
 
   if (!file) {
     MDException e(ENOENT);
@@ -500,21 +500,23 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
     throw e;
   }
 
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
-  size_t position;
-  auto parent = findLastContainer(elements, elements.size() - 1, position);
+  //----------------------------------------------------------------------------
+  // Lookup last container
+  //----------------------------------------------------------------------------
+  std::vector<std::string> chunks;
+  eos::PathProcessor::splitPath(chunks, uri);
 
-  if ((position != (elements.size() - 1))) {
-    MDException e(ENOENT);
-    e.getMessage() << uri << ": No such file or directory";
-    throw e;
+  eos_assert(chunks.size() != 0);
+  std::string lastChunk = chunks[chunks.size()-1];
+  chunks.pop_back();
+
+  IContainerMDPtr parent = pRoot;
+  if(chunks.size() != 0) {
+    parent = lookupContainer(pRoot, chunks, 0, true).get().current;
   }
 
   // Check if the container exist and remove it
-  auto cont = parent->findContainer(elements[elements.size() - 1]);
+  auto cont = parent->findContainer(lastChunk);
 
   if (!cont) {
     MDException e(ENOENT);
@@ -818,40 +820,29 @@ HierarchicalView::getUri(const IFileMD* file) const
 //------------------------------------------------------------------------
 std::string HierarchicalView::getRealPath(const std::string& uri)
 {
-  size_t link_depths = 0;
-  char uriBuffer[uri.length() + 1];
-  strcpy(uriBuffer, uri.c_str());
-  std::vector<char*> elements;
-
   if (uri == "/") {
     MDException e(ENOENT);
     e.getMessage() << " is not a file";
     throw e;
   }
 
-  eos::PathProcessor::splitPath(elements, uriBuffer);
-  size_t position;
-  auto cont = findLastContainer(elements, elements.size() - 1, position,
-                                &link_depths);
+  std::vector<std::string> chunks;
+  eos::PathProcessor::splitPath(chunks, uri);
 
-  if (position != elements.size() - 1) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container does not exist";
-    throw e;
-  }
+  eos_assert(chunks.size() != 0);
+  if(chunks.size() == 1) return chunks[0];
 
-  // replace the last existing container with the resolved container path
-  std::string newcontainer = getUri(cont.get());
-  size_t oldlength = 0;
+  //----------------------------------------------------------------------------
+  // Remove last chunk
+  //----------------------------------------------------------------------------
+  std::string lastChunk = chunks[chunks.size()-1];
+  chunks.pop_back();
 
-  for (size_t i = 0; i < position; i++) {
-    oldlength += strlen(elements[i]) + 1;
-  }
-
-  std::string newpath = uri;
-  newpath.erase(0, oldlength + 1);
-  newpath.insert(0, newcontainer);
-  return newpath;
+  //----------------------------------------------------------------------------
+  // Lookup parent container..
+  //----------------------------------------------------------------------------
+  IContainerMDPtr cont = lookupContainer(pRoot, chunks, 0, true).get().current;
+  return SSTR(getUri(cont.get()) << lastChunk);
 }
 
 //------------------------------------------------------------------------------
