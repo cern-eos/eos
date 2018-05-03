@@ -250,6 +250,8 @@ LRU::LRUr()
             }
           }
         }
+	XrdSysThread::SetCancelOn();
+	XrdSysThread::SetCancelOff();
       }
 
       EXEC_TIMING_END("LRUFind");

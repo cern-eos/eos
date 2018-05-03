@@ -104,7 +104,10 @@ XrdMgmOfs::rename(const char* old_name,
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
-  MAYREDIRECT;
+  {
+    const char* path = inpath;
+    MAYREDIRECT;
+  }
   return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
 }
 
@@ -160,7 +163,10 @@ XrdMgmOfs::rename(const char* old_name,
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
-  MAYREDIRECT;
+  {
+    const char* path = inpath;
+    MAYREDIRECT;
+  }
 
   // check access permissions on source
   if ((_access(oldn.c_str(), W_OK, error, vid, infoO) != SFS_OK)) {

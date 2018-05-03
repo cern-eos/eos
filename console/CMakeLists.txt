@@ -97,6 +97,7 @@ add_library(
   commands/com_rm.cc
   commands/com_rmdir.cc
   commands/com_role.cc
+  commands/com_route.cc
   commands/com_rtlog.cc
   commands/com_silent.cc
   commands/com_space.cc

@@ -57,6 +57,9 @@ com_config(char* arg1)
         } else if ((arg == "--map") || (arg == "-m")) {
           in += "&mgm.config.map=1";
           arg = subtokenizer.GetToken();
+        } else if ((arg == "--route") || (arg == "-r")) {
+          in += "&mgm.config.route=1";
+          arg = subtokenizer.GetToken();
         } else if ((arg == "--policy") || (arg == "-p")) {
           in += "&mgm.config.policy=1";
           arg = subtokenizer.GetToken();
@@ -286,6 +289,7 @@ com_config_usage:
       << "       -p|--policy   : " << "dump only policy config" << std::endl
       << "       -q|--quota    : " << "dump only quota config" << std::endl
       << "       -m|--map      : " << "dump only mapping config" << std::endl
+      << "       -r|--route    : " << "dump only routing config" << std::endl
       << "       -s|--geosched : " << "dump only geosched config" << std::endl
       << "       -v|--vid      : " << "dump only virtual id config" << std::endl
       << std::endl

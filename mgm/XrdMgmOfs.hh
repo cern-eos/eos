@@ -1073,6 +1073,17 @@ public:
                       int& port);
 
   //----------------------------------------------------------------------------
+  // Test if a  client should be routed
+  //----------------------------------------------------------------------------
+  bool ShouldRoute(const char* function,
+		   int accessmode,
+		   eos::common::Mapping::VirtualIdentity& vid,
+		   const char* path, 
+		   const char* info,
+		   XrdOucString& host,
+		   int& port);
+  
+  //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule
   //!
   //! @param path the path where the rule should be checked (currently unused)
@@ -1131,6 +1142,26 @@ public:
   // Reset path mapping
   // ---------------------------------------------------------------------------
   void ResetPathMap();  // reset/empty the path map
+
+  // ---------------------------------------------------------------------------
+  // Retrieve a route for a given path
+  // ---------------------------------------------------------------------------
+  bool PathReroute(const char* inpath,
+		   const char* ininfo,
+		   eos::common::Mapping::VirtualIdentity_t &vid,
+		   XrdOucString& outhost,
+		   int& port);  // global namespace routing
+
+  // ---------------------------------------------------------------------------
+  // Add a path routing rule
+  // ---------------------------------------------------------------------------
+  bool AddPathRoute(const char* source,
+                  const char* target);  // add a routing to the path map
+
+  // ---------------------------------------------------------------------------
+  // Reset path routing
+  // ---------------------------------------------------------------------------
+  void ResetPathRoute();  // reset/empty the path route
 
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair
@@ -1484,6 +1515,13 @@ public:
   //! Global path remapping
   std::map<std::string, std::string> PathMap;
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
+
+  //! Global path routing
+  std::map<std::string, std::string> PathRoute;
+  std::map<std::string, std::string> Routes;
+  std::map<std::string, int> RouteXrdPort;
+  std::map<std::string, int> RouteHttpPort;
+  eos::common::RWMutex PathRouteMutex; ///< mutex protecting the routing map
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier

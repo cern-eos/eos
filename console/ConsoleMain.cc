@@ -96,6 +96,7 @@ extern int com_quota(char*);
 extern int com_reconnect(char*);
 extern int com_recycle(char*);
 extern int com_rm(char*);
+extern int com_route(char*);
 extern int com_protorm(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
@@ -169,6 +170,7 @@ COMMAND commands[] = {
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
   { (char*) "rm", com_protorm, (char*) "Remove a file"},
   { (char*) "role", com_role, (char*) "Set the client role"},
+  { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
   { (char*) "space", com_space, (char*) "Space configuration"},

@@ -64,6 +64,24 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 
   int meth = ParseMethodString(request->GetMethod());
 
+  {
+    // call the routing module before doing anything with http
+    XrdOucString host;
+    int port;
+
+    if (gOFS->ShouldRoute(__FUNCTION__, 0, 
+			  *mVirtualIdentity, 
+			  request->GetUrl().c_str(), 
+			  request->GetQuery().c_str(), 
+			  host, port)) {
+      response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
+					  host.c_str(), 
+					  port, false);
+      mHttpResponse = response;
+      return;
+    }
+  }
+
   switch (meth) {
   case GET:
     gOFS->MgmStats.Add("Http-GET", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);

@@ -259,12 +259,14 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Merge.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"
+#include "XrdMgmOfs/PathRoute.cc"
 #include "XrdMgmOfs/Remdir.cc"
 #include "XrdMgmOfs/Rename.cc"
 #include "XrdMgmOfs/Rm.cc"
 #include "XrdMgmOfs/SendResync.cc"
 #include "XrdMgmOfs/SharedPath.cc"
 #include "XrdMgmOfs/ShouldRedirect.cc"
+#include "XrdMgmOfs/ShouldRoute.cc"
 #include "XrdMgmOfs/ShouldStall.cc"
 #include "XrdMgmOfs/Shutdown.cc"
 #include "XrdMgmOfs/Stacktrace.cc"
@@ -387,7 +389,11 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
-  MAYREDIRECT;
+  {
+    const char* path="/";
+    const char* ininfo="";
+    MAYREDIRECT;
+  }
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
@@ -399,6 +405,19 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
+
+    {
+      const char* inpath = prep_path.c_str();
+      const char* ininfo = "";
+      NAMESPACEMAP;
+      prep_path = path;
+    }
+
+    {
+      const char* path = prep_path.c_str();
+      const char* ininfo = "";
+      MAYREDIRECT;
+    }
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
@@ -530,7 +549,10 @@ XrdMgmOfs::truncate(const char*,
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
-  MAYREDIRECT;
+  {
+    const char* ininfo = "";
+    MAYREDIRECT;
+  }
   gOFS->MgmStats.Add("Truncate", vid.uid, vid.gid, 1);
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
 }

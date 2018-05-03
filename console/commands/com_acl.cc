@@ -112,6 +112,7 @@ AclHelper::SetPath(const std::string& in_path)
     acl->set_path(abspath(in_path.c_str()));
   }
 
+  setenv("EOS_ROUTE", acl->path().c_str(), 1);
   return true;
 }
 
