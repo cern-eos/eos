@@ -402,6 +402,8 @@ protected:
   std::string eventInstance;
   std::string eventOwner;
   std::string eventOwnerGroup;
+  std::string eventRequestor;
+  std::string eventRequestorGroup;
   std::string eventAttributes;
 
   enum {

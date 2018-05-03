@@ -1806,7 +1806,7 @@ WFE::Job::DoIt(bool issync)
             }
 
             std::string errorMsg;
-            int sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
+            auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
             if (sendResult != 0) {
               // Create human readable timestamp with the error message
               auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1990,7 +1990,23 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
             std::string errorMsg;
-            return SendProtoWFRequest(this, fullPath, request, errorMsg, !IsSync(event));
+            auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg, !IsSync(event));
+
+            if (sendResult != 0) {
+              // Create human readable timestamp with the error message
+              auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+              std::string ctime = std::ctime(&time);
+              std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
+                                         (errorMsg.empty() ? "Closew handshake failed" : errorMsg);
+
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              try {
+                fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, errorMsgAttr);
+                gOFS->eosView->updateFileStore(fmd.get());
+              } catch (eos::MDException& ex) {}
+            }
+
+            return sendResult;
           }
         } else if (event == "sync::archived" || event == "archived") {
           bool onlyTapeCopy = false;

@@ -111,7 +111,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Workflow::getCGICloseW(std::string workflow)
+Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::VirtualIdentity& vid)
 {
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
@@ -127,6 +127,7 @@ Workflow::getCGICloseW(std::string workflow)
       owner = WFE::GetUserName(fmd->getCUid());
       ownerGroup = WFE::GetGroupName(fmd->getCGid());
     } catch (eos::MDException& e) {
+      eos_static_err("Not creating workflow URL because cannot get meta data. Reason: %s", e.what());
       return "";
     }
 
@@ -151,6 +152,10 @@ Workflow::getCGICloseW(std::string workflow)
     cgi += owner;
     cgi += "&mgm.ownergroup=";
     cgi += ownerGroup;
+    cgi += "&mgm.requestor=";
+    cgi += WFE::GetUserName(vid.uid);
+    cgi += "&mgm.requestorgroup=";
+    cgi += WFE::GetGroupName(vid.gid);
     cgi += "&mgm.attributes=";
     cgi += attrEncoded;
   } else if (mAttr && (*mAttr).count(key)) {

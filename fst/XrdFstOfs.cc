@@ -343,6 +343,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   int cfgFD;
   int NoGo = 0;
 
+  eos::common::StringConversion::InitLookupTables();
+
   if (XrdOfs::Configure(Eroute, envP)) {
     Eroute.Emsg("Config", "default OFS configuration failed");
     return SFS_ERROR;
@@ -1570,12 +1572,15 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
 
 int
 XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
-                                 const string& ownerGroupName, const string& instanceName,
+                                 const string& ownerGroupName, const string& requestorName,
+                                 const string& requestorGroupName, const string& instanceName,
                                  const string& fullPath, const std::map<std::string, std::string>& xattrs) {
   using namespace eos::common;
 
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
+  notification->mutable_cli()->mutable_user()->set_username(requestorName);
+  notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_username(ownerName);
   notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName);
 
@@ -1641,7 +1646,7 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
   if(getenv("XRDDEBUG")) {
     config.set("log", "all");
   } else {
-    config.set("log", "all");
+    config.set("log", "info");
   }
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is also thread-safe
