@@ -222,7 +222,7 @@ DrainTransferJob::GetFileInfo() const
 
     if (dir_uri.empty()) {
       oss << "msg\"no parent container id=" << fdrain.mProto.cont_id() << "\"";
-      make_mdexception(ENOENT, oss.str());
+      throw_mdexception(ENOENT, oss.str());
     }
 
     fdrain.mFullPath = dir_uri + fdrain.mProto.name();
