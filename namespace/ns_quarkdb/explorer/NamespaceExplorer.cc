@@ -34,8 +34,8 @@ SearchNode::SearchNode(qclient::QClient& qcli, IContainerMD::id_t d, eos::Search
   : id(d), qcl(qcli), parent(prnt),
     containerMd(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(id)))
 {
-  fileMap = MetadataFetcher::getFilesInContainer(qcl, id);
-  containerMap = MetadataFetcher::getSubContainers(qcl, id);
+  fileMap = MetadataFetcher::getFilesInContainer(qcl, ContainerIdentifier(id));
+  containerMap = MetadataFetcher::getSubContainers(qcl, ContainerIdentifier(id));
 }
 
 //------------------------------------------------------------------------------

@@ -85,8 +85,8 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerId
   // three asynchronous operations into one.
   //----------------------------------------------------------------------------
   folly::Future<eos::ns::ContainerMdProto> protoFut = MetadataFetcher::getContainerFromId(mQcl, id);
-  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id.getUnderlyingUInt64());
-  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id.getUnderlyingUInt64());
+  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id);
+  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id);
 
   folly::Future<IContainerMDPtr> fut = folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor.get())

@@ -58,6 +58,7 @@ XrdMgmOfs::_touch(const char* path,
     return SFS_ERROR;
   }
 
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {

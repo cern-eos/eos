@@ -101,6 +101,7 @@ XrdMgmOfs::_exists(const char* path,
   std::shared_ptr<eos::IContainerMD> cmd;
   {
     // -------------------------------------------------------------------------
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
@@ -117,6 +118,7 @@ XrdMgmOfs::_exists(const char* path,
     // -------------------------------------------------------------------------
     // try if that is a file
     // -------------------------------------------------------------------------
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd;
 
@@ -143,6 +145,7 @@ XrdMgmOfs::_exists(const char* path,
     std::shared_ptr<eos::IContainerMD> dir;
     eos::IContainerMD::XAttrMap attrmap;
     // -------------------------------------------------------------------------
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetParentPath(), false);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
@@ -223,6 +226,7 @@ XrdMgmOfs::_exists(const char* path,
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock ns_rd_lock;
 
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
     if (take_lock) {
       ns_rd_lock.Grab(gOFS->eosViewRWMutex);
     }
@@ -244,6 +248,7 @@ XrdMgmOfs::_exists(const char* path,
     std::shared_ptr<eos::IFileMD> fmd;
     eos::common::RWMutexReadLock ns_rd_lock;
 
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
     if (take_lock) {
       ns_rd_lock.Grab(gOFS->eosViewRWMutex);
     }

@@ -77,7 +77,7 @@ public:
   //! @return future the map of files
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::FileMap>
-  getFilesInContainer(qclient::QClient& qcl, IContainerMD::id_t container);
+  getFilesInContainer(qclient::QClient& qcl, ContainerIdentifier container);
 
   //----------------------------------------------------------------------------
   //! Fetch subcontainers map for a container id
@@ -88,7 +88,7 @@ public:
   //! @return future the map of subcontainers
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::ContainerMap>
-  getSubContainers(qclient::QClient& qcl, IContainerMD::id_t container);
+  getSubContainers(qclient::QClient& qcl, ContainerIdentifier container);
 
   //----------------------------------------------------------------------------
   //! Fetch a file id given its parent and its name

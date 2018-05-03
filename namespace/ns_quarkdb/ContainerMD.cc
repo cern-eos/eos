@@ -727,8 +727,8 @@ ContainerMD::loadChildren()
   pDirsMap.setKey(pDirsKey);
 
   if (pQcl) {
-    mFiles = MetadataFetcher::getFilesInContainer(*pQcl, mCont.id());
-    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl, mCont.id());
+    mFiles = MetadataFetcher::getFilesInContainer(*pQcl, ContainerIdentifier(mCont.id()));
+    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl, ContainerIdentifier(mCont.id()));
   } else {
     // I think this case only happens inside some tests.. remove eventually?
     mFiles->clear();
