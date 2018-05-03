@@ -166,6 +166,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
   // Open the directory
   bool permok = false;
+
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath());
+
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -205,7 +208,6 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
       for (auto it = fit_begin; it != fit_end; ++it) {
         dh_list.insert(it->first);
-        prefetcher->stageFileMD(it->second);
       }
 
       // Collect all subcontainers
@@ -214,7 +216,6 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
       for (auto it = cit_begin; it != cit_end; ++it) {
         dh_list.insert(it->first);
-        prefetcher->stageContainerMD(it->second);
       }
 
       dh_list.insert(".");

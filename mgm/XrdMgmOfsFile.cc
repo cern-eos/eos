@@ -44,6 +44,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Master.hh"
+#include "namespace/Prefetcher.hh"
 #include "authz/XrdCapability.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -225,6 +226,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
@@ -1545,6 +1547,7 @@ XrdMgmOfsFile::open(const char* inpath,
         bool do_remove = false;
 
         try {
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
           eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex);
           auto tmp_fmd = gOFS->eosView->getFile(path);
 
@@ -1590,6 +1593,8 @@ XrdMgmOfsFile::open(const char* inpath,
           std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
           eos::Buffer cx;
           cx.putData(binchecksum.c_str(), binchecksum.size());
+
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path);
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
 
@@ -1629,6 +1634,7 @@ XrdMgmOfsFile::open(const char* inpath,
         if (byfid) {
           // the new FUSE client needs to have the replicas attached after the
           // first open call
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
           try {
@@ -2374,6 +2380,8 @@ XrdMgmOfsFile::open(const char* inpath,
       time_t now = time(nullptr);
       XrdOucString sage = attrmap["sys.force.atime"].c_str();
       time_t age = eos::common::StringConversion::GetSizeFromString(sage);
+
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
       try {

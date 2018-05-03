@@ -154,6 +154,8 @@ XrdMgmOfs::_stat(const char* path,
     }
   }
 
+  // Prefetch path
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {

@@ -32,6 +32,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -137,6 +138,7 @@ ProcCommand::FileInfo(const char* path)
 
       // reference by fid+fxid
       //-------------------------------------------
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       gOFS->eosViewRWMutex.LockRead();
 
       try {
@@ -153,6 +155,7 @@ ProcCommand::FileInfo(const char* path)
     } else {
       // reference by path
       //-------------------------------------------
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
       gOFS->eosViewRWMutex.LockRead();
 
       try {
@@ -1030,6 +1033,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
   json["id"] = (Json::Value::UInt64)fid;
 
   try {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     gOFS->eosViewRWMutex.LockRead();
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
     fullpath = gOFS->eosView->getUri(fmd.get());

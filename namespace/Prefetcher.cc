@@ -45,12 +45,28 @@ void Prefetcher::stageFileMD(IFileMD::id_t id) {
   mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
 }
 
+//----------------------------------------------------------------------------
+// Declare an intent to access FileMD with the given path soon
+//----------------------------------------------------------------------------
+void Prefetcher::stageFileMD(const std::string &path, bool follow) {
+  if(pView->inMemory()) return;
+  mFileMDs.emplace_back(pView->getFileFut(path, follow));
+}
+
 //------------------------------------------------------------------------------
 // Declare an intent to access ContainerMD with the given id soon
 //------------------------------------------------------------------------------
 void Prefetcher::stageContainerMD(IContainerMD::id_t id) {
   if(pView->inMemory()) return;
   mContainerMDs.emplace_back(pContainerMDSvc->getContainerMDFut(id));
+}
+
+//----------------------------------------------------------------------------
+// Declare an intent to access ContainerMD with the given path soon
+//----------------------------------------------------------------------------
+void Prefetcher::stageContainerMD(const std::string &path, bool follow) {
+  if(pView->inMemory()) return;
+  mContainerMDs.emplace_back(pView->getContainerFut(path, follow));
 }
 
 //------------------------------------------------------------------------------
@@ -65,6 +81,34 @@ void Prefetcher::wait() {
   for(size_t i = 0; i < mContainerMDs.size(); i++) {
     mContainerMDs[i].wait();
   }
+}
+
+//------------------------------------------------------------------------------
+//! Prefetch FileMD by path and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFileMDAndWait(IView *view, const std::string &path, bool follow) {
+  Prefetcher prefetcher(view);
+  prefetcher.stageFileMD(path, follow);
+  prefetcher.wait();
+}
+
+//------------------------------------------------------------------------------
+//! Prefetch FileMD by id and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFileMDAndWait(IView *view, IFileMD::id_t id) {
+  Prefetcher prefetcher(view);
+  prefetcher.stageFileMD(id);
+  prefetcher.wait();
+}
+
+
+//------------------------------------------------------------------------------
+//! Prefetch ContainerMD and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow) {
+  Prefetcher prefetcher(view);
+  prefetcher.stageContainerMD(path, follow);
+  prefetcher.wait();
 }
 
 
