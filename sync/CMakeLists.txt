@@ -30,7 +30,6 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_executable(eosfilesync eosfilesync.cc)
 add_executable(eosdirsync eosdirsync.cc)
-add_executable(eosha eosha.cc)
 
 target_link_libraries(
   eosdirsync
@@ -45,11 +44,11 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY})
 
 install(
-  TARGETS eosha eosfilesync eosdirsync
+  TARGETS eosfilesync eosdirsync
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 install(
-  PROGRAMS eoshapl eossh-timeout
+  PROGRAMS eossh-timeout
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

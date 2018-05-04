@@ -48,7 +48,7 @@ doxygen
 * namespace - Namespace Implementation
 * nginx - Nginx related patches for EOS integration
 * srm - SRM BestMan utility scripts
-* sync - EOSHA high availability daemon + file/directory synchronization programs
+* sync - file/directory synchronization programs
 * test - Instance test script with some dedicated test executables
 * utils - Usefull utilities and the uninstall scripts
 * var - Placeholder directory to create log, http and namespace directories
