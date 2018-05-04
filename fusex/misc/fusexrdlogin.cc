@@ -107,4 +107,28 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
   return login;
 }
 
+std::string fusexrdlogin::environment(fuse_req_t req)
+{
+  fuse_id id(req);
+  ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
+						    false);
+  
+  std::string envtoset;
+
+  XrdCl::URL::ParamsMap paramsMap;
+  if (snapshot) {
+    snapshot->getBoundIdentity().getCreds()->toXrdParams(paramsMap);
+  }
+  if (paramsMap["xrd.k5ccname"] != "") {
+    envtoset += "env KRB5CCNAME=";
+    envtoset += paramsMap["xrd.k5ccname"];
+  } else {
+    if (paramsMap["xrd.gsiusrpxy"] != "") {
+      envtoset += "env X509_USER_PROXY=";
+      envtoset += paramsMap["xrd.gsiusrpxy"];
+    }
+  }
+  return envtoset;
+}
+
 /*----------------------------------------------------------------------------*/

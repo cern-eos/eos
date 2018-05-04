@@ -39,6 +39,7 @@
 #include "misc/Track.hh"
 #include "misc/FuseId.hh"
 #include "misc/stringTS.hh"
+#include "submount/SubMount.hh"
 #include <set>
 #include <signal.h>
 #include <string.h>
@@ -183,6 +184,8 @@ public:
     return fusechan;
   }
 
+  std::string Prefix(std::string path);
+
   typedef struct cfg {
     std::string name;
     std::string hostport;
@@ -264,6 +267,11 @@ public:
     return tracker;
   }
 
+  SubMount& Mounter()
+  {
+    return mounter;
+  }
+
   static std::string dump(fuse_id id,
                           fuse_ino_t ino,
                           struct fuse_file_info* fi,
@@ -321,6 +329,8 @@ private:
   static bool isRecursiveRm(fuse_req_t req);
 
   Track tracker;
+  
+  SubMount mounter;
 
   cfg_t config;
 

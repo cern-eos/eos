@@ -121,6 +121,11 @@ add_library(eosxd-objects OBJECT
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
+  ../common/ShellCmd.cc
+  ../common/ShellCmd.hh
+  ../common/ShellExecutor.cc
+  ../common/ShellExecutor.hh
+  submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER}
 )
 
