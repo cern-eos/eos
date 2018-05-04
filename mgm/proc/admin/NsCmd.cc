@@ -28,6 +28,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
@@ -574,7 +575,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
         continue;
       }
 
-      UpdateTreeSize(tmp_cont.get());
+      UpdateTreeSize(tmp_cont);
     }
   }
 }
@@ -585,7 +586,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 // attached directly to the current container
 //------------------------------------------------------------------------------
 void
-NsCmd::UpdateTreeSize(eos::IContainerMD* cont) const
+NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
 {
   eos_debug("cont name=%s, id=%llu", cont->getName().c_str(), cont->getId());
   std::shared_ptr<eos::IFileMD> tmp_fmd {nullptr};
@@ -603,10 +604,9 @@ NsCmd::UpdateTreeSize(eos::IContainerMD* cont) const
     tree_size += tmp_fmd->getSize();
   }
 
-  for (auto cit = cont->subcontainersBegin();
-       cit != cont->subcontainersEnd(); ++cit) {
+  for (auto cit = ContainerMapIterator(cont); cit.valid(); cit.next()) {
     try {
-      tmp_cont = gOFS->eosDirectoryService->getContainerMD(cit->second);
+      tmp_cont = gOFS->eosDirectoryService->getContainerMD(cit.value());
     } catch (const eos::MDException& e) {
       eos_err("error=\"%s\"", e.what());
       continue;
@@ -616,7 +616,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMD* cont) const
   }
 
   cont->setTreeSize(tree_size);
-  gOFS->eosDirectoryService->updateStore(cont);
+  gOFS->eosDirectoryService->updateStore(cont.get());
   gOFS->FuseXCast(cont->getId());
 }
 
@@ -647,9 +647,9 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
         continue;
       }
 
-      for (auto subcont_it = tmp_cont->subcontainersBegin();
-           subcont_it != tmp_cont->subcontainersEnd(); ++subcont_it) {
-        it_next_lvl->push_back(subcont_it->second);
+      for (auto subcont_it = ContainerMapIterator(tmp_cont); subcont_it.valid();
+            subcont_it.next()) {
+        it_next_lvl->push_back(subcont_it.value());
       }
     }
 

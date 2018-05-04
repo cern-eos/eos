@@ -126,7 +126,7 @@ private:
   //!
   //! @param cont container object
   //----------------------------------------------------------------------------
-  void UpdateTreeSize(eos::IContainerMD* cont) const;
+  void UpdateTreeSize(eos::IContainerMDPtr cont) const;
 };
 
 EOSMGMNAMESPACE_END

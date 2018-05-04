@@ -117,14 +117,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
         }
 
         // Add all children into the 2D vectors
-        // @todo (esindril): User the itertor interface from the ns
-
-        auto it_begin = cmd->subcontainersBegin();
-        auto it_end = cmd->subcontainersEnd();
-
-        for (auto dit = it_begin; dit != it_end; ++dit) {
+        for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
           std::string fpath = Path.c_str();
-          fpath += dit->first;
+          fpath += dit.key();
           fpath += "/";
 
           // check if we select by tag

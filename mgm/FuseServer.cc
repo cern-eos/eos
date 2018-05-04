@@ -30,6 +30,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include <thread>
 #include <regex.h>
 #include "common/Logging.hh"
@@ -1498,9 +1499,8 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
           eos::common::FileId::FidToInode(it->second);
       }
 
-      for (auto it = cmd->subcontainersBegin(), end = cmd->subcontainersEnd();
-           it != end; ++it) {
-        (*dir.mutable_children())[it->first] = it->second;
+      for (auto it = ContainerMapIterator(cmd); it.valid(); it.next()) {
+        (*dir.mutable_children())[it.key()] = it.value();
       }
 
       // indicate that this MD record contains children information
@@ -1578,7 +1578,7 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
     /* hardlinks */
     int nlink = 1;
     if (fmd->hasAttribute(k_nlink)) {
-      nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1; 
+      nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1;
       eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(), nlink);
     }
     file.set_nlink(nlink);
@@ -2611,10 +2611,10 @@ FuseServer::HandleMD(const std::string& id,
 	    gmd->setName(md.name());
             gOFS->eosFileService->updateStore(gmd.get());
 
-	    eos_static_debug("hlnk %s mdino %s %s nlink %s", 
-			     gmd->getName().c_str(), 
+	    eos_static_debug("hlnk %s mdino %s %s nlink %s",
+			     gmd->getName().c_str(),
 			     gmd->getAttribute(k_mdino).c_str(),
-			     fmd->getName().c_str(), 
+			     fmd->getName().c_str(),
 			     fmd->getAttribute(k_nlink).c_str());
 
 	    pcmd->addFile(gmd.get());
@@ -2918,7 +2918,7 @@ FuseServer::HandleMD(const std::string& id,
 
 	// recycle bin - not for hardlinked files or hardlinks!
 	if (attrmap.count(Recycle::gRecyclingAttribute) &&
-	    (!fmd->hasAttribute(k_mdino)) && 
+	    (!fmd->hasAttribute(k_mdino)) &&
 	    (!fmd->hasAttribute(k_nlink))) {
 	  // translate to a path name and call the complex deletion function
 	  // this is vulnerable to a hard to trigger race conditions
@@ -2931,24 +2931,24 @@ FuseServer::HandleMD(const std::string& id,
 	  try {
 	    // handle quota
 	    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-	    
+
 	    if (quotanode) {
 	      quotanode->removeFile(fmd.get());
 	    }
 	  } catch (eos::MDException& e) {
 	  }
-	  
+
 	  bool doDelete = true;
 	  uint64_t tgt_md_ino;
-	  
+
 	  if (fmd->hasAttribute(k_mdino)) {	    /* this is a hard link, update reference count on underlying file */
 	    tgt_md_ino = std::stoll(fmd->getAttribute(k_mdino));
 	    uint64_t clock;
-	    
+
 	    /* gmd = the file holding the inode */
 	    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
 	    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
-	    
+
 	    if (nlink >= 0) {
 	      gmd->setAttribute(k_nlink, std::to_string(nlink));
 	      gOFS->eosFileService->updateStore(gmd.get());
@@ -2967,7 +2967,7 @@ FuseServer::HandleMD(const std::string& id,
 	      char nameBuf[256];
 	      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
 	      std::string tmpName = nameBuf;
-	      
+
 	      fmd->setAttribute(k_nlink, std::to_string(nlink));
 	      eos_static_info("hlnk unlink rename %s=>%s new nlink %d", fmd->getName().c_str(), tmpName.c_str(), nlink);
 	      pcmd->removeFile(tmpName);	    	// if the target exists, remove it!
@@ -2976,7 +2976,7 @@ FuseServer::HandleMD(const std::string& id,
 	    } else
 	      eos_static_info("hlnk nlink %ld for %s, will be deleted", nlink, fmd->getName().c_str());
 	  }
-	  
+
 	  if (doDelete) {
 	    pcmd->removeFile(fmd->getName());
 	    fmd->setContainerId(0);

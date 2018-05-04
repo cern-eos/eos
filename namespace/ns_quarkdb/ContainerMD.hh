@@ -432,24 +432,6 @@ public:
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
   //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the subcontainers map
-  //----------------------------------------------------------------------------
-  eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersBegin() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
-    return mSubcontainers->begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the subcontainers map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersEnd() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
-    return mSubcontainers->end();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
@@ -468,6 +450,24 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the subcontainers map
+  //----------------------------------------------------------------------------
+  eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    return mSubcontainers->begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the subcontainers map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    return mSubcontainers->end();
+  }
+
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service

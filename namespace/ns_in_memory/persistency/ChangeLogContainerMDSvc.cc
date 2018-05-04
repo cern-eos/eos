@@ -24,6 +24,7 @@
 #include "common/ShellCmd.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
@@ -259,23 +260,17 @@ public:
               for (auto dIt = dirTree[deepness].begin();
                    dIt != dirTree[deepness].end(); dIt++) {
                 // Attach the sub-container at the next deepness level
-                auto cit_begin = (*dIt)->subcontainersBegin();
-                auto cit_end = (*dIt)->subcontainersEnd();
-
-                for (auto it = cit_begin; it != cit_end; ++it) {
-                  dmd = (*dIt)->findContainer(it->first);
+                for (auto it = ContainerMapIterator(*dIt); it.valid(); it.next()) {
+                  dmd = (*dIt)->findContainer(it.key());
                   dirTree[deepness + 1].insert(dmd);
                 }
 
                 // Remove every file from it's quota node
-                auto fit_begin = (*dIt)->filesBegin();
-                auto fit_end  = (*dIt)->filesEnd();
-
-                for (auto fit = fit_begin; fit != fit_end; ++fit) {
+                for (auto fit = FileMapIterator(*dIt); fit.valid(); fit.next()) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {
-                    fmd = (*dIt)->findFile(fit->first);
+                    fmd = (*dIt)->findFile(fit.key());
                     node->removeFile(fmd.get());
                   }
                 }

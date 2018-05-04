@@ -35,6 +35,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/ContainerIterators.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -211,11 +212,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       }
 
       // Collect all subcontainers
-      auto cit_begin = dh->subcontainersBegin();
-      auto cit_end = dh->subcontainersEnd();
-
-      for (auto it = cit_begin; it != cit_end; ++it) {
-        dh_list.insert(it->first);
+      for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
+        dh_list.insert(it.key());
       }
 
       dh_list.insert(".");

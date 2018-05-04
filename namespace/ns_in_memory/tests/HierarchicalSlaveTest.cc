@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <ctime>
 
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
@@ -152,21 +153,15 @@ void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Recursively remove the files from accounting
 //------------------------------------------------------------------------------
-void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
+void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMDPtr cont)
 {
-  eos::IQuotaNode* qn = view->getQuotaNode(cont);
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
-
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    qn->removeFile(cont->findFile(fit->first).get());
+  eos::IQuotaNode* qn = view->getQuotaNode(cont.get());
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    qn->removeFile(cont->findFile(fit.key()).get());
   }
 
-  auto cit_begin = cont->subcontainersBegin();
-  auto cit_end  = cont->subcontainersEnd();
-
-  for (auto dit = cit_begin; dit != cit_end; ++dit) {
-    unlinkReplicas(view, cont->findContainer(dit->first).get());
+  for (auto dit = eos::ContainerMapIterator(cont); dit.valid(); dit.next()) {
+    unlinkReplicas(view, cont->findContainer(dit.key()).get());
   }
 }
 
@@ -203,7 +198,7 @@ void deleteReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 // Delete all replicas from all the files in the container recursively
 //------------------------------------------------------------------------------
 void deleteAllReplicas(std::shared_ptr<eos::IView> view,
-                       eos::IContainerMD* cont)
+                       eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
   auto it_begin = cont->filesBegin();
@@ -232,16 +227,14 @@ void deleteAllReplicas(std::shared_ptr<eos::IView> view,
 // Delete all replicas recursively
 //------------------------------------------------------------------------------
 void deleteAllReplicasRec(std::shared_ptr<eos::IView> view,
-                          eos::IContainerMD* cont)
+                          eos::IContainerMDPtr cont)
 {
   deleteAllReplicas(view, cont);
   std::shared_ptr<eos::IContainerMD> dmd;
-  auto cit_begin = cont->subcontainersBegin();
-  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = cit_begin; dit != cit_end; ++dit) {
-    dmd = cont->findContainer(dit->first);
-    deleteAllReplicasRec(view, dmd.get());
+  for (auto dit = eos::ContainerMapIterator(cont); dit.valid(); dit.next()) {
+    dmd = cont->findContainer(dit.key());
+    deleteAllReplicasRec(view, dmd);
   }
 }
 
@@ -252,7 +245,7 @@ void deleteAllReplicasRec(std::shared_ptr<eos::IView> view,
                           const std::string& path)
 {
   std::shared_ptr<eos::IContainerMD> container = view->getContainer(path);
-  deleteAllReplicasRec(view, container.get());
+  deleteAllReplicasRec(view, container);
 }
 
 //------------------------------------------------------------------------------
@@ -375,7 +368,7 @@ void modifySubTree(std::shared_ptr<eos::IView> view, const std::string& root)
 //------------------------------------------------------------------------------
 // Calculate total size
 //------------------------------------------------------------------------------
-uint64_t calcSize(eos::IContainerMD* cont)
+uint64_t calcSize(eos::IContainerMDPtr cont)
 {
   uint64_t size = 0;
   std::shared_ptr<eos::IFileMD> fmd;
@@ -388,12 +381,9 @@ uint64_t calcSize(eos::IContainerMD* cont)
     size += fmd->getSize();
   }
 
-  auto cit_begin = cont->subcontainersBegin();
-  auto cit_end  = cont->subcontainersEnd();
-
-  for (auto dit = cit_begin; dit != cit_end; ++dit) {
-    dmd = cont->findContainer(dit->first);
-    size += calcSize(dmd.get());
+  for (auto dit = eos::ContainerMapIterator(cont); dit.valid(); dit.next()) {
+    dmd = cont->findContainer(dit.key());
+    size += calcSize(dmd);
   }
 
   return size;
@@ -402,16 +392,14 @@ uint64_t calcSize(eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Calculate number of files
 //------------------------------------------------------------------------------
-uint64_t calcFiles(eos::IContainerMD* cont)
+uint64_t calcFiles(eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IContainerMD> dmd;
   uint64_t files = cont->getNumFiles();
-  auto cit_begin = cont->subcontainersBegin();
-  auto cit_end  = cont->subcontainersEnd();
 
-  for (auto dit = cit_begin; dit != cit_end; ++dit) {
-    dmd = cont->findContainer(dit->first);
-    files += calcFiles(dmd.get());
+  for (auto dit = eos::ContainerMapIterator(cont); dit.valid(); dit.next()) {
+    dmd = cont->findContainer(dit.key());
+    files += calcFiles(dmd);
   }
 
   return files;
@@ -422,9 +410,9 @@ uint64_t calcFiles(eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 bool compareTrees(std::shared_ptr<eos::IView> view1,
                   std::shared_ptr<eos::IView> view2,
-                  eos::IContainerMD* tree1, eos::IContainerMD* tree2)
+                  eos::IContainerMDPtr tree1, eos::IContainerMDPtr tree2)
 {
-  std::string treeMsg = view1->getUri(tree1) + " " + view2->getUri(tree2);
+  std::string treeMsg = view1->getUri(tree1.get()) + " " + view2->getUri(tree2.get());
   std::ostringstream o1, o2, o3, o4;
   o1 << " -- " << tree1->getId() << " " << tree2->getId();
   CPPUNIT_ASSERT_MESSAGE(treeMsg + o1.str(),
@@ -456,16 +444,14 @@ bool compareTrees(std::shared_ptr<eos::IView> view1,
   }
 
   std::shared_ptr<eos::IContainerMD> dmd;
-  auto cit_begin = tree1->subcontainersBegin();
-  auto cit_end  = tree1->subcontainersEnd();
 
-  for (auto dit = cit_begin; dit != cit_end; ++dit) {
-    dmd = tree1->findContainer(dit->first);
+  for (auto dit = eos::ContainerMapIterator(tree1); dit.valid(); dit.next()) {
+    dmd = tree1->findContainer(dit.key());
     std::shared_ptr<eos::IContainerMD> container =
       tree2->findContainer(dmd->getName());
     std::string contMsg = treeMsg + " container: " + dmd->getName();
     CPPUNIT_ASSERT_MESSAGE(contMsg, container);
-    compareTrees(view1, view2, dmd.get(), container.get());
+    compareTrees(view1, view2, dmd, container);
   }
 
   return true;
@@ -629,7 +615,7 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(modifySubTree(viewMaster, "/newdir2"));
   CPPUNIT_ASSERT_NO_THROW(createSubTree(viewMaster, "/newdir3", 2, 10, 100));
   CPPUNIT_ASSERT_NO_THROW(cleanUpQuotaRec(viewMaster,
-                                          viewMaster->getContainer("/newdir2/dir3").get()));
+                                          viewMaster->getContainer("/newdir2/dir3")));
   deleteAllReplicasRec(viewMaster, "/newdir2/dir3");
   CPPUNIT_ASSERT_NO_THROW(viewMaster->removeContainer("/newdir2/dir3", true));
   CPPUNIT_ASSERT_NO_THROW(modifySubTree(viewMaster, "/newdir3"));
@@ -637,7 +623,7 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(createSubTree(viewMaster, "/newdir5", 2, 10, 100));
   CPPUNIT_ASSERT_NO_THROW(modifySubTree(viewMaster, "/newdir4"));
   CPPUNIT_ASSERT_NO_THROW(cleanUpQuotaRec(viewMaster,
-                                          viewMaster->getContainer("/newdir3/dir1").get()));
+                                          viewMaster->getContainer("/newdir3/dir1")));
   deleteAllReplicasRec(viewMaster, "/newdir3/dir1");
   CPPUNIT_ASSERT_NO_THROW(viewMaster->removeContainer("/newdir3/dir1", true));
   deleteAllReplicasRec(viewMaster, "/newdir3/dir2");
@@ -670,8 +656,8 @@ void HierarchicalSlaveTest::functionalTest()
   sleep(5);
   lock.readLock();
   compareTrees(viewMaster, viewSlave,
-               viewMaster->getContainer("/").get(),
-               viewSlave->getContainer("/").get());
+               viewMaster->getContainer("/"),
+               viewSlave->getContainer("/"));
   compareFileSystems(fsViewMaster, fsViewSlave);
   eos::IQuotaNode* qnSlave2 = 0;
   eos::IQuotaNode* qnSlave3 = 0;

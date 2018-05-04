@@ -325,18 +325,6 @@ public:
   virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the subcontainers map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersBegin() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the subcontainers map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersEnd() = 0;
-
-  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
@@ -404,6 +392,18 @@ private:
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 
 protected:
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the subcontainers map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersBegin() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the subcontainers map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::ContainerMap::const_iterator
+  subcontainersEnd() = 0;
+  
   mutable std::recursive_mutex mMutex;
 };
 
