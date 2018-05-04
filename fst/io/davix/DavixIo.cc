@@ -103,6 +103,8 @@ DavixIo::DavixIo(std::string path) : FileIo(path, "DavixIo"),
   }
 
   mParams.setOperationRetry(0);
+  mParams.setAwsAlternate(true);
+
   setAttrSync(false);// by default sync attributes lazyly
   mAttrLoaded = false;
   mAttrDirty = false;
