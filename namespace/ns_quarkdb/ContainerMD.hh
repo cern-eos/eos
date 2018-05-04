@@ -468,8 +468,6 @@ public:
   }
 
 private:
-  mutable std::recursive_mutex mMutex;
-
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service

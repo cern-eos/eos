@@ -34,6 +34,7 @@
 #include "common/ZMQ.hh"
 #include "common/JeMallocHandler.hh"
 #include "namespace/Constants.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"

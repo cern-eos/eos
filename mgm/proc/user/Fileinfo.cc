@@ -32,6 +32,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include <json/json.h>
 
@@ -1208,23 +1209,17 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
     Json::Value chld;
 
     if (!ret_json) {
-      auto fit_begin = cmd->filesBegin();
-      auto fit_end = cmd->filesEnd();
-
-      for (auto it = fit_begin; it != fit_end; ++it) {
-        std::shared_ptr<IFileMD> fmd = cmd->findFile(it->first);
+      for (auto it = FileMapIterator(cmd); it.valid(); it.next()) {
+        std::shared_ptr<IFileMD> fmd = cmd->findFile(it.key());
         Json::Value fjson;
         FileJSON(fmd->getId(), &fjson);
         chld.append(fjson);
       }
 
       // Loop through all subcontainers
-      auto cit_begin = cmd->subcontainersBegin();
-      auto cit_end = cmd->subcontainersEnd();
-
-      for (auto dit = cit_begin; dit != cit_end; ++dit) {
+      for (auto dit = ContainerMapIterator(cmd); dit.valid(); dit.next()) {
         Json::Value djson;
-        std::shared_ptr<IContainerMD> dmd = cmd->findContainer(dit->first);
+        std::shared_ptr<IContainerMD> dmd = cmd->findContainer(dit.key());
         DirJSON(dmd->getId(), &djson);
         chld.append(djson);
       }

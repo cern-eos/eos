@@ -118,6 +118,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
         // Add all children into the 2D vectors
         // @todo (esindril): User the itertor interface from the ns
+
         auto it_begin = cmd->subcontainersBegin();
         auto it_end = cmd->subcontainersEnd();
 

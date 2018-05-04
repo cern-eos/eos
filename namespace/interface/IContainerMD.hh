@@ -45,6 +45,8 @@ class IContainerMDSvc;
 class IFileMDSvc;
 class IFileMD;
 class IContainerMD;
+class FileMapIterator;
+class ContainerMapIterator;
 
 using IContainerMDPtr = std::shared_ptr<IContainerMD>;
 using IFileMDPtr = std::shared_ptr<IFileMD>;
@@ -389,6 +391,8 @@ public:
   }
 
 private:
+  friend class FileMapIterator;
+  friend class ContainerMapIterator;
 
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"
@@ -398,6 +402,9 @@ private:
   IContainerMD& operator=(const IContainerMD& other) = delete;
 
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
+
+protected:
+  mutable std::recursive_mutex mMutex;
 };
 
 EOSNSNAMESPACE_END
