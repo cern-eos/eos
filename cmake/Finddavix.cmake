@@ -1,19 +1,35 @@
 # - Locate DAVIX library
 # Defines:
 #
-#  DAVIX_FOUND
-#  DAVIX_INCLUDE_DIR
-#  DAVIX_INCLUDE_DIRS (not cached)
-#  DAVIX_LIBRARIES
+#  DAVIX_FOUND         -  system has davix
+#  DAVIX_INCLUDE_DIRS  -  davix include directories
+#  DAVIX_LIBRARIES     -  davix libraries
 
-find_path(DAVIX_INCLUDE_DIR NAMES davix.hpp PATH_SUFFIXES davix HINTS ${DAVIX_DIR}/include $ENV{DAVIX_DIR}/include)
-find_library(DAVIX_LIBRARY NAMES davix HINTS ${DAVIX_DIR}/lib $ENV{DAVIX_DIR}/lib64 ${DAVIX_DIR}/lib $ENV{DAVIX_DIR}/lib64)
-
-set(DAVIX_INCLUDE_DIRS ${DAVIX_INCLUDE_DIR})
-set(DAVIX_LIBRARIES ${DAVIX_LIBRARY})
-
-# Handle the QUIETLY and REQUIRED arguments and set DAVIX_FOUND to TRUE if all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(DAVIX DEFAULT_MSG DAVIX_INCLUDE_DIRS DAVIX_LIBRARIES)
 
-mark_as_advanced(DAVIX_FOUND DAVIX_INCLUDE_DIRS DAVIX_LIBRARIES)
+if (DAVIX_INCLUDE_DIRS AND DAVIX_LIBRARIES)
+  set(DAVIX_FIND_QUIETLY TRUE)
+else()
+  find_path(
+    DAVIX_INCLUDE_DIR
+    NAMES davix.hpp
+    HINTS
+    /usr ${DAVIX_DIR} $ENV{DAVIX_DIR}
+    PATH_SUFFIXES include/davix)
+
+  find_library(
+    DAVIX_LIBRARY
+    NAMES davix
+    HINTS
+    /usr ${DAVIX_DIR} $ENV{DAVIX_DIR}
+    PATH_SUFFIXES lib lib64)
+
+  set(DAVIX_INCLUDE_DIRS ${DAVIX_INCLUDE_DIR})
+  set(DAVIX_LIBRARIES ${DAVIX_LIBRARY})
+
+  find_package_handle_standard_args(
+    davix
+    DEFAULT_MSG DAVIX_LIBRARY DAVIX_INCLUDE_DIR)
+
+  mark_as_advanced(DAVIX_LIBRARY DAVIX_INCLUDE_DIR)
+endif()

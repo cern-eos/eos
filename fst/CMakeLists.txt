@@ -26,7 +26,7 @@ if(DAVIX_FOUND)
   set(DAVIX_SRC "io/davix/DavixIo.cc")
   set(DAVIX_HDR "io/davix/DavixIo.hh")
 else()
-  set(DAVIX_INCLUDE_DIR "")
+  set(DAVIX_INCLUDE_DIRS "")
   set(DAVIX_LIBRARIES "")
   set(DAVIX_SRC "")
   set(DAVIX_HDR "")
@@ -43,7 +43,7 @@ include_directories(
   ${Z_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
-  ${DAVIX_INCLUDE_DIR}
+  ${DAVIX_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
@@ -363,23 +363,23 @@ target_compile_definitions(XrdEosFst-Shared PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst PRIVATE
-   eosCommon
-   eosCommonServer
-   EosFstIo-Static
-   eosCapability-Static
-   EosNsQuarkdb-Shared
-   ${Z_LIBRARY}
-   ${UUID_LIBRARIES}
-   ${ATTR_LIBRARIES}
-   ${GLIBC_RT_LIBRARY}
-   ${GLIBC_DL_LIBRARY}
-   ${PROTOBUF_LIBRARY}
-   ${NCURSES_LIBRARIES}
-   ${XROOTD_CL_LIBRARY}
-   ${XOORTD_UTILS_LIBRARY}
-   ${XROOTD_SSI_LIBRARY}
-   ${OPENSSL_CRYPTO_LIBRARY}
-   ${CMAKE_THREAD_LIBS_INIT})
+  eosCommon
+  eosCommonServer
+  EosFstIo-Static
+  eosCapability-Static
+  EosNsQuarkdb-Shared
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${NCURSES_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XOORTD_UTILS_LIBRARY}
+  ${XROOTD_SSI_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Shared PUBLIC
   eosCommon
