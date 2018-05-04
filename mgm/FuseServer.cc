@@ -2927,6 +2927,8 @@ FuseServer::HandleMD(const std::string& id,
 	  // translate to a path name and call the complex deletion function
 	  // this is vulnerable to a hard to trigger race conditions
 	  std::string fullpath = gOFS->eosView->getUri(fmd.get());
+
+	  gOFS->WriteRecycleRecord(*fmd);
 	  gOFS->eosViewRWMutex.UnLockWrite();
 	  XrdOucErrInfo error;
 	  int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false);
@@ -2985,6 +2987,7 @@ FuseServer::HandleMD(const std::string& id,
 	    pcmd->removeFile(fmd->getName());
 	    fmd->setContainerId(0);
 	    fmd->unlinkAllLocations();
+	    gOFS->WriteRmRecord(*fmd);
 	  }
 
 	  gOFS->eosFileService->updateStore(fmd.get());

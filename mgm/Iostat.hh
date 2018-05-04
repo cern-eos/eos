@@ -181,6 +181,8 @@ public:
   static const char* gIostatPopularity;
   static const char* gIostatUdpTargetList;
 
+  static FILE* gOpenReportFD;
+
   pthread_t thread;
   pthread_t cthread;
   bool mRunning;
@@ -229,6 +231,8 @@ public:
   static void* StaticReceive(void*);
   static void* StaticCirculate(void*);
   void* Receive();
+
+  void WriteRecord(std::string &record); // let's the MGM add some record into the stream
 
   static bool NamespaceReport(const char* path, XrdOucString& stdOut,
                               XrdOucString& stdErr);

@@ -343,6 +343,10 @@ public:
 
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
+  void MakeDeletionReport(eos::common::FileSystem::fsid_t fsid, 
+			  unsigned long long fid,
+			  struct stat &deletion_stat);
+
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class
   eos::fst::Storage* Storage; ///< Meta data & filesytem store object
