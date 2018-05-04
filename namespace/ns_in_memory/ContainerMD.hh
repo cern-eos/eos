@@ -534,6 +534,31 @@ public:
     return;
   }
 
+protected:
+  ContainerMD::id_t   pId;
+  ContainerMD::id_t   pParentId;
+  uint16_t            pFlags;
+  ctime_t             pCTime;
+  std::string         pName;
+  uid_t               pCUid;
+  gid_t               pCGid;
+  mode_t              pMode;
+  uint16_t            pACLId;
+  XAttrMap            pXAttrs;
+
+#if __GNUC_PREREQ(4,8)
+  // Atomic (thread-safe) types
+  std::atomic_ulong pTreeSize;
+  tmtime_atomic_t pTMTime_atomic;
+#else
+  uint64_t     pTreeSize;
+#endif
+
+protected:
+  ContainerMap mSubcontainers; //! Directory name to id map
+  FileMap mFiles; ///< File name to id map
+
+private:
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the subcontainers map
   //----------------------------------------------------------------------------
@@ -566,31 +591,6 @@ public:
     return mFiles.end();
   }
 
-protected:
-  ContainerMD::id_t   pId;
-  ContainerMD::id_t   pParentId;
-  uint16_t            pFlags;
-  ctime_t             pCTime;
-  std::string         pName;
-  uid_t               pCUid;
-  gid_t               pCGid;
-  mode_t              pMode;
-  uint16_t            pACLId;
-  XAttrMap            pXAttrs;
-
-#if __GNUC_PREREQ(4,8)
-  // Atomic (thread-safe) types
-  std::atomic_ulong pTreeSize;
-  tmtime_atomic_t pTMTime_atomic;
-#else
-  uint64_t     pTreeSize;
-#endif
-
-protected:
-  ContainerMap mSubcontainers; //! Directory name to id map
-  FileMap mFiles; ///< File name to id map
-
-private:
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;

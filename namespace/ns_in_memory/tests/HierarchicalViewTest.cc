@@ -33,6 +33,7 @@
 
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
@@ -653,11 +654,9 @@ void CheckOnlineComp(std::shared_ptr<eos::IView> view, uint32_t totalFiles,
   CPPUNIT_ASSERT_NO_THROW(cont = view->getContainer("/test/"));
   uint32_t changedFound = 0;
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
 
     if (fmd->getSize() == 99999) {
       ++changedFound;
@@ -755,12 +754,10 @@ void HierarchicalViewTest::onlineCompactingTest()
 
   int changed = 0;
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
     if (random() % 100 < 70) {
-      fmd = cont->findFile(fit->first);
+      fmd = cont->findFile(fit.key());
       fmd->setSize(99999);
       CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
       changed++;
@@ -778,11 +775,8 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  it_begin = cont->filesBegin();
-  it_end  = cont->filesEnd();
-
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
 
     if (fmd->getSize() == 0) {
       if (random() % 100 < 10) {
@@ -804,11 +798,8 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  it_begin = cont->filesBegin();
-  it_end  = cont->filesEnd();
-
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
 
     if (fmd->getSize() == 0) {
       if (random() % 100 < 10) {

@@ -308,14 +308,11 @@ public:
               for (auto dIt = dirTree[deepness].begin();
                    dIt != dirTree[deepness].end(); dIt++) {
                 // Remove every file from it's quota node
-                auto fit_begin = (*dIt)->filesBegin();
-                auto fit_end  = (*dIt)->filesEnd();
-
-                for (auto fit = fit_begin; fit != fit_end; ++fit) {
+                for (auto fit = eos::FileMapIterator(*dIt); fit.valid(); fit.next()) {
                   IQuotaNode* node = getQuotaNode((*dIt).get());
 
                   if (node) {
-                    fmd = (*dIt)->findFile(fit->first);
+                    fmd = (*dIt)->findFile(fit.key());
                     node->addFile(fmd.get());
                   }
                 }

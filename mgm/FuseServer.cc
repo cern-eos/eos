@@ -1493,10 +1493,9 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
         return ENAMETOOLONG;
       }
 
-      for (auto it = cmd->filesBegin(), end = cmd->filesEnd();
-           it != end; ++it) {
-        (*dir.mutable_children())[it->first] =
-          eos::common::FileId::FidToInode(it->second);
+      for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
+        (*dir.mutable_children())[it.key()] =
+          eos::common::FileId::FidToInode(it.value());
       }
 
       for (auto it = ContainerMapIterator(cmd); it.valid(); it.next()) {

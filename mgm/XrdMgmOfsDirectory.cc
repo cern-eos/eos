@@ -204,11 +204,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
       // Collect all file names
-      auto fit_begin = dh->filesBegin();
-      auto fit_end = dh->filesEnd();
-
-      for (auto it = fit_begin; it != fit_end; ++it) {
-        dh_list.insert(it->first);
+      for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
+        dh_list.insert(it.key());
       }
 
       // Collect all subcontainers

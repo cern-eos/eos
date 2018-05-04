@@ -431,24 +431,6 @@ public:
   //----------------------------------------------------------------------------
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
-  //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesBegin() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
-    return mFiles->begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesEnd() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
-    return mFiles->end();
-  }
-
 private:
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the subcontainers map
@@ -466,6 +448,24 @@ private:
   subcontainersEnd() override {
     std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mSubcontainers->end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    return mFiles->begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() override {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    return mFiles->end();
   }
 
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation

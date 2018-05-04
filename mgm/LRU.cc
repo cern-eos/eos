@@ -33,6 +33,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/ContainerIterators.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
@@ -383,11 +384,8 @@ LRU::AgeExpire(const char* dir,
       cmd = gOFS->eosView->getContainer(dir);
       std::shared_ptr<eos::IFileMD> fmd;
       // Loop through all file names
-      auto it_begin = cmd->filesBegin();
-      auto it_end = cmd->filesEnd();
-
-      for (auto it = it_begin; it != it_end; ++it) {
-        fmd = cmd->findFile(it->first);
+      for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
+        fmd = cmd->findFile(it.key());
         std::string fullpath = dir;
         fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());
@@ -645,11 +643,9 @@ LRU::ConvertMatch(const char* dir,
     try {
       cmd = gOFS->eosView->getContainer(dir);
       std::shared_ptr<eos::IFileMD> fmd;
-      auto it_begin = cmd->filesBegin();
-      auto it_end = cmd->filesEnd();
 
-      for (auto fit = it_begin; fit != it_end; ++fit) {
-        fmd = cmd->findFile(fit->first);
+      for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
+        fmd = cmd->findFile(fit.key());
         std::string fullpath = dir;
         fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());

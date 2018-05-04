@@ -104,14 +104,11 @@ private:
 //------------------------------------------------------------------------------
 // Add some replicas to the files inside of a container
 //------------------------------------------------------------------------------
-void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
+void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
-
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
 
     for (int i = 0; i < random() % 10; ++i) {
       fmd->addLocation(random() % 10);
@@ -124,14 +121,11 @@ void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Unlink some replicas from the files in the container
 //------------------------------------------------------------------------------
-void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
+void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
-
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toUnlink;
     int n = random() % 3;
@@ -161,21 +155,19 @@ void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMDPtr cont
   }
 
   for (auto dit = eos::ContainerMapIterator(cont); dit.valid(); dit.next()) {
-    unlinkReplicas(view, cont->findContainer(dit.key()).get());
+    unlinkReplicas(view, cont->findContainer(dit.key()));
   }
 }
 
 //------------------------------------------------------------------------------
 // Delete some replicas from the files in the container
 //------------------------------------------------------------------------------
-void deleteReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
+void deleteReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete;
     int n = random() % 3;
@@ -201,11 +193,9 @@ void deleteAllReplicas(std::shared_ptr<eos::IView> view,
                        eos::IContainerMDPtr cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = cont->filesBegin();
-  auto it_end  = cont->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete = fmd->getLocations();
 
@@ -281,7 +271,7 @@ void createSubTree(std::shared_ptr<eos::IView> view,
     }
   }
 
-  addReplicas(view, container.get());
+  addReplicas(view, container);
 }
 
 //------------------------------------------------------------------------------
@@ -296,12 +286,10 @@ void modifySubTree(std::shared_ptr<eos::IView> view, const std::string& root)
     eos::IQuotaNode* qn = view->getQuotaNode(cont.get());
     std::vector< std::shared_ptr<eos::IFileMD> > toDel;
     std::shared_ptr<eos::IFileMD> fmd;
-    auto it_begin = cont->filesBegin();
-    auto it_end  = cont->filesEnd();
     int j = 1;
 
-    for (auto fit = it_begin; fit != it_end; ++fit) {
-      fmd = cont->findFile(fit->first);
+    for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+      fmd = cont->findFile(fit.key());
 
       if (qn) {
         qn->removeFile(fmd.get());
@@ -373,11 +361,9 @@ uint64_t calcSize(eos::IContainerMDPtr cont)
   uint64_t size = 0;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> dmd;
-  auto fit_begin = cont->filesBegin();
-  auto fit_end  = cont->filesEnd();
 
-  for (auto fit = fit_begin; fit != fit_end; ++fit) {
-    fmd = cont->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(cont); fit.valid(); fit.next()) {
+    fmd = cont->findFile(fit.key());
     size += fmd->getSize();
   }
 
@@ -427,11 +413,9 @@ bool compareTrees(std::shared_ptr<eos::IView> view1,
   CPPUNIT_ASSERT_MESSAGE(treeMsg + o4.str(),
                          tree1->getNumContainers() == tree2->getNumContainers());
   std::shared_ptr<eos::IFileMD> fmd;
-  auto it_begin = tree1->filesBegin();
-  auto it_end  = tree1->filesEnd();
 
-  for (auto fit = it_begin; fit != it_end; ++fit) {
-    fmd = tree1->findFile(fit->first);
+  for (auto fit = eos::FileMapIterator(tree1); fit.valid(); fit.next()) {
+    fmd = tree1->findFile(fit.key());
     std::shared_ptr<eos::IFileMD> file = tree2->findFile(fmd->getName());
     std::string fileMsg = treeMsg + " file " + fmd->getName();
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " missing", file);
@@ -627,10 +611,10 @@ void HierarchicalSlaveTest::functionalTest()
   deleteAllReplicasRec(viewMaster, "/newdir3/dir1");
   CPPUNIT_ASSERT_NO_THROW(viewMaster->removeContainer("/newdir3/dir1", true));
   deleteAllReplicasRec(viewMaster, "/newdir3/dir2");
-  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir1/dir2").get());
-  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir4/dir2").get());
-  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir5/dir1").get());
-  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir5/dir2").get());
+  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir1/dir2"));
+  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir4/dir2"));
+  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir5/dir1"));
+  unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir5/dir2"));
   //----------------------------------------------------------------------------
   // Move some files around and rename them
   //----------------------------------------------------------------------------

@@ -593,9 +593,9 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
   uint64_t tree_size = 0u;
 
-  for (auto fit = cont->filesBegin(); fit != cont->filesEnd(); ++fit) {
+  for (auto fit = FileMapIterator(cont); fit.valid(); fit.next()) {
     try {
-      tmp_fmd = gOFS->eosFileService->getFileMD(fit->second);
+      tmp_fmd = gOFS->eosFileService->getFileMD(fit.value());
     } catch (const eos::MDException& e) {
       eos_err("error=\"%s\"", e.what());
       continue;

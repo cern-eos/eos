@@ -179,11 +179,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
           std::string link;
           std::string fname;
           std::shared_ptr<eos::IFileMD> fmd;
-          auto it_begin = cmd->filesBegin();
-          auto it_end = cmd->filesEnd();
 
-          for (auto fit = it_begin; fit != it_end; ++fit) {
-            fname = fit->first;
+          for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
+            fname = fit.key();
             fmd = cmd->findFile(fname);
 
             // Skip symbolic links

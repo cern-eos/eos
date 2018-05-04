@@ -325,18 +325,6 @@ public:
   virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesBegin() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesEnd() = 0;
-
-  //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
   virtual void serialize(Buffer& buffer) = 0;
@@ -403,7 +391,19 @@ protected:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() = 0;
-  
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() = 0;
+
   mutable std::recursive_mutex mMutex;
 };
 
