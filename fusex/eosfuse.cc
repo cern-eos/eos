@@ -23,7 +23,9 @@
  ************************************************************************/
 
 #include "common/backward-cpp/backward.hpp"
-
+#ifndef __APPLE__
+#include "common/ShellCmd.hh"
+#endif
 #ifdef ROCKSDB_FOUND
 #include "kv/RocksKV.hh"
 #endif
@@ -50,7 +52,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sched.h>
-
 
 
 #include <sys/resource.h>
@@ -917,6 +918,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       fuse_opt_add_arg(&args, config.localmountdir.c_str());
       mountpoint = config.localmountdir.c_str();
     }
+    else
+    {
+      config.localmountdir = mountpoint;
+    }
 
     if (mountpoint.length()) {
       DIR* d = 0;
@@ -977,6 +982,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
+
+    eos::common::ShellCmd cmd ("echo eos::common::ShellCmd init 2>&1");
+    eos::common::cmd_status st = cmd.wait(5);
+    int rc = st.exit_code;
+    if (rc) {
+      fprintf(stderr,
+	      "error: failed to run shell command\n");
+      exit(-1);
+    }
 
     if (!geteuid()) {
       // change the priority of this process to maximum
@@ -1308,6 +1322,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaCacheFlush.join();
     tMetaCommunicate.join();
     tCapFlush.join();
+    Mounter().terminate();
 
     // remove the session and channel object after all threads are joined
     if (fusesession) {
@@ -4241,6 +4256,19 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     }
   }
 
+  
+
+  if (target.substr(0,6) == "mount:")
+  {
+    std::string env;
+    // if not shared, set the caller credentials
+    if (0)
+      env = fusexrdlogin::environment(req);
+
+    std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(md));
+    rc = Instance().Mounter().mount(target, localpath, env);
+  }
+
   if (!rc) {
     fuse_reply_readlink(req, target.c_str());
     return;
@@ -4669,4 +4697,16 @@ EosFuse::TrackMgm(const std::string& lasturl)
       lastMgmHostPort.set(newmgm);
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+EosFuse::Prefix(std::string path)
+/* -------------------------------------------------------------------------- */
+{
+
+  std::string fullpath = Config().localmountdir;
+  if (fullpath.back() == '/')
+    fullpath.pop_back();
+  return (fullpath + path);
 }
