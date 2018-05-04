@@ -103,6 +103,7 @@ DavixIo::DavixIo(std::string path) : FileIo(path, "DavixIo"),
   }
 
   mParams.setOperationRetry(0);
+  // Use path-based S3 urls
   mParams.setAwsAlternate(true);
 
   setAttrSync(false);// by default sync attributes lazyly
