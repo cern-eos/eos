@@ -41,6 +41,7 @@ const char* Iostat::gIostatReport = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";
 const char* Iostat::gIostatUdpTargetList = "iostat::udptargets";
+FILE* Iostat::gOpenReportFD=0;
 
 /* ------------------------------------------------------------------------- */
 Iostat::Iostat()
@@ -276,6 +277,14 @@ Iostat::Receive(void)
           report->ots, report->cts);
       Add("disk_time_write", report->uid, report->gid,
           (unsigned long long) report->wt, report->ots, report->cts);
+
+      {
+	// track deletions
+	time_t now = time(NULL);
+	Add("bytes_deleted", 0, 0, report->dsize, now-30, now);
+	Add("files_deleted", 0, 0, 1, now-30, now);
+      }
+
       // do the UDP broadcasting here
       {
         XrdSysMutexHelper mLock(BroadcastMutex);
@@ -389,7 +398,6 @@ Iostat::Receive(void)
       if (mReport) {
         // add the record to a daily report log file
         static XrdOucString openreportfile = "";
-        static FILE* openreportfd = 0;
         time_t now = time(NULL);
         struct tm nowtm;
         XrdOucString reportfile = "";
@@ -407,27 +415,30 @@ Iostat::Receive(void)
 
           if (reportfile == openreportfile) {
             // just add it here;
-            if (openreportfd) {
-              fprintf(openreportfd, "%s\n", body.c_str());
-              fflush(openreportfd);
+            if (gOpenReportFD) {
+              fprintf(gOpenReportFD, "%s\n", body.c_str());
+              fflush(gOpenReportFD);
             }
           } else {
-            if (openreportfd) {
-              fclose(openreportfd);
+	    Mutex.Lock();
+
+            if (gOpenReportFD) {
+              fclose(gOpenReportFD);
             }
 
             eos::common::Path cPath(reportfile.c_str());
 
             if (cPath.MakeParentPath(S_IRWXU)) {
-              openreportfd = fopen(reportfile.c_str(), "a+");
+              gOpenReportFD = fopen(reportfile.c_str(), "a+");
 
-              if (openreportfd) {
-                fprintf(openreportfd, "%s\n", body.c_str());
-                fflush(openreportfd);
+              if (gOpenReportFD) {
+                fprintf(gOpenReportFD, "%s\n", body.c_str());
+                fflush(gOpenReportFD);
               }
 
               openreportfile = reportfile;
             }
+	    Mutex.UnLock();
           }
         }
       }
@@ -461,6 +472,21 @@ Iostat::Receive(void)
   }
 
   return 0;
+}
+
+
+/* ------------------------------------------------------------------------- */
+void
+Iostat::WriteRecord(std::string &record)
+{
+  Mutex.Lock();
+  if (gOpenReportFD)
+  {
+    fprintf(gOpenReportFD,"%s\n", record.c_str());
+    fflush(gOpenReportFD);
+  }
+
+  Mutex.UnLock();
 }
 
 /* ------------------------------------------------------------------------- */

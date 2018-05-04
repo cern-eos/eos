@@ -110,6 +110,17 @@ public:
   float wt;                ///< disk time spent for write
   unsigned long long osize;//< size when file was opened
   unsigned long long csize;//< size when file was closed
+
+  // deletion specific entries
+  unsigned long long dsize; //< size of a delete file
+  unsigned long long dc_ts;  //< timestamp of change time
+  unsigned long long dc_tns;  //< timestamp of change time
+  unsigned long long dm_ts;  //< timestamp of access time 
+  unsigned long long dm_tns;  //< timestamp of access time
+  unsigned long long da_ts;  //< timestamp of access time
+  unsigned long long da_tns;  //< timestamp of access time
+
+
   std::string sec_prot;    //< auth protocol
   std::string sec_name;    //< auth name
   std::string sec_host;    //< auth client host

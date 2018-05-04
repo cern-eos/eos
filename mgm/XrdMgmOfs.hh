@@ -1267,6 +1267,25 @@ public:
   //------------------------------------------------------------------------------
   static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
 
+
+  //------------------------------------------------------------------------------
+  //! Write an report log record about final deletion
+  //!
+  //! @param fmd meta data
+  //! @return nothing
+  //------------------------------------------------------------------------------
+
+  void WriteRmRecord(eos::IFileMD& fmd);
+
+  //------------------------------------------------------------------------------
+  //! Write an report log record about deletion into recycle bin
+  //!
+  //! @param fmd meta data
+  //! @return nothing
+  //------------------------------------------------------------------------------
+  void WriteRecycleRecord(eos::IFileMD& fmd);
+
+
   //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------

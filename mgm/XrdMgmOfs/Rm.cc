@@ -306,6 +306,8 @@ XrdMgmOfs::_rem(const char* path,
           gOFS->eosView->removeFile(fmd.get());
         }
 
+	gOFS->WriteRmRecord(*fmd);
+
         if (container) {
           container->setMTimeNow();
           container->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -350,6 +352,7 @@ XrdMgmOfs::_rem(const char* path,
           return rc;
         } else {
           recyclePath = error.getErrText();
+	  gOFS->WriteRecycleRecord(*fmd);
         }
       }
     } else {

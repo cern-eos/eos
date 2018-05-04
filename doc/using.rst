@@ -11,6 +11,7 @@ Using EOS
 
    using/archive
    using/rain
+   using/reports
    using/systemd
    using/tpc
 

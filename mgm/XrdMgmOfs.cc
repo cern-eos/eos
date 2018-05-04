@@ -830,3 +830,73 @@ XrdMgmOfs::MacroStringError(int errcode)
     return "EINVAL";
   }
 }
+
+//----------------------------------------------------------------------------
+// write report record for final deletion
+//----------------------------------------------------------------------------
+void
+XrdMgmOfs::WriteRmRecord(eos::IFileMD& fmd)
+{
+  {
+    // write a deletion report to IoStat
+                                                                                                      
+    char report[16384];
+    eos::IFileMD::ctime_t ctime;
+    eos::IFileMD::ctime_t mtime;
+    fmd.getCTime(ctime);
+    fmd.getMTime(mtime);
+    snprintf(report, sizeof(report) - 1,
+                   "log=%s&"
+                   "host=%s&fid=%llu&"
+	           "ruid=%u&rgid=%u"
+                   "dc_ts=%lu&dc_tns=%lu&"
+                   "dm_ts=%lu&dm_tns=%lu&"
+                   "dsize=%lu&sec.app=rm"
+	     , this->logId
+	     , gOFS->ManagerId.c_str()
+	     , fmd.getId()
+	     , fmd.getCUid()
+	     , fmd.getCGid()
+	     , ctime.tv_sec, ctime.tv_nsec
+	     , mtime.tv_sec, mtime.tv_nsec
+	     , fmd.getSize());
+
+    std::string record = report;
+    gOFS->IoStats->WriteRecord(record);
+  }
+}
+
+//----------------------------------------------------------------------------
+// write report record for recycle bin deletion
+//----------------------------------------------------------------------------
+void
+XrdMgmOfs::WriteRecycleRecord(eos::IFileMD& fmd)
+{
+  {
+    // write a deletion report to IoStat
+                                                                                                       
+    char report[16384];
+    eos::IFileMD::ctime_t ctime;
+    eos::IFileMD::ctime_t mtime;
+    fmd.getCTime(ctime);
+    fmd.getMTime(mtime);
+    snprintf(report, sizeof(report) - 1,
+                   "log=%s&"
+                   "host=%s&fid=%llu&"
+	            "ruid=%u&rgid=%u"
+                   "dc_ts=%lu&dc_tns=%lu&"
+                   "dm_ts=%lu&dm_tns=%lu&"
+                   "dsize=%lu&sec.app=recycle"
+	     , this->logId
+	     , gOFS->ManagerId.c_str()
+	     , fmd.getId()
+	     , fmd.getCUid()
+	     , fmd.getCGid()
+	     , ctime.tv_sec, ctime.tv_nsec
+	     , mtime.tv_sec, mtime.tv_nsec
+	     , fmd.getSize());
+
+    std::string record = report;
+    gOFS->IoStats->WriteRecord(record);
+  }
+}

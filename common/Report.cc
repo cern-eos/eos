@@ -124,6 +124,15 @@ Report::Report(XrdOucEnv& report)
   {
     sec_app.erase(sec_app.find('?'));
   }
+
+  // deletion specific entries
+  dsize = strtoull(report.Get("dsize") ? report.Get("dsize") : "0", 0, 10);
+  dc_tns = report.Get("dc_tns") ? strtoull(report.Get("dc_tns"), 0, 10) : 0;
+  dm_tns = report.Get("dm_tns") ? strtoull(report.Get("dm_tns"), 0, 10) : 0;
+  da_tns = report.Get("da_tns") ? strtoull(report.Get("da_tns"), 0, 10) : 0;
+  dc_ts = report.Get("dc_t") ? strtoull(report.Get("dc_t"), 0, 10) : 0;
+  dm_ts = report.Get("dm_t") ? strtoull(report.Get("dm_t"), 0, 10) : 0;
+  da_ts = report.Get("da_t") ? strtoull(report.Get("da_tns"), 0, 10) : 0;
 }
 
 
