@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SearchNode::SearchNode(qclient::QClient& qcli, IContainerMD::id_t d, eos::SearchNode* prnt)
+SearchNode::SearchNode(qclient::QClient& qcli, ContainerIdentifier d, eos::SearchNode* prnt)
   : id(d), qcl(qcli), parent(prnt),
     containerMd(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(id)))
 {
@@ -134,7 +134,7 @@ void SearchNode::stageChildren()
 
   for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end();
        it++) {
-    children.emplace_back(new SearchNode(qcl, it->second, this));
+    children.emplace_back(new SearchNode(qcl, ContainerIdentifier(it->second), this));
   }
 }
 
@@ -177,7 +177,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
-    dfsPath.emplace_back(new SearchNode(qcl, 1, nullptr));
+    dfsPath.emplace_back(new SearchNode(qcl, ContainerIdentifier(1), nullptr));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
@@ -185,9 +185,9 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
   for (size_t i = 0; i < pathParts.size(); i++) {
     // We don't know if the last chunk of pathParts is supposed to be a container
     // or name..
-    IContainerMD::id_t parentID = staticPath.back().id();
+    ContainerIdentifier parentID = ContainerIdentifier(staticPath.back().id());
     bool threw = false;
-    IContainerMD::id_t nextId = -1;
+    ContainerIdentifier nextId;
 
     try {
       nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID,
@@ -209,16 +209,16 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
       if (exc.getErrno() == ENOENT) {
         // This may throw again, propagate to caller if so
-        IFileMD::id_t nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
+        FileIdentifier nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
                       pathParts[i]).get();
-        lastChunk = MetadataFetcher::getFileFromId(qcl, FileIdentifier(nextId)).get();
+        lastChunk = MetadataFetcher::getFileFromId(qcl, nextId).get();
         searchOnFile = true;
       }
     }
 
     if (!threw) {
       if (i != pathParts.size() - 1) {
-        staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(nextId)).get());
+        staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
       } else {
         // Final node, expand
         dfsPath.emplace_back(new SearchNode(qcl, nextId, nullptr));

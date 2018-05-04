@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/MDException.hh"
+#include "namespace/interface/Identifiers.hh"
 #include "common/Murmur3.hh"
 #include <stdint.h>
 #include <unistd.h>
@@ -162,6 +163,11 @@ public:
   //! Get container id
   //----------------------------------------------------------------------------
   virtual IContainerMD::id_t getId() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get container identifier
+  //----------------------------------------------------------------------------
+  virtual ContainerIdentifier getIdentifier() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent id

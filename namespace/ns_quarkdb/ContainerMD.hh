@@ -132,12 +132,21 @@ public:
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  inline IContainerMD::id_t
-  getId() const override
+  inline IContainerMD::id_t getId() const override
   {
     std::lock_guard<std::recursive_mutex> lock(mMutex);
     return mCont.id();
   }
+
+  //----------------------------------------------------------------------------
+  //! Get container identifier
+  //----------------------------------------------------------------------------
+  inline ContainerIdentifier getIdentifier() const override
+  {
+    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    return ContainerIdentifier(mCont.id());
+  }
+
 
   //----------------------------------------------------------------------------
   //! Get parent id

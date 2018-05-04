@@ -213,7 +213,7 @@ ContainerMDSvc::createContainer()
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
-  pMetadataProvider->insertContainerMD(ContainerIdentifier(cont->getId()), cont);
+  pMetadataProvider->insertContainerMD(cont->getIdentifier(), cont);
   return cont;
 }
 

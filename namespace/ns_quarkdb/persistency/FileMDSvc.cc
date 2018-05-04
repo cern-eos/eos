@@ -187,7 +187,7 @@ FileMDSvc::createFile()
 {
   uint64_t free_id = mInodeProvider.reserve();
   std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
-  mMetadataProvider->insertFileMD(FileIdentifier(free_id), file);
+  mMetadataProvider->insertFileMD(file->getIdentifier(), file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   ++mNumFiles;

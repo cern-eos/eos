@@ -98,9 +98,9 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_LT(subdir2->getId(), subdir3->getId());
   mdFlusher()->synchronize();
 
-  ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir1").get());
-  ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir2").get());
-  ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerIDFromName(qcl(), 2, "subdir3").get());
+  ASSERT_EQ(ContainerIdentifier(subdir1->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir1").get());
+  ASSERT_EQ(ContainerIdentifier(subdir2->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir2").get());
+  ASSERT_EQ(ContainerIdentifier(subdir3->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir3").get());
 
   IContainerMD::ContainerMap containerMap = eos::MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(subdir1->getId())).get();
   IContainerMD::FileMap fileMap = eos::MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(subdir1->getId())).get();

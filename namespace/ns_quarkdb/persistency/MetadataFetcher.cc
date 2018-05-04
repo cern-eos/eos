@@ -306,11 +306,11 @@ MetadataFetcher::getSubContainers(qclient::QClient& qcl, ContainerIdentifier con
 //------------------------------------------------------------------------------
 // Parse response when looking up a ContainerID / FileID from (parent id, name)
 //------------------------------------------------------------------------------
-static IFileMD::id_t parseIDFromNameResponse(redisReplyPtr reply,
-  IContainerMD::id_t parentID, const std::string &name) {
+static int64_t parseIDFromNameResponse(redisReplyPtr reply,
+  ContainerIdentifier parentID, const std::string &name) {
 
   std::string errorPrefix = SSTR("Error while fetching FileID / ContainerID out of (parent id, name) = "
-    "(" << parentID << ", " << name << "): ");
+    "(" << parentID.getUnderlyingUInt64() << ", " << name << "): ");
 
   ensureStringReply(reply).throwIfNotOk(errorPrefix);
 
@@ -322,25 +322,41 @@ static IFileMD::id_t parseIDFromNameResponse(redisReplyPtr reply,
 }
 
 //------------------------------------------------------------------------------
+// int64_t -> FileIdentifier
+//------------------------------------------------------------------------------
+static FileIdentifier convertInt64ToFileIdentifier(int64_t id) {
+  return FileIdentifier(id);
+}
+
+//------------------------------------------------------------------------------
+// int64_t -> ContainerIdentifier
+//------------------------------------------------------------------------------
+static ContainerIdentifier convertInt64ToContainerIdentifier(int64_t id) {
+  return ContainerIdentifier(id);
+}
+
+//------------------------------------------------------------------------------
 // Fetch a file id given its parent and its name
 //------------------------------------------------------------------------------
-folly::Future<IFileMD::id_t>
-MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
+folly::Future<FileIdentifier>
+MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
                                    const std::string& name)
 {
-  return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapFilesSuffix), name)
-    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name));
+  return qcl.follyExec("HGET", SSTR(parent_id.getUnderlyingUInt64() << constants::sMapFilesSuffix), name)
+    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+    .then(convertInt64ToFileIdentifier);
 }
 
 //------------------------------------------------------------------------------
 // Fetch a container id given its parent and its name
 //------------------------------------------------------------------------------
-folly::Future<id_t>
-MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, IContainerMD::id_t parent_id,
+folly::Future<ContainerIdentifier>
+MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
                                         const std::string& name)
 {
-  return qcl.follyExec("HGET", SSTR(parent_id << constants::sMapDirsSuffix), name)
-    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name));
+  return qcl.follyExec("HGET", SSTR(parent_id.getUnderlyingUInt64() << constants::sMapDirsSuffix), name)
+    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+    .then(convertInt64ToContainerIdentifier);
 }
 
 EOSNSNAMESPACE_END

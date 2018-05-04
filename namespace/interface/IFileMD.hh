@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/Identifiers.hh"
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
@@ -70,6 +71,11 @@ public:
   //! Get file id
   //----------------------------------------------------------------------------
   virtual IFileMD::id_t getId() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get file identifier
+  //----------------------------------------------------------------------------
+  virtual FileIdentifier getIdentifier() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get creation time

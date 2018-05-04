@@ -28,6 +28,7 @@
 #include "proto/FileMd.pb.h"
 #include "proto/ContainerMd.pb.h"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/Identifiers.hh"
 #include <string>
 #include <vector>
 #include <deque>
@@ -60,8 +61,8 @@ struct NamespaceItem {
 class SearchNode
 {
 public:
-  SearchNode(qclient::QClient& qcl, IContainerMD::id_t id, SearchNode* prnt);
-  inline IContainerMD::id_t getID() const
+  SearchNode(qclient::QClient& qcl, ContainerIdentifier id, SearchNode* prnt);
+  inline ContainerIdentifier getID() const
   {
     return id;
   }
@@ -96,7 +97,7 @@ public:
   eos::ns::ContainerMdProto& getContainerInfo();
 
 private:
-  IContainerMD::id_t id;
+  ContainerIdentifier id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
   bool visited = false;
