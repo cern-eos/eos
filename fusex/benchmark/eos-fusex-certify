@@ -1,4 +1,3 @@
-
 #! /bin/bash
 # ----------------------------------------------------------------------
 # File: eos-fusex-certify
@@ -217,6 +216,49 @@ done
 rm passwd   
 ) || exit 8
 fi
+
+
+if [ "$1" = "9" ] ; then
+time (
+echo "===================================================================="
+echo "009 ... inlined-files test"
+mkdir 009-eos-inlined-files-tests
+cd 009-eos-inlined-files-tests
+echo "009 creating inlined file"
+touch inlined
+# create an inlined file
+date +%s >> inlined;
+# we should see the inline buffer
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf || exit 9
+echo ". 1"
+
+# truncate of the limit
+truncate -s 4097 inlined;
+# file should not be inlined anymore
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf && exit 9
+echo ". 2"
+
+truncate -s 0 inlined;
+# file should have an empty inline buffer
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf | grep \"\" || exit 9;
+echo ". 3"
+
+# create an inlined file
+date +%s >> inlined;
+# we should see the inline buffer
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf || exit 9
+echo ". 4"
+
+for name in `seq 1 400`; do 
+    date +%s >> inlined ; 
+done
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf && exit 9
+echo ". 6"
+
+) || exit 9
+fi
+
+
 echo "===================================================================="
 echo "... :-) passed !"
 echo "===================================================================="

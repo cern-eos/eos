@@ -387,6 +387,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["krb5"] = 1;
       }
 
+      if (!root["inline"].isMember("max-size")) {
+	root["inline"]["max-size="] = 0;
+      }
+
+      if (!root["inline"].isMember("default-compressor")) {
+	root["inline"]["default-compressor"] = "none";
+      }
+
       if (!root["auth"].isMember("shared-mount")) {
         if (geteuid()) {
           root["auth"]["shared-mount"] = 0;
@@ -586,6 +594,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (config.auth.environ_deadlock_timeout <= 0) {
       config.auth.environ_deadlock_timeout = 100;
     }
+
+    config.inliner.max_size = root["inline"]["max-size"].asInt();
+    config.inliner.default_compressor = root["inline"]["default-compressor"].asString();
 
     for (Json::Value::iterator it = root["options"]["no-fsync"].begin() ;
          it != root["options"]["no-fsync"].end(); ++it) {
@@ -1219,16 +1230,23 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        cconfig.location.c_str(),
                        cconfig.journal.c_str(),
 		       cconfig.clean_threshold);
+
     eos_static_warning("read-recovery          := enabled:%d ropen:%d ropen-noserv:%d ropen-noserv-window:%u",
                        config.recovery.read,
                        config.recovery.read_open,
                        config.recovery.read_open_noserver,
                        config.recovery.read_open_noserver_retrywindow);
+
     eos_static_warning("write-recovery         := enabled:%d wopen:%d wopen-noserv:%d wopen-noserv-window:%u",
                        config.recovery.write,
                        config.recovery.write_open,
                        config.recovery.write_open_noserver,
                        config.recovery.write_open_noserver_retrywindow);
+
+    eos_static_warning("file-inlining          := emabled:%d max-size=%lu compressor=%s",
+		       config.inliner.max_size?1:0,
+		       config.inliner.max_size,
+		       config.inliner.default_compressor.c_str());
     std::string xrdcl_option_string;
     std::string xrdcl_option_loglevel;
 
@@ -1805,6 +1823,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               if (io) {
                 eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                 rc |= io->ioctx()->truncate(req, attr->st_size);
+		io->ioctx()->inline_file(attr->st_size);
                 rc |= io->ioctx()->flush(req);
                 rc = rc ? (errno ? errno : rc) : 0;
               } else {
@@ -1818,6 +1837,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               rc = io->attach(req, cookie, true);
               eos_static_debug("calling truncate");
               rc |= io->truncate(req, attr->st_size);
+	      io->inline_file(attr->st_size);
               rc |= io->flush(req);
               rc |= io->detach(req, cookie, true);
               rc = rc ? (errno ? errno : rc) : 0;
@@ -3560,6 +3580,14 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         pLock.UnLock();
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
+
+	// possibly inline the file in extended attribute before mds update
+	if (io->ioctx()->inline_file()) {
+	  eos_static_debug("file is inlined");
+	} else {
+	  eos_static_debug("file is not inlined");
+	}
+		 
         XrdSysMutexHelper mLock(io->md->Locker());
         io->md->set_mtime(tsnow.tv_sec);
         io->md->set_mtime_ns(tsnow.tv_nsec);

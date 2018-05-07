@@ -31,11 +31,14 @@
 #include "misc/MacOSXHelper.hh"
 #include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
+#include "common/SymKeys.hh"
 #include <iostream>
 #include <sstream>
 
 
 bufferllmanager data::datax::sBufferManager;
+std::string data::datax::kInlineAttribute = "sys.file.buffer";
+
 
 /* -------------------------------------------------------------------------- */
 data::data()
@@ -435,6 +438,39 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   bool isRW = false;
   mFlags = flags;
 
+
+  // check for file inlining
+  if (EosFuse::Instance().Config().inliner.max_size) {
+    // reserve buffer for inlining
+    inline_buffer = std::make_shared<bufferll>( EosFuse::Instance().Config().inliner.max_size , 
+						EosFuse::Instance().Config().inliner.max_size );
+
+    auto attrMap = mMd->attr();
+    mIsInlined = true;
+    if (attrMap.count(kInlineAttribute)) {
+      std::string base64_string(attrMap[kInlineAttribute].c_str(), attrMap[kInlineAttribute].size());
+      std::string raw_string;
+
+      SymKey::DeBase64(base64_string, raw_string);
+    
+      // decode attribute to buffer
+      inline_buffer->writeData(raw_string.c_str(), 0, raw_string.size());
+  
+      // in case there is any inconsistency between size and attribute buffer, just ignore this one
+      if (raw_string.size() != mMd->size()) {
+	inline_buffer = 0;
+	// delete the inline buffer
+	(mMd->mutable_attr())->erase(kInlineAttribute);
+	mIsInlined = false;
+      }      
+    } else {
+      if (mMd->size()) {
+	mIsInlined = false;
+      }
+    }
+
+  }
+
   if (flags & (O_RDWR | O_WRONLY)) {
     isRW = true;
   }
@@ -550,6 +586,34 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
+data::datax::inline_file(ssize_t size)
+{
+  XrdSysMutexHelper lLock(mLock);
+  if (size == -1)
+    size = mMd->size();
+  
+
+  if (inlined()) {
+    if ((size_t)size <= EosFuse::Instance().Config().inliner.max_size) {
+      // rewrite the extended attribute
+      std::string raw_string(inline_buffer->ptr(), size);
+      std::string base64_string;
+      SymKey::Base64(raw_string, base64_string);
+      (*(mMd->mutable_attr()))[kInlineAttribute] = base64_string;
+      return true;
+    } else {
+      // remove the extended attribute 
+      (mMd->mutable_attr())->erase(kInlineAttribute);
+      mIsInlined = false;
+      return false;
+    }
+  }
+  return false;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
 data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
@@ -563,6 +627,10 @@ data::datax::prefetch(fuse_req_t req, bool lock)
   if (mFile && mFile->has_xrdiorw(req)) {
     // never prefetch on a wr open file
     return true;
+  }
+
+  if (inlined()) {
+    // never prefetch an inlined file
   }
 
   if (lock) {
@@ -1478,6 +1546,23 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
     }
   }
 
+  if (inline_buffer && inlined() && 
+      (count + offset) < EosFuse::Instance().Config().inliner.max_size ) {
+    // possibly return data from an inlined buffer
+    ssize_t avail_bytes = 0;
+    if ( ( (size_t)offset < mMd->size() ) ) {
+      if ( (offset + count) > mMd->size()) {
+	avail_bytes = mMd->size() - offset;
+      } else {
+	avail_bytes = count;
+      }
+    } else {
+      avail_bytes = 0;
+    }
+    memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
+    return avail_bytes;
+  }
+
   ssize_t br = 0;
 
   if (mFile->file()) {
@@ -1601,6 +1686,15 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
   XrdSysMutexHelper lLock(mLock);
   eos_info("offset=%llu count=%lu", offset, count);
   ssize_t dw = 0 ;
+
+  // inlined-files
+  if (inline_buffer) {
+    if ( (count + offset) < EosFuse::Instance().Config().inliner.max_size)
+    {
+      // copy into file inline buffer
+      inline_buffer->writeData(buf, offset, count);
+    }
+  }
 
   if (mFile->file()) {
     if (mFile->file()->size() || (mFlags & O_CREAT))
@@ -1740,6 +1834,25 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   buffer = sBufferManager.get_buffer(count);
 
   buf = buffer->ptr();
+
+  if (inline_buffer && inlined()) {
+    // possibly return data from an inlined buffer
+    ssize_t avail_bytes = 0;
+    if ( ( (size_t)offset < mMd->size() ) ) {
+      if ( (offset + count) > mMd->size()) {
+	avail_bytes = mMd->size() - offset;
+      } else {
+	avail_bytes = count;
+      }
+    } else {
+      avail_bytes = 0;
+    }
+
+    memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
+
+    return avail_bytes;
+  }
+
 
   ssize_t br = 0;
 
@@ -1909,6 +2022,22 @@ data::datax::truncate(fuse_req_t req, off_t offset)
   eos_info("offset=%llu size=%llu", offset, mSize);
 
   int dt = 0;
+
+  if (inline_buffer) {
+    if (inlined()) {
+      if ( ((size_t)offset) < EosFuse::Instance().Config().inliner.max_size)
+      {
+	// truncate file inline buffer
+	inline_buffer->truncateData(offset);
+      }
+    } else {
+      if (offset == 0) {
+	// we can re-enable the inlining for such a file
+	inline_buffer->truncateData(0);
+	mIsInlined = true;
+      }
+    }
+  }
 
   if (mFile->file()) {
     dt = mFile->file()->truncate(0);

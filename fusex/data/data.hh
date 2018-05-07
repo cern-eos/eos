@@ -64,7 +64,7 @@ public:
 	      mWaitForOpen(false),
 	      mSimulateWriteErrorInFlush(false),
 	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0), mXoff(false)
+	      mFlags(0), mXoff(false), mIsInlined(false)
 
     {}
 
@@ -103,6 +103,7 @@ public:
     int journalflush(std::string cid);
     int journalflush_async(std::string cid);
     int attach(fuse_req_t req, std::string& cookie, int flags);
+    bool inline_file(ssize_t size=-1);
     int detach(fuse_req_t req, std::string& cookie, int flags);
     int store_cookie(std::string& cookie);
     int unlink(fuse_req_t req);
@@ -182,6 +183,14 @@ public:
       return mSimulateWriteErrorInFlush;
     }
 
+    bool inlined()
+    {
+      return mIsInlined;
+    }
+    
+    static std::string kInlineAttribute;
+
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -203,6 +212,9 @@ public:
     int mFlags;
 
     bool mXoff; 
+    bool mIsInlined;
+    bufferllmanager::shared_buffer inline_buffer;
+
   };
 
   typedef std::shared_ptr<datax> shared_data;
