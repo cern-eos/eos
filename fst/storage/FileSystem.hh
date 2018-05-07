@@ -226,8 +226,9 @@ public:
       return false;
     }
 
-    // Avoid processing IO stats attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo") {
+    // Avoid querying IO stats attributes for certain storage types
+    if (mFileIO->GetIoType() == "DavixIo" ||
+        mFileIO->GetIoType() == "XrdIo") {
       return false;
     }
 
@@ -246,8 +247,9 @@ public:
       return false;
     }
 
-    // Avoid processing Health attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo") {
+    // Avoid querying Health attributes for certain storage types
+    if (mFileIO->GetIoType() == "DavixIo" ||
+        mFileIO->GetIoType() == "XrdIo") {
       return false;
     }
 
