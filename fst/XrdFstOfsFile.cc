@@ -608,7 +608,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // Try to get error if the file has a scan error
-    io->attrGet("user.filecxerror", filecxerror);
+    io->attrGet("user.eos.filecxerror", filecxerror);
   }
 
   if ((!isRW) && (filecxerror == "1")) {
