@@ -855,7 +855,7 @@ DavixIo::Statfs(struct statfs* sfs)
     sfs->f_bfree = sfs->f_bavail;
     sfs->f_files = 1000000000ll;
     sfs->f_ffree = 1000000000ll;
-    eos_info("msg=\"emulating s3 quota\"");
+    eos_debug("msg=\"emulating s3 quota\"");
     return 0;
   }
 
