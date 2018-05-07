@@ -441,10 +441,11 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
   if (status.IsOK()) {
     return 0;
   } else {
+    int retc = EREMOTEIO;
     if (status.code == XrdCl::errErrorResponse) {
       return mapErrCode(status.errNo);
     } else {
-      return EREMOTEIO;
+      return retc;
     }
   }
 }

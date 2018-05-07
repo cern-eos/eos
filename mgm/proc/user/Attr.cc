@@ -109,9 +109,15 @@ ProcCommand::Attr()
 
                 for (it = map.begin(); it != map.end(); ++it) {
                   partialStdOut += (it->first).c_str();
-                  partialStdOut += "=";
-                  partialStdOut += "\"";
-                  partialStdOut += (it->second).c_str();
+		  if (it->first != "sys.file.buffer") {
+		    partialStdOut += "=";
+		    partialStdOut += "\"";
+		    partialStdOut += (it->second).c_str();
+		  } else {
+		    partialStdOut += "=\"[";
+		    partialStdOut += (std::to_string(it->second.size()).c_str());
+		    partialStdOut += "] bytes";
+		  }
                   partialStdOut += "\"";
                   partialStdOut += "\n";
                 }

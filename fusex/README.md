@@ -57,6 +57,10 @@ This
     "environ-deadlock-timeout" : 100, 
     "forknoexec-heuristic" : 1
   },
+  "inline" : {
+    "max-size" : 0,
+    "default-compressor" : "none",
+  }
 }
 ```
 

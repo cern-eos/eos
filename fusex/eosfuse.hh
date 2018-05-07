@@ -242,8 +242,15 @@ public:
       size_t write_open_noserver_retrywindow;
     } recovery_t;
 
+    typedef struct inlining {
+      uint64_t max_size;
+      std::string default_compressor;      
+    } inlining_t;
+
     recovery_t recovery;
     options_t options;
+    inlining_t inliner;
+
     CredentialConfig auth;
   } cfg_t;
 
