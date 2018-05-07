@@ -226,6 +226,11 @@ public:
       return false;
     }
 
+    // Avoid processing IO stats attributes for certain storage types
+    if (mFileIO->GetIoType() == "DavixIo") {
+      return false;
+    }
+
     std::string iostats;
     mFileIO->attrGet("sys.iostats", iostats);
     return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(),
@@ -238,6 +243,11 @@ public:
   bool getHealth(std::map<std::string, std::string>& map)
   {
     if (!mFileIO) {
+      return false;
+    }
+
+    // Avoid processing Health attributes for certain storage types
+    if (mFileIO->GetIoType() == "DavixIo") {
       return false;
     }
 
