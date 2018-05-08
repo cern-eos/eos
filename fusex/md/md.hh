@@ -76,6 +76,7 @@ public:
       lock_remote = true;
       cap_count_reset();
       refresh = false;
+      inline_size = 0;
     }
 
     mdx(fuse_ino_t ino) : mdx()
@@ -271,6 +272,14 @@ public:
       return _local_children;
     }
 
+    const uint64_t inlinesize() {
+      return inline_size;
+    }
+
+    void set_inlinesize(uint64_t inlinesize) {
+      inline_size = inlinesize;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -280,6 +289,7 @@ public:
     std::atomic<int> opendir_cnt;
     bool lock_remote;
     bool refresh;
+    uint64_t inline_size;
     std::vector<struct flock> locktable;
     std::map<std::string, uint64_t> todelete;
     std::map<std::string, uint64_t> _local_children;

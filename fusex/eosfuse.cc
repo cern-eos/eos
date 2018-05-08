@@ -3242,6 +3242,13 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           XrdSysMutexHelper mLockParent(pmd->Locker());
           pmd->set_mtime(ts.tv_sec);
           pmd->set_mtime_ns(ts.tv_nsec);
+
+	  // get file inline size from parent attribute
+	  if (pmd->attr().count("sys.file.inline.maxsize")) {
+	    auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
+	    md->set_inlinesize(strtoull(maxsize.c_str(),0,10));
+	  }
+
           mLockParent.UnLock();
           mLock.Lock(&md->Locker());
         }
