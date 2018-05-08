@@ -167,6 +167,21 @@ public:
   static bool Base64(std::string& in, std::string& out);
 
   //----------------------------------------------------------------------------
+  //! Decode a zbase64: prefixed string
+  //----------------------------------------------------------------------------
+
+  static bool ZDeBase64(std::string& in, std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Encode a zbase64: prefixed string
+  //----------------------------------------------------------------------------
+
+  static bool ZBase64(std::string& in, std::string& out);
+
+
+
+
+  //----------------------------------------------------------------------------
   //! Serialise a Google Protobuf object and base64 encode the result
   //!
   //! @param msg generic Google Protobuf object
