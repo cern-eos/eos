@@ -1120,7 +1120,7 @@ runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_T
 # ------------------------------------------------------------------------------
 
 runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
-runtest "### S3 Upload    " unix 0 "" davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate --debug $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
+runtest "### S3 Upload    " unix 0 "" davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
 runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test
 runtest "### S3 Download  " unix 0 "" davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m file.50m
 runtest "### S3 Rm        " unix 0 "" davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
