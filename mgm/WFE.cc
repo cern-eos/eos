@@ -248,7 +248,11 @@ WFE::WFEr()
       }
       auto findEnded = std::chrono::steady_clock::now();
       auto timespent = std::chrono::duration_cast<std::chrono::milliseconds>(findEnded - findStarted);
-      eos_static_info("findtime=%ld , size=%lu", timespent.count(), wfedirs.size());
+      auto wfedirsSize = 0ul;
+      for(const auto& keyval : wfedirs) {
+        wfedirsSize += keyval.second.size();
+      }
+      eos_static_info("findtime=%ld , size=%lu", timespent.count(), wfedirsSize);
 
       {
         eos_static_debug("msg=\"finished WFE find\" WFE-dirs=%llu %s",
