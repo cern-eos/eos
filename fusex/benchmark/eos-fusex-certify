@@ -222,6 +222,7 @@ if [ "$1" = "9" ] ; then
 time (
 echo "===================================================================="
 echo "009 ... inlined-files test"
+echo "    ... this test works only with uncompressed inlined files and max-size= <4096"
 mkdir 009-eos-inlined-files-tests
 cd 009-eos-inlined-files-tests
 echo "009 creating inlined file"
@@ -240,7 +241,7 @@ echo ". 2"
 
 truncate -s 0 inlined;
 # file should have an empty inline buffer
-getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf | grep \"\" || exit 9;
+getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf || exit 9;
 echo ". 3"
 
 # create an inlined file
