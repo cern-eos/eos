@@ -451,18 +451,30 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       std::string base64_string(attrMap[kInlineAttribute].c_str(), attrMap[kInlineAttribute].size());
       std::string raw_string;
 
-      SymKey::DeBase64(base64_string, raw_string);
-    
-      // decode attribute to buffer
-      inline_buffer->writeData(raw_string.c_str(), 0, raw_string.size());
-  
-      // in case there is any inconsistency between size and attribute buffer, just ignore this one
-      if (raw_string.size() != mMd->size()) {
-	inline_buffer = 0;
-	// delete the inline buffer
-	(mMd->mutable_attr())->erase(kInlineAttribute);
+      bool decoding = false;
+      if (base64_string.substr(0,8) == "zbase64:") {
+	SymKey::ZDeBase64(base64_string, raw_string);
+	decoding = true;
+      } else if (base64_string.substr(0,7) == "base64:") {
+	  SymKey::DeBase64(base64_string, raw_string);
+	  decoding = true;
+      }
+
+      if (decoding)
+      {    
+	// decode attribute to buffer
+	inline_buffer->writeData(raw_string.c_str(), 0, raw_string.size());
+	
+	// in case there is any inconsistency between size and attribute buffer, just ignore this one
+	if (raw_string.size() != mMd->size()) {
+	  inline_buffer = 0;
+	  // delete the inline buffer
+	  (mMd->mutable_attr())->erase(kInlineAttribute);
+	  mIsInlined = false;
+	}      
+      } else {
 	mIsInlined = false;
-      }      
+      }
     } else {
       if (mMd->size()) {
 	mIsInlined = false;
@@ -598,7 +610,13 @@ data::datax::inline_file(ssize_t size)
       // rewrite the extended attribute
       std::string raw_string(inline_buffer->ptr(), size);
       std::string base64_string;
-      SymKey::Base64(raw_string, base64_string);
+
+      if (EosFuse::Instance().Config().inliner.default_compressor == "zlib")
+      {
+	SymKey::ZBase64(raw_string, base64_string);
+      } else {
+	SymKey::Base64(raw_string, base64_string);
+      }
       (*(mMd->mutable_attr()))[kInlineAttribute] = base64_string;
       return true;
     } else {
@@ -1849,7 +1867,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     }
 
     memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
-
+    eos_debug("inline-read byte=%lld", avail_bytes);
     return avail_bytes;
   }
 
