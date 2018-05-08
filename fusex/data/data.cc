@@ -38,6 +38,8 @@
 
 bufferllmanager data::datax::sBufferManager;
 std::string data::datax::kInlineAttribute = "sys.file.buffer";
+std::string data::datax::kInlineMaxSize = "sys.file.inline.maxsize";
+std::string data::datax::kInlineCompressor = "sys.file.inline.compressor";
 
 
 /* -------------------------------------------------------------------------- */
@@ -440,12 +442,29 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
 
   // check for file inlining
-  if (EosFuse::Instance().Config().inliner.max_size) {
-    // reserve buffer for inlining
-    inline_buffer = std::make_shared<bufferll>( EosFuse::Instance().Config().inliner.max_size , 
-						EosFuse::Instance().Config().inliner.max_size );
+  if (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize()) {
 
+    if (mMd->inlinesize()) {
+      mInlineMaxSize = mMd->inlinesize();
+    } else {
+      mInlineMaxSize = EosFuse::Instance().Config().inliner.max_size;
+    }
+    
     auto attrMap = mMd->attr();
+
+    if (attrMap.count(kInlineMaxSize))
+      mInlineMaxSize = strtoull(attrMap[kInlineMaxSize].c_str(), 0, 10);
+
+    if (attrMap.count(kInlineCompressor))
+      mInlineCompressor = attrMap[kInlineCompressor];
+    else
+      mInlineCompressor = EosFuse::Instance().Config().inliner.default_compressor;
+
+    eos_debug("inline-size=%llu inline-compressor=%s", mInlineMaxSize, mInlineCompressor.c_str());
+    // reserve buffer for inlining
+    inline_buffer = std::make_shared<bufferll>( mInlineMaxSize , 
+						mInlineMaxSize );
+
     mIsInlined = true;
     if (attrMap.count(kInlineAttribute)) {
       std::string base64_string(attrMap[kInlineAttribute].c_str(), attrMap[kInlineAttribute].size());
@@ -606,18 +625,20 @@ data::datax::inline_file(ssize_t size)
   
 
   if (inlined()) {
-    if ((size_t)size <= EosFuse::Instance().Config().inliner.max_size) {
+    if ((size_t)size <= mInlineMaxSize) {
       // rewrite the extended attribute
       std::string raw_string(inline_buffer->ptr(), size);
       std::string base64_string;
 
-      if (EosFuse::Instance().Config().inliner.default_compressor == "zlib")
+      if (mInlineCompressor == "zlib")
       {
 	SymKey::ZBase64(raw_string, base64_string);
       } else {
 	SymKey::Base64(raw_string, base64_string);
       }
       (*(mMd->mutable_attr()))[kInlineAttribute] = base64_string;
+      (*(mMd->mutable_attr()))[kInlineMaxSize] = std::to_string(mInlineMaxSize);
+      (*(mMd->mutable_attr()))[kInlineCompressor] = mInlineCompressor;
       return true;
     } else {
       // remove the extended attribute 
@@ -1565,7 +1586,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
   }
 
   if (inline_buffer && inlined() && 
-      (count + offset) < EosFuse::Instance().Config().inliner.max_size ) {
+      (count + offset) < mInlineMaxSize ) {
     // possibly return data from an inlined buffer
     ssize_t avail_bytes = 0;
     if ( ( (size_t)offset < mMd->size() ) ) {
@@ -1707,7 +1728,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
   // inlined-files
   if (inline_buffer) {
-    if ( (count + offset) < EosFuse::Instance().Config().inliner.max_size)
+    if ( (count + offset) < mInlineMaxSize)
     {
       // copy into file inline buffer
       inline_buffer->writeData(buf, offset, count);
@@ -2043,7 +2064,7 @@ data::datax::truncate(fuse_req_t req, off_t offset)
 
   if (inline_buffer) {
     if (inlined()) {
-      if ( ((size_t)offset) < EosFuse::Instance().Config().inliner.max_size)
+      if ( ((size_t)offset) < mInlineMaxSize)
       {
 	// truncate file inline buffer
 	inline_buffer->truncateData(offset);

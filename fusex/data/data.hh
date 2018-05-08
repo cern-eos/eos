@@ -64,7 +64,7 @@ public:
 	      mWaitForOpen(false),
 	      mSimulateWriteErrorInFlush(false),
 	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0), mXoff(false), mIsInlined(false)
+	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none")
 
     {}
 
@@ -189,7 +189,8 @@ public:
     }
     
     static std::string kInlineAttribute;
-
+    static std::string kInlineMaxSize;
+    static std::string kInlineCompressor;
 
   private:
     XrdSysMutex mLock;
@@ -213,6 +214,9 @@ public:
 
     bool mXoff; 
     bool mIsInlined;
+    uint64_t mInlineMaxSize;
+    std::string mInlineCompressor;
+
     bufferllmanager::shared_buffer inline_buffer;
 
   };
