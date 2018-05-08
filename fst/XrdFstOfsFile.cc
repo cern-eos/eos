@@ -1951,7 +1951,7 @@ XrdFstOfsFile::close()
     eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
              mEventWorkflow.c_str());
     rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, true, false);
+                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, syncEventOnClose, false);
   }
 
   eos_info("Return code rc=%i.", rc);
