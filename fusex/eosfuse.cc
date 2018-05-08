@@ -598,6 +598,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.inliner.max_size = root["inline"]["max-size"].asInt();
     config.inliner.default_compressor = root["inline"]["default-compressor"].asString();
 
+    if ( (config.inliner.default_compressor != "none") &&
+	 (config.inliner.default_compressor != "zlib") ) {
+      std::cerr <<
+	"inline default compressor value can only be 'none' or 'zlib'."
+		<< std::endl;
+      exit(EINVAL);
+    }
+
     for (Json::Value::iterator it = root["options"]["no-fsync"].begin() ;
          it != root["options"]["no-fsync"].end(); ++it) {
       config.options.no_fsync_suffixes.push_back(it->asString());
