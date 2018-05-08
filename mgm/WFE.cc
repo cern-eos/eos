@@ -230,6 +230,7 @@ WFE::WFEr()
         queries[3] += "/e/";
       }
 
+      auto findStarted = std::chrono::steady_clock::now();
       for (size_t i = 0; i < 4; ++i) {
         eos_static_debug("query-path=%s", queries[i].c_str());
         gOFS->_find(queries[i].c_str(),
@@ -245,6 +246,9 @@ WFE::WFEr()
                     0
                    );
       }
+      auto findEnded = std::chrono::steady_clock::now();
+      auto timespent = std::chrono::duration_cast<std::chrono::milliseconds>(findEnded - findStarted);
+      eos_static_info("findtime = %ld , size = %llu", timespent.count(), wfedirs.size());
 
       {
         eos_static_debug("msg=\"finished WFE find\" WFE-dirs=%llu %s",
@@ -294,7 +298,11 @@ WFE::WFEr()
                   XrdSysMutexHelper sLock(gSchedulerMutex);
                   time_t storetime = 0;
                   // move job into the scheduled queue
+                  auto moveStarted = std::chrono::steady_clock::now();
                   job->Move(job->mActions[0].mQueue, "s", storetime);
+                  auto moveEnded = std::chrono::steady_clock::now();
+                  auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(moveEnded - moveStarted);
+                  eos_static_info("movetime = %ld", timeSpent.count());
                   job->mActions[0].mQueue = "s";
                   job->mActions[0].mTime = storetime;
                   XrdOucString tst;
