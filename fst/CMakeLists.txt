@@ -146,7 +146,8 @@ add_library(EosFstIo-Objects OBJECT
   io/local/FsIo.cc               io/local/FsIo.hh
   io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
-  #  io/rados/RadosIo.cc         io/rados/RadosIo.hh
+  io/exos/ExosIo.cc            io/exos/ExosIo.hh
+  io/exos/exosfile.cc          io/exos/exosfile.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -182,6 +183,7 @@ target_link_libraries(EosFstIo PUBLIC
   EosProtobuf
   EosCrc32c-Static
   jerasure-static
+  rados
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -223,6 +225,7 @@ target_link_libraries(EosFstIo-Static PUBLIC
   eosCommon-Static
   EosCrc32c-Static
   jerasure-static
+  rados
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${Z_LIBRARY_STATIC}
@@ -270,6 +273,26 @@ set_target_properties(
 
 
 install(TARGETS eoscp
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+
+#-------------------------------------------------------------------------------
+# exoscp executable
+#-------------------------------------------------------------------------------
+add_executable(exoscp io/exos/exoscp.cc)
+
+target_compile_definitions(exoscp PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+if(Linux)
+  target_link_libraries(exoscp PRIVATE EosFstIo-Static ${XROOTD_CL_LIBRARY})
+else()
+  target_link_libraries(exoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
+endif()
+
+install(TARGETS exoscp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

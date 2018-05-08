@@ -26,7 +26,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/kinetic/KineticIo.hh"
 #include "fst/io/local/LocalIo.hh"
-#include "fst/io/rados/RadosIo.hh"
+#include "fst/io/exos/ExosIo.hh"
 
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
@@ -58,8 +58,8 @@ FileIoPlugin::GetIoObject(std::string path,
       eos_static_err("Failed constructing kinetic io object: %s", e.what());
     }
     return kio;
-  } else if (ioType == LayoutId::kRados) {
-    return static_cast<FileIo*>(new RadosIo(path));
+  } else if (ioType == LayoutId::kExos) {
+    return static_cast<FileIo*>(new ExosIo(path));
   } else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
     return static_cast<FileIo*>(new DavixIo(path));
