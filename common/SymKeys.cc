@@ -31,6 +31,7 @@
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "zlib.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -460,6 +461,86 @@ SymKey::DeBase64(std::string& in, std::string& out)
     out.assign(valout, valout_len);
     free(valout);
     return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Encode a base64: prefixed string - std::string as input
+//------------------------------------------------------------------------------
+bool
+SymKey::ZBase64(std::string& in, std::string& out)
+{
+
+  char desthex[9];
+  sprintf(desthex,"%08lx", in.size());
+  
+  std::vector<char> destbuffer;
+  destbuffer.resize(in.size() + 128);
+  destbuffer.reserve(in.size() + 128);
+
+  uLongf destLen = destbuffer.size()-8;
+
+  sprintf(&(destbuffer[0]), "%08lx", in.size());
+
+  if (compress((Bytef *)&(destbuffer[8]), &destLen, (const Bytef *)in.c_str(), in.size()))
+  {
+    return false;
+  }
+
+  XrdOucString sout;
+  bool done = Base64Encode((char*) &(destbuffer[0]), destLen+8, sout);
+
+  if (done) {
+    out = "zbase64:";
+    out.append(sout.c_str());
+    return true;
+  } else {
+    return false;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Decode a zbase64: prefixed string - std::string as input
+//------------------------------------------------------------------------------
+bool
+SymKey::ZDeBase64(std::string& in, std::string& out)
+{
+  if (in.substr(0, 8) != "zbase64:") {
+    out = in;
+    return true;
+  }
+
+  XrdOucString in64 = in.c_str();
+  in64.erase(0, 8);
+  char* valout = 0;
+  size_t valout_len = 0;
+  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  if (valout) {
+    // first 8 bytes are the length of the decompressed data in hext
+    std::string desthex;
+    desthex.assign(valout,8);
+    // now decompress the b64 buffer
+    unsigned long destLen = strtoul(desthex.c_str(), 0, 16);
+    std::vector<char> destbuffer;
+    destbuffer.reserve(destLen);
+    destbuffer.resize(destLen);
+    uLongf dstLen=destbuffer.size();
+    
+    if (uncompress ((Bytef *) &(destbuffer[0]), &dstLen, (const Bytef *)valout+8, valout_len-8))
+    {
+      free(valout);
+      return false;
+    } else {
+      free(valout);
+      if ( dstLen == destLen) {
+	out.assign(&(destbuffer[0]), dstLen);
+	return true;
+      } else {
+	return false;
+      }
+    }
   }
 
   return false;
