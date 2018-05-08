@@ -63,35 +63,26 @@ std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t co
       uid = gid = DAEMONUID;
     }
 
-    bool map_only_user = false;
-
     // Emergency mapping of too high user ids to nob
     if (uid > 0xfffff)
     {
-      
-      eos_static_info("msg=\"unable to map uid+gid - out of range - will only map user and server will assign groupo");
-      map_only_user = true;
+      eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                     "nobody\" uid=%u",
+                     uid);
+      uid = 99;
     }
     if (gid > 0xffff)
     {
-      eos_static_info("msg=\"unable to map uid+gid - out of range - will only map user and server will assign group");
-      map_only_user = true;
+      eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                     "nobody\" gid=%u",
+                     gid);
+      gid = 99;
     }
 
-    if (map_only_user)
-    {
-      bituser = (uid & 0xfffffffff);
-      bituser <<= 6;
-      sid = "~";
-    }
-    else
-    {
-      bituser = (uid & 0xfffff);
-      bituser <<= 16;
-      bituser |= (gid & 0xffff);
-      bituser <<= 6;
-    }
-
+    bituser = (uid & 0xfffff);
+    bituser <<= 16;
+    bituser |= (gid & 0xffff);
+    bituser <<= 6;
     {
       // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
       XrdSysMutexHelper cLock (connectionIdMutex);

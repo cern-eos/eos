@@ -1149,7 +1149,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     if (sname.length() == 8) {
       bool known_tident = false;
 
-      if (sname.beginswith("*") || sname.beginswith("~")){
+      if (sname.beginswith("*")) {
         known_tident = true;
         // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
@@ -1171,6 +1171,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
                              bituser, n_tohll(bituser));
           } else {
+            gPhysicalIdMutex.UnLock();
             eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d", outlen);
             delete id;
             return;
@@ -1186,21 +1187,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             delete id;
           }
 
-	  if (sname.beginswith("*")) {
-	    id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
-	  } else {
-	    // only user id got forwarded, we retrieve the corresponding group
-	    uid_t ruid = (bituser >> 6) & 0xfffffffff;
-
-	    gPhysicalIdMutex.UnLock();
-	    struct passwd* pwbufp = 0;
-	    if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-	      gPhysicalIdMutex.Lock();
-	      return;
-	    }
-	    id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-	  }
-
+          id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
                            id->gid);
         } else {
