@@ -294,8 +294,8 @@ WFE::WFEr()
                   XrdSysMutexHelper sLock(gSchedulerMutex);
                   time_t storetime = 0;
                   // move job into the scheduled queue
-                  job->Move(job->mActions[0].mQueue, "s", storetime);
-                  job->mActions[0].mQueue = "s";
+//                  job->Move(job->mActions[0].mQueue, "s", storetime);
+//                  job->mActions[0].mQueue = "s";
                   job->mActions[0].mTime = storetime;
                   XrdOucString tst;
                   job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
