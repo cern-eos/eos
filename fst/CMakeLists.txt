@@ -207,7 +207,7 @@ target_link_libraries(EosFstIo PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
-  $}RADOS_LIBRARIES}
+  ${RADOS_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosFstIo PROPERTIES

@@ -30,7 +30,7 @@
 #include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/kinetic/KineticIo.hh"
 #ifdef RADOS_FOUND
-#include "fst/io/rados/RadosIo.hh"
+#include "fst/io/exos/ExosIo.hh"
 #endif
 #ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
