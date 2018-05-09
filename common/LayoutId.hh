@@ -96,7 +96,7 @@ public:
   enum eIoType {
     kLocal = 0x0,
     kXrdCl = 0x1,
-    kExos = 0x2,
+    kRados = 0x2,
     kKinetic = 0x3,
     kDavix = 0x4
   };
@@ -115,8 +115,8 @@ public:
     }
 
     //! Definition of predefined block sizes
-    if (spath.beginswith("exos:")) {
-      return kExos;
+    if (spath.beginswith("rados:")) {
+      return kRados;
     }
 
     if (spath.beginswith("http:")) {
