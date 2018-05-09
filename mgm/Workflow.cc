@@ -200,25 +200,20 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& 
   time_t t = time(nullptr);
 
   if (job.IsSync(mEvent)) {
-    job.AddAction(mAction, mEvent, t, mWorkflow, "s");
-    retc = job.Save("s", t);
-  } else {
-    job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-
-    if (WfeRecordingEnabled()) {
-      retc = job.Save("q", t);
-    }
-  }
-
-  if (retc) {
-    eos_static_err("failed to save");
-    return retc;
-  }
-
-  if (job.IsSync(mEvent)) {
     if (WfeEnabled()) {
+      job.AddAction(mAction, mEvent, t, mWorkflow, "r");
+      job.Save("r", t);
       eos_static_info("running synchronous workflow");
       return job.DoIt(true);
+    }
+  } else {
+    if (WfeRecordingEnabled()) {
+      job.AddAction(mAction, mEvent, t, mWorkflow, "q");
+      retc = job.Save("q", t);
+      if (retc) {
+        eos_static_err("failed to save");
+        return retc;
+      }
     }
   }
 

@@ -294,8 +294,8 @@ WFE::WFEr()
                   XrdSysMutexHelper sLock(gSchedulerMutex);
                   time_t storetime = 0;
                   // move job into the scheduled queue
-//                  job->Move(job->mActions[0].mQueue, "s", storetime);
-//                  job->mActions[0].mQueue = "s";
+                  job->Move(job->mActions[0].mQueue, "r", storetime);
+                  job->mActions[0].mQueue = "r";
                   job->mActions[0].mTime = storetime;
                   XrdOucString tst;
                   job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
@@ -783,7 +783,7 @@ WFE::Job::DoIt(bool issync)
   int retc = 0;
   time_t storetime = 0;
 
-  if (mActions[0].mQueue == "s" || mActions[0].mQueue == "e") {
+  if (mActions[0].mQueue == "r" || mActions[0].mQueue == "e") {
     bool actionParsed = false;
     if (mActions[0].mAction.find(':') == std::string::npos) {
       method = mActions[0].mAction;
@@ -1622,7 +1622,7 @@ WFE::Job::DoIt(bool issync)
         }
       } else if (method == "proto") {
         storetime = (time_t) mActions[0].mTime;
-        Move(mActions[0].mQueue, "r", storetime, mRetry);
+//        Move(mActions[0].mQueue, "r", storetime, mRetry);
 
         auto event = mActions[0].mEvent;
 
