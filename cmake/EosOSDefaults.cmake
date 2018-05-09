@@ -68,9 +68,13 @@ endif()
 #-------------------------------------------------------------------------------
 # Require c++14
 #-------------------------------------------------------------------------------
-check_cxx_compiler_flag(-std=c++14 HAVE_FLAG_STD_CXX14)
-if(NOT HAVE_FLAG_STD_CXX14)
-  message(FATAL_ERROR "A compiler with -std=c++14 support is required.")
+option(PACKAGEONLY "Build without dependencies" OFF)
+if(NOT PACKAGEONLY)
+  include(CheckCXXCompilerFlag)
+  check_cxx_compiler_flag(-std=c++14 HAVE_FLAG_STD_CXX14)
+  if(NOT HAVE_FLAG_STD_CXX14)
+    message(FATAL_ERROR "A compiler with -std=c++14 support is required.")
+  endif()
 endif()
 
 set(CPP_VERSION -std=c++14)
