@@ -61,6 +61,7 @@ if(NOT PACKAGEONLY)
   find_package(jsoncpp REQUIRED)
   find_package(hiredis REQUIRED)
   find_package(bz2 REQUIRED)
+  find_package(rados)
 
   if (Linux)
     find_package(Protobuf3 REQUIRED)

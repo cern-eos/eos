@@ -32,6 +32,17 @@ else()
   set(DAVIX_HDR "")
 endif()
 
+if(RADOS_FOUND)
+  add_definitions(-DRADOS_FOUND)
+  set(RADOS_SRC "io/exos/ExosIo.cc" "io/exos/exosfile.cc")
+  set(RADOS_HDR "io/exos/ExosIo.hh" "io/exos/exosfile.hh")
+else()
+  set(RADOS_INCLUDE_DIR "")
+  set(RADOS_LIBRARIES "")
+  set(RADOS_SRC "")
+  set(RADOS_HDR "")
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -148,7 +159,7 @@ add_library(EosFstIo-Objects OBJECT
   io/local/FsIo.cc               io/local/FsIo.hh
   io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
-  #  io/rados/RadosIo.cc         io/rados/RadosIo.hh
+  ${RADOS_SRC}                   ${RADOS_HDR}
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -196,6 +207,7 @@ target_link_libraries(EosFstIo PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
+  $}RADOS_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosFstIo PROPERTIES
@@ -236,6 +248,7 @@ target_link_libraries(EosFstIo-Static PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY_STATIC}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
+  ${RADOS_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_definitions(EosFstIo-Static PRIVATE
@@ -453,6 +466,7 @@ target_link_libraries(eos-scan-fs PRIVATE
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${DAVIX_LIBRARIES}
+  ${RADOS_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
