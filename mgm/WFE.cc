@@ -466,7 +466,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   // evt. store with the current time
 
   if (!when) {
-    when = time(NULL);
+    when = time(nullptr);
   }
 
   XrdOucString tst;
@@ -477,66 +477,30 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   workflowpath += ":";
   workflowpath += mActions[action].mEvent;
   mWorkflowPath = workflowpath;
-
-  if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, nullptr)) {
-    eos_static_err("msg=\"failed to create workflow entry\" path=\"%s\"",
-                   workflowpath.c_str());
-    return -1;
-  }
-
   //Store which day it is stored for
   mActions[action].mSavedOnDay = mActions[action].mDay;
 
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.action",
-                      mActions[0].mAction.c_str())) {
-    eos_static_err("msg=\"failed to store workflow action\" path=\"%s\" action=\"%s\"",
-                   workflowpath.c_str(),
-                   mActions[0].mAction.c_str());
-    return -1;
-  }
 
   std::string vids = eos::common::Mapping::VidToString(mVid);
+  try {
+    eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex};
+    auto fmd = gOFS->eosView->createFile(workflowpath, 0, 0);
 
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.vid",
-                      vids.c_str())) {
-    eos_static_err("msg=\"failed to store workflow vid\" path=\"%s\" vid=\"%s\"",
+    auto cid = fmd->getContainerId();
+    auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    cmd->setMTimeNow();
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+    gOFS->eosView->updateContainerStore(cmd.get());
+
+    fmd->setAttribute("sys.action", mActions[0].mAction);
+    fmd->setAttribute("sys.vid", vids);
+    fmd->setAttribute("sys.wfe.errmsg", mErrorMesssage);
+    fmd->setAttribute("sys.wfe.retry", std::to_string(retry));
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("msg=\"failed to save workflow entry\" path=\"%s\" error=\"%s\"",
                    workflowpath.c_str(),
-                   vids.c_str());
-    return -1;
-  }
-
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.wfe.errmsg",
-                      mErrorMesssage.c_str())) {
-    eos_static_err("msg=\"failed to store workflow errmsg\" path=\"%s\" errmsg=\"%s\"",
-                   workflowpath.c_str(),
-                   mErrorMesssage.c_str());
-    return -1;
-  }
-
-  XrdOucString sretry;
-  sretry += retry;
-
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.wfe.retry",
-                      sretry.c_str())) {
-    eos_static_err("msg=\"failed to store workflow retry count\" path=\"%s\" retry=\"%d\"",
-                   workflowpath.c_str(),
-                   retry);
+                   ex.what());
     return -1;
   }
 
@@ -1657,10 +1621,10 @@ WFE::Job::DoIt(bool issync)
           Move(mActions[0].mQueue, "g", storetime);
         }
       } else if (method == "proto") {
-        auto event = mActions[0].mEvent;
-
         storetime = (time_t) mActions[0].mTime;
         Move(mActions[0].mQueue, "r", storetime, mRetry);
+
+        auto event = mActions[0].mEvent;
 
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
