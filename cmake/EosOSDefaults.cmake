@@ -66,6 +66,11 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
 endif()
 
 #-------------------------------------------------------------------------------
-# Use c++14
+# Require c++14
 #-------------------------------------------------------------------------------
+check_cxx_compiler_flag(-std=c++14 HAVE_FLAG_STD_CXX14)
+if(NOT HAVE_FLAG_STD_CXX14)
+  message(FATAL_ERROR "A compiler with -std=c++14 support is required.")
+endif()
+
 set(CPP_VERSION -std=c++14)
