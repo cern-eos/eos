@@ -63,8 +63,12 @@ FileIoPlugin::GetIoObject(std::string path,
       eos_static_err("Failed constructing kinetic io object: %s", e.what());
     }
     return kio;
-  } else if (ioType == LayoutId::kRados) {
-    return static_cast<FileIo*>(new RadosIo(path));
+  } else if (ioType == LayoutId::kExos) {
+#ifdef RADOS_FOUND
+    return static_cast<FileIo*>(new ExosIo(path));
+#endif
+    eos_static_warning("EOS has been compiled without RADOS support.");
+    return NULL;
   } else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
     std::string s3credentials = "";
