@@ -545,45 +545,40 @@ WFE::Job::Load(std::string path2entry)
   if (s1 && s2) {
     mFid = eos::common::FileId::Hex2Fid(id.c_str());
     eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
-    XrdOucString action;
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.action", action)) {
-      time_t t_when = strtoull(when.c_str(), 0, 10);
-      AddAction(action.c_str(), event, t_when, savedAtDay, workflow, q);
-    } else {
-      eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
-    }
+    {
+      eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
+      auto fmd = gOFS->eosView->getFile(path2entry);
 
-    XrdOucString vidstring;
-
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.vid", vidstring)) {
-      if (!eos::common::Mapping::VidFromString(mVid, vidstring.c_str())) {
-        eos_static_crit("parsing of %s failed - setting nobody\n", vidstring.c_str());
-        eos::common::Mapping::Nobody(mVid);
+      try {
+        time_t t_when = strtoull(when.c_str(), 0, 10);
+        AddAction(fmd->getAttribute("sys.action"), event, t_when, savedAtDay, workflow, q);
+      } catch (eos::MDException& ex) {
+        eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
       }
-    } else {
-      eos::common::Mapping::Nobody(mVid);
-      eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
-    }
 
-    XrdOucString sretry;
+      try {
+        auto vidstring = fmd->getAttribute("sys.vid").c_str();
+        if (!eos::common::Mapping::VidFromString(mVid, vidstring)) {
+          eos_static_crit("parsing of %s failed - setting nobody\n", vidstring);
+          eos::common::Mapping::Nobody(mVid);
+        }
+      } catch (eos::MDException& ex) {
+        eos::common::Mapping::Nobody(mVid);
+        eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
+      }
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.wfe.retry", sretry)) {
-      mRetry = (int)strtoul(sretry.c_str(), nullptr, 10);
-    } else {
-      eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
-    }
+      try {
+        mRetry = (int)strtoul(fmd->getAttribute("sys.wfe.retry").c_str(), nullptr, 10);
+      } catch (eos::MDException& ex) {
+        eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+      }
 
-    XrdOucString errorMessage;
-
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.wfe.errmsg", errorMessage)) {
-      mErrorMesssage = errorMessage.c_str();
-    } else {
-      eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+      try {
+        mErrorMesssage = fmd->getAttribute("sys.wfe.errmsg");
+      } catch (eos::MDException& ex) {
+        eos_static_info("msg=\"no error message stored\" path=\"%s\"", f.c_str());
+      }
     }
   } else {
     eos_static_err("msg=\"illegal workflow entry\" key=\"%s\"", f.c_str());
@@ -1621,9 +1616,6 @@ WFE::Job::DoIt(bool issync)
           Move(mActions[0].mQueue, "g", storetime);
         }
       } else if (method == "proto") {
-        storetime = (time_t) mActions[0].mTime;
-//        Move(mActions[0].mQueue, "r", storetime, mRetry);
-
         auto event = mActions[0].mEvent;
 
         std::shared_ptr<eos::IFileMD> fmd;
