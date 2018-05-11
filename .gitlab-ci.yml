@@ -469,7 +469,8 @@ eos_system_test:
     - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci
     - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 /eosclient-tests/functional_tests/pjd-fstest.sh /eos1/dockertest/fsprobe; fi
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
-    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest" ci
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
+    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
     - docker exec -i eos-mgm-test eos -b space quota default on
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
