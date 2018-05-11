@@ -826,14 +826,14 @@ WFE::Job::DoIt(bool issync)
           eos_static_err("msg=\"failed to send workflow notification mail\" job=\"%s\"",
                          mDescription.c_str());
           storetime = 0;
-          Move("s", "f", storetime);
+          Move(mActions[0].mQueue, "f", storetime);
           XrdOucString log = "failed to send workflow notification mail";
           Results("f", -1, log, storetime);
         } else {
           eos_static_info("msg=\"done notification\" job=\"%s\"",
                           mDescription.c_str());
           storetime = 0;
-          Move("s", "d", storetime);
+          Move(mActions[0].mQueue, "d", storetime);
           XrdOucString log = "notified by email";
           Results("d", 0, log, storetime);
         }
@@ -1423,8 +1423,6 @@ WFE::Job::DoIt(bool issync)
 
             if (!format_error) {
               eos::common::ShellCmd cmd(bashcmd);
-              storetime = (time_t) mActions[0].mTime;
-              Move(mActions[0].mQueue, "r", storetime, mRetry);
               eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
               eos::common::cmd_status rc = cmd.wait(1800);
               // retrieve the stderr of this command
