@@ -9,27 +9,28 @@ before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
   
-.template:eos_system_test: &eos_system_test
-  - sudo ./eos-docker/scripts/shutdown_services.sh
-  - ./eos-docker/scripts/remove_unused_images.sh
-  - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-  - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-  - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
-  - docker exec -i eos-mgm-test eos vid enable krb5
-  - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
-  - docker exec -i eos-client-test mkdir /eos1/
-  - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
-  - docker exec -i eos-client-test mkdir /eos2/
-  - docker exec -di eos-client-test mount -t fuse eosxd /eos2/
-  - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
-  - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci
-  - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 /eosclient-tests/functional_tests/pjd-fstest.sh /eos1/dockertest/fsprobe; fi
-  - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
-  - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
-  - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
-  - docker exec -i eos-mgm-test eos -b space quota default on
-  - docker exec -i eos-mgm-test eos-instance-test-ci
-  - sudo ./eos-docker/scripts/shutdown_services.sh
+.template:eos_system_test_script: &eos_system_test_script
+  script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
+    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
+    - docker exec -i eos-mgm-test eos vid enable krb5
+    - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
+    - docker exec -i eos-client-test mkdir /eos1/
+    - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
+    - docker exec -i eos-client-test mkdir /eos2/
+    - docker exec -di eos-client-test mount -t fuse eosxd /eos2/
+    - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
+    - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci
+    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 /eosclient-tests/functional_tests/pjd-fstest.sh /eos1/dockertest/fsprobe; fi
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
+    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
+    - docker exec -i eos-mgm-test eos -b space quota default on
+    - docker exec -i eos-mgm-test eos-instance-test-ci
+    - sudo ./eos-docker/scripts/shutdown_services.sh
 
 eos_clone_docker:
   stage: build:rpm
@@ -475,8 +476,7 @@ eos_unit_test:
 
 eos_system_test:
   stage: test
-  script:
-    <<: *eos_system_test
+  <<: *eos_system_test_script
   tags:
     - shell-with-docker
   dependencies:
@@ -485,8 +485,7 @@ eos_system_test:
 
 eos_system_test_with_quarkdb:
   stage: test
-  script:
-    <<: *eos_system_test
+  <<: *eos_system_test_script
   tags:
     - xrootd-shell
   allow_failure: true
