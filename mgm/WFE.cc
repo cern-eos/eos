@@ -2331,12 +2331,12 @@ WFE::MoveFromRBackToQ() {
     auto wfEntry = wfedir.first;
     for (const auto& entry : wfedir.second) {
       wfEntry += entry;
-      std::unique_ptr<Job> jobPtr = new Job();
-      jobPtr->Load(wfEntry);
-      if (!jobPtr->IsSync()) {
-        jobPtr->Move("r", "q", jobPtr->mActions[0].mTime);
+      Job job;
+      job.Load(wfEntry);
+      if (!job.IsSync()) {
+        job.Move("r", "q", job.mActions[0].mTime);
       } else {
-        jobPtr->Delete("r", jobPtr->mActions[0].mSavedOnDay);
+        job.Delete("r", job.mActions[0].mSavedOnDay);
       }
     }
   }
