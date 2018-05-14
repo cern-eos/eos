@@ -86,17 +86,18 @@ DavixIo::DavixIo(std::string path) : FileIo(path, "DavixIo"),
   //............................................................................
   if ((path.substr(0, 3) == "s3:") || (path.substr(0, 4) == "s3s:")) {
     mIsS3 = true;
-    std::string id = getenv("EOS_FST_S3_ACCESS_ID") ? getenv("EOS_FST_S3_ACCESS_ID")
-                     : "";
-    std::string key = getenv("EOS_FST_S3_ACCESS_KEY") ?
-                      getenv("EOS_FST_S3_ACCESS_KEY") : "";
+    std::string id = getenv("EOS_FST_S3_ACCESS_KEY") ?
+                     getenv("EOS_FST_S3_ACCESS_KEY")  : "";
+    std::string key = getenv("EOS_FST_S3_SECRET_KEY") ?
+                      getenv("EOS_FST_S3_SECRET_KEY") : "";
 
     if (!id.length() || !key.length()) {
       eos_warning("msg=\"s3 configuration missing\" s3-id=\"%s\" s3-key=\"%s\"",
                   id.c_str(), key.c_str());
     } else {
       mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
-      eos_debug("s3-id=\"%s\" s3-key=\"%s\"", id.c_str(), key.c_str());
+      eos_debug("s3-access-key=\"%s\" s3-secret-key=\"%s\"",
+                id.c_str(), key.c_str());
     }
   } else {
     mIsS3 = false;

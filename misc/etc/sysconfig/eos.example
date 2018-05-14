@@ -127,9 +127,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
 
-# Set S3 ACCESS id & key
-#export EOS_FST_S3_ACCESS_ID=""
-#export EOS_FST_S3_ACCESS+KEY=""
+# Set S3 access key & secret key
+#export EOS_FST_S3_ACCESS_KEY=""
+#export EOS_FST_S3_SECRET_KEY=""
 
 # Set S3 theoretical storage size 
 #export EOS_FST_S3_STORAGE_SIZE=1000000000000000
