@@ -1039,6 +1039,7 @@ XrdFstOfsFile::close()
   bool committed = false;
   bool minimumsizeerror = false;
   bool consistencyerror = false;
+  bool atomicoverlap = false;
 
   // Any close on a file opened in TPC mode invalidates tpc keys
   if (mTpcKey.length()) {
@@ -1350,7 +1351,7 @@ XrdFstOfsFile::close()
                                   mCapOpaque->Get("mgm.manager"), capOpaqueFile);
 
             if (rc) {
-              if ((rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR)) {
+              if ((rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) || (rc == -EREMCHG)) {
                 if (!gOFS.Storage->CloseTransaction(mFsId, mFileId)) {
                   eos_crit("cannot close transaction for fsid=%u fid=%llu", mFsId, mFileId);
                 }
@@ -1376,6 +1377,13 @@ XrdFstOfsFile::close()
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   consistencyerror = true;
                 }
+
+		if (rc == -EREMCHG) {
+		  eos_err("inof=\"unlinking fid=%08x path=%s - "
+			  "overlapping atomic upload - discarding this one\"",
+			  fMd->mProtoFmd.fid(), mNsPath.c_str());
+		  atomicoverlap = true;
+		}
 
                 deleteOnClose = true;
               } else {
@@ -1641,12 +1649,21 @@ XrdFstOfsFile::close()
                                "\"meta-data size/checksum mismatch\"", mCapOpaque->Get("mgm.path"),
                                mFstPath.c_str());
                     } else {
-                      // Client has disconnected and file is cleaned-up
+		      if (atomicoverlap) {
                       gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
-                                "cleaned because of a client disconnect", mNsPath.c_str());
-                      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
-                                  "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
-                                  mFstPath.c_str());
+                                "cleaned because of an overlapping atomic upload "
+                                "and we are not the last uploader", mNsPath.c_str());
+                      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                               "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
+                               mFstPath.c_str());
+		      } else {
+			// Client has disconnected and file is cleaned-up
+			gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
+				  "cleaned because of a client disconnect", mNsPath.c_str());
+			eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
+				    "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
+				    mFstPath.c_str());
+		      }
                     }
                   }
                 }

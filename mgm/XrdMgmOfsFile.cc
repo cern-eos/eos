@@ -816,14 +816,21 @@ XrdMgmOfsFile::open(const char* inpath,
         {
           // -------------------------------------------------------------------
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          std::shared_ptr<eos::IFileMD> ref_fmd;
 
           try {
             if (!fmd) {
+
               // we create files with the uid/gid of the parent directory
               if (isAtomicUpload) {
                 eos::common::Path cPath(path);
                 creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
                 eos_info("atomic-path=%s", creation_path.c_str());
+                try {
+                  ref_fmd = gOFS->eosView->getFile(path);
+                } catch (eos::MDException& e) {
+                  // empty
+                }
               }
 
               fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
@@ -833,6 +840,13 @@ XrdMgmOfsFile::open(const char* inpath,
               } else {
                 fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
               }
+            }
+
+            if (ref_fmd) {
+              // If we have a target file we tag the latest atomic upload name
+              // on a temporary attribute
+              ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+              gOFS->eosView->updateFileStore(ref_fmd.get());
             }
 
             fileId = fmd->getId();

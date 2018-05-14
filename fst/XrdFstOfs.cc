@@ -900,6 +900,9 @@ again:
       rc = -EPROTO;
     }
 
+    if (msg.find("[EREMCHG]") != STR_NPOS) {
+      rc = -EREMCHG;
+    }
 
     if (rc != SFS_ERROR) {
       return gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);

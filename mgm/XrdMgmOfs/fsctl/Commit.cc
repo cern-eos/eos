@@ -66,6 +66,8 @@
   bool reconstruction = (areconstruction == "1");
   bool modified = (aismodified == "1");
   bool fusex = (afusex == "1");
+  bool isAbort = false;
+
   int envlen;
   int oc_n = 0;
   int oc_max = 0;
@@ -545,21 +547,40 @@
 
             // Rename the temporary upload path to the final path
             if ((pfmd = dir->findFile(atomic_path.GetName()))) {
-              eos_thread_info("msg=\"found final path\" %s", atomic_path.GetName());
-              // If the target exists we swap the two and then delete the
-              // previous one
-              delete_path = fmd->getName();
-              delete_path += ".delete";
-              eos_thread_info("msg=\"delete path\" %s", delete_path.c_str());
-              eosView->renameFile(pfmd.get(), delete_path);
+              // Check if we are tagged as that 'latest' atomic upload
+              std::string atomic_tag;
+
+              try {
+                atomic_tag = pfmd->getAttribute("sys.tmp.atomic");
+              } catch (eos::MDException& e) {
+              }
+
+              if (atomic_tag != fmd->getName())
+              {
+                // this is not our atomic upload, just abort that and delete the temporary artefact
+                delete_path = fmd->getName();
+
+                eos_thread_err("msg=\"we are not the last atomic upload - cleaning %s\"",
+                               delete_path.c_str());
+                isAbort = true;
+              } else {
+                eos_thread_info("msg=\"found final path\" %s", atomic_path.GetName());
+                // If the target exists we swap the two and then delete the
+                // previous one
+                delete_path = fmd->getName();
+                delete_path += ".delete";
+                eosView->renameFile(pfmd.get(), delete_path);
+              }
             } else {
               eos_thread_info("msg=\"didn't find path\" %s", atomic_path.GetName());
             }
 
-            eosView->renameFile(fmd.get(), atomic_path.GetName());
-            eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s "
-                            "final-name=%s", fmd->getId(), fmd->getName().c_str(),
-                            atomic_path.GetName());
+            if (!isAbort) {
+              eosView->renameFile(fmd.get(), atomic_path.GetName());
+              eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s "
+                              "final-name=%s", fmd->getId(), fmd->getName().c_str(),
+                              atomic_path.GetName());
+            }
           } catch (eos::MDException& e) {
             delete_path = "";
             errno = e.getErrno();
@@ -574,11 +595,17 @@
       // atomic left-over
       if (delete_path.length()) {
         delete_path.insert(0, dname.c_str());
+        eos_thread_info("msg=\"delete path\" %s", delete_path.c_str());
 
         if (gOFS->_rem(delete_path.c_str(), error, rootvid, "")) {
           eos_thread_err("msg=\"failed to remove atomic left-over\" path=%s",
                          delete_path.c_str());
         }
+      }
+      if (isAbort)
+      {
+        return Emsg(epname, error, EREMCHG, "commit replica - overlapping "
+                    "atomic upload [EREMCHG] - discarding atomic upload", "");
       }
     }
   } else
