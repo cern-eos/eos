@@ -2284,4 +2284,62 @@ WFE::CollectAttributes(const std::string& fullPath) {
   return result;
 }
 
+void
+WFE::MoveFromRBackToQ() {
+  std::string queries[2];
+
+  for (size_t i = 0; i < 2; ++i) {
+    queries[i] = gOFS->MgmProcWorkflowPath.c_str();
+    queries[i] += "/";
+  }
+
+  {
+    // today
+    time_t when = time(nullptr);
+    std::string day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    queries[0] += day;
+    queries[0] += "/r/";
+    //yesterday
+    when -= (24 * 3600);
+    day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    queries[1] += day;
+    queries[1] += "/r/";
+  }
+
+  std::map<std::string, std::set<std::string>> wfedirs;
+  XrdOucErrInfo errInfo;
+  XrdOucString stdErr;
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  for (size_t i = 0; i < 2; ++i) {
+    eos_static_debug("query-path=%s", queries[i].c_str());
+    gOFS->_find(queries[i].c_str(),
+                errInfo,
+                stdErr,
+                rootvid,
+                wfedirs,
+                nullptr,
+                nullptr,
+                false,
+                0,
+                false,
+                0
+    );
+  }
+
+  for (const auto& wfedir : wfedirs) {
+    auto wfEntry = wfedir.first;
+    for (const auto& entry : wfedir.second) {
+      wfEntry += entry;
+      std::unique_ptr<Job> jobPtr = new Job();
+      jobPtr->Load(wfEntry);
+      if (!jobPtr->IsSync()) {
+        jobPtr->Move("r", "q", jobPtr->mActions[0].mTime);
+      } else {
+        jobPtr->Delete("r", jobPtr->mActions[0].mSavedOnDay);
+      }
+    }
+  }
+}
+
 EOSMGMNAMESPACE_END
