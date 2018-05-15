@@ -202,7 +202,6 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& 
   if (job.IsSync(mEvent)) {
     if (WfeEnabled()) {
       job.AddAction(mAction, mEvent, t, mWorkflow, "r");
-      job.Save("r", t);
       eos_static_info("running synchronous workflow");
       return job.DoIt(true);
     }
