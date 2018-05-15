@@ -1696,11 +1696,17 @@ WFE::Job::DoIt(bool issync)
 
             try {
               fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
+              if (!onGoingRetrieve && onTape) {
+                fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
+                // Read these attributes here to optimize locking
+                notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+                notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
+              }
               gOFS->eosView->updateFileStore(fmd.get());
             } catch (eos::MDException& ex) {
               lock.Release();
-              eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
-                             RETRIEVES_ATTR_NAME, fullPath.c_str());
+              eos_static_err("Could not write attributes %s and %s for file %s. Not doing the retrieve.",
+                             RETRIEVES_ATTR_NAME, RETRIEVES_ERROR_ATTR_NAME, fullPath.c_str());
               MoveWithResults(EAGAIN);
               return EAGAIN;
             }
@@ -1724,12 +1730,6 @@ WFE::Job::DoIt(bool issync)
           } else {
             collectAttributes();
 
-            {
-              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
-            }
-
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
             notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
@@ -1746,18 +1746,6 @@ WFE::Job::DoIt(bool issync)
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                               << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
-
-            // Reset the error attribute before sending prepare request
-            try {
-              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
-              gOFS->eosView->updateFileStore(fmd.get());
-            } catch (eos::MDException& ex) {
-              // Fail in case we cannot reset the error attribute
-              eos_static_crit("Could not reset error attribute for retrieved file.");
-              MoveWithResults(EAGAIN);
-              return EAGAIN;
-            }
 
             std::string errorMsg;
             auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
@@ -2332,11 +2320,14 @@ WFE::MoveFromRBackToQ() {
     for (const auto& entry : wfedir.second) {
       wfEntry += entry;
       Job job;
-      job.Load(wfEntry);
-      if (!job.IsSync()) {
-        job.Move("r", "q", job.mActions[0].mTime);
+      if (job.Load(wfEntry) == 0) {
+        if (!job.IsSync()) {
+          job.Move("r", "q", job.mActions[0].mTime);
+        } else {
+          job.Delete("r", job.mActions[0].mSavedOnDay);
+        }
       } else {
-        job.Delete("r", job.mActions[0].mSavedOnDay);
+        eos_static_err("msg=\"cannot load workflow entry during recycling from r queue\" value=\"%s\"", wfEntry.c_str());
       }
     }
   }
