@@ -341,7 +341,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           (((key == "headroom") || (key == "scaninterval") ||
             (key == "graceperiod") || (key == "drainperiod") ||
             (key == "proxygroup") || (key == "filestickyproxydepth") ||
-            (key == "forcegeotag")))) {
+            (key == "forcegeotag") || (key == "s3credentials")))) {
         // Check permissions
         size_t dpos = 0;
         std::string nodename = fs->GetString("host");
@@ -409,6 +409,27 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             return retc;
           }
 
+          FsView::gFsView.StoreFsConfig(fs);
+        } else if (key == "s3credentials") {
+          // Validate S3 credentials string
+          if (std::count(value.begin(), value.end(), ':') != 1) {
+            stdErr += "error: invalid S3 credentials string";
+            retc = EINVAL;
+            return retc;
+          } else {
+            int pos = value.find(':');
+            if (pos == 0) {
+              stdErr += "error: no access key in S3 credentials string";
+              retc = EINVAL;
+              return retc;
+            } else if (pos == value.length() - 1) {
+              stdErr += "error: no secret key in S3 credentials string";
+              retc = EINVAL;
+              return retc;
+            }
+          }
+
+          fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
         } else {
           // Other proxy* key set

@@ -140,14 +140,14 @@ void com_fs_help()
       << "    drainperiod=<seconds>" << std::endl
       << "      period a drain job is allowed to finish the drain procedure"
       << std::endl
-      << "     proxygroup=<proxy_grp_name>" << std::endl
+      << "    proxygroup=<proxy_grp_name>" << std::endl
       << "      schedule a proxy for the current filesystem by taking it from"
       << std::endl
       << "      the given proxy group. The special value \"<none>\" is the"
       << std::endl
       << "      same as no value and means no proxy scheduling" << std::endl
       << "    filestickyproxydepth=<depth>" << std::endl
-      << "       depth of the subtree to be considered for file-stickyness. A"
+      << "      depth of the subtree to be considered for file-stickyness. A"
       << std::endl
       << "      negative value means no file-stickyness" << std::endl
       << "    forcegeotag=<geotag>" << std::endl
@@ -156,6 +156,9 @@ void com_fs_help()
       << "      The special value \"<none>\" is the same as no value and means"
       << std::endl
       << "      no override" << std::endl
+      << "    s3credentials=<accesskey>:<secretkey>" << std::endl
+      << "      the access and secret key pair used to authenticate" << std::endl
+      << "      with the S3 storage endpoint" << std::endl
       << std::endl
       << "  fs dropdeletion <fsid> " << std::endl
       << "    drop all pending deletions on the filesystem" << std::endl
