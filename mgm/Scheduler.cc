@@ -118,6 +118,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
                                           &fsidsgeotags,
                                           0, &groupsToTry)) {
       eos_static_debug("could not retrieve scheduling group for all avoid fsids");
+    } else {
+      eos_static_debug("succesfully retrieved scheduling groups for all avoid fsids");
     }
   }
 
@@ -128,7 +130,6 @@ Scheduler::FilePlacement(PlacementArguments* args)
         break;
       }
     }
-
     if ((git != FsView::gFsView.mSpaceGroupView[*args->spacename].end()) &&
         ((*git)->GetIndex() != (unsigned int) args->forced_scheduling_group_index)) {
       args->selected_filesystems->clear();
@@ -139,6 +140,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
       args->selected_filesystems->clear();
       return ENOSPC;
     }
+
+    eos_static_debug("forced scheduling group index %d", args->forced_scheduling_group_index);
   } else {
     XrdSysMutexHelper scope_lock(pMapMutex);
 
@@ -157,14 +160,19 @@ Scheduler::FilePlacement(PlacementArguments* args)
       git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
     }
   }
-
-  // Rotate scheduling view ptr, remove it from the selection map
+  
+  // Rotate scheduling view ptr,updating schedulingGroup map
+  // if groupsToTry is not empty we try to first use the same scheduling groups of the already used filesystems
   for (unsigned int groupindex = 0;
        groupindex < FsView::gFsView.mSpaceGroupView[*args->spacename].size() +
        groupsToTry.size(); groupindex++) {
     // Rotate scheduling view ptr -  we select a random one
     FsGroup* group = (groupindex < groupsToTry.size() ? groupsToTry[groupindex] :
                       *git);
+
+    eos_static_debug("Trying GeoTree Placement on group: %s, total groups: %d, groupsToTry: %d ",
+                        group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(), groupsToTry.size());
+
     bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
                       group, nfilesystems,
                       args->selected_filesystems,
@@ -189,9 +197,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
       buffer[0] = 0;
       char* buf = buffer;
 
-      // only when we need one more geo location, we lower the selection probability
       for (auto it = args->selected_filesystems->begin();
-           it != args->selected_filesystems->end(); ++it) {
+          it != args->selected_filesystems->end(); ++it) {
         buf += sprintf(buf, "%lu  ", (unsigned long)(*it));
       }
 
@@ -208,9 +215,9 @@ Scheduler::FilePlacement(PlacementArguments* args)
     }
 
     if (groupindex >= groupsToTry.size()) {
-      if ((git == FsView::gFsView.mSpaceGroupView[*args->spacename].end()) ||
+      if ((git == FsView::gFsView.mSpaceGroupView[*args->spacename].end()) || 
           (++git == FsView::gFsView.mSpaceGroupView[*args->spacename].end())) {
-        git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
+          git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
       }
 
       // remember the last group for that indextag
