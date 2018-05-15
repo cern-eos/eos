@@ -40,9 +40,18 @@ RequestBuilder::writeContainerProto(IContainerMD *obj)
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-  std::string sid = stringify(obj->getId());
 
-  return { "HSET", RequestBuilder::getContainerBucketKey(obj->getId()), sid, buffer };
+  return writeContainerProto(ContainerIdentifier(obj->getId()), buffer);
+}
+
+//------------------------------------------------------------------------------
+//! Write container protobuf metadata - low level API.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::writeContainerProto(ContainerIdentifier id, const std::string &blob)
+{
+  std::string sid = stringify(id.getUnderlyingUInt64());
+  return { "HSET", RequestBuilder::getContainerBucketKey(id.getUnderlyingUInt64()), sid, blob };
 }
 
 //------------------------------------------------------------------------------
@@ -54,8 +63,18 @@ RequestBuilder::writeFileProto(IFileMD *obj)
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-  std::string sid = stringify(obj->getId());
-  return { "HSET", RequestBuilder::getFileBucketKey(obj->getId()), sid, buffer };
+
+  return writeFileProto(FileIdentifier(obj->getId()), buffer);
+}
+
+//------------------------------------------------------------------------------
+//! Write file protobuf metadata - low level API.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::writeFileProto(FileIdentifier id, const std::string &blob)
+{
+  std::string sid = stringify(id.getUnderlyingUInt64());
+  return { "HSET", RequestBuilder::getFileBucketKey(id.getUnderlyingUInt64()), sid, blob };
 }
 
 //------------------------------------------------------------------------------

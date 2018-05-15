@@ -45,9 +45,19 @@ public:
   static RedisRequest writeContainerProto(IContainerMD *obj);
 
   //----------------------------------------------------------------------------
+  //! Write container protobuf metadata - low level API.
+  //----------------------------------------------------------------------------
+  static RedisRequest writeContainerProto(ContainerIdentifier id, const std::string &blob);
+
+  //----------------------------------------------------------------------------
   //! Write file protobuf metadata.
   //----------------------------------------------------------------------------
   static RedisRequest writeFileProto(IFileMD *obj);
+
+  //----------------------------------------------------------------------------
+  //! Write file protobuf metadata - low level API.
+  //----------------------------------------------------------------------------
+  static RedisRequest writeFileProto(FileIdentifier id, const std::string &blob);
 
   //----------------------------------------------------------------------------
   //! Read container protobuf metadata.
