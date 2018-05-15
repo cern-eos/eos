@@ -1249,7 +1249,7 @@ public:
   XrdOucString MgmDefaultReceiverQueue;
   XrdOucString MgmOfsName; ///< mount point of the filesystem
   XrdOucString MgmOfsAlias; ///< alias of this MGM instance
-  //! Xrootd port where redirections go on the OSTs -default is 1094
+  //! Xrootd port where redirections go on the FSTs -default is 1094
   XrdOucString MgmOfsTargetPort;
   XrdOucString MgmOfsQueue; ///< our mgm queue name
   XrdOucString MgmOfsInstanceName; ///< name of the EOS instance

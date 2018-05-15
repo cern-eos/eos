@@ -51,6 +51,8 @@ void DrainTransferJob::ReportError(const std::string& error)
 DrainTransferJob::Status
 DrainTransferJob::DoIt()
 {
+  eos_debug("running drain job fsid_src=%i, fsid_dst=%i, fid=%llu",
+            mFsIdSource, mFsIdTarget, mFileId);
   using eos::common::LayoutId;
   mStatus.store(Status::Running);
   FileDrainInfo fdrain;
@@ -67,71 +69,12 @@ DrainTransferJob::DoIt()
     return mStatus;
   }
 
-  // Take snapshots of the source and target file systems
-  eos::common::FileSystem::fs_snapshot dst_snapshot;
-  eos::common::FileSystem::fs_snapshot src_snapshot;
-  {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
-    eos::common::FileSystem* target_fs = FsView::gFsView.mIdView[mFsIdTarget];
-
-    if (!target_fs || !source_fs) {
-      ReportError("msg=\"source/taget file system not found\"");
-      return mStatus;
-    }
-
-    source_fs->SnapShotFileSystem(src_snapshot);
-    target_fs->SnapShotFileSystem(dst_snapshot);
-
-    // Try using a different source
-    if (mForce) {
-      eos_debug("run transfer using different replica if possible");
-
-      if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
-          eos::common::LayoutId::kReplica) {
-        // Pick up a new location as the source of the drain
-        bool found = false;
-
-        for (const auto id : fdrain.mProto.locations()) {
-          if (id != mFsIdSource) {
-            auto it = FsView::gFsView.mIdView.find(id);
-
-            if (it != FsView::gFsView.mIdView.end()) {
-              source_fs = FsView::gFsView.mIdView[id];
-              source_fs->SnapShotFileSystem(src_snapshot);
-
-              if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
-                found = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (!found) {
-          std::ostringstream oss;
-          oss << "msg=\"fid=" << fdrain.mProto.id() << " has no available replicas"
-              << std::endl;
-          ReportError(oss.str());
-          return mStatus;
-        }
-      } else {
-        // For RAIN files we do a TPC copy with rename
-        // @todo (esindril)
-      }
-    }
-  }
   // Prepare the TPC copy job
-  XrdCl::URL url_src = BuildTpcSrc(fdrain, src_snapshot);
-  XrdCl::URL url_dst = BuildTpcDst(fdrain, dst_snapshot);
+  XrdCl::URL url_src = BuildTpcSrc(fdrain);
+  XrdCl::URL url_dst = BuildTpcDst(fdrain);
 
-  if (!url_src.IsValid()) {
-    ReportError("msg=\"invalid src url\"");
-    return mStatus;
-  }
-
-  if (!url_dst.IsValid()) {
-    ReportError("msg=\"invalid dst url\"");
+  if (!url_src.IsValid() || !url_dst.IsValid()) {
+    eos_err("msg=\"src/dst drain url is not valid\"");
     return mStatus;
   }
 
@@ -211,7 +154,8 @@ DrainTransferJob::GetFileInfo() const
   } else {
     qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
                             "drain");
-    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl, FileIdentifier(mFileId)).get();
+    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl,
+               FileIdentifier(mFileId)).get();
     std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
     // Get the full path to the file
     std::string dir_uri;
@@ -235,11 +179,13 @@ DrainTransferJob::GetFileInfo() const
 // Build TPC source url
 //------------------------------------------------------------------------------
 XrdCl::URL
-DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
-                              const eos::common::FileSystem::fs_snapshot& fs)
+DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain)
 {
   using eos::common::LayoutId;
   XrdCl::URL url_src;
+  std::ostringstream oss;
+  bool rain_reconstruct = false;
+  eos::common::FileSystem::fs_snapshot src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
@@ -248,20 +194,83 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
   }
 
+  {
+    // Get source fs snapshot
+    eos::common::FileSystem* fs {nullptr};
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    // Normal drain operation
+    auto it = FsView::gFsView.mIdView.find(mFsIdSource);
+
+    if (it == FsView::gFsView.mIdView.end()) {
+      oss << "msg=\"fsid=" << mFsIdSource << " no longer in the list";
+      ReportError(oss.str());
+      return url_src;
+    }
+
+    it->second->SnapShotFileSystem(src_snapshot);
+
+    // This is drain dead mode
+    if (mForce) {
+      eos_debug("run transfer using different replica if possible");
+
+      if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
+          eos::common::LayoutId::kReplica) {
+        // Pick up a new location as the source of the drain
+        bool found = false;
+
+        for (const auto id : fdrain.mProto.locations()) {
+          if (id != mFsIdSource) {
+            auto it = FsView::gFsView.mIdView.find(id);
+
+            if (it != FsView::gFsView.mIdView.end()) {
+              fs = FsView::gFsView.mIdView[id];
+              fs->SnapShotFileSystem(src_snapshot);
+
+              if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!found) {
+          oss << "msg=\"fid=" << fdrain.mProto.id() << " has no available replicas"
+              << std::endl;
+          ReportError(oss.str());
+          return url_src;
+        }
+      } else {
+        // For RAIN layouts we trigger a reconstruction
+        rain_reconstruct = true;
+      }
+    }
+  }
+
+  // Construct the source URL
   std::ostringstream src_params;
-  src_params << "mgm.access=read"
-             << "&mgm.lid=" << target_lid
-             << "&mgm.cid=" << fdrain.mProto.cont_id()
-             << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-             << "&mgm.path=" << fdrain.mFullPath
-             << "&mgm.manager=" << gOFS->ManagerId.c_str()
-             << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-             << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
-             //             << "&mgm.drainfsid=" << mFsIdSource
-             << "&mgm.localprefix=" << fs.mPath.c_str()
-             << "&mgm.fsid=" << fs.mId
-             << "&mgm.sourcehostport=" << fs.mHostPort.c_str()
-             << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+
+  if (rain_reconstruct) {
+    src_params << "&mgm.path=" << fdrain.mFullPath
+               << "&mgm.manager=" << gOFS->ManagerId.c_str()
+               << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
+               << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+  } else {
+    src_params << "mgm.access=read"
+               << "&mgm.lid=" << target_lid
+               << "&mgm.cid=" << fdrain.mProto.cont_id()
+               << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+               << "&mgm.path=" << fdrain.mFullPath
+               << "&mgm.manager=" << gOFS->ManagerId.c_str()
+               << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
+               << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
+               << "&mgm.fsid=" << src_snapshot.mId
+               << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
+               << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+  }
+
   // Build the capability
   int caprc = 0;
   XrdOucEnv* output_cap = 0;
@@ -270,22 +279,29 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
   if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
                                         symkey, gOFS->mCapabilityValidity))) {
-    std::string err = "msg=\"unable to create src capability, errno=";
-    err += caprc;
-    err += "\"";
-    ReportError(err);
+    oss << "msg=\"unable to create src capability, errno=" << caprc << "\"";
+    ReportError(oss.str());
     return url_src;
   }
 
   int cap_len = 0;
   std::ostringstream src_cap;
-  src_cap << output_cap->Env(cap_len)
-          << "&source.url=root://" << fs.mHostPort.c_str()
-          << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
-  // Fill in the url object
+
+  if (rain_reconstruct) {
+    url_src.SetHostName(gOFS->MgmOfsAlias.c_str());
+    url_src.SetPort(gOFS->ManagerPort);
+    src_cap << output_cap->Env(cap_len)
+            << "&eos.pio.action=reconstruct"
+            << "&eos.pio.recfs=" << mFsIdSource;
+  } else {
+    url_src.SetHostName(src_snapshot.mHost.c_str());
+    url_src.SetPort(stoi(src_snapshot.mPort));
+    src_cap << output_cap->Env(cap_len)
+            << "&source.url=root://" << src_snapshot.mHostPort.c_str()
+            << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+  }
+
   url_src.SetProtocol("root");
-  url_src.SetHostName(fs.mHost.c_str());
-  url_src.SetPort(stoi(fs.mPort));
   url_src.SetUserName("daemon");
   url_src.SetParams(src_cap.str());
   url_src.SetPath(fdrain.mFullPath);
@@ -297,53 +313,80 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 // Build TPC destination url
 //------------------------------------------------------------------------------
 XrdCl::URL
-DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
-                              const eos::common::FileSystem::fs_snapshot& fs)
+DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain)
 {
   using eos::common::LayoutId;
   XrdCl::URL url_dst;
+  bool rain_reconstruct = false;
+  eos::common::FileSystem::fs_snapshot dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
   // Mask block checksums (set to kNone) for replica layouts
   if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
+  } else {
+    if (mForce) {
+      rain_reconstruct = true;
+    }
+  }
+
+  {
+    // Get destination fs snapshot
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* dst_fs = FsView::gFsView.mIdView[mFsIdTarget];
+
+    if (!dst_fs) {
+      ReportError("msg=\"taget file system not found\"");
+      return url_dst;
+    }
+
+    dst_fs->SnapShotFileSystem(dst_snapshot);
   }
 
   std::ostringstream dst_params;
-  dst_params << "mgm.access=write"
-             << "&mgm.lid=" << target_lid
-             << "&mgm.source.lid=" << lid
-             << "&mgm.source.ruid=" << fdrain.mProto.uid()
-             << "&mgm.source.rgid=" << fdrain.mProto.gid()
-             << "&mgm.cid=" << fdrain.mProto.cont_id()
-             << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-             << "&mgm.path=" << fdrain.mFullPath.c_str()
-             << "&mgm.manager=" << gOFS->ManagerId.c_str()
-             << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-             << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
-             << "&mgm.drainfsid=" << mFsIdSource
-             << "&mgm.localprefix=" << fs.mPath.c_str()
-             << "&mgm.fsid=" << fs.mId
-             << "&mgm.sourcehostport=" << fs.mHostPort.c_str()
-             << "&mgm.bookingsize=" << fdrain.mProto.size()
-             << "&eos.app=drainer&eos.targetsize=" << fdrain.mProto.size();
 
-  if (!fdrain.mProto.checksum().empty()) {
-    dst_params << "&eos.checksum=";
-    uint32_t xs_len = LayoutId::GetChecksumLen(lid);
-    uint32_t data_len = fdrain.mProto.checksum().size();
+  if (rain_reconstruct) {
+    dst_params << "mgm.access=write"
+               << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+               << "&mgm.manager=" << gOFS->ManagerId.c_str()
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
+               << "&eos.app=drainer";
+  } else {
+    dst_params << "mgm.access=write"
+               << "&mgm.lid=" << target_lid
+               << "&mgm.source.lid=" << lid
+               << "&mgm.source.ruid=" << fdrain.mProto.uid()
+               << "&mgm.source.rgid=" << fdrain.mProto.gid()
+               << "&mgm.cid=" << fdrain.mProto.cont_id()
+               << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+               << "&mgm.path=" << fdrain.mFullPath.c_str()
+               << "&mgm.manager=" << gOFS->ManagerId.c_str()
+               << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
+               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
+               << "&mgm.drainfsid=" << mFsIdSource
+               << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
+               << "&mgm.fsid=" << dst_snapshot.mId
+               << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
+               << "&mgm.bookingsize=" << fdrain.mProto.size()
+               << "&eos.app=drainer&eos.targetsize=" << fdrain.mProto.size();
 
-    for (auto i = 0u; i < data_len; ++i) {
-      dst_params << eos::common::StringConversion::char_to_hex(
-                   fdrain.mProto.checksum()[i]);
-      ++i;
-    }
+    if (!fdrain.mProto.checksum().empty()) {
+      dst_params << "&eos.checksum=";
+      uint32_t xs_len = LayoutId::GetChecksumLen(lid);
+      uint32_t data_len = fdrain.mProto.checksum().size();
 
-    // Pad with zeros if necessary
-    while (data_len < xs_len) {
-      ++data_len;
-      dst_params << '0';
+      for (auto i = 0u; i < data_len; ++i) {
+        dst_params <<
+                   eos::common::StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
+        ++i;
+      }
+
+      // Pad with zeros if necessary
+      while (data_len < xs_len) {
+        ++data_len;
+        dst_params << '0';
+      }
     }
   }
 
@@ -364,15 +407,27 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 
   int cap_len = 0;
   std::ostringstream dst_cap;
-  dst_cap << output_cap->Env(cap_len)
-          << "&target.url=root://" << fs.mHostPort.c_str()
-          << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+
+  if (rain_reconstruct) {
+    dst_cap << output_cap->Env(cap_len);
+  } else {
+    dst_cap << output_cap->Env(cap_len)
+            << "&target.url=root://" << dst_snapshot.mHostPort.c_str()
+            << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+  }
+
   url_dst.SetProtocol("root");
-  url_dst.SetHostName(fs.mHost.c_str());
-  url_dst.SetPort(stoi(fs.mPort));
+  url_dst.SetHostName(dst_snapshot.mHost.c_str());
+  url_dst.SetPort(stoi(dst_snapshot.mPort));
   url_dst.SetUserName("daemon");
   url_dst.SetParams(dst_cap.str());
-  url_dst.SetPath(fdrain.mFullPath);
+
+  if (rain_reconstruct) {
+    url_dst.SetPath("/replicate:0");
+  } else {
+    url_dst.SetPath(fdrain.mFullPath);
+  }
+
   delete output_cap;
   return url_dst;
 }

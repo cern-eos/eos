@@ -75,7 +75,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
                       XrdOucString& err, bool force)
 {
   uint32_t src_fsid = fs->GetId();
-  eos_info("fsid=%d start drain", src_fsid);
+  eos_info("fsid=%d start drain, force=%i", src_fsid, force);
   eos::common::FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 

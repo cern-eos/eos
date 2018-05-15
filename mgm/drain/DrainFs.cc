@@ -433,7 +433,8 @@ DrainFs::UpdateProgress()
     uint64_t progress = 100u;
 
     if (mTotalFiles) {
-      progress = 100.0 * (mTotalFiles - num_to_drain) / mTotalFiles;
+      progress = 100.0 * (mTotalFiles - num_to_drain - mJobsRunning.size()) /
+                 mTotalFiles;
     }
 
     fs->SetLongLong("stat.drainprogress", progress, false);
@@ -474,7 +475,7 @@ DrainFs::UpdateProgress()
     }
   }
 
-  if ((num_to_drain == 0) && (mJobsRunning.size() == 0)) {
+  if (num_to_drain + mJobsRunning.size() == 0) {
     CompleteDrain();
     return State::Done;
   }

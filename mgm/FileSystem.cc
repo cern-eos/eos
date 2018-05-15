@@ -171,16 +171,16 @@ FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
                               old_status,
                               const eos::common::FileSystem::fsstatus_t new_status)
 {
-  if ((old_status != eos::common::FileSystem::kDrain) &&
-      (old_status != eos::common::FileSystem::kDrainDead) &&
+  if (((old_status != eos::common::FileSystem::kDrain) &&
+       (old_status != eos::common::FileSystem::kDrainDead)) &&
       ((new_status == eos::common::FileSystem::kDrain) ||
        (new_status == eos::common::FileSystem::kDrainDead))) {
     return 1;
   }
 
-  if ((old_status == eos::common::FileSystem::kDrain) &&
-      (old_status == eos::common::FileSystem::kDrainDead) &&
-      ((new_status != eos::common::FileSystem::kDrain) ||
+  if (((old_status == eos::common::FileSystem::kDrain) ||
+       (old_status == eos::common::FileSystem::kDrainDead)) &&
+      ((new_status != eos::common::FileSystem::kDrain) &&
        (new_status != eos::common::FileSystem::kDrainDead))) {
     return -1;
   }

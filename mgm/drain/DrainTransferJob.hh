@@ -111,6 +111,7 @@ public:
   inline void SetForce()
   {
     mForce = true;
+    mStatus.store(Status::Ready);
   }
 
 private:
@@ -140,8 +141,7 @@ private:
   //!
   //! @return XrdCl source URL
   //----------------------------------------------------------------------------
-  XrdCl::URL BuildTpcSrc(const FileDrainInfo& fdrain,
-                         const eos::common::FileSystem::fs_snapshot& fs);
+  XrdCl::URL BuildTpcSrc(const FileDrainInfo& fdrain);
 
   //----------------------------------------------------------------------------
   //! Build TPC destination url
@@ -151,8 +151,7 @@ private:
   //!
   //! @return XrdCl destination URL
   //----------------------------------------------------------------------------
-  XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain,
-                         const eos::common::FileSystem::fs_snapshot& fs);
+  XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain);
 
   //----------------------------------------------------------------------------
   //! Select destiantion file system for current transfer
