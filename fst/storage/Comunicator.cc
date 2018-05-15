@@ -471,7 +471,7 @@ Storage::Communicator()
                       }
                     }
                   } else {
-                      gOFS.ObjectManager.HashMutex.UnLockRead();
+                    gOFS.ObjectManager.HashMutex.UnLockRead();
                   }
                 }
               }
