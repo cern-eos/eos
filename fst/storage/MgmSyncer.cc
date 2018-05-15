@@ -81,19 +81,22 @@ Storage::MgmSyncer ()
       struct Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
 
-      eos_static_info("fid=%llx mtime=%llu", fmd.fid, fmd.ctime);
+      eos_static_info("fid=%llx mtime=%llu", fmd.fid, fmd.mtime);
 
-      // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
-
-      if ((time_t) (fmd.mtime + 60) > now)
+      // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all replicas
+      time_t delay = fmd.mtime + 60 - now;
+      
+      if ( (delay > 0) && (delay <= 60) ) 
       {
-        eos_static_debug("msg=\"postpone mgm sync\" delay=%d", (fmd.mtime + 60) - now);
+        // only values less than a minute should be taken into account here
+        eos_static_debug("msg=\"postpone mgm sync\" delay=%d",
+                         delay);
         XrdSysTimer sleeper;
-        sleeper.Snooze(((fmd.mtime + 60) - now));
+        sleeper.Snooze(delay);
         gOFS.WrittenFilesQueueMutex.Lock();
         continue;
       }
-
+      
       bool isopenforwrite = false;
 
       {
