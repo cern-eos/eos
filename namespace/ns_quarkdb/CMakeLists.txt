@@ -184,14 +184,14 @@ target_link_libraries(eos_ns_convert
   EosNsInMemory-Static
   EosProtobuf)
 
-add_executable(eos_dump_proto_md tools/EosDumpProtoMd.cc)
+add_executable(eos-dump-proto-md tools/EosDumpProtoMd.cc)
 
-target_link_libraries(eos_dump_proto_md
+target_link_libraries(eos-dump-proto-md
   EosCrc32c-Static
   EosNsQuarkdb-Static
   ${PROTOBUF_LIBRARY})
 
-install(TARGETS eos_ns_convert eos_dump_proto_md
+install(TARGETS eos_ns_convert eos-dump-proto-md
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

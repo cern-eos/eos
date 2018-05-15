@@ -24,6 +24,7 @@
 #include "namespace/utils/DataHelper.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "common/StringTokenizer.hh"
 #include <getopt.h>
 
@@ -136,41 +137,17 @@ int main(int argc, char* argv[])
 //------------------------------------------------------------------------------
 std::string DumpProto(qclient::QClient* qcl, uint64_t id, bool is_file)
 {
-  std::string blob;
-
-  try {
-    std::string sid = eos::stringify(id);
-
-    if (is_file) {
-      qclient::QHash bucket_map(*qcl, eos::FileMDSvc::getBucketKey(id));
-      blob = bucket_map.hget(sid);
-    } else {
-      qclient::QHash bucket_map(*qcl, eos::ContainerMDSvc::getBucketKey(id));
-      blob = bucket_map.hget(sid);
-    }
-  } catch (std::runtime_error& qdb_err) {
-    eos::MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " not found";
-    throw e;
-  }
-
-  if (blob.empty()) {
-    throw std::runtime_error("no data retrieved from the backend");
-  }
-
   std::string output;
 
   if (is_file) {
+    eos::ns::FileMdProto fileProto = eos::MetadataFetcher::getFileFromId(*qcl, eos::FileIdentifier(id)).get();
     eos::FileMD fmd(0, nullptr);
-    eos::Buffer buff;
-    buff.putData(blob.data(), blob.length());
-    fmd.deserialize(buff);
+    fmd.initialize(std::move(fileProto));
     fmd.getEnv(output, false);
   } else {
+    eos::ns::ContainerMdProto containerProto = eos::MetadataFetcher::getContainerFromId(*qcl, eos::ContainerIdentifier(id)).get();
     eos::ContainerMD cmd;
-    eos::Buffer buff;
-    buff.putData(blob.data(), blob.length());
-    cmd.deserialize(buff);
+    cmd.initializeWithoutChildren(std::move(containerProto));
     cmd.getEnv(output, false);
   }
 
@@ -222,7 +199,7 @@ void PrettyPrint(const std::string& senv)
 //------------------------------------------------------------------------------
 int usage_help()
 {
-  std::cerr << "Usage: eos_dump_proto_md "
+  std::cerr << "Usage: eos-dump-proto-md "
             "--fid|--cid <val> [-h|--host <qdb_host>] [-p|--port <qdb_port>] "
             "[--help]" << std::endl
             << "     --fid : decimal file id" << std::endl
