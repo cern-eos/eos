@@ -161,14 +161,16 @@ add_library(EosFstIo-Objects OBJECT
   checksum/Adler.cc              checksum/Adler.hh
 
   # File layout interface
-  layout/LayoutPlugin.cc             layout/LayoutPlugin.hh
-  layout/Layout.cc                   layout/Layout.hh
-  layout/PlainLayout.cc              layout/PlainLayout.hh
-  layout/HeaderCRC.cc                layout/HeaderCRC.hh
-  layout/ReplicaParLayout.cc         layout/ReplicaParLayout.hh
-  layout/RaidMetaLayout.cc           layout/RaidMetaLayout.hh
-  layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
-  layout/ReedSLayout.cc              layout/ReedSLayout.hh)
+  layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+  layout/Layout.cc               layout/Layout.hh
+  layout/PlainLayout.cc          layout/PlainLayout.hh
+  layout/HeaderCRC.cc            layout/HeaderCRC.hh
+  layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+  layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+  layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+  layout/ReedSLayout.cc          layout/ReedSLayout.hh
+
+  Config.cc                      Config.hh)
 
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
