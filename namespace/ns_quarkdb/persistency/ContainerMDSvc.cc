@@ -151,24 +151,27 @@ ContainerMDSvc::SafetyCheck()
                                   100000, 150199, 200001, 1000002, 2000123
                                  };
 
+  std::vector<folly::Future<eos::ns::ContainerMdProto>> futs;
+
   for (auto incr : offsets) {
     IContainerMD::id_t check_id = free_id + incr;
+    futs.emplace_back(MetadataFetcher::getContainerFromId(*pQcl, ContainerIdentifier(check_id)));
+  }
 
+  for(size_t i = 0; i < futs.size(); i++) {
     try {
-      std::string sid = stringify(check_id);
-      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
-      blob = bucket_map.hget(sid);
-    } catch (std::runtime_error& qdb_err) {
-      // Fine, we didn't find the container
+      futs[i].get();
+    }
+    catch (eos::MDException& qdb_err) {
+      // All is good, we didn't find any container, as expected
       continue;
     }
 
-    if (!blob.empty()) {
-      MDException e(EEXIST);
-      e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
-                      << "container with id bigger than max container id";
-      throw e;
-    }
+    // Uh-oh, this is bad.
+    MDException e(EEXIST);
+    e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
+                    << "container with id bigger than max container id";
+    throw e;
   }
 }
 

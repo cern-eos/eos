@@ -135,24 +135,27 @@ FileMDSvc::SafetyCheck()
                                   100000, 150199, 200001, 1000002, 2000123
                                  };
 
+  std::vector<folly::Future<eos::ns::FileMdProto>> futs;
+
   for (auto incr : offsets) {
     IFileMD::id_t check_id = free_id + incr;
+    futs.emplace_back(MetadataFetcher::getFileFromId(*pQcl, FileIdentifier(check_id)));
+  }
 
+  for(size_t i = 0; i < futs.size(); i++) {
     try {
-      std::string sid = stringify(check_id);
-      qclient::QHash bucket_map(*pQcl, getBucketKey(check_id));
-      blob = bucket_map.hget(sid);
-    } catch (std::runtime_error& qdb_err) {
-      // Fine, we didn't find the file
+      futs[i].get();
+    }
+    catch (eos::MDException& qdb_err) {
+      // All is good, we didn't find any file, as expected
       continue;
     }
 
-    if (!blob.empty()) {
-      MDException e(EEXIST);
-      e.getMessage() << __FUNCTION__ << " FATAL: Risk of data loss, found "
-                     << "file with id bigger max file id";
-      throw e;
-    }
+    // Uh-oh, this is bad.
+    MDException e(EEXIST);
+    e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
+                    << "file with id bigger than max file id";
+    throw e;
   }
 }
 
