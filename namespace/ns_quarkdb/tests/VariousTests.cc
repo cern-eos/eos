@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
@@ -276,7 +277,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
 
   shut_down_everything();
 
-  qcl().exec("HSET", FileMDSvc::getBucketKey(1), "1", "chicken_chicken_chicken_chicken").get();
+  qcl().exec("HSET", RequestBuilder::getFileBucketKey(1), "1", "chicken_chicken_chicken_chicken").get();
 
   try {
     MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();
@@ -288,8 +289,8 @@ TEST_F(FileMDFetching, CorruptionTest) {
 
   shut_down_everything();
 
-  qcl().exec("DEL", FileMDSvc::getBucketKey(1)).get();
-  qcl().exec("SADD", FileMDSvc::getBucketKey(1), "zzzz").get();
+  qcl().exec("DEL", RequestBuilder::getFileBucketKey(1)).get();
+  qcl().exec("SADD", RequestBuilder::getFileBucketKey(1), "zzzz").get();
 
   try {
     MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();

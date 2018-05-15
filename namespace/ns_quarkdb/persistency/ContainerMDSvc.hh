@@ -49,16 +49,6 @@ class ContainerMDSvc : public IContainerMDSvc
 
 public:
   //----------------------------------------------------------------------------
-  //! Get container bucket which is computed as the id of the container modulo
-  //! the number of container buckets.
-  //!
-  //! @param id container id
-  //!
-  //! @return container bucket key
-  //----------------------------------------------------------------------------
-  static std::string getBucketKey(IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   ContainerMDSvc();
@@ -182,11 +172,6 @@ public:
   IContainerMD::id_t getFirstFreeId() override;
 
   //----------------------------------------------------------------------------
-  //! Override number of buckets
-  //----------------------------------------------------------------------------
-  static void OverrideNumberOfBuckets(uint64_t buckets = 128 * 1024);
-
-  //----------------------------------------------------------------------------
   //! Retrieve MD cache statistics.
   //----------------------------------------------------------------------------
   virtual CacheStatistics getCacheStatistics() override;
@@ -222,7 +207,6 @@ private:
   //----------------------------------------------------------------------------
   void ComputeNumberOfContainers();
 
-  static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
   ListenerList pListeners;              ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;             ///< Quota view
   IFileMDSvc* pFileSvc;                 ///< File metadata service

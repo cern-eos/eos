@@ -89,6 +89,10 @@ public:
   void srem(const std::string& key, const std::string& field);
   void srem(const std::string& key, const std::list<std::string>& items);
 
+  void execute(const std::vector<std::string> &req) {
+    backgroundFlusher.pushRequest(req);
+  }
+
   //----------------------------------------------------------------------------
   //! Block until the queue has flushed all pending entries at the time of
   //! calling. Example: synchronize is called when pending items in the queue

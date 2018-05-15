@@ -314,17 +314,6 @@ public:
   std::mutex* GetContMutex(IContainerMD::id_t id);
 
 private:
-  static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
-
-  //----------------------------------------------------------------------------
-  //! Get container bucket
-  //!
-  //! @param id container id
-  //!
-  //! @return string representation of the bucket id
-  //----------------------------------------------------------------------------
-  std::string getBucketKey(IContainerMD::id_t id) const;
-
   ConvertQuotaView* mConvQView; ///< Quota view object
   std::vector<std::mutex*> mMutexPool; ///< Pool of mutexes
 };
@@ -385,8 +374,6 @@ public:
   }
 
 private:
-  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
-
   //------------------------------------------------------------------------------
   //! Add file object to KV store
   //!
@@ -396,15 +383,6 @@ private:
   //------------------------------------------------------------------------------
   void addFileToQdb(ConvertFileMD* file, qclient::AsyncHandler& ah,
                     qclient::QClient& qclient) const;
-
-  //------------------------------------------------------------------------------
-  //! Get file bucket
-  //!
-  //! @param id container id
-  //!
-  //! @return string representation of the bucket id
-  //------------------------------------------------------------------------------
-  std::string getBucketKey(IContainerMD::id_t id) const;
 
   IFileMD::id_t mFirstFreeId; ///< First free file id
   ConvertQuotaView* mConvQView; ///< Quota view object

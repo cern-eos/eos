@@ -27,6 +27,7 @@
 #include "TestUtils.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
@@ -44,8 +45,8 @@ FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
 FlushAllOnConstruction::~FlushAllOnConstruction() { }
 
 NsTestsFixture::NsTestsFixture() {
-  FileMDSvc::OverrideNumberOfBuckets(128);
-  ContainerMDSvc::OverrideNumberOfBuckets(128);
+  RequestBuilder::OverrideNumberOfFileBuckets(128);
+  RequestBuilder::OverrideNumberOfContainerBuckets(128);
 
   srandom(time(nullptr));
   testconfig = {

@@ -22,6 +22,7 @@
 #include "namespace/Constants.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -504,7 +505,7 @@ ConvertContainerMDSvc::commitToBackend()
         std::string buffer;
         conv_cont->serializeToStr(buffer);
         std::string sid = stringify(container->getId());
-        qclient::QHash bucket_map(qclient, getBucketKey(container->getId()));
+        qclient::QHash bucket_map(qclient, RequestBuilder::getContainerBucketKey(container->getId()));
         bucket_map.hset_async(sid, buffer, &ah);
 
         // Commit subcontainers and files only if not empty otherwise the hmset
@@ -555,21 +556,6 @@ ConvertContainerMDSvc::setQuotaView(ConvertQuotaView* qview)
 }
 
 //------------------------------------------------------------------------------
-// Get container bucket
-//------------------------------------------------------------------------------
-std::string
-ConvertContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
-{
-  if (id >= sNumContBuckets) {
-    id = id & (sNumContBuckets - 1);
-  }
-
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sContKeySuffix;
-  return bucket_key;
-}
-
-//------------------------------------------------------------------------------
 // Get mutex corresponding to container id
 //------------------------------------------------------------------------------
 std::mutex*
@@ -591,21 +577,6 @@ ConvertFileMDSvc::ConvertFileMDSvc():
   ChangeLogFileMDSvc(), mFirstFreeId(0), mConvQView(nullptr),
   mConvFsView(nullptr), mSyncTimeAcc(nullptr), mContAcc(nullptr)
 {}
-
-//------------------------------------------------------------------------------
-// Get file bucket
-//------------------------------------------------------------------------------
-std::string
-ConvertFileMDSvc::getBucketKey(IContainerMD::id_t id) const
-{
-  if (id >= sNumFileBuckets) {
-    id = id & (sNumFileBuckets - 1);
-  }
-
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sFileKeySuffix;
-  return bucket_key;
-}
 
 //------------------------------------------------------------------------------
 // Initialize the file service

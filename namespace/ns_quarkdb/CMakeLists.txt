@@ -59,6 +59,7 @@ add_library(
   persistency/MetadataFetcher.cc     persistency/MetadataFetcher.hh
   persistency/MetadataProvider.cc    persistency/MetadataProvider.hh
   persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
+  persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   persistency/Serialization.cc       persistency/Serialization.hh
   explorer/NamespaceExplorer.cc      explorer/NamespaceExplorer.hh
   flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh

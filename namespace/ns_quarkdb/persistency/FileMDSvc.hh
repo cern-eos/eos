@@ -43,16 +43,6 @@ class FileMDSvc : public IFileMDSvc
 {
 public:
   //----------------------------------------------------------------------------
-  //! Get file bucket which is computed as the id of the container modulo the
-  //! number of file buckets (1M).
-  //!
-  //! @param id file id
-  //!
-  //! @return file bucket key
-  //----------------------------------------------------------------------------
-  static std::string getBucketKey(IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FileMDSvc();
@@ -163,18 +153,12 @@ public:
   IFileMD::id_t getFirstFreeId() override;
 
   //----------------------------------------------------------------------------
-  //! Override number of buckets
-  //----------------------------------------------------------------------------
-  static void OverrideNumberOfBuckets(uint64_t buckets = 1024 * 1024);
-
-  //----------------------------------------------------------------------------
   //! Retrieve MD cache statistics.
   //----------------------------------------------------------------------------
   virtual CacheStatistics getCacheStatistics() override;
 
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
-  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
   //! Interval for backend flush of consistent file ids
   static std::chrono::seconds sFlushInterval;
 

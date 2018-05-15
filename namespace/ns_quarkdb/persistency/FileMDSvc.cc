@@ -25,22 +25,13 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t FileMDSvc::sNumFileBuckets(1024 * 1024);
 std::chrono::seconds FileMDSvc::sFlushInterval(5);
-
-//----------------------------------------------------------------------------
-//! Override number of buckets
-//----------------------------------------------------------------------------
-void FileMDSvc::OverrideNumberOfBuckets(uint64_t buckets)
-{
-  sNumFileBuckets = buckets;
-}
-
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -203,11 +194,7 @@ FileMDSvc::createFile()
 void
 FileMDSvc::updateStore(IFileMD* obj)
 {
-  eos::Buffer ebuff;
-  obj->serialize(ebuff);
-  std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-  std::string sid = stringify(obj->getId());
-  pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
+  pFlusher->execute(RequestBuilder::writeFileProto(obj));
 
   // If file is detached then add it to the list of orphans
   if (obj->getContainerId() == 0) {
@@ -222,7 +209,7 @@ void
 FileMDSvc::removeFile(IFileMD* obj)
 {
   std::string sid = stringify(obj->getId());
-  pFlusher->hdel(getBucketKey(obj->getId()), sid);
+  pFlusher->hdel(RequestBuilder::getFileBucketKey(obj->getId()), sid);
   pFlusher->srem(constants::sOrphanFiles, sid);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
@@ -301,18 +288,6 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 }
 
 //------------------------------------------------------------------------------
-// Get file bucket
-//------------------------------------------------------------------------------
-std::string
-FileMDSvc::getBucketKey(IContainerMD::id_t id)
-{
-  id = id & (sNumFileBuckets - 1);
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sFileKeySuffix;
-  return bucket_key;
-}
-
-//------------------------------------------------------------------------------
 // Get first free file id
 //------------------------------------------------------------------------------
 IFileMD::id_t
@@ -330,7 +305,7 @@ FileMDSvc::ComputeNumberOfFiles()
   std::string bucket_key("");
   qclient::AsyncHandler ah;
 
-  for (uint64_t i = 0ull; i < sNumFileBuckets; ++i) {
+  for (uint64_t i = 0ull; i < RequestBuilder::sNumFileBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sFileKeySuffix;
     qclient::QHash bucket_map(*pQcl, bucket_key);

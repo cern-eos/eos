@@ -24,33 +24,12 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "common/Assert.hh"
 #include <memory>
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
-
-std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
-
-//------------------------------------------------------------------------------
-// Override number of container buckets, used in tests.
-//------------------------------------------------------------------------------
-void ContainerMDSvc::OverrideNumberOfBuckets(uint64_t buckets)
-{
-  sNumContBuckets = buckets;
-}
-
-//------------------------------------------------------------------------------
-// Get container bucket
-//------------------------------------------------------------------------------
-std::string
-ContainerMDSvc::getBucketKey(IContainerMD::id_t id)
-{
-  id = id & (sNumContBuckets - 1);
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sContKeySuffix;
-  return bucket_key;
-}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -226,11 +205,7 @@ ContainerMDSvc::createContainer()
 void
 ContainerMDSvc::updateStore(IContainerMD* obj)
 {
-  eos::Buffer ebuff;
-  obj->serialize(ebuff);
-  std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-  std::string sid = stringify(obj->getId());
-  pFlusher->hset(getBucketKey(obj->getId()), sid, buffer);
+  pFlusher->execute(RequestBuilder::writeContainerProto(obj));
 }
 
 //----------------------------------------------------------------------------
@@ -248,7 +223,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   std::string sid = stringify(obj->getId());
-  pFlusher->hdel(getBucketKey(obj->getId()), stringify(obj->getId()));
+  pFlusher->hdel(RequestBuilder::getContainerBucketKey(obj->getId()), stringify(obj->getId()));
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
@@ -372,7 +347,7 @@ ContainerMDSvc::ComputeNumberOfContainers()
   std::string bucket_key("");
   qclient::AsyncHandler ah;
 
-  for (std::uint64_t i = 0; i < sNumContBuckets; ++i) {
+  for (std::uint64_t i = 0; i < RequestBuilder::sNumContBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sContKeySuffix;
     qclient::QHash bucket_map(*pQcl, bucket_key);

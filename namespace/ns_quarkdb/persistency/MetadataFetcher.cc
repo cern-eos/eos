@@ -27,6 +27,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "qclient/QClient.hh"
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -234,7 +235,7 @@ static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, FileId
 folly::Future<eos::ns::FileMdProto>
 MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
 {
-  return qcl.follyExec("HGET", FileMDSvc::getBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
+  return qcl.follyExec("HGET", RequestBuilder::getFileBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
     .then(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
@@ -257,7 +258,7 @@ static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr rep
 folly::Future<eos::ns::ContainerMdProto>
 MetadataFetcher::getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id)
 {
-  return qcl.follyExec("HGET", ContainerMDSvc::getBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
+  return qcl.follyExec("HGET", RequestBuilder::getContainerBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
     .then(std::bind(parseContainerMdProtoResponse, _1, id));
 }
 
