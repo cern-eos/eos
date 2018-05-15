@@ -28,10 +28,11 @@
 #include <sstream>
 #include <cerrno>
 #include <cstring>
+#include <folly/ExceptionWrapper.h>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define throw_mdexception(err, msg) { eos::MDException __md___exception____(err); __md___exception____.getMessage() << msg; throw __md___exception____; }
-#define make_mdexception(err, msg) makeMDException(err, SSTR(msg))
+#define make_mdexception(err, msg) folly::make_exception_wrapper<eos::MDException>(err, SSTR(msg))
 
 namespace eos
 {
@@ -42,28 +43,33 @@ namespace eos
   {
     public:
       //------------------------------------------------------------------------
-      // Constructor
+      // Constructor taking an error code and string message
       //------------------------------------------------------------------------
-      MDException( int errorNo = ENODATA ):
-	pErrorNo( errorNo ), pTmpMessage( 0 ) {}
+      MDException( int errorNo = ENODATA, const std::string &msg = ""):
+        pErrorNo( errorNo ), pTmpMessage( 0 ) {
+
+        if(!msg.empty()) {
+          getMessage() << msg;
+        }
+      }
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~MDException() throw()
       {
-	delete [] pTmpMessage;
+        delete [] pTmpMessage;
       }
 
       //------------------------------------------------------------------------
       //! Copy constructor - this is actually required because we cannot copy
       //! stringstreams
       //------------------------------------------------------------------------
-      MDException( MDException &e )
+      MDException(const MDException &e)
       {
-	pMessage << e.getMessage().str();
-	pErrorNo = e.getErrno();
-	pTmpMessage = 0;
+        pMessage << e.pMessage.str();
+        pErrorNo = e.getErrno();
+        pTmpMessage = 0;
       }
 
       //------------------------------------------------------------------------
@@ -71,7 +77,7 @@ namespace eos
       //------------------------------------------------------------------------
       int getErrno() const
       {
-	return pErrorNo;
+        return pErrorNo;
       }
 
       //------------------------------------------------------------------------
@@ -79,25 +85,25 @@ namespace eos
       //------------------------------------------------------------------------
       std::ostringstream &getMessage()
       {
-	return pMessage;
+        return pMessage;
       }
 
       //------------------------------------------------------------------------
       // Get the message
       //------------------------------------------------------------------------
-      virtual const char *what() const throw()
+      virtual const char *what() const throw() override
       {
-	// we could to that instead: return (pMessage.str()+" ").c_str();
-	// but it's ugly and probably not portable
+      	// we could to that instead: return (pMessage.str()+" ").c_str();
+      	// but it's ugly and probably not portable
 
-	if( pTmpMessage )
-	  delete [] pTmpMessage;
+      	if( pTmpMessage )
+      	  delete [] pTmpMessage;
 
-	std::string msg = pMessage.str();
-	pTmpMessage = new char[msg.length()+1];
-	pTmpMessage[msg.length()] = 0;
-	pTmpMessage = strcpy( pTmpMessage, msg.c_str() );
-	return pTmpMessage;
+      	std::string msg = pMessage.str();
+      	pTmpMessage = new char[msg.length()+1];
+      	pTmpMessage[msg.length()] = 0;
+      	pTmpMessage = strcpy( pTmpMessage, msg.c_str() );
+      	return pTmpMessage;
       }
 
       void wrapAndRethrow(const std::string &prefix) const {
@@ -113,12 +119,10 @@ namespace eos
       mutable char       *pTmpMessage;
   };
 
-  inline std::exception_ptr makeMDException(int err, const std::string &msg) {
+  inline MDException makeMDException(int err, const std::string &msg) {
     MDException exc(err);
     exc.getMessage() << msg;
-
-    // Inefficient, copies the string twice, fix.
-    return std::make_exception_ptr<MDException>(exc);
+    return exc;
   }
 
   //----------------------------------------------------------------------------
