@@ -174,6 +174,7 @@ add_executable(eos_ns_convert
   tools/ConvertMemToKV.cc
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
+  persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(eos_ns_convert

@@ -25,6 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/Identifiers.hh"
 #include <vector>
 #include <string>
 
@@ -47,6 +48,26 @@ public:
   //! Write file protobuf metadata.
   //----------------------------------------------------------------------------
   static RedisRequest writeFileProto(IFileMD *obj);
+
+  //----------------------------------------------------------------------------
+  //! Read container protobuf metadata.
+  //----------------------------------------------------------------------------
+  static RedisRequest readContainerProto(ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Read file protobuf metadata.
+  //----------------------------------------------------------------------------
+  static RedisRequest readFileProto(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Delete container protobuf metadata.
+  //----------------------------------------------------------------------------
+  static RedisRequest deleteContainerProto(ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Delete file protobuf metadata.
+  //----------------------------------------------------------------------------
+  static RedisRequest deleteFileProto(FileIdentifier id);
 
   //----------------------------------------------------------------------------
   //! Get container bucket which is computed as the id of the container modulo

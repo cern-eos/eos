@@ -209,7 +209,7 @@ void
 FileMDSvc::removeFile(IFileMD* obj)
 {
   std::string sid = stringify(obj->getId());
-  pFlusher->hdel(RequestBuilder::getFileBucketKey(obj->getId()), sid);
+  pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(obj->getId())));
   pFlusher->srem(constants::sOrphanFiles, sid);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);

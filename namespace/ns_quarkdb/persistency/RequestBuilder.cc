@@ -31,9 +31,9 @@ EOSNSNAMESPACE_BEGIN
 std::uint64_t RequestBuilder::sNumContBuckets = 128 * 1024;
 std::uint64_t RequestBuilder::sNumFileBuckets = 1024 * 1024;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Write container protobuf metadata.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 RedisRequest
 RequestBuilder::writeContainerProto(IContainerMD *obj)
 {
@@ -45,9 +45,9 @@ RequestBuilder::writeContainerProto(IContainerMD *obj)
   return { "HSET", RequestBuilder::getContainerBucketKey(obj->getId()), sid, buffer };
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Write file protobuf metadata.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 RedisRequest
 RequestBuilder::writeFileProto(IFileMD *obj)
 {
@@ -56,6 +56,42 @@ RequestBuilder::writeFileProto(IFileMD *obj)
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
   std::string sid = stringify(obj->getId());
   return { "HSET", RequestBuilder::getFileBucketKey(obj->getId()), sid, buffer };
+}
+
+//------------------------------------------------------------------------------
+//! Read container protobuf metadata.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::readContainerProto(ContainerIdentifier id)
+{
+  return { "HGET", RequestBuilder::getContainerBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
+//! Read file protobuf metadata.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::readFileProto(FileIdentifier id)
+{
+  return { "HGET", RequestBuilder::getFileBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
+//! Delete container protobuf metadata.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::deleteContainerProto(ContainerIdentifier id)
+{
+  return { "HDEL", RequestBuilder::getContainerBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
+//! Delete file protobuf metadata.
+//------------------------------------------------------------------------------
+RedisRequest
+RequestBuilder::deleteFileProto(FileIdentifier id)
+{
+  return { "HDEL", RequestBuilder::getFileBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------

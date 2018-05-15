@@ -223,7 +223,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   std::string sid = stringify(obj->getId());
-  pFlusher->hdel(RequestBuilder::getContainerBucketKey(obj->getId()), stringify(obj->getId()));
+  pFlusher->execute(RequestBuilder::deleteContainerProto(ContainerIdentifier(obj->getId())));
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {

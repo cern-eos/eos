@@ -235,7 +235,7 @@ static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, FileId
 folly::Future<eos::ns::FileMdProto>
 MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
 {
-  return qcl.follyExec("HGET", RequestBuilder::getFileBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
+  return qcl.follyExec(RequestBuilder::readFileProto(id))
     .then(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
@@ -258,7 +258,7 @@ static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr rep
 folly::Future<eos::ns::ContainerMdProto>
 MetadataFetcher::getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id)
 {
-  return qcl.follyExec("HGET", RequestBuilder::getContainerBucketKey(id.getUnderlyingUInt64()), SSTR(id.getUnderlyingUInt64()))
+  return qcl.follyExec(RequestBuilder::readContainerProto(id))
     .then(std::bind(parseContainerMdProtoResponse, _1, id));
 }
 

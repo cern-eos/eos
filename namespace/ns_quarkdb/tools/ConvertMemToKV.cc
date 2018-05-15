@@ -37,9 +37,6 @@ static size_t sThreads = 1;
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t ConvertContainerMDSvc::sNumContBuckets = 128 * 1024;
-std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
-
 //------------------------------------------------------------------------------
 //           ************* ConvertFileMD Class ************
 //------------------------------------------------------------------------------
@@ -724,7 +721,7 @@ const
     // @todo (esindril): Could use compression when storing the entries
     file->updateInternal();
     file->serializeToStr(buffer);
-    qclient::QHash bucket_map(qclient, getBucketKey(file->getId()));
+    qclient::QHash bucket_map(qclient, RequestBuilder::getFileBucketKey(file->getId()));
     bucket_map.hset_async(sid, buffer, &ah);
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
