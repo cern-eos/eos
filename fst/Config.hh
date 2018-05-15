@@ -45,6 +45,7 @@ public:
   XrdOucString FstGwQueueWildcard; // our gateway queue match name
   XrdOucString FstConfigQueueWildcard; // our configuration queue match name
   XrdOucString FstHostPort; // <host>:<port>
+  XrdOucString FstS3Credentials; // S3 storage credentials <access>:<secret>
   XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
   std::string ProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)

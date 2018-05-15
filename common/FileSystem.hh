@@ -56,7 +56,7 @@ protected:
   std::string mQueue;
 
   //! Filesystem Path e.g. /data01
-  std::string mPath; //
+  std::string mPath;
 
   //! Indicates that if the filesystem is deleted - the deletion should be
   //! broadcasted or not (only MGMs should broadcast deletion!)
@@ -707,10 +707,10 @@ public:
   }
 
   //------------------------------------------------------------------------------
-  //! Snapshots all variables of a filesystem into a snapsthot struct
+  //! Snapshots all variables of a filesystem into a snapshot struct
   //!
   //! @param fs snapshot struct to be filled
-  //! @param dolock indicates if the shared hash representing the filesystme has
+  //! @param dolock indicates if the shared hash representing the filesystem has
   //!               to be locked or not
   //!
   //! @return true if successful, otherwise false
@@ -718,10 +718,10 @@ public:
   bool SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock = true);
 
   //------------------------------------------------------------------------------
-  //! Snapshots all variables of a filesystem into a snapsthot struct
+  //! Snapshots all variables of a filesystem into a snapshot struct
   //!
   //! @param fs snapshot struct to be filled
-  //! @param dolock indicates if the shared hash representing the filesystme has
+  //! @param dolock indicates if the shared hash representing the filesystem has
   //!               to be locked or not
   //!
   //! @return true if successful, otherwise false

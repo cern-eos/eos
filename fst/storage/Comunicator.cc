@@ -40,6 +40,7 @@ Storage::Communicator()
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
   std::string watch_scaninterval = "scaninterval";
+  std::string watch_s3credentials = "s3credentials";
   std::string watch_symkey = "symkey";
   std::string watch_manager = "manager";
   std::string watch_publishinterval = "publish.interval";
@@ -56,6 +57,8 @@ Storage::Communicator()
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_bootsenttime,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scaninterval,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_s3credentials,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_symkey,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
@@ -471,7 +474,19 @@ Storage::Communicator()
                       }
                     }
                   } else {
-                    gOFS.ObjectManager.HashMutex.UnLockRead();
+                    if (key == "s3credentials") {
+                      gOFS.ObjectManager.HashMutex.UnLockRead();
+
+                      if (mQueue2FsMap.count(queue.c_str())) {
+                        std::string s3credentials =
+                            mQueue2FsMap[queue.c_str()]->GetString("s3credentials");
+                        eos_static_info("queue=%s s3credentials=%s",
+                                        queue.c_str(), s3credentials.c_str());
+                        eos::fst::Config::gConfig.FstS3Credentials = s3credentials.c_str();
+                      }
+                    } else {
+                      gOFS.ObjectManager.HashMutex.UnLockRead();
+                    }
                   }
                 }
               }
