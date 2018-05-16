@@ -36,11 +36,7 @@ public:
   static std::string build(ContainerIdentifier parent, const std::string &name) {
     std::ostringstream ss;
     ss << unsignedIntToBinaryString(parent.getUnderlyingUInt64());
-    ss << ":";
-
-    for(size_t i = 0; i < std::min(name.size(), size_t(128u)); i++) {
-      ss << name[i];
-    }
+    ss << ":" << name;
 
     return ss.str();
   }
