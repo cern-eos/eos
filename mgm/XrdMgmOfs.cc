@@ -122,7 +122,7 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 
   // Initialize the subsystems
   if (!myFS.Init(gMgmOfsEroute)) {
-    return 0;
+    return nullptr;
   }
 
   // Disable XRootd log rotation
@@ -131,18 +131,18 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
   // By default enable stalling and redirection
   gOFS->IsStall = true;
   gOFS->IsRedirect = true;
-  myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+  myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : nullptr);
 
   if (myFS.Configure(gMgmOfsEroute)) {
-    return 0;
+    return nullptr;
   }
 
   // Initialize authorization module ServerAcc
   gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn,
-                           0);
+                           nullptr);
 
   if (!gOFS->CapabilityEngine) {
-    return 0;
+    return nullptr;
   }
 
   return gOFS;
@@ -493,7 +493,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-    eos_static_info("prep-info=%s", prep_info.c_str());
+
     auto ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN, args,
                                     error, &lClient);
 

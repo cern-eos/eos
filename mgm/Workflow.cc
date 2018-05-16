@@ -39,8 +39,6 @@ int
 Workflow::Trigger(const std::string& event, std::string workflow,
                   eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
 {
-  eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(),
-                  workflow.c_str());
   errno = 0;
 
   if (workflow == "none" && vid.sudoer) {
@@ -89,7 +87,6 @@ Workflow::Trigger(const std::string& event, std::string workflow,
     std::string key = "sys.workflow." + event + "." + workflow;
 
     if (mAttr && (*mAttr).count(key)) {
-      eos_static_info("key=%s %d %d", key.c_str(), mAttr, (*mAttr).count(key));
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
@@ -202,7 +199,6 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& 
   if (job.IsSync(mEvent)) {
     if (WfeEnabled()) {
       job.AddAction(mAction, mEvent, t, mWorkflow, "r");
-      eos_static_info("running synchronous workflow");
       return job.DoIt(true);
     }
   } else {
