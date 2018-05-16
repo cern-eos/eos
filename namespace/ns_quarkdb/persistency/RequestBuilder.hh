@@ -47,7 +47,7 @@ public:
   //----------------------------------------------------------------------------
   //! Write container protobuf metadata - low level API.
   //----------------------------------------------------------------------------
-  static RedisRequest writeContainerProto(ContainerIdentifier id, const std::string &blob);
+  static RedisRequest writeContainerProto(ContainerIdentifier id, const std::string &hint, const std::string &blob);
 
   //----------------------------------------------------------------------------
   //! Write file protobuf metadata.
@@ -57,7 +57,7 @@ public:
   //----------------------------------------------------------------------------
   //! Write file protobuf metadata - low level API.
   //----------------------------------------------------------------------------
-  static RedisRequest writeFileProto(FileIdentifier id, const std::string &blob);
+  static RedisRequest writeFileProto(FileIdentifier id, const std::string &hint, const std::string &blob);
 
   //----------------------------------------------------------------------------
   //! Read container protobuf metadata.
@@ -80,41 +80,14 @@ public:
   static RedisRequest deleteFileProto(FileIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Get container bucket which is computed as the id of the container modulo
-  //! the number of container buckets.
-  //!
-  //! @param id container id
-  //!
-  //! @return container bucket key
+  //! Calculate number of containers.
   //----------------------------------------------------------------------------
-  static std::string getContainerBucketKey(IContainerMD::id_t id);
+  static RedisRequest getNumberOfContainers();
 
   //----------------------------------------------------------------------------
-  //! Get file bucket which is computed as the id of the container modulo the
-  //! number of file buckets (1M).
-  //!
-  //! @param id file id
-  //!
-  //! @return file bucket key
+  //! Calculate number of files.
   //----------------------------------------------------------------------------
-  static std::string getFileBucketKey(IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
-  //! Override number of container buckets
-  //----------------------------------------------------------------------------
-  static void OverrideNumberOfContainerBuckets(uint64_t buckets = 128 * 1024) {
-    sNumContBuckets = buckets;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Override number of file buckets
-  //----------------------------------------------------------------------------
-  static void OverrideNumberOfFileBuckets(uint64_t buckets = 128 * 1024) {
-    sNumFileBuckets = buckets;
-  }
-
-  static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
-  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
+  static RedisRequest getNumberOfFiles();
 };
 
 

@@ -45,9 +45,6 @@ FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
 FlushAllOnConstruction::~FlushAllOnConstruction() { }
 
 NsTestsFixture::NsTestsFixture() {
-  RequestBuilder::OverrideNumberOfFileBuckets(128);
-  RequestBuilder::OverrideNumberOfContainerBuckets(128);
-
   srandom(time(nullptr));
   testconfig = {
     {"qdb_cluster", "localhost:9999"},
@@ -60,10 +57,6 @@ NsTestsFixture::NsTestsFixture() {
 
 NsTestsFixture::~NsTestsFixture() {
   shut_down_everything();
-
-  // Restore default values
-  // FileMDSvc::OverrideNumberOfBuckets();
-  // ContainerMDSvc::OverrideNumberOfBuckets();
 }
 
 qclient::Members NsTestsFixture::getMembers() {
