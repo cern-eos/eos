@@ -22,6 +22,7 @@
  ************************************************************************/
 #define __STDC_FORMAT_MACROS
 #include <cinttypes>
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
@@ -1920,7 +1921,9 @@ XrdFstOfsFile::close()
       std::string decodedAttributes;
       eos::common::SymKey::Base64Decode(eventAttributes.c_str(), decodedAttributes);
       std::map<std::string, std::string> attributes;
-      eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(), attributes, "=", ";;;", nullptr);
+      eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(), attributes,
+                                                    eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
+                                                    eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
 
       rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, eventOwner, eventOwnerGroup, eventRequestor, eventRequestorGroup,
                                       eventInstance, capOpaque->Get("mgm.path"), attributes);

@@ -131,8 +131,8 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
     std::ostringstream attrStream;
     std::string separator;
     for (const auto& attribute : WFE::CollectAttributes(fullPath)) {
-      attrStream << separator << attribute.first << "=" << attribute.second;
-      separator = ";;;";
+      attrStream << separator << attribute.first << eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS << attribute.second;
+      separator = eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR;
     }
 
     auto attrStr = attrStream.str();

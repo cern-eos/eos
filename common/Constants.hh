@@ -35,5 +35,7 @@ static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
 static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
 static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "archive_failed";
+static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS = "=";
+static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
 
 EOSCOMMONNAMESPACE_END
