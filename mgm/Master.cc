@@ -32,9 +32,6 @@
 #include "common/plugin_manager/PluginManager.hh"
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "mq/XrdMqClient.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
@@ -70,11 +67,11 @@ Master::Master()
   fCompactFiles = false;
   fCompactDirectories = false;
   fDevNull = 0;
-  fDevNullLogger = 0;
-  fDevNullErr = 0;
+  fDevNullLogger = nullptr;
+  fDevNullErr = nullptr;
   fCheckRemote = true;
   fFileNamespaceInode = fDirNamespaceInode = 0;
-  f2MasterTransitionTime = time(NULL) - 3600; // start without service delays
+  f2MasterTransitionTime = time(nullptr) - 3600; // start without service delays
   fHasSystemd = false;
   fDirCompactingRatio = 0.0;
   fAutoRepair = false;
@@ -232,11 +229,7 @@ Master::HostCheck(const char* hostname, int port, int timeout)
     ssize_t nwrite = write(peer.fd, &vshake[0], 20);
     close(peer.fd);
 
-    if (nwrite != 20) {
-      return false;
-    }
-
-    return true;
+    return nwrite == 20;
   }
 
   return false;
@@ -297,16 +290,16 @@ Master::Supervisor()
   remoteMqUrlString += fRemoteMq.c_str();
   bool lDiskFull = false;
   bool pDiskFull = false;
-  std::string pStallSetting = "";
-  int dpos = remoteMqUrlString.find(":", 7);
+  std::string pStallSetting;
+  auto dpos = remoteMqUrlString.find(':', 7);
 
-  if (dpos != STR_NPOS) {
+  if (dpos != std::string::npos) {
     remoteMqUrlString.erase(dpos + 1);
     remoteMqUrlString += "1097";
   }
 
-  XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
-  XrdCl::URL remoteMqUrl(remoteMqUrlString.c_str());
+  XrdCl::URL remoteMgmUrl(remoteMgmUrlString);
+  XrdCl::URL remoteMqUrl(remoteMqUrlString);
 
   if (!remoteMgmUrl.IsValid()) {
     MasterLog(eos_static_crit("remote manager URL <%s> is not valid",
@@ -504,7 +497,7 @@ Master::Supervisor()
     sleeper.Wait(1000);
   }
 
-  return 0;
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -582,7 +575,7 @@ Master::WaitCompactingFinished()
       BlockCompacting();
       break;
     }
-  } while (1);
+  } while (true);
 
   eos_static_info("msg=\"waited for compacting to finish OK\"");
 }
@@ -608,7 +601,7 @@ Master::Compacting()
 {
   do {
     XrdSysThread::SetCancelOff();
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     bool runcompacting = false;
     bool reschedule = false;
     {
@@ -658,18 +651,18 @@ Master::Compacting()
 
     if (!gOFS->eosFileService || !gOFS->eosDirectoryService) {
       eos_notice("file/directory metadata service is not available");
-      return 0;
+      return nullptr;
     }
 
-    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    auto* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    auto* eos_chlog_dirsvc =
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
     // Check if namespace supports compacting
     if (!eos_chlog_filesvc || !eos_chlog_dirsvc) {
       eos_notice("msg=\"namespace does not support compacting - disable it\"");
-      return 0;
+      return nullptr;
     }
 
     if (runcompacting) {
@@ -680,7 +673,7 @@ Master::Compacting()
         gOFS->Initialized = XrdMgmOfs::kCompacting;
       }
       eos_notice("msg=\"starting online compaction\"");
-      time_t now = time(NULL);
+      time_t now = time(nullptr);
       // File compacting
       std::string ocfile = gOFS->MgmNsFileChangeLogFile.c_str();
       ocfile += ".oc";
@@ -729,8 +722,8 @@ Master::Compacting()
       bool compacted = false;
 
       try {
-        void* compData = 0;
-        void* compDirData = 0;
+        void* compData = nullptr;
+        void* compDirData = nullptr;
         {
           MasterLog(eos_info("msg=\"compact prepare\""));
           // Require NS read lock
@@ -778,7 +771,7 @@ Master::Compacting()
           eos_notice("msg=\"rescheduling online compactificiation\" interval=%u",
                      (unsigned int) fCompactingInterval);
           XrdSysMutexHelper cLock(fCompactingMutex);
-          fCompactingStart = time(NULL) + fCompactingInterval;
+          fCompactingStart = time(nullptr) + fCompactingInterval;
         } else {
           fCompactingStart = 0;
         }
@@ -854,7 +847,7 @@ Master::Compacting()
 
       if (compacted) {
         eos_alert("msg=\"compact done\"");
-        MasterLog(eos_info("msg=\"compact done\" elapsed=%lu", time(NULL) - now));
+        MasterLog(eos_info("msg=\"compact done\" elapsed=%lu", time(nullptr) - now));
 
         if (fRemoteMasterOk && (fThisHost != fRemoteHost)) {
           // if we have a remote master we have to signal it to bounce to us
@@ -908,9 +901,9 @@ Master::Compacting()
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
     sleeper.Wait(60000);
-  } while (1);
+  } while (true);
 
-  return 0;
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -919,7 +912,7 @@ Master::Compacting()
 void
 Master::PrintOutCompacting(XrdOucString& out)
 {
-  time_t now = time(NULL);
+  time_t now = time(nullptr);
 
   if (IsCompacting()) {
     out += "status=compacting";
@@ -1257,7 +1250,7 @@ Master::Slave2Master()
   eos_alert("msg=\"slave to master transition\"");
   fRunningState = Run::State::kIsTransition;
   // This will block draining/balancing for the next hour!!!
-  f2MasterTransitionTime = time(NULL);
+  f2MasterTransitionTime = time(nullptr);
   // This call transforms the namespace following slave into a master in RW mode
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
@@ -1388,12 +1381,12 @@ Master::Slave2Master()
   }
 
   if (syncok) {
-    XrdCl::URL remoteSyncUrl(remoteSyncUrlString.c_str());
+    XrdCl::URL remoteSyncUrl(remoteSyncUrlString);
     XrdCl::FileSystem FsSync(remoteSyncUrl);
-    XrdCl::StatInfo* sinfo = 0;
+    XrdCl::StatInfo* sinfo = nullptr;
 
     // Stat the two remote changelog files
-    if (FsSync.Stat(rfclf.c_str(), sinfo, 5).IsOK()) {
+    if (FsSync.Stat(rfclf, sinfo, 5).IsOK()) {
       size_remote_file_changelog = sinfo->GetSize();
       delete sinfo;
       sinfo = 0;
@@ -1404,14 +1397,14 @@ Master::Slave2Master()
       }
     }
 
-    if (FsSync.Stat(rdclf.c_str(), sinfo, 5).IsOK()) {
+    if (FsSync.Stat(rdclf, sinfo, 5).IsOK()) {
       size_remote_dir_changelog = sinfo->GetSize();
       delete sinfo;
-      sinfo = 0;
+      sinfo = nullptr;
     } else {
       if (sinfo) {
         delete sinfo;
-        sinfo = 0;
+        sinfo = nullptr;
       }
     }
 
@@ -1437,10 +1430,10 @@ Master::Slave2Master()
   // Make a backup of the new target master file
   XrdOucString NsFileChangeLogFileCopy = fileSettings["changelog_path"].c_str();
   NsFileChangeLogFileCopy += ".";
-  NsFileChangeLogFileCopy += (int) time(NULL);
+  NsFileChangeLogFileCopy += (int) time(nullptr);
   XrdOucString NsDirChangeLogFileCopy = contSettings["changelog_path"].c_str();
   NsDirChangeLogFileCopy += ".";
-  NsDirChangeLogFileCopy += (int) time(NULL);
+  NsDirChangeLogFileCopy += (int) time(nullptr);
 
   if (!::stat(fileSettings["changelog_path"].c_str(), &buf)) {
     if (::rename(fileSettings["changelog_path"].c_str(),
@@ -1469,14 +1462,14 @@ Master::Slave2Master()
 
   try {
     MasterLog(eos_info("msg=\"invoking slave=>master transition\""));
-    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    auto* eos_chlog_dirsvc =
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
     if (eos_chlog_dirsvc) {
       eos_chlog_dirsvc->slave2Master(contSettings);
     }
 
-    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    auto* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
     if (eos_chlog_filesvc) {
@@ -1563,9 +1556,9 @@ Master::Master2MasterRO()
   // Convert the RW namespace into a read-only namespace
   // Wait that compacting is finished and block any further compacting
   WaitCompactingFinished();
-  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+  auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+  auto* eos_chlog_filesvc =
     dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc) {
@@ -1630,23 +1623,23 @@ Master::MasterRO2Slave()
       if (gOFS->eosFsView) {
         gOFS->eosFsView->finalize();
         delete gOFS->eosFsView;
-        gOFS->eosFsView = 0;
+        gOFS->eosFsView = nullptr;
       }
 
       if (gOFS->eosContainerAccounting) {
         delete gOFS->eosContainerAccounting;
-        gOFS->eosContainerAccounting = 0;
+        gOFS->eosContainerAccounting = nullptr;
       }
 
       if (gOFS->eosSyncTimeAccounting) {
         delete gOFS->eosSyncTimeAccounting;
-        gOFS->eosSyncTimeAccounting = 0;
+        gOFS->eosSyncTimeAccounting = nullptr;
       }
 
       if (gOFS->eosView) {
         gOFS->eosView->finalize();
         delete gOFS->eosView;
-        gOFS->eosView = 0;
+        gOFS->eosView = nullptr;
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -1718,13 +1711,13 @@ Master::~Master()
 {
   if (fThread) {
     XrdSysThread::Cancel(fThread);
-    XrdSysThread::Join(fThread, 0);
+    XrdSysThread::Join(fThread, nullptr);
     fThread = 0;
   }
 
   if (fCompactingThread) {
     XrdSysThread::Cancel(fCompactingThread);
-    XrdSysThread::Join(fCompactingThread, 0);
+    XrdSysThread::Join(fCompactingThread, nullptr);
     fCompactingThread = 0;
   }
 
@@ -1735,12 +1728,12 @@ Master::~Master()
 
   if (fDevNullLogger) {
     delete fDevNullLogger;
-    fDevNullLogger = 0;
+    fDevNullLogger = nullptr;
   }
 
   if (fDevNullErr) {
     delete fDevNullErr;
-    fDevNullErr = 0;
+    fDevNullErr = nullptr;
   }
 }
 
@@ -1885,12 +1878,12 @@ Master::BootNamespace()
     std::ostringstream oss;
     oss << gOFS->MgmMetaLogDir.c_str() << "/directories."
         << fMasterHost.c_str() << ".mdlog";
-    contSettings["changelog_path"] = oss.str().c_str();
+    contSettings["changelog_path"] = oss.str();
     gOFS->MgmNsDirChangeLogFile = oss.str().c_str();
     oss.str("");
     oss << gOFS->MgmMetaLogDir.c_str() << "/files."
         << fMasterHost.c_str() << ".mdlog";
-    fileSettings["changelog_path"] = oss.str().c_str();
+    fileSettings["changelog_path"] = oss.str();
     gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
   } else {
     if (gOFS->mQdbCluster.empty()) {
@@ -1907,7 +1900,7 @@ Master::BootNamespace()
     }
   }
 
-  time_t tstart = time(0);
+  time_t tstart = time(nullptr);
 
   try {
     gOFS->eosDirectoryService->setFileMDService(gOFS->eosFileService);
@@ -1935,9 +1928,9 @@ Master::BootNamespace()
     }
 
     // This is only done for the ChangeLog implementation
-    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    auto* eos_chlog_dirsvc =
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    auto* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc) {
@@ -1956,7 +1949,7 @@ Master::BootNamespace()
     gOFS->eosDirectoryService->setContainerAccounting(gOFS->eosContainerAccounting);
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
-    time_t tstop = time(0);
+    time_t tstop = time(nullptr);
     // Add boot errors to the master log
     XrdOucString out;
     GetLog(out);
@@ -1974,7 +1967,7 @@ Master::BootNamespace()
 
     return true;
   } catch (eos::MDException& e) {
-    time_t tstop = time(0);
+    time_t tstop = time(nullptr);
     // Add boot errors to the master log
     XrdOucString out;
     GetLog(out);
@@ -2005,11 +1998,11 @@ Master::SignalRemoteBounceToMaster()
   remoteMgmHostPort += ":1094";
   // TODO: add signals for remote slave(-only) machiens
   std::string signalbounce = "/?mgm.pcmd=mastersignalbounce";
-  XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
+  XrdCl::URL remoteMgmUrl(remoteMgmUrlString);
   XrdCl::FileSystem FsMgm(remoteMgmUrl);
   XrdCl::Buffer qbuffer;
   qbuffer.FromString(signalbounce);
-  XrdCl::Buffer* rbuffer = 0;
+  XrdCl::Buffer* rbuffer = nullptr;
 
   if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
     MasterLog(
@@ -2020,7 +2013,7 @@ Master::SignalRemoteBounceToMaster()
 
   if (rbuffer) {
     delete rbuffer;
-    rbuffer = 0;
+    rbuffer = nullptr;
   }
 }
 
@@ -2045,11 +2038,11 @@ Master::SignalRemoteReload(bool compact_files, bool compact_directories)
     signalreload += "&compact.directories=1";
   }
 
-  XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
+  XrdCl::URL remoteMgmUrl(remoteMgmUrlString);
   XrdCl::FileSystem FsMgm(remoteMgmUrl);
   XrdCl::Buffer qbuffer;
   qbuffer.FromString(signalreload);
-  XrdCl::Buffer* rbuffer = 0;
+  XrdCl::Buffer* rbuffer = nullptr;
 
   if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
     MasterLog(eos_info("msg=\"signalled remote master to reload\""));
@@ -2059,7 +2052,7 @@ Master::SignalRemoteReload(bool compact_files, bool compact_directories)
 
   if (rbuffer) {
     delete rbuffer;
-    rbuffer = 0;
+    rbuffer = nullptr;
   }
 }
 
@@ -2090,7 +2083,7 @@ bool
 Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
                                  unsigned int timeout)
 {
-  time_t starttime = time(NULL);
+  time_t starttime = time(nullptr);
   // If possible evaluate if local and remote master files are in sync ...
   MasterLog(eos_info("msg=\"check ns file synchronization\""));
   off_t size_local_file_changelog = 0;
@@ -2126,37 +2119,37 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
   if (syncok) {
     // Check once the remote size
-    XrdCl::URL remoteSyncUrl(remoteSyncUrlString.c_str());
+    XrdCl::URL remoteSyncUrl(remoteSyncUrlString);
     XrdCl::FileSystem FsSync(remoteSyncUrl);
-    XrdCl::StatInfo* sinfo = 0;
+    XrdCl::StatInfo* sinfo = nullptr;
 
     // stat the two remote changelog files
-    if (FsSync.Stat(rfclf.c_str(), sinfo, 5).IsOK()) {
+    if (FsSync.Stat(rfclf, sinfo, 5).IsOK()) {
       if (sinfo) {
         size_remote_file_changelog = sinfo->GetSize();
         delete sinfo;
-        sinfo = 0;
+        sinfo = nullptr;
       }
     } else {
       if (sinfo) {
         delete sinfo;
-        sinfo = 0;
+        sinfo = nullptr;
       }
 
       MasterLog(eos_crit("remote stat failed for %s", rfclf.c_str()));
       return false;
     }
 
-    if (FsSync.Stat(rdclf.c_str(), sinfo, 5).IsOK()) {
+    if (FsSync.Stat(rdclf, sinfo, 5).IsOK()) {
       if (sinfo) {
         size_remote_dir_changelog = sinfo->GetSize();
         delete sinfo;
-        sinfo = 0;
+        sinfo = nullptr;
       }
     } else {
       if (sinfo) {
         delete sinfo;
-        sinfo = 0;
+        sinfo = nullptr;
       }
 
       MasterLog(eos_crit("remote stat failed for %s", rdclf.c_str()));
@@ -2190,7 +2183,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
       if ((wait_directories) && (lDirNamespaceInode == fDirNamespaceInode)) {
         // the inode didn't change yet
-        if (time(NULL) > (starttime + timeout)) {
+        if (time(nullptr) > (starttime + timeout)) {
           MasterLog(eos_warning("timeout occured after %u seconds", timeout));
           return false;
         }
@@ -2204,7 +2197,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
       if ((wait_files) && (lFileNamespaceInode == fFileNamespaceInode)) {
         // the inode didn't change yet
-        if (time(NULL) > (starttime + timeout)) {
+        if (time(nullptr) > (starttime + timeout)) {
           MasterLog(eos_warning("timeout occured after %u seconds", timeout));
           return false;
         }
@@ -2217,7 +2210,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
       }
 
       if (size_remote_file_changelog > size_local_file_changelog) {
-        if (time(NULL) > (starttime + timeout)) {
+        if (time(nullptr) > (starttime + timeout)) {
           MasterLog(eos_warning("timeout occured after %u seconds", timeout));
           return false;
         }
@@ -2228,7 +2221,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
       }
 
       if (size_remote_dir_changelog > size_local_dir_changelog) {
-        if (time(NULL) > (starttime + timeout)) {
+        if (time(nullptr) > (starttime + timeout)) {
           MasterLog(eos_warning("timeout occured after %u seconds", timeout));
           return false;
         }
@@ -2240,7 +2233,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
       MasterLog(eos_info("msg=\"ns files  synchronized\""));
       return true;
-    } while (1);
+    } while (true);
   } else {
     MasterLog(eos_warning("msg=\"remote sync service is not ok\""));
     return false;
@@ -2255,9 +2248,9 @@ Master::RedirectToRemoteMaster()
 {
   MasterLog(eos_info("msg=\"redirect to remote master\""));
   Access::gRedirectionRules[std::string("*")] = fRemoteHost.c_str();
-  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+  auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+  auto* eos_chlog_filesvc =
     dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc) {
@@ -2294,23 +2287,23 @@ Master::RebootSlaveNamespace()
       if (gOFS->eosFsView) {
         gOFS->eosFsView->finalize();
         delete gOFS->eosFsView;
-        gOFS->eosFsView = 0;
+        gOFS->eosFsView = nullptr;
       }
 
       if (gOFS->eosContainerAccounting) {
         delete gOFS->eosContainerAccounting;
-        gOFS->eosContainerAccounting = 0;
+        gOFS->eosContainerAccounting = nullptr;
       }
 
       if (gOFS->eosSyncTimeAccounting) {
         delete gOFS->eosSyncTimeAccounting;
-        gOFS->eosSyncTimeAccounting = 0;
+        gOFS->eosSyncTimeAccounting = nullptr;
       }
 
       if (gOFS->eosView) {
         gOFS->eosView->finalize();
         delete gOFS->eosView;
-        gOFS->eosView = 0;
+        gOFS->eosView = nullptr;
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -2373,9 +2366,9 @@ Master::RebootSlaveNamespace()
 void
 Master::StartSlaveFollower(std::string&& log_file)
 {
-  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+  auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+  auto* eos_chlog_filesvc =
     dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc) {
@@ -2411,7 +2404,7 @@ Master::ShutdownSlaveFollower()
   if (!gOFS->MgmMaster.IsMaster()) {
     // Stop the follower thread ...
     if (gOFS->eosFileService) {
-      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      auto* eos_chlog_filesvc =
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc) {
@@ -2420,7 +2413,7 @@ Master::ShutdownSlaveFollower()
     }
 
     if (gOFS->eosDirectoryService) {
-      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      auto* eos_chlog_dirsvc =
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
       if (eos_chlog_dirsvc) {
@@ -2436,9 +2429,9 @@ Master::ShutdownSlaveFollower()
 void
 Master::GetLog(XrdOucString& stdOut)
 {
-  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+  auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+  auto* eos_chlog_filesvc =
     dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_filesvc && eos_chlog_dirsvc) {
@@ -2446,12 +2439,12 @@ Master::GetLog(XrdOucString& stdOut)
     std::vector<std::string> directory_warn =
       eos_chlog_dirsvc->getWarningMessages();
 
-    for (size_t i = 0; i < file_warn.size(); ++i) {
-      MasterLog(eos_err(file_warn[i].c_str()));
+    for (const auto& fw : file_warn) {
+      MasterLog(eos_err(fw.c_str()));
     }
 
-    for (size_t i = 0; i < directory_warn.size(); ++i) {
-      MasterLog(eos_err(directory_warn[i].c_str()));
+    for (const auto& dw : directory_warn) {
+      MasterLog(eos_err(dw.c_str()));
     }
 
     eos_chlog_filesvc->clearWarningMessages();

@@ -25,10 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <time.h>
-#include <dirent.h>
-#include <string.h>
-#include <sys/fsuid.h>
+#include <cstring>
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
@@ -63,9 +60,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
-#include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
