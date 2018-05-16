@@ -316,6 +316,8 @@ FileMDSvc::ComputeNumberOfFiles()
   (void) ah.Wait();
   std::list<long long int> resp = ah.GetResponses();
   mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
+
+  mNumFiles += pQcl->execute(RequestBuilder::getNumberOfFiles()).get()->integer;
 }
 
 //------------------------------------------------------------------------------

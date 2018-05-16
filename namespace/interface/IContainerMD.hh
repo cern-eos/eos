@@ -26,6 +26,7 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
+#include "namespace/utils/LocalityHint.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/Identifiers.hh"
 #include "common/Murmur3.hh"
@@ -370,6 +371,13 @@ public:
   virtual void setDeleted()
   {
     mIsDeleted = true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get locality hint for this container.
+  //----------------------------------------------------------------------------
+  virtual std::string getLocalityHint() const {
+    return LocalityHint::build(ContainerIdentifier(getParentId()), getName());
   }
 
 private:

@@ -26,6 +26,7 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
+#include "namespace/utils/LocalityHint.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/Identifiers.hh"
 #include <stdint.h>
@@ -385,6 +386,13 @@ public:
   virtual void setDeleted()
   {
     mIsDeleted = true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get locality hint for this file.
+  //----------------------------------------------------------------------------
+  virtual std::string getLocalityHint() const {
+    return LocalityHint::build(ContainerIdentifier(getContainerId()), getName());
   }
 
   //----------------------------------------------------------------------------

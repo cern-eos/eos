@@ -32,10 +32,10 @@ EOSNSNAMESPACE_BEGIN
 //! Variables associated with the HierarchcalView
 namespace constants
 {
-//! Suffix for container metadata in Redis
-static const std::string sContKeySuffix{":c_bucket"};
-//! Sufix for file metadata in Redis
-static const std::string sFileKeySuffix{":f_bucket"};
+//! Key for container metadata locality hash.
+static const std::string sContainerKey {"eos-container-md"};
+//! Key for file metadata locality hash.
+static const std::string sFileKey {"eos-file-md"};
 //! Suffix for set of subcontainers in a container
 static const std::string sMapDirsSuffix{":map_conts"};
 //! Suffix for set of files in a container
@@ -49,6 +49,13 @@ static const std::string sLastUsedCid{"last_used_cid"};
 //! Set of orphans files, which are not anymore attached to a container
 //! they were unlinked but not removed yet
 static const std::string sOrphanFiles{"orphan_files"};
+
+
+//! Suffix for container metadata in Redis
+static const std::string sContKeySuffix{":c_bucket"};
+//! Sufix for file metadata in Redis
+static const std::string sFileKeySuffix{":f_bucket"};
+
 }
 
 //! Variable associated with the QuotaView

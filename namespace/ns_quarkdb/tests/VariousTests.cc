@@ -277,7 +277,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
 
   shut_down_everything();
 
-  qcl().exec("HSET", RequestBuilder::getFileBucketKey(1), "1", "chicken_chicken_chicken_chicken").get();
+  qcl().exec(RequestBuilder::writeFileProto(FileIdentifier(1), "hint", "chicken_chicken_chicken_chicken")).get();
 
   try {
     MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();
@@ -289,8 +289,8 @@ TEST_F(FileMDFetching, CorruptionTest) {
 
   shut_down_everything();
 
-  qcl().exec("DEL", RequestBuilder::getFileBucketKey(1)).get();
-  qcl().exec("SADD", RequestBuilder::getFileBucketKey(1), "zzzz").get();
+  qcl().exec("DEL", constants::sFileKey).get();
+  qcl().exec("SADD", constants::sFileKey, "zzz").get();
 
   try {
     MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();

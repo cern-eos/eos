@@ -357,6 +357,7 @@ ContainerMDSvc::ComputeNumberOfContainers()
   (void) ah.Wait();
   auto resp = ah.GetResponses();
   mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
+  mNumConts += pQcl->execute(RequestBuilder::getNumberOfContainers()).get()->integer;
 }
 
 //------------------------------------------------------------------------------

@@ -502,7 +502,7 @@ ConvertContainerMDSvc::commitToBackend()
         std::string buffer;
         conv_cont->serializeToStr(buffer);
 
-        ah.Register(&qclient, RequestBuilder::writeContainerProto(container->getIdentifier(), buffer));
+        ah.Register(&qclient, RequestBuilder::writeContainerProto(container->getIdentifier(), container->getLocalityHint(), buffer));
 
         // Commit subcontainers and files only if not empty otherwise the hmset
         // command will fail
@@ -719,7 +719,7 @@ const
     // @todo (esindril): Could use compression when storing the entries
     file->updateInternal();
     file->serializeToStr(buffer);
-    ah.Register(&qclient, RequestBuilder::writeFileProto(file->getIdentifier(), buffer));
+    ah.Register(&qclient, RequestBuilder::writeFileProto(file->getIdentifier(), file->getLocalityHint(), buffer));
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << file->getId() << " failed to contact backend";
