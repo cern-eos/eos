@@ -1249,8 +1249,10 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
       eos_info("rc=%i, errno=%i", rc, errno);
     }
   } else {
+    XrdOucEnv opaqueEnv;
+    opaqueEnv.PutInt("fsid", fsid);
     std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
-                                 fstPath.c_str()));
+                                 fstPath.c_str(), NULL, NULL, &opaqueEnv));
 
     if (!io) {
       return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
