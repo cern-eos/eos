@@ -887,6 +887,14 @@ Storage::GetNumDeletions()
 }
 
 //------------------------------------------------------------------------------
+// Get the filesystem associated with the given filesystem id
+//------------------------------------------------------------------------------
+FileSystem*
+Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) {
+  return mFileSystemsMap[fsid];
+}
+
+//------------------------------------------------------------------------------
 // Writes file system label files .eosfsid .eosuuid according to config (if
 // they didn't exist!)
 //------------------------------------------------------------------------------

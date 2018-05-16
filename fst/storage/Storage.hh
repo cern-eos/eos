@@ -105,6 +105,16 @@ public:
   size_t GetNumDeletions();
 
   //----------------------------------------------------------------------------
+  //! Get the filesystem associated with the given filesystem id
+  //! or NULL if none could be found
+  //!
+  //! @param fsid filesystem id
+  //!
+  //! @return associated filesystem object or NULL
+  //----------------------------------------------------------------------------
+  FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Open transaction operation for file fid on filesystem fsid
   //!
   //! @param fsid filesystem id
