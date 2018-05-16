@@ -774,7 +774,6 @@ WFE::Job::DoIt(bool issync)
   eos::common::Mapping::VirtualIdentity lRootVid;
   XrdOucErrInfo lError;
   eos::common::Mapping::Root(lRootVid);
-  eos_static_info("queue=\"%s\"", mActions[0].mQueue.c_str());
   int retc = 0;
   time_t storetime = 0;
 
@@ -2280,9 +2279,9 @@ void
 WFE::MoveFromRBackToQ() {
   std::string queries[2];
 
-  for (size_t i = 0; i < 2; ++i) {
-    queries[i] = gOFS->MgmProcWorkflowPath.c_str();
-    queries[i] += "/";
+  for (auto& query : queries) {
+    query = gOFS->MgmProcWorkflowPath.c_str();
+    query += "/";
   }
 
   {
@@ -2303,9 +2302,8 @@ WFE::MoveFromRBackToQ() {
   XrdOucString stdErr;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-  for (size_t i = 0; i < 2; ++i) {
-    eos_static_debug("query-path=%s", queries[i].c_str());
-    gOFS->_find(queries[i].c_str(),
+  for (const auto& query : queries) {
+    gOFS->_find(query.c_str(),
                 errInfo,
                 stdErr,
                 rootvid,
@@ -2327,8 +2325,6 @@ WFE::MoveFromRBackToQ() {
       if (job.Load(wfEntry) == 0) {
         if (!job.IsSync()) {
           job.Move("r", "q", job.mActions[0].mTime);
-        } else {
-          job.Delete("r", job.mActions[0].mSavedOnDay);
         }
       } else {
         eos_static_err("msg=\"cannot load workflow entry during recycling from r queue\" value=\"%s\"", wfEntry.c_str());
