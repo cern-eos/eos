@@ -75,6 +75,11 @@ public:
   //------------------------------------------------------------------------------
   static void prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow = true);
 
+  //------------------------------------------------------------------------------
+  //! Prefetch ContainerMD with children and wait
+  //------------------------------------------------------------------------------
+  static void prefetchContainerMDWithChildrenAndWait(IView *view, const std::string &path, bool follow = true);
+
 private:
   IView           *pView;
   IFileMDSvc      *pFileMDSvc;

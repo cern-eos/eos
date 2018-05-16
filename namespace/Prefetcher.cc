@@ -24,6 +24,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -111,5 +112,31 @@ void Prefetcher::prefetchContainerMDAndWait(IView *view, const std::string &path
   prefetcher.wait();
 }
 
+//------------------------------------------------------------------------------
+//! Prefetch ContainerMD, along with all its children, and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::string &path, bool follow) {
+  if(view->inMemory()) return;
+
+  folly::Future<IContainerMDPtr> fut = view->getContainerFut(path, follow);
+  fut.wait();
+
+  if(fut.hasException()) return;
+
+  IContainerMDPtr cmd = fut.get();
+  Prefetcher prefetcher(view);
+
+  for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+    std::string fpath = SSTR(path << dit.key() << "/");
+    prefetcher.stageContainerMD(fpath, true);
+  }
+
+  for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+    std::string fpath = SSTR(path << dit.key() << "/");
+    prefetcher.stageFileMD(fpath, true);
+  }
+
+  prefetcher.wait();
+}
 
 EOSNSNAMESPACE_END
