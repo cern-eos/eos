@@ -206,6 +206,18 @@ public:
   virtual ~LogId() {}
 
   //----------------------------------------------------------------------------
+  //! Generate log id value
+  //----------------------------------------------------------------------------
+  static std::string GenerateLogId()
+  {
+    char log_id[40];
+    uuid_t uuid;
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid, log_id);
+    return log_id;
+  }
+
+  //----------------------------------------------------------------------------
   //! For calls which are not client initiated this function set's a unique
   //! dummy log id
   //----------------------------------------------------------------------------
@@ -275,7 +287,6 @@ public:
       snprintf(logId, sizeof(logId), "%s", newlogid);
     }
   }
-
 
   char logId[40]; //< the log Id for message printout
   char cident[256]; //< the client identifier
