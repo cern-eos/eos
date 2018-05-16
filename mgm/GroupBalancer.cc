@@ -28,6 +28,7 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -330,6 +331,7 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
   {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
