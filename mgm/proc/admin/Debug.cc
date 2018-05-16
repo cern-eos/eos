@@ -52,17 +52,20 @@ ProcCommand::Debug()
       stdErr = "error: debug level node can only contain one wildcard character (*) !";
       retc = EINVAL;
     } else {
-      if ((debugnode == "*") || (debugnode == "") ||
-          (debugnode == gOFS->MgmOfsQueue)) {
-        // this is for us!
-        int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
-        if (debugval < 0) {
-          stdErr = "error: debug level ";
-          stdErr += debuglevel;
-          stdErr += " is not known!";
-          retc = EINVAL;
-        } else {
+      // always check debug level exists first
+      int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+      if (debugval < 0) {
+        stdErr = "error: debug level ";
+        stdErr += debuglevel;
+        stdErr += " is not known!";
+        retc = EINVAL;
+      } else {
+        if ((debugnode == "*") || (debugnode == "") ||
+            (debugnode == gOFS->MgmOfsQueue)) {
+          // this is for us!
+          int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+
           g_logging.SetLogPriority(debugval);
           stdOut = "success: debug level is now <";
           stdOut += debuglevel.c_str();
@@ -86,55 +89,56 @@ ProcCommand::Debug()
           } else {
             gOFS->ObjectManager.SetDebug(false);
           }
-        }
-      }
-
-      if (debugnode == "*") {
-        debugnode = "/eos/*/fst";
-
-        if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-          stdErr = "error: could not send debug level to nodes mgm.nodename=";
-          stdErr += debugnode;
-          stdErr += "\n";
-          retc = EINVAL;
-        } else {
-          stdOut = "success: switched to mgm.debuglevel=";
-          stdOut += debuglevel;
-          stdOut += " on nodes mgm.nodename=";
-          stdOut += debugnode;
-          stdOut += "\n";
-          eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                     debuglevel.c_str(), debugnode.c_str());
+          
         }
 
-        debugnode = "/eos/*/mgm";
+        if (debugnode == "*") {
+          debugnode = "/eos/*/fst";
 
-        if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-          stdErr += "error: could not send debug level to nodes mgm.nodename=";
-          stdErr += debugnode;
-          retc = EINVAL;
-        } else {
-          stdOut += "success: switched to mgm.debuglevel=";
-          stdOut += debuglevel;
-          stdOut += " on nodes mgm.nodename=";
-          stdOut += debugnode;
-          eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                     debuglevel.c_str(), debugnode.c_str());
-        }
-      } else {
-        if (debugnode != "") {
-          // send to the specified list
           if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
             stdErr = "error: could not send debug level to nodes mgm.nodename=";
             stdErr += debugnode;
+            stdErr += "\n";
             retc = EINVAL;
           } else {
             stdOut = "success: switched to mgm.debuglevel=";
             stdOut += debuglevel;
             stdOut += " on nodes mgm.nodename=";
             stdOut += debugnode;
+            stdOut += "\n";
             eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
                        debuglevel.c_str(), debugnode.c_str());
+          }
+
+          debugnode = "/eos/*/mgm";
+
+          if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+            stdErr += "error: could not send debug level to nodes mgm.nodename=";
+            stdErr += debugnode;
+            retc = EINVAL;
+          } else {
+            stdOut += "success: switched to mgm.debuglevel=";
+            stdOut += debuglevel;
+            stdOut += " on nodes mgm.nodename=";
+            stdOut += debugnode;
+            eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
+                       debuglevel.c_str(), debugnode.c_str());
+          }
+        } else {
+          if (debugnode != "") {
+            // send to the specified list
+            if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+              stdErr = "error: could not send debug level to nodes mgm.nodename=";
+              stdErr += debugnode;
+              retc = EINVAL;
+            } else {
+              stdOut = "success: switched to mgm.debuglevel=";
+              stdOut += debuglevel;
+              stdOut += " on nodes mgm.nodename=";
+              stdOut += debugnode;
+              eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
+                         debuglevel.c_str(), debugnode.c_str());
+            }
           }
         }
       }
