@@ -168,9 +168,7 @@ add_library(EosFstIo-Objects OBJECT
   layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
   layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-  layout/ReedSLayout.cc          layout/ReedSLayout.hh
-
-  Config.cc                      Config.hh)
+  layout/ReedSLayout.cc          layout/ReedSLayout.hh)
 
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
