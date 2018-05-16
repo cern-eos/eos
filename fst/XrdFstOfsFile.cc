@@ -764,14 +764,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  // If we are not the entry server for ReedS & RaidDP layouts we disable the
-  // checksum object for write. If we read we don't check checksums at all since
-  // we have block and parity checking.
-  if (((eos::common::LayoutId::GetLayoutType(lid) ==
-        eos::common::LayoutId::kRaidDP) ||
-       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6) ||
-       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive))
-      && ((!isRW) || (!layOut->IsEntryServer()))) {
+  // If we are not the entry server for RAIN layouts we disable the checksum
+  // object for write. If we read we don't check checksums at all since we
+  // have block and parity checking.
+  if (IsRainLayout(lid) && ((!isRW) || (!layOut->IsEntryServer()))) {
     // This case we need to exclude!
     mCheckSum.reset(nullptr);
   }
@@ -1363,12 +1359,7 @@ XrdFstOfsFile::close()
         }
       }
 
-      if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kRaidDP) ||
-          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kRaid6) ||
-          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kArchive)) {
+      if (IsRainLayout(layOut->GetLayoutId())) {
         // For RAID-like layouts don't do this check
         targetsizeerror = false;
         minimumsizeerror = false;
