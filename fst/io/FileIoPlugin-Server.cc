@@ -22,6 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <fst/XrdFstOfs.hh>
+#include <fst/storage/FileSystem.hh>
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/kinetic/KineticIo.hh"
@@ -42,7 +44,8 @@ using eos::common::LayoutId;
 FileIo*
 FileIoPlugin::GetIoObject(std::string path,
                           XrdFstOfsFile* file,
-                          const XrdSecEntity* client)
+                          const XrdSecEntity* client,
+                          XrdOucEnv* env)
 {
   auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
 
@@ -62,7 +65,25 @@ FileIoPlugin::GetIoObject(std::string path,
     return static_cast<FileIo*>(new RadosIo(path));
   } else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
-    return static_cast<FileIo*>(new DavixIo(path));
+    std::string s3credentials = "";
+    FileSystem *fileSystem;
+
+    // Attempt to retrieve S3 credentials from the file's filesystem
+    if (file) {
+      fileSystem = gOFS.Storage->GetFileSystemById(file->getFileSystemId());
+      s3credentials = fileSystem->GetString("s3credentials");
+    }
+
+    // Attempt to retrieve S3 credentials from the passed-in environment
+    if (s3credentials.empty() && env) {
+      int fsid = env->GetInt("fsid");
+      if (fsid > 0) {
+        fileSystem = gOFS.Storage->GetFileSystemById(fsid);
+        s3credentials = fileSystem->GetString("s3credentials");
+      }
+    }
+
+    return static_cast<FileIo*>(new DavixIo(path, s3credentials));
 #endif
     eos_static_warning("EOS has been compiled without DAVIX support.");
     return NULL;

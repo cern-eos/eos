@@ -22,7 +22,6 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Config.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/davix/DavixIo.hh"
 #include "common/Path.hh"
@@ -53,7 +52,8 @@ std::string getAttrUrl(std::string path)
 // Constructor
 //------------------------------------------------------------------------------
 
-DavixIo::DavixIo(std::string path) : FileIo(path, "DavixIo"),
+DavixIo::DavixIo(std::string path, std::string s3credentials)
+    : FileIo(path, "DavixIo"),
   mDav(&DavixIo::gContext)
 {
   //............................................................................
@@ -85,32 +85,28 @@ DavixIo::DavixIo(std::string path) : FileIo(path, "DavixIo"),
   //............................................................................
   if ((path.substr(0, 3) == "s3:") || (path.substr(0, 4) == "s3s:")) {
     mIsS3 = true;
-    std::string source = "env";
     std::string id = getenv("EOS_FST_S3_ACCESS_KEY") ?
                      getenv("EOS_FST_S3_ACCESS_KEY")  : "";
     std::string key = getenv("EOS_FST_S3_SECRET_KEY") ?
                       getenv("EOS_FST_S3_SECRET_KEY") : "";
 
-    // Retrieve the S3 credentials as follows:
-    // - from the filesystem config
-    // - from environment variables
-    if (Config::gConfig.FstS3Credentials.length()) {
-      std::string s3credentials = Config::gConfig.FstS3Credentials.c_str();
+    // Passed-in credentials take priority over environment provided
+    if (s3credentials.length()) {
       size_t pos = s3credentials.find(':');
 
       id = s3credentials.substr(0, pos);
       key = s3credentials.substr(pos + 1);
-      source = "config";
     }
 
     if (!id.length() || !key.length()) {
       eos_warning("msg=\"s3 configuration missing\" "
-                  "s3-access-key=\"%s\" s3-secret-key=\"%s\" (source=%s)",
-                  id.c_str(), key.c_str(), source.c_str());
+                  "s3-access-key=\"%s\" s3-secret-key=\"%s\"",
+                  id.c_str(), key.c_str());
     } else {
       mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
       eos_debug("s3-access-key=\"%s\" s3-secret-key=\"%s\" (source=%s)",
-                id.c_str(), key.c_str(), source.c_str());
+                id.c_str(), key.c_str(),
+                s3credentials.length() ? "config" : "env");
     }
   } else {
     mIsS3 = false;
