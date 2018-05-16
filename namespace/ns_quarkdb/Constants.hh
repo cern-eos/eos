@@ -49,6 +49,13 @@ static const std::string sLastUsedCid{"last_used_cid"};
 //! Set of orphans files, which are not anymore attached to a container
 //! they were unlinked but not removed yet
 static const std::string sOrphanFiles{"orphan_files"};
+
+
+//! Suffix for container metadata in Redis
+static const std::string sContKeySuffix{":c_bucket"};
+//! Sufix for file metadata in Redis
+static const std::string sFileKeySuffix{":f_bucket"};
+
 }
 
 //! Variable associated with the QuotaView

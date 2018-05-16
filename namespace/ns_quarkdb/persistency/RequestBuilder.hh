@@ -88,6 +88,45 @@ public:
   //! Calculate number of files.
   //----------------------------------------------------------------------------
   static RedisRequest getNumberOfFiles();
+
+  //----------------------------------------------------------------------------
+  //! Get container bucket which is computed as the id of the container modulo
+  //! the number of container buckets.
+  //!
+  //! @param id container id
+  //!
+  //! @return container bucket key
+  //----------------------------------------------------------------------------
+  static std::string getContainerBucketKey(ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Get file bucket which is computed as the id of the container modulo the
+  //! number of file buckets (1M).
+  //!
+  //! @param id file id
+  //!
+  //! @return file bucket key
+  //! Calculate number of files.
+  //----------------------------------------------------------------------------
+  static std::string getFileBucketKey(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Override number of container buckets
+  //----------------------------------------------------------------------------
+  static void OverrideNumberOfContainerBuckets(uint64_t buckets = 128 * 1024) {
+    sNumContBuckets = buckets;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Override number of file buckets
+  //----------------------------------------------------------------------------
+  static void OverrideNumberOfFileBuckets(uint64_t buckets = 128 * 1024) {
+    sNumFileBuckets = buckets;
+  }
+
+  static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
+  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
+
 };
 
 

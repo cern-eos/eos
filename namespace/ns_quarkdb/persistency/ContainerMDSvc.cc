@@ -344,6 +344,19 @@ ContainerMDSvc::getFirstFreeId()
 void
 ContainerMDSvc::ComputeNumberOfContainers()
 {
+  std::string bucket_key("");
+  qclient::AsyncHandler ah;
+
+  for (std::uint64_t i = 0; i < RequestBuilder::sNumContBuckets; ++i) {
+    bucket_key = stringify(i);
+    bucket_key += constants::sContKeySuffix;
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    bucket_map.hlen_async(&ah);
+  }
+
+  (void) ah.Wait();
+  auto resp = ah.GetResponses();
+  mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
   mNumConts += pQcl->execute(RequestBuilder::getNumberOfContainers()).get()->integer;
 }
 

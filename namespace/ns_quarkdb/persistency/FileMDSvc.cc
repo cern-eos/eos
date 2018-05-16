@@ -302,6 +302,21 @@ FileMDSvc::getFirstFreeId()
 void
 FileMDSvc::ComputeNumberOfFiles()
 {
+  std::string bucket_key("");
+  qclient::AsyncHandler ah;
+
+  for (uint64_t i = 0ull; i < RequestBuilder::sNumFileBuckets; ++i) {
+    bucket_key = stringify(i);
+    bucket_key += constants::sFileKeySuffix;
+    qclient::QHash bucket_map(*pQcl, bucket_key);
+    bucket_map.hlen_async(&ah);
+  }
+
+  // Wait for all responses and sum up the results
+  (void) ah.Wait();
+  std::list<long long int> resp = ah.GetResponses();
+  mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
+
   mNumFiles += pQcl->execute(RequestBuilder::getNumberOfFiles()).get()->integer;
 }
 

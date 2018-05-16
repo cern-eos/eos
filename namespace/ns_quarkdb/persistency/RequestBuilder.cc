@@ -28,6 +28,9 @@
 
 EOSNSNAMESPACE_BEGIN
 
+std::uint64_t RequestBuilder::sNumContBuckets = 128 * 1024;
+std::uint64_t RequestBuilder::sNumFileBuckets = 1024 * 1024;
+
 //------------------------------------------------------------------------------
 //! Write container protobuf metadata.
 //------------------------------------------------------------------------------
@@ -47,7 +50,8 @@ RedisRequest
 RequestBuilder::writeContainerProto(ContainerIdentifier id, const std::string &hint, const std::string &blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
-  return { "LHSET", constants::sContainerKey, sid, hint, blob };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHSET-AND-DEL-FALLBACK", constants::sContainerKey, sid, hint, blob, RequestBuilder::getContainerBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -70,7 +74,8 @@ RedisRequest
 RequestBuilder::writeFileProto(FileIdentifier id, const std::string &hint, const std::string &blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
-  return { "LHSET", constants::sFileKey, sid, hint, blob };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHSET-AND-DEL-FALLBACK", constants::sFileKey, sid, hint, blob, RequestBuilder::getFileBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -80,7 +85,8 @@ RedisRequest
 RequestBuilder::readContainerProto(ContainerIdentifier id)
 {
   // TODO(gbitzes): Pass locality hint when available.
-  return { "LHGET", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()) };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHGET-WITH-FALLBACK", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getContainerBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -90,7 +96,8 @@ RedisRequest
 RequestBuilder::readFileProto(FileIdentifier id)
 {
   // TODO(gbitzes): Pass locality hint when available.
-  return { "LHGET", constants::sFileKey, SSTR(id.getUnderlyingUInt64()) };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHGET-WITH-FALLBACK", constants::sFileKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getFileBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -99,7 +106,8 @@ RequestBuilder::readFileProto(FileIdentifier id)
 RedisRequest
 RequestBuilder::deleteContainerProto(ContainerIdentifier id)
 {
-  return { "LHDEL", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()) };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHDEL-WITH-FALLBACK", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getContainerBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -108,7 +116,8 @@ RequestBuilder::deleteContainerProto(ContainerIdentifier id)
 RedisRequest
 RequestBuilder::deleteFileProto(FileIdentifier id)
 {
-  return { "LHDEL", constants::sFileKey, SSTR(id.getUnderlyingUInt64()) };
+  // TODO(gbitzes): Remove compatibility hack eventually.
+  return { "LHDEL-WITH-FALLBACK", constants::sFileKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getFileBucketKey(id) };
 }
 
 //------------------------------------------------------------------------------
@@ -125,6 +134,33 @@ RedisRequest RequestBuilder::getNumberOfContainers()
 RedisRequest RequestBuilder::getNumberOfFiles()
 {
   return { "LHLEN", constants::sFileKey };
+}
+
+//------------------------------------------------------------------------------
+// Get container bucket
+//------------------------------------------------------------------------------
+std::string
+RequestBuilder::getContainerBucketKey(ContainerIdentifier identifier)
+{
+  uint64_t id = identifier.getUnderlyingUInt64();
+  id = id & (sNumContBuckets - 1);
+  std::string bucket_key = stringify(identifier.getUnderlyingUInt64());
+  bucket_key += constants::sContKeySuffix;
+  return bucket_key;
+}
+
+//------------------------------------------------------------------------------
+// Get file bucket
+//! Calculate number of files.
+//------------------------------------------------------------------------------
+std::string
+RequestBuilder::getFileBucketKey(FileIdentifier identifier)
+{
+  uint64_t id = identifier.getUnderlyingUInt64();
+  id = id & (sNumFileBuckets - 1);
+  std::string bucket_key = stringify(identifier.getUnderlyingUInt64());
+  bucket_key += constants::sFileKeySuffix;
+  return bucket_key;
 }
 
 EOSNSNAMESPACE_END

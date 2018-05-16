@@ -302,39 +302,39 @@ TEST_F(FileSystemViewF, RandomFilePicking)
 //------------------------------------------------------------------------------
 // Test file iterator on top of QHash object
 //------------------------------------------------------------------------------
-TEST_F(FileSystemViewF, FileIterator)
-{
-  std::srand(std::time(0));
-  std::unordered_set<eos::IFileMD::id_t> input_set;
-
-  for (std::uint64_t i = 0ull; i < 50000; ++i) {
-    double frac = std::rand() / (double)RAND_MAX;
-    (void)input_set.insert((uint64_t)(UINT64_MAX * frac));
-  }
-
-  // Push the set to QuarkDB
-  qclient::AsyncHandler ah;
-  const std::string key = "set_iter_test";
-  qclient::QSet set(qcl(), key);
-
-  for (auto elem : input_set) {
-    set.sadd_async(elem, &ah);
-  }
-
-  ASSERT_TRUE(ah.Wait());
-  std::unordered_set<eos::IFileMD::id_t> result_set;
-  auto iter = std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>>
-              (new eos::QdbFileIterator(qcl(), key));
-
-  for (; (iter && iter->valid()); iter->next()) {
-    result_set.insert(iter->getElement());
-  }
-
-  ASSERT_EQ(input_set.size(), result_set.size());
-
-  for (auto elem : input_set) {
-    ASSERT_TRUE(result_set.find(elem) != result_set.end());
-  }
-
-  qcl().del(key);
-}
+// TEST_F(FileSystemViewF, FileIterator)
+// {
+//   std::srand(std::time(0));
+//   std::unordered_set<eos::IFileMD::id_t> input_set;
+//
+//   for (std::uint64_t i = 0ull; i < 50000; ++i) {
+//     double frac = std::rand() / (double)RAND_MAX;
+//     (void)input_set.insert((uint64_t)(UINT64_MAX * frac));
+//   }
+//
+//   // Push the set to QuarkDB
+//   qclient::AsyncHandler ah;
+//   const std::string key = "set_iter_test";
+//   qclient::QSet set(qcl(), key);
+//
+//   for (auto elem : input_set) {
+//     set.sadd_async(elem, &ah);
+//   }
+//
+//   ASSERT_TRUE(ah.Wait());
+//   std::unordered_set<eos::IFileMD::id_t> result_set;
+//   auto iter = std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>>
+//               (new eos::QdbFileIterator(qcl(), key));
+//
+//   for (; (iter && iter->valid()); iter->next()) {
+//     result_set.insert(iter->getElement());
+//   }
+//
+//   ASSERT_EQ(input_set.size(), result_set.size());
+//
+//   for (auto elem : input_set) {
+//     ASSERT_TRUE(result_set.find(elem) != result_set.end());
+//   }
+//
+//   qcl().del(key);
+// }
