@@ -144,7 +144,7 @@ RequestBuilder::getContainerBucketKey(ContainerIdentifier identifier)
 {
   uint64_t id = identifier.getUnderlyingUInt64();
   id = id & (sNumContBuckets - 1);
-  std::string bucket_key = stringify(identifier.getUnderlyingUInt64());
+  std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
   return bucket_key;
 }
@@ -158,7 +158,7 @@ RequestBuilder::getFileBucketKey(FileIdentifier identifier)
 {
   uint64_t id = identifier.getUnderlyingUInt64();
   id = id & (sNumFileBuckets - 1);
-  std::string bucket_key = stringify(identifier.getUnderlyingUInt64());
+  std::string bucket_key = stringify(id);
   bucket_key += constants::sFileKeySuffix;
   return bucket_key;
 }
