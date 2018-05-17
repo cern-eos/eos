@@ -519,7 +519,7 @@ Storage::Boot(FileSystem* fs)
     transactionDirectory = mMetaDir.c_str();
     transactionDirectory += "/.eostransaction";
     transactionDirectory += "-";
-    transactionDirectory += (int) fs->GetId();
+    transactionDirectory += std::to_string(fs->GetId());
   } else {
     transactionDirectory += "/.eostransaction";
   }
