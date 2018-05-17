@@ -162,6 +162,7 @@ DavixIo::SetErrno(int errcode, Davix::DavixError* err, bool free_error)
 
   if (!err) {
     errno = EIO;
+    return -1;
   }
 
   switch (err->getStatus()) {
