@@ -2349,23 +2349,6 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // Also trigger synchronous open-write workflow event if it's defined
-  if(isRW) {
-    errno = 0;
-    workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
-    auto ret_wfe = workflow.Trigger("sync::openw", std::string{workflowType}, vid);
-    if (ret_wfe  < 0 && errno == ENOKEY) {
-      eos_info("msg=\"no workflow defined for sync::openw\"");
-    } else {
-      eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-      if (ret_wfe != 0) {
-        // Error from the workflow
-        rcode = Emsg(epname, error, ret_wfe, "open - synchronous openw workflow error", path);
-      }
-    }
-  }
-
   // add workflow cgis, has to come after create workflow
   workflow.SetFile(path, fileId);
   if (isRW) {

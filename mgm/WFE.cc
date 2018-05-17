@@ -1823,22 +1823,6 @@ WFE::Job::DoIt(bool issync)
             MoveWithResults(SFS_OK);
             return SFS_OK;
           }
-        } else if (event == "sync::openw" || event == "openw") {
-          collectAttributes();
-
-          {
-            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
-          }
-
-          notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
-          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
-          notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->set_fid(mFid);
-
-          std::string errorMsg;
-          return SendProtoWFRequest(this, fullPath, request, errorMsg);
         } else if (event == "sync::create" || event == "create") {
           collectAttributes();
 
