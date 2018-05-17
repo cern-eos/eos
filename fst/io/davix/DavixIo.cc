@@ -469,10 +469,11 @@ DavixIo::fileRemove(uint16_t timeout)
   eos_debug("");
   Davix::DavixError* err1 = 0;
   Davix::DavixError* err2 = 0;
-  int rc = mDav.unlink(&mParams, mFilePath, &err1);
+  // remove xattr file (errors are ignored)
+  int rc = mDav.unlink(&mParams, mAttrUrl, &err1);
   SetErrno(rc, err1);
-  // ignore xattr errors
-  mDav.unlink(&mParams, mAttrUrl, &err2);
+  // remove file and return error code
+  rc = mDav.unlink(&mParams, mFilePath, &err2);
   return SetErrno(rc, err2);
 }
 
