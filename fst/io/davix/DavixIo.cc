@@ -211,6 +211,25 @@ DavixIo::SetErrno(int errcode, Davix::DavixError* err, bool free_error)
   return -1;
 }
 
+
+//------------------------------------------------------------------------------
+// Returns the s3 credentials in-use by this davix client
+//------------------------------------------------------------------------------
+
+std::string
+DavixIo::RetrieveS3Credentials()
+{
+  std::string credentials = "";
+
+  if (mIsS3) {
+    pair<Davix::AwsSecretKey, Davix::AwsAccessKey>
+        credPair = mParams.getAwsAutorizationKeys();
+    credentials = credPair.second + ":" + credPair.first;
+  }
+
+  return credentials;
+}
+
 //----------------------------------------------------------------------------
 // Open file
 //----------------------------------------------------------------------------
@@ -552,7 +571,7 @@ DavixIo::Download(std::string url, std::string& download)
   eos_static_debug("");
   errno = 0;
   static int s_blocksize = 65536;
-  DavixIo io(url.c_str());
+  DavixIo io(url.c_str(), DavixIo::RetrieveS3Credentials());
   off_t offset = 0;
   std::string opaque;
 
@@ -593,7 +612,7 @@ DavixIo::Upload(std::string url, std::string& upload)
 {
   eos_static_debug("");
   errno = 0;
-  DavixIo io(url.c_str());
+  DavixIo io(url.c_str(), DavixIo::RetrieveS3Credentials());
   std::string opaque;
   int rc = 0;
   io.fileRemove();
