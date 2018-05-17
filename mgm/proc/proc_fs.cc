@@ -341,7 +341,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           (((key == "headroom") || (key == "scaninterval") ||
             (key == "graceperiod") || (key == "drainperiod") ||
             (key == "proxygroup") || (key == "filestickyproxydepth") ||
-            (key == "forcegeotag") || (key == "s3credentials")))) {
+            (key == "forcegeotag") || (key == "s3credentials") ||
+            (key == "logicalpath")))) {
         // Check permissions
         size_t dpos = 0;
         std::string nodename = fs->GetString("host");
@@ -430,6 +431,23 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           }
 
           fs->SetString(key.c_str(), value.c_str());
+          FsView::gFsView.StoreFsConfig(fs);
+        } else if (key == "logicalpath") {
+          int useLogicalPath;
+          // Parse the option value
+          if (value == "True" || value == "true" || value == "1") {
+            useLogicalPath = 1;
+          } else if (value == "False" || value == "false" || value == "0") {
+            useLogicalPath = 0;
+          } else {
+            stdErr += "error: invalid parameter <";
+            stdErr += key.c_str();
+            stdErr += ">";
+            retc = EINVAL;
+            return retc;
+          }
+
+          fs->SetLongLong(key.c_str(), useLogicalPath);
           FsView::gFsView.StoreFsConfig(fs);
         } else {
           // Other proxy* key set
