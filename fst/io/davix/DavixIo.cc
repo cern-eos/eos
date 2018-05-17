@@ -146,26 +146,26 @@ DavixIo::~DavixIo()
 //------------------------------------------------------------------------------
 
 int
-DavixIo::SetErrno(int errcode, Davix::DavixError* err, bool free_error)
+DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
 {
   eos_debug("");
 
   if (errcode == 0) {
     errno = 0;
 
-    if (free_error && err) {
-      Davix::DavixError::clearError(&err);
+    if (free_error && err && *err) {
+      Davix::DavixError::clearError(err);
     }
 
     return 0;
   }
 
-  if (!err) {
+  if (!err || !*err) {
     errno = EIO;
     return -1;
   }
 
-  switch (err->getStatus()) {
+  switch ((*err)->getStatus()) {
   case Davix::StatusCode::OK:
     errno = EIO;
     break;
@@ -205,8 +205,8 @@ DavixIo::SetErrno(int errcode, Davix::DavixError* err, bool free_error)
     errno = EIO;
   }
 
-  if (free_error && err) {
-    Davix::DavixError::clearError(&err);
+  if (free_error) {
+    Davix::DavixError::clearError(err);
   }
 
   return -1;
@@ -283,7 +283,7 @@ DavixIo::fileOpen(
     return 0;
   }
 
-  int rc = SetErrno(-1, err, false);
+  int rc = SetErrno(-1, &err, false);
 
   if (errno != ENOENT) {
     eos_err("url=\"%s\" msg=\"%s\" errno=%d ", mFilePath.c_str(),
@@ -324,7 +324,7 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
 
   if (-1 == retval) {
     eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
-    return SetErrno(-1, err);
+    return SetErrno(-1, &err);
   }
 
   if (retval != length) {
@@ -363,7 +363,7 @@ DavixIo::fileWrite(XrdSfsFileOffset offset,
 
   if (-1 == retval) {
     eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
-    return SetErrno(-1, err);
+    return SetErrno(-1, &err);
   }
 
   seq_offset += length;
@@ -413,7 +413,7 @@ DavixIo::fileClose(uint16_t timeout)
 
   if (-1 == retval) {
     eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
-    return SetErrno(-1, err);
+    return SetErrno(-1, &err);
   }
 
   return retval;
@@ -454,7 +454,7 @@ DavixIo::fileStat(struct stat* buf, uint16_t timeout)
 
   if (-1 == result) {
     eos_info("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
-    return SetErrno(-1, err);
+    return SetErrno(-1, &err);
   }
 
   return result;
@@ -472,10 +472,10 @@ DavixIo::fileRemove(uint16_t timeout)
   Davix::DavixError* err2 = 0;
   // remove xattr file (errors are ignored)
   int rc = mDav.unlink(&mParams, mAttrUrl, &err1);
-  SetErrno(rc, err1);
+  SetErrno(rc, &err1);
   // remove file and return error code
   rc = mDav.unlink(&mParams, mFilePath, &err2);
-  return SetErrno(rc, err2);
+  return SetErrno(rc, &err2);
 }
 
 //------------------------------------------------------------------------------
@@ -493,7 +493,7 @@ DavixIo::fileExists()
 
   if (-1 == result) {
     eos_info("url=\"%s\" msg=\"%s\"", url.c_str(), err->getErrMsg().c_str());
-    return SetErrno(-1, err);
+    return SetErrno(-1, &err);
   }
 
   return result;
@@ -511,7 +511,7 @@ DavixIo::fileDelete(const char* path)
   Davix::DavixError* err = 0;
   std::string davpath = path;
   int rc = mDav.unlink(&mParams, davpath.c_str(), &err);
-  return SetErrno(rc, err);
+  return SetErrno(rc, &err);
 }
 
 //--------------------------------------------------------------------------
@@ -526,7 +526,7 @@ DavixIo::Mkdir(const char* path, mode_t mode)
   Davix::DavixError* err = 0;
   XrdOucString davpath = path;
   int rc = mDav.mkdir(&mParams, davpath.c_str(), mode, &err);
-  return SetErrno(rc, err);
+  return SetErrno(rc, &err);
 }
 
 //--------------------------------------------------------------------------
@@ -538,7 +538,7 @@ DavixIo::Rmdir(const char* path)
 {
   eos_debug("");
   Davix::DavixError* err = 0;
-  return SetErrno(mDav.rmdir(&mParams, path, &err), err);
+  return SetErrno(mDav.rmdir(&mParams, path, &err), &err);
 }
 
 
