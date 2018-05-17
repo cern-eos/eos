@@ -137,21 +137,23 @@ private:
   //! Build TPC source url
   //!
   //! @param fdrain file to be drained info
-  //! @param fs source file system snapshot
+  //! @param log_id transfer log id
   //!
   //! @return XrdCl source URL
   //----------------------------------------------------------------------------
-  XrdCl::URL BuildTpcSrc(const FileDrainInfo& fdrain);
+  XrdCl::URL BuildTpcSrc(const FileDrainInfo& fdrain,
+                         const std::string& log_id);
 
   //----------------------------------------------------------------------------
   //! Build TPC destination url
   //!
   //! @param fdrain file to be drained info
-  //! @param fs source file system snapshot
+  //! @param log_id transfer log id
   //!
   //! @return XrdCl destination URL
   //----------------------------------------------------------------------------
-  XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain);
+  XrdCl::URL BuildTpcDst(const FileDrainInfo& fdrain,
+                         const std::string& log_id);
 
   //----------------------------------------------------------------------------
   //! Select destiantion file system for current transfer

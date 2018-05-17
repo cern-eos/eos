@@ -2340,31 +2340,35 @@ FsView::HeartBeatCheck()
 //------------------------------------------------------------------------------
 // Check if centralized draining is to be used for the given file system
 //------------------------------------------------------------------------------
-int
-FsView::UseCentralDraining(FileSystem* fs)
+FsView::DrainType
+FsView::GetDrainType(FileSystem* fs, bool activated)
 {
-  eos::common::FileSystem::fs_snapshot_t snapshot;
+  if (activated) {
+    eos::common::FileSystem::fs_snapshot_t snapshot;
 
-  if (fs->SnapShotFileSystem(snapshot)) {
-    auto it = mSpaceView.find(snapshot.mSpace);
+    if (fs->SnapShotFileSystem(snapshot)) {
+      auto it = mSpaceView.find(snapshot.mSpace);
 
-    if (it == mSpaceView.end()) {
-      eos_crit("fsid=%lu attached to unknown space=%s", snapshot.mId,
-               snapshot.mSpace.c_str());
-      return -1;
+      if (it == mSpaceView.end()) {
+        eos_crit("fsid=%lu attached to unknown space=%s", snapshot.mId,
+                 snapshot.mSpace.c_str());
+        return DrainType::Unknown;
+      }
+
+      FsSpace* space = it->second;
+
+      // Check if space has centralized draining enabled
+      if (space->GetConfigMember("drainer.central") == "on") {
+        return DrainType::Central;
+      }
+
+      return DrainType::Distributed;
+    } else {
+      eos_err("failed to take file system snapshot");
+      return DrainType::Unknown;
     }
-
-    FsSpace* space = it->second;
-
-    // Check if space has centralized draining enabled
-    if (space->GetConfigMember("drainer.central") == "on") {
-      return 1;
-    }
-
-    return 0;
   } else {
-    eos_err("failed to take file system snapshot");
-    return -1;
+    return DrainType::Unknown;
   }
 }
 
@@ -4150,6 +4154,25 @@ FsSpace::ResetDraining()
                         fs->GetString("stat.drainer").c_str());
       }
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+// @note This method and its associated functionality should be dropped one
+// we remove the distributed draining
+//
+// Reapply the status of the file system to trigger eventually the draining
+//------------------------------------------------------------------------------
+void
+FsView::ReapplyConfigStatus()
+{
+  eos_info("reapplying config status");
+  eos::common::RWMutexReadLock view_rd_lock(ViewMutex);
+
+  for (auto it = mIdView.cbegin(); it != mIdView.cend(); ++it) {
+    auto fs = it->second;
+    auto cfg_status = fs->GetConfigStatus();
+    fs->SetConfigStatus(cfg_status);
   }
 }
 

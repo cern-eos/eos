@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "mgm/FileSystem.hh"
+#include "mgm/FsView.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Master.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -90,13 +93,17 @@ FileSystem::StopDrainJob()
 // the draining.
 //----------------------------------------------------------------------------
 bool
-FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
-                            bool centraldrain)
+FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
 {
-  if (!centraldrain) {
-    eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
+  using eos::mgm::FsView;
+  FsView::DrainType dt =
+    FsView::gFsView.GetDrainType(this, gOFS->MasterPtr->IsActivated());
+  eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
 
-    if ((isstatus == kDrainDead) || (isstatus == kDrain)) {
+  if (dt == FsView::DrainType::Distributed) {
+    eos_static_info("fsid=%d, distributed drain type", GetId());
+
+    if ((old_status == kDrainDead) || (old_status == kDrain)) {
       // Stop draining
       XrdSysMutexHelper scop_lock(mDrainJobMutex);
 
@@ -107,7 +114,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
       }
     }
 
-    if ((status == kDrain) || (status == kDrainDead)) {
+    if ((new_status == kDrain) || (new_status == kDrainDead)) {
       // Create a drain job
       XrdSysMutexHelper scope_lock(mDrainJobMutex);
 
@@ -123,16 +130,39 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
         // this is a filesystem on a ro-slave MGM e.g. it does not drain
       }
     } else {
-      if (status == kEmpty) {
+      if (new_status == kEmpty) {
         SetDrainStatus(eos::common::FileSystem::kDrained);
         SetLongLong("stat.drainprogress", 100);
       } else {
         SetDrainStatus(eos::common::FileSystem::kNoDrain);
       }
     }
+  } else if (dt == FsView::DrainType::Central) {
+    eos_static_info("fsid=%d, centralized drain type", GetId());
+    int drain_tx = IsDrainTransition(old_status, new_status);
+
+    if (drain_tx) {
+      XrdOucString err_msg;
+
+      if (drain_tx > 0) {
+        bool force = (drain_tx == 2);
+
+        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, err_msg, force)) {
+          eos_static_err("%s", err_msg.c_str());
+          return false;
+        }
+      } else if (drain_tx < 0) {
+        if (!gOFS->mDrainEngine.StopFsDrain(this, err_msg)) {
+          eos_static_err("%s", err_msg.c_str());
+          return false;
+        }
+      }
+    }
+  } else {
+    eos_static_info("fsid=%d, unknown drain type", GetId());
   }
 
-  std::string val = eos::common::FileSystem::GetConfigStatusAsString(status);
+  std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
   return eos::common::FileSystem::SetString("configstatus", val.c_str());
 }
 
@@ -171,27 +201,37 @@ FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
                               old_status,
                               const eos::common::FileSystem::fsstatus_t new_status)
 {
-  if (((old_status != eos::common::FileSystem::kDrain) &&
-       (old_status != eos::common::FileSystem::kDrainDead)) &&
-      ((new_status == eos::common::FileSystem::kDrain) ||
-       (new_status == eos::common::FileSystem::kDrainDead))) {
+  using eos::common::FileSystem;
+
+  // Enable draining
+  if (((old_status != FileSystem::kDrain) &&
+       (old_status != FileSystem::kDrainDead) &&
+       (new_status == FileSystem::kDrain)) ||
+      ((old_status == FileSystem::kDrain) &&
+       (old_status == new_status))) {
     return 1;
   }
 
-  if (((old_status == eos::common::FileSystem::kDrain) ||
-       (old_status == eos::common::FileSystem::kDrainDead)) &&
-      ((new_status != eos::common::FileSystem::kDrain) &&
-       (new_status != eos::common::FileSystem::kDrainDead))) {
-    return -1;
-  }
-
-  if (((old_status == eos::common::FileSystem::kDrain) &&
-       (new_status == eos::common::FileSystem::kDrainDead)) ||
-      ((old_status == eos::common::FileSystem::kDrain) &&
-       (new_status == eos::common::FileSystem::kDrainDead))) {
+  // Enable forced draining
+  if (((old_status != FileSystem::kDrain) &&
+       (old_status != FileSystem::kDrainDead) &&
+       (new_status == FileSystem::kDrainDead)) ||
+      ((old_status == FileSystem::kDrainDead) &&
+       (old_status == new_status)) ||
+      ((old_status == FileSystem::kDrain) &&
+       (new_status == FileSystem::kDrainDead))) {
     return 2;
   }
 
+  // Stop draining
+  if (((old_status == FileSystem::kDrain) ||
+       (old_status == FileSystem::kDrainDead)) &&
+      ((new_status != FileSystem::kDrain) &&
+       (new_status != FileSystem::kDrainDead))) {
+    return -1;
+  }
+
+  // Not a drain transition
   return 0;
 }
 

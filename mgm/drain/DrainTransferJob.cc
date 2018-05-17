@@ -70,8 +70,9 @@ DrainTransferJob::DoIt()
   }
 
   // Prepare the TPC copy job
-  XrdCl::URL url_src = BuildTpcSrc(fdrain);
-  XrdCl::URL url_dst = BuildTpcDst(fdrain);
+  std::string log_id = LogId::GenerateLogId();
+  XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
+  XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
   if (!url_src.IsValid() || !url_dst.IsValid()) {
     eos_err("msg=\"src/dst drain url is not valid\"");
@@ -179,7 +180,8 @@ DrainTransferJob::GetFileInfo() const
 // Build TPC source url
 //------------------------------------------------------------------------------
 XrdCl::URL
-DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain)
+DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
+                              const std::string& log_id)
 {
   using eos::common::LayoutId;
   XrdCl::URL url_src;
@@ -291,12 +293,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain)
     url_src.SetHostName(gOFS->MgmOfsAlias.c_str());
     url_src.SetPort(gOFS->ManagerPort);
     src_cap << output_cap->Env(cap_len)
+            << "&mgm.logid=" << log_id
             << "&eos.pio.action=reconstruct"
             << "&eos.pio.recfs=" << mFsIdSource;
   } else {
     url_src.SetHostName(src_snapshot.mHost.c_str());
     url_src.SetPort(stoi(src_snapshot.mPort));
     src_cap << output_cap->Env(cap_len)
+            << "&mgm.logid=" << log_id
             << "&source.url=root://" << src_snapshot.mHostPort.c_str()
             << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
   }
@@ -313,7 +317,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain)
 // Build TPC destination url
 //------------------------------------------------------------------------------
 XrdCl::URL
-DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain)
+DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
+                              const std::string& log_id)
 {
   using eos::common::LayoutId;
   XrdCl::URL url_dst;
@@ -406,28 +411,18 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain)
   }
 
   int cap_len = 0;
-  std::ostringstream dst_cap;
-
-  if (rain_reconstruct) {
-    dst_cap << output_cap->Env(cap_len);
-  } else {
-    dst_cap << output_cap->Env(cap_len)
-            << "&target.url=root://" << dst_snapshot.mHostPort.c_str()
-            << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
-  }
-
+  std::ostringstream oss_cap;
+  oss_cap << output_cap->Env(cap_len)
+          << "&mgm.logid=" << log_id;
   url_dst.SetProtocol("root");
   url_dst.SetHostName(dst_snapshot.mHost.c_str());
   url_dst.SetPort(stoi(dst_snapshot.mPort));
   url_dst.SetUserName("daemon");
-  url_dst.SetParams(dst_cap.str());
-
-  if (rain_reconstruct) {
-    url_dst.SetPath("/replicate:0");
-  } else {
-    url_dst.SetPath(fdrain.mFullPath);
-  }
-
+  url_dst.SetParams(oss_cap.str());
+  std::ostringstream oss_path;
+  oss_path << "/replicate:"
+           << (rain_reconstruct ? "0" : eos::common::FileId::Fid2Hex(mFileId));
+  url_dst.SetPath(oss_path.str());
   delete output_cap;
   return url_dst;
 }

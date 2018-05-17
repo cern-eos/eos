@@ -730,6 +730,9 @@ public:
 class FsView : public eos::common::LogId
 {
 public:
+  //! Central draining status
+  enum class DrainType {Central, Distributed, Unknown};
+
   //! Static singleton object hosting the filesystem view object
   static FsView gFsView;
   static IConfigEngine* sConfEngine;
@@ -1007,15 +1010,22 @@ public:
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Check if centralized draining is to be used for the given file system
+  //! Get type of draining for given file system
   //!
   //! @param fs file system object
+  //! @param activated true if all config loaded, otherwise false
   //!
-  //! @return 1 if central draining is enabled
-  //          0 if central draining is diabled (used distributed draining)
-  //         -1 if encountered critical error
+  //! @return DrainType value
   //----------------------------------------------------------------------------
-  int UseCentralDraining(FileSystem* fs);
+  DrainType GetDrainType(FileSystem* fs, bool activated);
+
+  //----------------------------------------------------------------------------
+  //! @note This method and its associated functionality should be dropped one
+  //! we remove the distributed draining
+  //!
+  //! Reapply the status of the file system to trigger eventually the draining
+  //----------------------------------------------------------------------------
+  void ReapplyConfigStatus();
 
 private:
   pthread_t hbthread; ///< Thread ID of the heartbeat thread

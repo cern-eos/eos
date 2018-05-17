@@ -117,12 +117,10 @@ public:
   //! @note Must be called wiht a lock on FsView::ViewMutex
   //!
   //! @param status file system status
-  //! @param bool centraldrain - to be dropped
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status,
-                       bool centraldrain = false);
+  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status);
 
   //----------------------------------------------------------------------------
   //! Set a 'key' describing the filesystem

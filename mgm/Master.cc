@@ -51,9 +51,9 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Master::Master()
+Master::Master():
+  fActivated(false)
 {
-  fActivated = false;
   fRemoteMasterOk = true;
   fRemoteMqOk = true;
   fRemoteMasterRW = false;
@@ -994,7 +994,7 @@ Master::PrintOut(XrdOucString& out)
   out += " config=";
   out += gOFS->MgmConfigAutoLoad.c_str();
 
-  if (fActivated) {
+  if (fActivated.load()) {
     out += " active=true";
   } else {
     out += " active=false";
@@ -1062,7 +1062,7 @@ Master::ApplyMasterConfig(XrdOucString& stdOut, XrdOucString& stdErr,
 bool
 Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
 {
-  fActivated = false;
+  fActivated.store(false);
 
   // Change the configuration directory
   if (fMasterHost == fThisHost) {
@@ -1137,7 +1137,14 @@ Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
     }
   }
 
-  fActivated = true;
+  fActivated.store(true);
+
+  // Reapply the fs configstatus to start eventually the draining given the
+  // space config
+  if (transitiontype == Transition::Type::kMasterToMaster) {
+    FsView::gFsView.ReapplyConfigStatus();
+  }
+
   return true;
 }
 

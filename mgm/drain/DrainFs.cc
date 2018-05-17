@@ -192,7 +192,7 @@ DrainFs::CompleteDrain()
       if (!gOFS->Shutdown) {
         // If drain done and the system is not shutting down then set the
         // file system to "empty" state
-        fs->SetConfigStatus(eos::common::FileSystem::kEmpty, true);
+        fs->SetConfigStatus(eos::common::FileSystem::kEmpty);
         fs->SetLongLong("stat.drainprogress", 100);
         FsView::gFsView.StoreFsConfig(fs);
       }
@@ -228,7 +228,7 @@ DrainFs::Stop()
     if (fs) {
       mStatus = eos::common::FileSystem::kNoDrain;
       fs->OpenTransaction();
-      fs->SetConfigStatus(eos::common::FileSystem::kRW, true);
+      fs->SetConfigStatus(eos::common::FileSystem::kRW);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
       fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
@@ -362,7 +362,8 @@ DrainFs::UpdateProgress()
   static seconds stall_timeout(600);
   static uint64_t old_num_to_drain = 0;
   static time_point<steady_clock> last_change = steady_clock::now();
-  uint64_t num_to_drain = mJobsPending.size() + mJobsFailed.size();
+  uint64_t num_to_drain = mJobsPending.size() + mJobsFailed.size() +
+                          mJobsRunning.size();
   bool expired = false;
   auto now = steady_clock::now();
 
@@ -433,8 +434,7 @@ DrainFs::UpdateProgress()
     uint64_t progress = 100u;
 
     if (mTotalFiles) {
-      progress = 100.0 * (mTotalFiles - num_to_drain - mJobsRunning.size()) /
-                 mTotalFiles;
+      progress = 100.0 * (mTotalFiles - num_to_drain) / mTotalFiles;
     }
 
     fs->SetLongLong("stat.drainprogress", progress, false);
@@ -475,7 +475,7 @@ DrainFs::UpdateProgress()
     }
   }
 
-  if (num_to_drain + mJobsRunning.size() == 0) {
+  if (num_to_drain == 0) {
     CompleteDrain();
     return State::Done;
   }

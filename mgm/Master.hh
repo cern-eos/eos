@@ -29,6 +29,7 @@
 #include "mgm/Namespace.hh"
 #include "namespace/utils/Locking.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include <atomic>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -98,6 +99,14 @@ public:
   //! Show the current compacting state
   //----------------------------------------------------------------------------
   void PrintOutCompacting(XrdOucString& out);
+
+  //----------------------------------------------------------------------------
+  //! Is master activated
+  //----------------------------------------------------------------------------
+  inline bool IsActivated() const
+  {
+    return fActivated.load();
+  }
 
   //----------------------------------------------------------------------------
   //! Enable remote check
@@ -278,7 +287,7 @@ private:
   bool fRemoteMasterRW;
   bool fRemoteMqOk; ///< flag indicates if the remote mq is up
   bool fCheckRemote; ///< indicate if we check the remote host status
-  bool fActivated; ///< flag indicating if the activation worked
+  std::atomic<bool> fActivated; ///< flag indicating if the activation worked
   bool fRemoteMasterOk; ///< flag indicating if the remote master is up
   bool fCompactFiles; ///< compact the files changelog file if true
   bool fCompactDirectories; ///< compact the directories changelog file if true

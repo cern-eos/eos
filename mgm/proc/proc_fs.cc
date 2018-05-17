@@ -370,8 +370,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           auto new_status = eos::common::FileSystem::GetConfigStatusFromString(
                               value.c_str());
 
+          // Nothing to do
           if (!FileSystem::IsConfigTransition(old_status, new_status)) {
-            // nothing to do
+            eos_static_info("msg=\"fsid=%d already in the desired state\"", fsid);
             return 0;
           }
 
@@ -403,32 +404,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             }
           }
 
-          int drain_tx = FileSystem::IsDrainTransition(old_status, new_status);
-
-          if (FsView::gFsView.UseCentralDraining(fs)) {
-            // Centralized draining
-            if (drain_tx > 0) {
-              bool force = (drain_tx == 2);
-
-              if (!gOFS->mDrainEngine.StartFsDrain(fs, 0, stdErr, force)) {
-                retc = EINVAL;
-                return retc;
-              }
-            } else if (drain_tx < 0) {
-              if (!gOFS->mDrainEngine.StopFsDrain(fs, stdErr)) {
-                retc = EINVAL;
-                return retc;
-              }
-            }
-
-            if (!fs->SetConfigStatus(new_status, true)) {
-              stdErr = "error: failed to set new config status";
-              retc = EINVAL;
-              return retc;
-            }
-          } else {
-            // Distributed draining or simple change of status
-            fs->SetString(key.c_str(), value.c_str());
+          if (!fs->SetString(key.c_str(), value.c_str())) {
+            retc = EINVAL;
+            return retc;
           }
 
           FsView::gFsView.StoreFsConfig(fs);
