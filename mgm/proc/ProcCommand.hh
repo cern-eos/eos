@@ -181,12 +181,12 @@ public:
   int Cd();
   int Chmod();
   int DirInfo(const char* path);
-  int DirJSON(uint64_t id, Json::Value* json);
+  int DirJSON(uint64_t id, Json::Value* json, bool dolock=true);
   int Find();
   int File();
   int Fileinfo();
   int FileInfo(const char* path);
-  int FileJSON(uint64_t id, Json::Value* json);
+  int FileJSON(uint64_t id, Json::Value* json, bool dolock=true);
   int Fuse();
   int FuseX();
   int Ls();

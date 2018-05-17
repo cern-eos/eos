@@ -1024,7 +1024,7 @@ ProcCommand::DirInfo(const char* path)
 // File info in JSON format
 //------------------------------------------------------------------------------
 int
-ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
+ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   std::string fullpath;
   eos::IFileMD::ctime_t ctime;
@@ -1035,12 +1035,14 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-    gOFS->eosViewRWMutex.LockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.LockRead();
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
     fullpath = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
-    gOFS->eosViewRWMutex.UnLockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.UnLockRead();
     // TODO (esindril): All this copying should be reviewed
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
@@ -1147,7 +1149,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
     json["etag"] = etag;
     json["path"] = fullpath;
   } catch (eos::MDException& e) {
-    gOFS->eosViewRWMutex.UnLockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.UnLockRead();
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
@@ -1171,7 +1174,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json)
 // Get directory info in JSON format
 //------------------------------------------------------------------------------
 int
-ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
+ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   std::string fullpath;
   eos::IFileMD::ctime_t ctime;
@@ -1182,7 +1185,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
   json["id"] = (Json::Value::UInt64)fid;
 
   try {
-    gOFS->eosViewRWMutex.LockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.LockRead();
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(fid);
     fullpath = gOFS->eosView->getUri(cmd.get());
@@ -1212,7 +1216,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
       for (auto it = FileMapIterator(cmd); it.valid(); it.next()) {
         std::shared_ptr<IFileMD> fmd = cmd->findFile(it.key());
         Json::Value fjson;
-        FileJSON(fmd->getId(), &fjson);
+        FileJSON(fmd->getId(), &fjson, false);
         chld.append(fjson);
       }
 
@@ -1220,7 +1224,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
       for (auto dit = ContainerMapIterator(cmd); dit.valid(); dit.next()) {
         Json::Value djson;
         std::shared_ptr<IContainerMD> dmd = cmd->findContainer(dit.key());
-        DirJSON(dmd->getId(), &djson);
+        DirJSON(dmd->getId(), &djson, false);
         chld.append(djson);
       }
     }
@@ -1252,9 +1256,11 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json)
     etag = setag;
     json["etag"] = etag;
     json["path"] = fullpath;
-    gOFS->eosViewRWMutex.UnLockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.UnLockRead();
   } catch (eos::MDException& e) {
-    gOFS->eosViewRWMutex.UnLockRead();
+    if (dolock)
+      gOFS->eosViewRWMutex.UnLockRead();
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
