@@ -398,13 +398,13 @@ protected:
   bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
   //! Indicates the workflow to be triggered by an event
   XrdOucString mEventWorkflow;
-  bool syncEventOnClose; //! indicator to send a specified event to the mgm on close
-  std::string eventInstance;
-  std::string eventOwner;
-  std::string eventOwnerGroup;
-  std::string eventRequestor;
-  std::string eventRequestorGroup;
-  std::string eventAttributes;
+  bool mSyncEventOnClose; //! indicator to send a specified event to the mgm on close
+  std::string mEventInstance;
+  std::string mEventOwner;
+  std::string mEventOwnerGroup;
+  std::string mEventRequestor;
+  std::string mEventRequestorGroup;
+  std::string mEventAttributes;
 
   enum {
     kOfsIoError = 1, //! generic IO error

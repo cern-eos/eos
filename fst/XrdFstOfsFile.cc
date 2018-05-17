@@ -58,7 +58,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
   isCreation(false), isReplication(false), mIsInjection(false),
   mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
-  commitReconstruction(false), mEventOnClose(false), syncEventOnClose(false), mEventWorkflow(""),
+  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""), mSyncEventOnClose(false),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
   fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
@@ -1897,7 +1897,7 @@ XrdFstOfsFile::close()
     }
   }
 
-  if (!rc && (mEventOnClose || syncEventOnClose) && layOut->IsEntryServer()) {
+  if (!rc && (mEventOnClose || mSyncEventOnClose) && layOut->IsEntryServer()) {
     //trigger an MGM event if asked from the entry point
     XrdOucString capOpaqueFile = "";
     XrdOucString eventType = "";
@@ -1912,21 +1912,21 @@ XrdFstOfsFile::close()
     }
 
     if (isRW) {
-      eventType = syncEventOnClose ? "sync::closew" : "closew";
+      eventType = mSyncEventOnClose ? "sync::closew" : "closew";
     } else {
       eventType = "closer";
     }
 
-    if (syncEventOnClose) {
+    if (mSyncEventOnClose) {
       std::string decodedAttributes;
-      eos::common::SymKey::Base64Decode(eventAttributes.c_str(), decodedAttributes);
+      eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
       std::map<std::string, std::string> attributes;
       eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(), attributes,
                                                     eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
                                                     eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
 
-      rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, eventOwner, eventOwnerGroup, eventRequestor, eventRequestorGroup,
-                                      eventInstance, capOpaque->Get("mgm.path"), attributes);
+      rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup, mEventRequestor, mEventRequestorGroup,
+                                      mEventInstance, mCapOpaque->Get("mgm.path"), attributes);
 
       if (rc == SFS_OK) {
         return rc;
@@ -1954,7 +1954,7 @@ XrdFstOfsFile::close()
     eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
              mEventWorkflow.c_str());
     rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, syncEventOnClose, false);
+                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose, false);
   }
 
   eos_info("Return code rc=%i.", rc);
@@ -2904,29 +2904,29 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
     if (event == "closew") {
       mEventOnClose = true;
     } else if (event == "sync::closew") {
-      syncEventOnClose = true;
+      mSyncEventOnClose = true;
     }
 
     val = env.Get("mgm.workflow");
     mEventWorkflow = (val ? val : "");
 
     val = env.Get("mgm.instance");
-    eventInstance = val ? val : "";
+    mEventInstance = val ? val : "";
 
     val = env.Get("mgm.owner");
-    eventOwner = val ? val : "";
+    mEventOwner = val ? val : "";
 
     val = env.Get("mgm.ownergroup");
-    eventOwnerGroup = val ? val : "";
+    mEventOwnerGroup = val ? val : "";
 
     val = env.Get("mgm.requestor");
-    eventRequestor = val ? val : "";
+    mEventRequestor = val ? val : "";
 
     val = env.Get("mgm.requestorgroup");
-    eventRequestorGroup = val ? val : "";
+    mEventRequestorGroup = val ? val : "";
 
     val = env.Get("mgm.attributes");
-    eventAttributes = val ? val : "";
+    mEventAttributes = val ? val : "";
   }
 
   if ((val = env.Get("eos.injection"))) {
