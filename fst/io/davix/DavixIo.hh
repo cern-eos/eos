@@ -219,6 +219,10 @@ public:
   int fileDelete(const char* url);
 
   //--------------------------------------------------------------------------
+  //! Check for the existence of a file
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
   int fileExists();
 
   //--------------------------------------------------------------------------
@@ -261,7 +265,7 @@ public:
   //! @param download string where to place the contents
   //! @return 0 success, otherwise -1 and errno
   //--------------------------------------------------------------------------
-  static int Download(std::string url, std::string& download);
+  int Download(std::string url, std::string& download);
 
   //--------------------------------------------------------------------------
   //! Upload a string object into a remote file
@@ -269,7 +273,7 @@ public:
   //! @param upload string to store into remote file
   //! @return 0 success, otherwise -1 and errno
   //--------------------------------------------------------------------------
-  static int Upload(std::string url, std::string& upload);
+  int Upload(std::string url, std::string& upload);
 
   // ------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
