@@ -584,8 +584,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (!rc) {
     // Set the eos lfn as extended attribute
-    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(
-                                 layOut->GetLocalReplicaPath()));
+    std::unique_ptr<FileIo> io(FileIoPlugin::GetIoObject(
+                                 layOut->GetLocalReplicaPath(), this));
 
     if (isRW) {
       if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
@@ -959,8 +959,8 @@ XrdFstOfsFile::verifychecksum()
       if (mHasWrite) {
         // If we have no write, we don't set this attributes (xrd3cp!)
         // set the eos checksum extended attributes
-        std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(
-                                               mFstPath.c_str()));
+        std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
+                                               mFstPath.c_str(), this));
 
         if (((eos::common::LayoutId::GetLayoutType(mLid) ==
               eos::common::LayoutId::kPlain) ||
