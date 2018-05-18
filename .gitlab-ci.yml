@@ -558,7 +558,6 @@ eos_publish_artifacts:
   retry: 2
   only:
     - master
-    - cta_integration
     - tags
 
 eos_publish_debian_artifacts:
