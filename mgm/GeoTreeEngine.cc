@@ -1125,6 +1125,10 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     startFromNode =
       entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
         startFromGeoTag.c_str());
+  } else if (!clientGeoTag.empty()) {
+    startFromNode = 
+      entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
+        clientGeoTag.c_str());
   }
 
   // actually do the job
