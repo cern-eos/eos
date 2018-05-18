@@ -170,14 +170,14 @@ install(
 #-------------------------------------------------------------------------------
 # eos_convert_mem_to_kv executable
 #-------------------------------------------------------------------------------
-add_executable(eos_ns_convert
+add_executable(eos-ns-convert
   tools/ConvertMemToKV.cc
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
   persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
-target_link_libraries(eos_ns_convert
+target_link_libraries(eos-ns-convert
   jemalloc
   qclient
   ${FOLLY_LIBRARIES}
@@ -193,7 +193,14 @@ target_link_libraries(eos-dump-proto-md
   EosNsQuarkdb-Static
   ${PROTOBUF_LIBRARY})
 
-install(TARGETS eos_ns_convert eos-dump-proto-md
+add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
+
+target_link_libraries(eos-ns-convert-to-locality-hashes
+  EosCrc32c-Static
+  EosNsQuarkdb-Static
+  ${PROTOBUF_LIBRARY})
+
+install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

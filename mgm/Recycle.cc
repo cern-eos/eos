@@ -31,6 +31,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 
@@ -865,6 +866,7 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
   while (rprefix.replace("//", "/")) {}
 
   {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     if (!force_directory) {
