@@ -1267,14 +1267,18 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   qclient::QSet qset(*qcl.get(),  eos::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
-  do {
-    reply = qset.sscan(cursor, count);
-    cursor = reply.first;
+  try {
+    do {
+      reply = qset.sscan(cursor, count);
+      cursor = reply.first;
 
-    for (const auto& elem : reply.second) {
-      file_ids.insert(std::stoull(elem));
-    }
-  } while (cursor != "0");
+      for (const auto& elem : reply.second) {
+        file_ids.insert(std::stoull(elem));
+      }
+    } while (cursor != "0");
+  } catch (const std::runtime_error& e) {
+    // It means there are no records for the current file system
+  }
 
   auto start = steady_clock::now();
   uint64_t total = file_ids.size();
@@ -1286,7 +1290,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), FileIdentifier(*it)));
+    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(),
+                       FileIdentifier(*it)));
     ++it;
   }
 
@@ -1329,7 +1334,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
 
     if (it != file_ids.end()) {
       ++num_files;
-      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(), FileIdentifier(*it)));
+      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(),
+                         FileIdentifier(*it)));
       ++it;
     }
 
