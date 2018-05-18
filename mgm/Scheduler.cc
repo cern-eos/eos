@@ -60,31 +60,36 @@ Scheduler::FilePlacement(PlacementArguments* args)
   unsigned int ncollocatedfs = 0;
 
   switch (args->plctpolicy) {
-  case kScattered:
-    ncollocatedfs = 0;
-    break;
-
-  case kHybrid:
-    switch (eos::common::LayoutId::GetLayoutType(args->lid)) {
-    case eos::common::LayoutId::kPlain:
-      ncollocatedfs = 1;
+    case kScattered:
+      if (!(args->vid->geolocation.empty())) {
+        ncollocatedfs = 1;
+      }
+      else {
+        ncollocatedfs = 0;
+      }
       break;
 
-    case eos::common::LayoutId::kReplica:
-      ncollocatedfs = nfilesystems - 1;
-      break;
+    case kHybrid:
+      switch (eos::common::LayoutId::GetLayoutType(args->lid)) {
+        case eos::common::LayoutId::kPlain:
+          ncollocatedfs = 1;
+          break;
 
-    default:
-      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
+        case eos::common::LayoutId::kReplica:
+          ncollocatedfs = nfilesystems - 1;
+        break;
+
+        default:
+          ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
                         args->lid);
+        break;
+      }
+
       break;
-    }
 
-    break;
-
-  // we only do geolocations for replica layouts
-  case kGathered:
-    ncollocatedfs = nfilesystems;
+    // we only do geolocations for replica layouts
+    case kGathered:
+      ncollocatedfs = nfilesystems;
   }
 
   eos_static_debug("checking placement policy : policy is %d, nfilesystems is"
