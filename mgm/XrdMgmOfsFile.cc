@@ -470,6 +470,12 @@ XrdMgmOfsFile::open(const char* inpath,
   gid_t d_gid = vid.gid;
   std::string creation_path = path;
   {
+    // This is probably one of the hottest code paths in the MGM, we definitely
+    // want prefetching here.
+    if(!byfid) {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
+    }
+
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
