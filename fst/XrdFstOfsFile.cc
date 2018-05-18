@@ -22,6 +22,7 @@
  ************************************************************************/
 #define __STDC_FORMAT_MACROS
 #include <cinttypes>
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
@@ -57,7 +58,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
   isCreation(false), isReplication(false), mIsInjection(false),
   mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
-  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
+  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""), mSyncEventOnClose(false),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
   fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
@@ -185,8 +186,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
+
   eos_info("path=%s info=%s isRW=%d open_mode=%x", mNsPath.c_str(),
            maskOpaque.c_str(), isRW, open_mode);
+
   // Process and filter open opaque information
   std::string out_opaque;
   std::string in_opaque = (opaque ? opaque : "");
@@ -1894,7 +1897,7 @@ XrdFstOfsFile::close()
     }
   }
 
-  if (!rc && mEventOnClose && layOut->IsEntryServer()) {
+  if (!rc && (mEventOnClose || mSyncEventOnClose) && layOut->IsEntryServer()) {
     //trigger an MGM event if asked from the entry point
     XrdOucString capOpaqueFile = "";
     XrdOucString eventType = "";
@@ -1903,13 +1906,35 @@ XrdFstOfsFile::close()
     capOpaqueFile += mCapOpaque->Env(envlen);
     capOpaqueFile += "&mgm.pcmd=event";
 
+    // Set default workflow if nothing is specified
+    if (mEventWorkflow.length() == 0) {
+      mEventWorkflow = "default";
+    }
+
     if (isRW) {
-      capOpaqueFile += "&mgm.event=closew";
-      eventType = "closew";
+      eventType = mSyncEventOnClose ? "sync::closew" : "closew";
     } else {
-      capOpaqueFile += "&mgm.event=closer";
       eventType = "closer";
     }
+
+    if (mSyncEventOnClose) {
+      std::string decodedAttributes;
+      eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
+      std::map<std::string, std::string> attributes;
+      eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(), attributes,
+                                                    eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
+                                                    eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
+
+      rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup, mEventRequestor, mEventRequestorGroup,
+                                      mEventInstance, mCapOpaque->Get("mgm.path"), attributes);
+
+      if (rc == SFS_OK) {
+        return rc;
+      }
+    }
+
+    capOpaqueFile += "&mgm.event=";
+    capOpaqueFile += eventType;
 
     // The log ID to the commit
     capOpaqueFile += "&mgm.logid=";
@@ -1929,7 +1954,7 @@ XrdFstOfsFile::close()
     eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
              mEventWorkflow.c_str());
     rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile);
+                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose, false);
   }
 
   eos_info("Return code rc=%i.", rc);
@@ -2489,10 +2514,10 @@ XrdFstOfsFile::DoTpcTransfer()
     src_cgi += gOFS.TpcMap[mIsTpcDst][mTpcKey.c_str()].org;
   }
 
-  XrdIo tpcIO(src_url.c_str());
+  XrdIo tpcIO(src_url);
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
-  if (tpcIO.fileOpen(0, 0, src_cgi.c_str())) {
+  if (tpcIO.fileOpen(0, 0, src_cgi)) {
     eos_err("msg=\"TPC open failed for url=%s cgi=%s\"", src_url.c_str(),
             src_cgi.c_str());
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
@@ -2876,12 +2901,32 @@ XrdFstOfsFile::ProcessOpenOpaque(const std::string& in_opaque,
   if ((val = env.Get("mgm.event"))) {
     std::string event = val;
 
-    if (event == "close") {
+    if (event == "closew") {
       mEventOnClose = true;
+    } else if (event == "sync::closew") {
+      mSyncEventOnClose = true;
     }
 
     val = env.Get("mgm.workflow");
     mEventWorkflow = (val ? val : "");
+
+    val = env.Get("mgm.instance");
+    mEventInstance = val ? val : "";
+
+    val = env.Get("mgm.owner");
+    mEventOwner = val ? val : "";
+
+    val = env.Get("mgm.ownergroup");
+    mEventOwnerGroup = val ? val : "";
+
+    val = env.Get("mgm.requestor");
+    mEventRequestor = val ? val : "";
+
+    val = env.Get("mgm.requestorgroup");
+    mEventRequestorGroup = val ? val : "";
+
+    val = env.Get("mgm.attributes");
+    mEventAttributes = val ? val : "";
   }
 
   if ((val = env.Get("eos.injection"))) {

@@ -26,13 +26,13 @@
 #include "common/LayoutId.hh"
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
-#include "mgm/Constants.hh"
+#include "common/Constants.hh"
 #include "mgm/Quota.hh"
-#include "mgm/eos_cta_pb/EosCtaAlertHandler.hh"
+#include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -65,7 +65,7 @@ WFE::WFE()
   mActiveJobs = 0;
   eos::common::Mapping::Root(mRootVid);
   XrdSysMutexHelper sLock(gSchedulerMutex);
-  gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
+  gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 10, 500, 100);
   gScheduler->Start();
 }
 
@@ -294,8 +294,8 @@ WFE::WFEr()
                   XrdSysMutexHelper sLock(gSchedulerMutex);
                   time_t storetime = 0;
                   // move job into the scheduled queue
-                  job->Move(job->mActions[0].mQueue, "s", storetime);
-                  job->mActions[0].mQueue = "s";
+                  job->Move(job->mActions[0].mQueue, "r", storetime);
+                  job->mActions[0].mQueue = "r";
                   job->mActions[0].mTime = storetime;
                   XrdOucString tst;
                   job->mActions[0].mWhen = eos::common::StringConversion::GetSizeString(tst,
@@ -328,11 +328,10 @@ WFE::WFEr()
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
-    time_t snoozeinterval = 1;
     size_t snoozeloop = snoozetime / 1;
 
     for (size_t i = 0; i < snoozeloop; i++) {
-      sleeper.Snooze(snoozeinterval);
+      sleeper.Wait(100);
       {
         // check if the setting changes
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -467,7 +466,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   // evt. store with the current time
 
   if (!when) {
-    when = time(NULL);
+    when = time(nullptr);
   }
 
   XrdOucString tst;
@@ -478,54 +477,30 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   workflowpath += ":";
   workflowpath += mActions[action].mEvent;
   mWorkflowPath = workflowpath;
-
-  if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, nullptr)) {
-    eos_static_err("msg=\"failed to create workflow entry\" path=\"%s\"",
-                   workflowpath.c_str());
-    return -1;
-  }
-
   //Store which day it is stored for
   mActions[action].mSavedOnDay = mActions[action].mDay;
 
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.action",
-                      mActions[0].mAction.c_str())) {
-    eos_static_err("msg=\"failed to store workflow action\" path=\"%s\" action=\"%s\"",
-                   workflowpath.c_str(),
-                   mActions[0].mAction.c_str());
-    return -1;
-  }
 
   std::string vids = eos::common::Mapping::VidToString(mVid);
+  try {
+    eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex};
+    auto fmd = gOFS->eosView->createFile(workflowpath, 0, 0);
 
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.vid",
-                      vids.c_str())) {
-    eos_static_err("msg=\"failed to store workflow vid\" path=\"%s\" vid=\"%s\"",
+    auto cid = fmd->getContainerId();
+    auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    cmd->setMTimeNow();
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+    gOFS->eosView->updateContainerStore(cmd.get());
+
+    fmd->setAttribute("sys.action", mActions[0].mAction);
+    fmd->setAttribute("sys.vid", vids);
+    fmd->setAttribute("sys.wfe.errmsg", mErrorMesssage);
+    fmd->setAttribute("sys.wfe.retry", std::to_string(retry));
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("msg=\"failed to save workflow entry\" path=\"%s\" error=\"%s\"",
                    workflowpath.c_str(),
-                   vids.c_str());
-    return -1;
-  }
-
-  XrdOucString sretry;
-  sretry += retry;
-
-  if (gOFS->_attr_set(workflowpath.c_str(),
-                      lError,
-                      rootvid,
-                      nullptr,
-                      "sys.wfe.retry",
-                      sretry.c_str())) {
-    eos_static_err("msg=\"failed to store workflow retry count\" path=\"%s\" retry=\"%d\"",
-                   workflowpath.c_str(),
-                   retry);
+                   ex.what());
     return -1;
   }
 
@@ -570,36 +545,40 @@ WFE::Job::Load(std::string path2entry)
   if (s1 && s2) {
     mFid = eos::common::FileId::Hex2Fid(id.c_str());
     eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
-    XrdOucString action;
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.action", action)) {
-      time_t t_when = strtoull(when.c_str(), 0, 10);
-      AddAction(action.c_str(), event, t_when, savedAtDay, workflow, q);
-    } else {
-      eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
-    }
+    {
+      eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
+      auto fmd = gOFS->eosView->getFile(path2entry);
 
-    XrdOucString vidstring;
-
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.vid", vidstring)) {
-      if (!eos::common::Mapping::VidFromString(mVid, vidstring.c_str())) {
-        eos_static_crit("parsing of %s failed - setting nobody\n", vidstring.c_str());
-        eos::common::Mapping::Nobody(mVid);
+      try {
+        time_t t_when = strtoull(when.c_str(), 0, 10);
+        AddAction(fmd->getAttribute("sys.action"), event, t_when, savedAtDay, workflow, q);
+      } catch (eos::MDException& ex) {
+        eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
       }
-    } else {
-      eos::common::Mapping::Nobody(mVid);
-      eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
-    }
 
-    XrdOucString sretry;
+      try {
+        auto vidstring = fmd->getAttribute("sys.vid").c_str();
+        if (!eos::common::Mapping::VidFromString(mVid, vidstring)) {
+          eos_static_crit("parsing of %s failed - setting nobody\n", vidstring);
+          eos::common::Mapping::Nobody(mVid);
+        }
+      } catch (eos::MDException& ex) {
+        eos::common::Mapping::Nobody(mVid);
+        eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
+      }
 
-    if (!gOFS->_attr_get(path2entry.c_str(), lError, rootvid, nullptr,
-                         "sys.wfe.retry", sretry)) {
-      mRetry = (int)strtoul(sretry.c_str(), nullptr, 10);
-    } else {
-      eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+      try {
+        mRetry = (int)strtoul(fmd->getAttribute("sys.wfe.retry").c_str(), nullptr, 10);
+      } catch (eos::MDException& ex) {
+        eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+      }
+
+      try {
+        mErrorMesssage = fmd->getAttribute("sys.wfe.errmsg");
+      } catch (eos::MDException& ex) {
+        eos_static_info("msg=\"no error message stored\" path=\"%s\"", f.c_str());
+      }
     }
   } else {
     eos_static_err("msg=\"illegal workflow entry\" key=\"%s\"", f.c_str());
@@ -780,8 +759,8 @@ WFE::Job::DoIt(bool issync)
   // RAII: Async jobs reduce counter on all paths
   auto decrementJobs = [this] (void*) {
     if (!IsSync()) {
-      gOFS->WFEd.GetSignal()->Signal();
       gOFS->WFEd.DecActiveJobs();
+      gOFS->WFEd.GetSignal()->Signal();
     }
   };
 
@@ -795,11 +774,10 @@ WFE::Job::DoIt(bool issync)
   eos::common::Mapping::VirtualIdentity lRootVid;
   XrdOucErrInfo lError;
   eos::common::Mapping::Root(lRootVid);
-  eos_static_info("queue=\"%s\"", mActions[0].mQueue.c_str());
   int retc = 0;
   time_t storetime = 0;
 
-  if (mActions[0].mQueue == "s" || mActions[0].mQueue == "e") {
+  if (mActions[0].mQueue == "r" || mActions[0].mQueue == "e") {
     bool actionParsed = false;
     if (mActions[0].mAction.find(':') == std::string::npos) {
       method = mActions[0].mAction;
@@ -847,14 +825,14 @@ WFE::Job::DoIt(bool issync)
           eos_static_err("msg=\"failed to send workflow notification mail\" job=\"%s\"",
                          mDescription.c_str());
           storetime = 0;
-          Move("s", "f", storetime);
+          Move(mActions[0].mQueue, "f", storetime);
           XrdOucString log = "failed to send workflow notification mail";
           Results("f", -1, log, storetime);
         } else {
           eos_static_info("msg=\"done notification\" job=\"%s\"",
                           mDescription.c_str());
           storetime = 0;
-          Move("s", "d", storetime);
+          Move(mActions[0].mQueue, "d", storetime);
           XrdOucString log = "notified by email";
           Results("d", 0, log, storetime);
         }
@@ -1444,8 +1422,6 @@ WFE::Job::DoIt(bool issync)
 
             if (!format_error) {
               eos::common::ShellCmd cmd(bashcmd);
-              storetime = (time_t) mActions[0].mTime;
-              Move(mActions[0].mQueue, "r", storetime, mRetry);
               eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
               eos::common::cmd_status rc = cmd.wait(1800);
               // retrieve the stderr of this command
@@ -1639,9 +1615,6 @@ WFE::Job::DoIt(bool issync)
       } else if (method == "proto") {
         auto event = mActions[0].mEvent;
 
-        storetime = (time_t) mActions[0].mTime;
-        Move(mActions[0].mQueue, "r", storetime, mRetry);
-
         std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullPath;
@@ -1671,70 +1644,17 @@ WFE::Job::DoIt(bool issync)
         cta::xrd::Request request;
         auto notification = request.mutable_notification();
 
-        static auto getUserName = [] (uid_t uid) {
-          int errc = 0;
-          auto user_name  = Mapping::UidToUserName(uid, errc);
-
-          if (errc) {
-            user_name = "nobody";
-          }
-
-          return user_name;
-        };
-
-        static auto getGroupName = [] (gid_t gid) {
-          int errc = 0;
-          auto group_name  = Mapping::GidToGroupName(gid, errc);
-
-          if (errc) {
-            group_name = "nobody";
-          }
-
-          return group_name;
-        };
-
-        notification->mutable_cli()->mutable_user()->set_username(getUserName(mVid.uid));
-        notification->mutable_cli()->mutable_user()->set_groupname(getGroupName(mVid.gid));
+        notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+        notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
 
         auto collectAttributes = [&notification, &fullPath] {
-          eos::common::Mapping::VirtualIdentity rootvid;
-          eos::common::Mapping::Root(rootvid);
-          XrdOucErrInfo errInfo;
-          IContainerMD::XAttrMap fileAttributes, parentDirAttributes;
-
-          if (gOFS->_attr_ls(fullPath.c_str(),
-                             errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
-            for (const auto& fileAttrPair : fileAttributes)
-            {
-              if (fileAttrPair.first.find("sys.") == 0 ||
-                  fileAttrPair.first.find("user.") == 0) {
-                continue;
-              }
-
-              google::protobuf::MapPair<std::string, std::string> attr(fileAttrPair.first,
-                                                                       fileAttrPair.second);
-              notification->mutable_file()->mutable_xattr()->insert(attr);
-            }
-          }
-
-          errInfo.clear();
-          if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
-                             errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
-            for (const auto& dirAttrPair : parentDirAttributes)
-            {
-              if (dirAttrPair.first.find("sys.") == 0 ||
-                  dirAttrPair.first.find("user.") == 0) {
-                continue;
-              }
-
-              google::protobuf::MapPair<std::string, std::string> attr(dirAttrPair.first,
-                                                                       dirAttrPair.second);
-              notification->mutable_file()->mutable_xattr()->insert(attr);
-            }
+          for (const auto& attribute : CollectAttributes(fullPath)) {
+            google::protobuf::MapPair<std::string, std::string> attr(attribute.first, attribute.second);
+            notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
 
-        if (event == "sync::prepare") {
+        if (event == "sync::prepare" || event == "prepare") {
           struct stat buf;
           XrdOucErrInfo errInfo;
 
@@ -1775,11 +1695,18 @@ WFE::Job::DoIt(bool issync)
 
             try {
               fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
+              if (!onGoingRetrieve && onTape) {
+                fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
+
+                // Read these attributes here to optimize locking
+                notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+                notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
+              }
               gOFS->eosView->updateFileStore(fmd.get());
             } catch (eos::MDException& ex) {
               lock.Release();
-              eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
-                             RETRIEVES_ATTR_NAME, fullPath.c_str());
+              eos_static_err("Could not write attributes %s and %s for file %s. Not doing the retrieve.",
+                             RETRIEVES_ATTR_NAME, RETRIEVES_ERROR_ATTR_NAME, fullPath.c_str());
               MoveWithResults(EAGAIN);
               return EAGAIN;
             }
@@ -1803,43 +1730,25 @@ WFE::Job::DoIt(bool issync)
           } else {
             collectAttributes();
 
-            {
-              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
-            }
-
             notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
             notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
             notification->mutable_file()->set_fid(mFid);
 
+            auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
             std::ostringstream destStream;
-            destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                       << StringConversion::FastUnsignedToAsciiHex(mFid);
+            destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << fxidString;
             destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" << RETRIEVE_WRITTEN_WORKFLOW_NAME;
             notification->mutable_transport()->set_dst_url(destStream.str());
 
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
-                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << StringConversion::FastUnsignedToAsciiHex(mFid)
-                              << "&mgm.logid=cta&mgm.event=retrieve_failed&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                              << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
-            // Reset the error attribute before sending prepare request
-            try {
-              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
-              gOFS->eosView->updateFileStore(fmd.get());
-            } catch (eos::MDException& ex) {
-              // Fail in case we cannot reset the error attribute
-              eos_static_crit("Could not reset error attribute for retrieved file.");
-              MoveWithResults(EAGAIN);
-              return EAGAIN;
-            }
-
             std::string errorMsg;
-            int sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
+            auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
             if (sendResult != 0) {
               // Create human readable timestamp with the error message
               auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -1858,7 +1767,7 @@ WFE::Job::DoIt(bool issync)
 
             return sendResult;
           }
-        } else if (event == "sync::abort_prepare") {
+        } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
           auto retrieveCntr = 0;
           bool shouldAbort = false;
           {
@@ -1898,8 +1807,8 @@ WFE::Job::DoIt(bool issync)
 
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
             }
 
             notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
@@ -1914,29 +1823,13 @@ WFE::Job::DoIt(bool issync)
             MoveWithResults(SFS_OK);
             return SFS_OK;
           }
-        } else if (event == "sync::openw") {
+        } else if (event == "sync::create" || event == "create") {
           collectAttributes();
 
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
-          }
-
-          notification->mutable_wf()->set_event(cta::eos::Workflow::OPENW);
-          notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
-          notification->mutable_file()->set_lpath(fullPath);
-          notification->mutable_file()->set_fid(mFid);
-
-          std::string errorMsg;
-          return SendProtoWFRequest(this, fullPath, request, errorMsg);
-        } else if (event == "sync::create") {
-          collectAttributes();
-
-          {
-            eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+            notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
           }
 
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
@@ -1946,21 +1839,21 @@ WFE::Job::DoIt(bool issync)
 
           std::string errorMsg;
           return SendProtoWFRequest(this, fullPath, request, errorMsg);
-        } else if (event == "sync::delete") {
+        } else if (event == "sync::delete" || event == "delete") {
           collectAttributes();
           notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
           notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
 
-          auto sendRequestAsync = [fullPath, request] (Job jobCopy) {
+          auto sendRequestAsync = [fullPath, request](Job jobCopy) {
             std::string errorMsg;
             SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
-        } else if (event == "closew") {
+        } else if (event == "sync::closew" || event == "closew") {
           if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // reset the retrieves counter and error message in case the retrieved file has been written to disk
             try {
@@ -1981,8 +1874,8 @@ WFE::Job::DoIt(bool issync)
             std::ostringstream checksum;
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(getUserName(fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(getGroupName(fmd->getCGid()));
+              notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
+              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
 
               notification->mutable_file()->set_size(fmd->getSize());
               notification->mutable_file()->mutable_cks()->set_type(
@@ -2016,10 +1909,32 @@ WFE::Job::DoIt(bool issync)
                          << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
             notification->mutable_transport()->set_report_url(reportStream.str());
 
+            std::ostringstream errorReportStream;
+            errorReportStream << "eosQuery://" << gOFS->HostName
+                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+            notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+
             std::string errorMsg;
-            return SendProtoWFRequest(this, fullPath, request, errorMsg, true);
+            auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg, !IsSync(event));
+
+            if (sendResult != 0) {
+              // Create human readable timestamp with the error message
+              auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+              std::string ctime = std::ctime(&time);
+              std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
+                                         (errorMsg.empty() ? "Closew handshake failed" : errorMsg);
+
+              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              try {
+                fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, errorMsgAttr);
+                gOFS->eosView->updateFileStore(fmd.get());
+              } catch (eos::MDException& ex) {}
+            }
+
+            return sendResult;
           }
-        } else if (event == "archived") {
+        } else if (event == "sync::archived" || event == "archived") {
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -2038,8 +1953,11 @@ WFE::Job::DoIt(bool issync)
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
               if (!fmd->hasLocation(TAPE_FS_ID)) {
                 fmd->addLocation(TAPE_FS_ID);
-                gOFS->eosView->updateFileStore(fmd.get());
               }
+
+              // Reset the error message
+              fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
+              gOFS->eosView->updateFileStore(fmd.get());
             }
 
             bool dropAllStripes = true;
@@ -2064,15 +1982,28 @@ WFE::Job::DoIt(bool issync)
 
           MoveWithResults(SFS_OK);
           return SFS_OK;
-        } else if (event == "retrieve_failed") {
+        } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
           try {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
             fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-            // todo @jmakai change this generic message
-            fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "Prepare failed");
+            fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& ex) {
-            eos_static_err("Could not reset retrieves counter and set error attribute for file %s.",
+            eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
+                           fullPath.c_str());
+            MoveWithResults(SFS_ERROR);
+            return SFS_ERROR;
+          }
+
+          MoveWithResults(SFS_OK);
+          return SFS_OK;
+        } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
+          try {
+            eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+            fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
+            gOFS->eosView->updateFileStore(fmd.get());
+          } catch (eos::MDException& ex) {
+            eos_static_err("Could not set archive error attribute for file %s.",
                            fullPath.c_str());
             MoveWithResults(SFS_ERROR);
             return SFS_ERROR;
@@ -2133,8 +2064,14 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   cta::xrd::Response response;
 
   try {
+    auto sentAt = std::chrono::steady_clock::now();
+
     auto future = service.Send(request, response);
     future.get();
+
+    auto receivedAt = std::chrono::steady_clock::now();
+    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
+    eos_static_info("SSI Protobuf time for %s=%ld", jobPtr->mActions[0].mEvent.c_str(), timeSpent.count());
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                    error.what());
@@ -2143,7 +2080,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
   errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
   errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
   errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
@@ -2189,56 +2126,83 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
 void
 WFE::Job::MoveToRetry(const std::string& filePath) {
-  int retry = 0, delay = 0;
-  std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." +
-                          mActions[0].mWorkflow + ".retry.max";
-  std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." +
-                          mActions[0].mWorkflow + ".retry.delay";
-  eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
+  if (!IsSync()) {
+    int retry = 0, delay = 0;
+    std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." +
+                            mActions[0].mWorkflow + ".retry.max";
+    std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." +
+                            mActions[0].mWorkflow + ".retry.delay";
+    eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
 
-  {
-    eos::common::Path cPath(filePath.c_str());
-    auto parentPath = cPath.GetParentPath();
+    {
+      eos::common::Path cPath(filePath.c_str());
+      auto parentPath = cPath.GetParentPath();
 
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    auto cmd = gOFS->eosView->getContainer(parentPath);
-    try {
-      retry = std::stoi(cmd->getAttribute(retryattr));
-    } catch (...) {
-      // retry 25 times by default
-      retry = 25;
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      auto cmd = gOFS->eosView->getContainer(parentPath);
+      try {
+        retry = std::stoi(cmd->getAttribute(retryattr));
+      } catch (...) {
+        // retry 25 times by default
+        retry = 25;
+      }
+
+      try {
+        delay = std::stoi(cmd->getAttribute(delayattr));
+      } catch (...) {
+        // retry after 1 hour by default and one final longer wait
+        delay = mRetry == retry - 1 ? 7200 : 3600;
+      }
     }
 
-    try {
-      delay = std::stoi(cmd->getAttribute(delayattr));
-    } catch (...) {
-      // retry after 1 hour by default and one final longer wait
-      delay = mRetry == retry - 1 ? 7200 : 3600;
+    if (mRetry < retry) {
+      time_t storetime = (time_t) mActions[0].mTime + delay;
+      Move("r", "e", storetime, ++mRetry);
+      Results("e", EAGAIN, "scheduled for retry", storetime);
+    } else {
+      eos_static_err("WF event finally failed for %s event of %s file after %d retries.",
+                     mActions[0].mEvent.c_str(), filePath.c_str(), mRetry);
+      MoveWithResults(SFS_ERROR, "e");
     }
-  }
-
-  if (!IsSync() && (mRetry < retry)) {
-    time_t storetime = (time_t) mActions[0].mTime + delay;
-    Move("r", "e", storetime, ++mRetry);
-    Results("e", EAGAIN, "scheduled for retry", storetime);
-  } else {
-    eos_static_err("WF event finally failed for %s event of %s file after %d retries.",
-                   mActions[0].mEvent.c_str(), filePath.c_str(), mRetry);
-    MoveWithResults(SFS_ERROR, "e");
   }
 }
 
 void
 WFE::Job::MoveWithResults(int rcode, std::string fromQueue) {
-  time_t storetime = 0;
-  if (rcode == 0) {
-    Move(fromQueue, "d", storetime);
-    Results("d", rcode , "moved to done", storetime);
+  if (!IsSync()) {
+    time_t storetime = 0;
+    if (rcode == 0) {
+      Move(fromQueue, "d", storetime);
+      Results("d", rcode, "moved to done", storetime);
+    } else {
+      Move(fromQueue, "f", storetime);
+      Results("f", rcode, "moved to failed", storetime);
+    }
   }
-  else {
-    Move(fromQueue, "f", storetime);
-    Results("f", rcode , "moved to failed", storetime);
+}
+
+std::string
+WFE::GetGroupName(gid_t gid) {
+  int errc = 0;
+  auto group_name  = Mapping::GidToGroupName(gid, errc);
+
+  if (errc) {
+    group_name = "nobody";
   }
+
+  return group_name;
+}
+
+std::string
+WFE::GetUserName(uid_t uid) {
+  int errc = 0;
+  auto user_name  = Mapping::UidToUserName(uid, errc);
+
+  if (errc) {
+    user_name = "nobody";
+  }
+
+  return user_name;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2260,6 +2224,97 @@ WFE::PublishActiveJobs()
    true,
    "/eos/*/mgm",
    true);
+}
+
+IContainerMD::XAttrMap
+WFE::CollectAttributes(const std::string& fullPath) {
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo errInfo;
+  IContainerMD::XAttrMap fileAttributes, parentDirAttributes, result;
+
+  if (gOFS->_attr_ls(fullPath.c_str(),
+                     errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
+    for (const auto& fileAttrPair : fileAttributes)
+    {
+      if (fileAttrPair.first.find("sys.") != 0 &&
+          fileAttrPair.first.find("user.") != 0) {
+        result.insert(fileAttrPair);
+      }
+    }
+  }
+
+  errInfo.clear();
+  if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
+                     errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
+    for (const auto& dirAttrPair : parentDirAttributes)
+    {
+      if (dirAttrPair.first.find("sys.") != 0 &&
+          dirAttrPair.first.find("user.") != 0) {
+        result.insert(dirAttrPair);
+      }
+    }
+  }
+
+  return result;
+}
+
+void
+WFE::MoveFromRBackToQ() {
+  std::string queries[2];
+
+  for (auto& query : queries) {
+    query = gOFS->MgmProcWorkflowPath.c_str();
+    query += "/";
+  }
+
+  {
+    // today
+    time_t when = time(nullptr);
+    std::string day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    queries[0] += day;
+    queries[0] += "/r/";
+    //yesterday
+    when -= (24 * 3600);
+    day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    queries[1] += day;
+    queries[1] += "/r/";
+  }
+
+  std::map<std::string, std::set<std::string>> wfedirs;
+  XrdOucErrInfo errInfo;
+  XrdOucString stdErr;
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  for (const auto& query : queries) {
+    gOFS->_find(query.c_str(),
+                errInfo,
+                stdErr,
+                rootvid,
+                wfedirs,
+                nullptr,
+                nullptr,
+                false,
+                0,
+                false,
+                0
+    );
+  }
+
+  for (const auto& wfedir : wfedirs) {
+    auto wfEntry = wfedir.first;
+    for (const auto& entry : wfedir.second) {
+      wfEntry += entry;
+      Job job;
+      if (job.Load(wfEntry) == 0) {
+        if (!job.IsSync()) {
+          job.Move("r", "q", job.mActions[0].mTime);
+        }
+      } else {
+        eos_static_err("msg=\"cannot load workflow entry during recycling from r queue\" value=\"%s\"", wfEntry.c_str());
+      }
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END

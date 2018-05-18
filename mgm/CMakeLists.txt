@@ -38,14 +38,8 @@ include_directories(
   ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
-  ${CMAKE_SOURCE_DIR}/mgm/cta_interface/include
-  ${CMAKE_BINARY_DIR}/mgm/eos_cta_pb)
-
-#-------------------------------------------------------------------------------
-# CTA integration related operations
-#-------------------------------------------------------------------------------
-set(EOS_CTA_PB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cta_interface/eos_cta/protobuf/)
-add_subdirectory(eos_cta_pb)
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${CMAKE_BINARY_DIR}/common/eos_cta_pb)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -192,7 +186,8 @@ set_target_properties(
 
 add_library(XrdEosMgm MODULE
   $<TARGET_OBJECTS:EosAuthProto-Objects>
-  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC
@@ -214,7 +209,6 @@ target_link_libraries(
   # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
   EosNsQuarkdb-Shared
   eosCapability-Static
-  XrdSsiPbEosCta
   ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
@@ -266,7 +260,8 @@ target_link_libraries(
 if(Linux)
   add_library(XrdEosMgm-Shared SHARED
     $<TARGET_OBJECTS:EosAuthProto-Objects>
-    $<TARGET_OBJECTS:XrdEosMgm-Objects>)
+    $<TARGET_OBJECTS:XrdEosMgm-Objects>
+    $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
   target_compile_definitions(
     XrdEosMgm-Shared PUBLIC
@@ -280,7 +275,6 @@ if(Linux)
     EosNsQuarkdb-Shared
     eosCommonServer
     eosCapability-Static
-    XrdSsiPbEosCta
     ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}

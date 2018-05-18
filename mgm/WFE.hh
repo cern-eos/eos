@@ -29,7 +29,7 @@
 #include "common/Timing.hh"
 #include "common/FileId.hh"
 #include "common/ThreadPool.hh"
-#include "mgm/cta_interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdJob.hh"
@@ -137,9 +137,9 @@ public:
       }
 
       Action(std::string a, std::string e, time_t when, std::string savedOnDay, std::string workflow,
-             std::string queue) : Action (a, e, when, workflow, queue)
+             std::string queue) : Action (std::move(a), std::move(e), when, std::move(workflow), std::move(queue))
       {
-        mSavedOnDay = savedOnDay;
+        mSavedOnDay = std::move(savedOnDay);
       }
 
       std::string mAction;
@@ -159,11 +159,12 @@ public:
     }
 
     Job(eos::common::FileId::fileid_t fid,
-        eos::common::Mapping::VirtualIdentity& vid)
+        eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "")
     {
       mFid = fid;
       mRetry = 0;
       eos::common::Mapping::Copy(vid, mVid);
+      mErrorMesssage = errorMessage;
     }
 
     ~Job() override = default;
@@ -174,6 +175,7 @@ public:
       mFid = other.mFid;
       mDescription = other.mDescription;
       mRetry = other.mRetry;
+      mErrorMesssage = other.mErrorMesssage;
     }
     // ---------------------------------------------------------------------------
     // Job execution function
@@ -251,6 +253,7 @@ public:
     std::string mDescription;
     eos::common::Mapping::VirtualIdentity mVid;
     std::string mWorkflowPath;
+    std::string mErrorMesssage;
     int mRetry;///! number of retries
 
   private:
@@ -301,6 +304,14 @@ public:
   {
     return mActiveJobs.load();
   }
+
+  static std::string GetUserName(uid_t uid);
+
+  static std::string GetGroupName(gid_t gid);
+
+  static IContainerMD::XAttrMap CollectAttributes(const std::string& fullPath);
+
+  static void MoveFromRBackToQ();
 
   /// the scheduler class is providing a destructor-less object,
   /// so we have to create once a singleton of this and keep/share it

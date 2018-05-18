@@ -35,6 +35,12 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
+# CTA integration related operations
+#-------------------------------------------------------------------------------
+set(EOS_CTA_PB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/xrootd-ssi-protobuf-interface/eos_cta/protobuf/)
+add_subdirectory(eos_cta_pb)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)

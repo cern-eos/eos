@@ -472,7 +472,7 @@ bool
 SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
                              std::string& output)
 {
-  size_t sz = msg->ByteSize();
+  auto sz = msg->ByteSize();
   std::string buffer(sz , '\0');
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
@@ -480,11 +480,7 @@ SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
     return false;
   }
 
-  if (!eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), output)) {
-    return false;
-  }
-
-  return true;
+  return eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), output);
 }
 
 //------------------------------------------------------------------------------

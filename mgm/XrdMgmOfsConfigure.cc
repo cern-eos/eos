@@ -25,10 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <time.h>
-#include <dirent.h>
-#include <string.h>
-#include <sys/fsuid.h>
+#include <cstring>
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
@@ -63,9 +60,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
-#include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
@@ -320,6 +314,11 @@ XrdMgmOfs::InitializeFileView()
 
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
+
+  if (MgmMaster.IsMaster() && Initialized == kBooted) {
+    WFE::MoveFromRBackToQ();
+  }
+
   return nullptr;
 }
 
@@ -1470,7 +1469,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
   }
 
-  std::string out = "";
+  std::string out;
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr, "%s", out.c_str());
 
@@ -1607,14 +1606,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     // Create recycle directory
     try {
-      eosmd = eosView->getContainer(Recycle::gRecyclingPrefix.c_str());
+      eosmd = eosView->getContainer(Recycle::gRecyclingPrefix);
     } catch (const eos::MDException& e) {
       eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
-        eosmd = eosView->createContainer(Recycle::gRecyclingPrefix.c_str(), true);
+        eosmd = eosView->createContainer(Recycle::gRecyclingPrefix, true);
         eosmd->setMode(S_IFDIR | S_IRWXU);
         eosView->updateContainerStore(eosmd.get());
         eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
@@ -1740,7 +1739,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-  XrdMqSharedHash* hash = 0;
+  XrdMqSharedHash* hash = nullptr;
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {

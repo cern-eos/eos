@@ -302,7 +302,14 @@ public:
                   const char* manager,
                   XrdOucString& capOpaqueFile,
                   XrdOucString* return_result = 0,
-                  unsigned short timeout = 0);
+                  unsigned short timeout = 0,
+                  bool linkPerThread = false,
+                  bool retry = true);
+
+  int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+                            const string& ownerGroupName, const string& requestorName,
+                            const string& requestorGroupName, const string& instanceName,
+                            const string& fullPath, const std::map<std::string, std::string>& xattrs);
 
   //----------------------------------------------------------------------------
   //! Function dealing with plugin calls
@@ -322,7 +329,7 @@ public:
   //----------------------------------------------------------------------------
   //! Allows to switch on error simulation in the OFS stack
   //!
-  //! @param tag type of simulation eroor
+  //! @param tag type of simulation error
   //----------------------------------------------------------------------------
   void SetSimulationError(const char* tag);
 

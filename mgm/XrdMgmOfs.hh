@@ -1547,6 +1547,9 @@ private:
   //! Stop the submitted thread and join
   //------------------------------------------------------------------------------
   void StopArchiveSubmitter();
+
+
+  static std::string MacroStringError(int errcode);
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

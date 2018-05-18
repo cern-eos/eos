@@ -14,3 +14,6 @@
 	path = common/backward-cpp
 	url = https://github.com/bombela/backward-cpp.git
 	branch = master
+[submodule "common/xrootd-ssi-protobuf-interface"]
+	path = common/xrootd-ssi-protobuf-interface
+	url = https://:@gitlab.cern.ch:8443/eos/xrootd-ssi-protobuf-interface.git

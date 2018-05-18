@@ -28,7 +28,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/WFE.hh"
 #include "mgm/FsView.hh"
-#include "mgm/Constants.hh"
+#include "common/Constants.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -36,11 +36,9 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
 int
-Workflow::Trigger(std::string event, std::string workflow,
-                  eos::common::Mapping::VirtualIdentity& vid)
+Workflow::Trigger(const std::string& event, std::string workflow,
+                  eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
 {
-  eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(),
-                  workflow.c_str());
   errno = 0;
 
   if (workflow == "none" && vid.sudoer) {
@@ -48,7 +46,7 @@ Workflow::Trigger(std::string event, std::string workflow,
     return 0;
   }
 
-  if ((workflow == RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
+  if ((workflow == eos::common::RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
       || (workflow == "none" && !vid.sudoer)) {
     workflow = "default";
   }
@@ -64,7 +62,7 @@ Workflow::Trigger(std::string event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid);
+      int retc = Create(vid, errorMessage);
 
       if (!retc) {
         if ((workflow == "enonet")) {
@@ -89,14 +87,12 @@ Workflow::Trigger(std::string event, std::string workflow,
     std::string key = "sys.workflow." + event + "." + workflow;
 
     if (mAttr && (*mAttr).count(key)) {
-      eos_static_info("key=%s %d %d", key.c_str(), mAttr, (*mAttr).count(key));
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid);
+      int retc = Create(vid, errorMessage);
 
       if (retc != 0) {
-        errno = retc;
         return retc;
       }
 
@@ -112,13 +108,53 @@ Workflow::Trigger(std::string event, std::string workflow,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Workflow::getCGICloseW(std::string workflow)
+Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::VirtualIdentity& vid)
 {
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
+  std::string syncKey = "sys.workflow.sync::closew." + workflow;
 
-  if (mAttr && (*mAttr).count(key)) {
-    cgi = "&mgm.event=close&mgm.workflow=";
+  // synchronous closew has priority
+  if (mAttr && (*mAttr).count(syncKey)) {
+    std::string owner, ownerGroup, fullPath;
+    try {
+      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      fullPath = gOFS->eosView->getUri(fmd.get());
+      owner = WFE::GetUserName(fmd->getCUid());
+      ownerGroup = WFE::GetGroupName(fmd->getCGid());
+    } catch (eos::MDException& e) {
+      eos_static_err("Not creating workflow URL because cannot get meta data. Reason: %s", e.what());
+      return "";
+    }
+
+    std::ostringstream attrStream;
+    std::string separator;
+    for (const auto& attribute : WFE::CollectAttributes(fullPath)) {
+      attrStream << separator << attribute.first << eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS << attribute.second;
+      separator = eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR;
+    }
+
+    auto attrStr = attrStream.str();
+    std::string attrEncoded;
+    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(), attrEncoded);
+
+    cgi = "&mgm.event=sync::closew&mgm.workflow=";
+    cgi += workflow;
+    cgi += "&mgm.instance=";
+    cgi += gOFS->MgmOfsInstanceName.c_str();
+    cgi += "&mgm.owner=";
+    cgi += owner;
+    cgi += "&mgm.ownergroup=";
+    cgi += ownerGroup;
+    cgi += "&mgm.requestor=";
+    cgi += WFE::GetUserName(vid.uid);
+    cgi += "&mgm.requestorgroup=";
+    cgi += WFE::GetGroupName(vid.gid);
+    cgi += "&mgm.attributes=";
+    cgi += attrEncoded;
+  } else if (mAttr && (*mAttr).count(key)) {
+    cgi = "&mgm.event=closew&mgm.workflow=";
     cgi += workflow;
   }
 
@@ -131,8 +167,13 @@ Workflow::getCGICloseR(std::string workflow)
 {
   std::string cgi;
   std::string key = "sys.workflow.closer." + workflow;
+  std::string syncKey = "sys.workflow.sync::closer." + workflow;
 
-  if (mAttr && (*mAttr).count(key)) {
+  // synchronous closer has priority
+  if (mAttr && (*mAttr).count(syncKey)) {
+    cgi = "&mgm.event=sync::close&mgm.workflow=";
+    cgi += workflow;
+  } else if (mAttr && (*mAttr).count(key)) {
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }
@@ -149,32 +190,25 @@ Workflow::Attach(const char* path)
 
 /*----------------------------------------------------------------------------*/
 int
-Workflow::Create(eos::common::Mapping::VirtualIdentity& vid)
+Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
 {
   int retc = 0;
-  WFE::Job job(mFid, vid);
+  WFE::Job job(mFid, vid, errorMessage);
   time_t t = time(nullptr);
 
   if (job.IsSync(mEvent)) {
-    job.AddAction(mAction, mEvent, t, mWorkflow, "s");
-    retc = job.Save("s", t);
-  } else {
-    job.AddAction(mAction, mEvent, t, mWorkflow, "q");
-
-    if (WfeRecordingEnabled()) {
-      retc = job.Save("q", t);
-    }
-  }
-
-  if (retc) {
-    eos_static_err("failed to save");
-    return retc;
-  }
-
-  if (job.IsSync()) {
     if (WfeEnabled()) {
-      eos_static_info("running synchronous workflow");
+      job.AddAction(mAction, mEvent, t, mWorkflow, "r");
       return job.DoIt(true);
+    }
+  } else {
+    if (WfeRecordingEnabled()) {
+      job.AddAction(mAction, mEvent, t, mWorkflow, "q");
+      retc = job.Save("q", t);
+      if (retc) {
+        eos_static_err("failed to save");
+        return retc;
+      }
     }
   }
 

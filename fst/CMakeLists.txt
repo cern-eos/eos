@@ -50,7 +50,9 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
+  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${CMAKE_BINARY_DIR}/common/eos_cta_pb)  # for the generated protobuf
 
 #-------------------------------------------------------------------------------
 # Add tests if not on MacOSX
@@ -347,10 +349,12 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 add_library(XrdEosFst-Shared SHARED
-  $<TARGET_OBJECTS:XrdEosFst-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -359,6 +363,7 @@ target_compile_definitions(XrdEosFst-Shared PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst PRIVATE
+   eosCommon
    eosCommonServer
    EosFstIo-Static
    eosCapability-Static
@@ -372,10 +377,12 @@ target_link_libraries(XrdEosFst PRIVATE
    ${NCURSES_LIBRARIES}
    ${XROOTD_CL_LIBRARY}
    ${XOORTD_UTILS_LIBRARY}
+   ${XROOTD_SSI_LIBRARY}
    ${OPENSSL_CRYPTO_LIBRARY}
    ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Shared PUBLIC
+  eosCommon
   eosCommonServer
   EosFstIo-Static
   eosCapability-Static
@@ -390,6 +397,7 @@ target_link_libraries(XrdEosFst-Shared PUBLIC
   ${XROOTD_CL_LIBRARY}
   ${XOORTD_UTILS_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
+  ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
