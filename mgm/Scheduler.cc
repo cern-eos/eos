@@ -154,8 +154,6 @@ Scheduler::FilePlacement(PlacementArguments* args)
       schedulingGroup[indextag] = *git;
     }
 
-    git++;
-
     if (git ==  FsView::gFsView.mSpaceGroupView[*args->spacename].end()) {
       git = FsView::gFsView.mSpaceGroupView[*args->spacename].begin();
     }
