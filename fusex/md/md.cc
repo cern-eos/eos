@@ -499,8 +499,7 @@ metad::wait_deleted(fuse_req_t req,
 	  mdflush.UnLock();
 	  eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
 			    md->id());
-	  XrdSysTimer delay;
-	  delay.Wait(25);
+	  std::this_thread::sleep_for(std::chrono::microseconds(500));
 	}
 	else
 	{
@@ -971,8 +970,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
       mdflush.UnLock();
       eos_static_info("waiting for parent directory to be synced upstream parent-ino= %lx ino=%lx",
                       md->id(), pmd->id());
-      XrdSysTimer delay;
-      delay.Wait(25);
+      std::this_thread::sleep_for(std::chrono::microseconds(500));
     } else {
       mdflush.UnLock();
       break;
