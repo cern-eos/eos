@@ -47,9 +47,8 @@ class CheckSum;
 class FmdHelper;
 
 //------------------------------------------------------------------------------
-//! Class
+//! Class XrdFstOfsFile
 //------------------------------------------------------------------------------
-
 class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 {
   friend class ReplicaParLayout;
@@ -66,12 +65,10 @@ public:
   //--------------------------------------------------------------------------
   XrdFstOfsFile(const char* user, int MonID = 0);
 
-
   //--------------------------------------------------------------------------
   // Destructor
   //--------------------------------------------------------------------------
   virtual ~XrdFstOfsFile();
-
 
   //----------------------------------------------------------------------------
   //! Execute special operation on the file (version 2)
@@ -92,11 +89,9 @@ public:
                    const char* args,
                    const XrdSecEntity* client = 0);
 
-
   //--------------------------------------------------------------------------
   //! Return the Etag
   //--------------------------------------------------------------------------
-
   const char* GetETag()
   {
     return mEtag.c_str();
@@ -126,7 +121,6 @@ public:
               const XrdSecEntity* client,
               const char* opaque = 0);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
@@ -143,7 +137,6 @@ public:
            const XrdSecEntity* client,
            const char* opaque = 0);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
@@ -159,13 +152,11 @@ public:
   //--------------------------------------------------------------------------
   int close();
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int read(XrdSfsFileOffset fileOffset,  // Preread only
            XrdSfsXferSize amount);
-
 
   //--------------------------------------------------------------------------
   //!
@@ -174,8 +165,6 @@ public:
                       char* buffer,
                       XrdSfsXferSize buffer_size);
 
-
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
@@ -183,12 +172,10 @@ public:
                          char* buffer,
                          XrdSfsXferSize buffer_size);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int read(XrdSfsAio* aioparm);
-
 
   //--------------------------------------------------------------------------
   //! Vector read - low level ofs method which is called from one of the
@@ -203,7 +190,6 @@ public:
   XrdSfsXferSize readvofs(XrdOucIOVec* readV,
                           uint32_t readCount);
 
-
   //--------------------------------------------------------------------------
   //! Vector read - OFS interface method
   //!
@@ -216,14 +202,12 @@ public:
   XrdSfsXferSize readv(XrdOucIOVec* readV,
                        int readCount);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   XrdSfsXferSize write(XrdSfsFileOffset fileOffset,
                        const char* buffer,
                        XrdSfsXferSize buffer_size);
-
 
   //--------------------------------------------------------------------------
   //!
@@ -232,48 +216,40 @@ public:
                           const char* buffer,
                           XrdSfsXferSize buffer_size);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int write(XrdSfsAio* aioparm);
-
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int stat(struct stat* buf);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   bool verifychecksum();
-
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int sync();
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int syncofs();
-
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int sync(XrdSfsAio* aiop);
 
-
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int truncate(XrdSfsFileOffset fileOffset);
-
 
   //--------------------------------------------------------------------------
   //!
@@ -314,7 +290,7 @@ public:
   //--------------------------------------------------------------------------
   unsigned long long getFileId()
   {
-    return fileid;
+    return mFileId;
   }
 
   //--------------------------------------------------------------------------
@@ -343,30 +319,30 @@ public:
   static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
-  std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (un-decrypted)
+  std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   XrdOucEnv* mCapOpaque; ///< Capability opaque info (decrypted)
   XrdOucString mFstPath; ///< Physical path on the FST
-  off_t bookingsize;
-  off_t targetsize;
-  off_t minsize;
-  off_t maxsize;
+  off_t mBookingSize;
+  off_t mTargetSize;
+  off_t mMinSize;
+  off_t mMaxSize;
   bool viaDelete;
   bool remoteDelete;
   bool writeDelete;
   uint64_t mRainSize; ///< Rain file size used during reconstruction
 
   XrdOucString mNsPath; /// Logical file path (from the namespace)
-  XrdOucString localPrefix; //! prefix on the local storage
-  XrdOucString RedirectManager; //! manager host where we bounce back
-  XrdOucString SecString; //! string containing security summary
+  XrdOucString mLocalPrefix; //! prefix on the local storage
+  XrdOucString mRedirectManager; //! manager host where we bounce back
+  XrdOucString mSecString; //! string containing security summary
   XrdSysMutex ChecksumMutex; //! mutex protecting the checksum class
   XrdOucString mTpcKey; //! TPC key for a tpc file operation
   XrdOucString mEtag; //! current and new ETag (recomputed in close)
 
-  unsigned long long fileid; //! file id
-  unsigned long fsid; //! file system id
-  unsigned long lid; //! layout id
-  unsigned long long cid; //! container id
+  unsigned long long mFileId; //! file id
+  unsigned long mFsId; //! file system id
+  unsigned long mLid; //! layout id
+  unsigned long long mCid; //! container id
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
   bool mFusex; //! indicator that we are commiting from a fusex client
@@ -485,20 +461,9 @@ private:
   struct stat updateStat;
 
   //--------------------------------------------------------------------------
-  //! Process open opaque information - this can come directly from the client
-  //! or from the MGM redirection but it's not encrypted but sent in plain
-  //! text in the URL
-  //!
-  //! @param in_opaque input opaque info
-  //! @param out_opaque output (processed) opaque info
-  //!
-  //! @return SFS_OK if succcessful, otherwise SFS_ERROR
-  //--------------------------------------------------------------------------
-  int ProcessOpenOpaque(const std::string& in_opaque, std::string& out_opaque);
-
-  //--------------------------------------------------------------------------
   //! Process TPC (third-party-copy) opaque information i.e handle tags like
-  //! tpc.key, tpc.dst, tpc.stage etc
+  //! tpc.key, tpc.dst, tpc.stage etc and also extact and decrypt the cap
+  //! opaque info
   //!
   //! @param opaque opaque information
   //! @param client XrdSecEntity of client
@@ -506,6 +471,35 @@ private:
   //! @return SFS_OK if succcessful, otherwise SFS_ERROR
   //--------------------------------------------------------------------------
   int ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client);
+
+  //--------------------------------------------------------------------------
+  //! Process open opaque information - this comes directly from the client
+  //! or from the MGM redirection but it's not encrypted but sent in plain
+  //! text in the URL
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //--------------------------------------------------------------------------
+  int ProcessOpenOpaque();
+
+  //--------------------------------------------------------------------------
+  //! Process cap opaque information - decisions that need to be taken based
+  //! on the ecrypted opaque info
+  //!
+  //! @param is_repair_read flag if this is a repair read
+  //! @param vid client virtual identity
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //--------------------------------------------------------------------------
+  int ProcessCapOpaque(bool& is_repair_read,
+                       eos::common::Mapping::VirtualIdentity& vid);
+
+  //--------------------------------------------------------------------------
+  //! Process mixed opaque information - decisions that need to be taken based
+  //! on both the ecrypted and un-encrypted opaque info
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //--------------------------------------------------------------------------
+  int ProcessMixedOpaque();
 
   //--------------------------------------------------------------------------
   //! Compute total time to serve read requests
@@ -542,13 +536,6 @@ private:
     sum = std::accumulate(vect.begin(), vect.end(),
                           static_cast<unsigned long long>(0));
     avg = vect.size() ? (1.0 * sum / vect.size()) : 0;
-
-    // For when the compiler will be smart enough
-    //sigma = std::accumulate(begin(vect), end(vect), 0,
-    //                      [&avg] (const T& init, const T& elem)
-    //                      {
-    //                        return elem + std::pwd((elem - avg), 2);
-    //                      });
 
     for (auto it = vect.begin(); it != vect.end(); ++it) {
       if (*it > max) {
@@ -588,15 +575,6 @@ private:
   void* DoTpcTransfer();
 
   //----------------------------------------------------------------------------
-  //! Check fst validity to avoid any open replays
-  //!
-  //! @param env_opaque env opaque infomtation
-  //!
-  //! @return true if valid, otherwise false
-  //----------------------------------------------------------------------------
-  bool CheckFstValidity(XrdOucEnv& env_opaque) const;
-
-  //----------------------------------------------------------------------------
   //! Check if layout encoding indicates a RAIN layout
   //!
   //! @param lid layout id encoding
@@ -604,6 +582,13 @@ private:
   //! @return true if RAIN layout, otherwise false
   //----------------------------------------------------------------------------
   static bool IsRainLayout(unsigned long long lid);
+
+  //----------------------------------------------------------------------------
+  //! Extract logid from the opaque info i.e. mgm.logid
+  //!
+  //! @param opaque opaque info
+  //----------------------------------------------------------------------------
+  std::string ExtractLogId(const char* opaque) const;
 
 #ifdef IN_TEST_HARNESS
 public:

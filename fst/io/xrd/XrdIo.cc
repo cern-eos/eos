@@ -196,16 +196,14 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   // Final path + opaque info used in the open
   std::string request;
   ProcessOpaqueInfo(opaque, request);
-  
+
   if (mXrdFile) {
     delete mXrdFile;
     mXrdFile = NULL;
   }
 
   mXrdFile = new XrdCl::File();
-
   mTargetUrl.FromString(request);
-
   AssignConnection();
   DumpConnectionPool();
 
@@ -224,7 +222,8 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(
                                           flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(), flags_xrdcl, mode_xrdcl,
+  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(),
+                               flags_xrdcl, mode_xrdcl,
                                timeout);
   mXrdFile->GetProperty("LastURL", mLastTriedUrl);
 
@@ -527,9 +526,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 
       status = mXrdFile->Read(static_cast<uint64_t>(offset),
                               static_cast<uint32_t>(length),
-                              pBuff,
-                              handler,
-                              timeout);
+                              pBuff, handler, timeout);
 
       if (!status.IsOK()) {
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1585,7 +1582,6 @@ XrdIo::AssignConnection()
 {
   // Select a slot in our connection pool, if there is not already a user
   // name selected
-
   if (getenv("EOS_FST_XRDIO_USE_CONNECTION_POOL")) {
     std::string lTargetHost = mTargetUrl.GetHostName();
     XrdSysMutexHelper sLock(sConnectionPoolMutex);
