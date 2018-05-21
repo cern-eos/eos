@@ -1673,8 +1673,9 @@ WFE::Job::DoIt(bool issync)
             return EAGAIN;
           }
 
-          bool onGoingRetrieve = true;
           auto retrieveCntr = 0ul;
+          decltype(fmd->getCUid()) cuid;
+          decltype(fmd->getCGid()) cgid;
           if (!onDisk) {
             eos::common::RWMutexWriteLock lock;
             lock.Grab(gOFS->eosViewRWMutex);
@@ -1691,16 +1692,15 @@ WFE::Job::DoIt(bool issync)
               return EAGAIN;
             }
 
-            onGoingRetrieve = (retrieveCntr != 0ul);
-
             try {
-              fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(++retrieveCntr));
-              if (!onGoingRetrieve && onTape) {
+              fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr + 1));
+              // if we are the first to retrieve the file
+              if (retrieveCntr == 0ul && onTape) {
                 fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
 
                 // Read these attributes here to optimize locking
-                notification->mutable_file()->mutable_owner()->set_username(GetUserName(fmd->getCUid()));
-                notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(fmd->getCGid()));
+                cuid = fmd->getCUid();
+                cgid = fmd->getCGid();
               }
               gOFS->eosView->updateFileStore(fmd.get());
             } catch (eos::MDException& ex) {
@@ -1722,9 +1722,9 @@ WFE::Job::DoIt(bool issync)
                            fullPath.c_str());
             MoveWithResults(ENODATA);
             return ENODATA;
-          } else if (onGoingRetrieve) {
+          } else if (retrieveCntr != 0ul) {
             eos_static_info("File %s is already being retrieved by %u clients.",
-                            fullPath.c_str(), retrieveCntr);
+                            fullPath.c_str(), retrieveCntr + 1);
             MoveWithResults(SFS_OK);
             return SFS_OK;
           } else {
@@ -1734,6 +1734,9 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_file()->set_lpath(fullPath);
             notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
             notification->mutable_file()->set_fid(mFid);
+            
+            notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
 
             auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
             std::ostringstream destStream;
