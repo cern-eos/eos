@@ -936,7 +936,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   }
 
   if (userinodequota) {
-    if ((GetQuota(kUserFilesTarget, uid) - GetQuota(kUserFilesIs, uid)) > inodes) {
+    // The +1 comes from the fact the the current file is already accounted to
+    // the ns quota by doing ns_quota->addFile previously in the open function.
+    if ((GetQuota(kUserFilesTarget, uid) - GetQuota(kUserFilesIs,
+         uid) + 1) >= inodes) {
       if (!uservolumequota) {
         hasuserquota = true;
       }
