@@ -626,7 +626,6 @@ eos_clean_debian_artifacts:
     - docker-ubuntu
   allow_failure: true
   only:
-    - triggers
     - schedules
 
 eos_periodic_coverity:
@@ -639,17 +638,15 @@ eos_periodic_coverity:
     - make srpm
     - sudo yum-builddep --nogpgcheck -y --setopt=cern*.exclude=xrootd* SRPMS/*
     - rm -f CMakeCache.txt
-    - scl enable devtoolset-6 bash
-    - cmake3 ..
+    - scl enable devtoolset-6 "cmake3 .."
     - cov-build --dir cov-int make -j 4
     - tar czvf eos-metrics.tgz cov-int
     - curl --form token="`cat /home/gitlab-runner/.coverity_token`" --form email=project-eos-commits@cern.ch --form file=@eos-metrics.tgz --form version="`../genversion.sh`" --form description="Periodic Gitlab build" https://scan.coverity.com/builds?project=cern-eos%2Feos
   tags:
     - coverity
   allow_failure: true
-  only:
-    - triggers
-    - schedules
+#  only:
+#    - schedules
 
 eos_cppcheck_sonar:
   stage: build:rpm
