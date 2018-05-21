@@ -265,50 +265,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  eos_info("capability=%s", mCapOpaque->Env(envlen));
-  const char* sfsid = 0;
-
-  // @todo (esindril) to be moved to ProcessesMixedOpaque
-  // If we open a replica we have to take the right filesystem id and filesystem
-  // prefix for that replica
-  if (!(sfsid = mCapOpaque->Get("mgm.fsid"))) {
-    return gOFS.Emsg(epname, error, EINVAL,
-                     "open - no file system id in capability", mNsPath.c_str());
-  }
-
-  if (mOpenOpaque->Get("mgm.replicaindex")) {
-    XrdOucString replicafsidtag = "mgm.fsid";
-    replicafsidtag += (int) atoi(mOpenOpaque->Get("mgm.replicaindex"));
-
-    if (mCapOpaque->Get(replicafsidtag.c_str())) {
-      sfsid = mCapOpaque->Get(replicafsidtag.c_str());
-    }
-  }
-
-  // Extract the local path prefix from the broadcasted configuration!
-  if (mOpenOpaque->Get("mgm.fsprefix")) {
-    mLocalPrefix = mOpenOpaque->Get("mgm.fsprefix");
-    mLocalPrefix.replace("#COL#", ":");
-  } else {
-    // Extract the local path prefix from the broadcasted configuration!
-    mFsId = atoi(sfsid ? sfsid : "0");
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-
-    if (mFsId && gOFS.Storage->mFileSystemsMap.count(mFsId)) {
-      mLocalPrefix = gOFS.Storage->mFileSystemsMap[mFsId]->GetPath().c_str();
-    }
-  }
-
-  // Attention: the localprefix implementation does not work for gateway machines
-  if (!mLocalPrefix.length()) {
-    return gOFS.Emsg(epname, error, EINVAL, "open - cannot determine the prefix"
-                     " path to use for the given filesystem id", mNsPath.c_str());
-  }
-
-  eos::common::FileId::FidPrefix2FullPath(eos::common::FileId::Fid2Hex(
-      mFileId).c_str(),
-                                          mLocalPrefix.c_str(), mFstPath);
-  mFsId = atoi(sfsid);
   eos_info("ns_path=%s", mNsPath.c_str());
 
   if (mNsPath.beginswith("/replicate:")) {
@@ -2356,6 +2312,7 @@ XrdFstOfsFile::DoTpcTransfer()
   }
 
   XrdIo tpcIO(src_url);
+  tpcIO.SetLogId(logId);
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
   if (tpcIO.fileOpen(0, 0, src_cgi)) {
@@ -2763,11 +2720,13 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
 {
   EPNAME("open");
 
-  if (!mOpenOpaque) {
+  if (!mCapOpaque) {
     eos_warning("msg=\"no cap opaque info to process\"");
     return SFS_OK;
   }
 
+  int envlen {0};
+  eos_info("capability=%s", mCapOpaque->Env(envlen));
   char* val = nullptr;
   const char* hexfid = 0;
   const char* slid = 0;
@@ -2908,12 +2867,14 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
 int
 XrdFstOfsFile::ProcessMixedOpaque()
 {
+  EPNAME("open");
+  using eos::common::FileId;
   // Handle checksum request
   std::string opaqueCheckSum;
   char* val = nullptr;
 
   if (mOpenOpaque == nullptr || mCapOpaque == nullptr) {
-    eos_warning("msg=\"both open and cap opaque are empty\"");
+    eos_warning("msg=\"open or cap opaque are empty\"");
     return SFS_OK;
   }
 
@@ -2927,6 +2888,47 @@ XrdFstOfsFile::ProcessMixedOpaque()
     eos_debug("checksum requested %d %u", mCheckSum.get(), mLid);
   }
 
+  // Handle file system id and local prefix - If we open a replica we have to
+  // take the right filesystem id and filesystem prefix for that replica
+  const char* sfsid = 0;
+
+  if (!(sfsid = mCapOpaque->Get("mgm.fsid"))) {
+    return gOFS.Emsg(epname, error, EINVAL,
+                     "open - no file system id in capability", mNsPath.c_str());
+  }
+
+  if (mOpenOpaque->Get("mgm.replicaindex")) {
+    XrdOucString replicafsidtag = "mgm.fsid";
+    replicafsidtag += (int) atoi(mOpenOpaque->Get("mgm.replicaindex"));
+
+    if (mCapOpaque->Get(replicafsidtag.c_str())) {
+      sfsid = mCapOpaque->Get(replicafsidtag.c_str());
+    }
+  }
+
+  // Extract the local path prefix from the broadcasted configuration
+  if (mOpenOpaque->Get("mgm.fsprefix")) {
+    mLocalPrefix = mOpenOpaque->Get("mgm.fsprefix");
+    mLocalPrefix.replace("#COL#", ":");
+  } else {
+    // Extract the local path prefix from the broadcasted configuration!
+    mFsId = atoi(sfsid ? sfsid : "0");
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
+
+    if (mFsId && gOFS.Storage->mFileSystemsMap.count(mFsId)) {
+      mLocalPrefix = gOFS.Storage->mFileSystemsMap[mFsId]->GetPath().c_str();
+    }
+  }
+
+  // @note: the localprefix implementation does not work for gateway machines
+  if (!mLocalPrefix.length()) {
+    return gOFS.Emsg(epname, error, EINVAL, "open - cannot determine the prefix"
+                     " path to use for the given filesystem id", mNsPath.c_str());
+  }
+
+  mFsId = atoi(sfsid);
+  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
+                             mLocalPrefix.c_str(), mFstPath);
   return SFS_OK;
 }
 
