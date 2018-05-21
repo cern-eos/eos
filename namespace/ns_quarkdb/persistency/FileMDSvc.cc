@@ -83,7 +83,8 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   }
 
   mMetadataProvider.reset(new MetadataProvider(*pQcl, pContSvc, this));
-  static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider(mMetadataProvider.get());
+  static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider(
+    mMetadataProvider.get());
 
   if (config.find(cache_size) != config.end()) {
     mMetadataProvider->setFileMDCacheSize(std::stoull(config.at(cache_size)));
@@ -122,22 +123,20 @@ FileMDSvc::SafetyCheck()
 {
   std::string blob;
   IFileMD::id_t free_id = getFirstFreeId();
-  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
-                                  100000, 150199, 200001, 1000002, 2000123
-                                 };
-
+  std::list<uint64_t> offsets {1, 10, 50, 100, 501, 1001, 11000, 50000,
+                               100000, 150199, 200001, 1000002, 2000123 };
   std::vector<folly::Future<eos::ns::FileMdProto>> futs;
 
   for (auto incr : offsets) {
     IFileMD::id_t check_id = free_id + incr;
-    futs.emplace_back(MetadataFetcher::getFileFromId(*pQcl, FileIdentifier(check_id)));
+    futs.emplace_back(MetadataFetcher::getFileFromId(*pQcl,
+                      FileIdentifier(check_id)));
   }
 
-  for(size_t i = 0; i < futs.size(); i++) {
+  for (size_t i = 0; i < futs.size(); i++) {
     try {
       futs[i].get();
-    }
-    catch (eos::MDException& qdb_err) {
+    } catch (eos::MDException& qdb_err) {
       // All is good, we didn't find any file, as expected
       continue;
     }
@@ -166,7 +165,8 @@ std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
   IFileMDPtr file = mMetadataProvider->retrieveFileMD(FileIdentifier(id)).get();
-  if(file && clock) {
+
+  if (file && clock) {
     *clock = file->getClock();
   }
 
@@ -209,7 +209,8 @@ void
 FileMDSvc::removeFile(IFileMD* obj)
 {
   std::string sid = stringify(obj->getId());
-  pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(obj->getId())));
+  pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(
+                      obj->getId())));
   pFlusher->srem(constants::sOrphanFiles, sid);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
@@ -316,7 +317,6 @@ FileMDSvc::ComputeNumberOfFiles()
   (void) ah.Wait();
   std::list<long long int> resp = ah.GetResponses();
   mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
-
   mNumFiles += pQcl->execute(RequestBuilder::getNumberOfFiles()).get()->integer;
 }
 

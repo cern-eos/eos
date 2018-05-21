@@ -24,18 +24,16 @@
 #include "MDException.hh"
 #include "common/Logging.hh"
 
-namespace eos {
+namespace eos
+{
 
-MDStatus::MDStatus(int localerrn, const std::string &error)
-: localerrno(localerrn), err(error) {
-
-  if(localerrno != ENOENT) {
+MDStatus::MDStatus(int localerrn, const std::string& error)
+  : localerrno(localerrn), err(error)
+{
+  if (localerrno != ENOENT) {
     eos_static_crit("MDStatus (%d): %s", localerrn, error.c_str());
+  } else {
+    eos_static_debug("MDStatus (%d): %s", localerrn, error.c_str());
   }
-  else {
-    eos_static_info("MDStatus (%d): %s", localerrn, error.c_str());
-  }
-
 }
-
 }

@@ -26,48 +26,55 @@
 #include "namespace/MDException.hh"
 #include "namespace/utils/Buffer.hh"
 
-namespace eos { namespace ns {
-  class ContainerMdProto;
-  class FileMdProto;
-}}
+namespace eos
+{
+namespace ns
+{
+class ContainerMdProto;
+class FileMdProto;
+}
+}
 
 EOSNSNAMESPACE_BEGIN
 
 class Buffer;
 
-class Serialization {
+class Serialization
+{
 public:
 
   //----------------------------------------------------------------------------
   //! Deserialize a FileMD protobuf
   //----------------------------------------------------------------------------
-  static void deserializeFile(const Buffer& buffer, eos::ns::FileMdProto &proto);
-  static MDStatus deserializeNoThrow(const Buffer& buffer, eos::ns::FileMdProto &proto);
+  static void deserializeFile(const Buffer& buffer, eos::ns::FileMdProto& proto);
+  static MDStatus deserializeNoThrow(const Buffer& buffer,
+                                     eos::ns::FileMdProto& proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize a ContainerMD protobuf
   //----------------------------------------------------------------------------
-  static void deserializeContainer(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
-  static MDStatus deserializeNoThrow(const Buffer& buffer, eos::ns::ContainerMdProto &proto);
+  static void deserializeContainer(const Buffer& buffer,
+                                   eos::ns::ContainerMdProto& proto);
+
+  static MDStatus deserializeNoThrow(const Buffer& buffer,
+                                     eos::ns::ContainerMdProto& proto);
 
   //----------------------------------------------------------------------------
   //! Deserialize an int64_t
   //----------------------------------------------------------------------------
-  static MDStatus deserializeNoThrow(const Buffer& buffer, int64_t &val);
-
+  static MDStatus deserializeNoThrow(const Buffer& buffer, int64_t& val);
 
   //----------------------------------------------------------------------------
   //! Deserialize any supported type.
   //----------------------------------------------------------------------------
   template<typename T>
-  static MDStatus deserialize(const char* str, size_t len, T& output) {
+  static MDStatus deserialize(const char* str, size_t len, T& output)
+  {
     eos::Buffer ebuff;
     ebuff.putData(str, len);
-
     // Dispatch to appropriate overload
     return Serialization::deserializeNoThrow(ebuff, output);
   }
-
 };
 
 EOSNSNAMESPACE_END
