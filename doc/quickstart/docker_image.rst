@@ -49,7 +49,7 @@ The containers will reside on the same network knowing about each other and are 
 
 .. parsed-literal::
 
-   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:|version| -n 6
+   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:4.2.16 -n 6
 
 To connect to EOS using the *eos* shell CLI running in the MGM container you can do:
 
