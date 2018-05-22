@@ -28,6 +28,24 @@ To attach a RADOS data and metadata pool to a EOS filesystem one has to add a fi
 
 As usual the filesystems can also be registered in the **default** space and there is no need to change the forced space attribute.
 
+If there is no need to have individual meta/data pool combinations per filesystem one can use these environment variables in ``/etc/sysconfig/eos_env`` :
+
+.. code-block:: bash
+
+   EXOSIO_USER=ecuser
+   EXOSIO_DATA_POOL=ec1_data
+   EXOSIO_MD_POOL=ec1_md
+
+The plug-in can be run in full debug mode by defining EXOSIO_DEBUG in ``/etc/sysconfig/eos_env``:
+
+.. code-block:: bash
+
+   EXOSIO_DEBUG=1
+
+
+RADOS Object Structure 
+----------------------
+
 The objects in the data pool are named similiar to a local EOS filesystem:
 
 .. code-block:: bash
@@ -142,7 +160,7 @@ The data pool does not store attributes/omap on objects:
 Manual scanning
 ---------------
 
-It is possible to run a manual FST scan on an ExOS filesystem:
+It is possible to run a manual FST scan on an ExOS filesystem, which will checksum files and flag them in case of errors.
 
 .. code-block:: bash
 
