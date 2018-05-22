@@ -104,8 +104,8 @@ EOS_FUSE_RDAHEAD_WINDOW=131072
 
 # Lazy-open of files for RW. Applications get a visible performance boost by
 # using this option and the latency in synchronous replication on the FSTs is
-# completely hidden. (default on)
-# EOS_FUSE_LAZYOPENRW=1
+# completely hidden. (default off)
+# EOS_FUSE_LAZYOPENRW=0
 
 # Asynchronous open of files. Optimization of the lazy open hiding even more the
 # latency. Used only when lazy-open is also enabled.
@@ -122,8 +122,8 @@ EOS_FUSE_RDAHEAD_WINDOW=131072
 # EOS_FUSE_MODE_OVERLAY=000     (use 007 to show things are rwx for w)
 
 # Enable inline-repair mode for updates of files with offline replicas.
-# (default on)
-# EOS_FUSE_INLINE_REPAIR=1
+# (default off)
+# EOS_FUSE_INLINE_REPAIR=0
 
 # Maximum inline-repair size for the previous flag. (default 256M)
 # EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
