@@ -666,7 +666,7 @@ if [ $? -eq 0 ]; then
 # --------------------------
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1
-runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 30"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1 -i 1M
