@@ -55,7 +55,6 @@
   XrdOucString adropfsid = env.Get("mgm.drop.fsid");
   XrdOucString areplication = env.Get("mgm.replication");
   XrdOucString areconstruction = env.Get("mgm.reconstruction");
-  XrdOucString aocchunk = env.Get("mgm.occhunk");
   XrdOucString aismodified = env.Get("mgm.modified");
   XrdOucString afusex = env.Get("mgm.fusex");
 
@@ -71,12 +70,8 @@
   int oc_n = 0;
   int oc_max = 0;
   XrdOucString oc_uuid = "";
-
-  bool occhunk =
-  eos::common::OwnCloud::GetChunkInfo(env.Env(envlen),
-  oc_n,
-  oc_max,
-  oc_uuid);
+  bool occhunk = eos::common::OwnCloud::GetChunkInfo(env.Env(envlen), oc_n,
+  oc_max, oc_uuid);
 
   // Indicate when the last chunk of a chunked OC upload has been committed
   bool ocdone = false;
@@ -227,14 +222,16 @@
             }
           }
 
-	  // check if we have this replica in the unlink list
-	  if (fusex && fmd->hasUnlinkedLocation((unsigned short) fsid)) {
-	    eos_thread_err("suppressing possible recovery replica for fid=%lu on unlinked fsid=%llu- rejecting replica", fmd->getId(), fsid); 
-	    // this happens when a FUSEX recovery has been triggered, to avoid to reattach replicas, 
-	    // we clean them up here
-	    return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE] - suppressing recovery replica",
-			"");
-	  }
+          // check if we have this replica in the unlink list
+          if (fusex && fmd->hasUnlinkedLocation((unsigned short) fsid)) {
+            eos_thread_err("suppressing possible recovery replica for fid=%lu on unlinked fsid=%llu- rejecting replica",
+                           fmd->getId(), fsid);
+            // this happens when a FUSEX recovery has been triggered, to avoid to reattach replicas,
+            // we clean them up here
+            return Emsg(epname, error, EBADE,
+                        "commit replica - file size is wrong [EBADE] - suppressing recovery replica",
+                        "");
+          }
 
           if (eos::common::LayoutId::GetLayoutType(lid) ==
               eos::common::LayoutId::kReplica) {

@@ -140,9 +140,10 @@ public:
                            int& chunk_max,
                            XrdOucString& chunk_uuid)
   {
+    eos_static_debug("opaque=%s", request);
     bool ok = true;
     XrdOucEnv env(request);
-    const char* val = 0;
+    char* val = 0;
 
     if ((val = env.Get("oc-chunk-n"))) {
       chunk_n = (int) strtol(val, 0, 10);
