@@ -57,82 +57,84 @@ private:
 
 public:
 
-  TransferQueue (eos::common::TransferQueue** queue, const char* name, int slots = 2, int band = 100);
-  ~TransferQueue ();
+  TransferQueue(eos::common::TransferQueue** queue, const char* name,
+                int slots = 2, int band = 100);
+  ~TransferQueue();
 
   eos::common::TransferQueue*
-  GetQueue ()
+  GetQueue()
   {
     return *mQueue;
   }
 
   const char*
-  GetName ()
+  GetName()
   {
     return mName.c_str();
   }
 
-  size_t GetSlots ();
-  void SetSlots (size_t slots);
+  size_t GetSlots();
+  void SetSlots(size_t slots);
 
-  size_t GetBandwidth ();
-  void SetBandwidth (size_t band);
+  size_t GetBandwidth();
+  void SetBandwidth(size_t band);
 
   void
-  SetJobEndCallback (XrdSysCondVar* cvar)
+  SetJobEndCallback(XrdSysCondVar* cvar)
   {
-    XrdSysMutexHelper(mCallBackMutex);
+    XrdSysMutexHelper lock(mCallbackMutex);
     mJobEndCallback = cvar;
   }
 
   void
-  IncRunning ()
+  IncRunning()
   {
-    XrdSysMutexHelper(mJobsRunningMutex);
+    XrdSysMutexHelper lock(mJobsRunningMutex);
     mJobsRunning++;
   }
 
   void
-  DecRunning ()
+  DecRunning()
   {
-    XrdSysMutexHelper(mJobsRunningMutex);
+    XrdSysMutexHelper lock_jobs(mJobsRunningMutex);
     mJobsRunning--;
     mJobsDone++;
     // signal threads waiting for a job to finish
     mJobTerminateCondition.Signal();
-
     // signal a call-back condition variable
     {
-      XrdSysMutexHelper(mCallBackMutex);
-      if (mJobEndCallback)
+      XrdSysMutexHelper lock_cb(mCallbackMutex);
+
+      if (mJobEndCallback) {
         mJobEndCallback->Signal();
+      }
     }
   }
 
   size_t
-  GetRunning ()
+  GetRunning()
   {
     size_t nrun = 0;
     {
-      XrdSysMutexHelper(mJobsRunningMutex);
+      XrdSysMutexHelper lock(mJobsRunningMutex);
       nrun = mJobsRunning;
     }
     return nrun;
   }
 
   unsigned long long
-  GetDone ()
+  GetDone()
   {
     size_t ndone = 0;
     {
-      XrdSysMutexHelper(mJobsRunningMutex);
+      XrdSysMutexHelper lock(mJobsRunningMutex);
       ndone = mJobsDone;
     }
     return ndone;
   }
 
   size_t
-  GetRunningAndQueued ()
+  GetRunningAndQueued()
   {
     return (GetRunning() + GetQueue()->Size());
   }

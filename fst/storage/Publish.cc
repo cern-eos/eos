@@ -88,11 +88,9 @@ Storage::Publish()
 
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
-
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known.
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::FileSystem::fsid_t fsid = 0;
   std::string publish_uptime = "";
@@ -374,7 +372,7 @@ Storage::Publish()
           }
           {
             long long fbytes = mFsVect[i]->GetLongLong("stat.statfs.freebytes");
-            XrdSysMutexHelper(mFsFullMapMutex);
+            XrdSysMutexHelper lock(mFsFullMapMutex);
             // stop the writers if it get's critical under 5 GB space
             int full_gb = 5;
 
