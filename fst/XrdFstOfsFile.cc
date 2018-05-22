@@ -3184,8 +3184,13 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
   size_t pos_begin = sopaque.find(tag);
 
   if (pos_begin != std::string::npos) {
-    pos_begin += tag.length();
+    pos_begin += (tag.length() - 1);
     size_t pos_end = sopaque.find('&', pos_begin);
+
+    if (pos_end != std::string::npos) {
+      pos_end -= pos_begin;
+    }
+
     log_id = sopaque.substr(pos_begin, pos_end);
   }
 
