@@ -25,7 +25,9 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/TestHelpers.hh"
+#include "namespace/utils/RmrfHelper.hh"
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <cstdint>
@@ -248,7 +250,7 @@ TEST_F(FileSystemViewF, BasicSanity)
   }
 
   // Remove all containers
-  view()->removeContainer("/test/", true);
+  eos::RmrfHelper::nukeDirectory(view(), "/test/");
   // Remove the root container
   std::shared_ptr<eos::IContainerMD> root{view()->getContainer("/")};
   containerSvc()->removeContainer(root.get());

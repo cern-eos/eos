@@ -176,8 +176,7 @@ public:
   //------------------------------------------------------------------------
   //! Remove a container (directory)
   //------------------------------------------------------------------------
-  virtual void removeContainer(const std::string& uri,
-                               bool recursive = false) = 0;
+  virtual void removeContainer(const std::string& uri) = 0;
 
   //------------------------------------------------------------------------
   //! Get uri for the container

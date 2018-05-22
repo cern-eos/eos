@@ -326,12 +326,6 @@ public:
   virtual bool access(uid_t uid, gid_t gid, int flags = 0) = 0;
 
   //----------------------------------------------------------------------------
-  //! Clean up the entire contents for the container. Delete files and
-  //! containers recurssively
-  //----------------------------------------------------------------------------
-  virtual void cleanUp() = 0;
-
-  //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
   virtual void serialize(Buffer& buffer) = 0;

@@ -199,8 +199,7 @@ public:
   //------------------------------------------------------------------------
   //! Remove a container (directory)
   //------------------------------------------------------------------------
-  virtual void removeContainer(const std::string& uri,
-                               bool recursive = false) override;
+  virtual void removeContainer(const std::string& uri) override;
 
   //------------------------------------------------------------------------
   //! Get uri for the container
@@ -277,8 +276,6 @@ private:
   std::shared_ptr<IContainerMD> findLastContainer(
     std::vector<char*>& elements, size_t end, size_t& index,
     size_t* link_depths = 0);
-
-  void cleanUpContainer(IContainerMD* cont);
 
   //------------------------------------------------------------------------
   // File visitor for reloading

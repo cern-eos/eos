@@ -502,8 +502,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
 //----------------------------------------------------------------------------
 // Remove a container (directory)
 //----------------------------------------------------------------------------
-void HierarchicalView::removeContainer(const std::string& uri,
-                                       bool recursive)
+void HierarchicalView::removeContainer(const std::string& uri)
 {
   //--------------------------------------------------------------------------
   // Find the container
@@ -540,18 +539,13 @@ void HierarchicalView::removeContainer(const std::string& uri,
     throw e;
   }
 
-  if ((cont->getNumContainers() != 0 || cont->getNumFiles() != 0) &&
-      !recursive) {
+  if (cont->getNumContainers() != 0 || cont->getNumFiles() != 0) {
     MDException e(ENOTEMPTY);
     e.getMessage() << uri << ": Container is not empty";
     throw e;
   }
 
   parent->removeContainer(cont->getName());
-
-  if (recursive) {
-    cleanUpContainer(cont.get());
-  }
 
   pContainerSvc->removeContainer(cont.get());
 }
@@ -616,14 +610,6 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements,
 
   index = position;
   return current;
-}
-
-//----------------------------------------------------------------------------
-// Clean up the container's children
-//----------------------------------------------------------------------------
-void HierarchicalView::cleanUpContainer(IContainerMD* cont)
-{
-  (void) cont->cleanUp();
 }
 
 //----------------------------------------------------------------------------

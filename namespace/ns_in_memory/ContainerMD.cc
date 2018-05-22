@@ -217,31 +217,6 @@ ContainerMD::removeFile(const std::string& name)
   }
 }
 
-//------------------------------------------------------------------------
-// Clean up the entire contents for the container. Delete files and
-// containers recurssively
-//------------------------------------------------------------------------
-void
-ContainerMD::cleanUp()
-{
-  std::shared_ptr<IContainerMD> cont;
-  std::shared_ptr<IFileMD> file;
-
-  for (auto itf = mFiles.begin(); itf != mFiles.end(); ++itf) {
-    file = pFileSvc->getFileMD(itf->second);
-
-    if (file) {
-      pFileSvc->removeFile(file.get());
-    }
-  }
-
-  for (auto itc = mSubcontainers.begin(); itc != mSubcontainers.end(); ++itc) {
-    cont = pContSvc->getContainerMD(itc->second);
-    cont->cleanUp();
-    pContSvc->removeContainer(cont.get());
-  }
-}
-
 //------------------------------------------------------------------------------
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------

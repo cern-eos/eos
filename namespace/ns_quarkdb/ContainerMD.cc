@@ -319,38 +319,6 @@ ContainerMD::getNumContainers()
   return mSubcontainers->size();
 }
 
-//------------------------------------------------------------------------
-// Clean up the entire contents for the container. Delete files and
-// containers recursively
-//------------------------------------------------------------------------
-void
-ContainerMD::cleanUp()
-{
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
-  for (const auto& elem : mFiles.get()) {
-    auto file = pFileSvc->getFileMD(elem.second);
-    pFileSvc->removeFile(file.get());
-  }
-
-  mFiles->clear();
-
-  // Remove all subcontainers
-  for (const auto& elem : mSubcontainers.get()) {
-    auto cont = pContSvc->getContainerMD(elem.second);
-
-    if (cont->getId() != getId()) {
-      cont->cleanUp();
-    }
-
-    pContSvc->removeContainer(cont.get());
-  }
-
-  mSubcontainers->clear();
-  // Delete files and subcontainers map from the KV backend
-  pFlusher->del(pFilesKey);
-  pFlusher->del(pDirsKey);
-}
-
 //------------------------------------------------------------------------------
 // Access checking helpers
 //------------------------------------------------------------------------------

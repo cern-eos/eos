@@ -196,7 +196,7 @@ public:
   //----------------------------------------------------------------------------
   //! Remove a container (directory)
   //----------------------------------------------------------------------------
-  virtual void removeContainer(const std::string& uri, bool recursive = false) override;
+  virtual void removeContainer(const std::string& uri) override;
 
   //----------------------------------------------------------------------------
   //! Get uri for the container

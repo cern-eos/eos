@@ -36,6 +36,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/LogManager.hh"
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
+#include "namespace/utils/RmrfHelper.hh"
 
 #include <XrdSys/XrdSysPthread.hh>
 
@@ -504,7 +505,7 @@ void HierarchicalSlaveTest::functionalTest()
   //----------------------------------------------------------------------------
   modifySubTree(viewMaster, "/dir1");
   deleteAllReplicasRec(viewMaster, "/dir1/dir1/dir1");
-  viewMaster->removeContainer("/dir1/dir1/dir1", true);
+  eos::RmrfHelper::nukeDirectory(viewMaster.get(), "/dir1/dir1/dir1");
   //----------------------------------------------------------------------------
   // Run compaction
   //----------------------------------------------------------------------------
@@ -530,7 +531,7 @@ void HierarchicalSlaveTest::functionalTest()
   createSubTree(viewMaster, "/newdir1", 2, 10, 100);
   modifySubTree(viewMaster, "/newdir1");
   deleteAllReplicasRec(viewMaster, "/newdir1/dir1");
-  viewMaster->removeContainer("/newdir1/dir1", true);
+  eos::RmrfHelper::nukeDirectory(viewMaster.get(), "/newdir1/dir1");
   std::shared_ptr<eos::IContainerMD> contMaster2;
   std::shared_ptr<eos::IContainerMD> contMaster3;
   CPPUNIT_ASSERT_NO_THROW(contMaster2 = viewMaster->createContainer("/newdir2",
@@ -601,7 +602,7 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(cleanUpQuotaRec(viewMaster,
                                           viewMaster->getContainer("/newdir2/dir3")));
   deleteAllReplicasRec(viewMaster, "/newdir2/dir3");
-  CPPUNIT_ASSERT_NO_THROW(viewMaster->removeContainer("/newdir2/dir3", true));
+  CPPUNIT_ASSERT_NO_THROW(eos::RmrfHelper::nukeDirectory(viewMaster.get(), "/newdir2/dir3"));
   CPPUNIT_ASSERT_NO_THROW(modifySubTree(viewMaster, "/newdir3"));
   CPPUNIT_ASSERT_NO_THROW(createSubTree(viewMaster, "/newdir4", 2, 10, 100));
   CPPUNIT_ASSERT_NO_THROW(createSubTree(viewMaster, "/newdir5", 2, 10, 100));
@@ -609,7 +610,7 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(cleanUpQuotaRec(viewMaster,
                                           viewMaster->getContainer("/newdir3/dir1")));
   deleteAllReplicasRec(viewMaster, "/newdir3/dir1");
-  CPPUNIT_ASSERT_NO_THROW(viewMaster->removeContainer("/newdir3/dir1", true));
+  CPPUNIT_ASSERT_NO_THROW(eos::RmrfHelper::nukeDirectory(viewMaster.get(), "/newdir3/dir1"));
   deleteAllReplicasRec(viewMaster, "/newdir3/dir2");
   unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir1/dir2"));
   unlinkReplicas(viewMaster, viewMaster->getContainer("/newdir4/dir2"));
