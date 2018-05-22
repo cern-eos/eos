@@ -396,19 +396,29 @@ ProcCommand::Find()
                 }
 
                 if (selectoldertime) {
-                  eos::IFileMD::ctime_t mtime;
-                  fmd->getMTime(mtime);
+                  eos::IFileMD::ctime_t xtime;
 
-                  if (mtime.tv_sec > selectoldertime) {
+                  if (printctime) {
+                    fmd->getCTime(xtime);
+                  } else {
+                    fmd->getMTime(xtime);
+                  }
+
+                  if (xtime.tv_sec > selectoldertime) {
                     selected = false;
                   }
                 }
 
                 if (selectyoungertime) {
-                  eos::IFileMD::ctime_t mtime;
-                  fmd->getMTime(mtime);
+                  eos::IFileMD::ctime_t xtime;
 
-                  if (mtime.tv_sec < selectyoungertime) {
+                  if (printctime) {
+                    fmd->getCTime(xtime);
+                  } else {
+                    fmd->getMTime(xtime);
+                  }
+
+                  if (xtime.tv_sec < selectyoungertime) {
                     selected = false;
                   }
                 }
