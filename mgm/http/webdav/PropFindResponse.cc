@@ -310,7 +310,6 @@ PropFindResponse::BuildResponseNode(const std::string& url,
                                     const std::string& hrefurl)
 {
   using namespace rapidxml;
-  XrdMgmOfsDirectory directory;
   XrdOucErrInfo error;
   struct stat statInfo;
   std::string etag;

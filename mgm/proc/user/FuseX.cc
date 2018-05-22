@@ -26,7 +26,6 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/FuseServer.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Stat.hh"

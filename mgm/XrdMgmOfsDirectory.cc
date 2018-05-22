@@ -69,8 +69,6 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   d_pnt = &dirent_full.d_entry;
   eos::common::Mapping::Nobody(vid);
   eos::common::LogId();
-
-  prefetcher.reset(new eos::Prefetcher(gOFS->eosView));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -168,7 +166,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   // Open the directory
   bool permok = false;
 
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath());
+  eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, cPath.GetPath());
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

@@ -50,7 +50,6 @@
 namespace eos
 {
 class IContainerMD;
-class Prefetcher;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -146,8 +145,6 @@ private:
   std::shared_ptr<eos::IContainerMD> dh;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
-
-  std::shared_ptr<eos::Prefetcher> prefetcher;
 };
 
 

@@ -24,7 +24,6 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/PropPatchResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Quota.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"

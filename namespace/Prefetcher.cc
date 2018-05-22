@@ -127,12 +127,12 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
   Prefetcher prefetcher(view);
 
   for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-    std::string fpath = SSTR(path << dit.key() << "/");
+    std::string fpath = SSTR(path << "/" << dit.key());
     prefetcher.stageContainerMD(fpath, true);
   }
 
   for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-    std::string fpath = SSTR(path << dit.key() << "/");
+    std::string fpath = SSTR(path << "/" << dit.key());
     prefetcher.stageFileMD(fpath, true);
   }
 

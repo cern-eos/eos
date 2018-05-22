@@ -23,7 +23,6 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Stat.hh"
 
@@ -44,7 +43,6 @@ ProcCommand::Cd()
     stdErr = "error: you have to give a path name to call 'cd'";
     retc = EINVAL;
   } else {
-    XrdMgmOfsDirectory dir;
     struct stat buf;
 
     if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0)) {
