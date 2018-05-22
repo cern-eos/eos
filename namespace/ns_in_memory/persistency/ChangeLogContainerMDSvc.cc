@@ -325,17 +325,19 @@ public:
             // all done - clean up
             // -------------------------------------------------------------
             dirTree.clear();
-          }
 
-          if (pContainerAccounting) {
-            // move subtree accouting from source to destination
-            ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr.get(),
-                it->second.ptr->getTreeSize());
-            ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr.get(),
-                it->second.ptr->getTreeSize());
-          }
+            if (pContainerAccounting) {
+              // move subtree accouting from source to destination
+              ((ContainerAccounting*)
+               pContainerAccounting)->AddTree(itNP->second.ptr.get(),
+                                              it->second.ptr->getTreeSize());
+              ((ContainerAccounting*)
+               pContainerAccounting)->RemoveTree(itP->second.ptr.get(),
+                                                 it->second.ptr->getTreeSize());
+            }
 
-          itU->second.ptr.reset();
+            itU->second.ptr.reset();
+          }
         }
       }
     }
