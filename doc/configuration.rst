@@ -21,6 +21,7 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/balancing
    configuration/converter	
    configuration/draining      
+   configuration/exos
    configuration/fuse
    configuration/groupbalancer   
    configuration/geobalancer
