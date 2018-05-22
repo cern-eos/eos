@@ -76,6 +76,10 @@ XrdCl::XRootDStatus xrdreq_retryonnullbuf(XrdCl::FileSystem& fs,
         } else {
           eos_static_err("no non null response received to %s after %d attempts",
                          arg.GetBuffer(), retrycount + 1);
+	  if (response) {
+	    delete response;
+	    response = 0;
+	  }
         }
       }
     } else {
