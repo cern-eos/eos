@@ -484,8 +484,6 @@ private:
   qclient::QClient* pQcl;               ///< QClient object
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key
-  qclient::QHash pFilesMap;             ///< Map holding info about files
-  qclient::QHash pDirsMap;              ///< Map holding info about subcontainers
   uint64_t mClock;                      ///< Value tracking changes
 
   common::FutureWrapper<ContainerMap> mSubcontainers;

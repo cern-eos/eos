@@ -79,8 +79,6 @@ void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
 
   pQcl = impl_cont_svc->pQcl;
   pFlusher = impl_cont_svc->pFlusher;
-  pFilesMap = qclient::QHash(*pQcl, pFilesKey);
-  pDirsMap = qclient::QHash(*pQcl, pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -113,8 +111,6 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pFlusher = other.pFlusher;
   pDirsKey = other.pDirsKey;
   pFilesKey = other.pFilesKey;
-  pFilesMap = qclient::QHash(*pQcl, pFilesKey);
-  pDirsMap = qclient::QHash(*pQcl, pDirsKey);
   return *this;
 }
 
@@ -722,9 +718,7 @@ ContainerMD::loadChildren()
 
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
-  pFilesMap.setKey(pFilesKey);
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
-  pDirsMap.setKey(pDirsKey);
 
   if (pQcl) {
     mFiles = MetadataFetcher::getFilesInContainer(*pQcl, ContainerIdentifier(mCont.id()));
@@ -762,9 +756,7 @@ ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
 
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
-  pFilesMap.setKey(pFilesKey);
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
-  pDirsMap.setKey(pDirsKey);
 }
 
 //------------------------------------------------------------------------------
