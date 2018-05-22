@@ -22,13 +22,15 @@
 class exosmanager
 {
 public:
-  exosmanager() : debug(true), mConnected(false) {}
+  exosmanager() : debug(false), mConnected(false) {}
   ~exosmanager();
   
   int connect(std::map<std::string,std::string>& params);
 
   typedef std::shared_ptr<librados::IoCtx> ioctx;
   ioctx getIoCtx(const std::string& pool);
+
+  librados::Rados& getCluster() { return mCluster;}
 
   bool debug;
 private:
@@ -124,6 +126,17 @@ public:
     return offset / XReadAheadNom*XReadAheadNom;
   }
 
+  // object listing interface
+  void* objectlist();
+
+  std::string nextobject(const void* handle);
+
+  int closelist(const void* handle);
+
+  void debug() {
+    sManager->debug = true;
+  }
+
 private:
 
   std::map<std::string, std::string> params;
@@ -174,6 +187,7 @@ private:
     return sManager->connect(params);
   }
 
+
   int open_md();
   int create_md();
   int get_md();
@@ -222,7 +236,6 @@ private:
 
     bool isEOF() { if (buffer.length() == len) return false; else return true; }
   };
-						\
 
   typedef std::shared_ptr<AsyncHandler> io_handler;
 

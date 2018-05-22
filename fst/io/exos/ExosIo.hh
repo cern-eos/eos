@@ -1,12 +1,12 @@
 //------------------------------------------------------------------------------
-//! @file RadosIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing local IO operations
+//! @file ExosIo.hh
+//! @author Andreas Joachim Peters - CERN
+//! @brief Class used for doing IO on rados clusters
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,11 +22,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_RADOSFILEIO__HH__
-#define __EOSFST_RADOSFILEIO__HH__
+#ifndef __EOSFST_EXOSFILEIO__HH__
+#define __EOSFST_EXOSFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
+#include "exosfile.hh"
+#include <sys/types.h>
+#include <attr/xattr.h>
 
 /*----------------------------------------------------------------------------*/
 
@@ -35,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-class RadosIo : public FileIo
+class ExosIo : public FileIo
 {
 public:
   //--------------------------------------------------------------------------
@@ -45,15 +48,50 @@ public:
   //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-  RadosIo(std::string path) :
-    FileIo(path, "RadosIO")
-  {};
+  ExosIo(std::string path) :
+    FileIo(path, "ExosIO")
+  {
+    XrdOucString lpath = path.c_str();
+    int qpos = lpath.find("?");
+    if (qpos != STR_NPOS) {
+      while (lpath.replace(":","&", qpos)) {}
+    }
+
+    mURL.FromString(lpath.c_str());
+    XrdCl::URL::ParamsMap lparams = mURL.GetParams();
+
+    if (getenv("EXOSIO_MD_POOL")) {
+      lparams["rados.md"] = getenv("EXOSIO_MD_POOL");
+    }
+    if (getenv("EXOSIO_DATA_POOL")) {
+      lparams["rados.data"] = getenv("EXOSIO_DATA_POOL");
+    }
+    if (getenv("EXOSIO_USER")) {
+      lparams["rados.user"] = getenv("EXOSIO_USER");
+    }
+    if (getenv("EXOSIOS_CONFIG")) {
+      lparams["rados.config"] = getenv("EXOSIO_CONFIG");
+    }
+
+    // opt. set debug mode
+    if (getenv("EXOSIOS_DEBUG")) {
+      mEXOS.debug();
+    }
+
+    mURL.SetParams(lparams);
+
+    mCGI = mURL.GetParamsAsString().c_str();
+    mCGI.erase(0,1);
+    path = mURL.GetPath();
+    // initialize exosfile object
+    mEXOS.init(path, mCGI);
+  };
 
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~RadosIo() {}
+  virtual ~ExosIo() {}
 
   //--------------------------------------------------------------------------
   //! Open file
@@ -67,11 +105,7 @@ public:
   int fileOpen(XrdSfsFileOpenMode flags,
                mode_t mode = 0,
                const std::string& opaque = "",
-               uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+               uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -85,12 +119,7 @@ public:
   int64_t fileRead(XrdSfsFileOffset offset,
                    char* buffer,
                    XrdSfsXferSize length,
-                   uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
-
+                   uint16_t timeout = 0);
   //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
@@ -103,12 +132,7 @@ public:
   int64_t fileWrite(XrdSfsFileOffset offset,
                     const char* buffer,
                     XrdSfsXferSize length,
-                    uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
-
+                    uint16_t timeout = 0);
   //--------------------------------------------------------------------------
   //! Read from file - async
   //!
@@ -123,11 +147,7 @@ public:
                         char* buffer,
                         XrdSfsXferSize length,
                         bool readahead = false,
-                        uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+                        uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Vector read - sync
@@ -171,11 +191,15 @@ public:
   int64_t fileWriteAsync(XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
-                         uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+                         uint16_t timeout = 0);
+
+  //--------------------------------------------------------------------------
+  //! Wait for all async IO
+  //!
+  //! @return global return code of async IO
+  //--------------------------------------------------------------------------
+  virtual int fileWaitAsyncIO();
+
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -184,11 +208,7 @@ public:
   //! @param timeout timeout value
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Allocate file space
@@ -196,11 +216,7 @@ public:
   //! @param length space to be allocated
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileFallocate(XrdSfsFileOffset length)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileFallocate(XrdSfsFileOffset length) ;
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
@@ -209,11 +225,7 @@ public:
   //! @param toOffset offset end
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
   //--------------------------------------------------------------------------
   //! Remove file
@@ -221,11 +233,7 @@ public:
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileRemove(uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileRemove(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
@@ -233,11 +241,7 @@ public:
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileSync(uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileSync(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Get pointer to async meta handler object
@@ -256,11 +260,7 @@ public:
   //! @param path to the file
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileExists()
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileExists();
 
   //--------------------------------------------------------------------------
   //! Close file
@@ -268,11 +268,7 @@ public:
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileClose(uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileClose(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
@@ -281,11 +277,7 @@ public:
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileStat(struct stat* buf, uint16_t timeout = 0)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int fileStat(struct stat* buf, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Execute implementation dependant command
@@ -309,11 +301,7 @@ public:
   //! @param len value length
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrSet(const char* name, const char* value, size_t len)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int attrSet(const char* name, const char* value, size_t len);
 
   // ------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
@@ -322,11 +310,7 @@ public:
   //! @param value attribute value
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrSet(string name, std::string value)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int attrSet(std::string name, std::string value);
 
   // ------------------------------------------------------------------------
   //! Get a binary attribute by name
@@ -336,11 +320,7 @@ public:
   //! @param size the buffer size, after success the value size
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrGet(const char* name, char* value, size_t& size)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int attrGet(const char* name, char* value, size_t& size);
 
   // ------------------------------------------------------------------------
   //! Get a binary attribute by name
@@ -349,11 +329,7 @@ public:
   //! @param value contains attribute value upon success
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrGet(string name, std::string& value)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int attrGet(std::string name, std::string& value);
 
   // ------------------------------------------------------------------------
   //! Delete a binary attribute by name
@@ -361,11 +337,7 @@ public:
   //! @param name attribute name
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrDelete(const char* name)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int attrDelete(const char* name);
 
   // ------------------------------------------------------------------------
   //! List all attributes for the associated path
@@ -373,22 +345,34 @@ public:
   //! @param list contains all attribute names for the set path upon success
   //! @return 0 on success, -1 otherwise and error code is set
   // ------------------------------------------------------------------------
-  int attrList(std::vector<std::string>& list)
+  int attrList(std::vector<std::string>& list);
+
+
+  class FtsHandle : public FileIo::FtsHandle
   {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  public:
+    
+    FtsHandle(const char* dirp) : FileIo::FtsHandle(dirp)
+    {
+    }
+    
+    ~FtsHandle()
+    { }
+    
+    void set(void* opaque) {opaqueptr = opaque;}
+    void* get() const {return opaqueptr;}
+    
+  private:
+    void* opaqueptr;
+  };
+
 
   //--------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
   //!
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-  FileIo::FtsHandle* ftsOpen()
-  {
-    errno = ENOSYS;
-    return NULL;
-  }
+  FileIo::FtsHandle* ftsOpen();
 
   //--------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
@@ -396,10 +380,7 @@ public:
   //! @param fts_handle cursor obtained by ftsOpen
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-  std::string ftsRead(FileIo::FtsHandle* handle)
-  {
-    return "";
-  }
+  std::string ftsRead(FileIo::FtsHandle* handle);
 
   //--------------------------------------------------------------------------
   //! Close a traversal cursor
@@ -407,11 +388,7 @@ public:
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
-  int ftsClose(FileIo::FtsHandle* handle)
-  {
-    errno = ENOSYS;
-    return SFS_ERROR;
-  }
+  int ftsClose(FileIo::FtsHandle* handle);
 
 
   //--------------------------------------------------------------------------
@@ -434,21 +411,37 @@ public:
     return 0;
   }
 
+  ssize_t Ret2Errno(ssize_t rc) 
+  {
+    if (rc>=0) {
+      rc = rc;
+      errno = 0;
+    } else {
+      errno = -rc;
+      rc = -1;
+    }
+    if (errno == EALREADY) {
+      errno = 0; return 0;
+    }
+    return rc;
+  }
 private:
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  RadosIo(const RadosIo&) = delete;
-
-
+  ExosIo(const ExosIo&) = delete;
+  
+  
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
-  RadosIo& operator = (const RadosIo&) = delete;
-
-
+  ExosIo& operator = (const ExosIo&) = delete;
+  
+  std::string mCGI;
+  XrdCl::URL mURL;
+  exosfile mEXOS;
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_LOCALFILEIO_HH__
+#endif  // __EOSFST_EXOSFILEIO_HH__

@@ -312,6 +312,8 @@ ExosIo::attrGet(std::string name, std::string& value)
 {
   int retc=0;
   std::map<std::string,std::string> xattr;
+  xattr[name]="";
+
   if (!(retc = mEXOS.getxattr(xattr))) {
     if (xattr.count(name)) {
       value = xattr[name];
@@ -356,6 +358,66 @@ ExosIo::attrList(std::vector<std::string>& list)
     return 0;
   }
   return Ret2Errno(retc);
+}
+
+//--------------------------------------------------------------------------                         
+//! Open a cursor to traverse a storage system                                                       
+//!                                                                                                  
+//! @return returns implementation dependent handle or 0 in case of error                            
+//--------------------------------------------------------------------------                         
+FileIo::FtsHandle* 
+ExosIo::ftsOpen()
+{
+  FtsHandle* handle = new ExosIo::FtsHandle(mFilePath.c_str());
+  if (!handle)
+    return 0;
+
+  void* listing =  mEXOS.objectlist();
+  if (!listing) {
+    delete handle;
+    return 0;
+  }
+  handle->set(listing);
+  return handle;
+}
+
+//--------------------------------------------------------------------------                         
+//! Return the next path related to a traversal cursor obtained with ftsOpen                         
+//!                                                                                                  
+//! @param fts_handle cursor obtained by ftsOpen                                                     
+//! @return returns implementation dependent handle or 0 in case of error                            
+//--------------------------------------------------------------------------                         
+std::string 
+ExosIo::ftsRead(FileIo::FtsHandle* handle)
+{
+  void* raw_handle = ((ExosIo::FtsHandle*)handle)->get();
+  std::string path = mEXOS.nextobject(raw_handle);
+
+  if (path.length()) {
+    XrdCl::URL lURL = mURL;
+    lURL.SetPath(mURL.GetPath() + path);
+    return lURL.GetURL();
+  } else {
+    return path;
+  }
+}
+
+//--------------------------------------------------------------------------                         
+//! Close a traversal cursor                                                                         
+//!                                                                                                  
+//! @param fts_handle cursor to close                                                                
+//! @return 0 if fts_handle was an open cursor, otherwise -1                                         
+//--------------------------------------------------------------------------                         
+int 
+ExosIo::ftsClose(FileIo::FtsHandle* handle)
+{
+  void* raw_handle = ((ExosIo::FtsHandle*)handle)->get();
+  if (!raw_handle) {
+    errno = EINVAL;
+    return -1;
+  }
+  int retc = mEXOS.closelist(raw_handle);
+  return retc;
 }
 
 EOSFSTNAMESPACE_END

@@ -90,6 +90,7 @@ exosfile::init(const std::string& name, const std::string& cgi)
     sManager = new exosmanager();
   }
 
+  if (G
   params = parse(cgi);
   mName = name;
   mFlags = 0;
@@ -1149,6 +1150,8 @@ exosfile::object_extents(off_t offset, uint64_t len)
   extents_t extent;
   size_t obj_begin = offset / mBlockSize;
   size_t obj_end = (offset + len) / mBlockSize;
+
+  fprintf(stderr,"block %lu=>%lu\n", obj_begin, obj_end);
 
   off_t next_offset =offset;
   char suffix[16];

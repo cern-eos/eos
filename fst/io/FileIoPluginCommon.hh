@@ -88,9 +88,9 @@ public:
         eos_static_err("Failed constructing kinetic io object: %s", e.what());
       }
       return kio;
-    } else if (ioType == LayoutId::kRados) {
+    } else if (ioType == LayoutId::kExos) {
 #ifdef RADOS_FOUND
-      return static_cast<FileIo*>(new RadosIo(path));
+      return static_cast<FileIo*>(new ExosIo(path));
 #endif // RADOS_FOUND
       eos_static_warning("EOS has been compiled without RADOS support.");
       return NULL;
