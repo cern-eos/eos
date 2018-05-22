@@ -53,14 +53,15 @@ backend::~backend()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::init(std::string& _hostport, std::string& _remotemountdir, 
-	      double& _timeout, double& _put_timeout)
+backend::init(std::string& _hostport, std::string& _remotemountdir,
+              double& _timeout, double& _put_timeout)
 /* -------------------------------------------------------------------------- */
 {
   hostport = _hostport;
   mount = _remotemountdir;
   timeout = _timeout;
   put_timeout = _put_timeout;
+
   if ((mount.length() && (mount.at(mount.length() - 1) == '/'))) {
     mount.erase(mount.length() - 1);
   }
@@ -239,17 +240,17 @@ backend::fetchResponse(std::string& requestURL,
     eos::common::Timing::GetTimeSpec(ts, true);
     // the MD get operation is implemented via a stream: open/read/close
     eos_static_debug("opening %s", requestURL.c_str());
-
     status = file->Open(requestURL.c_str(),
-                       XrdCl::OpenFlags::Flags::Read);
+                        XrdCl::OpenFlags::Flags::Read);
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
                            0) / 1000000000.0;
     total_exec_time_sec += exec_time_sec;
-
     std::string lasturl;
     file->GetProperty("LastURL", lasturl);
-    if (lasturl.length())
+
+    if (lasturl.length()) {
       EosFuse::Instance().TrackMgm(lasturl);
+    }
 
     if (!status.IsOK()) {
       // in case of any failure
@@ -282,9 +283,9 @@ backend::fetchResponse(std::string& requestURL,
       }
 
       if (
-	  (status.code == XrdCl::errConnectionError) || 
-	  (status.code == XrdCl::errSocketTimeout) ||
-	  (status.code == XrdCl::errOperationExpired)
+        (status.code == XrdCl::errConnectionError) ||
+        (status.code == XrdCl::errSocketTimeout) ||
+        (status.code == XrdCl::errOperationExpired)
       ) {
         // if there is a timeout, we might retry according to the backend timeout setting
         if (timeout &&
@@ -297,20 +298,22 @@ backend::fetchResponse(std::string& requestURL,
           // retry
           XrdSysTimer sleeper;
           sleeper.Snooze(5);
-	  file.reset(new XrdCl::File());
+          file.reset(new XrdCl::File());
           continue;
         }
       }
 
       // all the other errors are reported back
-      if (status.errNo)
-      {
-	errno = XrdCl::Proxy::status2errno(status);
-	eos_static_err ("error=status is not ok : errno=%d", errno);
-	// xrootd does not transport E2BIG ... sigh 
-	if (errno == ENAMETOOLONG)
-	  errno = E2BIG;
-	return errno;
+      if (status.errNo) {
+        errno = XrdCl::Proxy::status2errno(status);
+        eos_static_err("error=status is not ok : errno=%d", errno);
+
+        // xrootd does not transport E2BIG ... sigh
+        if (errno == ENAMETOOLONG) {
+          errno = E2BIG;
+        }
+
+        return errno;
       }
 
       if (status.code) {
@@ -405,7 +408,7 @@ backend::fetchResponse(std::string& requestURL,
 }
 
 
-int 
+int
 /* -------------------------------------------------------------------------- */
 backend::rmRf(fuse_req_t req, eos::fusex::md* md)
 /* -------------------------------------------------------------------------- */
@@ -419,26 +422,25 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
   query["mgm.container.id"] = std::to_string(md->md_ino());
   query["mgm.uuid"] = clientuuid;
   query["mgm.retc"] = "1";
-  if (req)
-  {
+
+  if (req) {
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
+
   query["eos.app"] = "fuse";
 
-  if (req) 
-  {
+  if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
   }
+
   url.SetParams(query);
   std::unique_ptr <XrdCl::File> file(new XrdCl::File());
-
   XrdCl::XRootDStatus status = file->Open(url.GetURL().c_str(),
-					  XrdCl::OpenFlags::Flags::Read);
-  if (status.IsOK())
+                                          XrdCl::OpenFlags::Flags::Read);
+
+  if (status.IsOK()) {
     return 0;
-  else
-  {
-    int retc = EIO;
+  } else {
     if (status.code == XrdCl::errErrorResponse) {
       return mapErrCode(status.errNo);
     } else {
@@ -762,22 +764,22 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string op,
   query["mgm.path"] = eos::common::StringConversion::curl_escaped(mount + path);
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
-  if (req)
-  {
+
+  if (req) {
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
+
   query["eos.app"] = "fuse";
 
   if (authid.length()) {
     query["mgm.authid"] = authid;
   }
 
-  if (req) 
-  {
+  if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
   }
-  url.SetParams(query);
 
+  url.SetParams(query);
   return url.GetURL();
 }
 
@@ -950,7 +952,6 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
   // this function retries queries until the given timeout period has been reached
   // it does not proceed if there is an authentication failure
   double total_exec_time_sec = 0;
-
   std::unique_ptr <XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
 
   do {
@@ -972,10 +973,10 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
 
     // we want to report all errors which are not timeout related
     if (
-	(status.code != XrdCl::errConnectionError) &&
-	(status.code != XrdCl::errSocketTimeout) &&
-	(status.code != XrdCl::errOperationExpired)
-	) {
+      (status.code != XrdCl::errConnectionError) &&
+      (status.code != XrdCl::errSocketTimeout) &&
+      (status.code != XrdCl::errOperationExpired)
+    ) {
       return status;
     }
 
