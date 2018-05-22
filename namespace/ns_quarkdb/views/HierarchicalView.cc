@@ -524,9 +524,6 @@ HierarchicalView::removeContainer(const std::string& uri)
     throw e;
   }
 
-  std::cout << "num containers: " << cont->getNumContainers() << std::endl;
-  std::cout << "num files: " << cont->getNumFiles() << std::endl;
-
   if (cont->getNumContainers() != 0 || cont->getNumFiles() != 0) {
     MDException e(ENOTEMPTY);
     e.getMessage() << uri << ": Container is not empty";
