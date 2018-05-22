@@ -102,16 +102,24 @@ public:
     unsigned long long fid = Hex2Fid(hexstring);
     char sfullpath[16384];
     XrdOucString slocalprefix = localprefix;
+    XrdOucString scgi = "";
+    int qpos=0;
 
+    if ( (qpos = slocalprefix.find("?")) != STR_NPOS) {
+      // this has CGI info, split it
+      scgi = slocalprefix;
+      scgi.erase(0, qpos);
+      slocalprefix.erase(qpos);
+    }
     if (!slocalprefix.endswith("/")) {
       slocalprefix += "/";
     }
 
     if (subindex) {
-      sprintf(sfullpath, "%s%08llx/%s.%u", slocalprefix.c_str(), fid / 10000,
-              hexstring, subindex);
+      sprintf(sfullpath, "%s%08llx/%s.%u%s", slocalprefix.c_str(), fid / 10000,
+              hexstring, subindex, scgi.c_str());
     } else {
-      sprintf(sfullpath, "%s%08llx/%s", slocalprefix.c_str(), fid / 10000, hexstring);
+      sprintf(sfullpath, "%s%08llx/%s%s", slocalprefix.c_str(), fid / 10000, hexstring,scgi.c_str());
     }
 
     fullpath = sfullpath;
