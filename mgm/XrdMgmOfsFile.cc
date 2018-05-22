@@ -472,7 +472,7 @@ XrdMgmOfsFile::open(const char* inpath,
   {
     // This is probably one of the hottest code paths in the MGM, we definitely
     // want prefetching here.
-    if(!byfid) {
+    if (!byfid) {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
     }
 
@@ -1265,7 +1265,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     if (((retc == ENETUNREACH) || (retc == EROFS)) &&
-        (((!fmd->getSize()) && (!bookingsize)) || (isRepair))) {
+        (((!fmd->getSize()) && (!bookingsize)) || isRepair)) {
       const char* containertag = 0;
 
       if (attrmap.count("user.tag")) {
@@ -1599,7 +1599,6 @@ XrdMgmOfsFile::open(const char* inpath,
           std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
           eos::Buffer cx;
           cx.putData(binchecksum.c_str(), binchecksum.size());
-
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path);
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
@@ -2331,15 +2330,18 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Also trigger synchronous create workflow event if it's defined
-  if(isCreation) {
+  if (isCreation) {
     errno = 0;
     workflow.SetFile(path, fileId);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ? openOpaque->Get("eos.workflow") : "default";
+    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
+                        openOpaque->Get("eos.workflow") : "default";
     auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid);
+
     if (ret_wfe < 0 && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::create\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+
       if (ret_wfe != 0) {
         // Remove the file from the namespace in this case
         try {
@@ -2350,13 +2352,15 @@ XrdMgmOfsFile::open(const char* inpath,
                   ex.what());
         }
 
-        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error", path);
+        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error",
+                    path);
       }
     }
   }
 
   // add workflow cgis, has to come after create workflow
   workflow.SetFile(path, fileId);
+
   if (isRW) {
     redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
   } else {
@@ -2412,7 +2416,6 @@ XrdMgmOfsFile::open(const char* inpath,
       time_t now = time(nullptr);
       XrdOucString sage = attrmap["sys.force.atime"].c_str();
       time_t age = eos::common::StringConversion::GetSizeFromString(sage);
-
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 

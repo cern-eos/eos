@@ -92,7 +92,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
              const char* msg, ...)
 {
   static int logmsgbuffersize = 1024 * 1024;
-  
+
   // short cut if log messages are masked
   if (!((LOG_MASK(priority) & gLogMask))) {
     return "";
@@ -170,7 +170,6 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   } else {
     sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\"", cident,
             vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
-
     localtime_r(&current_time, &tm);
     snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer,
@@ -185,8 +184,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
-  if (rate_limit(tv, priority, file, line))
+  if (rate_limit(tv, priority, file, line)) {
     return "";
+  }
 
   if (gToSysLog) {
     syslog(priority, "%s", ptr);
@@ -195,7 +195,6 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   if (gLogFanOut.size()) {
     // we do log-message fanout
     if (gLogFanOut.count("*")) {
-
       fprintf(gLogFanOut["*"], "%s\n", buffer);
       fflush(gLogFanOut["*"]);
     }
@@ -203,28 +202,28 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     if (gLogFanOut.count(File.c_str())) {
       buffer[15] = 0;
       fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
-	      buffer,
-	      GetLogColour(GetPriorityString(priority)),
-	      GetPriorityString(priority),
-	      EOS_TEXTNORMAL,
-	      sourceline,
-	      ptr);
+              buffer,
+              GetLogColour(GetPriorityString(priority)),
+              GetPriorityString(priority),
+              EOS_TEXTNORMAL,
+              sourceline,
+              ptr);
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
     } else {
       if (gLogFanOut.count("#")) {
         buffer[15] = 0;
-	fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
-		buffer,
-		GetLogColour(GetPriorityString(priority)),
-		GetPriorityString(priority),
-		EOS_TEXTNORMAL,
-		vid.uid,
-		vid.gid,
-		truncname.c_str(),
-		func,
-		ptr
-		);
+        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+                buffer,
+                GetLogColour(GetPriorityString(priority)),
+                GetPriorityString(priority),
+                EOS_TEXTNORMAL,
+                vid.uid,
+                vid.gid,
+                truncname.c_str(),
+                func,
+                ptr
+               );
         fflush(gLogFanOut["#"]);
         buffer[15] = ' ';
       }
@@ -248,8 +247,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   return rptr;
 }
 
-bool 
-Logging::rate_limit(struct timeval &tv, int priority, const char* file, int line)
+bool
+Logging::rate_limit(struct timeval& tv, int priority, const char* file,
+                    int line)
 {
   static bool do_limit = false;
   static std::string last_file = "";
@@ -257,36 +257,34 @@ Logging::rate_limit(struct timeval &tv, int priority, const char* file, int line
   static int last_priority = priority;
   static struct timeval last_tv;
 
+  if ((line == last_line) &&
+      (priority == last_priority) &&
+      (last_file == file) &&
+      (priority < LOG_WARNING)) {
+    float elapsed = (1.0 * (tv.tv_sec - last_tv.tv_sec)) - ((
+                      tv.tv_usec - last_tv.tv_usec) / 1000000.0);
 
-  if ( (line == last_line ) &&
-       (priority == last_priority) &&
-       (last_file == file ) &&
-       (priority <= LOG_WARNING) )
-  {
-    float elapsed = (1.0*(tv.tv_sec - last_tv.tv_sec)) - ((tv.tv_usec - last_tv.tv_usec)/ 1000000.0);
-    if ( elapsed < 5.0)
-    {
-      if (!do_limit)
-	fprintf(stderr,"                 ---- high rate error messages suppressed ----\n");
+    if (elapsed < 5.0) {
+      if (!do_limit) {
+        fprintf(stderr,
+                "                 ---- high rate error messages suppressed ----\n");
+      }
+
       do_limit = true;
-    }
-    else
-    {
+    } else {
       do_limit = false;
     }
-  }
-  else
-  {
+  } else {
     do_limit = false;
   }
 
-  if (!do_limit)
-  {
+  if (!do_limit) {
     last_tv = tv;
     last_line = line;
     last_file = file;
     last_priority = priority;
   }
+
   return do_limit;
 }
 
