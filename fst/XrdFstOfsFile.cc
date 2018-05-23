@@ -2049,7 +2049,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
 
   if (rc > 0) {
     if (layOut->IsEntryServer() || IsRainLayout(mLid)) {
-      XrdSysMutexHelper(vecMutex);
+      XrdSysMutexHelper lock(vecMutex);
       wvec.push_back(rc);
     }
 

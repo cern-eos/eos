@@ -33,7 +33,8 @@
 EOSFSTNAMESPACE_BEGIN
 
 /* ------------------------------------------------------------------------- */
-TransferQueue::TransferQueue (eos::common::TransferQueue** queue, const char* name, int slots, int band)
+TransferQueue::TransferQueue(eos::common::TransferQueue** queue,
+                             const char* name, int slots, int band)
 {
   mQueue = queue;
   mName = name;
@@ -45,15 +46,15 @@ TransferQueue::TransferQueue (eos::common::TransferQueue** queue, const char* na
 }
 
 /* ------------------------------------------------------------------------- */
-TransferQueue::~TransferQueue () { }
+TransferQueue::~TransferQueue() { }
 
 /* ------------------------------------------------------------------------- */
 size_t
-TransferQueue::GetBandwidth ()
+TransferQueue::GetBandwidth()
 {
   size_t bw = 0;
   {
-    XrdSysMutexHelper(mBandwidthMutex);
+    XrdSysMutexHelper lock(mBandwidthMutex);
     bw = bandwidth;
   }
   return bw;
@@ -61,19 +62,19 @@ TransferQueue::GetBandwidth ()
 
 /* ------------------------------------------------------------------------- */
 void
-TransferQueue::SetBandwidth (size_t band)
+TransferQueue::SetBandwidth(size_t band)
 {
-  XrdSysMutexHelper(mBandwidthMutex);
+  XrdSysMutexHelper lock(mBandwidthMutex);
   bandwidth = band;
 }
 
 /* ------------------------------------------------------------------------- */
 size_t
-TransferQueue::GetSlots ()
+TransferQueue::GetSlots()
 {
   size_t n = 0;
   {
-    XrdSysMutexHelper(mSlotsMutex);
+    XrdSysMutexHelper lock(mSlotsMutex);
     n = nslots;
   }
   return n;
@@ -81,9 +82,9 @@ TransferQueue::GetSlots ()
 
 /* ------------------------------------------------------------------------- */
 void
-TransferQueue::SetSlots (size_t slots)
+TransferQueue::SetSlots(size_t slots)
 {
-  XrdSysMutexHelper(mSlotsMutex);
+  XrdSysMutexHelper lock(mSlotsMutex);
   nslots = slots;
 }
 EOSFSTNAMESPACE_END
