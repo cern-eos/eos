@@ -53,7 +53,7 @@ SubMount::mount(std::string &params, std::string &localpath, std::string &env)
   {
     std::string mkpath = params + "/dummy";
     eos::common::Path mountpath(mkpath.c_str());
-    if (!mountpath.MakeParentPath(S_IRWXU))
+    if (!mountpath.MakeParentPath(S_IRWXU | S_IRGRP| S_IXGRP | S_IROTH | S_IXOTH))
     {
       eos_static_warning("failed to create local mount point path='%s'", params.c_str());
       return -1;
@@ -84,8 +84,9 @@ SubMount::squashfuse(std::string &params, std::string &localpath, std::string &e
 /* -------------------------------------------------------------------------- */
 {
   int rc = 0;
-  std::string mountcmd = env + " squashfuse ";
+  std::string mountcmd = env + " squashfuse -o allow_other ";
   std::string imagepath = localpath;
+  fprintf(stderr,"%s %s\n", params.c_str(), localpath.c_str());
   size_t spos = imagepath.rfind("/");
   imagepath.insert(spos+1, ".");
   imagepath+= ".sqsh";
@@ -99,12 +100,16 @@ SubMount::squashfuse(std::string &params, std::string &localpath, std::string &e
 
   params += localpath;
 
-  struct stat buf;
-  if (::stat(params.c_str(), &buf))
+  struct stat buf1;
+  struct stat buf2;
+  eos::common::Path ppath(params.c_str());
+  
+  if (::stat(params.c_str(), &buf1) || // the mount path does not exist at all
+      ( (!stat(ppath.GetParentPath(), &buf2)) && (buf2.st_dev == buf1.st_dev))) // there is nothing mounted here
   {
     std::string mkpath = params + "/dummy";
     eos::common::Path mountpath(mkpath.c_str());
-    if (!mountpath.MakeParentPath(S_IRWXU))
+    if (!mountpath.MakeParentPath(S_IRWXU | S_IRGRP| S_IXGRP | S_IROTH | S_IXOTH))
     {
       eos_static_warning("failed to create local mount point path='%s'", params.c_str());
       return -1;

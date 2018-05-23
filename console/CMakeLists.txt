@@ -102,6 +102,7 @@ add_library(
   commands/com_silent.cc
   commands/com_space.cc
   commands/com_stat.cc
+  commands/com_squash.cc
   commands/com_test.cc
   commands/com_timing.cc
   commands/com_touch.cc
