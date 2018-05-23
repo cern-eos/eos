@@ -216,6 +216,27 @@
   source_fsid = *group_iterator;
   // Lock namespace view here to avoid deadlock with the Commit.cc code on
   // the ScheduledToDrainFidMutex
+
+  if(!gOFS->eosView->inMemory()) {
+    eos_thread_crit("msg=\"old style draining enabled for QDB namespace. Prefetching entire filesystem to minimize impact on performance.\"");
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
+    std::vector<eos::IFileMD::id_t> ids;
+    for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
+         (it_fid && it_fid->valid()); it_fid->next()) {
+
+      ids.emplace_back(it_fid->getElement());
+    }
+    nsLock.Release();
+
+    eos::Prefetcher prefetcher(gOFS->eosView);
+    for(size_t i = 0; i < ids.size(); i++) {
+      prefetcher.stageFileMD(ids[i]);
+    }
+
+    prefetcher.wait();
+  }
+
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
   unsigned long long nfids = gOFS->eosFsView->getNumFilesOnFs(source_fsid);
   eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
