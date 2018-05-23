@@ -418,9 +418,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             return retc;
           } else {
             size_t pos = value.find(':');
-
-            if (pos == std::string::npos) {
-              stdErr += "error: no access key in S3 credentials string";
+            if (pos == 0 || (pos + 1) == value.length()) {
+              stdErr += "error: S3 credentials string is missing ";
+              stdErr += (pos == 0)  ? "<accesskey>" : "<secretkey>";
               retc = EINVAL;
               return retc;
             }
