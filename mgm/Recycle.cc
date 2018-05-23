@@ -1130,15 +1130,6 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
     info += Recycle::gRecyclingPrefix.c_str();
     int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
     Cmd.AddOutput(stdOut, stdErr);
-
-    if (!stdOut.endswith("\n")) {
-      stdOut += "\n";
-    }
-
-    if (!stdErr.endswith("\n")) {
-      stdErr += "\n";
-    }
-
     Cmd.close();
     return result;
   }
@@ -1158,74 +1149,13 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
     info += Recycle::gRecyclingAttribute.c_str();
     int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
     Cmd.AddOutput(stdOut, stdErr);
-
-    if (!stdOut.endswith("\n")) {
-      stdOut += "\n";
-    }
-
-    if (!stdErr.endswith("\n")) {
-      stdErr += "\n";
-    }
-
     Cmd.close();
-    return result;
-  }
-
-  if (option == "--size") {
-    if (!arg) {
-      stdErr = "error: missing size argument\n";
-      return EINVAL;
-    }
-
-    XrdOucString ssize = arg;
-    unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                ssize);
-
-    if (!size) {
-      stdErr = "error: size has been converted to 0 bytes - probably you made a type!\n";
-      return EINVAL;
-    }
-
-    if (size < 1000ll * 1000ll * 10000ll) {
-      stdErr = "error: a garbage bin smaller than 10 GB is not accepted!\n";
-      return EINVAL;
-    }
-
-    // execute a proc command
-    ProcCommand Cmd;
-    XrdOucString info;
-    info = "eos.rgid=0&eos.ruid=0&mgm.cmd=quota&mgm.subcmd=set&mgm.quota.space=";
-    info += Recycle::gRecyclingPrefix.c_str();
-    info += "&mgm.quota.gid=";
-    info += (int) Quota::gProjectId;
-    info += "&mgm.quota.maxbytes=";
-    XrdOucString sizestring;
-    info += eos::common::StringConversion::GetSizeString(sizestring, size);
-    info += "&mgm.quota.maxinodes=10M";
-    int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
-    Cmd.AddOutput(stdOut, stdErr);
-
-    if (!stdOut.endswith("\n")) {
-      stdOut += "\n";
-    }
-
-    if (!stdErr.endswith("\n")) {
-      stdErr += "\n";
-    }
-
-    Cmd.close();
-
-    if (!result) {
-      stdOut += "success: recycle bin size configured!\n";
-    }
-
-    gOFS->Recycler->WakeUp();
     return result;
   }
 
   if (option == "--lifetime") {
     if (!arg) {
-      stdErr = "error: missing lifetime argument\n";
+      stdErr = "error: missing lifetime argument";
       return EINVAL;
     }
 
@@ -1234,12 +1164,12 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
                                 ssize);
 
     if (!size) {
-      stdErr = "error: lifetime has been converted to 0 seconds - probably you made a type!\n";
+      stdErr = "error: lifetime has been converted to 0 seconds - probably you made a type!";
       return EINVAL;
     }
 
     if (size < 60) {
-      stdErr = "error: a recycle bin lifetime less than 60s is not accepted!\n";
+      stdErr = "error: a recycle bin lifetime less than 60s is not accepted!";
       return EINVAL;
     }
 
@@ -1275,12 +1205,12 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
     double ratio = strtod(arg, 0);
 
     if (!ratio) {
-      stdErr = "error: ratio must be != 0\n";
+      stdErr = "error: ratio must be != 0";
       return EINVAL;
     }
 
     if ((ratio <= 0) || (ratio > 0.99)) {
-      stdErr = "error: a recycle bin ratio has to be 0 < ratio < 1.0!\n";
+      stdErr = "error: a recycle bin ratio has to be 0 < ratio < 1.0!";
       return EINVAL;
     }
 
@@ -1301,7 +1231,7 @@ Recycle::Config(XrdOucString& stdOut, XrdOucString& stdErr,
       stdErr += "'";
       return EIO;
     } else {
-      stdOut += "success: recycle bin ratio configured!\n";
+      stdOut += "success: recycle bin ratio configured!";
     }
 
     gOFS->Recycler->WakeUp();
