@@ -110,6 +110,25 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_TRUE(fileMap.empty());
 }
 
+TEST_F(VariousTests, FileMDGetEnv) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  IFileMDPtr file1 = view()->createFile("/file1", true);
+
+  struct timespec mtime;
+  mtime.tv_sec = 123;
+  mtime.tv_nsec = 345;
+
+  file1->setMTime(mtime);
+  file1->setCUid(999);
+  file1->setSize(1337);
+
+  std::string output;
+  file1->getEnv(output);
+  DBG(output);
+}
+
 TEST_F(VariousTests, SymlinkExtravaganza) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
