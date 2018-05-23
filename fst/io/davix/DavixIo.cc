@@ -84,29 +84,38 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
   // Prepare Keys for S3 access
   //............................................................................
   if ((path.substr(0, 3) == "s3:") || (path.substr(0, 4) == "s3s:")) {
+    std::string id, key, credSource = "fsconfig";
     mIsS3 = true;
-    std::string id = getenv("EOS_FST_S3_ACCESS_KEY") ?
-                     getenv("EOS_FST_S3_ACCESS_KEY")  : "";
-    std::string key = getenv("EOS_FST_S3_SECRET_KEY") ?
-                      getenv("EOS_FST_S3_SECRET_KEY") : "";
 
-    // Passed-in credentials take priority over environment provided
-    if (s3credentials.length()) {
-      size_t pos = s3credentials.find(':');
-
-      id = s3credentials.substr(0, pos);
-      key = s3credentials.substr(pos + 1);
+    // Passed-in credentials take priority over opaque provided
+    if (s3credentials.empty() && mOpaque.length()) {
+      XrdOucEnv *opaqueEnv = new XrdOucEnv(mOpaque.c_str());
+      if (opaqueEnv->Get("s3credentials")) {
+        s3credentials = opaqueEnv->Get("s3credentials");
+      }
     }
 
-    if (!id.length() || !key.length()) {
+    if (s3credentials.length()) {
+      size_t pos = s3credentials.find(':');
+      id = s3credentials.substr(0, pos);
+      key = s3credentials.substr(pos + 1);
+    } else {
+      // Attempt to retrieve S3 credentials from the global environment
+      id = getenv("EOS_FST_S3_ACCESS_KEY") ?
+              getenv("EOS_FST_S3_ACCESS_KEY") : "";
+      key = getenv("EOS_FST_S3_SECRET_KEY") ?
+              getenv("EOS_FST_S3_SECRET_KEY") : "";
+      credSource = "globalEnv";
+    }
+
+    if (id.empty() || key.empty()) {
       eos_warning("msg=\"s3 configuration missing\" "
                   "s3-access-key=\"%s\" s3-secret-key=\"%s\"",
                   id.c_str(), key.c_str());
     } else {
       mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
       eos_debug("s3-access-key=\"%s\" s3-secret-key=\"%s\" (source=%s)",
-                id.c_str(), key.c_str(),
-                s3credentials.length() ? "config" : "env");
+                id.c_str(), key.c_str(), credSource);
     }
   } else {
     mIsS3 = false;
