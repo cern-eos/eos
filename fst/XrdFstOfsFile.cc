@@ -1378,12 +1378,12 @@ XrdFstOfsFile::close()
                   consistencyerror = true;
                 }
 
-		if (rc == -EREMCHG) {
-		  eos_err("inof=\"unlinking fid=%08x path=%s - "
-			  "overlapping atomic upload - discarding this one\"",
-			  fMd->mProtoFmd.fid(), mNsPath.c_str());
-		  atomicoverlap = true;
-		}
+                if (rc == -EREMCHG) {
+                  eos_err("inof=\"unlinking fid=%08x path=%s - "
+                          "overlapping atomic upload - discarding this one\"",
+                          fMd->mProtoFmd.fid(), mNsPath.c_str());
+                  atomicoverlap = true;
+                }
 
                 deleteOnClose = true;
               } else {
@@ -1649,21 +1649,21 @@ XrdFstOfsFile::close()
                                "\"meta-data size/checksum mismatch\"", mCapOpaque->Get("mgm.path"),
                                mFstPath.c_str());
                     } else {
-		      if (atomicoverlap) {
-                      gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
-                                "cleaned because of an overlapping atomic upload "
-                                "and we are not the last uploader", mNsPath.c_str());
-                      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
-                               "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
-                               mFstPath.c_str());
-		      } else {
-			// Client has disconnected and file is cleaned-up
-			gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
-				  "cleaned because of a client disconnect", mNsPath.c_str());
-			eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
-				    "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
-				    mFstPath.c_str());
-		      }
+                      if (atomicoverlap) {
+                        gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
+                                  "cleaned because of an overlapping atomic upload "
+                                  "and we are not the last uploader", mNsPath.c_str());
+                        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                                 "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
+                                 mFstPath.c_str());
+                      } else {
+                        // Client has disconnected and file is cleaned-up
+                        gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
+                                  "cleaned because of a client disconnect", mNsPath.c_str());
+                        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s "
+                                    "reason=\"client disconnect\"", mCapOpaque->Get("mgm.path"),
+                                    mFstPath.c_str());
+                      }
                     }
                   }
                 }
@@ -2821,12 +2821,6 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
 
   mRedirectManager = smanager;
-  int dpos = mRedirectManager.find(":");
-
-  if (dpos != STR_NPOS) {
-    mRedirectManager.erase(dpos);
-  }
-
   {
     // evt. update the shared hash manager entry
     XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
@@ -2839,7 +2833,6 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
       eos::fst::Config::gConfig.Manager = mRedirectManager;
     }
   }
-
   // Handle virtual identity
   eos::common::Mapping::Nobody(vid);
 
