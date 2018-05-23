@@ -665,7 +665,7 @@ fi
 Summary: The EOS test package
 Group: Applications/File
 
-Requires: eos-server cadaver bc
+Requires: eos-server cadaver bc davix
 
 %description -n eos-test
 Contains an instance and fuse test script and some test executables and test archives.
