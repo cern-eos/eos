@@ -8,7 +8,7 @@ stages:
 before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
-  
+
 .template:eos_system_test_script: &eos_system_test_script
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -126,6 +126,7 @@ eos_rpm_fedora_rawhide:
     - dnf builddep --nogpgcheck -y build/SRPMS/*
     - if [[ $CI_COMMIT_TAG ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache_fc.sh; else export CCACHE_DISABLE=1; fi
+    - export CXX_FLAGS="-Wno-parentheses"
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [ "$BUILD_TYPE" == "tag" ]; then gpg2 --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
