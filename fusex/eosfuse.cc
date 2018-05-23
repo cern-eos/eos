@@ -4269,6 +4269,14 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     rc = Instance().Mounter().mount(target, localpath, env);
   }
 
+  if (target.substr(0,11) == "squashfuse:")
+  {
+    std::string env;
+    //    env = fusexrdlogin::environment(req);
+    std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(md));
+    rc = Instance().Mounter().squashfuse(target, localpath, env);
+  }
+
   if (!rc) {
     fuse_reply_readlink(req, target.c_str());
     return;

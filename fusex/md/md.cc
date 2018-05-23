@@ -2226,15 +2226,16 @@ metad::calculateDepth(shared_md md)
 std::string
 metad::calculateLocalPath(shared_md md)
 {
-  std::string lpath = "/";
+  std::string lpath = "/" + md->name();
 
   if (md->id() == 1 || md->id() == 0) {
-    return lpath;
+    return "/";
   }
   
   fuse_ino_t pino = md->pid();
 
   if (pino == 1 || pino == 0) {
+    lpath = "/";
     lpath += md->name();
     return lpath;
   }

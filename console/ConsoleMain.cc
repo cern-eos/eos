@@ -105,6 +105,7 @@ extern int com_silent(char*);
 extern int com_space(char*);
 extern int com_stagerrm(char*);
 extern int com_stat(char*);
+extern int com_squash(char*);
 extern int com_test(char*);
 extern int com_timing(char*);
 extern int com_transfer(char*);
@@ -176,6 +177,7 @@ COMMAND commands[] = {
   { (char*) "space", com_space, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
+  { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
   { (char*) "test", com_test, (char*) "Run performance test"},
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
   { (char*) "touch", com_touch, (char*) "Touch a file"},
@@ -265,7 +267,23 @@ abspath(const char* in)
     return inpath.c_str();
   }
 
-  inpath = gPwd;
+  if (gPwd == "/") {
+    // check if we are in a /eos/ mountpoint
+    char pwd[4096];
+    if (getcwd(pwd, sizeof(pwd))) {
+      XrdOucString lpwd = pwd;
+      if (lpwd.beginswith("/eos")) {
+	inpath = pwd;
+	inpath += "/";
+      } else {
+	inpath = gPwd;
+      }
+    } else {
+      inpath = gPwd;
+    }
+  } else {
+    inpath = gPwd;
+  }
   inpath += in;
   eos::common::Path cPath(inpath.c_str());
   inpath = cPath.GetPath();

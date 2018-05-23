@@ -93,6 +93,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Return constracted path replacing all '/' with '::'
+  //----------------------------------------------------------------------------
+  std::string 
+  GetContractedPath()
+  {
+    XrdOucString contractedpath = GetPath();
+    while (contractedpath.replace("/","::")) {}
+    return contractedpath.c_str();
+  }
+
+  //----------------------------------------------------------------------------
   //! Return version directory path
   //----------------------------------------------------------------------------
   const char*
