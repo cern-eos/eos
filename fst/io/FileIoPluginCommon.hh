@@ -72,8 +72,7 @@ public:
   //--------------------------------------------------------------------------
   static FileIo*
   GetIoObject(std::string path, XrdFstOfsFile* file = 0,
-              const XrdSecEntity* client = 0,
-              XrdOucEnv* env = 0)
+              const XrdSecEntity* client = 0)
   {
     auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
 

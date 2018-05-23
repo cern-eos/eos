@@ -44,8 +44,7 @@ using eos::common::LayoutId;
 FileIo*
 FileIoPlugin::GetIoObject(std::string path,
                           XrdFstOfsFile* file,
-                          const XrdSecEntity* client,
-                          XrdOucEnv* env)
+                          const XrdSecEntity* client)
 {
   auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
 
@@ -66,21 +65,12 @@ FileIoPlugin::GetIoObject(std::string path,
   } else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
     std::string s3credentials = "";
-    FileSystem *fileSystem;
 
-    // Attempt to retrieve S3 credentials from the file's filesystem
+    // Attempt to retrieve S3 credentials from the filesystem
     if (file) {
-      fileSystem = gOFS.Storage->GetFileSystemById(file->getFileSystemId());
+      FileSystem *fileSystem =
+          gOFS.Storage->GetFileSystemById(file->getFileSystemId());
       s3credentials = fileSystem->GetString("s3credentials");
-    }
-
-    // Attempt to retrieve S3 credentials from the passed-in environment
-    if (s3credentials.empty() && env) {
-      int fsid = env->GetInt("fsid");
-      if (fsid > 0) {
-        fileSystem = gOFS.Storage->GetFileSystemById(fsid);
-        s3credentials = fileSystem->GetString("s3credentials");
-      }
     }
 
     return static_cast<FileIo*>(new DavixIo(path, s3credentials));

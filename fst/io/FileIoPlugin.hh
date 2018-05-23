@@ -26,7 +26,6 @@
 #define __EOS_FST_FILEIOPLUGIN_HH__
 
 #include "fst/Namespace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include <string>
 
 class XrdSecEntity;
@@ -65,8 +64,7 @@ public:
   static FileIo*
   GetIoObject(std::string path,
               XrdFstOfsFile* file = 0,
-              const XrdSecEntity* client = 0,
-              XrdOucEnv* env = 0);
+              const XrdSecEntity* client = 0);
 };
 
 EOSFSTNAMESPACE_END

@@ -1249,14 +1249,21 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
       eos_info("rc=%i, errno=%i", rc, errno);
     }
   } else {
-    XrdOucEnv opaqueEnv;
-    opaqueEnv.PutInt("fsid", fsid);
+    // Check for additional opaque info to create remote IO object
+    std::string sFstPath = fstPath.c_str();
+    std::string s3credentials =
+        gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
+
+    if (!s3credentials.empty()) {
+      sFstPath += "?s3credentials=" + s3credentials;
+
+    }
     std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
-                                 fstPath.c_str(), NULL, NULL, &opaqueEnv));
+                                 sFstPath.c_str()));
 
     if (!io) {
       return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
-                       fstPath.c_str());
+                       sFstPath.c_str());
     }
 
     rc = io->fileRemove();
