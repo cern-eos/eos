@@ -686,7 +686,7 @@ test -z $recyclesize && recyclesize=0
 test -z $recycletime && recycletime=0
 
 if [ $recyclesize -eq 0 ] ; then
-runtest "### Recycle   " unix 0 "" eos quota set -g 99 -v 100G -i 10M /eos/$EOS_INSTANCE_TEST/proc/recycle/
+runtest "### Recycle   " unix 0 "" eos quota set -g 99 -v 100G -i 10M /eos/$EOS_TEST_INSTANCE/proc/recycle/
 fi
 
 if [ $recycletime -eq 0 ]; then
