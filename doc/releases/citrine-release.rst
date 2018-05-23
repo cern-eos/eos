@@ -15,6 +15,47 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.23 Citrine``
+===================
+
+2018-05-23
+
+Bug
+----
+
+* [EOS-2314] - Central draining traffic is not tagged properly
+* [EOS-2318] - Slave namespace failed to boot (received signal 11)
+* [EOS-2465] - adding quota node on the master kills the slave (which then bootloops trying to apply the same quota)
+* [EOS-2537] - Balancer sheduler broken
+* [EOS-2544] - Setting recycle bin size changes inode quota to default.
+* [EOS-2564] - CITRINE MGM does not retrieve anymore error messages from FSTs in error.log
+* [EOS-2574] - enabling accounting on the slave results in segfault shortly after NS booted
+* [EOS-2575] - used space on /eos/<instance>/proc/conversion is ever increasing
+* [EOS-2579] - Half of the Scheduling groups are selected for  new file placement
+* [EOS-2580] - 'find -ctime' actually reads and compares against 'mtime'
+* [EOS-2582] - Access command inconsistencies
+* [EOS-2585] - EOSFUSE inline-repair not working
+* [EOS-2586] - The client GEOTAG is not taken into account when performing file placement
+
+New Feature
+------------
+
+* [EOS-2566] - Enable switch to propagate uid only via fuse
+
+Task
+----
+
+* [EOS-2119] - Implement support in central drain for RAIN layouts + reconstruction
+* [EOS-2587] - Fix documentation for docker deployment
+
+Improvement
+-----------
+
+* [EOS-2462] - improve eos ns output
+* [EOS-2571] - Change implementation of atomic uploads`
+* [EOS-2588] - Change default file placement behaviour in case of clients with GEOTAG
+
+
 ``v4.2.22 Citrine``
 ===================
 
