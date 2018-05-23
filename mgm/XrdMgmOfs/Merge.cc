@@ -27,20 +27,12 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Merge one file into another one
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
                  eos::common::Mapping::VirtualIdentity& vid)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief merge one file into another one
- * @param src to merge
- * @param dst to merge into
- * @return SFS_OK if success
- *
- * This command act's like a rename and keeps the ownership and creation time
- * of the target file.
- */
-/*----------------------------------------------------------------------------*/
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -52,6 +44,8 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
                 "merge source into destination path - source or target missing");
   }
 
+  uid_t save_uid = 99;
+  gid_t save_gid = 99;
   std::string src_path = src;
   std::string dst_path = dst;
   {
@@ -60,11 +54,13 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
     try {
       src_fmd = gOFS->eosView->getFile(src_path);
       dst_fmd = gOFS->eosView->getFile(dst_path);
+      // Save the uid and gid and apply it after removing the src_fmd from a
+      // possibly exising quota node. Otherwise the quota accounting will be
+      // wrong.
+      save_uid = dst_fmd->getCUid();
+      save_gid = dst_fmd->getCGid();
       // Inherit some core meta data, the checksum must be right by construction,
       // so we don't copy it.
-      src_fmd->setCUid(dst_fmd->getCUid());
-      src_fmd->setCGid(dst_fmd->getCGid());
-      // Inherit ctime and mtime
       eos::IFileMD::ctime_t mtime, ctime;
       dst_fmd->getCTime(ctime);
       src_fmd->setCTime(ctime);
@@ -75,19 +71,27 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       gOFS->FuseXCast(eos::common::FileId::FidToInode(src_fmd->getId()));
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n",
-                e.getErrno(),
+      eos_debug("caught exception %d %s\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
   }
   int rc = SFS_OK;
 
   if (src_fmd && dst_fmd) {
-    // remove the destination file
+    // Remove the destination file
     rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "");
-    // rename the source to destination
-    rc |= gOFS->_rename(src_path.c_str(), dst_path.c_str(), error, rootvid, "",
-                        "", false, false);
+
+    if (rc == 0) {
+      // Rename the source to destination
+      rc |= gOFS->_rename(src_path.c_str(), dst_path.c_str(), error, rootvid, "",
+                          "", false, false);
+
+      if (rc == 0) {
+        // Finally update the uid/gid
+        rc |= gOFS->_chown(dst_path.c_str(), save_uid, save_gid, error,
+                           rootvid, "");
+      }
+    }
   } else {
     return Emsg("merge", error, EINVAL, "merge source into destination path - "
                 "cannot get file meta data ", src_path.c_str());
