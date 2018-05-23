@@ -21,8 +21,10 @@
 //! @brief Class representing the container metadata
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_CONTAINER_MD_HH__
-#define __EOS_NS_CONTAINER_MD_HH__
+#ifndef EOS_NS_CONTAINER_MD_HH
+#define EOS_NS_CONTAINER_MD_HH
+
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -31,6 +33,7 @@
 #include "proto/ContainerMd.pb.h"
 #include "common/FutureWrapper.hh"
 #include <sys/time.h>
+#include <shared_mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -134,7 +137,7 @@ public:
   //----------------------------------------------------------------------------
   inline IContainerMD::id_t getId() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.id();
   }
 
@@ -143,7 +146,7 @@ public:
   //----------------------------------------------------------------------------
   inline ContainerIdentifier getIdentifier() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return ContainerIdentifier(mCont.id());
   }
 
@@ -154,7 +157,7 @@ public:
   inline IContainerMD::id_t
   getParentId() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.parent_id();
   }
 
@@ -164,7 +167,7 @@ public:
   void
   setParentId(IContainerMD::id_t parentId) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_parent_id(parentId);
   }
 
@@ -174,7 +177,7 @@ public:
   inline uint16_t
   getFlags() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.flags();
   }
 
@@ -183,7 +186,7 @@ public:
   //----------------------------------------------------------------------------
   virtual void setFlags(uint16_t flags) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_flags(0x00ff & flags);
   }
 
@@ -243,7 +246,7 @@ public:
   inline uint64_t
   getTreeSize() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.tree_size();
   }
 
@@ -253,7 +256,7 @@ public:
   inline void
   setTreeSize(uint64_t treesize) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_tree_size(treesize);
   }
 
@@ -268,7 +271,7 @@ public:
   inline const std::string&
   getName() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.name();
   }
 
@@ -283,7 +286,7 @@ public:
   inline uid_t
   getCUid() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.uid();
   }
 
@@ -293,7 +296,7 @@ public:
   inline void
   setCUid(uid_t uid) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_uid(uid);
   }
 
@@ -303,7 +306,7 @@ public:
   inline gid_t
   getCGid() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.gid();
   }
 
@@ -313,7 +316,7 @@ public:
   inline void
   setCGid(gid_t gid) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_gid(gid);
   }
 
@@ -323,7 +326,7 @@ public:
   inline mode_t
   getMode() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.mode();
   }
 
@@ -333,7 +336,7 @@ public:
   inline void
   setMode(mode_t mode) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_mode(mode);
   }
 
@@ -343,7 +346,7 @@ public:
   void
   setAttribute(const std::string& name, const std::string& value) override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     (*mCont.mutable_xattrs())[name] = value;
   }
 
@@ -358,7 +361,7 @@ public:
   bool
   hasAttribute(const std::string& name) const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return (mCont.xattrs().find(name) != mCont.xattrs().end());
   }
 
@@ -368,7 +371,7 @@ public:
   size_t
   numAttributes() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.xattrs().size();
   }
 
@@ -422,7 +425,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
   {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mClock;
   }
 
@@ -436,11 +439,26 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  //! Get propagated modification time, no locks
+  //----------------------------------------------------------------------------
+  void getTMTimeNoLock(tmtime_t& tmtime);
+
+  //----------------------------------------------------------------------------
+  //! Get creation time, no locks
+  //----------------------------------------------------------------------------
+  void getCTimeNoLock(ctime_t& ctime) const;
+
+  //----------------------------------------------------------------------------
+  //! Get modification time, no locks
+  //----------------------------------------------------------------------------
+  void getMTimeNoLock(mtime_t& mtime) const;
+
+  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the subcontainers map
   //----------------------------------------------------------------------------
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    // No lock here, only ContainerMapIterator can call us, which locks the mutex.
     return mSubcontainers->begin();
   }
 
@@ -449,7 +467,7 @@ private:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    // No lock here, only ContainerMapIterator can call us, which locks the mutex.
     return mSubcontainers->end();
   }
 
@@ -458,7 +476,7 @@ private:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    // No lock here, only FileMapIterator can call us, which locks the mutex.
     return mFiles->begin();
   }
 
@@ -467,7 +485,7 @@ private:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override {
-    std::lock_guard<std::recursive_mutex> lock(mMutex);
+    // No lock here, only FileMapIterator can call us, which locks the mutex.
     return mFiles->end();
   }
 

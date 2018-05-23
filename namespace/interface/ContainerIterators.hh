@@ -56,7 +56,7 @@ public:
 
 private:
   IContainerMDPtr container;
-  std::unique_lock<std::recursive_mutex> lock;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::FileMap::const_iterator iter;
 };
 
@@ -86,7 +86,7 @@ public:
 
 private:
   IContainerMDPtr container;
-  std::unique_lock<std::recursive_mutex> lock;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::ContainerMap::const_iterator iter;
 };
 

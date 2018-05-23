@@ -286,7 +286,6 @@ TEST_F(FileSystemViewF, RandomFilePicking)
       std::cout << "Random file in fs #1: " << randomPick << std::endl;
     }
 
-    randomPick;
     ASSERT_TRUE(fsview()->getApproximatelyRandomFileInFs(2, randomPick));
     ASSERT_TRUE(randomPick % 2 == 1);
 

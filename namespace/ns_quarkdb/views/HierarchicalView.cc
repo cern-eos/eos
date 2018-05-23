@@ -28,6 +28,8 @@
 #include <ctime>
 #include <functional>
 
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
+
 using std::placeholders::_1;
 
 #ifdef __APPLE__

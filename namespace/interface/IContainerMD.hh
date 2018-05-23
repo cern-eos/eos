@@ -36,6 +36,7 @@
 #include <string>
 #include <map>
 #include <set>
+#include <shared_mutex>
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
@@ -356,6 +357,7 @@ public:
   //----------------------------------------------------------------------------
   virtual bool isDeleted() const
   {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mIsDeleted;
   }
 
@@ -364,6 +366,7 @@ public:
   //----------------------------------------------------------------------------
   virtual void setDeleted()
   {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mIsDeleted = true;
   }
 
@@ -412,7 +415,7 @@ protected:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() = 0;
 
-  mutable std::recursive_mutex mMutex;
+  mutable std::shared_timed_mutex mMutex;
 };
 
 EOSNSNAMESPACE_END

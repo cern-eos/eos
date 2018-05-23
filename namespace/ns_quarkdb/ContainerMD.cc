@@ -120,7 +120,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 folly::Future<IContainerMDPtr>
 ContainerMD::findContainerFut(const std::string& name)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mSubcontainers->find(name);
 
   if(iter == mSubcontainers->end()) {
@@ -138,7 +138,7 @@ ContainerMD::findContainerFut(const std::string& name)
       //------------------------------------------------------------------------
       // Curate the list of subcontainers in case entry is not found.
       //------------------------------------------------------------------------
-      std::lock_guard<std::recursive_mutex> lock(mMutex);
+      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
       pFlusher->hdel(pDirsKey, name);
       mSubcontainers->erase(name);
       return IContainerMDPtr();
@@ -162,7 +162,7 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mSubcontainers->find(name);
 
   if (it == mSubcontainers->end()) {
@@ -183,7 +183,7 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                     container->getId()));
@@ -209,7 +209,7 @@ ContainerMD::addContainer(IContainerMD* container)
 folly::Future<IFileMDPtr>
 ContainerMD::findFileFut(const std::string& name)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
 
   if(iter == mFiles->end()) {
@@ -227,7 +227,7 @@ ContainerMD::findFileFut(const std::string& name)
       //------------------------------------------------------------------------
       // Curate the list of files in case entry is not found.
       //------------------------------------------------------------------------
-      std::lock_guard<std::recursive_mutex> lock(mMutex);
+      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
       pFlusher->hdel(pFilesKey, name);
       mFiles->erase(name);
       return IFileMDPtr();
@@ -251,6 +251,8 @@ ContainerMD::findFile(const std::string& name)
 void
 ContainerMD::addFile(IFileMD* file)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   file->setContainerId(mCont.id());
   (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
   // @todo (esindril): Here we follow the behaviour of the namespace in memory
@@ -263,6 +265,7 @@ ContainerMD::addFile(IFileMD* file)
   //   throw e;
   // }
   pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
+  lock.unlock();
 
   if (file->getSize() != 0u) {
     IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange, 0,
@@ -277,6 +280,7 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
 
   if (iter != mFiles->end()) {
@@ -286,6 +290,7 @@ ContainerMD::removeFile(const std::string& name)
     pFlusher->hdel(pFilesKey, name);
 
     try {
+      lock.unlock();
       std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
       // NOTE: This is an ugly hack. The file object has no reference to the
       // container id, therefore we hijack the "location" member of the Event
@@ -306,6 +311,7 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return mFiles->size();
 }
 
@@ -315,7 +321,7 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return mSubcontainers->size();
 }
 
@@ -431,6 +437,8 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
     convFlags |= CANENTER;
   }
 
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
   // Check the perms
   if (uid == mCont.uid()) {
     char user = convertModetUser(mCont.mode());
@@ -452,6 +460,8 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 void
 ContainerMD::setName(const std::string& name)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   // // Check that there is no clash with other subcontainers having the same name
   // if (mCont.parent_id() != 0u) {
   //   auto parent = pContSvc->getContainerMD(mCont.parent_id());
@@ -470,6 +480,7 @@ ContainerMD::setName(const std::string& name)
 void
 ContainerMD::setCTime(ctime_t ctime)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont.set_ctime(&ctime, sizeof(ctime));
 }
 
@@ -488,7 +499,7 @@ ContainerMD::setCTimeNow()
 #else
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
-  mCont.set_ctime(&tnow, sizeof(tnow));
+  setCTime(tnow);
 }
 
 //------------------------------------------------------------------------------
@@ -496,6 +507,16 @@ ContainerMD::setCTimeNow()
 //------------------------------------------------------------------------------
 void
 ContainerMD::getCTime(ctime_t& ctime) const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  getCTimeNoLock(ctime);
+}
+
+//------------------------------------------------------------------------------
+// Get creation time, no locks
+//------------------------------------------------------------------------------
+void
+ContainerMD::getCTimeNoLock(ctime_t& ctime) const
 {
   (void) memcpy(&ctime, mCont.ctime().data(), sizeof(ctime));
 }
@@ -506,6 +527,7 @@ ContainerMD::getCTime(ctime_t& ctime) const
 void
 ContainerMD::setMTime(mtime_t mtime)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont.set_mtime(&mtime, sizeof(mtime));
 }
 
@@ -524,7 +546,7 @@ ContainerMD::setMTimeNow()
 #else
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
-  mCont.set_mtime(&tnow, sizeof(tnow));
+  setMTime(tnow);
 }
 
 //------------------------------------------------------------------------------
@@ -532,6 +554,16 @@ ContainerMD::setMTimeNow()
 //------------------------------------------------------------------------------
 void
 ContainerMD::getMTime(mtime_t& mtime) const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  getMTimeNoLock(mtime);
+}
+
+//------------------------------------------------------------------------------
+// Get modification time, no lock
+//------------------------------------------------------------------------------
+void
+ContainerMD::getMTimeNoLock(mtime_t& mtime) const
 {
   (void) memcpy(&mtime, mCont.mtime().data(), sizeof(mtime));
 }
@@ -542,8 +574,10 @@ ContainerMD::getMTime(mtime_t& mtime) const
 bool
 ContainerMD::setTMTime(tmtime_t tmtime)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   tmtime_t tmt;
-  getTMTime(tmt);
+  getTMTimeNoLock(tmt);
 
   if (((tmt.tv_sec == 0) && (tmt.tv_nsec == 0)) ||
       (tmtime.tv_sec > tmt.tv_sec) ||
@@ -575,12 +609,22 @@ ContainerMD::setTMTimeNow()
 }
 
 //------------------------------------------------------------------------------
+// Get propagated modification time, no locks
+//------------------------------------------------------------------------------
+void
+ContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
+{
+  (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
+}
+
+//------------------------------------------------------------------------------
 // Get propagated modification time
 //------------------------------------------------------------------------------
 void
 ContainerMD::getTMTime(tmtime_t& tmtime)
 {
-  (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  getTMTimeNoLock(tmtime);
 }
 
 //------------------------------------------------------------------------------
@@ -599,6 +643,7 @@ ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 uint64_t
 ContainerMD::updateTreeSize(int64_t delta)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   uint64_t sz = mCont.tree_size();
 
   // Avoid usigned underflow
@@ -618,6 +663,7 @@ ContainerMD::updateTreeSize(int64_t delta)
 std::string
 ContainerMD::getAttribute(const std::string& name) const
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mCont.xattrs().find(name);
 
   if (it == mCont.xattrs().end()) {
@@ -635,6 +681,7 @@ ContainerMD::getAttribute(const std::string& name) const
 void
 ContainerMD::removeAttribute(const std::string& name)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mCont.xattrs().find(name);
 
   if (it != mCont.xattrs().end()) {
@@ -648,6 +695,7 @@ ContainerMD::removeAttribute(const std::string& name)
 void
 ContainerMD::serialize(Buffer& buffer)
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // Align the buffer to 4 bytes to efficiently compute the checksum
   ++mClock;
   size_t obj_size = mCont.ByteSizeLong();
@@ -682,8 +730,7 @@ ContainerMD::serialize(Buffer& buffer)
 void
 ContainerMD::loadChildren()
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
-
+  // Requires lock be taken outside.
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
@@ -704,7 +751,7 @@ ContainerMD::loadChildren()
 void
 ContainerMD::deserialize(Buffer& buffer)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   Serialization::deserializeContainer(buffer, mCont);
   loadChildren();
 }
@@ -716,7 +763,7 @@ void
 ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
     IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
   mCont = std::move(proto);
   mFiles.get() = std::move(fileMap);
@@ -733,7 +780,7 @@ ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
 void
 ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont = std::move(proto);
 }
 
@@ -743,7 +790,7 @@ ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 eos::IFileMD::XAttrMap
 ContainerMD::getAttributes() const
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   XAttrMap xattrs;
 
   for (const auto& elem : mCont.xattrs()) {
@@ -759,7 +806,7 @@ ContainerMD::getAttributes() const
 void
 ContainerMD::getEnv(std::string& env, bool escapeAnd)
 {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   env.clear();
   std::ostringstream oss;
@@ -782,9 +829,9 @@ ContainerMD::getEnv(std::string& env, bool escapeAnd)
   ctime_t ctime;
   ctime_t mtime;
   ctime_t stime;
-  (void) getCTime(ctime);
-  (void) getMTime(mtime);
-  (void) getTMTime(stime);
+  (void) getCTimeNoLock(ctime);
+  (void) getMTimeNoLock(mtime);
+  (void) getTMTimeNoLock(stime);
   oss << "name=" << saveName
       << "&id=" << mCont.id()
       << "&uid=" << mCont.uid() << "&gid=" << mCont.gid()

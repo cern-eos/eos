@@ -51,13 +51,18 @@ static void nukeDirectory(eos::IView *view, const std::string &path) {
     }
   }
 
+  std::vector<std::string> subcontainers;
   for (auto itc = eos::ContainerMapIterator(cont); itc.valid(); itc.next()) {
     std::ostringstream newpath;
     newpath << path;
     if(path[path.size()-1] != '/') newpath << "/";
     newpath << itc.key();
 
-    nukeDirectory(view, newpath.str());
+    subcontainers.emplace_back(newpath.str());
+  }
+
+  for(size_t i = 0; i < subcontainers.size(); i++) {
+    nukeDirectory(view, subcontainers[i]);
   }
 
   view->removeContainer(path);
