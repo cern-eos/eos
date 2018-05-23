@@ -74,6 +74,7 @@ Bug
 
 New Feature
 -----------
+
 * [EOS-1811] - RFE: support for "hard links" in FUSE
 * [EOS-2505] - RFE: limit number of inodes for FUSEX cache, autoclean
 * [EOS-2518] - EOS WfE should log how long it takes to execute an action
@@ -81,6 +82,7 @@ New Feature
 
 Improvement
 -----------
+
 * [EOS-2114] - trashbin behaviour for new eos fuse implementation
 * [EOS-2423] - EOS_FST_NO_SSS_ENFORCEMENT breaks writes
 * [EOS-2532] - Enable recycle bin feature on FUSEX
@@ -88,11 +90,13 @@ Improvement
 
 Question
 --------
+
 * [EOS-2458] - User quota exceeted and user can write to this directory
 * [EOS-2497] - Repeating eos fusex messages all over
 
 Incident
 --------
+
 * [EOS-2381] - File lost during fail-over ATLAS
 
 
@@ -291,7 +295,7 @@ Configuration Change
 * [EOS-2279] - eosfusebind error message at login
 
 Incident
--------+
+--------
 
 * [EOS-2298] - EOS MGM memory leak
 
