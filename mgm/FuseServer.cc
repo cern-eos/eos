@@ -1815,6 +1815,11 @@ FuseServer::FillContainerCAP(uint64_t id,
                               dir.capability().gid(), avail_files, avail_bytes,
                               quota_inode)) {
         has_quota = true;
+
+	if (avail_files == 0) // no inode quota = unlimited
+	  avail_files = std::numeric_limits<long>::max() / 2;
+	if (avail_bytes == 0) // no volume quota = unlimited
+	  avail_bytes = std::numeric_limits<long>::max() / 2;
       }
     } else {
       avail_files = std::numeric_limits<long>::max() / 2;
