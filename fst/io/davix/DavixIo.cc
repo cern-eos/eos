@@ -279,6 +279,12 @@ DavixIo::fileOpen(
         return -1;
       }
     }
+  } else {
+    // allow file replacement for truncate open on S3 protocol
+    if ((flags & SFS_O_TRUNC)) {
+      fileRemove();
+      pflags = (O_CREAT | O_RDWR);
+    }
   }
 
   eos_info("open=%s flags=%x", mFilePath.c_str(), pflags);
