@@ -109,6 +109,11 @@ ProcCommand::Whoami()
       stdOut += " geo-location=";
       stdOut += pVid->geolocation.c_str();
     }
+    
+    if (pVid->key.length()) {
+      stdOut += " key=";
+      stdOut += pVid->key.c_str();
+    }
   }
 
   return SFS_OK;

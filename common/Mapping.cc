@@ -181,6 +181,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
+  if (vid.prot == "sss") {
+    vid.key = (client->endorsements?client->endorsements:"");
+  }
   // first map by alias
   XrdOucString useralias = client->prot;
   useralias += ":";

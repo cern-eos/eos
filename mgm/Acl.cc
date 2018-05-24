@@ -166,6 +166,10 @@ Acl::Set(std::string sysacl, std::string useracl,
     grp_name_tag += groupname;
     grp_name_tag += ":";
     std::string ztag = "z:";
+
+    std::string keytag = "k:";
+    keytag += vid.key;
+
     eos_static_debug("%s %s %s %s", usertag.c_str(), grouptag.c_str(),
                      usr_name_tag.c_str(), grp_name_tag.c_str());
 
@@ -192,6 +196,7 @@ Acl::Set(std::string sysacl, std::string useracl,
           (!it->compare(0, grouptag.length(), grouptag)) ||
           (!it->compare(0, ztag.length(), ztag)) ||
           (egroupmatch) ||
+	  (!it->compare(0,keytag.length(), keytag)) || 
           (!it->compare(0, usr_name_tag.length(), usr_name_tag)) ||
           (!it->compare(0, grp_name_tag.length(), grp_name_tag))) {
         std::vector<std::string> entry;

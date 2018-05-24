@@ -493,6 +493,7 @@ AclCmd::CheckCorrectId(const std::string& id) const
     "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-";
 
   if ((id.at(0) == 'u' && id.at(1) == ':') ||
+      (id.at(0) == 'k' && id.at(1) == ':') ||
       (id.at(0) == 'g' && id.at(1) == ':')) {
     return id.find_first_not_of(allowed_chars, 2) == std::string::npos;
   }
