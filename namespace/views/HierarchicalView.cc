@@ -126,7 +126,7 @@ namespace eos
     std::vector<char*> elements;
     size_t lLinkDepths = 0;
 
-    if (uri == "/")
+    if ( (uri == "/") || (!uri.length()) )
     {
       MDException e( ENOENT );
       e.getMessage() << " is not a file";
@@ -394,6 +394,13 @@ namespace eos
   {
     if( uri == "/" )
       return pRoot;
+
+    if ( !uri.length() )
+    {
+      MDException e( ENOENT );
+      e.getMessage() << " is not a file";
+      throw e;
+    }
 
     size_t lLinkDepth = 0;
 
