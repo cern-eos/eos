@@ -164,6 +164,10 @@ void com_fs_help()
       << "    s3credentials=<accesskey>:<secretkey>" << std::endl
       << "      the access and secret key pair used to authenticate" << std::endl
       << "      with the S3 storage endpoint" << std::endl
+      << "    logicalpath=<true>|<false>" << std::endl
+      << "      keep the file names on the storage endpoint" << std::endl
+      << "      as they appear in the namespace " << std::endl
+      << "      True and 1 are synonyms." << std::endl
       << std::endl
       << "  fs dropdeletion <fsid> " << std::endl
       << "    drop all pending deletions on the filesystem" << std::endl
