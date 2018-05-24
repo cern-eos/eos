@@ -145,6 +145,7 @@ public:
     std::string dn;
     std::string geolocation;
     std::string app;
+    std::string key;
     bool sudoer;
 
     //--------------------------------------------------------------------------

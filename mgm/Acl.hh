@@ -44,10 +44,10 @@ class Acl
 {
 public:
   static constexpr auto sRegexUsrGenericAcl =
-    "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))):"
+    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
-    "^(((((u|g):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
+    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))):"
