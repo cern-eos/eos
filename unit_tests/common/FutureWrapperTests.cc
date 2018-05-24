@@ -50,7 +50,7 @@ TEST(FutureWrapper, Exception) {
     FAIL(); // should never reach here
   }
   catch(const std::runtime_error &exc) { // yes, you can use strings as exceptions
-    ASSERT_EQ(exc.what(), "something terrible happened");
+    ASSERT_STREQ(exc.what(), "something terrible happened");
   }
 }
 
