@@ -398,7 +398,7 @@ namespace eos
     if ( !uri.length() )
     {
       MDException e( ENOENT );
-      e.getMessage() << " is not a file";
+      e.getMessage() << " is an empty URI";
       throw e;
     }
 
