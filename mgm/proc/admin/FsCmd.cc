@@ -148,19 +148,14 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         for (const auto id : FsView::gFsView.mIdView) {
           if ((id.second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
             if (forcemgmsync) {
-              // set the check flag
+              // Set the resync with MGM flag
               id.second->SetLongLong("bootcheck", eos::common::FileSystem::kBootResync);
             } else {
-              // set the force flag
+              // Set the local disk resync flag
               id.second->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
             }
 
             auto now = time(nullptr);
-
-            if (now < 0) {
-              now = 0;
-            }
-
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);
             outStream << " ";
             outStream << id.second->GetString("host").c_str();
