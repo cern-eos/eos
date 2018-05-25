@@ -111,6 +111,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt("RunForkHandler", 1);
+
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   fuse_opt_parse(&args, NULL, NULL, NULL);
   char* local_mount_dir = 0;
@@ -970,7 +973,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   }
 
   int debug;
-
+  
   if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
     exit(errno ? errno : -1);
   }
@@ -982,7 +985,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
-
     eos::common::ShellCmd cmd ("echo eos::common::ShellCmd init 2>&1");
     eos::common::cmd_status st = cmd.wait(5);
     int rc = st.exit_code;
