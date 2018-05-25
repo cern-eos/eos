@@ -869,8 +869,8 @@ XrdCl::Proxy::WaitWrite()
   }
 
   {
-    XrdSysCondVarHelper openLock(OpenCondVar());
-    return XOpenState;
+    XrdSysCondVarHelper writeLock(WriteCondVar());
+    return XWriteState;
   }
 }
 
