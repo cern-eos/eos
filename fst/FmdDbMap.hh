@@ -126,15 +126,6 @@ public:
   //----------------------------------------------------------------------------
   bool ShutdownDB(eos::common::FileSystem::fsid_t fsid);
 
-  //----------------------------------------------------------------------------
-  //! Mark as clean the DB corresponding to given the file system id
-  //!
-  //! @param fsid file system id
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool MarkCleanDB(eos::common::FileSystem::fsid_t fsid);
-
   // Meta data handling functions
 
   //----------------------------------------------------------------------------

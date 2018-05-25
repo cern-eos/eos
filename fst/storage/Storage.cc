@@ -431,8 +431,6 @@ Storage::Boot(FileSystem* fs)
   }
 
   bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
-  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) ||
-                   (strcmp(getenv("EOS_FST_NO_FAST_BOOT"), "1"));
   bool resyncmgm = ((is_dirty) ||
                     (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
   bool resyncdisk = ((is_dirty) ||
@@ -502,11 +500,6 @@ Storage::Boot(FileSystem* fs)
   // displayed per file system.
   // Indicate the flag to unset the DB dirty flag at shutdown
   gFmdDbMapHandler.StayDirty(fsid, false);
-
-  // Allows fast boot the next time
-  if (fast_boot) {
-    gFmdDbMapHandler.MarkCleanDB(fsid);
-  }
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid
@@ -890,7 +883,8 @@ Storage::GetNumDeletions()
 // Get the filesystem associated with the given filesystem id
 //------------------------------------------------------------------------------
 FileSystem*
-Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) {
+Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
+{
   return mFileSystemsMap[fsid];
 }
 

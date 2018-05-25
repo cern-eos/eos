@@ -479,30 +479,6 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 }
 
 //------------------------------------------------------------------------------
-// Mark as clean the DB corresponding to given the filesystem id
-//------------------------------------------------------------------------------
-bool
-FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
-{
-  eos_info("%s DB mark clean for fsid=%lu",
-           eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
-  eos::common::RWMutexWriteLock lock(mMapMutex);
-
-  if (mDbMap.count(fsid)) {
-    if (DBfilename.count(fsid)) {
-      // If there was a complete boot procedure done, we remove the dirty flag
-      // set the mode back to S_IRWXU
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU)) {
-        eos_crit("failed to switch the %s database file to S_IRWXU errno=%d",
-                 eos::common::DbMap::getDbType().c_str(), errno);
-      }
-    }
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
 // Return/create an Fmd struct for the given file/filesystem id for user
 // uid/gid and layout layoutid
 //------------------------------------------------------------------------------
