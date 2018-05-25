@@ -624,7 +624,7 @@ data::datax::inline_file(ssize_t size)
     size = mMd->size();
   
 
-  if (inlined()) {
+  if (inlined() && inline_buffer) {
     if ((size_t)size <= mInlineMaxSize) {
       // rewrite the extended attribute
       std::string raw_string(inline_buffer->ptr(), size);
