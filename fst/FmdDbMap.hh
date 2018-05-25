@@ -343,34 +343,21 @@ public:
     return mIsSyncing[fsid];
   }
 
-  //----------------------------------------------------------------------------
-  //! Return's the dirty flag indicating a non-clean shutdown
-  //----------------------------------------------------------------------------
-  inline bool IsDirty(eos::common::FileSystem::fsid_t fsid)
-  {
-    return mIsDirty[fsid];
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the stay dirty flag indicating a non completed bootup
-  //----------------------------------------------------------------------------
-  void StayDirty(eos::common::FileSystem::fsid_t fsid, bool dirty)
-  {
-    mStayDirty[fsid] = dirty;
-  }
-
   inline void FsLockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsLock(fsid, false);
   }
+
   inline void FsLockWrite(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsLock(fsid, true);
   }
+
   inline void FsUnlockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsUnlock(fsid, false);
   }
+
   inline void FsUnlockWrite(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsUnlock(fsid, true);
@@ -411,8 +398,6 @@ private:
   mutable eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
   eos::common::LvDbDbMapInterface::Option lvdboption;
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
-  std::map<eos::common::FileSystem::fsid_t, bool> mIsDirty;
-  std::map<eos::common::FileSystem::fsid_t, bool> mStayDirty;
   std::map<eos::common::FileSystem::fsid_t, bool> mIsSyncing;
   ///! Map containing mutexes for each file system id
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>

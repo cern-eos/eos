@@ -21,22 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 void
 Storage::Trim()
 {
-  // this thread trim's the SQLITE DB every 30 days
-  while (1) {
-    // sleep for a month
+  // Trim the DB every 30 days
+  while (true) {
     XrdSysTimer sleeper;
     sleeper.Snooze(30 * 86400);
     gFmdDbMapHandler.TrimDB();

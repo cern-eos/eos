@@ -29,7 +29,6 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/Config.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-#include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
@@ -46,6 +45,19 @@ EOSFSTNAMESPACE_BEGIN
 FmdDbMapHandler gFmdDbMapHandler;
 
 using eos::common::LayoutId;
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FmdDbMapHandler::FmdDbMapHandler()
+{
+  using eos::common::FileSystem;
+  SetLogId("CommonFmdDbMapHandler");
+  lvdboption.CacheSizeMb = 0;
+  lvdboption.BloomFilterNbits = 0;
+  mFsMtxMap.set_deleted_key(std::numeric_limits<FileSystem::fsid_t>::max() - 2);
+  mFsMtxMap.set_empty_key(std::numeric_limits<FileSystem::fsid_t>::max() - 1);
+}
 
 //------------------------------------------------------------------------------
 // Convert an MGM env representation to an Fmd struct
@@ -334,20 +346,6 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
 }
 
 //------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-FmdDbMapHandler::FmdDbMapHandler()
-{
-  using eos::common::FileSystem;
-  SetLogId("CommonFmdDbMapHandler");
-  lvdboption.CacheSizeMb = 0;
-  lvdboption.BloomFilterNbits = 0;
-  mFsMtxMap.set_deleted_key(std::numeric_limits<FileSystem::fsid_t>::max() - 2);
-  mFsMtxMap.set_empty_key(std::numeric_limits<FileSystem::fsid_t>::max() - 1);
-}
-
-
-//------------------------------------------------------------------------------
 // Get number of file systems
 //------------------------------------------------------------------------------
 uint32_t
@@ -386,11 +384,6 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
     mDbMap[fsid] = new eos::common::DbMap();
   }
 
-  // @note
-  // * when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
-  // * when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
-  // * when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has
-  //   not been shutdown properly and we set a 'dirty' flag to force a full resync
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s/fmd.%04d.%s", meta_dir, fsid,
           eos::common::DbMap::getDbType().c_str());
@@ -398,28 +391,6 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
            fsDBFileName);
   // Store the DB file name
   DBfilename[fsid] = fsDBFileName;
-  // Check the mode of the DB
-  struct stat buf;
-  int src = 0;
-
-  if ((src = stat(fsDBFileName, &buf)) || ((buf.st_mode & S_IRGRP) != S_IRGRP)) {
-    eos_warning("setting %s file dirty - unclean shutdown detected",
-                eos::common::DbMap::getDbType().c_str());
-    mIsDirty[fsid] = true;
-    mStayDirty[fsid] = true;
-
-    if (!src) {
-      if (chmod(fsDBFileName, S_IRWXU | S_IRGRP)) {
-        eos_crit("failed to switch the %s database file mode to S_IRWXU | "
-                 "S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(),
-                 errno);
-      }
-    }
-  } else {
-    mIsDirty[fsid] = false;
-    mStayDirty[fsid] = false;
-  }
-
   // Create / or attach the db (try to repair if needed)
   eos::common::LvDbDbMapInterface::Option* dbopt = &lvdboption;
 
@@ -437,14 +408,6 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
     mDbMap[fsid]->outOfCore(true);
   }
 
-  // Set the mode to S_IRWXU & ~S_IRGRP
-  if (chmod(fsDBFileName, S_IRWXU & ~S_IRGRP)) {
-    eos_crit("failed to switch the %s database file mode to S_IRWXU & "
-             "~S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(),
-             errno);
-    return false;
-  }
-
   return true;
 }
 
@@ -454,20 +417,11 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
 bool
 FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
 {
-  eos_info("%s DB shutdown for fsid=%lu",
-           eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
+  eos_info("%s DB shutdown for fsid=%d",
+           eos::common::DbMap::getDbType().c_str(), fsid);
   eos::common::RWMutexWriteLock lock(mMapMutex);
 
   if (mDbMap.count(fsid)) {
-    if (!mStayDirty[fsid]) {
-      // If there was a complete boot procedure done, we remove the dirty flag
-      // set the mode back to S_IRWXU | S_IRGRP
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP)) {
-        eos_crit("failed to switch the %s database file to S_IRWXU | S_IRGRP errno=%d",
-                 eos::common::DbMap::getDbType().c_str(), errno);
-      }
-    }
-
     if (mDbMap[fsid]->detachDb()) {
       delete mDbMap[fsid];
       mDbMap.erase(fsid);

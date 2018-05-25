@@ -430,14 +430,11 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
-  bool resyncmgm = ((is_dirty) ||
-                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = ((is_dirty) ||
-                     (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
+  bool resyncmgm = (fs->GetLongLong("bootcheck") ==
+                    eos::common::FileSystem::kBootResync);
+  bool resyncdisk = (fs->GetLongLong("bootcheck") >=
+                     eos::common::FileSystem::kBootForced);
   eos_info("msg=\"start disk synchronisation\"");
-  // Resync the DB - indicate the flag to keep the DP dirty
-  gFmdDbMapHandler.StayDirty(fsid, true);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
@@ -490,7 +487,7 @@ Storage::Boot(FileSystem* fs)
 
     eos_info("msg=\"finished mgm synchronization\" fsid=%lu", (unsigned long) fsid);
   } else {
-    eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu",
+    eos_info("msg=\"skip mgm resynchronization\" fsid=%lu",
              (unsigned long) fsid);
   }
 
@@ -498,8 +495,6 @@ Storage::Boot(FileSystem* fs)
   // present on disk but not tracked by the MGM are still accounted in EOS. They
   // are tracked in the local database and also show up in the "used_files" info
   // displayed per file system.
-  // Indicate the flag to unset the DB dirty flag at shutdown
-  gFmdDbMapHandler.StayDirty(fsid, false);
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid
