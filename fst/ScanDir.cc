@@ -104,8 +104,8 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
-  eos::fst::Load* fstload, bool bgthread, long int testinterval,
-  int ratebandwidth, bool setchecksum) :
+                 eos::fst::Load* fstload, bool bgthread, long int testinterval,
+                 int ratebandwidth, bool setchecksum) :
 
   fstLoad(fstload), fsId(fsid), dirPath(dirpath), testInterval(testinterval),
   setChecksum(setchecksum), rateBandwidth(ratebandwidth), forcedScan(false)
@@ -118,7 +118,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   buffer = 0;
   bgThread = bgthread;
   alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(),
-                      _PC_REC_XFER_ALIGN);
+                       _PC_REC_XFER_ALIGN);
   size_t palignment = alignment;
 
   if (alignment > 0) {
@@ -238,7 +238,8 @@ ScanDir::CheckFile(const char* filepath)
   float scantime;
   unsigned long layoutid = 0;
   unsigned long long scansize;
-  std::string filePath, checksumType, checksumStamp, logicalFileName, previousFileCxError;
+  std::string filePath, checksumType, checksumStamp, logicalFileName,
+      previousFileCxError;
   char checksumVal[SHA_DIGEST_LENGTH];
   size_t checksumLen;
   filePath = filepath;
@@ -286,20 +287,15 @@ ScanDir::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.timestamp", checksumStamp);
   io->attrGet("user.eos.lfn", logicalFileName);
-
   io->attrGet("user.eos.filecxerror", previousFileCxError);
-
   bool rescan = RescanFile(checksumStamp);
-
   // a file which was checked as ok, but got a checksum error
   bool was_healthy = (previousFileCxError == "0");
-
   // check if this file has been modified since the last time we scanned it
   bool didnt_change = false;
-  time_t scanTime = atoll(checksumStamp.c_str())/ 1000000;
-  
-  if (buf1.st_mtime < scanTime)
-  {
+  time_t scanTime = atoll(checksumStamp.c_str()) / 1000000;
+
+  if (buf1.st_mtime < scanTime) {
     didnt_change = true;
   }
 
@@ -308,7 +304,6 @@ ScanDir::CheckFile(const char* filepath)
       bool blockcxerror = false;
       bool filecxerror = false;
       bool skiptosettime = false;
-
       XrdOucString envstring = "eos.layout.checksum=";
       envstring += checksumType.c_str();
       XrdOucEnv env(envstring.c_str());
@@ -345,22 +340,20 @@ ScanDir::CheckFile(const char* filepath)
               eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
                       logicalFileName.c_str());
 
-	      if (was_healthy && didnt_change)
-	      {
-		syslog(LOG_ERR, "HW corrupted file found: localpath=%s lfn=\"%s\" \n", 
-		       filePath.c_str(), logicalFileName.c_str());
-		noHWCorruptFiles++;
-	      }
-	       
+              if (was_healthy && didnt_change) {
+                syslog(LOG_ERR, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
+                       filePath.c_str(), logicalFileName.c_str());
+                noHWCorruptFiles++;
+              }
             } else {
               fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
                       filePath.c_str(), logicalFileName.c_str());
-	      if (was_healthy && didnt_change)
-	      {
-		fprintf(stderr, "HW corrupted file found: localpath=%s lfn=\"%s\" \n", 
-			filePath.c_str(), logicalFileName.c_str());
-		noHWCorruptFiles++;
-	      }
+
+              if (was_healthy && didnt_change) {
+                fprintf(stderr, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
+                        filePath.c_str(), logicalFileName.c_str());
+                noHWCorruptFiles++;
+              }
             }
           }
         } else {
@@ -415,85 +408,83 @@ ScanDir::CheckFile(const char* filepath)
 #ifndef _NOOFS
 
       if (bgThread) {
-        if (filecxerror || blockcxerror) {
-          XrdOucString manager = "";
-          {
-            XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-            manager = eos::fst::Config::gConfig.Manager.c_str();
-          }
+        XrdOucString manager = "";
+        {
+          XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+          manager = eos::fst::Config::gConfig.Manager.c_str();
+        }
 
-          if (manager.length()) {
-            errno = 0;
-            eos::common::Path cPath(filePath.c_str());
-            eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+        if (manager.length()) {
+          errno = 0;
+          eos::common::Path cPath(filePath.c_str());
+          eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
 
-            if (fid && !errno) {
-              // check if we have this file in the local DB, if not, we
-              // resync first the disk and then the mgm meta data
-              FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, false,
-                               true);
-              bool orphaned = false;
+          if (fid && !errno) {
+            // check if we have this file in the local DB, if not, we
+            // resync first the disk and then the mgm meta data
+            FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, false,
+                             true);
+            bool orphaned = false;
 
-              if (fmd) {
-                // real orphanes get rechecked
-                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
-                  orphaned = true;
-                }
-
-                // unregistered replicas get rechecked
-                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
-                  orphaned = true;
-                }
+            if (fmd) {
+              // real orphanes get rechecked
+              if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
+                orphaned = true;
               }
 
-              if (fmd) {
+              // unregistered replicas get rechecked
+              if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
+                orphaned = true;
+              }
+            }
+
+            if (fmd) {
+              delete fmd;
+            }
+
+            if (filecxerror || blockcxerror || !fmd || orphaned) {
+              eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%lx", fsId, fid);
+              // ask the meta data handling class to update the error flags for this file
+              gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+              eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
+              bool resynced = false;
+              resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
+              fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, 0, false, true);
+
+              if (resynced && fmd) {
+                if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+                    ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+                     && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                  char oname[4096];
+                  snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x",
+                           dirPath.c_str(), (unsigned int) fid);
+                  // store the original path name as an extended attribute in case ...
+                  io->attrSet("user.eos.orphaned", filePath.c_str());
+
+                  // if this is an orphaned file - we move it into the orphaned directory
+                  if (!rename(filePath.c_str(), oname)) {
+                    eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                                "fst-path=%s orphan-path=%s", filePath.c_str(),
+                                oname);
+                  } else {
+                    eos_err("msg=\"failed to quarantine orphaned/unregistered"
+                            "\" fst-path=%s orphan-path=%s", filePath.c_str(),
+                            oname);
+                  }
+
+                  // remove the entry from the FMD database
+                  gFmdDbMapHandler.LocalDeleteFmd(fid, fsId);
+                }
+
                 delete fmd;
               }
 
-              if (filecxerror || blockcxerror || !fmd || orphaned) {
-                eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%lx", fsId, fid);
-                // ask the meta data handling class to update the error flags for this file
-                gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
-                eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%lx", fsId, fid);
-                bool resynced = false;
-                resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
-                fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, 0, false, true);
-
-                if (resynced && fmd) {
-                  if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
-                      ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
-                       && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
-                    char oname[4096];
-                    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x",
-                             dirPath.c_str(), (unsigned int) fid);
-                    // store the original path name as an extended attribute in case ...
-                    io->attrSet("user.eos.orphaned", filePath.c_str());
-
-                    // if this is an orphaned file - we move it into the orphaned directory
-                    if (!rename(filePath.c_str(), oname)) {
-                      eos_warning("msg=\"orphaned/unregistered quarantined\" "
-                                  "fst-path=%s orphan-path=%s", filePath.c_str(),
-                                  oname);
-                    } else {
-                      eos_err("msg=\"failed to quarantine orphaned/unregistered"
-                              "\" fst-path=%s orphan-path=%s", filePath.c_str(),
-                              oname);
-                    }
-
-                    // remove the entry from the FMD database
-                    gFmdDbMapHandler.LocalDeleteFmd(fid, fsId);
-                  }
-
-                  delete fmd;
-                }
-
-                // Call the autorepair method on the MGM - but not for orphaned
-                // or unregistered filed. If MGM autorepair is disabled then it
-                // doesn't do anything.
-                if (fmd && !orphaned &&
-                    (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
-                  gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
-                }
+              // Call the autorepair method on the MGM - but not for orphaned
+              // or unregistered filed. If MGM autorepair is disabled then it
+              // doesn't do anything.
+              if (fmd && !orphaned &&
+                  (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
               }
             }
           }
@@ -717,17 +708,20 @@ ScanDir::ThreadProc(void)
       syslog(LOG_ERR,
              "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
              dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
+             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
+             noNoChecksumFiles,
              SkippedFiles);
       eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li",
                  dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
+                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
+                 noNoChecksumFiles,
                  SkippedFiles);
     } else {
       fprintf(stderr,
               "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
               dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles, noNoChecksumFiles,
+              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
+              noNoChecksumFiles,
               SkippedFiles);
     }
 
