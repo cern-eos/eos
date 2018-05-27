@@ -1778,7 +1778,6 @@ WFE::Job::DoIt(bool issync)
           }
         } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
           auto retrieveCntr = 0;
-          bool shouldAbort = false;
           {
             eos::common::RWMutexWriteLock lock;
             lock.Grab(gOFS->eosViewRWMutex);
@@ -1795,11 +1794,9 @@ WFE::Job::DoIt(bool issync)
               return EAGAIN;
             }
 
-            shouldAbort = (--retrieveCntr == 0);
-
             try {
-              if (retrieveCntr >= 0) {
-                fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr));
+              if (retrieveCntr > 0) {
+                fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr - 1));
                 gOFS->eosView->updateFileStore(fmd.get());
               }
             } catch (eos::MDException& ex) {
@@ -1811,15 +1808,21 @@ WFE::Job::DoIt(bool issync)
             }
           }
 
-          if (shouldAbort) {
+          // optimization for reduced memory IO during write lock
+          if (retrieveCntr == 1) {
             collectAttributes();
+
+            decltype(fmd->getCUid()) cuid = 99;
+            decltype(fmd->getCGid()) cgid = 99;
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-                    fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-                    fmd->getCGid()));
+              cuid = fmd->getCUid();
+              cgid = fmd->getCGid();
             }
+            
+            notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
+
             notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
             notification->mutable_wf()->mutable_instance()->set_name(
