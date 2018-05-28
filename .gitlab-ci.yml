@@ -518,8 +518,8 @@ periodic_coverity:
   tags:
     - coverity
   allow_failure: true
-  only:
-    - schedules
+#  only:
+#    - schedules
 
 
 cppcheck_sonar:
