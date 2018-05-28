@@ -1257,19 +1257,22 @@ data::datax::recover_write(fuse_req_t req)
   XrdCl::XRootDStatus status;
 
   bool recover_from_file_cache = false;
+  bool recover_from_journal_cache = false;
 
   // check if the file has been created here and is still complete in the local caches
   if ( (mFlags & O_CREAT) &&
-       ( ((mSize <= mFile->file()->prefetch_size()) &&
-	  (mSize == (ssize_t)mFile->file()->size())) ||
-	 (mFile->journal() && mFile->journal()->first_flush()) ) ) // if the journal was not flushed yet and it is a creation, we have still all the data in the journal
+       (mSize <= mFile->file()->prefetch_size()) )
   {
     eos_debug("recover from file cache");
     // this file can be recovered from the file start cache
     recover_from_file_cache = true;
-  }
-  else 
-  {
+  } else if ( (mFlags & O_CREAT) &&
+	      (mFile->journal() && mFile->journal()->first_flush()) ) {
+    eos_debug("recover from journal cache");
+    // this file can be recovered from the file start cache                                                                  
+    recover_from_journal_cache = true;
+
+  } else {
     // we have to recover this from remote
     eos_debug("recover from remote file");
     recover_from_file_cache = false;
@@ -1321,6 +1324,8 @@ data::datax::recover_write(fuse_req_t req)
     if (recover_from_file_cache)
     {
       eos_debug("recovering from local start cache into stage file %s", stagefile.c_str());
+      buffer->resize(mFile->file()->size());
+      buffer->reserve(mFile->file()->size());
       // recover file from the local start cache
       if (mFile->file()->pread(buf, mFile->file()->size(),0) < 0)
       {
@@ -1332,6 +1337,23 @@ data::datax::recover_write(fuse_req_t req)
 	{
 	  eos_warning("failed to signal end-flush");
 	}
+	return EIO;
+      }
+    } else if (recover_from_journal_cache) {
+      eos_debug("recovering from local journal cache into stage file %s", stagefile.c_str());
+      // make sure the buffer is big enough
+      buffer->resize(mFile->file()->size());
+      buffer->reserve(mFile->file()->size());
+      // recover file from the local start cache                                                                             
+      if (mFile->file()->pread(buf, mFile->file()->size(),0) < 0) {
+	sBufferManager.put_buffer(buffer);
+	close(fd);
+	eos_crit("unable to read file for recovery from local journal cache");
+	
+	if (req && end_flush(req))
+	  {
+	    eos_warning("failed to signal end-flush");
+	  }
 	return EIO;
       }
     }
