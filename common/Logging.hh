@@ -59,6 +59,8 @@
 #include <string>
 #include <vector>
 
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
+
 EOSCOMMONNAMESPACE_BEGIN
 
 #define EOS_TEXTNORMAL "\033[0m"

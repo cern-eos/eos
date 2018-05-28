@@ -81,7 +81,8 @@ public:
   //!
   //! @return true if drain started successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
+  bool StartFsDrain(eos::mgm::FileSystem* fs,
+                    eos::common::FileSystem::fsid_t dst_fsid,
                     XrdOucString& err, bool force = false);
 
   //----------------------------------------------------------------------------
@@ -122,10 +123,19 @@ public:
   void PrintJobsTable(TableFormatterBase&, DrainTransferJob*);
 
 private:
+  using ListPendingT = std::list<std::pair<eos::common::FileSystem::fsid_t,
+        eos::common::FileSystem::fsid_t>>;
+
+
   //----------------------------------------------------------------------------
   //! Method doing the drain monitoring
   //----------------------------------------------------------------------------
   void* Drain(void);
+
+  //----------------------------------------------------------------------------
+  //! Handle queued draining requests
+  //----------------------------------------------------------------------------
+  void HandleQueued();
 
   pthread_t mThread; ///< Thread updating the drain configuration
   //! Contains per space the max allowed fs draining per node
@@ -134,6 +144,7 @@ private:
   XrdSysMutex mDrainMutex; ///< Mutex protecting the drain map
   XrdSysMutex mCfgMutex; ///< Mutex for drain config updates
   eos::common::ThreadPool mThreadPool; ///< Thread pool for drain jobs
+  ListPendingT mPending; ///< Queue of pending jobs
 };
 
 EOSMGMNAMESPACE_END
