@@ -137,6 +137,23 @@ RedisRequest RequestBuilder::getNumberOfFiles()
 }
 
 //------------------------------------------------------------------------------
+//! Get key for files contained within a filesystem.
+//------------------------------------------------------------------------------
+std::string RequestBuilder::keyFilesystemFiles(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sFilesSuffix;
+}
+
+//------------------------------------------------------------------------------
+//! Get key for unlinked files contained within a filesystem.
+//! (files pending deletion)
+//------------------------------------------------------------------------------
+std::string RequestBuilder::keyFilesystemUnlinked(IFileMD::location_t location)
+{
+  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sUnlinkedSuffix;
+}
+
+//------------------------------------------------------------------------------
 // Get container bucket
 //------------------------------------------------------------------------------
 std::string

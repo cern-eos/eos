@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/utils/FileListRandomPicker.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -126,7 +127,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
     pNoReplicas.erase(file->getId());
     // Commit to the backend
-    key = keyFilesystemFiles(e->location);
+    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
     pFlusher->sadd(key, val);
     pFlusher->srem(fsview::sNoReplicaPrefix, val);
@@ -153,10 +154,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       it->second.insert(file->getId());
     }
 
-    key = keyFilesystemFiles(e->oldLocation);
+    key = eos::RequestBuilder::keyFilesystemFiles(e->oldLocation);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
-    key = keyFilesystemFiles(e->location);
+    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
     pFlusher->sadd(key, val);
     break;
   }
@@ -169,7 +170,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       it->second.erase(file->getId());
     }
 
-    key = keyFilesystemUnlinked(e->location);
+    key = eos::RequestBuilder::keyFilesystemUnlinked(e->location);
     val = std::to_string(file->getId());
     pFlusher->srem(key, val);
 
@@ -201,10 +202,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       it->second.insert(file->getId());
     }
 
-    key = keyFilesystemFiles(e->location);
+    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
     val = std::to_string(e->file->getId());
     pFlusher->srem(key, val);
-    key = keyFilesystemUnlinked(e->location);
+    key = eos::RequestBuilder::keyFilesystemUnlinked(e->location);
     pFlusher->sadd(key, val);
     break;
   }
@@ -242,7 +243,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
   qclient::QSet replica_set(*pQcl, "");
 
   for (IFileMD::location_t location : replica_locs) {
-    replica_set.setKey(keyFilesystemFiles(location));
+    replica_set.setKey(eos::RequestBuilder::keyFilesystemFiles(location));
     replica_set.sadd_async(file->getId(), &ah);
   }
 
@@ -250,7 +251,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
   qclient::QSet unlink_set(*pQcl, "");
 
   for (IFileMD::location_t location : unlink_locs) {
-    unlink_set.setKey(keyFilesystemUnlinked(location));
+    unlink_set.setKey(eos::RequestBuilder::keyFilesystemUnlinked(location));
     unlink_set.sadd_async(file->getId(), &ah);
   }
 
@@ -260,13 +261,13 @@ FileSystemView::fileMDCheck(IFileMD* file)
 
     if (std::find(replica_locs.begin(), replica_locs.end(),
                   fsid) == replica_locs.end()) {
-      replica_set.setKey(keyFilesystemFiles(fsid));
+      replica_set.setKey(eos::RequestBuilder::keyFilesystemFiles(fsid));
       replica_set.srem_async(file->getId(), &ah);
     }
 
     if (std::find(unlink_locs.begin(), unlink_locs.end(),
                   fsid) == unlink_locs.end()) {
-      unlink_set.setKey(keyFilesystemUnlinked(fsid));
+      unlink_set.setKey(eos::RequestBuilder::keyFilesystemUnlinked(fsid));
       unlink_set.srem_async(file->getId(), &ah);
     }
   }
@@ -416,7 +417,7 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 
   it->second.clear();
   it->second.resize(0);
-  std::string key = keyFilesystemUnlinked(location);
+  std::string key = RequestBuilder::keyFilesystemUnlinked(location);
   pFlusher->del(key);
   return true;
 }
@@ -487,7 +488,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getQdbFileList(IFileMD::location_t location)
 {
-  std::string key = keyFilesystemFiles(location);
+  std::string key = eos::RequestBuilder::keyFilesystemFiles(location);
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new QdbFileIterator(*pQcl, key));
 }
@@ -498,7 +499,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getQdbUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = keyFilesystemUnlinked(location);
+  std::string key = eos::RequestBuilder::keyFilesystemUnlinked(location);
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new QdbFileIterator(*pQcl, key));
 }

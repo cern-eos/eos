@@ -454,20 +454,6 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Utility functions to build fs set keys
-//------------------------------------------------------------------------------
-inline std::string keyFilesystemFiles(IFileMD::location_t location)
-{
-  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sFilesSuffix;
-}
-
-inline std::string keyFilesystemUnlinked(IFileMD::location_t location)
-{
-  return fsview::sPrefix + std::to_string(location) + ":" +
-         fsview::sUnlinkedSuffix;
-}
-
-//------------------------------------------------------------------------------
 //! Parse an fs set key, returning its id and whether it points to "files" or
 //! "unlinked"
 //!
