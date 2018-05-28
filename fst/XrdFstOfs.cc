@@ -342,7 +342,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   const char* val;
   int cfgFD;
   int NoGo = 0;
-
   eos::common::StringConversion::InitLookupTables();
 
   if (XrdOfs::Configure(Eroute, envP)) {
@@ -687,6 +686,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server
   mHttpdPort = 8001;
+
   if (getenv("EOS_FST_HTTP_PORT")) {
     mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
   }
@@ -947,7 +947,6 @@ again:
 
   delete fs;
   delete response;
-
   return rc;
 }
 
@@ -1243,7 +1242,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
   errno = 0; // If file not found this will be ENOENT
-
   struct stat sbd;
   sbd.st_size = 0;
 
@@ -1251,7 +1249,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   // through XrdOfs::rem to also clean up any potential blockxs files
   if (eos::common::LayoutId::GetIoType(fstPath.c_str()) ==
       eos::common::LayoutId::kLocal) {
-
     // get the size before deletion
     XrdOfs::stat(fstPath.c_str(), &sbd, error, client, 0);
     rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
@@ -1263,12 +1260,12 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     // Check for additional opaque info to create remote IO object
     std::string sFstPath = fstPath.c_str();
     std::string s3credentials =
-        gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
+      gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
 
     if (!s3credentials.empty()) {
       sFstPath += "?s3credentials=" + s3credentials;
-
     }
+
     std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
                                  sFstPath.c_str()));
 
@@ -1279,7 +1276,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
 
     // get the size before deletion
     io->fileStat(&sbd);
-
     rc = io->fileRemove();
   }
 
@@ -1305,7 +1301,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     // make a deletion report entry
     MakeDeletionReport(fsid, fid, sbd);
   }
-  
+
   if (!gFmdDbMapHandler.LocalDeleteFmd(fid, fsid)) {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
     return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
@@ -1603,55 +1599,50 @@ int
 XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
                                  const string& ownerGroupName, const string& requestorName,
                                  const string& requestorGroupName, const string& instanceName,
-                                 const string& fullPath, const std::map<std::string, std::string>& xattrs) {
+                                 const string& fullPath, const std::map<std::string, std::string>& xattrs)
+{
   using namespace eos::common;
-
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(requestorName);
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_username(ownerName);
   notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName);
-
   notification->mutable_file()->set_size(fmd.size());
   notification->mutable_file()->mutable_cks()->set_type(
     eos::common::LayoutId::GetChecksumString(fmd.lid()));
-
   notification->mutable_file()->mutable_cks()->set_value(fmd.checksum());
-
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
-
   std::string managerName;
   {
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
     managerName = Config::gConfig.Manager.c_str();
   }
-
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
+                      fmd.fid());
   std::ostringstream srcStream;
   srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
             << fxidString;
   notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-
   std::ostringstream reportStream;
   reportStream << "eosQuery://" << managerName
                << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
   notification->mutable_transport()->set_report_url(reportStream.str());
-
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << managerName
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
-  notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME <<
+                    "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+  notification->mutable_transport()->set_error_report_url(
+    errorReportStream.str());
 
-  for (const auto& attrPair : xattrs)
-  {
+  for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
-                                                             attrPair.second);
+        attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
 
@@ -1672,25 +1663,25 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
   }
 
   XrdSsiPb::Config config;
-  if(getenv("XRDDEBUG")) {
+
+  if (getenv("XRDDEBUG")) {
     config.set("log", "all");
   } else {
     config.set("log", "info");
   }
+
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is also thread-safe
   static XrdSsiPbServiceType service(endPoint, resource, config);
-
   cta::xrd::Response response;
 
   try {
     auto sentAt = std::chrono::steady_clock::now();
-
     auto future = service.Send(request, response);
     future.get();
-
     auto receivedAt = std::chrono::steady_clock::now();
-    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
+    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
+                     (receivedAt - sentAt);
     eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count());
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
@@ -1698,25 +1689,28 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
     return ENOTCONN;
   }
 
-  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
+  errorEnumMap;
   errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
   errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
   errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
   errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
 
   switch (response.type()) {
-    case cta::xrd::Response::RSP_SUCCESS: return SFS_OK;
+  case cta::xrd::Response::RSP_SUCCESS:
+    return SFS_OK;
 
-    case cta::xrd::Response::RSP_ERR_CTA:
-    case cta::xrd::Response::RSP_ERR_USER:
-    case cta::xrd::Response::RSP_ERR_PROTOBUF:
-    case cta::xrd::Response::RSP_INVALID:
-      eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], fullPath.c_str(), response.message_txt().c_str());
-      return EPROTO;
+  case cta::xrd::Response::RSP_ERR_CTA:
+  case cta::xrd::Response::RSP_ERR_USER:
+  case cta::xrd::Response::RSP_ERR_PROTOBUF:
+  case cta::xrd::Response::RSP_INVALID:
+    eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()],
+                   fullPath.c_str(), response.message_txt().c_str());
+    return EPROTO;
 
-    default:
-      eos_static_err("Response:\n%s", response.DebugString().c_str());
-      return EPROTO;
+  default:
+    eos_static_err("Response:\n%s", response.DebugString().c_str());
+    return EPROTO;
   }
 }
 
@@ -1725,43 +1719,37 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
 //------------------------------------------------------------------------------
 void
 XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
-			      unsigned long long fid,
-			      struct stat &deletion_stat)
+                              unsigned long long fid,
+                              struct stat& deletion_stat)
 {
   XrdOucString reportString;
   char report[16384];
   snprintf(report, sizeof(report) - 1,
-	   "log=%s&"
-	   "host=%s&fid=%llu&fsid=%u&"
-	   "dc_ts=%lu&dc_tns=%lu&"
-	   "dm_ts=%lu&dm_tns=%lu&"
-	   "da_ts=%lu&da_tns=%lu&"
-	   "dsize=%llu&sec.app=deletion"
-	   , this->logId
-	   , gOFS.mHostName, fid, fsid
+           "log=%s&"
+           "host=%s&fid=%llu&fsid=%u&"
+           "dc_ts=%lu&dc_tns=%lu&"
+           "dm_ts=%lu&dm_tns=%lu&"
+           "da_ts=%lu&da_tns=%lu&"
+           "dsize=%llu&sec.app=deletion"
+           , this->logId
+           , gOFS.mHostName, fid, fsid
 #ifdef __APPLE__
-	   , deletion_stat.st_ctimespec.tv_sec
-	   , deletion_stat.st_ctimespec.tv_nsec
-	   , deletion_stat.st_mtimespec.tv_sec
-	   , deletion_stat.st_mtimespec.tv_nsec
-	   , deletion_stat.st_atimespec.tv_sec
-	   , deletion_stat.st_atimespec.tv_nsec
-	   
+           , deletion_stat.st_ctimespec.tv_sec
+           , deletion_stat.st_ctimespec.tv_nsec
+           , deletion_stat.st_mtimespec.tv_sec
+           , deletion_stat.st_mtimespec.tv_nsec
+           , deletion_stat.st_atimespec.tv_sec
+           , deletion_stat.st_atimespec.tv_nsec
 #else
-	   , deletion_stat.st_ctim.tv_sec
-	   , deletion_stat.st_ctim.tv_nsec
-	   , deletion_stat.st_mtim.tv_sec
-	   , deletion_stat.st_mtim.tv_nsec
-	   , deletion_stat.st_atim.tv_sec
-	   , deletion_stat.st_atim.tv_nsec
+           , deletion_stat.st_ctim.tv_sec
+           , deletion_stat.st_ctim.tv_nsec
+           , deletion_stat.st_mtim.tv_sec
+           , deletion_stat.st_mtim.tv_nsec
+           , deletion_stat.st_atim.tv_sec
+           , deletion_stat.st_atim.tv_nsec
 #endif
-	   , deletion_stat.st_size
-	   );
-	   
-	   
-	   
-	   reportString = report;
-	   
+           , deletion_stat.st_size);
+  reportString = report;
   gOFS.ReportQueueMutex.Lock();
   gOFS.ReportQueue.push(reportString);
   gOFS.ReportQueueMutex.UnLock();
