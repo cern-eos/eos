@@ -232,13 +232,6 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
                        "code: %d, message: %s", it_fid->getElement(),
                        e.getErrno(), e.getMessage().str().c_str());
       }
-
-      // Release the lock from time to time to let writers progress
-      if (entries % 1024 == 0) {
-        ns_rd_lock.Release();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-      }
     }
 
     if (monitor) {
@@ -256,13 +249,6 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
             senv.replace("checksum=&", "checksum=none&");
             stdOut += senv.c_str();
             stdOut += "&container=-\n";
-
-            // Release the lock from time to time to let writers progress
-            if (entries % 1024 == 0) {
-              ns_rd_lock.Release();
-              std::this_thread::sleep_for(std::chrono::milliseconds(100));
-              ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-            }
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
