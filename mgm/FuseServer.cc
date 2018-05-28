@@ -183,7 +183,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 {
 
   gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0 , 1);
-  
+
   bool rc = true;
   eos::common::RWMutexWriteLock lLock(*this);
 
@@ -265,7 +265,7 @@ FuseServer::MonitorCaps()
       std::map<std::string, quotainfo_t> qmap;
       {
         if (EOS_LOGS_DEBUG) eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
-	eos::common::RWMutexReadLock lLock(Cap());
+        eos::common::RWMutexReadLock lLock(Cap());
         std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
           Cap().GetCaps();
 
@@ -312,7 +312,7 @@ FuseServer::MonitorCaps()
               // send the changed quota information via a cap update
               FuseServer::Caps::shared_cap cap;
               {
-		eos::common::RWMutexReadLock lLock(Cap());
+                eos::common::RWMutexReadLock lLock(Cap());
                 if (Cap().GetCaps().count(*auit)) {
                   cap = Cap().GetCaps()[*auit];
                 }
@@ -342,8 +342,8 @@ FuseServer::MonitorCaps()
           auto erase_it = it++;
           outofquota.erase(erase_it);
         } else {
-	  it++;
-	}
+          it++;
+        }
       }
     }
 
@@ -1028,8 +1028,8 @@ FuseServer::Caps::Print(std::string option, std::string filter)
   uint64_t now = (uint64_t) time(NULL);
 
   eos::common::RWMutexReadLock lock;
-  
-  if (option == "p") 
+
+  if (option == "p")
     lock.Grab(gOFS->eosViewRWMutex);
 
   eos::common::RWMutexReadLock lLock(*this);
@@ -1606,8 +1606,11 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file, eos::common::Mappin
 
     if (fmd->hasAttribute(k_nlink)) {
       nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1;
-      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(),
-                       nlink);
+
+      if (EOS_LOGS_DEBUG) {
+        eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(),
+                         nlink);
+      }
     }
 
     file.set_nlink(nlink);
@@ -2648,14 +2651,22 @@ FuseServer::HandleMD(const std::string& id,
           int nlink;
           nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
                     k_nlink)) + 1 : 1;
+<<<<<<< HEAD
           if (EOS_LOGS_DEBUG) eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
+=======
+          eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
+>>>>>>> MGM: Fix wrong format of report string
                            (long) fid, fmd->getName().c_str(), nlink, md.name().c_str());
           fmd->setAttribute(k_nlink, std::to_string(nlink));
           gOFS->eosFileService->updateStore(fmd.get());
           gmd->setAttribute(k_mdino, std::to_string(tgt_md_ino));
           gmd->setName(md.name());
           gOFS->eosFileService->updateStore(gmd.get());
+<<<<<<< HEAD
           if (EOS_LOGS_DEBUG) eos_static_debug("hlnk %s mdino %s %s nlink %s",
+=======
+          eos_static_debug("hlnk %s mdino %s %s nlink %s",
+>>>>>>> MGM: Fix wrong format of report string
                            gmd->getName().c_str(),
                            gmd->getAttribute(k_mdino).c_str(),
                            fmd->getName().c_str(),
@@ -2822,9 +2833,9 @@ FuseServer::HandleMD(const std::string& id,
         // link creation
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-	fmd = pcmd->findFile( md.name());
+        fmd = pcmd->findFile( md.name());
 
-	if (fmd && exclusive)
+        if (fmd && exclusive)
         {
           return EEXIST;
         }
@@ -2833,20 +2844,20 @@ FuseServer::HandleMD(const std::string& id,
         {
           // file update
           op = UPDATE;
-	}
-	else
-	{
-	  op = CREATE;
-	  fmd = gOFS->eosFileService->createFile();
-	}
+        }
+        else
+        {
+          op = CREATE;
+          fmd = gOFS->eosFileService->createFile();
+        }
 
         fmd->setName( md.name() );
         fmd->setLink( md.target() );
         fmd->setLayoutId( 0 );
         md_ino = eos::common::FileId::FidToInode(fmd->getId());
 
-	if (op == CREATE)
-	  pcmd->addFile(fmd.get());
+        if (op == CREATE)
+          pcmd->addFile(fmd.get());
 
         eos_static_info("ino=%lx pino=%lx md-ino=%lx create-link", (long) md.md_ino(), (long) md.md_pino(), md_ino);
 
@@ -2864,13 +2875,13 @@ FuseServer::HandleMD(const std::string& id,
         fmd->setMTime(mtime);
         fmd->clearAttributes();
 
-	if ( op == CREATE )
-	{
-	  // store the birth time as an extended attribute
-	  char btime[256];
-	  snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
-	  fmd->setAttribute("sys.eos.btime", btime);
-	}
+        if ( op == CREATE )
+        {
+          // store the birth time as an extended attribute
+          char btime[256];
+          snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
+          fmd->setAttribute("sys.eos.btime", btime);
+        }
 
         struct timespec pt_mtime;
         // update the mtime
