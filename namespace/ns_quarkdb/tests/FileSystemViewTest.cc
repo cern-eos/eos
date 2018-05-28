@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
@@ -79,10 +80,10 @@ countUnlinked(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 TEST(FileSystemView, FileSetKey)
 {
-  ASSERT_EQ(eos::keyFilesystemFiles(50), "fsview:50:files");
-  ASSERT_EQ(eos::keyFilesystemFiles(123), "fsview:123:files");
-  ASSERT_EQ(eos::keyFilesystemUnlinked(10), "fsview:10:unlinked");
-  ASSERT_EQ(eos::keyFilesystemUnlinked(999), "fsview:999:unlinked");
+  ASSERT_EQ(eos::RequestBuilder::keyFilesystemFiles(50), "fsview:50:files");
+  ASSERT_EQ(eos::RequestBuilder::keyFilesystemFiles(123), "fsview:123:files");
+  ASSERT_EQ(eos::RequestBuilder::keyFilesystemUnlinked(10), "fsview:10:unlinked");
+  ASSERT_EQ(eos::RequestBuilder::keyFilesystemUnlinked(999), "fsview:999:unlinked");
 }
 
 TEST(FileSystemView, ParseFsId)

@@ -90,6 +90,17 @@ public:
   static RedisRequest getNumberOfFiles();
 
   //----------------------------------------------------------------------------
+  //! Get key for files contained within a filesystem.
+  //----------------------------------------------------------------------------
+  static std::string keyFilesystemFiles(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Get key for unlinked files contained within a filesystem.
+  //! (files pending deletion)
+  //----------------------------------------------------------------------------
+  static std::string keyFilesystemUnlinked(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
   //! Get container bucket which is computed as the id of the container modulo
   //! the number of container buckets.
   //!
