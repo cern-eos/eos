@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2018 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+#------------------------------------------------------------------------------
+# Description: Script testing the draining mechanism of EOS. It assumes that
+#              there are at least 7 FSTs available in the instance.
+#
+# Usage:
+# eos-drain-test <eos_mgm_hostname>
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then
+      echo "Usage: $0 <eos_mgm_hostname>"
+      exit 1
+fi
+
+EOS_MGM_HOSTNAME=$1
+
+# Check preconditions and make sure central draining is enabled
+eos fs ls | grep online | wc -l | grep "7"
+
+if [[ $? -ne 0 ]]; then
+      echo "error: not enough FSTs not configured"
+      exit 1
+fi
+
+# Create dummy test files
+TEST_FN1=/tmp/32kb.dat
+TEST_FN2=/tmp/5mb.dat
+
+dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32
+dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5
+
+# Create eos directory for tests and copy some files in
+eos mkdir -p /eos/dev/drain_test/replica/
+eos mkdir -p /eos/dev/drain_test/raiddp/
+eos attr set default=replica /eos/dev/drain_test/replica/
+eos attr set default=raiddp /eos/dev/drain_test/raiddp/
+eos chmod 2777 /eos/dev/drain_test/replica/
+eos chmod 2777 /eos/dev/drain_test/raiddp/
+
+for i in {1..4}; do
+      xrdcp -f ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r1file${i}.dat
+      xrdcp -f ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a1file${i}.dat
+      xrdcp -f ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r2file${i}.dat
+      xrdcp -f ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a2file${i}.dat
+done
+
+# Check that the file system is ready
+eos fs ls | grep " 1 " | grep "rw" | grep "nodrain" | grep "online"
+
+if [[ $? -ne 0 ]]; then
+      echo "error: file system 1 is not in ready ..."
+      exit 1
+fi
+
+# Start draining and wait for it to finish
+eos fs config 1 configstatus=drain
+eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
+
+while [[ $? -eq 0 ]]; do
+      sleep 2
+      eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
+done
+
+eos fs ls | grep " 1 " | grep "empty" | grep "nodrain"
+
+if [[ $? -ne 0 ]]; then
+      echo "error: file system 1 is not drained"
+      exit 1
+fi
+
+# Put back the file system in rw mode
+eos fs config 1 configstatus=rw
+
+if [[ $? -ne 0 ]]; then
+      echo "error: failed to put file system in rw mode"
+      exit 1
+fi
+
+# Remove all the files and directories
+eos rm -rF "/eos/dev/drain_test/replica/*"
+eos rm -rF "/eos/dev/drain_test/raiddp/*"
+eos rmdir "/eos/dev/drain_test/replica/"
+eos rmdir "/eos/dev/drain_test/raiddp/"
+eos rmdir "/eos/dev/drain_test/"
+exit 0
