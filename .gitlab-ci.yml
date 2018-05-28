@@ -560,6 +560,7 @@ eos_publish_artifacts:
   retry: 2
   only:
     - master
+    - dev
     - tags
 
 eos_publish_debian_artifacts:
@@ -582,6 +583,7 @@ eos_publish_debian_artifacts:
   retry: 2
   only:
     - master
+    - dev
     - tags
 
 eos_publish_debian_artifacts_volume:
