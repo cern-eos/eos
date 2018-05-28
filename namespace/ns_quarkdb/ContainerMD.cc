@@ -130,6 +130,8 @@ ContainerMD::findContainerFut(const std::string& name)
     return IContainerMDPtr();
   }
 
+  lock.unlock();
+
   //----------------------------------------------------------------------------
   // Retrieve result asynchronously from container service.
   //----------------------------------------------------------------------------
@@ -218,6 +220,8 @@ ContainerMD::findFileFut(const std::string& name)
     //--------------------------------------------------------------------------
     return IFileMDPtr();
   }
+
+  lock.unlock();
 
   //----------------------------------------------------------------------------
   // Retrieve result asynchronously from file service.
