@@ -1730,7 +1730,7 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
            "dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&"
            "da_ts=%lu&da_tns=%lu&"
-           "dsize=%llu&sec.app=deletion"
+           "dsize=%li&sec.app=deletion"
            , this->logId
            , gOFS.mHostName, fid, fsid
 #ifdef __APPLE__
