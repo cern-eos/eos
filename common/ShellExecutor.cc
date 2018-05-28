@@ -29,6 +29,19 @@
 #include <fcntl.h>
 #include <sstream>
 
+#ifdef __APPLE__
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(exp)                 \
+  ({                                            \
+    decltype(exp) _rc;                          \
+    do {                                        \
+      _rc = (exp);                              \
+    } while ((_rc == -1) && (errno == EINTR));	\
+    _rc;                                        \
+  })
+#endif // TEMP_FAILURE_RETRY
+#endif // __APPLE__
+
 EOSCOMMONNAMESPACE_BEGIN
 
 const std::string ShellExecutor::stdout = "stdout";
@@ -94,7 +107,7 @@ ShellExecutor::execute(const std::string& cmd, fifo_uuid_t uuid) const
   while (!msg.complete) {
     // calculate the size of the message
     size_t size = ((cmd.size() - offset < msg_t::max_size) ?
-                   cmd.size() - offset : msg_t::max_size - 1);
+		   cmd.size() - offset : msg_t::max_size - 1);
     memset(msg.buff, 0, sizeof(msg.buff));
     // copy the command
     strncpy(msg.buff, cmd.c_str() + offset, size);
@@ -156,7 +169,7 @@ ShellExecutor::run_child() const
   off_t off = 0;
 
   while ((nread = TEMP_FAILURE_RETRY(read(outfd[0], (char*)&msg + off,
-                                          sizeof(msg) - off))) > 0) {
+					  sizeof(msg) - off))) > 0) {
     alarm(0);
     off += nread;
 
@@ -165,13 +178,13 @@ ShellExecutor::run_child() const
       off = 0;
 
       if (msg.complete) {
-        // execute the command
-        pid_t pid = system(cmd.c_str(), msg.uuid);
-        // respond with 'command' pid
-        write(infd[1], &pid, sizeof(pid_t));
-        // clean up
-        msg.complete = false;
-        cmd.erase();
+	// execute the command
+	pid_t pid = system(cmd.c_str(), msg.uuid);
+	// respond with 'command' pid
+	write(infd[1], &pid, sizeof(pid_t));
+	// clean up
+	msg.complete = false;
+	cmd.erase();
       }
     }
 
@@ -209,11 +222,11 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       stdout_fd = open(stdout_name.c_str(), O_WRONLY);
 
       if (stdout_fd < 0) {
-        throw ShellException("Unable to open stdout file");
+	throw ShellException("Unable to open stdout file");
       }
 
       if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
-        throw ShellException("Not able to redirect the 'sdtout' to FIFO!");
+	throw ShellException("Not able to redirect the 'sdtout' to FIFO!");
       }
 
       // redirect 'stdin'
@@ -221,11 +234,11 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       stdin_fd = open(stdin_name.c_str(), O_RDONLY);
 
       if (stdin_fd < 0) {
-        throw ShellException("Unable to open stdin file");
+	throw ShellException("Unable to open stdin file");
       }
 
       if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
-        throw ShellException("Not able to redirect the 'sdtin' to FIFO!");
+	throw ShellException("Not able to redirect the 'sdtin' to FIFO!");
       }
 
       // redirect 'stderr'
@@ -233,11 +246,11 @@ ShellExecutor::system(char const* cmd, fifo_uuid_t uuid) const
       stderr_fd = open(stderr_name.c_str(), O_WRONLY);
 
       if (stderr_fd < 0) {
-        throw ShellException("Unalbe to open stderr file");
+	throw ShellException("Unalbe to open stderr file");
       }
 
       if (dup2(stderr_fd, STDERR_FILENO) != STDERR_FILENO) {
-        throw ShellException("Not able to redirect the 'sdterr' to FIFO!");
+	throw ShellException("Not able to redirect the 'sdterr' to FIFO!");
       }
     }
 
