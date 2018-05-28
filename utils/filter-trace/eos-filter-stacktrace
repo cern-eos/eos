@@ -148,6 +148,12 @@ class QClientFilter:
             self.eliminations += 1
             return True
 
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "std::condition_variable::wait" in thread.getFrame(1) and
+            "qclient::CallbackExecutorThread::blockUntilStaged" in thread.getFrame(2) ):
+            self.eliminations += 1
+            return True
+
         return False
 
 class XrdSleeperFilter:
@@ -297,10 +303,41 @@ class BackgroundSleeperFilter:
             self.eliminations += 1
             return True
 
+        # Drainer, again
+        if ("nanosleep" in thread.getFrame(0) and
+            "eos::mgm::Drainer::Drain" in thread.getFrame(1) ):
+
+            self.eliminations += 1
+            return True
+
         # Heartbeat check
         if ("nanosleep" in thread.getFrame(0) and
             "XrdSysTimer::Snooze" in thread.getFrame(1) and
             "eos::mgm::FsView::HeartBeatCheck" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        # Heartbeat check
+        if ("nanosleep" in thread.getFrame(0) and
+            "sleep_for" in thread.getFrame(1) and
+            "eos::mgm::FsView::HeartBeatCheck" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        # Heartbeat check
+        if ("nanosleep" in thread.getFrame(0) and
+            "sleep_for" in thread.getFrame(1) and
+            "eos::ContainerAccounting::PropagateUpdates" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        # Heartbeat check
+        if ("nanosleep" in thread.getFrame(0) and
+            "sleep_for" in thread.getFrame(1) and
+            "eos::SyncTimeAccounting::PropagateUpdates" in thread.getFrame(2) ):
 
             self.eliminations += 1
             return True
@@ -489,6 +526,28 @@ class BackgroundSleeperFilter:
             self.eliminations += 1
             return True
 
+        if ("nanosleep" in thread.getFrame(0) and
+            "XrdSysTimer::Wait" in thread.getFrame(1) and
+            "eos::mgm::WFE::WFEr" in thread.getFrame(2) ):
+
+            self.eliminations += 1
+            return True
+
+        if ("pthread_cond_wait" in thread.getFrame(0) and
+            "wait_pop" in thread.getFrame(1) and
+            ExclusionFilter("_ZNSt6thread11_State_implISt12_Bind_simpleIFZNSt13__future_base17_Async_state_implIS1_IFZN3eos6common10ThreadPoolC4EjjjjjEUlvE_vEEvEC4EOS9_EUlvE_vEEE6_M_runEv").check(thread) ):
+
+            self.eliminations += 1
+            return True
+
+        if (thread.getNumberOfFrames() == 12 and
+            "syscall" in thread.getFrame(0) and
+            "std::__atomic_futex_unsigned_base::_M_futex_wait_until" in thread.getFrame(1) and
+            "_ZZN3eos6common10ThreadPoolC4EjjjjjENKUlvE0_clEv" in thread.getFrame(8) ):
+
+            self.eliminations += 1
+            return True
+
         return False
 
 class RocksLevelDBFilter:
@@ -504,10 +563,29 @@ class RocksLevelDBFilter:
             "std::condition_variable::wait" in thread.getFrame(1) and
             "rocksdb::ThreadPoolImpl::Impl::BGThread" in thread.getFrame(2) and
             "rocksdb::ThreadPoolImpl::Impl::BGThreadWrapper" in thread.getFrame(3) ):
+            self.eliminations += 1
             return True
 
         if ("pthread_cond_wait" in thread.getFrame(0) and
             "leveldb::(anonymous namespace)::PosixEnv::BGThreadWrapper" in thread.getFrame(1) ):
+            self.eliminations += 1
+            return True
+
+        return False
+
+class FollyFilter:
+    def __init__(self):
+        self.eliminations = 0
+        self.description = "folly sleeping background threads"
+
+    def check(self, thread):
+        if (thread.getNumberOfFrames() >= 5 and
+           "epoll_wait" in thread.getFrame(0) and
+            "epoll_dispatch" in thread.getFrame(1) and
+            "event_base_loop" in thread.getFrame(2) and
+            "folly::EventBase::loopBody" in thread.getFrame(3) and
+            "folly::EventBase::loop" in thread.getFrame(4) ):
+            self.eliminations += 1
             return True
 
         return False
@@ -622,6 +700,9 @@ def build_filters(args):
     if not args.want_rocksdb_sleepers:
         filters += [RocksLevelDBFilter()]
 
+    if not args.want_folly_sleepers:
+        filters += [FollyFilter()]
+
     if args.hide_blocked_on_locks:
         filters += [BlockedOnLockFilter()]
 
@@ -670,6 +751,7 @@ def getargs():
     group.add_argument('--show-xrd-threads', dest='want_xrd_sleepers', action='store_true', help="Show sleeping XRootD background threads.")
     group.add_argument('--show-background-mgm-threads', dest='want_mgm_sleepers', action='store_true', help="Show sleeping MGM background threads. (Balancer, GroupBalancer, GeoGalancer, Converter, etc)")
     group.add_argument('--show-rocksdb-threads', dest='want_rocksdb_sleepers', action='store_true', help="Show sleeping rocksdb / leveldb background threads.")
+    group.add_argument('--show-folly-threads', dest='want_folly_sleepers', action='store_true', help="Show sleeping folly threads.")
 
 
     group = parser.add_argument_group('Custom filters', '')
