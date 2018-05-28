@@ -171,6 +171,11 @@ public:
       return (mAttached) ? true : false;
     }
 
+    bool attached_once_nolock()
+    {
+      return (mAttached==1) ? true : false;
+    }
+      
     static bufferllmanager sBufferManager;
 
     bool simulate_write_error_in_flusher()
