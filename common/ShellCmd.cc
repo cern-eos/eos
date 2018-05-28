@@ -40,7 +40,7 @@
 #define EOS_PTRACE_ATTACH   PT_ATTACHEXC
 #else
 #define EOS_PTRACE_CONTINUE PTRACE_CONT
-#define EOS_PTRACE_ATTACH   PTRACH_ATTACH
+#define EOS_PTRACE_ATTACH   PTRACE_ATTACH
 #endif //__APPLE__
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -112,10 +112,12 @@ ShellCmd::monitor()
   monitor_active = true;
   // switch this thread to root to be able to attach
 #ifdef __APPLE__
+
   if (setreuid(-1, 0) < 0) {
     perror("failed while calling setreuid\n");
     return;
   }
+
 #else
   syscall(SYS_setresuid, 0, 0, 0);
 #endif
@@ -151,13 +153,13 @@ ShellCmd::monitor()
       // if the process has been stopped (not terminated)
       // resume it and keep waiting
       if (status && WIFSTOPPED(status)) {
-	ptrace(EOS_PTRACE_CONTINUE, pid, 0, 0);
-	continue;
+        ptrace(EOS_PTRACE_CONTINUE, pid, 0, 0);
+        continue;
       }
 
       // if the process has been just resumed keep waiting
       if (status && WIFCONTINUED(status)) {
-	continue;
+        continue;
       }
 
       // otherwise the process is terminated and we are done with waiting
@@ -166,7 +168,7 @@ ShellCmd::monitor()
       perror("error: failed to waitpid for attached process");
 
       if (!is_active()) {
-	break;
+        break;
       }
 
       XrdSysTimer snooze;
