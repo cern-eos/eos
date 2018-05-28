@@ -2104,7 +2104,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 	  break;
 	pmd->Locker().UnLock();
 	// refresh the listing
-	eos_static_warning("refresh listing int=%16lx", ino);
+	eos_static_debug("refresh listing int=%16lx", ino);
 	rc = listdir(req, ino , pmd);
 	pmd->Locker().Lock();
       } while ((!rc) && (pmd->type() != pmd->MDLS));
