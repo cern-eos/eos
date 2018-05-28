@@ -174,7 +174,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""),mHttpdPort(8000),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
@@ -390,8 +390,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   ACCESSMODE_W;
   MAYSTALL;
   {
-    const char* path="/";
-    const char* ininfo="";
+    const char* path = "/";
+    const char* ininfo = "";
     MAYREDIRECT;
   }
   std::string cmd = "mgm.pcmd=event";
@@ -405,14 +405,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
-
     {
       const char* inpath = prep_path.c_str();
       const char* ininfo = "";
       NAMESPACEMAP;
       prep_path = path;
     }
-
     {
       const char* path = prep_path.c_str();
       const char* ininfo = "";
@@ -831,72 +829,44 @@ XrdMgmOfs::MacroStringError(int errcode)
   }
 }
 
-//----------------------------------------------------------------------------
-// write report record for final deletion
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Write report record for final deletion (to IoStats)
+//------------------------------------------------------------------------------
 void
-XrdMgmOfs::WriteRmRecord(eos::IFileMD& fmd)
+XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 {
-  {
-    // write a deletion report to IoStat
-                                                                                                      
-    char report[16384];
-    eos::IFileMD::ctime_t ctime;
-    eos::IFileMD::ctime_t mtime;
-    fmd.getCTime(ctime);
-    fmd.getMTime(mtime);
-    snprintf(report, sizeof(report) - 1,
-                   "log=%s&"
-                   "host=%s&fid=%llu&"
-	           "ruid=%u&rgid=%u"
-                   "dc_ts=%lu&dc_tns=%lu&"
-                   "dm_ts=%lu&dm_tns=%lu&"
-                   "dsize=%lu&sec.app=rm"
-	     , this->logId
-	     , gOFS->ManagerId.c_str()
-	     , fmd.getId()
-	     , fmd.getCUid()
-	     , fmd.getCGid()
-	     , ctime.tv_sec, ctime.tv_nsec
-	     , mtime.tv_sec, mtime.tv_nsec
-	     , fmd.getSize());
-
-    std::string record = report;
-    gOFS->IoStats->WriteRecord(record);
-  }
+  char report[16384];
+  eos::IFileMD::ctime_t ctime;
+  eos::IFileMD::ctime_t mtime;
+  fmd->getCTime(ctime);
+  fmd->getMTime(mtime);
+  snprintf(report, sizeof(report) - 1,
+           "log=%s&host=%s&fid=%llu&ruid=%u&rgid=%udc_ts=%lu&dc_tns=%lu&"
+           "dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
+           gOFS->ManagerId.c_str(), fmd->getId(), fmd->getCUid(),
+           fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec,
+           mtime.tv_nsec, fmd->getSize());
+  std::string record = report;
+  gOFS->IoStats->WriteRecord(record);
 }
 
-//----------------------------------------------------------------------------
-// write report record for recycle bin deletion
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Write report record for recycle bin deletion (to IoStats)
+//------------------------------------------------------------------------------
 void
-XrdMgmOfs::WriteRecycleRecord(eos::IFileMD& fmd)
+XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 {
-  {
-    // write a deletion report to IoStat
-                                                                                                       
-    char report[16384];
-    eos::IFileMD::ctime_t ctime;
-    eos::IFileMD::ctime_t mtime;
-    fmd.getCTime(ctime);
-    fmd.getMTime(mtime);
-    snprintf(report, sizeof(report) - 1,
-                   "log=%s&"
-                   "host=%s&fid=%llu&"
-	            "ruid=%u&rgid=%u"
-                   "dc_ts=%lu&dc_tns=%lu&"
-                   "dm_ts=%lu&dm_tns=%lu&"
-                   "dsize=%lu&sec.app=recycle"
-	     , this->logId
-	     , gOFS->ManagerId.c_str()
-	     , fmd.getId()
-	     , fmd.getCUid()
-	     , fmd.getCGid()
-	     , ctime.tv_sec, ctime.tv_nsec
-	     , mtime.tv_sec, mtime.tv_nsec
-	     , fmd.getSize());
-
-    std::string record = report;
-    gOFS->IoStats->WriteRecord(record);
-  }
+  char report[16384];
+  eos::IFileMD::ctime_t ctime;
+  eos::IFileMD::ctime_t mtime;
+  fmd->getCTime(ctime);
+  fmd->getMTime(mtime);
+  snprintf(report, sizeof(report) - 1,
+           "log=%s&host=%s&fid=%llu&ruid=%u&rgid=%u&dc_ts=%lu&dc_tns=%lu&"
+           "dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=recycle", this->logId,
+           gOFS->ManagerId.c_str(), fmd->getId(), fmd->getCUid(),
+           fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec,
+           mtime.tv_nsec, fmd->getSize());
+  std::string record = report;
+  gOFS->IoStats->WriteRecord(record);
 }

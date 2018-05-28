@@ -1076,13 +1076,13 @@ public:
   // Test if a  client should be routed
   //----------------------------------------------------------------------------
   bool ShouldRoute(const char* function,
-		   int accessmode,
-		   eos::common::Mapping::VirtualIdentity& vid,
-		   const char* path, 
-		   const char* info,
-		   XrdOucString& host,
-		   int& port);
-  
+                   int accessmode,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* path,
+                   const char* info,
+                   XrdOucString& host,
+                   int& port);
+
   //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule
   //!
@@ -1147,16 +1147,16 @@ public:
   // Retrieve a route for a given path
   // ---------------------------------------------------------------------------
   bool PathReroute(const char* inpath,
-		   const char* ininfo,
-		   eos::common::Mapping::VirtualIdentity_t &vid,
-		   XrdOucString& outhost,
-		   int& port);  // global namespace routing
+                   const char* ininfo,
+                   eos::common::Mapping::VirtualIdentity_t& vid,
+                   XrdOucString& outhost,
+                   int& port);  // global namespace routing
 
   // ---------------------------------------------------------------------------
   // Add a path routing rule
   // ---------------------------------------------------------------------------
   bool AddPathRoute(const char* source,
-                  const char* target);  // add a routing to the path map
+                    const char* target);  // add a routing to the path map
 
   // ---------------------------------------------------------------------------
   // Reset path routing
@@ -1267,24 +1267,19 @@ public:
   //------------------------------------------------------------------------------
   static int32_t DiscoverPlatformServices(const char* svc_name, void* opaque);
 
-
   //------------------------------------------------------------------------------
   //! Write an report log record about final deletion
   //!
   //! @param fmd meta data
-  //! @return nothing
   //------------------------------------------------------------------------------
-
-  void WriteRmRecord(eos::IFileMD& fmd);
+  void WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd);
 
   //------------------------------------------------------------------------------
   //! Write an report log record about deletion into recycle bin
   //!
   //! @param fmd meta data
-  //! @return nothing
   //------------------------------------------------------------------------------
-  void WriteRecycleRecord(eos::IFileMD& fmd);
-
+  void WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd);
 
   //----------------------------------------------------------------------------
   // Configuration variables
