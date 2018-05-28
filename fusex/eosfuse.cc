@@ -1408,10 +1408,10 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
   time_t start_time = time(NULL);
 
   while (!assistant.terminationRequested()) {
-    eos::common::LinuxMemConsumption::linux_mem_t mem;
     eos::common::LinuxStat::linux_stat_t osstat;
 #ifndef __APPLE__
-
+    eos::common::LinuxMemConsumption::linux_mem_t mem;
+ 
     if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
       eos_static_err("failed to get the MEM usage information");
     }
@@ -4622,9 +4622,9 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("get statistics");
-  eos::common::LinuxMemConsumption::linux_mem_t mem;
   eos::common::LinuxStat::linux_stat_t osstat;
 #ifndef __APPLE__
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
 
   if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
     eos_static_err("failed to get the MEM usage information");
