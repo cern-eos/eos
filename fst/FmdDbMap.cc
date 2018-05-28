@@ -31,7 +31,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
@@ -1194,7 +1194,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   std::pair<std::string, std::vector<std::string>> reply;
   std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, true,
                                         qclient::RetryStrategy::WithTimeout(seconds(60))));
-  qclient::QSet qset(*qcl.get(),  eos::keyFilesystemFiles(fsid));
+  qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
   try {
