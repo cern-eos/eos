@@ -71,22 +71,25 @@ Drainer::~Drainer()
 // Start draining of a given file system
 //------------------------------------------------------------------------------
 bool
-Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
+Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
+                      eos::common::FileSystem::fsid_t dst_fsid,
                       XrdOucString& err, bool force)
 {
-  uint32_t src_fsid = fs->GetId();
+  using eos::common::FileSystem;
+  FileSystem::fsid_t src_fsid = fs->GetId();
   eos_info("fsid=%d start drain, force=%i", src_fsid, force);
-  eos::common::FileSystem::fs_snapshot_t src_snapshot;
+  FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
-  // Check that the destination fs, if specified, is in the same space and group
-  // as the source
+  // Check that the destination fs, if specified, is in the same space and
+  // group as the source
   if (dst_fsid) {
     auto it_fs = FsView::gFsView.mIdView.find(dst_fsid);
-    eos::common::FileSystem::fs_snapshot_t  dst_snapshot;
+    FileSystem::fs_snapshot_t  dst_snapshot;
 
     if (it_fs == FsView::gFsView.mIdView.end()) {
-      err = "error: the destination FS does not exist";
+      err = SSTR("error: destination file system " << dst_fsid
+                 << " does not exist").c_str();
       return false;
     }
 
@@ -94,8 +97,9 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
 
     if ((src_snapshot.mSpace != dst_snapshot.mSpace) ||
         (src_snapshot.mGroup != dst_snapshot.mGroup)) {
-      err = "error: destination fs does not belong to the same space and "
-            "scheduling group as the source";
+      err = SSTR("error: destination file system " << dst_fsid << " does not "
+                 << "belong to the same space and scheduling group as the "
+                 << "source").c_str();
       return false;
     }
   }
@@ -115,14 +119,31 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
         (*it)->ForceRetry();
         return true;
       } else {
-        err = "error: drain has already started for the given fs";
+        err = SSTR("error: drain has already started for the given fsid="
+                   << src_fsid).c_str();
         return false;
       }
     } else {
+      // Check if drain request is not already pending
+      auto it_pending = std::find_if(mPending.begin(), mPending.end(),
+                                     [src_fsid](const std::pair<FileSystem::fsid_t,
+      FileSystem::fsid_t>& elem) -> bool {
+        return (elem.first == src_fsid);
+      });
+
+      if (it_pending != mPending.end()) {
+        err = SSTR("error: drain jobs is already pending for fsid="
+                   << src_fsid).c_str();
+        return false;
+      }
+
       // Check if we have reached the max fs per node for this node
       if (it_drainfs->second.size() >= GetSpaceConf(src_snapshot.mSpace)) {
-        err = "error: reached maximum number of draining fs for the node";
-        return false;
+        fs->OpenTransaction();
+        fs->SetDrainStatus(FileSystem::kDrainWait);
+        fs->CloseTransaction();
+        mPending.push_back(std::make_pair(src_fsid, dst_fsid));
+        return true;
       }
     }
   }
@@ -141,10 +162,11 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs, unsigned int dst_fsid,
 bool
 Drainer::StopFsDrain(eos::mgm::FileSystem* fs, XrdOucString& err)
 {
-  uint32_t fsid = fs->GetId();
+  eos::common::FileSystem::fsid_t fsid = fs->GetId();
   eos_notice("fs to stop draining=%d ", fsid);
   eos::common::FileSystem::fs_snapshot_t drain_snapshot;
   fs->SnapShotFileSystem(drain_snapshot);
+  XrdSysMutexHelper scop_lock(mDrainMutex);
   auto it_drainfs = mDrainFs.find(drain_snapshot.mHostPort);
 
   if (it_drainfs == mDrainFs.end()) {
@@ -159,6 +181,21 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, XrdOucString& err)
   });
 
   if (it == it_drainfs->second.end()) {
+    // Check if there is a request pending
+    auto it_pending = std::find_if(mPending.begin(), mPending.end(),
+                                   [fsid](const std::pair<FileSystem::fsid_t,
+    FileSystem::fsid_t>& elem) -> bool {
+      return (elem.first == fsid);
+    });
+
+    if (it_pending != mPending.end()) {
+      (void) mPending.erase(it_pending);
+      fs->OpenTransaction();
+      fs->SetDrainStatus(FileSystem::kNoDrain);
+      fs->CloseTransaction();
+      return true;
+    }
+
     err = "error: no drain started for the givne fs";
     return false;
   }
@@ -353,6 +390,8 @@ Drainer::Drain()
       }
     }
 
+    // Process pending drain jobs
+    HandleQueued();
     // Execute only once at boot time
     static bool run_once = true;
 
@@ -401,6 +440,36 @@ Drainer::GetSpaceConf(const std::string& space)
     return mCfgMap[space];
   } else {
     return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Handle queued draining requests
+//------------------------------------------------------------------------------
+void
+Drainer::HandleQueued()
+{
+  XrdOucString msg;
+  ListPendingT lst;
+  {
+    XrdSysMutex scop_lock(mDrainMutex);
+    std::swap(lst, mPending);
+  }
+
+  while (!lst.empty()) {
+    auto pair = lst.front();
+    lst.pop_front();
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto it = FsView::gFsView.mIdView.find(pair.first);
+
+    if (it != FsView::gFsView.mIdView.end()) {
+      auto fs = it->second;
+
+      if (fs && !StartFsDrain(fs, pair.second, msg)) {
+        eos_err("msg=\"failed to start pending drain src_fsid=%lu\""
+                " msg=\"%s\"", pair.first, msg.c_str());
+      }
+    }
   }
 }
 
