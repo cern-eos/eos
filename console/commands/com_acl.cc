@@ -368,17 +368,18 @@ void com_acl_help()
   std::cerr << "Usage: eos acl [-l|--list] [-R|--recursive]";
   std::cerr << "[--sys|--user] <rule> <path>" << std::endl;
   std::cerr << std::endl;
-  std::cerr << "    --help           Print help" << std::endl;
-  std::cerr << "-R, --recursive      Apply on directories recursively" <<
-            std::endl;
-  std::cerr << "-l, --list          List ACL rules" << std::endl;
-  std::cerr << "    --user           Set user.acl rules on directory" <<
-            std::endl;
-  std::cerr << "    --sys            Set sys.acl rules on directory" << std::endl;
+  std::cerr << "    --help         Print help" << std::endl;
+  std::cerr << "-R, --recursive    Apply on directories recursively"
+            << std::endl;
+  std::cerr << "-l, --list         List ACL rules" << std::endl;
+  std::cerr << "    --user           Handle/list user.acl rules on directory"
+            << std::endl;
+  std::cerr << "    --sys            Handle/list sys.acl rules on directory"
+            << std::endl;
   std::cerr << "<rule> is created based on chmod rules. " << std::endl;
   std::cerr <<
-            "Every rule begins with [u|g|egroup] followed with : and identifier." <<
-            std::endl;
+            "Every rule begins with [u|g|egroup] followed with : and identifier."
+            << std::endl;
   std::cerr <<  std::endl;
   std::cerr << "Afterwards can be:" << std::endl;
   std::cerr << "= for setting new permission ." << std::endl;
