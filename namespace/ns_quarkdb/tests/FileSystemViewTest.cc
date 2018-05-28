@@ -339,3 +339,106 @@ TEST_F(FileSystemViewF, FileIterator)
 
   qcl().del(key);
 }
+
+//------------------------------------------------------------------------------
+// Test file list iterator
+//------------------------------------------------------------------------------
+TEST_F(FileSystemViewF, FileListIterator) {
+  view()->createContainer("/test/", true);
+  eos::IFileMDPtr f1 = view()->createFile("/test/f1");
+  ASSERT_EQ(f1->getIdentifier(), eos::FileIdentifier(1));
+  f1->addLocation(1);
+  f1->addLocation(2);
+  f1->addLocation(3);
+
+  eos::IFileMDPtr f2 = view()->createFile("/test/f2");
+  ASSERT_EQ(f2->getIdentifier(), eos::FileIdentifier(2));
+  f2->addLocation(2);
+
+  eos::IFileMDPtr f3 = view()->createFile("/test/f3");
+  ASSERT_EQ(f3->getIdentifier(), eos::FileIdentifier(3));
+  f3->addLocation(2);
+  f3->addLocation(3);
+
+  eos::IFileMDPtr f4 = view()->createFile("/test/f4");
+  ASSERT_EQ(f4->getIdentifier(), eos::FileIdentifier(4));
+  f4->addLocation(4);
+
+  {
+    auto it = fsview()->getFileList(1);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(2);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 2u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 3u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(3);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 3u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(4);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 4u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  shut_down_everything();
+
+  {
+    auto it = fsview()->getFileList(1);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(2);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 2u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 3u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(3);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1u);
+    it->next();
+    ASSERT_EQ(it->getElement(), 3u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+
+  {
+    auto it = fsview()->getFileList(4);
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 4u);
+    it->next();
+    ASSERT_FALSE(it->valid());
+  }
+}
