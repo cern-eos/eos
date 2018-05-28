@@ -441,8 +441,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   mFlags = flags;
 
 
-  // check for file inlining
-  if (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize()) {
+  // check for file inlining only for the first attach call
+  if ( (attached_once_nolock()) && (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize())) {
 
     if (mMd->inlinesize()) {
       mInlineMaxSize = mMd->inlinesize();
