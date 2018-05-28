@@ -151,20 +151,22 @@ XrdMgmOfs::_rem(const char* path,
     if (fmd->hasAttribute("sys.eos.mdino") || fmd->hasAttribute("sys.eos.nlink")) {
       eos_static_info("hlnk rm target fid %#lx", fid);
       bool ok = true;
+
       if (fmd->hasAttribute("sys.eos.nlink")) {
-	long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
-	eos_static_info("hlnk rm target nlink %ld", nlink);
-	ok = (nlink == 0) && (strncmp(fmd->getName().c_str(), "...eos.ino...", 13));
-	if (!vid.uid) // allow root to delete whatever is needed
-	{
-	  ok = true;
-	}
+        long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
+        eos_static_info("hlnk rm target nlink %ld", nlink);
+        ok = (nlink == 0) && (strncmp(fmd->getName().c_str(), "...eos.ino...", 13));
+
+        if (!vid.uid) { // allow root to delete whatever is needed
+          ok = true;
+        }
       }
 
       if (!ok) {
         gOFS->eosViewRWMutex.UnLockWrite();
         errno = EXDEV;
-        return Emsg(epname, error, errno, "remove file with hard links only through fusex", path);
+        return Emsg(epname, error, errno,
+                    "remove file with hard links only through fusex", path);
       }
     }
 
@@ -280,8 +282,8 @@ XrdMgmOfs::_rem(const char* path,
         workflow.Init(&attrmap, path, fid);
         errno = 0;
         gOFS->eosViewRWMutex.UnLockWrite();
-
         auto ret_wfe = workflow.Trigger("sync::delete", "default", vid);
+
         if (ret_wfe < 0 && errno == ENOKEY) {
           eos_info("msg=\"no workflow defined for delete\"");
         } else {
@@ -306,7 +308,7 @@ XrdMgmOfs::_rem(const char* path,
           gOFS->eosView->removeFile(fmd.get());
         }
 
-	gOFS->WriteRmRecord(*fmd);
+        gOFS->WriteRmRecord(fmd);
 
         if (container) {
           container->setMTimeNow();
@@ -352,7 +354,7 @@ XrdMgmOfs::_rem(const char* path,
           return rc;
         } else {
           recyclePath = error.getErrText();
-	  gOFS->WriteRecycleRecord(*fmd);
+          gOFS->WriteRecycleRecord(fmd);
         }
       }
     } else {
