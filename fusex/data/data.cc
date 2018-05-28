@@ -1321,6 +1321,11 @@ data::datax::recover_write(fuse_req_t req)
     if (recover_from_file_cache)
     {
       eos_debug("recovering from local start cache into stage file %s", stagefile.c_str());
+      
+      // make sure the buffer size fits
+      buffer->resize(mFile->file()->size());
+      buffer->reserve(mFile->file()->size());
+
       // recover file from the local start cache
       if (mFile->file()->pread(buf, mFile->file()->size(),0) < 0)
       {
