@@ -49,7 +49,7 @@ MetadataProvider::MetadataProvider(qclient::QClient &qcl,
 // Retrieve ContainerMD by ID.
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerIdentifier id) {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
   // A ContainerMD can be in three states: Not in cache, inside in-flight cache,
@@ -70,6 +70,8 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerId
   //----------------------------------------------------------------------------
   IContainerMDPtr result = mContainerCache.get(id);
   if(result) {
+    lock.unlock();
+
     //--------------------------------------------------------------------------
     // Handle special case where we're dealing with a tombstone.
     //--------------------------------------------------------------------------
@@ -108,7 +110,7 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerId
 // Retrieve FileMD by ID.
 //------------------------------------------------------------------------------
 folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(FileIdentifier id) {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------
   // A FileMD can be in three states: Not in cache, inside in-flight cache,
@@ -129,6 +131,8 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(FileIdentifier id) {
   //----------------------------------------------------------------------------
   IFileMDPtr result = mFileCache.get(id);
   if(result) {
+    lock.unlock();
+
     //--------------------------------------------------------------------------
     // Handle special case where we're dealing with a tombstone.
     //--------------------------------------------------------------------------
