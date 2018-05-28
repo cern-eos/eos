@@ -937,7 +937,7 @@ ConvertFsView::commitToBackend()
     for (int n = 0; n < max_elem; ++n) {
       ++count;
       // Add file to corresponding fs file set
-      key = eos::keyFilesystemFiles(std::stoi(it->first));
+      key = eos::RequestBuilder::keyFilesystemFiles(std::stoi(it->first));
       fs_set.setKey(key);
 
       if (it->second.first.size()) {
@@ -967,7 +967,7 @@ ConvertFsView::commitToBackend()
         }
       }
 
-      key = eos::keyFilesystemUnlinked(std::stoi(it->first));
+      key = eos::RequestBuilder::keyFilesystemUnlinked(std::stoi(it->first));
       fs_set.setKey(key);
 
       if (it->second.second.size()) {
