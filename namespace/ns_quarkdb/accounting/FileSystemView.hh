@@ -451,7 +451,6 @@ private:
   bool pNoReplicasCached; ///< Mark if set of files without replicas are cached
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;    ///< QClient object
-  qclient::QSet pNoReplicasSet; ///< Set of file ids without replicas
 };
 
 //------------------------------------------------------------------------------

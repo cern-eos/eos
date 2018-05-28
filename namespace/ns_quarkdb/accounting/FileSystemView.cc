@@ -72,8 +72,6 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
     }
 
     pQcl = BackendClient::getInstance(qdb_members);
-    pNoReplicasSet.setClient(*pQcl);
-    pNoReplicasSet.setKey(fsview::sNoReplicaPrefix);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
@@ -231,11 +229,13 @@ FileSystemView::fileMDCheck(IFileMD* file)
   std::pair<std::string, std::vector<std::string>> reply;
   qclient::AsyncHandler ah;
 
+  qclient::QSet no_replica_set(*pQcl, fsview::sNoReplicaPrefix);
+
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas) {
-    pNoReplicasSet.sadd_async(file->getId(), &ah);
+    no_replica_set.sadd_async(file->getId(), &ah);
   } else {
-    pNoReplicasSet.srem_async(file->getId(), &ah);
+    no_replica_set.srem_async(file->getId(), &ah);
   }
 
   // Make sure all active locations are accounted for
