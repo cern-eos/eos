@@ -25,6 +25,7 @@
 #include "common/ShellCmd.hh"
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <uuid/uuid.h>
@@ -33,6 +34,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include "XrdSys/XrdSysTimer.hh"
+
+#ifdef __APPLE__
+#define EOS_PTRACE_CONTINUE PT_CONTINUE
+#define EOS_PTRACE_ATTACH   PT_ATTACHEXC
+#else
+#define EOS_PTRACE_CONTINUE PTRACE_CONT
+#define EOS_PTRACE_ATTACH   PTRACH_ATTACH
+#endif //__APPLE__
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -102,14 +111,18 @@ ShellCmd::monitor()
   // set the active flag
   monitor_active = true;
   // switch this thread to root to be able to attach
+#ifdef __APPLE__
+  if (setreuid(-1, 0) < 0) {
+    perror("failed while calling setreuid\n");
+    return;
+  }
+#else
   syscall(SYS_setresuid, 0, 0, 0);
+#endif
 
-  //----------------------------------------------------------------------------
-  // trace the 'command' process (without stopping it),
-  // this way the given process becomes its parent
-  // and can use 'waitpid' for waiting
-  //----------------------------------------------------------------------------
-  if ((ptrace(PTRACE_ATTACH, pid, 0, 0)) == -1) {
+  // Trace the 'command' process (without stopping it), in this way the given
+  //process becomes its parent  and can use 'waitpid' for waiting
+  if ((ptrace(EOS_PTRACE_ATTACH, pid, 0, 0)) == -1) {
     // ptrace attach failed, we cannot proceed, but we block until the child terminated
     perror("error: failed to attach to forked process");
 
@@ -138,13 +151,13 @@ ShellCmd::monitor()
       // if the process has been stopped (not terminated)
       // resume it and keep waiting
       if (status && WIFSTOPPED(status)) {
-        ptrace(PTRACE_CONT, pid, 0, 0);
-        continue;
+	ptrace(EOS_PTRACE_CONTINUE, pid, 0, 0);
+	continue;
       }
 
       // if the process has been just resumed keep waiting
       if (status && WIFCONTINUED(status)) {
-        continue;
+	continue;
       }
 
       // otherwise the process is terminated and we are done with waiting
@@ -153,7 +166,7 @@ ShellCmd::monitor()
       perror("error: failed to waitpid for attached process");
 
       if (!is_active()) {
-        break;
+	break;
       }
 
       XrdSysTimer snooze;
