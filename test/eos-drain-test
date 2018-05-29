@@ -80,6 +80,8 @@ while [[ $? -eq 0 ]]; do
       eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
 done
 
+eos fs ls
+sleep 2
 eos fs ls | grep " 1 " | grep "empty" | grep "nodrain"
 
 if [[ $? -ne 0 ]]; then
