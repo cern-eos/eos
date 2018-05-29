@@ -180,6 +180,36 @@ eos_rpm_fedora_27:
     - docker-fc25
   allow_failure: true
 
+eos_deb_ubuntu_bionic:
+  stage: build:rpm
+  image: ubuntu:bionic
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
+    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ bionic master' >> /etc/apt/sources.list
+    - curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
+    - apt-get update
+    - git submodule update --init --recursive
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n eos-build-deps-depends*.deb
+    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
+    - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - ccache -s
+    - mkdir bionic
+    - cp deb_packages/*.deb bionic
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+    - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - bionic/
+  tags:
+    - docker-ubuntu
+  allow_failure: true
+
 eos_deb_ubuntu_artful:
   stage: build:rpm
   image: ubuntu:artful
@@ -580,6 +610,7 @@ eos_publish_debian_artifacts:
     - docker-ubuntu
   dependencies:
     - eos_deb_ubuntu_artful
+    - eos_deb_ubuntu_bionic
   allow_failure: true
   retry: 2
   only:
@@ -600,6 +631,7 @@ eos_publish_debian_artifacts_volume:
     - docker-cc7
   dependencies:
     - eos_deb_ubuntu_artful
+    - eos_deb_ubuntu_bionic
   only:
     - tags
 
