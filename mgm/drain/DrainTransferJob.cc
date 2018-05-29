@@ -100,20 +100,23 @@ DrainTransferJob::DoIt()
   XrdCl::CopyProcess cpy;
   cpy.AddJob(properties, &result);
   XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-  eos_info("[tpc]: %s => %s prepare_msg=%s", url_src.GetURL().c_str(),
-           url_dst.GetURL().c_str(), prepare_st.ToStr().c_str());
+  eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
+           url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+           log_id.c_str(), prepare_st.ToStr().c_str());
 
   if (prepare_st.IsOK()) {
     XrdCl::XRootDStatus tpc_st = cpy.Run(0);
 
     if (!tpc_st.IsOK()) {
-      ReportError(tpc_st.ToStr().c_str());
+      ReportError(SSTR("tpc_err=" << tpc_st.ToStr() << " logid="  << log_id));
     } else {
-      eos_info("msg=\"drain job completed successfully");
+      eos_info("msg=\"drain successful\" logid=%s",
+               log_id.c_str());
       mStatus.store(Status::OK);
     }
   } else {
-    ReportError("msg=\"failed to prepare drain job\"");
+    ReportError(SSTR("msg=\"prepare drain failed\" logid="
+                     << log_id.c_str()));
   }
 
   return mStatus;

@@ -77,7 +77,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
 {
   using eos::common::FileSystem;
   FileSystem::fsid_t src_fsid = fs->GetId();
-  eos_info("fsid=%d start drain, force=%i", src_fsid, force);
+  eos_info("start draining fsid=%d force=%i", src_fsid, force);
   FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
@@ -163,7 +163,7 @@ bool
 Drainer::StopFsDrain(eos::mgm::FileSystem* fs, XrdOucString& err)
 {
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
-  eos_notice("fs to stop draining=%d ", fsid);
+  eos_notice("stop draining fsid=%d ", fsid);
   eos::common::FileSystem::fs_snapshot_t drain_snapshot;
   fs->SnapShotFileSystem(drain_snapshot);
   XrdSysMutexHelper scop_lock(mDrainMutex);

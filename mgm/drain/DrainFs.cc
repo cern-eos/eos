@@ -83,7 +83,7 @@ DrainFs::DoIt()
 {
   uint32_t ntried = 0;
   State state = State::Running;
-  eos_notice("msg=\"fsid=%u start draining\"", mFsId);
+  eos_notice("msg=\"start draining\" fsid=%d", mFsId);
 
   do { // Loop for retries
     ntried++;
@@ -176,7 +176,7 @@ DrainFs::SignalStop()
 void
 DrainFs::CompleteDrain()
 {
-  eos_notice("msg=\"fsid=%u is drained\"", mFsId);
+  eos_notice("msg=\"completely drained\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mIdView.count(mFsId)) {
@@ -254,7 +254,7 @@ DrainFs::PrepareFs()
     }
 
     if (!fs) {
-      eos_notice("msg=\"fsid=%u removed during drain prepare\"", mFsId);
+      eos_notice("msg=\"removed during drain prepare\" fsid=%d", mFsId);
       return false;
     }
 
@@ -287,7 +287,7 @@ DrainFs::PrepareFs()
       }
 
       if (!fs) {
-        eos_err("msg=\"fsid=%u removed during drain prepare\"", mFsId);
+        eos_err("msg=\"removed during drain prepare\" fsid=%d", mFsId);
         return false;
       }
 
@@ -336,7 +336,7 @@ DrainFs::MarkFsDraining()
   }
 
   if (!fs) {
-    eos_notice("msg=\"fsid=%u removed during drain\"", mFsId);
+    eos_notice("msg=\"removed during drain\" fsid=%d", mFsId);
     return false;
   }
 
@@ -385,7 +385,7 @@ DrainFs::UpdateProgress()
 
   // Check if drain expired
   if (mDrainPeriod.count() && (mDrainEnd < now)) {
-    eos_warning("msg=\"fsid=%u drain expired\"", mFsId);
+    eos_warning("msg=\"drain expired\" fsid=%d", mFsId);
     expired = true;
   }
 
@@ -400,7 +400,7 @@ DrainFs::UpdateProgress()
     }
 
     if (!fs) {
-      eos_static_err("msg=\"fsid=%u removed during drain\"", mFsId);
+      eos_static_err("msg=\"removed during drain\" fsid=%d", mFsId);
       return State::Failed;
     }
 
