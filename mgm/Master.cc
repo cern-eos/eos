@@ -228,7 +228,6 @@ Master::HostCheck(const char* hostname, int port, int timeout)
     vshake[4] = htonl(2012);
     ssize_t nwrite = write(peer.fd, &vshake[0], 20);
     close(peer.fd);
-
     return nwrite == 20;
   }
 
@@ -1892,6 +1891,9 @@ Master::BootNamespace()
         << fMasterHost.c_str() << ".mdlog";
     fileSettings["changelog_path"] = oss.str();
     gOFS->MgmNsFileChangeLogFile = oss.str().c_str();
+    // Clear the qdb cluster name for safety, since it's used in the code as
+    // a switch for in-memory or qdb namespace implementation
+    gOFS->mQdbCluster.clear();
   } else {
     if (gOFS->mQdbCluster.empty()) {
       eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
