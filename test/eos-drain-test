@@ -41,6 +41,10 @@ if [[ $? -ne 0 ]]; then
       exit 1
 fi
 
+eos space config default space.drainer.central=on
+eos space config default space.drainer.node.nfs=1
+eos space config default space.drainer.node.ntx=5
+
 # Create dummy test files
 TEST_FN1=/tmp/32kb.dat
 TEST_FN2=/tmp/5mb.dat
