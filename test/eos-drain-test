@@ -57,10 +57,10 @@ eos chmod 2777 /eos/dev/drain_test/replica/
 eos chmod 2777 /eos/dev/drain_test/raiddp/
 
 for i in {1..4}; do
-      xrdcp -f ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r1file${i}.dat
-      xrdcp -f ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a1file${i}.dat
-      xrdcp -f ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r2file${i}.dat
-      xrdcp -f ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a2file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r1file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a1file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r2file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a2file${i}.dat
 done
 
 # Check that the file system is ready
