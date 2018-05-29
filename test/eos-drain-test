@@ -71,7 +71,8 @@ done
 eos fs ls | grep " 1 " | grep "rw" | grep "nodrain" | grep "online"
 
 if [[ $? -ne 0 ]]; then
-      echo "error: file system 1 is not in ready ..."
+      echo "error: file system 1 is not online  ..."
+      eos fs ls
       exit 1
 fi
 
