@@ -83,7 +83,7 @@ public:
   //----------------------------------------------------------------------------
   bool StartFsDrain(eos::mgm::FileSystem* fs,
                     eos::common::FileSystem::fsid_t dst_fsid,
-                    XrdOucString& err, bool force = false);
+                    std::string& err, bool force = false);
 
   //----------------------------------------------------------------------------
   //! Stop draining of a given file system
@@ -94,7 +94,7 @@ public:
   //!
   //! @return true if drain stopped successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool StopFsDrain(eos::mgm::FileSystem* fs, XrdOucString& err);
+  bool StopFsDrain(eos::mgm::FileSystem* fs, std::string& err);
 
   // @todo (esindril): to review
 

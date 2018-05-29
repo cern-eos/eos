@@ -199,12 +199,11 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
   std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
   //! Collection of drain jobs to run
-  std::list<shared_ptr<DrainTransferJob>> mJobsPending;
+  std::list<std::shared_ptr<DrainTransferJob>> mJobsPending;
   //! Collection of failed drain jobs
-  std::list<shared_ptr<DrainTransferJob>> mJobsFailed;
+  std::list<std::shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
-  std::map<std::shared_ptr<DrainTransferJob>,
-      std::future<DrainTransferJob::Status>> mJobsRunning;
+  std::list<std::shared_ptr<DrainTransferJob>> mJobsRunning;
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
 };

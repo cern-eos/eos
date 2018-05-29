@@ -396,6 +396,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           }
 
           if (!fs->SetString(key.c_str(), value.c_str())) {
+            stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
             return retc;
           }
