@@ -142,18 +142,18 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
     int drain_tx = IsDrainTransition(old_status, new_status);
 
     if (drain_tx) {
-      XrdOucString err_msg;
+      std::string out_msg;
 
       if (drain_tx > 0) {
         bool force = (drain_tx == 2);
 
-        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, err_msg, force)) {
-          eos_static_err("%s", err_msg.c_str());
+        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg, force)) {
+          eos_static_err("%s", out_msg.c_str());
           return false;
         }
       } else if (drain_tx < 0) {
-        if (!gOFS->mDrainEngine.StopFsDrain(this, err_msg)) {
-          eos_static_err("%s", err_msg.c_str());
+        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+          eos_static_err("%s", out_msg.c_str());
           return false;
         }
       }

@@ -391,6 +391,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           }
 
           if (!fs->SetString(key.c_str(), value.c_str())) {
+            stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
             return retc;
           }
@@ -404,6 +405,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             return retc;
           } else {
             size_t pos = value.find(':');
+
             if (pos == 0 || (pos + 1) == value.length()) {
               stdErr += "error: S3 credentials string is missing ";
               stdErr += (pos == 0)  ? "<accesskey>" : "<secretkey>";

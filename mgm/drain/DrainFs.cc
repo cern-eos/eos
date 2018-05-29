@@ -121,18 +121,16 @@ DrainFs::DoIt()
         // xrootd. Should be fixed in XRootD code.
         std::this_thread::sleep_for(milliseconds(200));
         auto job = *it_job;
-        mJobsRunning.emplace(*it_job, mThreadPool.PushTask<DrainTransferJob::Status>(
-                               [job] {return job->DoIt();}));
+        mThreadPool.PushTask<void>([job] {return job->DoIt();});
+        mJobsRunning.push_back(*it_job);
         it_job = mJobsPending.erase(it_job);
       }
 
       for (auto it = mJobsRunning.begin(); it !=  mJobsRunning.end();) {
-        if (it->first->GetStatus() == DrainTransferJob::Status::OK) {
-          it->second.get();
+        if ((*it)->GetStatus() == DrainTransferJob::Status::OK) {
           it = mJobsRunning.erase(it);
-        } else if (it->first->GetStatus() == DrainTransferJob::Status::Failed) {
-          it->second.get();
-          mJobsFailed.push_back(it->first);
+        } else if ((*it)->GetStatus() == DrainTransferJob::Status::Failed) {
+          mJobsFailed.push_back(*it);
           it = mJobsRunning.erase(it);
         } else {
           ++it;
@@ -211,10 +209,9 @@ DrainFs::Stop()
   // Wait for any ongoing transfers
   while (!mJobsRunning.empty()) {
     auto it = mJobsRunning.begin();
-    DrainTransferJob::Status st = it->second.get();
 
-    if (st != DrainTransferJob::Status::OK) {
-      mJobsFailed.push_back(it->first);
+    if ((*it)->GetStatus() != DrainTransferJob::Status::OK) {
+      mJobsFailed.push_back(*it);
     }
 
     mJobsRunning.erase(it);
@@ -378,10 +375,12 @@ DrainFs::UpdateProgress()
   bool is_stalled = (duration_cast<seconds>(duration).count() >
                      stall_timeout.count());
   eos_static_debug("msg=\"timestamp=%llu, last_change=%llu, is_stalled=%i, "
-                   "num_to_drain=%llu, old_num_to_drain=%llu\"",
+                   "num_to_drain=%llu, old_num_to_drain=%llu, running=%llu,"
+                   "pending=%llu, failed=%llu\"",
                    duration_cast<milliseconds>(now.time_since_epoch()).count(),
                    duration_cast<milliseconds>(last_change.time_since_epoch()).count(),
-                   is_stalled, num_to_drain, old_num_to_drain);
+                   is_stalled, num_to_drain, old_num_to_drain, mJobsRunning.size(),
+                   mJobsPending.size(), mJobsFailed.size());
 
   // Check if drain expired
   if (mDrainPeriod.count() && (mDrainEnd < now)) {

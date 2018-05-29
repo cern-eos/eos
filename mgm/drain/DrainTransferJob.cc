@@ -48,7 +48,7 @@ void DrainTransferJob::ReportError(const std::string& error)
 //------------------------------------------------------------------------------
 // Execute a thrid-party transfer
 //------------------------------------------------------------------------------
-DrainTransferJob::Status
+void
 DrainTransferJob::DoIt()
 {
   eos_debug("running drain job fsid_src=%i, fsid_dst=%i, fid=%llu",
@@ -61,12 +61,12 @@ DrainTransferJob::DoIt()
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
     ReportError(std::string(e.what()));
-    return mStatus;
+    return;
   }
 
   if (!SelectDstFs(fdrain)) {
     ReportError("msg=\"failed to select destination file system\"");
-    return mStatus;
+    return;
   }
 
   // Prepare the TPC copy job
@@ -75,8 +75,8 @@ DrainTransferJob::DoIt()
   XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
   if (!url_src.IsValid() || !url_dst.IsValid()) {
-    eos_err("msg=\"src/dst drain url is not valid\"");
-    return mStatus;
+    ReportError("msg=\"src/dst drain url is not valid\"");
+    return;
   }
 
   XrdCl::PropertyList properties;
@@ -119,7 +119,7 @@ DrainTransferJob::DoIt()
                      << log_id.c_str()));
   }
 
-  return mStatus;
+  return;
 }
 
 //------------------------------------------------------------------------------
@@ -356,8 +356,11 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 
   if (rain_reconstruct) {
     dst_params << "mgm.access=write"
-               << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
+               << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1&mgm.fid=0"
+               << "&mgm.lid=" << target_lid
+               << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
+               << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
                << "&eos.app=drainer";
   } else {
