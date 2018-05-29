@@ -208,14 +208,17 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   if (ProcessOpenOpaque()) {
+    eos_err("msg=\"failed while processing open opaque info\"");
     return SFS_ERROR;
   }
 
   if (ProcessCapOpaque(isRepairRead, vid)) {
+    eos_err("msg=\"failed while processing cap opaque info\"");
     return SFS_ERROR;
   }
 
   if (ProcessMixedOpaque()) {
+    eos_err("msg=\"failed while processing mixed opaque info\"");
     return SFS_ERROR;
   }
 
