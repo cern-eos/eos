@@ -27,6 +27,7 @@ before_script:
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
+    - docker exec -i eos-client-test bash -c 'rm -rf /eos_fuse/dockertest/tmp*'
     - docker exec -i eos-mgm-test eos -b space quota default on
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
