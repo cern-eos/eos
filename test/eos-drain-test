@@ -53,18 +53,18 @@ dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32
 dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5
 
 # Create eos directory for tests and copy some files in
-eos mkdir -p /eos/dev/drain_test/replica/
-eos mkdir -p /eos/dev/drain_test/raiddp/
-eos attr set default=replica /eos/dev/drain_test/replica/
-eos attr set default=raiddp /eos/dev/drain_test/raiddp/
-eos chmod 2777 /eos/dev/drain_test/replica/
-eos chmod 2777 /eos/dev/drain_test/raiddp/
+eos mkdir -p /eos/dockertest/drain_test/replica/
+eos mkdir -p /eos/dockertest/drain_test/raiddp/
+eos attr set default=replica /eos/dockertest/drain_test/replica/
+eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
+eos chmod 2777 /eos/dockertest/drain_test/replica/
+eos chmod 2777 /eos/dockertest/drain_test/raiddp/
 
 for i in {1..4}; do
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r1file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a1file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/replica/r2file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dev/drain_test/raiddp/a2file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/r1file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/a1file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/r2file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/a2file${i}.dat
 done
 
 # Check that the file system is ready
@@ -102,9 +102,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Remove all the files and directories
-eos rm -rF "/eos/dev/drain_test/replica/*"
-eos rm -rF "/eos/dev/drain_test/raiddp/*"
-eos rmdir "/eos/dev/drain_test/replica/"
-eos rmdir "/eos/dev/drain_test/raiddp/"
-eos rmdir "/eos/dev/drain_test/"
+eos rm -rF "/eos/dockertest/drain_test/replica/*"
+eos rm -rF "/eos/dockertest/drain_test/raiddp/*"
+eos rmdir "/eos/dockertest/drain_test/replica/"
+eos rmdir "/eos/dockertest/drain_test/raiddp/"
+eos rmdir "/eos/dockertest/drain_test/"
 exit 0
