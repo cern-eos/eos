@@ -11,7 +11,7 @@ script_loc=$(dirname "$0")
 prefix=$1
 comp=$2
 
-for dist in artful; do
+for dist in bionic artful; do
   echo "Publishing for $dist"
   path=$prefix/pool/$dist/$comp/e/eos/
   mkdir -p $path
