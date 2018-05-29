@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 
+echo "Running drain test ..."
+eos-drain-test localhost
+
+if [[ $? -ne 0 ]]; then
+    echo "Failed drain test"
+    exit 1
+fi
+
+echo "Running instance test ..."
 eos-instance-test
 
-if (( $? > 0 ));
-then
+if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
   exit 1
-else
-  eos-drain-test localhost
 fi
+
+exit 0
