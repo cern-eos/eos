@@ -442,7 +442,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
 
   // check for file inlining only for the first attach call
-  if ( (attached_once_nolock()) && (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize())) {
+  if ( (!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize())) {
 
     if (mMd->inlinesize()) {
       mInlineMaxSize = mMd->inlinesize();
@@ -499,7 +499,6 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 	mIsInlined = false;
       }
     }
-
   }
 
   if (flags & (O_RDWR | O_WRONLY)) {
@@ -623,7 +622,6 @@ data::datax::inline_file(ssize_t size)
   if (size == -1)
     size = mMd->size();
   
-
   if (inlined() && inline_buffer) {
     if ((size_t)size <= mInlineMaxSize) {
       // rewrite the extended attribute
@@ -670,6 +668,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
 
   if (inlined()) {
     // never prefetch an inlined file
+    return true;
   }
 
   if (lock) {
@@ -1892,9 +1891,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       avail_bytes = 0;
     }
 
-    memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
-    eos_debug("inline-read byte=%lld", avail_bytes);
-    return avail_bytes;
+    if (mMd->size() <= (unsigned long long) inline_buffer->getSize()) {
+      memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
+      eos_debug("inline-read byte=%lld inline-buffer-size=%lld", avail_bytes, inline_buffer->getSize());
+      return avail_bytes;
+    }
   }
 
 
@@ -2204,6 +2205,8 @@ data::datax::cache_invalidate()
   // truncate the block cache
   int dt = mFile->file() ? mFile->file()->truncate(0) : 0;
   int jt = mFile->journal() ? mFile->journal()->truncate(0, true) : 0;
+
+  inline_buffer = nullptr;
 
   for (auto fit = mFile->get_xrdioro().begin();
        fit != mFile->get_xrdioro().end(); ++fit)
