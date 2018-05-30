@@ -117,8 +117,8 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
   // synchronous closew has priority
   if (mAttr && (*mAttr).count(syncKey)) {
     std::string owner, ownerGroup, fullPath;
-    decltype(fmd->getCUid()) cuid = 99;
-    decltype(fmd->getCGid()) cgid = 99;
+    decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid = 99;
+    decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid = 99;
     try {
       eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
