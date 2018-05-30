@@ -34,7 +34,6 @@ before_script:
 .fedora_template: &fedora_template_definition
   stage: build:rpm
   script:
-    - echo "Arch: " ${EOS_ARCH}
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
     - mkdir build
