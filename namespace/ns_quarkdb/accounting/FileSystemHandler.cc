@@ -147,7 +147,7 @@ void FileSystemHandler::insert(FileIdentifier identifier) {
 //------------------------------------------------------------------------------
 void FileSystemHandler::erase(FileIdentifier identifier) {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mContents.insert(identifier.getUnderlyingUInt64());
+  mContents.erase(identifier.getUnderlyingUInt64());
   lock.unlock();
 
   pFlusher->srem(getRedisKey(), std::to_string(identifier.getUnderlyingUInt64()));
