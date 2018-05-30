@@ -221,7 +221,7 @@ eos_deb_ubuntu_artful:
 
 eos_deb_ubuntu_bionic:
   image: ubuntu:bionic
-  <<: *ubutntu_template_definition
+  <<: *ubuntu_template_definition
   variables:
     EOS_ARCH: bionic
   artifacts:
