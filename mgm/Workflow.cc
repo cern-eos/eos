@@ -117,16 +117,21 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
   // synchronous closew has priority
   if (mAttr && (*mAttr).count(syncKey)) {
     std::string owner, ownerGroup, fullPath;
+    decltype(fmd->getCUid()) cuid = 99;
+    decltype(fmd->getCGid()) cgid = 99;
     try {
       eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       fullPath = gOFS->eosView->getUri(fmd.get());
-      owner = WFE::GetUserName(fmd->getCUid());
-      ownerGroup = WFE::GetGroupName(fmd->getCGid());
+      cuid = fmd->getCUid();
+      cgid = fmd->getCGid();
     } catch (eos::MDException& e) {
       eos_static_err("Not creating workflow URL because cannot get meta data. Reason: %s", e.what());
       return "";
     }
+    
+    owner = WFE::GetUserName(cuid);
+    ownerGroup = WFE::GetGroupName(cgid);
 
     std::ostringstream attrStream;
     std::string separator;
