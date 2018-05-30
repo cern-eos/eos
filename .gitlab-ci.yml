@@ -60,7 +60,7 @@ before_script:
 
 
 .ubuntu_template: &ubuntu_template_definition
-    stage: build:rpm
+  stage: build:rpm
   script:
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
