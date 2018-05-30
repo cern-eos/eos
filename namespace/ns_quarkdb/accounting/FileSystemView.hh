@@ -21,13 +21,15 @@
 //! @brief The filesystem view stored in QuarkDB
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_FILESYSTEM_VIEW_HH__
-#define __EOS_NS_FILESYSTEM_VIEW_HH__
+#ifndef EOS_NS_FILESYSTEM_VIEW_HH
+#define EOS_NS_FILESYSTEM_VIEW_HH
 
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "qclient/QClient.hh"
 #include "qclient/QSet.hh"
 #include <utility>
@@ -434,10 +436,16 @@ private:
   //----------------------------------------------------------------------------
   void CacheUnlinkedFiles(IFileMD::location_t fsid);
 
-  //----------------------------------------------------------------------------
-  //! Cache from backend the list of files without replicas
-  //----------------------------------------------------------------------------
-  void CacheNoReplicasFiles();
+  ///! Folly executor
+  std::unique_ptr<folly::Executor> mExecutor;
+  ///! Metadata flusher object
+  MetadataFlusher* pFlusher;
+  ///! QClient object
+  qclient::QClient* pQcl;
+
+  ///! No replicas handler
+  std::unique_ptr<FileSystemHandler> mNoReplicas;
+
 
   ///! Map of file ids residing on a particular file system
   std::map<IFileMD::location_t, IFsView::FileList> pFiles;
@@ -447,10 +455,6 @@ private:
   std::map<IFileMD::location_t, IFsView::FileList> pUnlinkedFiles;
   ///! Mark if file systemd id info is already cached
   std::map<IFileMD::location_t, bool> pUnlinkedFilesCached;
-  IFsView::FileList pNoReplicas;
-  bool pNoReplicasCached; ///< Mark if set of files without replicas are cached
-  MetadataFlusher* pFlusher; ///< Metadata flusher object
-  qclient::QClient* pQcl;    ///< QClient object
 };
 
 //------------------------------------------------------------------------------
