@@ -88,6 +88,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
           mHash->Set("host", host.c_str());
           mHash->Set("port", port.c_str());
           mHash->Set("configstatus", "down");
+          mHash->Set("drainstatus", "nodrain");
         } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
         }
@@ -810,7 +811,7 @@ FileSystem::GetStatus(bool cached)
 //----------------------------------------------------------------------------
 void
 FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
-             std::string listformat, const std::string& filter)
+                  std::string listformat, const std::string& filter)
 {
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
