@@ -11,12 +11,12 @@ before_script:
   - echo "Exporting BRANCH=${BRANCH}"
 
 
-.template:eos_system_test_script: &eos_system_test_script
+.system_test_template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - if [ "$CI_JOB_NAME" == "eos_system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
+    - if [ "$CI_JOB_NAME" == "system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test eos vid enable krb5
     - docker exec -i eos-mgm-test eos-instance-test-ci
@@ -56,6 +56,10 @@ before_script:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - ${EOS_ARCH}_artifacts/
   allow_failure: true
 
 
@@ -83,7 +87,7 @@ before_script:
   allow_failure: true
 
 
-eos_clone_docker:
+clone_docker:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -97,7 +101,7 @@ eos_clone_docker:
     - docker-fc_rawhide
 
 
-eos_rpm_slc6:
+build_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -132,7 +136,7 @@ eos_rpm_slc6:
     - docker-slc6
 
 
-eos_rpm_cc7:
+build_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -167,33 +171,25 @@ eos_rpm_cc7:
     - docker-cc7
 
 
-eos_rpm_fedora_27:
+build_fedora27:
   image: fedora:27
   <<: *fedora_template_definition
   variables:
     EOS_ARCH: fc-27
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-27_artifacts/
   tags:
     - docker-fc25
 
 
-eos_rpm_fedora_28:
+build_fedora28:
   image: fedora:28
   <<: *fedora_template_definition
   variables:
     EOS_ARCH: fc-28
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-28_artifacts/
   tags:
     - docker-fc28
 
 
-eos_rpm_fedora_rawhide:
+build_fedora_rawhide:
   image: fedora:rawhide
   <<: *fedora_template_definition
   variables:
@@ -206,7 +202,7 @@ eos_rpm_fedora_rawhide:
     - docker-fc_rawhide
 
 
-eos_deb_ubuntu_artful:
+build_ubuntu_artful:
   image: ubuntu:artful
   <<: *ubuntu_template_definition
   variables:
@@ -219,7 +215,7 @@ eos_deb_ubuntu_artful:
     - docker-ubuntu
 
 
-eos_deb_ubuntu_bionic:
+build_ubuntu_bionic:
   image: ubuntu:bionic
   <<: *ubuntu_template_definition
   variables:
@@ -232,7 +228,7 @@ eos_deb_ubuntu_bionic:
     - docker-ubuntu
 
 
-eos_dmg_macosx:
+macosx_dmg:
   stage: build:rpm
   script:
     - git submodule update --init --recursive
@@ -267,8 +263,8 @@ eos_dockerimage_commit:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
   dependencies:
-    - eos_rpm_cc7
-    - eos_clone_docker
+    - build_cc7
+    - clone_docker
   only:
     - branches
   except:
@@ -276,7 +272,7 @@ eos_dockerimage_commit:
     - tags
 
 
-eos_dockerimage_tag:
+docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -286,13 +282,13 @@ eos_dockerimage_tag:
     TO: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
     DOCKER_FILE: eos-docker/Dockerfile
   dependencies:
-    - eos_rpm_cc7
-    - eos_clone_docker
+    - build_cc7
+    - clone_docker
   only:
     - tags
 
 
-eos_prod_dockerimage_tag:
+prod_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -302,13 +298,13 @@ eos_prod_dockerimage_tag:
     TO: gitlab-registry.cern.ch/dss/eos/eos-prod:${CI_COMMIT_TAG}
     DOCKER_FILE: eos-docker/projects/eos/Dockerfile
   dependencies:
-    - eos_rpm_cc7
-    - eos_clone_docker
+    - build_cc7
+    - clone_docker
   allow_failure: true
   only:
     - tags
 
-eos_unit_test:
+unit_test:
   stage: test
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -342,26 +338,26 @@ eos_unit_test:
   tags:
     - docker-cc7
 
-eos_system_test:
+system_test:
   stage: test
-  <<: *eos_system_test_script
+  <<: *system_test_template_definition
   tags:
     - shell-with-docker
   dependencies:
-    - eos_clone_docker
+    - clone_docker
   retry: 1
 
-eos_system_test_with_quarkdb:
+system_test_with_quarkdb:
   stage: test
-  <<: *eos_system_test_script
+  <<: *system_test_template_definition
   tags:
     - xrootd-shell
   allow_failure: true
   dependencies:
-    - eos_clone_docker
+    - clone_docker
   retry: 1
 
-eos_stress_test:
+stress_test:
   stage: test
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -374,11 +370,11 @@ eos_stress_test:
   tags:
     - eos-stress
   dependencies:
-    - eos_clone_docker
+    - clone_docker
   allow_failure: true
   retry: 1
 
-eos_publish_koji_cc7:
+publish_koji_cc7:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -391,11 +387,11 @@ eos_publish_koji_cc7:
   tags:
     - docker-cc7
   dependencies:
-    - eos_rpm_cc7
+    - build_cc7
   only:
     - tags
 
-eos_publish_koji_slc6:
+publish_koji_slc6:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -408,11 +404,11 @@ eos_publish_koji_slc6:
   tags:
     - docker-slc6
   dependencies:
-    - eos_rpm_slc6
+    - build_slc6
   only:
     - tags
 
-eos_publish_artifacts:
+publish_rpm_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -430,7 +426,7 @@ eos_publish_artifacts:
     - dev
     - tags
 
-eos_publish_debian_artifacts:
+publish_debian_artifacts:
   stage: publish
   image: ubuntu:artful
   script:
@@ -445,8 +441,8 @@ eos_publish_debian_artifacts:
   tags:
     - docker-ubuntu
   dependencies:
-    - eos_deb_ubuntu_artful
-    - eos_deb_ubuntu_bionic
+    - build_ubuntu_artful
+    - build_ubuntu_bionic
   allow_failure: true
   retry: 2
   only:
@@ -454,7 +450,7 @@ eos_publish_debian_artifacts:
     - dev
     - tags
 
-eos_publish_debian_artifacts_volume:
+publish_debian_artifacts_volume:
   stage: publish
   image: ubuntu:artful
   script:
@@ -466,13 +462,13 @@ eos_publish_debian_artifacts_volume:
   tags:
     - docker-cc7
   dependencies:
-    - eos_deb_ubuntu_artful
-    - eos_deb_ubuntu_bionic
+    - build_ubuntu_artful
+    - build_ubuntu_bionic
   only:
     - tags
 
 
-eos_clean_artifacts:
+clean_rpm_artifacts:
   stage: clean
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -486,7 +482,7 @@ eos_clean_artifacts:
     - schedules
 
 
-eos_clean_debian_artifacts:
+clean_debian_artifacts:
   stage: clean
   image: ubuntu:artful
   script:
@@ -504,7 +500,7 @@ eos_clean_debian_artifacts:
     - schedules
 
 
-eos_periodic_coverity:
+periodic_coverity:
   stage: build:rpm
   script:
     - git submodule update --init --recursive
@@ -525,7 +521,7 @@ eos_periodic_coverity:
     - schedules
 
 
-eos_cppcheck_sonar:
+cppcheck_sonar:
   stage: build:rpm
   script:
     - cppcheck -v --enable=all --inline-suppr --xml --xml-version=2 -i common/fmt -i fst/layout/gf-complete -i fst/layout/jerasure -i common/sqlite -i namespace/ns_quarkdb/qclient common/ fst/ mgm/ console/ fuse/ fusex/ namespace/ mq/ 2> cppcheck-report.xml
