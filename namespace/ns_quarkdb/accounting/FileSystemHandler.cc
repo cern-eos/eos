@@ -110,11 +110,8 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
   temporaryContents.set_deleted_key(0);
   temporaryContents.set_empty_key(0xffffffffffffffffll);
 
-  qclient::QSet qset(*pQcl, getRedisKey());
-
-  for(auto it = qset.getIterator(); it.valid(); it.next()) {
-    // TODO(gbitzes): Error checking for string -> integer conversion
-    temporaryContents.insert(std::stoull(it.getElement()));
+  for(auto it = getStreamingFileList(); it->valid(); it->next()) {
+    temporaryContents.insert(it->getElement());
   }
 
   // Now merge under lock. This is because we may have extra entries inside
@@ -173,6 +170,15 @@ FileSystemHandler::getFileList() {
 
   return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
          (new eos::FileListIterator(mContents, mMutex));
+}
+
+//------------------------------------------------------------------------------
+//! Return streaming iterator for this file system.
+//------------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+FileSystemHandler::getStreamingFileList() {
+  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+         (new eos::StreamingFileListIterator(*pQcl, getRedisKey()));
 }
 
 
