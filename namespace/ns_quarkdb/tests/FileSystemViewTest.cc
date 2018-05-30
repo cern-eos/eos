@@ -447,6 +447,32 @@ TEST_F(FileSystemViewF, FileListIterator) {
 }
 
 //------------------------------------------------------------------------------
+// Verify contents of iterator (unordered)
+//------------------------------------------------------------------------------
+template<typename T, typename Iterator>
+bool verifyContents(Iterator it, std::set<T> contents) {
+  while(true) {
+    if(!it->valid() && !contents.empty()) {
+      std::cerr << "Iterator is no longer valid, but set contains more items!" << std::endl;
+      return false;
+    }
+
+    if(!it->valid() && contents.empty()) {
+      // All done, everything looks good.
+      return true;
+    }
+
+    if(contents.count(it->getElement()) != 1u) {
+      std::cerr << "Found item in iterator which is not in the set!" << std::endl;
+      return false;
+    }
+
+    contents.erase(it->getElement());
+    it->next();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Tests targetting FileSystemHandler
 //------------------------------------------------------------------------------
 TEST_F(FileSystemViewF, FileSystemHandler) {
@@ -464,24 +490,18 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
     fs1.insert(eos::FileIdentifier(10));
     fs1.insert(eos::FileIdentifier(20));
 
-    auto it = fs1.getFileList();
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 20);
-    it->next();
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
+    ASSERT_FALSE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 20} ));
+    ASSERT_FALSE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30} ));
 
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 8);
-    it->next();
+    fs1.erase(eos::FileIdentifier(30));
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
 
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 1);
-    it->next();
+    fs1.erase(eos::FileIdentifier(20));
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10} ));
 
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 10);
-    it->next();
-
-    ASSERT_FALSE(it->valid());
+    fs1.insert(eos::FileIdentifier(20));
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
   }
 
   shut_down_everything();
@@ -490,43 +510,46 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
   for(int i = 0; i < 3; i++) {
     eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
 
-    auto it = fs1.getFileList();
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 20);
-    it->next();
-
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 8);
-    it->next();
-
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 1);
-    it->next();
-
-    ASSERT_TRUE(it->valid());
-    ASSERT_EQ(it->getElement(), 10);
-    it->next();
-
-    ASSERT_FALSE(it->valid());
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
+    ASSERT_FALSE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 20} ));
+    ASSERT_FALSE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30} ));
   }
 
-  // Re-iterate just in case, this time verify contents from QDB.
+  // Re-iterate just in case, this time verify contents directly from QDB.
   qclient::QSet qset(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
-  auto it = qset.getIterator();
 
-  ASSERT_TRUE(it.valid());
-  ASSERT_EQ(it.getElement(), "1");
-  it.next();
+  {
+    auto it = qset.getIterator();
+    ASSERT_TRUE(verifyContents(&it, std::set<std::string> { "1", "8", "10", "20" } ));
+  }
 
-  ASSERT_TRUE(it.valid());
-  ASSERT_EQ(it.getElement(), "10");
-  it.next();
+  {
+    auto it = qset.getIterator();
+    ASSERT_FALSE(verifyContents(&it, std::set<std::string> { "1", "8", "10" } ));
+  }
 
-  ASSERT_TRUE(it.valid());
-  ASSERT_EQ(it.getElement(), "20");
-  it.next();
+  {
+    auto it = qset.getIterator();
+    ASSERT_FALSE(verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "30" } ));
+  }
 
-  ASSERT_TRUE(it.valid());
-  ASSERT_EQ(it.getElement(), "8");
-  it.next();
+  shut_down_everything();
+
+  // Remove item, make sure change is reflected in QDB.
+  {
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
+
+    fs1.insert(eos::FileIdentifier(99));
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
+  }
+
+  shut_down_everything();
+
+  {
+    qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
+    auto it = qset2.getIterator();
+    ASSERT_TRUE(verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "99" } ));
+  }
+
 }
