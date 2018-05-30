@@ -5,9 +5,11 @@ stages:
   - publish
   - clean
 
+
 before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
+
 
 .template:eos_system_test_script: &eos_system_test_script
   script:
@@ -50,6 +52,30 @@ before_script:
     - mkdir ${EOS_ARCH}_artifacts
     - cp -R build/SRPMS ${EOS_ARCH}_artifacts
     - cp -R build/RPMS ${EOS_ARCH}_artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+    - ccache/
+  allow_failure: true
+
+
+.ubuntu_template: &ubuntu_template_definition
+    stage: build:rpm
+  script:
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
+    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' release' >> /etc/apt/sources.list
+    - curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
+    - apt-get update
+    - git submodule update --init --recursive
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n eos-build-deps-depends*.deb
+    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_ARCH} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
+    - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
+    - ccache -s
+    - mkdir ${EOS_ARCH}
+    - cp deb_packages/*.deb ${EOS_ARCH}
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
@@ -169,78 +195,41 @@ eos_rpm_fedora_28:
 
 eos_rpm_fedora_rawhide:
   image: fedora:rawhide
-  stage: build:rpm
   <<: *fedora_template_definition
   variables:
     EOS_ARCH: fc-rawhide
   artifacts:
     expire_in: 1 day
     paths:
-    - fcrawhide_artifacts/
+    - fc-rawhide_artifacts/
   tags:
     - docker-fc_rawhide
 
 
 eos_deb_ubuntu_artful:
-  stage: build:rpm
   image: ubuntu:artful
-  script:
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
-    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful release' >> /etc/apt/sources.list
-    - curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
-    - apt-get update
-    - git submodule update --init --recursive
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n eos-build-deps-depends*.deb
-    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution artful -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
-    - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
-    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
-    - ccache -s
-    - mkdir artful
-    - cp deb_packages/*.deb artful
-  cache:
-    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-    paths:
-    - ccache/
+  <<: *ubuntu_template_definition
+  variables:
+    EOS_ARCH: artful
   artifacts:
     expire_in: 1 day
     paths:
     - artful/
   tags:
     - docker-ubuntu
-  allow_failure: true
 
 
 eos_deb_ubuntu_bionic:
-  stage: build:rpm
   image: ubuntu:bionic
-  script:
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
-    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ bionic master' >> /etc/apt/sources.list
-    - curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
-    - apt-get update
-    - git submodule update --init --recursive
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n eos-build-deps-depends*.deb
-    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution bionic -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
-    - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
-    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
-    - ccache -s
-    - mkdir bionic
-    - cp deb_packages/*.deb bionic
-  cache:
-    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
-    paths:
-    - ccache/
+  <<: *ubutntu_template_definition
+  variables:
+    EOS_ARCH: bionic
   artifacts:
     expire_in: 1 day
     paths:
     - bionic/
   tags:
     - docker-ubuntu
-  allow_failure: true
 
 
 eos_dmg_macosx:
