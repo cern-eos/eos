@@ -27,8 +27,10 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "qclient/QSet.hh"
 #include <folly/futures/FutureSplitter.h>
 #include <folly/executors/Async.h>
+#include "common/Assert.hh"
 
 namespace qclient {
   class QClient;
@@ -85,6 +87,56 @@ private:
   std::shared_lock<std::shared_timed_mutex> mLock;
   IFsView::FileList::const_iterator mIterator;
 };
+
+//------------------------------------------------------------------------------
+//! Streaming iterator to go through the contents of a FileSystemHandler.
+//!
+//! Elements which are added, or deleted while iteration is ongoing, may or
+//! may not be in the results.
+//!
+//! Also, watch out for races related to the flusher.. Use only if a weakly
+//! consistent view is acceptable.
+//------------------------------------------------------------------------------
+class StreamingFileListIterator : public ICollectionIterator<IFileMD::id_t> {
+public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor.
+  //----------------------------------------------------------------------------
+  StreamingFileListIterator(qclient::QClient &qcl, const std::string &key)
+  : mQSet(qcl, key), it(mQSet.getIterator()) {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor.
+  //----------------------------------------------------------------------------
+  virtual ~StreamingFileListIterator() {}
+
+  //----------------------------------------------------------------------------
+  //! Check whether the iterator is still valid.
+  //----------------------------------------------------------------------------
+  virtual bool valid() override {
+    return it.valid();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current element.
+  //----------------------------------------------------------------------------
+  virtual IFileMD::id_t getElement() {
+    return std::stoull(it.getElement());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Progress iterator.
+  //----------------------------------------------------------------------------
+  virtual void next() {
+    return it.next();
+  }
+
+private:
+  qclient::QSet mQSet;
+  qclient::QSet::Iterator it;
+};
+
 
 class FileSystemHandler {
 public:
@@ -150,17 +202,19 @@ public:
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
   getFileList();
 
+
   //----------------------------------------------------------------------------
-  //! Retrieve a streaming iterator for the contents of this filesystem,
-  //! without holding any locks.
-  //!
-  //! Elements which exist for the entire duration of iteration will certainly
-  //! be contained in the result.
+  //! Retrieve streaming iterator to go through the contents of a
+  //! FileSystemHandler.
   //!
   //! Elements which are added, or deleted while iteration is ongoing, may or
   //! may not be in the results.
+  //!
+  //! Also, watch out for races related to the flusher.. Use only if a weakly
+  //! consistent view is acceptable.
   //----------------------------------------------------------------------------
-  // TODO
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+  getStreamingFileList();
 
 private:
   //----------------------------------------------------------------------------
