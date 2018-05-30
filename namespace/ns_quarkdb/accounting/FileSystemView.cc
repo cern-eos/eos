@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 #include "qclient/QScanner.hh"
 #include <iostream>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -34,11 +35,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView():
-  pNoReplicasCached(false), pFlusher(nullptr), pQcl(nullptr)
-{
-  pNoReplicas.set_empty_key(0xffffffffffffffffll);
-  pNoReplicas.set_deleted_key(0);
-}
+  mExecutor(new folly::IOThreadPoolExecutor(8) ), pFlusher(nullptr), pQcl(nullptr)
+{ }
 
 //------------------------------------------------------------------------------
 // Configure the container service
@@ -82,6 +80,8 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
   std::chrono::seconds duration(end - start);
   std::cerr << "FileSystemView loadingFromBackend duration: "
             << duration.count() << " seconds" << std::endl;
+
+  mNoReplicas.reset(new FileSystemHandler(mExecutor.get(), pQcl, pFlusher, IsNoReplicaListTag() ));
 }
 
 //------------------------------------------------------------------------------
@@ -98,16 +98,14 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   // New file has been created
   case IFileMDChangeListener::Created:
     if (!file->isLink()) {
-      pNoReplicas.insert(file->getId());
-      pFlusher->sadd(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
+      mNoReplicas->insert(file->getIdentifier());
     }
 
     break;
 
   // File has been deleted
   case IFileMDChangeListener::Deleted: {
-    pNoReplicas.erase(file->getId());
-    pFlusher->srem(fsview::sNoReplicaPrefix, std::to_string(file->getId()));
+    mNoReplicas->erase(file->getIdentifier());
     break;
   }
 
@@ -125,12 +123,12 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       it->second.insert(file->getId());
     }
 
-    pNoReplicas.erase(file->getId());
+    mNoReplicas->erase(file->getIdentifier());
+
     // Commit to the backend
     key = eos::RequestBuilder::keyFilesystemFiles(e->location);
     val = std::to_string(file->getId());
     pFlusher->sadd(key, val);
-    pFlusher->srem(fsview::sNoReplicaPrefix, val);
     break;
   }
 
@@ -175,8 +173,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     pFlusher->srem(key, val);
 
     if (!file->getNumUnlinkedLocation() && !file->getNumLocation()) {
-      pNoReplicas.insert(file->getId());
-      pFlusher->sadd(fsview::sNoReplicaPrefix, val);
+      mNoReplicas->insert(file->getIdentifier());
     }
 
     break;
@@ -336,9 +333,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getNoReplicasFileList()
 {
-  CacheNoReplicasFiles();
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(pNoReplicas));
+  return mNoReplicas->getFileList();
 }
 
 //------------------------------------------------------------------------------
@@ -347,8 +342,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 uint64_t
 FileSystemView::getNumNoReplicasFiles()
 {
-  CacheNoReplicasFiles();
-  return pNoReplicas.size();
+  return mNoReplicas->size();
 }
 
 //------------------------------------------------------------------------------
@@ -592,23 +586,6 @@ FileSystemView::CacheUnlinkedFiles(IFileMD::location_t fsid)
            (it && it->valid()); it->next()) {
         set_ids.insert(it->getElement());
       }
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Cache from backend the list of files without replicas
-//------------------------------------------------------------------------------
-void
-FileSystemView::CacheNoReplicasFiles()
-{
-  if (pNoReplicasCached == false) {
-    pNoReplicasCached = true;
-    pNoReplicas.clear();
-
-    for (auto it = getStreamingNoReplicasFileList();
-         (it && it->valid()); it->next()) {
-      pNoReplicas.insert(it->getElement());
     }
   }
 }
