@@ -181,5 +181,16 @@ FileSystemHandler::getStreamingFileList() {
          (new eos::StreamingFileListIterator(*pQcl, getRedisKey()));
 }
 
+//------------------------------------------------------------------------------
+//! Delete the entire filelist.
+//------------------------------------------------------------------------------
+void FileSystemHandler::nuke() {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+  mContents.clear();
+  mContents.resize(0);
+  pFlusher->del(getRedisKey());
+}
+
 
 EOSNSNAMESPACE_END

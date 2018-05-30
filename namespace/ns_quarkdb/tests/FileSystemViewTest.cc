@@ -557,4 +557,23 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
     ASSERT_TRUE(verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "99" } ));
   }
 
+  // Nuke filelist
+  {
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
+
+
+    fs1.nuke();
+    ASSERT_TRUE(verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> { } ));
+  }
+
+  mdFlusher()->synchronize();
+
+  // Ensure it's empty in the backend as well
+  {
+    qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
+    auto it = qset2.getIterator();
+    ASSERT_TRUE(verifyContents(&it, std::set<std::string> { } ));
+  }
+
 }
