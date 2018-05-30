@@ -202,7 +202,6 @@ public:
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
   getFileList();
 
-
   //----------------------------------------------------------------------------
   //! Retrieve streaming iterator to go through the contents of a
   //! FileSystemHandler.
@@ -215,6 +214,11 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
   getStreamingFileList();
+
+  //----------------------------------------------------------------------------
+  //! Delete the entire filelist.
+  //----------------------------------------------------------------------------
+  void nuke();
 
 private:
   //----------------------------------------------------------------------------
