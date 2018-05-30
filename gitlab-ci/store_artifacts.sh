@@ -47,11 +47,11 @@ createrepo --update -q $STORAGE_PATH_FC28_SRPM
 
 STORAGE_PATH_FCRH=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
 mkdir -p $STORAGE_PATH_FCRH
-cp fcrawhide_artifacts/RPMS/* $STORAGE_PATH_FCRH
+cp fc-rawhide_artifacts/RPMS/* $STORAGE_PATH_FCRH
 createrepo --update -q $STORAGE_PATH_FCRH
 STORAGE_PATH_FCRH_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-rawhide/SRPMS
 mkdir -p $STORAGE_PATH_FCRH_SRPM
-cp fcrawhide_artifacts/SRPMS/* $STORAGE_PATH_FCRH_SRPM
+cp fc-rawhide_artifacts/SRPMS/* $STORAGE_PATH_FCRH_SRPM
 createrepo --update -q $STORAGE_PATH_FCRH_SRPM
 
 STORAGE_PATH_MACOS=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/osx/x86_64
