@@ -1837,13 +1837,19 @@ WFE::Job::DoIt(bool issync)
           }
         } else if (event == "sync::create" || event == "create") {
           collectAttributes();
+          
+          decltype(fmd->getCUid()) cuid = 99;
+          decltype(fmd->getCGid()) cgid = 99;
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-            notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-                  fmd->getCUid()));
-            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-                  fmd->getCGid()));
+            cuid = fmd->getCUid();
+            cgid = fmd->getCGid();
           }
+          
+          notification->mutable_file()->mutable_owner()->set_username(GetUserName(
+                  cuid));
+          notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+                  cgid));
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
           notification->mutable_wf()->mutable_instance()->set_name(
             gOFS->MgmOfsInstanceName.c_str());
