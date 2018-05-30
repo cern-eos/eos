@@ -67,6 +67,7 @@ add_library(
                                      views/PathLookupState.hh
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
   accounting/FileSystemView.cc       accounting/FileSystemView.hh
+  accounting/FileSystemHandler.cc    accounting/FileSystemHandler.hh
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh)
 

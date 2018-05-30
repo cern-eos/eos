@@ -21,6 +21,7 @@
 //! @brief FileSystemView test
 //------------------------------------------------------------------------------
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
@@ -35,6 +36,7 @@
 #include <ctime>
 #include <sstream>
 #include <unistd.h>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 //------------------------------------------------------------------------------
 // Randomize a location
@@ -442,4 +444,89 @@ TEST_F(FileSystemViewF, FileListIterator) {
     it->next();
     ASSERT_FALSE(it->valid());
   }
+}
+
+//------------------------------------------------------------------------------
+// Tests targetting FileSystemHandler
+//------------------------------------------------------------------------------
+TEST_F(FileSystemViewF, FileSystemHandler) {
+  // We're only using FileSystemHandler on its own in this test, don't spin
+  // up the rest of the namespace..
+
+  std::unique_ptr<folly::Executor> executor;
+  executor.reset( new folly::IOThreadPoolExecutor(16) );
+
+  {
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
+    ASSERT_EQ(fs1.getRedisKey(), "fsview:1:files");
+    fs1.insert(eos::FileIdentifier(1));
+    fs1.insert(eos::FileIdentifier(8));
+    fs1.insert(eos::FileIdentifier(10));
+    fs1.insert(eos::FileIdentifier(20));
+
+    auto it = fs1.getFileList();
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 20);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 8);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 10);
+    it->next();
+
+    ASSERT_FALSE(it->valid());
+  }
+
+  shut_down_everything();
+
+  // Make sure we pick up on any changes.
+  for(int i = 0; i < 3; i++) {
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
+
+    auto it = fs1.getFileList();
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 20);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 8);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 1);
+    it->next();
+
+    ASSERT_TRUE(it->valid());
+    ASSERT_EQ(it->getElement(), 10);
+    it->next();
+
+    ASSERT_FALSE(it->valid());
+  }
+
+  // Re-iterate just in case, this time verify contents from QDB.
+  qclient::QSet qset(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
+  auto it = qset.getIterator();
+
+  ASSERT_TRUE(it.valid());
+  ASSERT_EQ(it.getElement(), "1");
+  it.next();
+
+  ASSERT_TRUE(it.valid());
+  ASSERT_EQ(it.getElement(), "10");
+  it.next();
+
+  ASSERT_TRUE(it.valid());
+  ASSERT_EQ(it.getElement(), "20");
+  it.next();
+
+  ASSERT_TRUE(it.valid());
+  ASSERT_EQ(it.getElement(), "8");
+  it.next();
 }
