@@ -49,16 +49,17 @@ eos space config default space.drainer.node.ntx=5
 TEST_FN1=/tmp/32kb.dat
 TEST_FN2=/tmp/5mb.dat
 
-dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32
-dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5
+dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32 &> /dev/null
+dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 
 # Create eos directory for tests and copy some files in
 eos mkdir -p /eos/dockertest/drain_test/replica/
 eos mkdir -p /eos/dockertest/drain_test/raiddp/
-eos attr set default=replica /eos/dockertest/drain_test/replica/
-eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
 eos chmod 2777 /eos/dockertest/drain_test/replica/
 eos chmod 2777 /eos/dockertest/drain_test/raiddp/
+eos attr set default=replica /eos/dockertest/drain_test/replica/
+eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
+eos fs ls
 
 for i in {1..4}; do
       xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/r1file${i}.dat
@@ -90,6 +91,8 @@ eos fs ls | grep " 1 " | grep "empty" | grep "nodrain"
 if [[ $? -ne 0 ]]; then
       echo "error: file system 1 is not drained"
       exit 1
+else
+    echo "File system 1 successfully drained"
 fi
 
 # Put back the file system in rw mode
@@ -129,9 +132,11 @@ eos fs ls | grep " 4 " | grep "empty" | grep "nodrain"
 if [[ $? -ne 0 ]]; then
       echo "error: file system 4 is not drained"
       exit 1
+else
+    echo "Draindead file system 4 successfully drained"
 fi
 
-eos node config eos-fst4-test.eoscluster.cern.ch:1094 error.simulation=none
+eos node config eos-fst4-test.eoscluster.cern.ch:1095 error.simulation=none
 eos fs config 4 configstatus=rw
 
 # Remove all the files and directories

@@ -9,7 +9,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo "Running instance test ..."
+eos space quota default on
 eos-instance-test
+eos space quota default off
 
 if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
