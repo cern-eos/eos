@@ -19,7 +19,6 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/utils/FileListRandomPicker.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -95,7 +94,10 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   qclient::QSet fs_set;
 
   switch (e->action) {
+
+  //----------------------------------------------------------------------------
   // New file has been created
+  //----------------------------------------------------------------------------
   case IFileMDChangeListener::Created:
     if (!file->isLink()) {
       mNoReplicas->insert(file->getIdentifier());
@@ -103,79 +105,62 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
     break;
 
+  //----------------------------------------------------------------------------
   // File has been deleted
+  //----------------------------------------------------------------------------
   case IFileMDChangeListener::Deleted: {
     mNoReplicas->erase(file->getIdentifier());
     break;
   }
 
+  //----------------------------------------------------------------------------
   // Add location
+  //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationAdded: {
-    auto it = pFiles.find(e->location);
+    FileSystemHandler *handler = initializeRegularFilelist(e->location);
 
-    if (it == pFiles.end()) {
-      auto pair = pFiles.emplace(e->location, IFsView::FileList());
-      auto& file_set = pair.first->second;
-      file_set.set_deleted_key(0);
-      file_set.set_empty_key(0xffffffffffffffffll);
-      file_set.insert(file->getId());
-    } else {
-      it->second.insert(file->getId());
-    }
-
+    handler->insert(file->getIdentifier());
     mNoReplicas->erase(file->getIdentifier());
-
-    // Commit to the backend
-    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
-    val = std::to_string(file->getId());
-    pFlusher->sadd(key, val);
     break;
   }
 
-  // Remove location
+  //----------------------------------------------------------------------------
+  // Remove location.
+  //
+  // Perform destructive actions (ie erase) at the end.
+  // This ensures that if we crash in the middle, we don't lose data, just
+  // become inconsistent.
+  //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationRemoved: {
-    auto it = pUnlinkedFiles.find(e->location);
-
-    if (it != pUnlinkedFiles.end()) {
-      it->second.erase(file->getId());
-    }
-
-    key = eos::RequestBuilder::keyFilesystemUnlinked(e->location);
-    val = std::to_string(file->getId());
-    pFlusher->srem(key, val);
-
     if (!file->getNumUnlinkedLocation() && !file->getNumLocation()) {
       mNoReplicas->insert(file->getIdentifier());
     }
 
+    auto it = mUnlinkedFiles.find(e->location);
+    if(it != mUnlinkedFiles.end()) {
+      it->second.get()->erase(file->getIdentifier());
+    }
+
     break;
   }
 
-  // Unlink location
+  //----------------------------------------------------------------------------
+  // Unlink location.
+  //
+  // Perform destructive actions (ie erase) at the end.
+  // This ensures that if we crash in the middle, we don't lose data, just
+  // become inconsistent.
+  //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationUnlinked: {
-    auto it = pFiles.find(e->location);
+    FileSystemHandler* handler = initializeUnlinkedFilelist(e->location);
+    handler->insert(e->file->getIdentifier());
 
-    if (it != pFiles.end()) {
-      it->second.erase(file->getId());
+    auto it = mFiles.find(e->location);
+
+    if(it != mFiles.end()) {
+      it->second.get()->erase(file->getIdentifier());
     }
 
-    it = pUnlinkedFiles.find(e->location);
-
-    if (it == pUnlinkedFiles.end()) {
-      auto pair = pUnlinkedFiles.emplace(e->location, IFsView::FileList());
-      auto& file_set = pair.first->second;
-      file_set.set_deleted_key(0);
-      file_set.set_empty_key(0xffffffffffffffffll);
-      file_set.insert(file->getId());
-    } else {
-      it->second.insert(file->getId());
-    }
-
-    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
-    val = std::to_string(e->file->getId());
-    pFlusher->srem(key, val);
-    key = eos::RequestBuilder::keyFilesystemUnlinked(e->location);
-    pFlusher->sadd(key, val);
     break;
   }
 
@@ -252,7 +237,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
     FileSystemView::getFileSystemIterator()
 {
   return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-         (new ListFileSystemIterator(pFiles));
+         (new ListFileSystemIterator(mFiles));
 }
 
 //----------------------------------------------------------------------------
@@ -261,13 +246,13 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
 {
-  if (pFiles.find(location) == pFiles.end()) {
+  auto iter = mFiles.find(location);
+
+  if (iter == mFiles.end()) {
     return nullptr;
   }
 
-  CacheFiles(location);
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(pFiles[location]));
+  return iter->second.get()->getFileList();
 }
 
 //----------------------------------------------------------------------------
@@ -276,12 +261,13 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location,
     IFileMD::id_t &retval) {
 
-  if (pFiles.find(location) == pFiles.end()) {
+  auto iter = mFiles.find(location);
+
+  if (iter == mFiles.end()) {
     return false;
   }
 
-  CacheFiles(location);
-  return pickRandomFile(pFiles[location], retval);
+  return iter->second.get()->getApproximatelyRandomFile(retval);
 }
 
 //------------------------------------------------------------------------------
@@ -290,13 +276,13 @@ bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  if (pUnlinkedFiles.find(location) == pUnlinkedFiles.end()) {
+  auto iter = mUnlinkedFiles.find(location);
+
+  if(iter == mUnlinkedFiles.end()) {
     return nullptr;
   }
 
-  CacheUnlinkedFiles(location);
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new FileIterator(pUnlinkedFiles[location]));
+  return iter->second.get()->getFileList();
 }
 
 //------------------------------------------------------------------------------
@@ -323,14 +309,13 @@ FileSystemView::getNumNoReplicasFiles()
 uint64_t
 FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 {
-  auto it = pFiles.find(fs_id);
+  auto iter = mFiles.find(fs_id);
 
-  if (it == pFiles.end()) {
+  if(iter == mFiles.end()) {
     return 0ull;
-  } else {
-    CacheFiles(fs_id);
-    return it->second.size();
   }
+
+  return iter->second.get()->size();
 }
 
 //------------------------------------------------------------------------------
@@ -339,14 +324,13 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 uint64_t
 FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
-  auto it = pUnlinkedFiles.find(fs_id);
+  auto iter = mUnlinkedFiles.find(fs_id);
 
-  if (it == pUnlinkedFiles.end()) {
+  if(iter == mUnlinkedFiles.end()) {
     return 0ull;
-  } else {
-    CacheUnlinkedFiles(fs_id);
-    return it->second.size();
   }
+
+  return iter->second.get()->size();
 }
 
 //------------------------------------------------------------------------------
@@ -355,18 +339,13 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 bool
 FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 {
-  auto it = pFiles.find(fs_id);
+  auto iter = mFiles.find(fs_id);
 
-  if (it != pFiles.end()) {
-    CacheFiles(fs_id);
-    auto& files_set = it->second;
-
-    if (files_set.find(fid) != files_set.end()) {
-      return true;
-    }
+  if(iter == mFiles.end()) {
+    return false;
   }
 
-  return false;
+  return iter->second.get()->hasFileId(fid);
 }
 
 //------------------------------------------------------------------------------
@@ -375,16 +354,13 @@ FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  auto it = pUnlinkedFiles.find(location);
+  auto it = mUnlinkedFiles.find(location);
 
-  if (it == pUnlinkedFiles.end()) {
+  if (it == mUnlinkedFiles.end()) {
     return false;
   }
 
-  it->second.clear();
-  it->second.resize(0);
-  std::string key = RequestBuilder::keyFilesystemUnlinked(location);
-  pFlusher->del(key);
+  it->second.get()->nuke();
   return true;
 }
 
@@ -496,70 +472,54 @@ FileSystemView::loadFromBackend()
       IFileMD::location_t fsid = it->getElement();
 
       if (pattern.find("unlinked") != std::string::npos) {
-        (void) pUnlinkedFilesCached.emplace(fsid, false);
-        auto pair = pUnlinkedFiles.emplace(fsid, IFsView::FileList());
-        auto& set_ids = pair.first->second;
-        set_ids.set_deleted_key(0);
-        set_ids.set_empty_key(0xffffffffffffffffll);
+        initializeUnlinkedFilelist(fsid);
       } else {
-        (void) pFilesCached.emplace(fsid, false);
-        auto pair = pFiles.emplace(fsid, IFsView::FileList());
-        auto& set_ids = pair.first->second;
-        set_ids.set_deleted_key(0);
-        set_ids.set_empty_key(0xffffffffffffffffll);
+        initializeRegularFilelist(fsid);
       }
     }
   }
 }
 
 //------------------------------------------------------------------------------
-// Cache from backend the list of file on the file system
+//! Initialize FileSystemHandler for given filesystem ID, if not already
+//! initialized. Otherwise, do nothing.
+//!
+//! In any case, return pointer to the corresponding FileSystemHandler.
+//!
+//! @param fsid file system id
 //------------------------------------------------------------------------------
-void
-FileSystemView::CacheFiles(IFileMD::location_t fsid)
+FileSystemHandler* FileSystemView::initializeRegularFilelist(IFileMD::location_t fsid)
 {
-  auto iter = pFilesCached.find(fsid);
+  auto iter = mFiles.find(fsid);
 
-  if ((iter != pFilesCached.end()) && (iter->second == false)) {
-    // Do it only if it's not already cached
-    pFlusher->synchronize();
-    iter->second = true;
-    auto it_fs = pFiles.find(fsid);
-
-    if (it_fs != pFiles.end()) {
-      auto& set_ids = it_fs->second;
-
-      for (auto it = getQdbFileList(it_fs->first);
-           (it && it->valid()); it->next()) {
-        set_ids.insert(it->getElement());
-      }
-    }
+  if(iter != mFiles.end()) {
+    // Found
+    return iter->second.get();
   }
+
+  mFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl, pFlusher, false));
+  return mFiles[fsid].get();
 }
 
 //------------------------------------------------------------------------------
-// Cache from backend the list of unlinked file on the file system
+//! Initialize unlinked FileSystemHandler for given filesystem ID,
+//! if not already initialized. Otherwise, do nothing.
+//!
+//! In any case, return pointer to the corresponding FileSystemHandler.
+//!
+//! @param fsid file system id
 //------------------------------------------------------------------------------
-void
-FileSystemView::CacheUnlinkedFiles(IFileMD::location_t fsid)
+FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(IFileMD::location_t fsid)
 {
-  auto iter = pUnlinkedFilesCached.find(fsid);
+  auto iter = mUnlinkedFiles.find(fsid);
 
-  if ((iter != pUnlinkedFilesCached.end()) && (iter->second == false)) {
-    // Do it only if it's not already cached
-    pFlusher->synchronize();
-    iter->second = true;
-    auto it_fs = pUnlinkedFiles.find(fsid);
-
-    if (it_fs != pUnlinkedFiles.end()) {
-      auto& set_ids = it_fs->second;
-
-      for (auto it = getQdbUnlinkedFileList(it_fs->first);
-           (it && it->valid()); it->next()) {
-        set_ids.insert(it->getElement());
-      }
-    }
+  if(iter != mUnlinkedFiles.end()) {
+    // Found
+    return iter->second.get();
   }
+
+  mUnlinkedFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl, pFlusher, true));
+  return mUnlinkedFiles[fsid].get();
 }
 
 EOSNSNAMESPACE_END

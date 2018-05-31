@@ -169,8 +169,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ListFileSystemIterator(const std::map<IFileMD::location_t,
-                         IFsView::FileList>& map)
+  ListFileSystemIterator(
+    const std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>>& map
+  )
   {
     for (const auto& pair : map) {
       mList.push_back(pair.first);
@@ -423,18 +424,24 @@ private:
       getQdbFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
-  //! Cache from backend the list of file on the file system
+  //! Initialize FileSystemHandler for given filesystem ID, if not already
+  //! initialized. Otherwise, do nothing.
+  //!
+  //! In any case, return pointer to the corresponding FileSystemHandler.
   //!
   //! @param fsid file system id
   //----------------------------------------------------------------------------
-  void CacheFiles(IFileMD::location_t fsid);
+  FileSystemHandler* initializeRegularFilelist(IFileMD::location_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Cache from backend the list of unlinked file on the file system
+  //! Initialize unlinked FileSystemHandler for given filesystem ID,
+  //! if not already initialized. Otherwise, do nothing.
+  //!
+  //! In any case, return pointer to the corresponding FileSystemHandler.
   //!
   //! @param fsid file system id
   //----------------------------------------------------------------------------
-  void CacheUnlinkedFiles(IFileMD::location_t fsid);
+  FileSystemHandler* initializeUnlinkedFilelist(IFileMD::location_t fsid);
 
   ///! Folly executor
   std::unique_ptr<folly::Executor> mExecutor;
@@ -445,16 +452,10 @@ private:
 
   ///! No replicas handler
   std::unique_ptr<FileSystemHandler> mNoReplicas;
-
-
-  ///! Map of file ids residing on a particular file system
-  std::map<IFileMD::location_t, IFsView::FileList> pFiles;
-  ///! Mark if file systemd id info is already cached
-  std::map<IFileMD::location_t, bool> pFilesCached;
-  ///! Map of unlinked file ids residing on a particular file system
-  std::map<IFileMD::location_t, IFsView::FileList> pUnlinkedFiles;
-  ///! Mark if file systemd id info is already cached
-  std::map<IFileMD::location_t, bool> pUnlinkedFilesCached;
+  ///! Regular filelists
+  std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mFiles;
+  ///! Unlinked filelists
+  std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mUnlinkedFiles;
 };
 
 //------------------------------------------------------------------------------

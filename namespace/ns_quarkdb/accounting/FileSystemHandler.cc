@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/utils/FileListRandomPicker.hh"
 #include "common/Assert.hh"
 #include "qclient/QSet.hh"
 
@@ -56,18 +57,18 @@ FileSystemHandler::FileSystemHandler(folly::Executor* executor, qclient::QClient
 }
 
 //------------------------------------------------------------------------------
-//! Ensure contents have been loaded into the cache. If so, returns
-//! immediatelly. Otherwise, does requests to QDB to retrieve its contents.
-//! Return value: "this" pointer.
+// Ensure contents have been loaded into the cache. If so, returns
+// immediatelly. Otherwise, does requests to QDB to retrieve its contents.
+// Return value: "this" pointer.
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemHandler::ensureContentsLoaded() {
   return ensureContentsLoadedAsync().get();
 }
 
 //------------------------------------------------------------------------------
-//! Ensure contents have been loaded into the cache. If so, returns
-//! immediatelly. Otherwise, does requests to QDB to retrieve its contents.
-//! Return value: "this" pointer.
+// Ensure contents have been loaded into the cache. If so, returns
+// immediatelly. Otherwise, does requests to QDB to retrieve its contents.
+// Return value: "this" pointer.
 //------------------------------------------------------------------------------
 folly::Future<FileSystemHandler*> FileSystemHandler::ensureContentsLoadedAsync() {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -86,7 +87,7 @@ folly::Future<FileSystemHandler*> FileSystemHandler::ensureContentsLoadedAsync()
 }
 
 //------------------------------------------------------------------------------
-//! Return redis key holding our target filesystem list.
+// Return redis key holding our target filesystem list.
 //------------------------------------------------------------------------------
 std::string FileSystemHandler::getRedisKey() const {
   if(target == Target::kRegular) {
@@ -101,7 +102,7 @@ std::string FileSystemHandler::getRedisKey() const {
 }
 
 //------------------------------------------------------------------------------
-//! Trigger load. Must only be called once.
+// Trigger load. Must only be called once.
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
   eos_assert(mCacheStatus == CacheStatus::kInFlight);
@@ -129,7 +130,7 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
 }
 
 //------------------------------------------------------------------------------
-//! Insert item.
+// Insert item.
 //------------------------------------------------------------------------------
 void FileSystemHandler::insert(FileIdentifier identifier) {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -140,7 +141,7 @@ void FileSystemHandler::insert(FileIdentifier identifier) {
 }
 
 //------------------------------------------------------------------------------
-//! Erase item.
+// Erase item.
 //------------------------------------------------------------------------------
 void FileSystemHandler::erase(FileIdentifier identifier) {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -151,8 +152,8 @@ void FileSystemHandler::erase(FileIdentifier identifier) {
 }
 
 //------------------------------------------------------------------------------
-//! Get size. Careful when calling this function, it'll load all contents if
-//! not already there.
+// Get size. Careful when calling this function, it'll load all contents if
+// not already there.
 //------------------------------------------------------------------------------
 uint64_t FileSystemHandler::size() {
   ensureContentsLoaded();
@@ -162,7 +163,7 @@ uint64_t FileSystemHandler::size() {
 }
 
 //------------------------------------------------------------------------------
-//! Return iterator for this file system.
+// Return iterator for this file system.
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 FileSystemHandler::getFileList() {
@@ -173,7 +174,7 @@ FileSystemHandler::getFileList() {
 }
 
 //------------------------------------------------------------------------------
-//! Return streaming iterator for this file system.
+// Return streaming iterator for this file system.
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 FileSystemHandler::getStreamingFileList() {
@@ -182,7 +183,7 @@ FileSystemHandler::getStreamingFileList() {
 }
 
 //------------------------------------------------------------------------------
-//! Delete the entire filelist.
+// Delete the entire filelist.
 //------------------------------------------------------------------------------
 void FileSystemHandler::nuke() {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -192,5 +193,24 @@ void FileSystemHandler::nuke() {
   pFlusher->del(getRedisKey());
 }
 
+//----------------------------------------------------------------------------
+// Get an approximately random file in the filelist.
+//----------------------------------------------------------------------------
+bool FileSystemHandler::getApproximatelyRandomFile(IFileMD::id_t &res) {
+  ensureContentsLoaded();
+
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return pickRandomFile(mContents, res);
+}
+
+//----------------------------------------------------------------------------
+// Check whether a given id_t is contained in this filelist
+//----------------------------------------------------------------------------
+bool FileSystemHandler::hasFileId(IFileMD::id_t file) {
+  ensureContentsLoaded();
+
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return mContents.find(file) != mContents.end();
+}
 
 EOSNSNAMESPACE_END
