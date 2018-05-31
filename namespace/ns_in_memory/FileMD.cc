@@ -406,7 +406,7 @@ FileMD::setSize(uint64_t size)
   pSize = size & 0x0000ffffffffffff;
   IFileMDChangeListener::Event e(this,
                                  IFileMDChangeListener::SizeChange,
-                                 0, 0, sizeChange);
+                                 0, sizeChange);
   pFileMDSvc->notifyListeners(&e);
 }
 

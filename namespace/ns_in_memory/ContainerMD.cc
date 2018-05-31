@@ -197,7 +197,7 @@ ContainerMD::addFile(IFileMD* file)
   file->setContainerId(pId);
   mFiles[file->getName()] = file->getId();
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
-                                 0, 0, file->getSize());
+                                 0, file->getSize());
   file->getFileMDSvc()->notifyListeners(&e);
 }
 
@@ -210,7 +210,7 @@ ContainerMD::removeFile(const std::string& name)
   if (mFiles.count(name)) {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(mFiles[name]);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
-                                   0, 0, -file->getSize());
+                                   0, -file->getSize());
     file->getFileMDSvc()->notifyListeners(&e);
     mFiles.erase(name);
     mFiles.resize(0);
