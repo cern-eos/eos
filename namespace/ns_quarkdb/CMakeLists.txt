@@ -65,11 +65,13 @@ add_library(
   flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh
   views/HierarchicalView.cc          views/HierarchicalView.hh
                                      views/PathLookupState.hh
-  accounting/QuotaStats.cc           accounting/QuotaStats.hh
-  accounting/FileSystemView.cc       accounting/FileSystemView.hh
-  accounting/FileSystemHandler.cc    accounting/FileSystemHandler.hh
   accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
-  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh)
+  accounting/FileSystemHandler.cc    accounting/FileSystemHandler.hh
+  accounting/FileSystemView.cc       accounting/FileSystemView.hh
+  accounting/QuotaStats.cc           accounting/QuotaStats.hh
+                                     accounting/SetChangeList.hh
+  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
+)
 
 set_target_properties(
   EosNsQuarkdb-Objects
