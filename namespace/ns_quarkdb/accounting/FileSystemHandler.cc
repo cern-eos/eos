@@ -74,6 +74,7 @@ folly::Future<FileSystemHandler*> FileSystemHandler::ensureContentsLoadedAsync()
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
   if(mCacheStatus == CacheStatus::kNotLoaded) {
+    mChangeList.clear();
     mCacheStatus = CacheStatus::kInFlight;
     mSplitter = folly::FutureSplitter<FileSystemHandler*>(std::move(
       folly::via(pExecutor).then(&FileSystemHandler::triggerCacheLoad, this)
@@ -105,7 +106,7 @@ std::string FileSystemHandler::getRedisKey() const {
 // Trigger load. Must only be called once.
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
-  eos_assert(mCacheStatus == CacheStatus::kInFlight);
+  pFlusher->synchronize();
 
   IFsView::FileList temporaryContents;
   temporaryContents.set_deleted_key(0);
@@ -115,15 +116,16 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
     temporaryContents.insert(it->getElement());
   }
 
-  // Now merge under lock. This is because we may have extra entries inside
-  // mContents due to the inherent race condition of intervening writes to
-  // mContents during loading of temporaryContents, which may or may not have
-  // ended up in temporaryContents.
+  // Now merge under lock, and additionally apply all entries we might have
+  // missed between triggering the cache load, and receiving the contents.
 
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  for(auto it = temporaryContents.begin(); it != temporaryContents.end(); it++) {
-    mContents.insert(*it);
-  }
+  eos_assert(mCacheStatus == CacheStatus::kInFlight);
+
+  mContents = std::move(temporaryContents);
+
+  mChangeList.apply(mContents);
+  mChangeList.clear();
 
   mCacheStatus = CacheStatus::kLoaded;
   return this;
@@ -134,7 +136,21 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad() {
 //------------------------------------------------------------------------------
 void FileSystemHandler::insert(FileIdentifier identifier) {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mContents.insert(identifier.getUnderlyingUInt64());
+  if(mCacheStatus == CacheStatus::kNotLoaded) {
+    // discard, we're not storing the results in-memory at all
+  }
+  else if(mCacheStatus == CacheStatus::kInFlight) {
+    // record into our ChangeList to apply later, once we've received the
+    // contents. This write is racing against cache loading, and may or may
+    // not be reflected in the contents.
+    mChangeList.push_back(identifier.getUnderlyingUInt64());
+  }
+  else {
+    eos_assert(mCacheStatus == CacheStatus::kLoaded);
+    // Write directly into mContents
+    mContents.insert(identifier.getUnderlyingUInt64());
+  }
+
   lock.unlock();
 
   pFlusher->sadd(getRedisKey(), std::to_string(identifier.getUnderlyingUInt64()));
@@ -145,7 +161,21 @@ void FileSystemHandler::insert(FileIdentifier identifier) {
 //------------------------------------------------------------------------------
 void FileSystemHandler::erase(FileIdentifier identifier) {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  mContents.erase(identifier.getUnderlyingUInt64());
+  if(mCacheStatus == CacheStatus::kNotLoaded) {
+    // discard, we're not storing the results in-memory at all
+  }
+  else if(mCacheStatus == CacheStatus::kInFlight) {
+    // record into our ChangeList to apply later, once we've received the
+    // contents. This write is racing against cache loading, and may or may
+    // not be reflected in the contents.
+    mChangeList.erase(identifier.getUnderlyingUInt64());
+  }
+  else {
+    eos_assert(mCacheStatus == CacheStatus::kLoaded);
+    // Write directly into mContents
+    mContents.erase(identifier.getUnderlyingUInt64());
+  }
+
   lock.unlock();
 
   pFlusher->srem(getRedisKey(), std::to_string(identifier.getUnderlyingUInt64()));

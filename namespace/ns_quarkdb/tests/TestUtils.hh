@@ -47,6 +47,55 @@ class IFileMD;
 EOSNSTESTING_BEGIN
 
 //------------------------------------------------------------------------------
+// Verify contents of iterator (unordered)
+//------------------------------------------------------------------------------
+template<typename T, typename Iterator>
+bool verifyContents(Iterator it, std::set<T> contents) {
+  while(true) {
+    if(!it->valid() && !contents.empty()) {
+      std::cerr << "Iterator is no longer valid, but set contains more items!" << std::endl;
+      return false;
+    }
+
+    if(!it->valid() && contents.empty()) {
+      // All done, everything looks good.
+      return true;
+    }
+
+    if(contents.count(it->getElement()) != 1u) {
+      std::cerr << "Found item in iterator which is not in the set!" << std::endl;
+      return false;
+    }
+
+    contents.erase(it->getElement());
+    it->next();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Verify contents of iterator (unordered)
+//------------------------------------------------------------------------------
+template<typename T, typename Iterator>
+bool verifyContents(Iterator start, Iterator end, std::set<T> contents) {
+  for(auto it = start; it != end; it++) {
+    if(contents.count(*it) != 1u) {
+      std::cerr << "Found item in iterator which is not in the set!" << std::endl;
+      return false;
+    }
+
+    contents.erase(*it);
+  }
+
+  if(!contents.empty()) {
+    std::cerr << "Iterator is no longer valid, but set contains more items!" << std::endl;
+    return false;
+  }
+
+  // All done, everything looks good.
+  return true;
+}
+
+//------------------------------------------------------------------------------
 //! Class FlushAllOnDestruction
 //------------------------------------------------------------------------------
 class FlushAllOnConstruction
