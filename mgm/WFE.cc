@@ -1967,9 +1967,7 @@ WFE::Job::DoIt(bool issync)
             {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
-              if (!fmd->hasLocation(TAPE_FS_ID)) {
-                fmd->addLocation(TAPE_FS_ID);
-              }
+              fmd->addLocation(TAPE_FS_ID);
 
               // Reset the error message
               fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
