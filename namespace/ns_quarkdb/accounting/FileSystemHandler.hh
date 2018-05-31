@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
 #include "qclient/QSet.hh"
 #include <folly/futures/FutureSplitter.h>
 #include <folly/executors/Async.h>
@@ -250,13 +251,14 @@ private:
     kNoReplicaList
   };
 
-  Target target;                           ///< The filesystem list type this class is targetting.
-  IFileMD::location_t location;            ///< Filesystem ID, if available
-  folly::Executor* pExecutor;              ///< Folly executor
-  qclient::QClient* pQcl;                  ///< QClient object
-  MetadataFlusher* pFlusher;               ///< Metadata flusher object
-  std::shared_timed_mutex mMutex;          ///< Object mutex
-  IFsView::FileList mContents;             ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.
+  Target target;                            ///< The filesystem list type this class is targetting.
+  IFileMD::location_t location;             ///< Filesystem ID, if available
+  folly::Executor* pExecutor;               ///< Folly executor
+  qclient::QClient* pQcl;                   ///< QClient object
+  MetadataFlusher* pFlusher;                ///< Metadata flusher object
+  std::shared_timed_mutex mMutex;           ///< Object mutex
+  IFsView::FileList mContents;              ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.
+  SetChangeList<IFileMD::id_t> mChangeList; ///< ChangeList for what happens when cache loading is in progress.
 
   folly::FutureSplitter<FileSystemHandler*> mSplitter;
 };
