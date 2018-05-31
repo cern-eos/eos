@@ -1172,8 +1172,9 @@ Stat::Circulate()
   unsigned long long ns2 = 0;
   unsigned long long view1 = 0;
   unsigned long long view2 = 0;
-  eos::common::RWMutex::TimingStats qu12stmp, ns12stmp, view12stmp;
-  unsigned long long ns1tmp, ns2tmp, view1tmp, view2tmp, qu1tmp, qu2tmp;
+  eos::common::PthreadRWMutex::TimingStats qu12stmp, ns12stmp, view12stmp;
+  unsigned long long ns1tmp = 0ull, ns2tmp = 0ull, view1tmp = 0ull,
+                     view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
 #endif
 
   // empty the circular buffer and extract some Mq statistic values
@@ -1186,21 +1187,32 @@ Stat::Circulate()
     l2tmp = XrdMqSharedHash::sSetNLCounter.load();
     l3tmp = XrdMqSharedHash::sGetCounter.load();
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-    // fsview statistics extraction
-    view1tmp = FsView::gFsView.ViewMutex.GetReadLockCounter();
-    view2tmp = FsView::gFsView.ViewMutex.GetWriteLockCounter();
-    FsView::gFsView.ViewMutex.GetTimingStatistics(view12stmp);
-    FsView::gFsView.ViewMutex.ResetTimingStatistics();
-    // namespace lock statistics extraction
-    ns1tmp = gOFS->eosViewRWMutex.GetReadLockCounter();
-    ns2tmp = gOFS->eosViewRWMutex.GetWriteLockCounter();
-    gOFS->eosViewRWMutex.GetTimingStatistics(ns12stmp);
-    gOFS->eosViewRWMutex.ResetTimingStatistics();
-    // quota lock statistics extraction
-    qu1tmp = Quota::pMapMutex.GetReadLockCounter();
-    qu2tmp = Quota::pMapMutex.GetWriteLockCounter();
-    Quota::pMapMutex.GetTimingStatistics(qu12stmp);
-    Quota::pMapMutex.ResetTimingStatistics();
+    eos::common::PthreadRWMutex* fs_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>
+      (FsView::gFsView.ViewMutex.GetRawPtr());
+    eos::common::PthreadRWMutex* quota_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>(Quota::pMapMutex.GetRawPtr());
+    eos::common::PthreadRWMutex* ns_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>(gOFS->eosViewRWMutex.GetRawPtr());
+
+    if (fs_mtx && quota_mtx && ns_mtx) {
+      // fsview statistics extraction
+      view1tmp = fs_mtx->GetReadLockCounter();
+      view2tmp = fs_mtx->GetWriteLockCounter();
+      fs_mtx->GetTimingStatistics(view12stmp);
+      fs_mtx->ResetTimingStatistics();
+      // namespace lock statistics extraction
+      ns1tmp = ns_mtx->GetReadLockCounter();
+      ns2tmp = ns_mtx->GetWriteLockCounter();
+      ns_mtx->GetTimingStatistics(ns12stmp);
+      ns_mtx->ResetTimingStatistics();
+      // quota lock statistics extraction
+      qu1tmp = quota_mtx->GetReadLockCounter();
+      qu2tmp = quota_mtx->GetWriteLockCounter();
+      quota_mtx->GetTimingStatistics(qu12stmp);
+      quota_mtx->ResetTimingStatistics();
+    }
+
 #endif
     Add("HashSet", 0, 0, l1tmp - l1);
     Add("HashSetNoLock", 0, 0, l2tmp - l2);

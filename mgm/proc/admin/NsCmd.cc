@@ -83,32 +83,46 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
       no_option = false;
     }
 
+    eos::common::PthreadRWMutex* fs_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>
+      (FsView::gFsView.ViewMutex.GetRawPtr());
+    eos::common::PthreadRWMutex* quota_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>(Quota::pMapMutex.GetRawPtr());
+    eos::common::PthreadRWMutex* ns_mtx =
+      dynamic_cast<eos::common::PthreadRWMutex*>(gOFS->eosViewRWMutex.GetRawPtr());
+
+    if ((fs_mtx == nullptr) || (quota_mtx == nullptr) || (ns_mtx == nullptr)) {
+      reply.set_std_err("error: mutex type does not support such options");
+      reply.set_retc(EINVAL);
+      return;
+    }
+
     if (no_option) {
-      size_t cycleperiod = eos::common::RWMutex::GetLockUnlockDuration();
+      size_t cycleperiod = eos::common::PthreadRWMutex::GetLockUnlockDuration();
       std::string line = "# ------------------------------------------------------"
                          "------------------------------";
       oss << line << std::endl
           << "# Mutex Monitoring Management" << std::endl
           << line << std::endl
           << "order checking is : "
-          << (eos::common::RWMutex::GetOrderCheckingGlobal() ? "on " : "off")
+          << (eos::common::PthreadRWMutex::GetOrderCheckingGlobal() ? "on " : "off")
           << " (estimated order checking latency for 1 rule ";
-      size_t orderlatency = eos::common::RWMutex::GetOrderCheckingLatency();
+      size_t orderlatency = eos::common::PthreadRWMutex::GetOrderCheckingLatency();
       oss <<  orderlatency << " nsec / "
           << int(double(orderlatency) / cycleperiod * 100)
           << "% of the mutex lock/unlock cycle duration)" << std::endl
           << "deadlock checking is : "
-          << (eos::common::RWMutex::GetDeadlockCheckingGlobal() ? "on" : "off")
+          << (eos::common::PthreadRWMutex::GetDeadlockCheckingGlobal() ? "on" : "off")
           << std::endl
           << "timing         is : "
-          << (FsView::gFsView.ViewMutex.GetTiming() ? "on " : "off")
+          << (fs_mtx->GetTiming() ? "on " : "off")
           << " (estimated timing latency for 1 lock ";
-      size_t timinglatency = eos::common::RWMutex::GetTimingLatency();
+      size_t timinglatency = eos::common::PthreadRWMutex::GetTimingLatency();
       oss << timinglatency << " nsec / "
           << int(double(timinglatency) / cycleperiod * 100)
           << "% of the mutex lock/unlock cycle duration)" << std::endl
           << "sampling rate  is : ";
-      float sr = FsView::gFsView.ViewMutex.GetSampling();
+      float sr = fs_mtx->GetSampling();
       char ssr[32];
       sprintf(ssr, "%f", sr);
       oss << (sr < 0 ? "NA" : ssr);
@@ -124,35 +138,35 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
     }
 
     if (mutex.toggle_timing()) {
-      if (FsView::gFsView.ViewMutex.GetTiming()) {
-        FsView::gFsView.ViewMutex.SetTiming(false);
-        Quota::pMapMutex.SetTiming(false);
-        gOFS->eosViewRWMutex.SetTiming(false);
+      if (fs_mtx->GetTiming()) {
+        fs_mtx->SetTiming(false);
+        quota_mtx->SetTiming(false);
+        ns_mtx->SetTiming(false);
         oss << "mutex timing is off" << std::endl;
       } else {
-        FsView::gFsView.ViewMutex.SetTiming(true);
-        Quota::pMapMutex.SetTiming(true);
-        gOFS->eosViewRWMutex.SetTiming(true);
+        fs_mtx->SetTiming(true);
+        quota_mtx->SetTiming(true);
+        ns_mtx->SetTiming(true);
         oss << "mutex timing is on" << std::endl;
       }
     }
 
     if (mutex.toggle_order()) {
-      if (eos::common::RWMutex::GetOrderCheckingGlobal()) {
-        eos::common::RWMutex::SetOrderCheckingGlobal(false);
+      if (eos::common::PthreadRWMutex::GetOrderCheckingGlobal()) {
+        eos::common::PthreadRWMutex::SetOrderCheckingGlobal(false);
         oss << "mutex order checking is off" << std::endl;
       } else {
-        eos::common::RWMutex::SetOrderCheckingGlobal(true);
+        eos::common::PthreadRWMutex::SetOrderCheckingGlobal(true);
         oss << "mutex order checking is on" << std::endl;
       }
     }
 
     if (mutex.toggle_deadlock()) {
-      if (eos::common::RWMutex::GetDeadlockCheckingGlobal()) {
-        eos::common::RWMutex::SetDeadlockCheckingGlobal(false);
+      if (eos::common::PthreadRWMutex::GetDeadlockCheckingGlobal()) {
+        eos::common::PthreadRWMutex::SetDeadlockCheckingGlobal(false);
         oss << "mutex deadlock checking is off" << std::endl;
       } else {
-        eos::common::RWMutex::SetDeadlockCheckingGlobal(true);
+        eos::common::PthreadRWMutex::SetDeadlockCheckingGlobal(true);
         oss << "mutex deadlock checking is on" << std::endl;
       }
     }
@@ -169,9 +183,9 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
         rate = 1.0;
       }
 
-      FsView::gFsView.ViewMutex.SetSampling(true, rate);
-      Quota::pMapMutex.SetSampling(true, rate);
-      gOFS->eosViewRWMutex.SetSampling(true, rate);
+      fs_mtx->SetSampling(true, rate);
+      quota_mtx->SetSampling(true, rate);
+      ns_mtx->SetSampling(true, rate);
     }
 
     reply.set_std_out(oss.str());
@@ -350,15 +364,19 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      current container id             " << cid_now
         << std::endl
         << line << std::endl;
-
     CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
-    CacheStatistics containerCacheStats = gOFS->eosDirectoryService->getCacheStatistics();
+    CacheStatistics containerCacheStats =
+      gOFS->eosDirectoryService->getCacheStatistics();
 
-    if(fileCacheStats.enabled || containerCacheStats.enabled) {
-      oss << "ALL      File cache max size              " << fileCacheStats.maxSize << std::endl
-          << "ALL      File cache occupancy             " << fileCacheStats.occupancy << std::endl
-          << "ALL      Container cache max size         " << containerCacheStats.maxSize << std::endl
-          << "ALL      Container cache occupancy        " << containerCacheStats.occupancy << std::endl
+    if (fileCacheStats.enabled || containerCacheStats.enabled) {
+      oss << "ALL      File cache max size              " << fileCacheStats.maxSize <<
+          std::endl
+          << "ALL      File cache occupancy             " << fileCacheStats.occupancy <<
+          std::endl
+          << "ALL      Container cache max size         " << containerCacheStats.maxSize
+          << std::endl
+          << "ALL      Container cache occupancy        " << containerCacheStats.occupancy
+          << std::endl
           << line << std::endl;
     }
 
@@ -648,7 +666,7 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
       }
 
       for (auto subcont_it = ContainerMapIterator(tmp_cont); subcont_it.valid();
-            subcont_it.next()) {
+           subcont_it.next()) {
         it_next_lvl->push_back(subcont_it.value());
       }
     }

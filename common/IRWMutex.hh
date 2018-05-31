@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
-//! @author Georgios Bitzes <georgios.bitzes@cern.ch>
-//! @brief Small in-memory changelist for applying onto STL sets
+// File: IRWMutex.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,91 +21,86 @@
  ************************************************************************/
 
 #pragma once
+#include "common/Namespace.hh"
 
-#include "namespace/Namespace.hh"
-#include <list>
-#include <stdlib.h>
+EOSCOMMONNAMESPACE_BEGIN
 
-EOSNSNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-//! A ChangeList to apply onto an STL set
-//------------------------------------------------------------------------------
-template<typename T>
-class SetChangeList
+class IRWMutex
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
-  //----------------------------------------------------------------------------
-  SetChangeList() {}
+  // ---------------------------------------------------------------------------
+  IRWMutex() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SetChangeList() {}
+  virtual ~IRWMutex() = default;
 
   //----------------------------------------------------------------------------
-  //! Insert an item into the list.
+  //! Set the write lock to blocking or not blocking
+  //!
+  //! @param block blocking mode
   //----------------------------------------------------------------------------
-  void push_back(const T& element)
-  {
-    mItems.emplace_back(OperationType::kInsertion, element);
-  }
+  virtual void SetBlocking(bool block) = 0;
 
   //----------------------------------------------------------------------------
-  //! Insert a tombstone into the list.
+  //! Set the time to wait for the acquisition of the write mutex before
+  //! releasing quicky and retrying.
+  //!
+  //! @param nsec nanoseconds
   //----------------------------------------------------------------------------
-  void erase(const T& element)
-  {
-    mItems.emplace_back(OperationType::kDeletion, element);
-  }
+  virtual void SetWLockTime(const size_t& nsec) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get size.
+  //! Lock for read
   //----------------------------------------------------------------------------
-  size_t size() const
-  {
-    return mItems.size();
-  }
+  virtual void LockRead() = 0;
 
   //----------------------------------------------------------------------------
-  //! Clear.
+  //! Lock for read allowing to be canceled waiting for the lock
   //----------------------------------------------------------------------------
-  void clear()
-  {
-    mItems.clear();
-  }
+  virtual void LockReadCancel() = 0;
 
   //----------------------------------------------------------------------------
-  //! Apply change list to given container.
+  //! Unlock a read lock
   //----------------------------------------------------------------------------
-  template<typename Container>
-  void apply(Container& container) const
-  {
-    for (auto it = mItems.begin(); it != mItems.end(); it++) {
-      if (it->operationType == OperationType::kInsertion) {
-        container.insert(it->item);
-      } else if (it->operationType == OperationType::kDeletion) {
-        container.erase(it->item);
-      }
-    }
-  }
+  virtual void UnLockRead() = 0;
 
-private:
-  enum class OperationType {
-    kInsertion,
-    kDeletion
-  };
+  //----------------------------------------------------------------------------
+  //! Lock for write
+  //----------------------------------------------------------------------------
+  virtual void LockWrite() = 0;
 
-  struct Item {
-    Item(OperationType op, const T& it) : operationType(op), item(it) {}
-    OperationType operationType;
-    T item;
-  };
+  //----------------------------------------------------------------------------
+  //! Unlock a write lock
+  //----------------------------------------------------------------------------
+  virtual void UnLockWrite() = 0;
 
-  std::list<Item> mItems;
+  //----------------------------------------------------------------------------
+  //! Try to read lock the mutex within the timout value
+  //!
+  //! @param timeout_ms time duration in milliseconds we can wait for the lock
+  //!
+  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
+  //----------------------------------------------------------------------------
+  virtual int TimedRdLock(uint64_t timeout_ms) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Lock for write but give up after wlocktime
+  //----------------------------------------------------------------------------
+  virtual int TimeoutLockWrite() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get Readlock Counter
+  //----------------------------------------------------------------------------
+  virtual size_t GetReadLockCounter() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get Writelock Counter
+  //----------------------------------------------------------------------------
+  virtual size_t GetWriteLockCounter() = 0;
 };
 
-
-EOSNSNAMESPACE_END
+EOSCOMMONNAMESPACE_END

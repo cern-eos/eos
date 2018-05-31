@@ -73,6 +73,7 @@ set(EOSCOMMON_SRCS
   StringConversion.cc
   CommentLog.cc
   RWMutex.cc
+  PthreadRWMutex.cc
   XrdErrorMap.cc
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
@@ -212,7 +213,7 @@ endif()
 #-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc)
+  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc)
   add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
