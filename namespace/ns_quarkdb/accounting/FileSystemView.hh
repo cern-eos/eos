@@ -93,71 +93,6 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Class QdbFileIterator that can iterate through a list of files from the
-//! FileSystem class. Used to iterate through the files / unlinked files on a
-//! filesystem.
-//------------------------------------------------------------------------------
-class QdbFileIterator:
-  public ICollectionIterator<IFileMD::id_t>
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  QdbFileIterator(qclient::QClient& qcl, const std::string& key) :
-    mSet(qcl, key), mCursor("0")
-  {
-    mReply = mSet.sscan(mCursor, mCount);
-    mCursor = mReply.first;
-    mIt = mReply.second.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~QdbFileIterator() = default;
-
-  //----------------------------------------------------------------------------
-  //! Check if iterator is valid
-  //----------------------------------------------------------------------------
-  bool valid() override
-  {
-    return (mIt != mReply.second.end());
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get current file id
-  //----------------------------------------------------------------------------
-  IFileMD::id_t getElement() override
-  {
-    return std::stoull(*mIt);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Retrieve next file id
-  //----------------------------------------------------------------------------
-  void next() override
-  {
-    if (valid()) {
-      ++mIt;
-
-      if ((mIt == mReply.second.end()) && (mCursor != "0")) {
-        mReply = mSet.sscan(mCursor, mCount);
-        mCursor = mReply.first;
-        mIt = mReply.second.begin();
-      }
-    }
-  }
-
-private:
-  qclient::QSet mSet; ///< Set to iterate through
-  std::string mCursor; ///< Cursor used while scanning the set
-  int64_t mCount = 2000000; ///< Max number of elements returned at once
-  std::pair<std::string, std::vector<std::string>> mReply;
-  std::vector<std::string>::iterator mIt; ///< Iterator to element to return
-};
-
-//------------------------------------------------------------------------------
 // File System iterator implementation of a in-memory namespace
 // Trivial implementation, using the same logic to iterate over filesystems
 // as we did with "getNumFileSystems" before.
@@ -402,26 +337,6 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
       getQdbFileSystemIterator(const std::string& pattern);
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to list of unlinked files on a particular file system
-  //!
-  //! @param location file system id
-  //!
-  //! @return shared ptr to collection iterator
-  //----------------------------------------------------------------------------
-  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-      getQdbUnlinkedFileList(IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to list of files on a particular file system
-  //!
-  //! @param location file system id
-  //!
-  //! @return shared ptr to collection iterator
-  //----------------------------------------------------------------------------
-  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-      getQdbFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Initialize FileSystemHandler for given filesystem ID, if not already
