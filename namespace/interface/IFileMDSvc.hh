@@ -61,19 +61,16 @@ public:
   struct Event {
     Event(IFileMD* _file, Action _action,
           IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0,
           int64_t _changed_size = 0):
       file(_file),
       action(_action),
       sizeChange(_changed_size),
-      location(_location),
-      oldLocation(_oldLocation) {}
+      location(_location) {}
 
     IFileMD*             file;
     Action               action;
     int64_t              sizeChange;
     IFileMD::location_t  location;
-    IFileMD::location_t  oldLocation;
 
   };
 

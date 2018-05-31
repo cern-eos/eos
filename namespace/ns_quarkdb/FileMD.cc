@@ -310,7 +310,7 @@ FileMD::setSize(uint64_t size)
   int64_t sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
   mFile.set_size(size & 0x0000ffffffffffff);
   lock.unlock();
-  IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0, 0,
+  IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
                                  sizeChange);
   pFileMDSvc->notifyListeners(&e);
 }

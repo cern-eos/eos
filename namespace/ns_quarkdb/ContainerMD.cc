@@ -273,7 +273,7 @@ ContainerMD::addFile(IFileMD* file)
 
   if (file->getSize() != 0u) {
     IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange, 0,
-                                   0, file->getSize());
+                                   file->getSize());
     pFileSvc->notifyListeners(&e);
   }
 }
@@ -300,8 +300,7 @@ ContainerMD::removeFile(const std::string& name)
       // container id, therefore we hijack the "location" member of the Event
       // class to pass in the container id.
       IFileMDChangeListener::Event
-      e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
-        0, -file->getSize());
+      e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(), -file->getSize());
       pFileSvc->notifyListeners(&e);
     } catch (MDException& e) {
       // File already removed
