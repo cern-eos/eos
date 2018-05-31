@@ -268,11 +268,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Replace location by index
-  //----------------------------------------------------------------------------
-  void replaceLocation(unsigned int index, location_t newlocation) override;
-
-  //----------------------------------------------------------------------------
   //! Remove location that was previously unlinked
   //----------------------------------------------------------------------------
   void removeLocation(location_t location) override;

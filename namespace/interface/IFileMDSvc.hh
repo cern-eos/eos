@@ -52,7 +52,6 @@ public:
     LocationAdded,
     LocationUnlinked,
     LocationRemoved,
-    LocationReplaced,
     SizeChange
   };
 

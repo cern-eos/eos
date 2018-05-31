@@ -132,34 +132,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     break;
   }
 
-  // Replace location
-  case IFileMDChangeListener::LocationReplaced: {
-    auto it = pFiles.find(e->oldLocation);
-
-    if (it != pFiles.end()) {
-      it->second.erase(file->getId());
-    }
-
-    it = pFiles.find(e->location);
-
-    if (it == pFiles.end()) {
-      auto pair = pFiles.emplace(e->location, IFsView::FileList());
-      auto& file_set = pair.first->second;
-      file_set.set_deleted_key(0);
-      file_set.set_empty_key(0xffffffffffffffffll);
-      file_set.insert(file->getId());
-    } else {
-      it->second.insert(file->getId());
-    }
-
-    key = eos::RequestBuilder::keyFilesystemFiles(e->oldLocation);
-    val = std::to_string(file->getId());
-    pFlusher->srem(key, val);
-    key = eos::RequestBuilder::keyFilesystemFiles(e->location);
-    pFlusher->sadd(key, val);
-    break;
-  }
-
   // Remove location
   case IFileMDChangeListener::LocationRemoved: {
     auto it = pUnlinkedFiles.find(e->location);

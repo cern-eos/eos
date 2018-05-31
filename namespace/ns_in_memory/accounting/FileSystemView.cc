@@ -90,20 +90,6 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
     break;
 
   //------------------------------------------------------------------------
-  // Replace location
-  //------------------------------------------------------------------------
-  case IFileMDChangeListener::LocationReplaced:
-    if (e->oldLocation >= pFiles.size()) {
-      return;  // incostency, we should probably crash here...
-    }
-
-    resize(pFiles, e->location + 1);
-    resize(pUnlinkedFiles, e->location + 1);
-    pFiles[e->oldLocation].erase(e->file->getId());
-    pFiles[e->location].insert(e->file->getId());
-    break;
-
-  //------------------------------------------------------------------------
   // Remove location
   //------------------------------------------------------------------------
   case IFileMDChangeListener::LocationRemoved:
