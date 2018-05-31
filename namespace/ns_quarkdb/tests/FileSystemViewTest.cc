@@ -20,6 +20,7 @@
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief FileSystemView test
 //------------------------------------------------------------------------------
+#include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
@@ -473,6 +474,29 @@ bool verifyContents(Iterator it, std::set<T> contents) {
 }
 
 //------------------------------------------------------------------------------
+// Verify contents of iterator (unordered)
+//------------------------------------------------------------------------------
+template<typename T, typename Iterator>
+bool verifyContents(Iterator start, Iterator end, std::set<T> contents) {
+  for(auto it = start; it != end; it++) {
+    if(contents.count(*it) != 1u) {
+      std::cerr << "Found item in iterator which is not in the set!" << std::endl;
+      return false;
+    }
+
+    contents.erase(*it);
+  }
+
+  if(!contents.empty()) {
+    std::cerr << "Iterator is no longer valid, but set contains more items!" << std::endl;
+    return false;
+  }
+
+  // All done, everything looks good.
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Tests targetting FileSystemHandler
 //------------------------------------------------------------------------------
 TEST_F(FileSystemViewF, FileSystemHandler) {
@@ -576,4 +600,55 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
     ASSERT_TRUE(verifyContents(&it, std::set<std::string> { } ));
   }
 
+}
+
+TEST(SetChangeList, BasicSanity) {
+  eos::IFsView::FileList contents;
+  contents.set_deleted_key(0);
+  contents.set_empty_key(0xffffffffffffffffll);
+
+  eos::SetChangeList<eos::IFileMD::id_t> changeList;
+  contents.insert(5);
+  contents.insert(9);
+
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 5, 9 } ));
+  changeList.push_back(10);
+  changeList.erase(5);
+
+  changeList.apply(contents);
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10 } ));
+
+  changeList.clear();
+  changeList.push_back(20);
+  changeList.clear();
+  changeList.apply(contents);
+
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10 } ));
+
+  changeList.push_back(99);
+  changeList.push_back(99);
+  changeList.push_back(12);
+  changeList.push_back(13);
+  changeList.erase(12);
+  changeList.apply(contents);
+
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10, 13, 99 } ));
+
+  changeList.clear();
+  changeList.push_back(15);
+  changeList.push_back(16);
+  changeList.erase(10);
+  changeList.apply(contents);
+
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 } ));
+
+  changeList.clear();
+  changeList.push_back(17);
+  changeList.push_back(17);
+  changeList.erase(17);
+  changeList.erase(17);
+  changeList.apply(contents);
+  ASSERT_EQ(changeList.size(), 4u);
+
+  ASSERT_TRUE(verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 } ));
 }
