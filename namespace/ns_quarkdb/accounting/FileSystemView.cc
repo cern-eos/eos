@@ -425,35 +425,12 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 }
 
 //------------------------------------------------------------------------------
-// Get iterator to list of files on a particular file system
-//------------------------------------------------------------------------------
-std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getQdbFileList(IFileMD::location_t location)
-{
-  std::string key = eos::RequestBuilder::keyFilesystemFiles(location);
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new QdbFileIterator(*pQcl, key));
-}
-
-//------------------------------------------------------------------------------
-// Get iterator to list of unlinked files on a particular file system
-//------------------------------------------------------------------------------
-std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getQdbUnlinkedFileList(IFileMD::location_t location)
-{
-  std::string key = eos::RequestBuilder::keyFilesystemUnlinked(location);
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new QdbFileIterator(*pQcl, key));
-}
-
-//------------------------------------------------------------------------------
 // Get iterator to list of files without replicas
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getStreamingNoReplicasFileList()
 {
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new QdbFileIterator(*pQcl, fsview::sNoReplicaPrefix));
+  return mNoReplicas->getStreamingFileList();
 }
 
 //------------------------------------------------------------------------------

@@ -328,7 +328,7 @@ TEST_F(FileSystemViewF, FileIterator)
   ASSERT_TRUE(ah.Wait());
   std::unordered_set<eos::IFileMD::id_t> result_set;
   auto iter = std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>>
-              (new eos::QdbFileIterator(qcl(), key));
+              (new eos::StreamingFileListIterator(qcl(), key));
 
   for (; (iter && iter->valid()); iter->next()) {
     result_set.insert(iter->getElement());
