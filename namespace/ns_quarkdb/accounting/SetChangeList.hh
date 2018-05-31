@@ -23,8 +23,9 @@
 
 #pragma once
 
-#include <list>
 #include "namespace/Namespace.hh"
+#include <list>
+#include <stdlib.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -32,7 +33,8 @@ EOSNSNAMESPACE_BEGIN
 //! A ChangeList to apply onto an STL set
 //------------------------------------------------------------------------------
 template<typename T>
-class SetChangeList {
+class SetChangeList
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -47,28 +49,32 @@ public:
   //----------------------------------------------------------------------------
   //! Insert an item into the list.
   //----------------------------------------------------------------------------
-  void push_back(const T& element) {
+  void push_back(const T& element)
+  {
     mItems.emplace_back(OperationType::kInsertion, element);
   }
 
   //----------------------------------------------------------------------------
   //! Insert a tombstone into the list.
   //----------------------------------------------------------------------------
-  void erase(const T& element) {
+  void erase(const T& element)
+  {
     mItems.emplace_back(OperationType::kDeletion, element);
   }
 
   //----------------------------------------------------------------------------
   //! Get size.
   //----------------------------------------------------------------------------
-  size_t size() const {
+  size_t size() const
+  {
     return mItems.size();
   }
 
   //----------------------------------------------------------------------------
   //! Clear.
   //----------------------------------------------------------------------------
-  void clear() {
+  void clear()
+  {
     mItems.clear();
   }
 
@@ -76,12 +82,12 @@ public:
   //! Apply change list to given container.
   //----------------------------------------------------------------------------
   template<typename Container>
-  void apply(Container &container) const {
-    for(auto it = mItems.begin(); it != mItems.end(); it++) {
-      if(it->operationType == OperationType::kInsertion) {
+  void apply(Container& container) const
+  {
+    for (auto it = mItems.begin(); it != mItems.end(); it++) {
+      if (it->operationType == OperationType::kInsertion) {
         container.insert(it->item);
-      }
-      else if(it->operationType == OperationType::kDeletion) {
+      } else if (it->operationType == OperationType::kDeletion) {
         container.erase(it->item);
       }
     }

@@ -23,13 +23,14 @@
 
 #include "gtest/gtest.h"
 #include "common/RWMutex.hh"
+#include "common/PthreadRWMutex.hh"
 
 //------------------------------------------------------------------------------
 // Double write lock
 //------------------------------------------------------------------------------
 TEST(RWMutex, WriteDeadlockTest)
 {
-  eos::common::RWMutex mutex;
+  eos::common::PthreadRWMutex mutex;
   mutex.SetBlocking(true);
   mutex.SetDeadlockCheck(true);
   mutex.LockWrite();
@@ -42,7 +43,7 @@ TEST(RWMutex, WriteDeadlockTest)
 //------------------------------------------------------------------------------
 TEST(RWMutex, RdWrRdDeadlockTest)
 {
-  eos::common::RWMutex mutex(false);
+  eos::common::PthreadRWMutex mutex(false);
   mutex.SetBlocking(true);
   mutex.SetDeadlockCheck(true);
   mutex.LockRead();
@@ -63,7 +64,7 @@ TEST(RWMutex, RdWrRdDeadlockTest)
 //------------------------------------------------------------------------------
 TEST(RWMutex, RdWrRdNoDeadlockTest)
 {
-  eos::common::RWMutex mutex(true);
+  eos::common::PthreadRWMutex mutex(true);
   mutex.SetBlocking(true);
   mutex.SetDeadlockCheck(true);
   mutex.LockRead();
@@ -85,7 +86,7 @@ TEST(RWMutex, RdWrRdNoDeadlockTest)
 //------------------------------------------------------------------------------
 TEST(RWMutex, MultiRdLockTest)
 {
-  eos::common::RWMutex mutex(true);
+  eos::common::PthreadRWMutex mutex(true);
   mutex.SetBlocking(true);
   mutex.SetDeadlockCheck(true);
   mutex.LockRead();
@@ -107,7 +108,7 @@ TEST(RWMutex, MultiRdLockTest)
 //------------------------------------------------------------------------------
 TEST(RWMutex, MultiWrLockTest)
 {
-  eos::common::RWMutex mutex(true);
+  eos::common::PthreadRWMutex mutex(true);
   mutex.SetBlocking(true);
   mutex.SetDeadlockCheck(true);
   mutex.LockWrite();

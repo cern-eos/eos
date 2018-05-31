@@ -155,6 +155,7 @@ PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
   retc = pthread_rwlock_wrlock(&mMutex);
 #else
   retc = pthread_rwlock_timedwrlock(&mMutex, &timeout);
+
 #endif
   return retc;
 }

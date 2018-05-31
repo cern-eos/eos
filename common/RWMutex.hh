@@ -4,7 +4,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -89,12 +89,28 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutex(bool preferreader = false);
+  RWMutex(bool prefer_readers = false)
+  {
+    mMutexImpl = static_cast<IRWMutex*>(new PthreadRWMutex(prefer_readers));
+
+    if (getenv("EOS_PTHREAD_RW_MUTEX")) {
+    } else {
+      // todo
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~RWMutex();
+  ~RWMutex() {}
+
+  //----------------------------------------------------------------------------
+  //! Get raw ptr
+  //----------------------------------------------------------------------------
+  IRWMutex* GetRawPtr()
+  {
+    return mMutexImpl;
+  }
 
   //----------------------------------------------------------------------------
   //! Move constructor
@@ -121,9 +137,9 @@ public:
   //!
   //! @param block blocking mode
   //----------------------------------------------------------------------------
-  inline void SetBlocking(bool block)
+  void SetBlocking(bool block)
   {
-    mBlocking = block;
+    mMutexImpl->SetBlocking(block);
   }
 
   //----------------------------------------------------------------------------
@@ -205,259 +221,84 @@ public:
   //----------------------------------------------------------------------------
   inline static void SetTimingGlobal(bool on)
   {
-    sEnableGlobalTiming = on;
+    mMutexImpl->SetWLockTime(nsec);
   }
 
   //----------------------------------------------------------------------------
-  //! Get the timing status  at the class level
+  //! Lock for read
   //----------------------------------------------------------------------------
-  inline static bool GetTimingGlobal()
+  void LockRead()
   {
-    return sEnableGlobalTiming;
+    mMutexImpl->LockRead();
   }
 
   //----------------------------------------------------------------------------
-  //! Turn on/off order checking at the class level
+  //! Lock for read allowing to be canceled waiting for the lock
   //----------------------------------------------------------------------------
-  inline static void SetOrderCheckingGlobal(bool on)
+  void LockReadCancel()
   {
-    sEnableGlobalOrderCheck = on;
+    mMutexImpl->LockReadCancel();
   }
 
   //----------------------------------------------------------------------------
-  //! Get the order checking status at the class level
+  //! Unlock a read lock
   //----------------------------------------------------------------------------
-  inline static bool GetOrderCheckingGlobal()
+  void UnLockRead()
   {
-    return sEnableGlobalOrderCheck;
+    mMutexImpl->UnLockRead();
   }
 
   //----------------------------------------------------------------------------
-  //! Turn on/off deadlock checking
+  //! Lock for write
   //----------------------------------------------------------------------------
-  inline static void SetDeadlockCheckingGlobal(bool on)
+  void LockWrite()
   {
-    sEnableGlobalDeadlockCheck = on;
+    mMutexImpl->LockWrite();
   }
 
   //----------------------------------------------------------------------------
-  //! Get the global deadlock check status
+  //! Unlock a write lock
   //----------------------------------------------------------------------------
-  inline static bool GetDeadlockCheckingGlobal()
+  void UnLockWrite()
   {
-    return sEnableGlobalDeadlockCheck;
+    mMutexImpl->UnLockWrite();
   }
 
   //----------------------------------------------------------------------------
-  //! Get the timing statistics at the class level
-  //----------------------------------------------------------------------------
-  static void GetTimingStatisticsGlobal(TimingStats& stats,
-                                        bool compensate = true);
-
-  //----------------------------------------------------------------------------
-  //! Compute the SamplingRate corresponding to a given CPU overhead
+  //! Try to read lock the mutex within the timout value
   //!
-  //! @param overhead the ratio between the timing cost and the mutexing cost
+  //! @param timeout_ms time duration in milliseconds we can wait for the lock
   //!
-  //! @return sampling rate (the ratio of mutex to time so that the argument
-  //!         value is not violated)
+  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
   //----------------------------------------------------------------------------
-  static float GetSamplingRateFromCPUOverhead(const double& overhead);
-
-  //----------------------------------------------------------------------------
-  //! Compute the cost in time of taking timings so that it can be compensated
-  //! in the statistics
-  //!
-  //! @param loopsize size of the loop to estimate the compensation
-  //!
-  //! @return the compensation in nanoseconds
-  //----------------------------------------------------------------------------
-  static size_t EstimateTimingCompensation(size_t loopsize = 1e6);
-
-  //----------------------------------------------------------------------------
-  //! Compute the speed for lock/unlock cycle
-  //!
-  //! @param loopsize size of the loop to estimate the compensation
-  //!
-  //! @return duration of the cycle in nanoseconds
-  //----------------------------------------------------------------------------
-  static size_t EstimateLockUnlockDuration(size_t loopsize = 1e6);
-
-  //----------------------------------------------------------------------------
-  //! Compute the latency introduced by taking timings
-  //!
-  //! @param loopsize size of the loop to estimate the compensation
-  //! @param globaltiming enable global timing in the estimation
-  //!
-  //! @return latency in nanoseconds
-  //----------------------------------------------------------------------------
-  static size_t EstimateTimingAddedLatency(size_t loopsize = 1e6,
-      bool globaltiming = false);
-
-  //----------------------------------------------------------------------------
-  //! Compute the latency introduced by checking the mutexes locking orders
-  //! @param mutexes the number of nested mutexes in the loop
-  //! @param loopsize the size of the loop to estimate the compensation
-  //!
-  //! @return the latency in nanoseconds
-  //----------------------------------------------------------------------------
-  static size_t EstimateOrderCheckingAddedLatency(size_t nmutexes = 3,
-      size_t loopsize = 1e6);
-
-  //----------------------------------------------------------------------------
-  //! Remove an order checking rule
-  //! @param rulename name of the rule
-  //!
-  //! @return the number of rules removed (0 or 1)
-  //----------------------------------------------------------------------------
-  static int RemoveOrderRule(const std::string& rulename);
-
-  //----------------------------------------------------------------------------
-  //! Estimate latencies and compensation
-  //!
-  //! @param loopsize number of lock/unlock operations
-  //----------------------------------------------------------------------------
-  static void EstimateLatenciesAndCompensation(size_t loopsize = 1e6);
-
-  inline static size_t GetTimingCompensation()
+  int TimedRdLock(uint64_t timeout_ms)
   {
-    return timingCompensation; // in nsec
+    return mMutexImpl->TimedRdLock(timeout_ms);
   }
 
-  inline static size_t GetOrderCheckingLatency()
+  //----------------------------------------------------------------------------
+  //! Lock for write but give up after wlocktime
+  //----------------------------------------------------------------------------
+  int TimeoutLockWrite()
   {
-    return orderCheckingLatency; // in nsec
+    return mMutexImpl->TimeoutLockWrite();
   }
 
-  inline static size_t GetTimingLatency()
+  //----------------------------------------------------------------------------
+  //! Get read lock counter
+  //----------------------------------------------------------------------------
+  size_t GetReadLockCounter()
   {
-    return timingLatency; // in nsec
+    return mMutexImpl->GetReadLockCounter();
   }
 
-  static size_t GetLockUnlockDuration()
+  //----------------------------------------------------------------------------
+  //! Get write lock counter
+  //----------------------------------------------------------------------------
+  size_t GetWriteLockCounter()
   {
-    return lockUnlockDuration; // in nsec
+    return mMutexImpl->GetWriteLockCounter();
   }
-
-  //----------------------------------------------------------------------------
-  //! Add or overwrite an order checking rule
-  //! @param rulename  name of the rule
-  //! @param order vector contaning the adress of the RWMutex instances in the
-  //! locking order
-  //!
-  //! @return 0 if successful, otherwise -1
-  //----------------------------------------------------------------------------
-  static int AddOrderRule(const std::string& rulename,
-                          const std::vector<RWMutex*>& order);
-
-  //----------------------------------------------------------------------------
-  //! Reset order checking rules
-  //----------------------------------------------------------------------------
-  static void ResetOrderRule();
-
-  //----------------------------------------------------------------------------
-  //! Reset statistics at the instance level
-  //----------------------------------------------------------------------------
-  void ResetTimingStatistics();
-
-  //----------------------------------------------------------------------------
-  //! Turn on/off timings at the instance level
-  //----------------------------------------------------------------------------
-  inline void SetTiming(bool on)
-  {
-    mEnableTiming = on;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the timing status at the class level
-  //----------------------------------------------------------------------------
-  inline bool GetTiming()
-  {
-    return mEnableTiming;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the debug name
-  //----------------------------------------------------------------------------
-  inline void SetDebugName(const std::string& name)
-  {
-    mDebugName = name;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Enable sampling of timings
-  //! @param $first turns on or off the sampling
-  //! @param $second sampling between 0 and 1 (if <0, use the precomputed level
-  //! for the class, see GetSamplingRateFromCPUOverhead)
-  //----------------------------------------------------------------------------
-  void SetSampling(bool on, float rate = -1.0);
-
-  //----------------------------------------------------------------------------
-  //! Return the timing sampling rate/status
-  // @return the sample rate if the sampling is turned on, -1.0 if the sampling is off
-  //----------------------------------------------------------------------------
-  float GetSampling();
-
-  //----------------------------------------------------------------------------
-  //! Get the timing statistics at the instance level
-  //----------------------------------------------------------------------------
-  void GetTimingStatistics(TimingStats& stats, bool compensate = true);
-
-  //----------------------------------------------------------------------------
-  //! Check the orders defined by the rules and update
-  //----------------------------------------------------------------------------
-  void OrderViolationMessage(unsigned char rule, const std::string& message = "");
-
-  //----------------------------------------------------------------------------
-  //! Check the orders defined by the rules and update for a lock
-  //----------------------------------------------------------------------------
-  void CheckAndLockOrder();
-
-  //----------------------------------------------------------------------------
-  //!  Check the orders defined by the rules and update for an unlock
-  //----------------------------------------------------------------------------
-  void CheckAndUnlockOrder();
-
-  //----------------------------------------------------------------------------
-  //! Reset the order checking mechanism for the current thread
-  //----------------------------------------------------------------------------
-  void ResetCheckOrder();
-
-  //----------------------------------------------------------------------------
-  //! Enable/disable deadlock check
-  //!
-  //! @param on if true then enable, otherwise disable
-  //----------------------------------------------------------------------------
-  inline void SetDeadlockCheck(bool status)
-  {
-    mEnableDeadlockCheck = status;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check for deadlocks
-  //!
-  //! @param rd_lock true if this is about to take a read lock, otherwise false
-  //! @note it throws an exception if it causes a deadlock
-  //----------------------------------------------------------------------------
-  void EnterCheckDeadlock(bool rd_lock);
-
-  //----------------------------------------------------------------------------
-  //! Exit check for deadlocks
-  //!
-  //! @param rd_lock true if this is about to take a read lock, otherwise false
-  //----------------------------------------------------------------------------
-  void ExitCheckDeadlock(bool rd_lock);
-
-  //----------------------------------------------------------------------------
-  //! Clear the data structures used for detecting deadlocks
-  //----------------------------------------------------------------------------
-  void DropDeadlockCheck();
-
-#ifdef __APPLE__
-  static int round(double number);
-#endif
-
-#endif
 
 private:
   bool mBlocking;
