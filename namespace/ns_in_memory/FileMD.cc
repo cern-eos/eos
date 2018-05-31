@@ -107,19 +107,6 @@ void FileMD::addLocation(location_t location)
 }
 
 //------------------------------------------------------------------------------
-// Replace location by index
-//------------------------------------------------------------------------------
-void FileMD::replaceLocation(unsigned int index, location_t newlocation)
-{
-  location_t oldLocation = pLocation[index];
-  pLocation[index] = newlocation;
-  IFileMDChangeListener::Event e(this,
-                                 IFileMDChangeListener::LocationReplaced,
-                                 newlocation, oldLocation);
-  pFileMDSvc->notifyListeners(&e);
-}
-
-//------------------------------------------------------------------------------
 // Remove location
 //------------------------------------------------------------------------------
 void FileMD::removeLocation(location_t location)

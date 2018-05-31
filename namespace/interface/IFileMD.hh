@@ -184,11 +184,6 @@ public:
   virtual location_t getLocation(unsigned int index) = 0;
 
   //----------------------------------------------------------------------------
-  //! Replace location by index
-  //----------------------------------------------------------------------------
-  virtual void replaceLocation(unsigned int index, location_t newlocation) = 0;
-
-  //----------------------------------------------------------------------------
   //! Remove location that was previously unlinked
   //----------------------------------------------------------------------------
   virtual void removeLocation(location_t location) = 0;

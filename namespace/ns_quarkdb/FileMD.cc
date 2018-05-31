@@ -97,25 +97,6 @@ FileMD::addLocation(location_t location)
 }
 
 //------------------------------------------------------------------------------
-// Replace location by index
-//------------------------------------------------------------------------------
-void
-FileMD::replaceLocation(unsigned int index, location_t newlocation)
-{
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  location_t oldLocation = mFile.locations(index);
-
-  if (oldLocation != newlocation) {
-    mFile.set_locations(index, newlocation);
-    lock.unlock();
-
-    IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationReplaced,
-                                   newlocation, oldLocation);
-    pFileMDSvc->notifyListeners(&e);
-  }
-}
-
-//------------------------------------------------------------------------------
 // Remove location that was previously unlinked
 //------------------------------------------------------------------------------
 void
