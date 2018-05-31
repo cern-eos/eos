@@ -294,38 +294,50 @@ XrdMgmOfs::_dropallstripes(const char* path,
   gOFS->MgmStats.Add("DropAllStripes", vid.uid, vid.gid, 1);
   eos_debug("dropall");
   eos::common::Path cPath(path);
+  auto parentPath = cPath.GetParentPath();
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  {
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
-  try {
-    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
-  } catch (eos::MDException& e) {
-    dh.reset();
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
-  }
-
-  // Check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-    if (!errno) {
-      errno = EPERM;
+    try {
+      dh = gOFS->eosView->getContainer(parentPath);
+      dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+    } catch (eos::MDException& e) {
+      dh.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
 
-  if (errno) {
-    return Emsg(epname, error, errno, "drop all stripes", path);
+    // Check permissions
+    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+      if (!errno) {
+        errno = EPERM;
+      }
+
+    if (errno) {
+      return Emsg(epname, error, errno, "drop all stripes", path);
+    }
+    
+    try {
+      fmd = gOFS->eosView->getFile(path);
+
+      // only on tape, we don't touch this file here
+      if (fmd && fmd->getLocations().size() == 1 && fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+        return SFS_OK;
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+      // return error if we don't have the file metadata
+      return e.getErrno(); 
+    }
   }
 
-  // get the file
   try {
-    fmd = gOFS->eosView->getFile(path);
-
-    // only on tape, we don't touch this file here
-    if (fmd->getLocations().size() == 1 && fmd->hasLocation(eos::common::TAPE_FS_ID)) {
-      return SFS_OK;
-    }
-
+    // only write lock at this point  
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
     for (auto location : fmd->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
         continue;
