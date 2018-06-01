@@ -349,6 +349,14 @@ private:
   FileSystemHandler* initializeRegularFilelist(IFileMD::location_t fsid);
 
   //----------------------------------------------------------------------------
+  //! Fetch FileSystemHandler for a given filesystem ID, but do not initialize
+  //! if it doesn't exist, give back nullptr.
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  FileSystemHandler* fetchRegularFilelistIfExists(IFileMD::location_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Initialize unlinked FileSystemHandler for given filesystem ID,
   //! if not already initialized. Otherwise, do nothing.
   //!
@@ -357,6 +365,14 @@ private:
   //! @param fsid file system id
   //----------------------------------------------------------------------------
   FileSystemHandler* initializeUnlinkedFilelist(IFileMD::location_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Fetch unlinked FileSystemHandler for a given filesystem ID, but do not
+  //! initialize if it doesn't exist, give back nullptr.
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  FileSystemHandler* fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid);
 
   ///! Folly executor
   std::unique_ptr<folly::Executor> mExecutor;

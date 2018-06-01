@@ -118,8 +118,8 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationAdded: {
     FileSystemHandler *handler = initializeRegularFilelist(e->location);
-
     handler->insert(file->getIdentifier());
+
     mNoReplicas->erase(file->getIdentifier());
     break;
   }
@@ -136,9 +136,9 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       mNoReplicas->insert(file->getIdentifier());
     }
 
-    auto it = mUnlinkedFiles.find(e->location);
-    if(it != mUnlinkedFiles.end()) {
-      it->second.get()->erase(file->getIdentifier());
+    FileSystemHandler *handlerUnlinked = fetchUnlinkedFilelistIfExists(e->location);
+    if(handlerUnlinked) {
+      handlerUnlinked->erase(file->getIdentifier());
     }
 
     break;
@@ -152,13 +152,12 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   // become inconsistent.
   //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationUnlinked: {
-    FileSystemHandler* handler = initializeUnlinkedFilelist(e->location);
-    handler->insert(e->file->getIdentifier());
+    FileSystemHandler* handlerUnlinked = initializeUnlinkedFilelist(e->location);
+    handlerUnlinked->insert(file->getIdentifier());
 
-    auto it = mFiles.find(e->location);
-
-    if(it != mFiles.end()) {
-      it->second.get()->erase(file->getIdentifier());
+    FileSystemHandler* handlerRegular = fetchRegularFilelistIfExists(e->location);
+    if(handlerRegular) {
+      handlerRegular->erase(file->getIdentifier());
     }
 
     break;
@@ -309,13 +308,12 @@ FileSystemView::getNumNoReplicasFiles()
 uint64_t
 FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 {
-  auto iter = mFiles.find(fs_id);
-
-  if(iter == mFiles.end()) {
-    return 0ull;
+  FileSystemHandler *handler = fetchRegularFilelistIfExists(fs_id);
+  if(handler) {
+    return handler->size();
   }
 
-  return iter->second.get()->size();
+  return 0ull;
 }
 
 //------------------------------------------------------------------------------
@@ -324,13 +322,12 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 uint64_t
 FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
-  auto iter = mUnlinkedFiles.find(fs_id);
-
-  if(iter == mUnlinkedFiles.end()) {
-    return 0ull;
+  FileSystemHandler *handlerUnlinked = fetchUnlinkedFilelistIfExists(fs_id);
+  if(handlerUnlinked) {
+    return handlerUnlinked->size();
   }
 
-  return iter->second.get()->size();
+  return 0ull;
 }
 
 //------------------------------------------------------------------------------
@@ -479,6 +476,23 @@ FileSystemHandler* FileSystemView::initializeRegularFilelist(IFileMD::location_t
 }
 
 //------------------------------------------------------------------------------
+//! Fetch FileSystemHandler for a given filesystem ID, but do not initialize
+//! if it doesn't exist, give back nullptr.
+//!
+//! @param fsid file system id
+//------------------------------------------------------------------------------
+FileSystemHandler* FileSystemView::fetchRegularFilelistIfExists(IFileMD::location_t fsid)
+{
+  auto iter = mFiles.find(fsid);
+
+  if(iter == mFiles.end()) {
+    return nullptr;
+  }
+
+  return iter->second.get();
+}
+
+//------------------------------------------------------------------------------
 //! Initialize unlinked FileSystemHandler for given filesystem ID,
 //! if not already initialized. Otherwise, do nothing.
 //!
@@ -498,5 +512,23 @@ FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(IFileMD::location_
   mUnlinkedFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl, pFlusher, true));
   return mUnlinkedFiles[fsid].get();
 }
+
+//------------------------------------------------------------------------------
+//! Fetch unlinked FileSystemHandler for a given filesystem ID, but do not
+//! initialize if it doesn't exist, give back nullptr.
+//!
+//! @param fsid file system id
+//------------------------------------------------------------------------------
+FileSystemHandler* FileSystemView::fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid)
+{
+  auto iter = mUnlinkedFiles.find(fsid);
+
+  if(iter == mUnlinkedFiles.end()) {
+    return nullptr;
+  }
+
+  return iter->second.get();
+}
+
 
 EOSNSNAMESPACE_END
