@@ -433,9 +433,15 @@ XrdCl::Proxy::CloseAsync(uint16_t         timeout)
   WaitOpen();
   XrdSysCondVarHelper lLock(OpenCondVar());
 
-  XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
-                                                  timeout);
-  set_state(CLOSING, &status);
+  // only an opened file requires a close, otherwise we return the last known state
+  if (state() == OPENED) {
+    XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
+						    timeout);
+    set_state(CLOSING, &status);
+  } else {
+    XrdCl::XRootDStatus status;
+    set_state(CLOSED, &status);
+  }
   return XOpenState;
 }
 
@@ -529,8 +535,10 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
   XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
   if (!status->IsOK())
   {
-
-    mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
+    // if the open failed before, we leave the open failed state here
+    eos_static_debug("current status = %d - setting CLOSEFAILED\n", mProxy->state());
+    if (mProxy->state() != XrdCl::Proxy::FAILED)
+      mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
   }
   else
   {
