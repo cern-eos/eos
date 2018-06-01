@@ -27,7 +27,6 @@
 #include <cerrno>
 #include <ctime>
 #include <functional>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -45,9 +44,7 @@ EOSNSNAMESPACE_BEGIN
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
     pQuotaStats(new QuotaStats()), pRoot(nullptr)
-{
-  pExecutor.reset(new folly::IOThreadPoolExecutor(8) );
-}
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -213,7 +210,6 @@ HierarchicalView::lookupFile(PathLookupState parent, std::string name, bool foll
   // Lookup.
   //----------------------------------------------------------------------------
   folly::Future<PathLookupState> fut = parent.current->findFileFut(name)
-    .via(pExecutor.get())
     .then([this, parent, name, follow](IFileMDPtr result) {
 
       if(!result) {
@@ -415,8 +411,7 @@ HierarchicalView::getContainerFut(const std::string& uri, bool follow)
   }
 
   // Follow all symlinks for all containers, except last one if "follow" is set.
-  return lookupContainerPath(pRoot, uri, 0, follow)
-    .then(extractContainerMDPtr);
+  return lookupContainer(pRoot, uri, 0, follow).then(extractContainerMDPtr);
 }
 
 //------------------------------------------------------------------------------
@@ -558,19 +553,19 @@ folly::Future<PathLookupState> HierarchicalView::lookupContainerSymlink(IFileMDP
   //! Absolute symlink? Start lookup from root.
   //----------------------------------------------------------------------------
   if(symlink->getLink().size() >= 0 && symlink->getLink()[0] == '/') {
-    return lookupContainerPath(pRoot, symlink->getLink(), symlinkDepth, true);
+    return lookupContainer(pRoot, symlink->getLink(), symlinkDepth, true);
   }
 
   //----------------------------------------------------------------------------
   //! Relative symlink, root is symlink's parent container
   //----------------------------------------------------------------------------
-  return lookupContainerPath(parent, symlink->getLink(), symlinkDepth, true);
+  return lookupContainer(parent, symlink->getLink(), symlinkDepth, true);
 }
 
 //------------------------------------------------------------------------------
 //! Lookup a URL, while following symlinks.
 //------------------------------------------------------------------------------
-folly::Future<PathLookupState> HierarchicalView::lookupContainerPath(
+folly::Future<PathLookupState> HierarchicalView::lookupContainer(
   IContainerMDPtr root, const std::string &url, size_t symlinkDepth, bool follow)
 {
   std::vector<std::string> chunks;
@@ -597,9 +592,7 @@ folly::Future<PathLookupState> HierarchicalView::lookupContainer(
     bool localFollow = true;
     if(!follow && i == chunks.size() -1) localFollow = false;
 
-    fut = fut
-      .via(pExecutor.get())
-      .then(std::bind(&HierarchicalView::lookupSubcontainer, this, _1, chunks[i], localFollow));
+    fut = fut.then(std::bind(&HierarchicalView::lookupSubcontainer, this, _1, chunks[i], localFollow));
   }
 
   return fut;
@@ -631,7 +624,6 @@ folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
   //----------------------------------------------------------------------------
   if(name == "..") {
     return pContainerSvc->getContainerMDFut(parent.current->getParentId())
-      .via(pExecutor.get())
       .then([this, parent](IContainerMDPtr result) {
         if(!result) {
           //--------------------------------------------------------------------
@@ -655,7 +647,6 @@ folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
   // Lookup.
   //----------------------------------------------------------------------------
   folly::Future<PathLookupState> fut = parent.current->findContainerFut(name)
-    .via(pExecutor.get())
     .then([this, parent, name, follow](IContainerMDPtr result) {
 
       if(result) {
@@ -680,7 +671,6 @@ folly::Future<PathLookupState> HierarchicalView::lookupSubcontainer(
         }
 
         return parent.current->findFileFut(name)
-          .via(pExecutor.get())
           .then(std::bind(&HierarchicalView::lookupContainerSymlink, this, _1, parent.current, parent.symlinkDepth+1));
       }
     } );
