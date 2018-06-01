@@ -235,6 +235,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
     FileSystemView::getFileSystemIterator()
 {
+  std::unique_lock<std::mutex> lock(mMutex);
   return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
          (new ListFileSystemIterator(mFiles));
 }
@@ -245,28 +246,26 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getFileList(IFileMD::location_t location)
 {
-  auto iter = mFiles.find(location);
-
-  if (iter == mFiles.end()) {
-    return nullptr;
+  FileSystemHandler *handler = fetchRegularFilelistIfExists(location);
+  if(handler) {
+    return handler->getFileList();
   }
 
-  return iter->second.get()->getFileList();
+  return nullptr;
 }
 
 //----------------------------------------------------------------------------
 // Get an approximately random file residing within the given filesystem.
 //----------------------------------------------------------------------------
 bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location,
-    IFileMD::id_t &retval) {
-
-  auto iter = mFiles.find(location);
-
-  if (iter == mFiles.end()) {
-    return false;
+    IFileMD::id_t &retval)
+{
+  FileSystemHandler *handler = fetchRegularFilelistIfExists(location);
+  if(handler) {
+    return handler->getApproximatelyRandomFile(retval);
   }
 
-  return iter->second.get()->getApproximatelyRandomFile(retval);
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -275,13 +274,12 @@ bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  auto iter = mUnlinkedFiles.find(location);
-
-  if(iter == mUnlinkedFiles.end()) {
-    return nullptr;
+  FileSystemHandler *handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
+  if(handlerUnlinked) {
+    return handlerUnlinked->getFileList();
   }
 
-  return iter->second.get()->getFileList();
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -336,13 +334,12 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 bool
 FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 {
-  auto iter = mFiles.find(fs_id);
-
-  if(iter == mFiles.end()) {
-    return false;
+  FileSystemHandler *handler = fetchRegularFilelistIfExists(fs_id);
+  if(handler) {
+    return handler->hasFileId(fid);
   }
 
-  return iter->second.get()->hasFileId(fid);
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -351,13 +348,12 @@ FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  auto it = mUnlinkedFiles.find(location);
-
-  if (it == mUnlinkedFiles.end()) {
+  FileSystemHandler *handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
+  if(!handlerUnlinked) {
     return false;
   }
 
-  it->second.get()->nuke();
+  handlerUnlinked->nuke();
   return true;
 }
 
@@ -464,6 +460,8 @@ FileSystemView::loadFromBackend()
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemView::initializeRegularFilelist(IFileMD::location_t fsid)
 {
+  std::unique_lock<std::mutex> lock(mMutex);
+
   auto iter = mFiles.find(fsid);
 
   if(iter != mFiles.end()) {
@@ -483,6 +481,8 @@ FileSystemHandler* FileSystemView::initializeRegularFilelist(IFileMD::location_t
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemView::fetchRegularFilelistIfExists(IFileMD::location_t fsid)
 {
+  std::unique_lock<std::mutex> lock(mMutex);
+
   auto iter = mFiles.find(fsid);
 
   if(iter == mFiles.end()) {
@@ -502,6 +502,8 @@ FileSystemHandler* FileSystemView::fetchRegularFilelistIfExists(IFileMD::locatio
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(IFileMD::location_t fsid)
 {
+  std::unique_lock<std::mutex> lock(mMutex);
+
   auto iter = mUnlinkedFiles.find(fsid);
 
   if(iter != mUnlinkedFiles.end()) {
@@ -521,6 +523,8 @@ FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(IFileMD::location_
 //------------------------------------------------------------------------------
 FileSystemHandler* FileSystemView::fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid)
 {
+  std::unique_lock<std::mutex> lock(mMutex);
+
   auto iter = mUnlinkedFiles.find(fsid);
 
   if(iter == mUnlinkedFiles.end()) {
