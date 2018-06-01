@@ -21,8 +21,8 @@
 //! @brief Hierarchical namespace implementation
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_REDIS_HIERARHICAL_VIEW_HH__
-#define __EOS_NS_REDIS_HIERARHICAL_VIEW_HH__
+#ifndef EOS_NS_QUARKDB_HIERARHICAL_VIEW_HH
+#define EOS_NS_QUARKDB_HIERARHICAL_VIEW_HH
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -309,7 +309,7 @@ private:
   //----------------------------------------------------------------------------
   //! Lookup a subdirectory asynchronously, while following symlinks.
   //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainer(IContainerMDPtr root,
+  folly::Future<PathLookupState> lookupContainerPath(IContainerMDPtr root,
     const std::string &url,
     size_t symlinkDepth, bool follow);
 
@@ -333,6 +333,7 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
+  std::unique_ptr<folly::Executor> pExecutor;
 };
 
 EOSNSNAMESPACE_END
