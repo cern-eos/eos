@@ -387,6 +387,9 @@ private:
   std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mFiles;
   ///! Unlinked filelists
   std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mUnlinkedFiles;
+  ///! Mutex protecting access to the maps. Not the contents of the maps,
+  ///! though.
+  std::mutex mMutex;
 };
 
 //------------------------------------------------------------------------------
