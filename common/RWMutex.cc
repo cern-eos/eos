@@ -21,8 +21,103 @@
  ************************************************************************/
 
 #include "common/RWMutex.hh"
+#include "common/PthreadRWMutex.hh"
+#include "common/SharedMutex.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+RWMutex::RWMutex(bool prefer_readers)
+{
+  if (getenv("EOS_USE_SHARED_MUTEX")) {
+    mMutexImpl = static_cast<IRWMutex*>(new SharedMutex());
+  } else {
+    mMutexImpl = static_cast<IRWMutex*>(new PthreadRWMutex(prefer_readers));
+  }
+}
+
+//------------------------------------------------------------------------------
+// Set the write lock to blocking or not blocking
+//------------------------------------------------------------------------------
+void
+RWMutex::SetBlocking(bool block)
+{
+  mMutexImpl->SetBlocking(block);
+}
+
+//------------------------------------------------------------------------------
+// Lock for read
+//------------------------------------------------------------------------------
+void
+RWMutex::LockRead()
+{
+  mMutexImpl->LockRead();
+}
+
+//------------------------------------------------------------------------------
+// Try to read lock the mutex within the timeout
+//------------------------------------------------------------------------------
+int
+RWMutex::TimedRdLock(uint64_t timeout_ns)
+{
+  return mMutexImpl->TimedRdLock(timeout_ns);
+}
+
+//------------------------------------------------------------------------------
+// Unlock a read lock
+//------------------------------------------------------------------------------
+void
+RWMutex::UnLockRead()
+{
+  mMutexImpl->UnLockRead();
+}
+
+//------------------------------------------------------------------------------
+// Lock for write
+//------------------------------------------------------------------------------
+void
+RWMutex::LockWrite()
+{
+  mMutexImpl->LockWrite();
+}
+
+//------------------------------------------------------------------------------
+// Unlock a write lock
+//------------------------------------------------------------------------------
+void
+RWMutex::UnLockWrite()
+{
+  mMutexImpl->UnLockWrite();
+}
+
+//------------------------------------------------------------------------------
+// Try to write lock the mutex within the timeout
+//------------------------------------------------------------------------------
+int
+RWMutex::TimedWrLock(uint64_t timeout_ns)
+{
+  return mMutexImpl->TimedWrLock(timeout_ns);
+}
+
+//------------------------------------------------------------------------------
+// Get read lock counter
+//------------------------------------------------------------------------------
+uint64_t
+RWMutex::GetReadLockCounter()
+{
+  return mMutexImpl->GetReadLockCounter();
+}
+
+//------------------------------------------------------------------------------
+// Get write lock counter
+//------------------------------------------------------------------------------
+uint64_t
+RWMutex::GetWriteLockCounter()
+{
+  return mMutexImpl->GetWriteLockCounter();
+}
 
 //------------------------------------------------------------------------------
 //                      ***** Class RWMutexWriteLock *****

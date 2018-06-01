@@ -21,8 +21,9 @@
  ************************************************************************/
 
 #pragma once
+#include "common/IRWMutex.hh"
+// @todo (esindril): this header should be moved to the source file
 #include "common/PthreadRWMutex.hh"
-#include <memory>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -32,25 +33,27 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutex(bool prefer_readers = false)
-  {
-    mMutexImpl = static_cast<IRWMutex*>(new PthreadRWMutex(prefer_readers));
-
-    if (getenv("EOS_PTHREAD_RW_MUTEX")) {
-    } else {
-      // todo
-    }
-  }
+  RWMutex(bool prefer_readers = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~RWMutex() {}
 
+  // //----------------------------------------------------------------------------
+  // //! Copy constructor
+  // //----------------------------------------------------------------------------
+  // RWMutex(const RWMutex&) = delete;
+
+  // //----------------------------------------------------------------------------
+  // //! Copy assignment operator
+  // //----------------------------------------------------------------------------
+  // RWMutex& operator=(const RWMutex&) = delete;
+
   //----------------------------------------------------------------------------
   //! Get raw ptr
   //----------------------------------------------------------------------------
-  IRWMutex* GetRawPtr()
+  inline IRWMutex* GetRawPtr()
   {
     return mMutexImpl;
   }
@@ -60,18 +63,12 @@ public:
   //!
   //! @param block blocking mode
   //----------------------------------------------------------------------------
-  void SetBlocking(bool block)
-  {
-    mMutexImpl->SetBlocking(block);
-  }
+  void SetBlocking(bool block);
 
   //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
-  void LockRead()
-  {
-    mMutexImpl->LockRead();
-  }
+  void LockRead();
 
   //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
@@ -80,34 +77,22 @@ public:
   //!
   //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  int TimedRdLock(uint64_t timeout_ns)
-  {
-    return mMutexImpl->TimedRdLock(timeout_ns);
-  }
+  int TimedRdLock(uint64_t timeout_ns);
 
   //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
-  void UnLockRead()
-  {
-    mMutexImpl->UnLockRead();
-  }
+  void UnLockRead();
 
   //----------------------------------------------------------------------------
   //! Lock for write
   //----------------------------------------------------------------------------
-  void LockWrite()
-  {
-    mMutexImpl->LockWrite();
-  }
+  void LockWrite();
 
   //----------------------------------------------------------------------------
   //! Unlock a write lock
   //----------------------------------------------------------------------------
-  void UnLockWrite()
-  {
-    mMutexImpl->UnLockWrite();
-  }
+  void UnLockWrite();
 
   //----------------------------------------------------------------------------
   //! Try to write lock the mutex within the timeout
@@ -116,29 +101,19 @@ public:
   //!
   //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  int TimedWrLock(uint64_t timeout_ns)
-  {
-    return mMutexImpl->TimedWrLock(timeout_ns);
-  }
+  int TimedWrLock(uint64_t timeout_ns);
 
   //----------------------------------------------------------------------------
   //! Get read lock counter
   //----------------------------------------------------------------------------
-  uint64_t GetReadLockCounter()
-  {
-    return mMutexImpl->GetReadLockCounter();
-  }
+  uint64_t GetReadLockCounter();
 
   //----------------------------------------------------------------------------
   //! Get write lock counter
   //----------------------------------------------------------------------------
-  uint64_t GetWriteLockCounter()
-  {
-    return mMutexImpl->GetWriteLockCounter();
-  }
+  uint64_t GetWriteLockCounter();
 
 private:
-
   IRWMutex* mMutexImpl;
 };
 

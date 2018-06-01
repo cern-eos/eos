@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: IRWMutex.hh
+// File: SharedMutex.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,39 +22,57 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include <stdint.h>
+#include "common/IRWMutex.hh"
+#include <shared_mutex>
+#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class IRWMutex
+//------------------------------------------------------------------------------
+//! Class SharedMutex - wrapper around std::shared_timed_mutex
+//------------------------------------------------------------------------------
+class SharedMutex: public IRWMutex
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  IRWMutex() = default;
+  SharedMutex() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IRWMutex() = default;
+  ~SharedMutex() = default;
 
   //----------------------------------------------------------------------------
-  //! Set the write lock to blocking or not blocking
-  //!
-  //! @param block blocking mode
+  //! Move constructor
   //----------------------------------------------------------------------------
-  virtual void SetBlocking(bool block) = 0;
+  SharedMutex(SharedMutex&& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  SharedMutex& operator=(SharedMutex&& other) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  SharedMutex(const SharedMutex&) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //----------------------------------------------------------------------------
+  SharedMutex& operator=(const SharedMutex&) = delete;
 
   //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
-  virtual void LockRead() = 0;
+  void LockRead() override;
 
   //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
-  virtual void UnLockRead() = 0;
+  void UnLockRead() override;
 
   //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
@@ -63,17 +81,17 @@ public:
   //!
   //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  virtual int TimedRdLock(uint64_t timeout_ns) = 0;
+  int TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Lock for write
   //----------------------------------------------------------------------------
-  virtual void LockWrite() = 0;
+  void LockWrite() override;
 
   //----------------------------------------------------------------------------
   //! Unlock a write lock
   //----------------------------------------------------------------------------
-  virtual void UnLockWrite() = 0;
+  void UnLockWrite() override;
 
   //----------------------------------------------------------------------------
   //! Try to write lock the mutex within the timeout
@@ -82,17 +100,38 @@ public:
   //!
   //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  virtual int TimedWrLock(uint64_t timeout_ns) = 0;
+  int TimedWrLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
-  //! Get read lock counter
+  //! Get Readlock Counter
   //----------------------------------------------------------------------------
-  virtual uint64_t GetReadLockCounter() = 0;
+  inline uint64_t GetReadLockCounter() override
+  {
+    return mRdLockCounter.load();
+  }
 
   //----------------------------------------------------------------------------
-  //! Get write lock counter
+  //! Get Writelock Counter
   //----------------------------------------------------------------------------
-  virtual uint64_t GetWriteLockCounter() = 0;
+  uint64_t GetWriteLockCounter() override
+  {
+    return mWrLockCounter.load();
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  //! Set the write lock to blocking or not blocking
+  //!
+  //! @param block blocking mode
+  //----------------------------------------------------------------------------
+  inline void SetBlocking(bool block)
+  {
+    return; // no supported
+  }
+
+  std::shared_timed_mutex mSharedMutex;
+  std::atomic<uint64_t> mRdLockCounter; ///< Number of read lock operations
+  std::atomic<uint64_t> mWrLockCounter; ///< Number of write lock operations
 };
 
 EOSCOMMONNAMESPACE_END
