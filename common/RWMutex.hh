@@ -66,17 +66,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the time to wait for the acquisition of the write mutex before
-  //! releasing quicky and retrying.
-  //!
-  //! @param nsec nanoseconds
-  //----------------------------------------------------------------------------
-  void SetWLockTime(const size_t& nsec)
-  {
-    mMutexImpl->SetWLockTime(nsec);
-  }
-
-  //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
   void LockRead()
@@ -85,11 +74,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Lock for read allowing to be canceled waiting for the lock
+  //! Try to read lock the mutex within the timeout
+  //!
+  //! @param timeout_ns nano seconds timeout
+  //!
+  //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  void LockReadCancel()
+  int TimedRdLock(uint64_t timeout_ns)
   {
-    mMutexImpl->LockReadCancel();
+    return mMutexImpl->TimedRdLock(timeout_ns);
   }
 
   //----------------------------------------------------------------------------
@@ -117,29 +110,21 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Try to read lock the mutex within the timout value
+  //! Try to write lock the mutex within the timeout
   //!
-  //! @param timeout_ms time duration in milliseconds we can wait for the lock
+  //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
+  //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  int TimedRdLock(uint64_t timeout_ms)
+  int TimedWrLock(uint64_t timeout_ns)
   {
-    return mMutexImpl->TimedRdLock(timeout_ms);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Lock for write but give up after wlocktime
-  //----------------------------------------------------------------------------
-  int TimeoutLockWrite()
-  {
-    return mMutexImpl->TimeoutLockWrite();
+    return mMutexImpl->TimedWrLock(timeout_ns);
   }
 
   //----------------------------------------------------------------------------
   //! Get read lock counter
   //----------------------------------------------------------------------------
-  size_t GetReadLockCounter()
+  uint64_t GetReadLockCounter()
   {
     return mMutexImpl->GetReadLockCounter();
   }
@@ -147,7 +132,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get write lock counter
   //----------------------------------------------------------------------------
-  size_t GetWriteLockCounter()
+  uint64_t GetWriteLockCounter()
   {
     return mMutexImpl->GetWriteLockCounter();
   }
@@ -212,9 +197,8 @@ public:
   //! Constructor
   //!
   //! @param mutex mutex to handle
-  //! @param allow_cancel allow cancelling if true
   //----------------------------------------------------------------------------
-  RWMutexReadLock(RWMutex& mutex, bool allow_cancel = false);
+  RWMutexReadLock(RWMutex& mutex);
 
   //----------------------------------------------------------------------------
   //! Grab mutex and read lock it

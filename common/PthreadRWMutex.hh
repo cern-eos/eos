@@ -109,27 +109,23 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the time to wait for the acquisition of the write mutex before
-  //! releasing quicky and retrying.
-  //!
-  //! @param nsec nanoseconds
-  //----------------------------------------------------------------------------
-  void SetWLockTime(const size_t& nsec) override;
-
-  //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
   void LockRead() override;
 
   //----------------------------------------------------------------------------
-  //! Lock for read allowing to be canceled waiting for the lock
-  //----------------------------------------------------------------------------
-  void LockReadCancel() override;
-
-  //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
   void UnLockRead() override;
+
+  //----------------------------------------------------------------------------
+  //! Try to read lock the mutex within the timeout
+  //!
+  //! @param timeout_ns nano seconds timeout
+  //!
+  //! @return 0 if succcessful, otherwise error code
+  //----------------------------------------------------------------------------
+  int TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Lock for write
@@ -142,28 +138,23 @@ public:
   void UnLockWrite() override;
 
   //----------------------------------------------------------------------------
-  //! Try to read lock the mutex within the timout value
+  //! Try to write lock the mutex within the timeout
   //!
-  //! @param timeout_ms time duration in milliseconds we can wait for the lock
+  //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
+  //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  int TimedRdLock(uint64_t timeout_ms) override;
-
-  //----------------------------------------------------------------------------
-  //! Lock for write but give up after wlocktime
-  //----------------------------------------------------------------------------
-  int TimeoutLockWrite() override;
+  int TimedWrLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Get Readlock Counter
   //----------------------------------------------------------------------------
-  size_t GetReadLockCounter() override;
+  uint64_t GetReadLockCounter() override;
 
   //----------------------------------------------------------------------------
   //! Get Writelock Counter
   //----------------------------------------------------------------------------
-  size_t GetWriteLockCounter() override;
+  uint64_t GetWriteLockCounter() override;
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
@@ -449,9 +440,8 @@ private:
   pthread_rwlock_t rwlock;
   pthread_rwlockattr_t attr;
   struct timespec wlocktime;
-  struct timespec rlocktime;
-  size_t mRdLockCounter;
-  size_t mWrLockCounter;
+  uint64_t mRdLockCounter;
+  uint64_t mWrLockCounter;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX

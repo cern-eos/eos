@@ -81,14 +81,10 @@ RWMutexWriteLock::~RWMutexWriteLock()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, bool allow_cancel):
+RWMutexReadLock::RWMutexReadLock(RWMutex& mutex):
   mRdMutex(&mutex)
 {
-  if (allow_cancel) {
-    mRdMutex->LockReadCancel();
-  } else {
-    mRdMutex->LockRead();
-  }
+  mRdMutex->LockRead();
 }
 
 //----------------------------------------------------------------------------

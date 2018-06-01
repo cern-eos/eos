@@ -46,27 +46,23 @@ public:
   virtual void SetBlocking(bool block) = 0;
 
   //----------------------------------------------------------------------------
-  //! Set the time to wait for the acquisition of the write mutex before
-  //! releasing quicky and retrying.
-  //!
-  //! @param nsec nanoseconds
-  //----------------------------------------------------------------------------
-  virtual void SetWLockTime(const size_t& nsec) = 0;
-
-  //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
   virtual void LockRead() = 0;
 
   //----------------------------------------------------------------------------
-  //! Lock for read allowing to be canceled waiting for the lock
-  //----------------------------------------------------------------------------
-  virtual void LockReadCancel() = 0;
-
-  //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
   virtual void UnLockRead() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Try to read lock the mutex within the timeout
+  //!
+  //! @param timeout_ns nano seconds timeout
+  //!
+  //! @return 0 if succcessful, otherwise error code
+  //----------------------------------------------------------------------------
+  virtual int TimedRdLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
   //! Lock for write
@@ -79,28 +75,23 @@ public:
   virtual void UnLockWrite() = 0;
 
   //----------------------------------------------------------------------------
-  //! Try to read lock the mutex within the timout value
+  //! Try to write lock the mutex within the timeout
   //!
-  //! @param timeout_ms time duration in milliseconds we can wait for the lock
+  //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if lock aquired, ETIMEOUT if timeout occured
+  //! @return 0 if succcessful, otherwise error code
   //----------------------------------------------------------------------------
-  virtual int TimedRdLock(uint64_t timeout_ms) = 0;
+  virtual int TimedWrLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
-  //! Lock for write but give up after wlocktime
+  //! Get read lock counter
   //----------------------------------------------------------------------------
-  virtual int TimeoutLockWrite() = 0;
+  virtual uint64_t GetReadLockCounter() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get Readlock Counter
+  //! Get write lock counter
   //----------------------------------------------------------------------------
-  virtual size_t GetReadLockCounter() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get Writelock Counter
-  //----------------------------------------------------------------------------
-  virtual size_t GetWriteLockCounter() = 0;
+  virtual uint64_t GetWriteLockCounter() = 0;
 };
 
 EOSCOMMONNAMESPACE_END

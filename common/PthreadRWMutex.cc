@@ -121,9 +121,6 @@ PthreadRWMutex::PthreadRWMutex(bool prefer_rd):
   // Try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
   wlocktime.tv_nsec = 0;
-  // Try to get read lock in 100ms, otherwise allow this thread to be canceled
-  rlocktime.tv_sec = 0;
-  rlocktime.tv_nsec = 1000000;
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   mSamplingModulo = 300;
 
@@ -221,7 +218,7 @@ PthreadRWMutex::~PthreadRWMutex()
 // Try to read lock the mutex within the timout value
 //------------------------------------------------------------------------------
 int
-PthreadRWMutex::TimedRdLock(uint64_t timeout_ms)
+PthreadRWMutex::TimedRdLock(uint64_t timeout_ns)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   EOS_RWMUTEX_TIMER_START;
@@ -240,11 +237,14 @@ PthreadRWMutex::TimedRdLock(uint64_t timeout_ms)
   struct timespec timeout = {0};
   _clock_gettime(CLOCK_REALTIME, &timeout);
 
-  if (timeout_ms > 1000) {
-    timeout.tv_sec += (timeout_ms / 1000);
+  if (timeout_ns) {
+    if (timeout_ns > 1e9) {
+      timeout.tv_sec += (timeout_ns / 1e9);
+    }
+
+    timeout.tv_nsec += (timeout_ns % (unsigned long long)1e9);
   }
 
-  timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
 #ifdef __APPLE__
   // Mac does not support timed mutexes
   retc = pthread_rwlock_rdlock(&rwlock);
@@ -265,7 +265,7 @@ PthreadRWMutex::TimedRdLock(uint64_t timeout_ms)
 //----------------------------------------------------------------------------
 // Get Writelock Counter
 //----------------------------------------------------------------------------
-size_t
+uint64_t
 PthreadRWMutex::GetWriteLockCounter()
 {
   return AtomicGet(mWrLockCounter);
@@ -274,22 +274,12 @@ PthreadRWMutex::GetWriteLockCounter()
 //----------------------------------------------------------------------------
 // Get ReadLock Counter
 //----------------------------------------------------------------------------
-size_t
+uint64_t
 PthreadRWMutex::GetReadLockCounter()
 {
   return AtomicGet(mRdLockCounter);
 }
 
-//------------------------------------------------------------------------------
-// Set the time to wait for the acquisition of the write mutex before releasing
-// quicky and retrying.
-//------------------------------------------------------------------------------
-void
-PthreadRWMutex::SetWLockTime(const size_t& nsec)
-{
-  wlocktime.tv_sec = nsec / 1000000;
-  wlocktime.tv_nsec = nsec % 1000000;
-}
 
 //------------------------------------------------------------------------------
 // Lock for read
@@ -318,49 +308,6 @@ PthreadRWMutex::LockRead()
     std::terminate();
   }
 
-  EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
-}
-
-//------------------------------------------------------------------------------
-// Lock for read allowing to be canceled waiting for a lock
-//------------------------------------------------------------------------------
-void
-PthreadRWMutex::LockReadCancel()
-{
-  EOS_RWMUTEX_CHECKORDER_LOCK;
-  EOS_RWMUTEX_TIMER_START;
-#ifndef __APPLE__
-
-  while (1) {
-    struct timespec readtimeout = {0};
-    _clock_gettime(CLOCK_REALTIME, &readtimeout);
-    // Add time for timeout value
-    readtimeout.tv_sec  += rlocktime.tv_sec;
-    readtimeout.tv_nsec += rlocktime.tv_nsec;
-    int rc = pthread_rwlock_timedrdlock(&rwlock, &readtimeout);
-
-    if (rc) {
-      if (rc == ETIMEDOUT) {
-        fprintf(stderr, "=== READ LOCK CANCEL POINT == TID=%llu OBJECT=%llx\n",
-                (unsigned long long) XrdSysThread::ID(), (unsigned long long) this);
-        XrdSysThread::SetCancelOn();
-        XrdSysThread::CancelPoint();
-        XrdSysTimer msSleep;
-        msSleep.Wait(100);
-        XrdSysThread::SetCancelOff();
-      } else {
-        fprintf(stderr, "=== READ LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n",
-                (unsigned long long) XrdSysThread::ID(), (unsigned long long) this, rc);
-        std::terminate();
-      }
-    } else {
-      break;
-    }
-  }
-
-#else
-  LockRead();
-#endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
 }
 
@@ -516,7 +463,7 @@ PthreadRWMutex::UnLockWrite()
 // Lock for write but give up after wlocktime
 //------------------------------------------------------------------------------
 int
-PthreadRWMutex::TimeoutLockWrite()
+PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
   int retc = 0;
@@ -531,10 +478,21 @@ PthreadRWMutex::TimeoutLockWrite()
   }
 
 #endif
+  struct timespec timeout = {0};
+  _clock_gettime(CLOCK_REALTIME, &timeout);
+
+  if (timeout_ns) {
+    if (timeout_ns > 1e9) {
+      timeout.tv_sec += (timeout_ns / 1e9);
+    }
+
+    timeout.tv_nsec += (timeout_ns % (unsigned long long) 1e9);
+  }
+
 #ifdef __APPLE__
   retc =  pthread_rwlock_wrlock(&rwlock);
 #else
-  retc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+  retc = pthread_rwlock_timedwrlock(&rwlock, &timeout);
 #endif
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
