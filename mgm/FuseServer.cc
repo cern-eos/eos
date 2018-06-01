@@ -2942,22 +2942,34 @@ FuseServer::HandleMD(const std::string &id,
 	gOFS->MgmStats.Add("FUSEx-CREATELNK", vid->uid, vid->gid, 1);
 
         // link creation
-        op = CREATE;
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-        if ( pcmd->findFile( md.name() ))
+	fmd = pcmd->findFile( md.name());
+
+	if (fmd && exclusive)
         {
-          // O_EXCL set on creation - 
           return EEXIST;
         }
 
-        fmd = gOFS->eosFileService->createFile();
+        if (fmd)
+        {
+          // file update
+          op = UPDATE;
+	} 
+	else 
+	{
+	  op = CREATE;
+	  fmd = gOFS->eosFileService->createFile();
+	}
 
         fmd->setName( md.name() );
         fmd->setLink( md.target() );
         fmd->setLayoutId( 0 );
         md_ino = eos::common::FileId::FidToInode(fmd->getId());
-        pcmd->addFile(fmd);
+
+	if (op == CREATE)
+	  pcmd->addFile(fmd);
+
         eos_static_info("ino=%lx pino=%lx md-ino=%lx create-link", (long) md.md_ino(), (long) md.md_pino(), md_ino);
 
         fmd->setCUid(md.uid());
@@ -2976,10 +2988,13 @@ FuseServer::HandleMD(const std::string &id,
         fmd->setMTime(mtime);
         fmd->clearAttributes();
 
-        // store the birth time as an extended attribute
-        char btime[256];
-        snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
-        fmd->setAttribute("sys.eos.btime", btime);
+	if ( op == CREATE ) 
+	{
+	  // store the birth time as an extended attribute
+	  char btime[256];
+	  snprintf(btime, sizeof (btime), "%lu.%lu", md.btime(), md.btime_ns());
+	  fmd->setAttribute("sys.eos.btime", btime);
+	}
 
         struct timespec pt_mtime;
 
