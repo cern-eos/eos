@@ -628,7 +628,7 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
 
     return 0;
   } else {
-    eos_static_err("query resulted in error url=%s", url.GetURL().c_str());
+    eos_static_err("query resulted in error for ino=%lx url=%s",  md->id(), url.GetURL().c_str());
 
     if (locker) {
       locker->Lock();
