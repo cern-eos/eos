@@ -1560,6 +1560,9 @@ data::datax::unlink(fuse_req_t req)
   cachehandler::instance().rm(mIno);
   int bcache = mFile->file() ? mFile->file()->unlink() : 0;
   int jcache = mFile->journal() ? mFile->journal()->unlink() : 0;
+
+  mIsUnlinked = true;
+
   return bcache | jcache;
 }
 // IO bridge interface
@@ -2354,7 +2357,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 {
                   std::string msg;
-                  if (fit->second->HadFailures(msg)) {
+                  if ( (!(*it)->unlinked()) && fit->second->HadFailures(msg)) {
 		    // ---------------------------------------------------------
 		    // we really have to avoid this to happen, but
 		    // we can put everything we have cached in a save place for

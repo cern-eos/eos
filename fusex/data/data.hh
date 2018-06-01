@@ -63,7 +63,7 @@ public:
 	      mPrefetchHandler(0),
 	      mSimulateWriteErrorInFlush(false),
 	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none")
+	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
 
     {}
 
@@ -174,7 +174,12 @@ public:
     {
       return (mAttached==1) ? true : false;
     }
-      
+
+    bool unlinked() 
+    {
+      return mIsUnlinked;
+    }
+
     static bufferllmanager sBufferManager;
 
     bool simulate_write_error_in_flusher()
@@ -219,8 +224,8 @@ public:
     bool mIsInlined;
     uint64_t mInlineMaxSize;
     std::string mInlineCompressor;
-
     bufferllmanager::shared_buffer inline_buffer;
+    bool mIsUnlinked;
 
   };
 
