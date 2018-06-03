@@ -236,7 +236,7 @@ FsHelper::ParseCommand(const char* arg)
       // Parse key=value
       if (!(option = tokenizer.GetToken())) {
         std::cerr << "error: configuration must be specified in <key>=<value"
-          " format" << std::endl;
+                  " format" << std::endl;
         return false;
       }
 
@@ -245,7 +245,7 @@ FsHelper::ParseCommand(const char* arg)
 
       if (pos == std::string::npos) {
         std::cerr << "error: configuration must be specified in <key>=<value"
-          " format" << std::endl;
+                  " format" << std::endl;
         return false;
       }
 
@@ -363,21 +363,29 @@ FsHelper::ParseCommand(const char* arg)
     FsProto_LsProto* ls = fs->mutable_ls();
 
     if ((option = tokenizer.GetToken())) {
+      int exclusive_opt = 0;
+
       while (true) {
         soption = option;
 
         if (soption == "-m") {
           ls->set_display(FsProto_LsProto::MONITOR);
+          ++exclusive_opt;
         } else if (soption == "-l") {
           ls->set_display(FsProto_LsProto::LONG);
+          ++exclusive_opt;
         } else if (soption == "-e") {
           ls->set_display(FsProto_LsProto::ERROR);
+          ++exclusive_opt;
         } else if (soption == "--io") {
           ls->set_display(FsProto_LsProto::IO);
+          ++exclusive_opt;
         } else if (soption == "--fsck") {
           ls->set_display(FsProto_LsProto::FSCK);
+          ++exclusive_opt;
         } else if ((soption == "-d") || (soption == "--drain")) {
           ls->set_display(FsProto_LsProto::DRAIN);
+          ++exclusive_opt;
         } else if (soption == "-s") {
           mIsSilent = true;
         } else if ((soption == "-b") || (soption == "--brief")) {
@@ -385,6 +393,12 @@ FsHelper::ParseCommand(const char* arg)
         } else {
           // This needs to be the matchlist
           ls->set_matchlist(soption);
+        }
+
+        if (exclusive_opt >= 2) {
+          std::cerr << "error: two exclusive options in the same command"
+                    << std::endl;
+          return false;
         }
 
         if (!(option = tokenizer.GetToken())) {
@@ -442,10 +456,10 @@ FsHelper::ParseCommand(const char* arg)
           oss << "/eos/" << hostname << ":1095/fst" << soption;
           rm->set_nodequeue(oss.str());
         } else if (std::find_if(soption.begin(), soption.end(),
-                                [](char c) {
-                                  return std::isalpha(c);
-                                })
-                   != soption.end()) {
+        [](char c) {
+        return std::isalpha(c);
+        })
+        != soption.end()) {
           // This contains at least one alphabetic char therefore it must be
           // a hostname, parse the mountpoint and construct the node-queue
           std::string mountpoint;
