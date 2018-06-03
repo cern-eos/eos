@@ -441,6 +441,7 @@ ScanDir::CheckFile(const char* filepath)
 
               if (fmd) {
                 delete fmd;
+                fmd = nullptr;
               }
 
               if (filecxerror || blockcxerror || !fmd || orphaned) {
@@ -478,6 +479,7 @@ ScanDir::CheckFile(const char* filepath)
                   }
 
                   delete fmd;
+                  fmd = nullptr;
                 }
 
                 // Call the autorepair method on the MGM - but not for orphaned
