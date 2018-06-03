@@ -231,15 +231,18 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   }
 
   XrdOucString bootstring;
-  time_t boottime = 0;
+  time_t fboot_time = 0;
+  time_t boot_time = 0;
   {
     XrdSysMutexHelper lock(gOFS->InitializationMutex);
     bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
 
     if (bootstring == "booting") {
-      boottime = time(NULL) - gOFS->InitializationTime;
+      fboot_time = time(nullptr) - gOFS->mFileInitTime;
+      boot_time = time(nullptr) - gOFS->StartTime;
     } else {
-      boottime = gOFS->InitializationTime;
+      fboot_time = gOFS->mFileInitTime;
+      boot_time = gOFS->mTotalInitTime;
     }
   }
   // Statistics for memory usage
@@ -293,7 +296,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << std::endl
         << "uid=all gid=all " << compact_status.c_str() << std::endl
         << "uid=all gid=all ns.boot.status=" << bootstring.c_str() << std::endl
-        << "uid=all gid=all ns.boot.time=" << boottime << std::endl
+        << "uid=all gid=all ns.boot.time=" << boot_time << std::endl
+        << "uid=all gid=all ns.boot.file.time=" << fboot_time << std::endl
         << "uid=all gid=all ns.latency.files=" << latencyf << std::endl
         << "uid=all gid=all ns.latency.dirs=" << latencyd << std::endl
         << "uid=all gid=all ns.latency.pending.updates=" << latencyp << std::endl
@@ -321,9 +325,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "# Namespace Statistics" << std::endl
         << line << std::endl
         << "ALL      Files                            "
-        << f << " [" << bootstring << "] (" << boottime << "s)" << std::endl
+        << f << " [" << bootstring << "] (" << fboot_time << "s)" << std::endl
         << "ALL      Directories                      "
         << d <<  std::endl
+        << "ALL      Total boot time                  "
+        << boot_time << " s" << std::endl
         << line << std::endl
         << "ALL      Compactification                 "
         << compact_status.c_str() << std::endl

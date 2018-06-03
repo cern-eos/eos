@@ -1369,8 +1369,9 @@ public:
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
 
-  int Initialized; ///< indicating the initialization state of the namespace with the above enum
-  time_t InitializationTime; ///< time of the initialization
+  int Initialized; ///< Initialization state of the namespace
+  time_t mFileInitTime; ///< Time for the file initialization
+  time_t mTotalInitTime; ///< Time for entire initialization
   mutable XrdSysMutex InitializationMutex; ///< mutex protecting above variables
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
   //! Indicates that after a boot there shouldn't be a stall rule for all alias '*'

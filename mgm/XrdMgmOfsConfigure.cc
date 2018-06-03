@@ -88,7 +88,7 @@ XrdMgmOfs::InitializeFileView()
   {
     XrdSysMutexHelper lock(InitializationMutex);
     Initialized = kBooting;
-    InitializationTime = time(0);
+    mFileInitTime = time(0);
     RemoveStallRuleAfterBoot = false;
     BootFileId = 0;
   }
@@ -304,7 +304,8 @@ XrdMgmOfs::InitializeFileView()
 
   {
     XrdSysMutexHelper lock(InitializationMutex);
-    InitializationTime = (time(nullptr) - InitializationTime);
+    mFileInitTime = time(nullptr) - mFileInitTime;
+    mTotalInitTime = time(nullptr) - StartTime;
 
     // grab process status after boot
     if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
@@ -429,7 +430,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     MgmArchiveSvcClass = getenv("EOS_ARCHIVE_SVCCLASS");
   }
 
-  // configure heap profiling if any
+  // Configure heap profiling if any
   if (mJeMallocHandler->JeMallocLoaded()) {
     eos_warning("jemalloc is loaded!");
     Eroute.Say("jemalloc is loaded!");
