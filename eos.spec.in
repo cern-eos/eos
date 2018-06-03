@@ -644,18 +644,17 @@ The EOS archive daemon.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/archive/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/eos/archive/
 
+%pre -n eos-archive
+echo "Stopping EOS archive services"
+/sbin/service eosarchived stop > /dev/null 2>&1 || :
+/sbin/chkconfig --del eosarchived
+fi
+
 %post -n eos-archive
 /sbin/chkconfig --add eosarchived
-echo "Starting conditional EOS archive services"
-sleep 2
-/sbin/service eosarchived condrestart > /dev/null 2>&1 || :
+echo "Starting EOS archive services"
+/sbin/service eosarchived restart > /dev/null 2>&1 || :
 
-%preun -n eos-archive
-if [ $1 = 0 ]; then
-  echo "Stopping EOS archive services"
-  /sbin/service eosarchived stop > /dev/null 2>&1 || :
-  /sbin/chkconfig --del eosarchived
-fi
 %endif
 
 #-------------------------------------------------------------------------------
