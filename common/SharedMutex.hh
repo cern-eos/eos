@@ -80,7 +80,7 @@ public:
   //!
   //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  int TimedRdLock(uint64_t timeout_ns) override;
+  bool TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Lock for write
@@ -99,7 +99,7 @@ public:
   //!
   //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  int TimedWrLock(uint64_t timeout_ns) override;
+  bool TimedWrLock(uint64_t timeout_ns) override;
 
 private:
   std::shared_timed_mutex mSharedMutex;

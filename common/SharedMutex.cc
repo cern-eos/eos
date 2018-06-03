@@ -47,7 +47,7 @@ SharedMutex::UnLockRead()
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timeout
 //------------------------------------------------------------------------------
-int
+bool
 SharedMutex::TimedRdLock(uint64_t timeout_ns)
 {
   std::chrono::nanoseconds ns(timeout_ns);
@@ -82,7 +82,7 @@ SharedMutex::UnLockWrite()
 //------------------------------------------------------------------------------
 // Try to write lock the mutex within the timeout
 //------------------------------------------------------------------------------
-int
+bool
 SharedMutex::TimedWrLock(uint64_t timeout_ns)
 {
   if (mSharedMutex.try_lock_for(std::chrono::nanoseconds(timeout_ns))) {

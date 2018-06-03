@@ -56,7 +56,7 @@ public:
   //!
   //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  virtual int TimedRdLock(uint64_t timeout_ns) = 0;
+  virtual bool TimedRdLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
   //! Lock for write

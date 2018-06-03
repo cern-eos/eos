@@ -492,8 +492,8 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   while (attempts-- > 0) {
     eos::IFileMD::id_t randomPick;
 
-    if(gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
-       mTransfers.count(randomPick) == 0) {
+    if (gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
+        mTransfers.count(randomPick) == 0) {
       return randomPick;
     }
   }
