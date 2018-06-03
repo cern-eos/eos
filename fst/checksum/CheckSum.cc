@@ -388,7 +388,7 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     (void) fstat(ChecksumMapFd, &xsstat);
 
     if (xsstat.st_size < (off_t) ChecksumMapSize) {
-      if (ftruncate(ChecksumMapFd, (ChecksumMapSize))) {
+      if (ftruncate(ChecksumMapFd, ChecksumMapSize)) {
         ChecksumMapSize = 0;
         //    fprintf(stderr,"CheckSum:ChangeMap ftruncate failed\n");
         close(ChecksumMapFd);
@@ -420,7 +420,8 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
     return false;
   }
 
-  //  fprintf(stderr,"[Checksum::OpenMap] %d %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize);
+  //  fprintf(stderr,"[Checksum::OpenMap] %d %llu %llu\n", ChecksumMapFd,
+  // ChecksumMap, ChecksumMapSize);
   return true;
 }
 
@@ -469,8 +470,8 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   }
 
   if ((!shrink) && ((newsize - ChecksumMapSize) < (64 * 1024))) {
-    newsize = ChecksumMapSize + (64 *
-                                 1024);  // to avoid to many truncs/msync's here we increase the desired value by 64k
+    // to avoid to many truncs/msync's here we increase the desired value by 64k
+    newsize = ChecksumMapSize + (64 * 1024);
   }
 
   if (!SyncMap()) {

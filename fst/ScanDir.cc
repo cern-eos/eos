@@ -765,8 +765,9 @@ ScanDir::ThreadProc(void)
 /*----------------------------------------------------------------------------*/
 bool
 ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
-                           unsigned long long& scansize, float& scantime, const char* checksumVal,
-                           unsigned long layoutid, const char* lfn, bool& filecxerror, bool& blockcxerror)
+                           unsigned long long& scansize, float& scantime,
+                           const char* checksumVal, unsigned long layoutid,
+                           const char* lfn, bool& filecxerror, bool& blockcxerror)
 {
   double load;
   bool retVal, corruptBlockXS = false;

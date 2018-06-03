@@ -197,7 +197,6 @@ public:
   virtual bool ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
                         const char* partialChecksum,
                         unsigned long long& scansize, float& scantime, int rate = 0);
-  virtual bool SetXSMap(off_t offset);
   virtual bool VerifyXSMap(off_t offset);
 
   virtual bool OpenMap(const char* mapfilepath, size_t maxfilesize,
@@ -313,10 +312,10 @@ public:
   std::string CheckSumMapFile;
 
 private:
+  virtual bool SetXSMap(off_t offset);
 
   unsigned int mNumRd; ///< number of reader references
   unsigned int mNumWr; ///< number of writer references
-
 };
 
 EOSFSTNAMESPACE_END
