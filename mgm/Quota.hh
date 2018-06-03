@@ -324,8 +324,10 @@ public:
   //! Create space quota
   //!
   //! @param path quota node path which needs to be '/' terminated
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  static void Create(const std::string& path);
+  static bool Create(const std::string& path);
 
   //----------------------------------------------------------------------------
   //! Check if quota node for path exists

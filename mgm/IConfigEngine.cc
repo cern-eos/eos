@@ -268,16 +268,14 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
     }
 
     if (id > 0 || (ugid == "0")) {
-      // Create space quota
-      (void) Quota::Create(space.c_str());
-
-      if (!Quota::Exists(space.c_str())) {
-        eos_static_err("failed to get quota for space=%s", space.c_str());
-        oss_err << "error: failed to get quota for space="
-                << space.c_str() << std::endl;
-      } else if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value)) {
-        eos_static_err("failed to set quota for id=%s", ugid.c_str());
-        oss_err << "error: failed to set quota for id:" << ugid << std::endl;
+      if (Quota::Create(space.c_str())) {
+        if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value)) {
+          eos_static_err("failed to set quota for id=%s", ugid.c_str());
+          oss_err << "error: failed to set quota for id:" << ugid << std::endl;
+        }
+      } else {
+        // This is just ignored ... maybe path is wrong?!
+        eos_static_err("failed to create quota for space=%s", space.c_str());
       }
     } else {
       eos_static_err("config id is negative");
@@ -558,7 +556,8 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
   pinfo.option = "vfqcgmrs";
 
   if (filter.Get("mgm.config.comment") || filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") || filter.Get("mgm.config.route") || 
+      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") ||
+      filter.Get("mgm.config.route") ||
       filter.Get("mgm.config.policy") || filter.Get("mgm.config.quota") ||
       filter.Get("mgm.config.geosched") || filter.Get("mgm.config.vid")) {
     pinfo.option = "";

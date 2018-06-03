@@ -57,7 +57,9 @@ SpaceQuota::SpaceQuota(const char* path):
 
   try {
     quotadir = gOFS->eosView->getContainer(path);
-  } catch (const eos::MDException& e) {}
+  } catch (const eos::MDException& e) {
+    eos_static_err("No such path=%s", path);
+  }
 
   if (quotadir == nullptr) {
     try {
@@ -66,6 +68,7 @@ SpaceQuota::SpaceQuota(const char* path):
       gOFS->eosView->updateContainerStore(quotadir.get());
     } catch (eos::MDException& e) {
       eos_static_crit("Cannot create quota directory %s", path);
+      throw;
     }
   }
 
@@ -89,8 +92,11 @@ SpaceQuota::SpaceQuota(const char* path):
         mQuotaNode = nullptr;
         eos_static_crit("Cannot register quota node %s, errmsg=%s",
                         path, e.what());
+        throw;
       }
     }
+  } else {
+    eos_static_crit("Failed to create quota dir=%s", path);
   }
 }
 
@@ -1285,11 +1291,11 @@ SpaceQuota*
 Quota::GetResponsibleSpaceQuota(const std::string& path)
 {
   XrdOucString matchpath = path.c_str();
-  SpaceQuota* squota = 0;
+  SpaceQuota* squota = nullptr;
 
   for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
     if (matchpath.beginswith(it->second->GetSpaceName())) {
-      if (!squota) {
+      if (squota == nullptr) {
         squota = it->second;
       }
 
@@ -1470,7 +1476,12 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   // Make sure the quota node exist
-  (void) Create(path);
+  if (!Create(path)) {
+    oss_msg << "error: failed to create quota node: " << path << std::endl;
+    msg = oss_msg.str();
+    return false;
+  }
+
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetSpaceQuota(path);
 
@@ -1735,7 +1746,7 @@ Quota::LoadNodes()
 
   // Create all the necessary space quota nodes
   for (auto it = create_quota.begin(); it != create_quota.end(); ++it) {
-    eos_static_notice("Created quota node for path=%s", it->c_str());
+    eos_static_notice("Try to create quota node=%s", it->c_str());
     (void) Create(it->c_str());
   }
 
@@ -1933,17 +1944,29 @@ Quota::FileAccess(Scheduler::AccessArguments* args)
 //------------------------------------------------------------------------------
 // Create quota node for path
 //------------------------------------------------------------------------------
-void
+bool
 Quota::Create(const std::string& path)
 {
+  // Check if path is correct
+  if (path.empty() || path[0] != '/' || (*path.rbegin()) != '/') {
+    return false;
+  }
+
   eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
 
   if (pMapQuota.count(path) == 0) {
-    SpaceQuota* squota = new SpaceQuota(path.c_str());
-    pMapQuota[path] = squota;
-    pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
+    try {
+      SpaceQuota* squota = new SpaceQuota(path.c_str());
+      pMapQuota[path] = squota;
+      pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
+    } catch (const eos::MDException& e) {
+      eos_static_crit("Faile to create quota node %s", path.c_str());
+      return false;
+    }
   }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -1967,12 +1990,11 @@ std::map<std::string, std::tuple<unsigned long long,
 
   for (const auto& quotaNode : pMapQuota) {
     // quotaNode.second->Refresh();
-    allGroupLogicalByteValues[quotaNode.first] =
-      std::make_tuple(quotaNode.second->GetQuota(
-                        SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
-                      quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesTarget,
-                          0),
-                      quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupFilesIs, 0));
+    allGroupLogicalByteValues[quotaNode.first] = std::make_tuple
+        (quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesIs, 0),
+         quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupLogicalBytesTarget,
+                                    0),
+         quotaNode.second->GetQuota(SpaceQuota::eQuotaTag::kAllGroupFilesIs, 0));
   }
 
   return allGroupLogicalByteValues;
