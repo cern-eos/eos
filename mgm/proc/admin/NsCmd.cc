@@ -337,7 +337,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      Directories                      "
         << d <<  std::endl
         << "ALL      Total boot time                  "
-        << boot_time << "s" << std::endl
+        << boot_time << " s" << std::endl
         << line << std::endl
         << "ALL      Compactification                 "
         << compact_status.c_str() << std::endl
