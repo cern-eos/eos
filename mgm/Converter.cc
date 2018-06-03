@@ -398,10 +398,10 @@ Converter::Convert(void)
     {
       // Extract the current settings if conversion enabled and how many
       // conversion jobs should run.
-      uint64_t timeout_ms = 100;
+      uint64_t timeout_ns = 100 * 1e6; // 100ms
 
       // Try to read lock the mutex
-      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+      while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
         XrdSysThread::CancelPoint();
       }
 

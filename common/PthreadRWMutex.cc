@@ -217,7 +217,7 @@ PthreadRWMutex::~PthreadRWMutex()
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timout value
 //------------------------------------------------------------------------------
-int
+bool
 PthreadRWMutex::TimedRdLock(uint64_t timeout_ns)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
@@ -259,7 +259,7 @@ PthreadRWMutex::TimedRdLock(uint64_t timeout_ns)
 
 #endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
-  return retc;
+  return (retc == 0);
 }
 
 //----------------------------------------------------------------------------
@@ -462,7 +462,7 @@ PthreadRWMutex::UnLockWrite()
 //------------------------------------------------------------------------------
 // Lock for write but give up after wlocktime
 //------------------------------------------------------------------------------
-int
+bool
 PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
 {
   EOS_RWMUTEX_CHECKORDER_LOCK;
@@ -501,7 +501,7 @@ PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
   }
 
 #endif
-  return retc;
+  return (retc == 0);
 }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX

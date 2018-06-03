@@ -155,7 +155,7 @@ SpaceQuota::UpdateQuotaNodeAddress()
       return false;
     }
   } catch (eos::MDException& e) {
-    mQuotaNode = (eos::IQuotaNode*)0;
+    mQuotaNode = nullptr;
     return false;
   }
 

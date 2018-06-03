@@ -61,9 +61,9 @@ public:
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if succcessful, otherwise error code
+  //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual int TimedRdLock(uint64_t timeout_ns) = 0;
+  virtual bool TimedRdLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
   //! Lock for write
@@ -80,9 +80,9 @@ public:
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if succcessful, otherwise error code
+  //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual int TimedWrLock(uint64_t timeout_ns) = 0;
+  virtual bool TimedWrLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
   //! Get read lock counter

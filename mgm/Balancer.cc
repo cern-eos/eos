@@ -103,11 +103,11 @@ Balancer::Balance(void)
     std::string SpaceNodeTransfers = "";
     std::string SpaceNodeTransferRate = "";
     std::string SpaceNodeThreshold = "";
-    uint64_t timeout_ms = 100;
+    uint64_t timeout_ns = 100 * 1e6; // 100ms
     eos_static_info("Looping in balancer");
 
     // Try to read lock the mutex
-    while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
       XrdSysThread::CancelPoint();
     }
 

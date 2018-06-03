@@ -75,7 +75,7 @@ GeoBalancer::Stop()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if(mThread) {
+  if (mThread) {
     XrdSysThread::Cancel(mThread);
   }
 }
@@ -89,7 +89,7 @@ GeoBalancer::Join()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if(mThread) {
+  if (mThread) {
     XrdSysThread::Cancel(mThread);
     XrdSysThread::Join(mThread, nullptr);
     mThread = 0;
@@ -490,19 +490,11 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   int attempts = 10;
 
   while (attempts-- > 0) {
-    rndIndex = getRandom(fsid_size - 1);
+    eos::IFileMD::id_t randomPick;
 
-    for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-         (it_fid && it_fid->valid()); it_fid->next()) {
-      // Jump to random location
-      if (rndIndex > 0) {
-        --rndIndex;
-        continue;
-      }
-
-      if (mTransfers.count(it_fid->getElement()) == 0) {
-        return it_fid->getElement();
-      }
+    if (gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
+        mTransfers.count(randomPick) == 0) {
+      return randomPick;
     }
   }
 
@@ -631,10 +623,10 @@ GeoBalancer::GeoBalance()
     {
       // Extract the current settings if conversion enabled and how many
       // conversion jobs should run
-      uint64_t timeout_ms = 100;
+      uint64_t timeout_ns = 100 * 1e6; // 100ms
 
       // Try to read lock the mutex
-      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+      while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
         XrdSysThread::CancelPoint();
       }
 

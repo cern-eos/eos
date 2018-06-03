@@ -123,9 +123,9 @@ public:
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if succcessful, otherwise error code
+  //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
-  int TimedRdLock(uint64_t timeout_ns) override;
+  bool TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Lock for write
@@ -142,9 +142,9 @@ public:
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return 0 if succcessful, otherwise error code
+  //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
-  int TimedWrLock(uint64_t timeout_ns) override;
+  bool TimedWrLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Get Readlock Counter

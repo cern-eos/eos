@@ -119,7 +119,7 @@ xrdmgmofs_shutdown(int sig)
   eos_static_warning("Shutdown:: grab write mutex");
   uint64_t timeout_ns = 3 * 1e9;
 
-  while (gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
+  while (!gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
     eos_static_warning("Trying to get the wr lock on eosViewRWMutex");
   }
 
@@ -154,7 +154,7 @@ xrdmgmofs_shutdown(int sig)
         delete gOFS->eosContainerAccounting;
       }
 
-      while (gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
+      while (!gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
         eos_static_warning("Trying to get the wr lock on eosViewRWMutex");
       }
 

@@ -71,7 +71,7 @@ GroupBalancer::GroupBalancer(const char* spacename)
 void
 GroupBalancer::Stop()
 {
-  if(mThread) {
+  if (mThread) {
     XrdSysThread::Cancel(mThread);
   }
 }
@@ -84,7 +84,7 @@ GroupBalancer::Stop()
 void
 GroupBalancer::Join()
 {
-  if(mThread) {
+  if (mThread) {
     XrdSysThread::Cancel(mThread);
     XrdSysThread::Join(mThread, nullptr);
     mThread = 0;
@@ -493,10 +493,10 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   int attempts = 10;
 
   while (attempts-- > 0) {
-
     eos::IFileMD::id_t randomPick;
-    if(gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
-       mTransfers.count(randomPick) == 0) {
+
+    if (gOFS->eosFsView->getApproximatelyRandomFileInFs(fsid, randomPick) &&
+        mTransfers.count(randomPick) == 0) {
       return randomPick;
     }
   }
@@ -649,10 +649,10 @@ GroupBalancer::GroupBalance()
     {
       // Extract the current settings if conversion enabled and how many
       // conversion jobs should run
-      uint64_t timeout_ms = 100;
+      uint64_t timeout_ns = 100 * 1e6; // 100 ms
 
       // Try to read lock the mutex
-      while (FsView::gFsView.ViewMutex.TimedRdLock(timeout_ms)) {
+      while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
         XrdSysThread::CancelPoint();
       }
 
