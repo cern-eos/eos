@@ -94,6 +94,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Do sync time propagation (set to 1 to enable)
 #EOS_SYNCTIME_ACCOUNTING=0
 
+# Use std::shared_timed_mutex for the RWMutex implementation - uncomment to
+# enable.
+# EOS_USE_SHARED_MUTEX=1
+
 #-------------------------------------------------------------------------------
 # FST Configuration
 #-------------------------------------------------------------------------------
