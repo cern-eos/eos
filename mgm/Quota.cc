@@ -48,7 +48,7 @@ gid_t Quota::gProjectId = 99;
 //------------------------------------------------------------------------------
 SpaceQuota::SpaceQuota(const char* path):
   pPath(path),
-  mQuotaNode((eos::IQuotaNode*)0),
+  mQuotaNode(nullptr),
   mLastEnableCheck(0),
   mLayoutSizeFactor(1.0),
   mDirtyTarget(true)
@@ -57,9 +57,9 @@ SpaceQuota::SpaceQuota(const char* path):
 
   try {
     quotadir = gOFS->eosView->getContainer(path);
-  } catch (eos::MDException& e) {}
+  } catch (const eos::MDException& e) {}
 
-  if (!quotadir) {
+  if (quotadir == nullptr) {
     try {
       quotadir = gOFS->eosView->createContainer(path, true);
       quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
@@ -78,27 +78,21 @@ SpaceQuota::SpaceQuota(const char* path):
       } else {
         eos_static_info("No ns quota found for path=%s", path);
       }
-    } catch (eos::MDException& e) {
-      mQuotaNode = (eos::IQuotaNode*)0;
+    } catch (const eos::MDException& e) {
+      mQuotaNode = nullptr;
     }
 
     if (!mQuotaNode) {
       try {
         mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
       } catch (eos::MDException& e) {
-        mQuotaNode = (eos::IQuotaNode*)0;
+        mQuotaNode = nullptr;
         eos_static_crit("Cannot register quota node %s, errmsg=%s",
                         path, e.what());
       }
     }
   }
 }
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-SpaceQuota::~SpaceQuota() {}
-
 
 //------------------------------------------------------------------------------
 // Get quota status
