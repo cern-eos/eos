@@ -207,6 +207,11 @@ public:
   virtual std::string getUri(const IContainerMD* container) const override;
 
   //------------------------------------------------------------------------
+  //! Get uri for the container - asynchronous version
+  //------------------------------------------------------------------------
+  virtual folly::Future<std::string> getUriFut(const IContainerMD* container) const override;
+
+  //------------------------------------------------------------------------
   //! Get uri for container id
   //------------------------------------------------------------------------
   virtual std::string getUri(const IContainerMD::id_t cid) const override;
@@ -215,6 +220,11 @@ public:
   //! Get uri for the file
   //------------------------------------------------------------------------
   virtual std::string getUri(const IFileMD* file) const override;
+
+  //------------------------------------------------------------------------
+  //! Get uri for the file
+  //------------------------------------------------------------------------
+  virtual folly::Future<std::string> getUriFut(const IFileMD* file) const override;
 
   //------------------------------------------------------------------------
   //! Get real path translating existing symlink

@@ -27,6 +27,7 @@
 #include <cerrno>
 #include <ctime>
 #include <functional>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -44,7 +45,9 @@ EOSNSNAMESPACE_BEGIN
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
     pQuotaStats(new QuotaStats()), pRoot(nullptr)
-{}
+{
+  pExecutor.reset(new folly::IOThreadPoolExecutor(8));
+}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -756,6 +759,17 @@ HierarchicalView::getUri(const IContainerMD* container) const
 }
 
 //------------------------------------------------------------------------------
+// Get uri for the container - asynchronous version
+//------------------------------------------------------------------------------
+folly::Future<std::string>
+HierarchicalView::getUriFut(const IContainerMD* container) const
+{
+  return folly::via(pExecutor.get()).then([this, container]() {
+    return this->getUri(container);
+  } );
+}
+
+//------------------------------------------------------------------------------
 // Get uri for container id
 //------------------------------------------------------------------------------
 std::string
@@ -781,6 +795,17 @@ HierarchicalView::getUri(const IContainerMD::id_t cid) const
   }
 
   return path;
+}
+
+//------------------------------------------------------------------------------
+// Get uri for the container - asynchronous version
+//------------------------------------------------------------------------------
+folly::Future<std::string>
+HierarchicalView::getUriFut(const IFileMD* file) const
+{
+  return folly::via(pExecutor.get()).then([this, file]() {
+    return this->getUri(file);
+  } );
 }
 
 //------------------------------------------------------------------------------

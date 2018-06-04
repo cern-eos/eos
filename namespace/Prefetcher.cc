@@ -147,8 +147,9 @@ void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContaine
 
   try {
     folly::Future<IContainerMDPtr> fut = view->getContainerMDSvc()->getContainerMDFut(id);
+    fut.wait();
     if(fut.hasException()) return;
-    view->getUri(fut.get().get());
+    view->getUriFut(fut.get().get()).wait();
   }
   catch(...) {
     // we don't care lol, this is just prefetching

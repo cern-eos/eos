@@ -101,8 +101,11 @@ TEST_F(HierarchicalViewF, LoadTest)
   std::shared_ptr<eos::IFileMD> file = view()->getFile("/test/embed/embed1/file3");
   std::shared_ptr<eos::IContainerMD> container = view()->getContainer("/test/embed/embed1");
   ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
+  ASSERT_EQ(view()->getUriFut(container.get()).get(), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
+  ASSERT_EQ(view()->getUriFut(file.get()).get(), "/test/embed/embed1/file3");
   ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);
+  ASSERT_THROW(view()->getUriFut((eos::IFileMD*)nullptr).get(), eos::MDException);
   std::shared_ptr<eos::IFileMD> toBeDeleted = view()->getFile("/test/embed/embed1/file2");
   toBeDeleted->addLocation(12);
   // This should not succeed since the file should have a replica

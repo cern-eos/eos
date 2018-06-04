@@ -684,6 +684,22 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
 }
 
 //----------------------------------------------------------------------------
+// Get uri for the container - asynchronous version
+//----------------------------------------------------------------------------
+folly::Future<std::string> HierarchicalView::getUriFut(const IContainerMD* container) const
+{
+  return folly::makeFuture<std::string>(getUri(container));
+}
+
+//---------------------------------------------------------------------------
+// Get uri for the file
+//---------------------------------------------------------------------------
+folly::Future<std::string> HierarchicalView::getUriFut(const IFileMD* file) const
+{
+  return folly::makeFuture<std::string>(getUri(file));
+}
+
+//----------------------------------------------------------------------------
 // Get uri for the file
 //----------------------------------------------------------------------------
 std::string HierarchicalView::getUri(const IFileMD* file) const

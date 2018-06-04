@@ -203,6 +203,11 @@ public:
   //----------------------------------------------------------------------------
   virtual std::string getUri(const IContainerMD* container) const override;
 
+  //----------------------------------------------------------------------------
+  //! Get uri for the container - asynchronous version
+  //----------------------------------------------------------------------------
+  virtual folly::Future<std::string> getUriFut(const IContainerMD* container) const override;
+
   //------------------------------------------------------------------------
   //! Get uri for container id
   //------------------------------------------------------------------------
@@ -212,6 +217,11 @@ public:
   //! Get uri for the file
   //----------------------------------------------------------------------------
   virtual std::string getUri(const IFileMD* file) const override;
+
+  //----------------------------------------------------------------------------
+  //! Get uri for the file - asynchronous version
+  //----------------------------------------------------------------------------
+  virtual folly::Future<std::string> getUriFut(const IFileMD* file) const override;
 
   //------------------------------------------------------------------------
   //! Get real path translating existing symlink
@@ -333,6 +343,7 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
+  std::unique_ptr<folly::Executor> pExecutor;
 };
 
 EOSNSNAMESPACE_END
