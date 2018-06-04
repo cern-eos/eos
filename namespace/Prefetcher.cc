@@ -139,4 +139,20 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
   prefetcher.wait();
 }
 
+//------------------------------------------------------------------------------
+//! Prefetch ContainerMD inode, along with all its parents, and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id) {
+  if(view->inMemory()) return;
+
+  try {
+    folly::Future<IContainerMDPtr> fut = view->getContainerMDSvc()->getContainerMDFut(id);
+    if(fut.hasException()) return;
+    view->getUri(fut.get().get());
+  }
+  catch(...) {
+    // we don't care lol, this is just prefetching
+  }
+}
+
 EOSNSNAMESPACE_END

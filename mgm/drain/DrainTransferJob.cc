@@ -165,11 +165,7 @@ DrainTransferJob::GetFileInfo() const
     // Get the full path to the file
     std::string dir_uri;
     {
-      eos::Prefetcher prefetcher(gOFS->eosView);
-      prefetcher.stageContainerMD(fdrain.mProto.cont_id());
-      prefetcher.wait();
-      // TODO(gbitzes): This is not good enough, we need to prefetch
-      // all parents..
+      eos::Prefetcher::prefetchContainerMDWithAllParentsAndWait(gOFS->eosView, fdrain.mProto.cont_id());
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       dir_uri = gOFS->eosView->getUri(fdrain.mProto.cont_id());
     }

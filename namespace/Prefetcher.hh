@@ -75,10 +75,15 @@ public:
   //------------------------------------------------------------------------------
   static void prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow = true);
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Prefetch ContainerMD with children and wait
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static void prefetchContainerMDWithChildrenAndWait(IView *view, const std::string &path, bool follow = true);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch FileMD inode, along with all its parents, and wait
+  //----------------------------------------------------------------------------
+  static void prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id);
 
 private:
   IView           *pView;
