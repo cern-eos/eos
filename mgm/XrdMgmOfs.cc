@@ -392,7 +392,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // check that all files exist
   while (pptr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
-    eos_info("path=\"%s\"", prep_path.c_str());
+    eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
@@ -457,7 +457,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   for (auto& pathPair : pathsWithPrepare) {
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
-    eos_info("path=\"%s\"", prep_path.c_str());
+    eos_info("msg=\"about to trigger WFE\" path=\"%s\"", prep_path.c_str());
     XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
                              *pathPair.second : "") : "";
     XrdOucEnv prep_env(prep_info.c_str());
