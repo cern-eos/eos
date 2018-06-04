@@ -644,16 +644,38 @@ The EOS archive daemon.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/archive/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/eos/archive/
 
-%pre -n eos-archive
-echo "Stopping EOS archive services"
-/sbin/service eosarchived stop > /dev/null 2>&1 || :
-/sbin/chkconfig --del eosarchived
-fi
-
 %post -n eos-archive
-/sbin/chkconfig --add eosarchived
-echo "Starting EOS archive services"
-/sbin/service eosarchived restart > /dev/null 2>&1 || :
+case "$1" in
+  1)
+    # Initial installation
+    /sbin/chkconfig --add eosarchived
+    echo "Starting EOS archive services"
+    /sbin/service eosarchived restart > /dev/null 2>&1 || :
+  ;;
+  2)
+    # Upgrade
+    echo "Stopping EOS archive services"
+    /sbin/service eosarchived stop > /dev/null 2>&1 || :
+    /sbin/chkconfig --del eosarchived
+    # In case runlevels changed
+    /sbin/chkconfig --add eosarchived
+  ;;
+esac
+
+%preun -n eos-archive
+case "$1" in
+  0)
+    # Un-install
+    echo "Stopping EOS archive services"
+    /sbin/service eosarchived stop > /dev/null 2>&1 || :
+    /sbin/chkconfig --del eosarchived || :
+  ;;
+  1)
+    # Upgrade
+    echo "Starting EOS archive services"
+    /sbin/service eosarchived restart > /dev/null 2>&1 || :
+  ;;
+esac
 
 %endif
 
