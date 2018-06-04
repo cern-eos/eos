@@ -867,9 +867,10 @@ again:
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
 
   if (status.IsOK()) {
-    eos_debug("called MGM cache - %s", opaque.c_str());
+    eos_static_debug("msg=\"MGM query succeeded\" opaque=\"%s\"", opaque.c_str());
     rc = SFS_OK;
   } else {
+    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
     msg = (status.GetErrorMessage().c_str());
     rc = SFS_ERROR;
 

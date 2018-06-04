@@ -1542,6 +1542,7 @@ XrdFstOfsFile::close()
 
     if (deleteOnClose && (mIsInjection || isCreation || IsChunkedUpload()) &&
         (!mFusex)) {
+      rc = SFS_ERROR;
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                mCapOpaque->Get("mgm.path"), mFstPath.c_str());
       int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque,
@@ -1585,8 +1586,6 @@ XrdFstOfsFile::close()
                  mFileId, (int) mFsId,
                  mCapOpaque->Get("mgm.path"), mFstPath.c_str(), rcode);
       }
-
-      rc = SFS_ERROR;
 
       if (minimumsizeerror) {
         // Minimum size criteria not fullfilled
@@ -1703,8 +1702,8 @@ XrdFstOfsFile::close()
       } else {
         if (!brc) {
           // Reset the return code and clean error message
-          rc = 0;
           gOFS.Emsg(epname, error, 0, "no error");
+          rc = 0;
         }
       }
 

@@ -21,28 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
 {
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("AdjustReplica");
-
-  // execute adjust replica
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
 
-  // execute a proc command
+  // Execute a proc command
   ProcCommand Cmd;
   XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
   char* spath = env.Get("mgm.path");
+
   if (spath)
   {
     info += spath;
@@ -50,18 +46,19 @@
     Cmd.open("/proc/user", info.c_str(), vid, &error);
     Cmd.close();
     gOFS->MgmStats.Add("AdjustReplica", 0, 0, 1);
+
+    if (Cmd.GetRetc() == 0) {
+      eos_debug("msg=\"adjustreplica succeeded\", path=%s", spath);
+      const char* ok = "OK";
+      error.setErrInfo(strlen(ok) + 1, ok);
+      EXEC_TIMING_END("AdjustReplica");
+      return SFS_DATA;
+    } else {
+      eos_err("msg=\"adjustreplica failed\" path=\"%s\"", spath);
+      return Emsg(epname, error, EIO, "[EIO] repair", spath);
+    }
   }
-  if (Cmd.GetRetc())
-  {
-    // the adjustreplica failed
-    return Emsg(epname, error, EIO, "[EIO] repair", spath);
-  }
-  else
-  {
-    // the adjustreplica succeede!
-    const char* ok = "OK";
-    error.setErrInfo(strlen(ok) + 1, ok);
-    EXEC_TIMING_END("AdjustReplica");
-    return SFS_DATA;
-  }
+
+  eos_err("msg=\"adjustreplica failed - no given path\"");
+  return Emsg(epname, error, EIO, "[EIO] repair", "no path");
 }
