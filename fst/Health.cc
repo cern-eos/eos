@@ -24,6 +24,7 @@
 #include "Health.hh"
 #include "fst/storage/FileSystem.hh"
 #include "common/ShellCmd.hh"
+#include <unordered_set>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -37,13 +38,18 @@ EOSFSTNAMESPACE_BEGIN
 std::map<std::string, std::string>
 DiskHealth::getHealth(const std::string& devpath)
 {
-  std::string dev = Load::DevMap(devpath.c_str());
+  std::string dev = Load::DevMap(devpath);
 
+  if (dev.empty()) {
+    return std::map<std::string, std::string>();
+  }
+
+  // RAID setups
   if (dev[0] == 'm') {
     return parse_mdstat(dev);
   }
 
-  // Chunck partition digits, we need the actual device name for smartctl...
+  // Remove partition digits, we need the actual device name for smartctl...
   while (isdigit(dev.back())) {
     dev.pop_back();
   }
@@ -58,14 +64,23 @@ DiskHealth::getHealth(const std::string& devpath)
 void
 DiskHealth::Measure()
 {
+  std::unordered_set<std::string> dev_names;
   std::map<std::string, std::map<std::string, std::string>> tmp;
+  {
+    // Collect the name of the devices
+    std::lock_guard<std::mutex> lock(mMutex);
 
-  for (auto it = smartctl_results.begin(); it != smartctl_results.end(); it++) {
-    tmp[it->first]["summary"] = smartctl(it->first.c_str());
+    for (const auto& elem : smartctl_results) {
+      dev_names.insert(elem.first);
+    }
+  }
+
+  for (const auto& elem : dev_names) {
+    tmp[elem]["summary"] = smartctl(elem.c_str());
   }
 
   std::lock_guard<std::mutex> lock(mMutex);
-  smartctl_results = tmp;
+  std::swap(smartctl_results, tmp);
 }
 
 //------------------------------------------------------------------------------

@@ -135,7 +135,7 @@ public:
   //! @return name of the devices which is mounted at the given path or empty
   //!         string if no device found
   //----------------------------------------------------------------------------
-  static const char* DevMap(const char* dev_path);
+  static const std::string DevMap(const std::string& dev_path);
 
   //----------------------------------------------------------------------------
   //! Constructor

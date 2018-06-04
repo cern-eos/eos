@@ -62,26 +62,23 @@ Load::~Load()
 //------------------------------------------------------------------------------
 // Get device name mounted at the given path
 //-----------------------------------------------------------------------------
-const char*
-Load::DevMap(const char* dev_path)
+const std::string
+Load::DevMap(const std::string& dev_path)
 {
   static time_t loadtime = 0;
   static std::map<std::string, std::string> dev_map;
-  static XrdOucString mapdev = dev_path;
-  static XrdOucString mappath = "";
   static XrdSysMutex mutex_map; // Protect access to the dev_map
+  std::string mapped_dev;
 
-  if (mapdev.beginswith("/")) {
-    XrdSysMutexHelper scope_lock(&mutex_map);
-    mapdev = "";
+  if (!dev_path.empty() && dev_path[0] == '/') {
     struct stat stbuf;
+    XrdSysMutexHelper scope_lock(&mutex_map);
 
     if (!(stat("/etc/mtab", &stbuf))) {
-      dev_map.clear();
-
       if (stbuf.st_mtime != loadtime) {
+        loadtime = stbuf.st_mtime;
+        dev_map.clear();
         FILE* fd = fopen("/etc/mtab", "r");
-        // Reparse the mtab
         char line[1025];
         char val[6][1024];
         line[0] = 0;
@@ -89,14 +86,13 @@ Load::DevMap(const char* dev_path)
         while (fd && fgets(line, 1024, fd)) {
           if ((sscanf(line, "%1023s %1023s %1023s %1023s %1023s %1023s\n",
                       val[0], val[1], val[2], val[3], val[4], val[5])) == 6) {
-            XrdOucString sdev = val[0];
-            XrdOucString spath = val[1];
+            std::string sdev = val[0];
+            std::string spath = val[1];
 
             // fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
-            if (sdev.beginswith("/dev/")) {
+            if (sdev.find("/dev/") == 0) {
               sdev.erase(0, 5);
-              dev_map[sdev.c_str()] = spath.c_str();
-              // fprintf(stderr,"=> %s %s\n", sdev.c_str(),spath.c_str());
+              dev_map[sdev] = spath;
             }
           }
         }
@@ -107,31 +103,24 @@ Load::DevMap(const char* dev_path)
       }
     }
 
-    XrdOucString match, it_str;
+    std::string path = "";
 
-    for (auto dev_map_it = dev_map.begin(); dev_map_it != dev_map.end();
-         dev_map_it++) {
-      match = dev_path;
-      it_str = dev_map_it->second.c_str();
-      match.erase(dev_map_it->second.length());
+    for (auto it = dev_map.begin(); it != dev_map.end(); ++it) {
+      std::string dpath = it->second.c_str();
+      std::string match = dev_path;
+      match.erase(dpath.length());
 
-      // fprintf(stderr,"%s <=> %s\n",match.c_str(),it_str.c_str());
-      if (match == it_str) {
-        if ((int) dev_map_it->second.length() > (int) mappath.length()) {
-          mapdev = dev_map_it->first.c_str();
-          mappath = dev_map_it->second.c_str();
-          // fprintf(stderr,"Setting up mapping %s=>%s\n", mapdev.c_str(), mappath.c_str());
+      // fprintf(stderr,"%s <=> %s\n",match.c_str(),dpath.c_str());
+      if (match == dpath) {
+        if (dpath.length() > path.length()) {
+          mapped_dev = it->first.c_str();
+          path = dpath;
         }
       }
     }
   }
 
-  if (!mapdev.length()) {
-    mapdev = dev_path;
-  }
-
-  // printf("===> returning |%s|\n", mapdev.c_str());
-  return mapdev.c_str();
+  return mapped_dev;
 }
 
 //------------------------------------------------------------------------------
@@ -140,9 +129,9 @@ Load::DevMap(const char* dev_path)
 double
 Load::GetDiskRate(const char* dev_path, const char* tag)
 {
-  const char* dev = DevMap(dev_path);
+  std::string dev = DevMap(dev_path);
   //fprintf(stderr,"**** Device is %s\n", dev);
-  double val = fDiskStat.GetRate(dev, tag);
+  double val = fDiskStat.GetRate(dev.c_str(), tag);
   return val;
 }
 
@@ -163,7 +152,7 @@ Load::GetNetRate(const char* dev, const char* tag)
 void
 Load::Measure()
 {
-  while (1) {
+  while (true) {
     XrdSysThread::SetCancelOff();
 
     if (!fDiskStat.Measure()) {
@@ -246,7 +235,12 @@ DiskStat::GetRate(const char* dev, const char* key)
   std::string tag = key;
   std::string device = dev;
   XrdSysRWLockHelper rd_lock(&mMutexRW, true);
-  return mRates[device][tag];
+
+  if (mRates.find(device) != mRates.end()) {
+    return mRates[device][tag];
+  } else {
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -371,7 +365,12 @@ NetStat::GetRate(const char* dev, const char* key)
   std::string tag = key;
   std::string device = dev;
   XrdSysRWLockHelper rd_lock(&mMutexRW, true);
-  return mRates[device][tag];
+
+  if (mRates.find(device) != mRates.end()) {
+    return mRates[device][tag];
+  } else {
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------------
