@@ -108,7 +108,10 @@ Load::DevMap(const std::string& dev_path)
     for (auto it = dev_map.begin(); it != dev_map.end(); ++it) {
       std::string dpath = it->second.c_str();
       std::string match = dev_path;
-      match.erase(dpath.length());
+
+      if (dpath.length() <= match.length()) {
+        match.erase(dpath.length());
+      }
 
       // fprintf(stderr,"%s <=> %s\n",match.c_str(),dpath.c_str());
       if (match == dpath) {
