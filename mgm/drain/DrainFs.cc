@@ -27,6 +27,7 @@
 #include "mgm/FsView.hh"
 #include "common/ThreadPool.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/Prefetcher.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -307,6 +308,7 @@ DrainFs::PrepareFs()
 uint64_t
 DrainFs::CollectDrainJobs()
 {
+  eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);

@@ -183,4 +183,44 @@ void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContaine
   prefetcher.wait();
 }
 
+//------------------------------------------------------------------------------
+//! Prefetch FileList for the given filesystem ID
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFilesystemFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
+  if(view->inMemory()) return;
+  auto it = fsview->getFileList(location);
+}
+
+//------------------------------------------------------------------------------
+//! Prefetch FileList for the given filesystem ID, along with all contained
+//! FileMDs.
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
+  if(view->inMemory()) return;
+
+  Prefetcher prefetcher(view);
+  for(auto it = fsview->getFileList(location); it->valid(); it->next()) {
+    prefetcher.stageFileMD(it->getElement());
+  }
+
+  prefetcher.wait();
+}
+
+//------------------------------------------------------------------------------
+//! Prefetch FileList for the given filesystem ID, along with all contained
+//! FileMDs, and all parents of those.
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
+  if(view->inMemory()) return;
+
+  Prefetcher prefetcher(view);
+  for(auto it = fsview->getFileList(location); it->valid(); it->next()) {
+    prefetcher.stageFileMDWithParents(it->getElement());
+  }
+
+  prefetcher.wait();
+
+}
+
+
 EOSNSNAMESPACE_END

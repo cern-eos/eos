@@ -98,6 +98,23 @@ public:
   //----------------------------------------------------------------------------
   static void prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id);
 
+  //----------------------------------------------------------------------------
+  //! Prefetch FileList for the given filesystem ID
+  //----------------------------------------------------------------------------
+  static void prefetchFilesystemFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch FileList for the given filesystem ID, along with all contained
+  //! FileMDs.
+  //----------------------------------------------------------------------------
+  static void prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch FileList for the given filesystem ID, along with all contained
+  //! FileMDs, and all parents of those.
+  //----------------------------------------------------------------------------
+  static void prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+
 private:
   IView           *pView;
   IFileMDSvc      *pFileMDSvc;

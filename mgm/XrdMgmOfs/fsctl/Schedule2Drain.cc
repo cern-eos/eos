@@ -219,22 +219,8 @@
 
   if(!gOFS->eosView->inMemory()) {
     eos_thread_crit("msg=\"old style draining enabled for QDB namespace. Prefetching entire filesystem to minimize impact on performance.\"");
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-
-    std::vector<eos::IFileMD::id_t> ids;
-    for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
-         (it_fid && it_fid->valid()); it_fid->next()) {
-
-      ids.emplace_back(it_fid->getElement());
-    }
-    nsLock.Release();
-
-    eos::Prefetcher prefetcher(gOFS->eosView);
-    for(size_t i = 0; i < ids.size(); i++) {
-      prefetcher.stageFileMD(ids[i]);
-    }
-
-    prefetcher.wait();
+    eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(gOFS->eosView, gOFS->eosFsView, source_fsid);
+    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, target_fsid);
   }
 
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
