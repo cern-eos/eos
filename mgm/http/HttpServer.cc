@@ -81,7 +81,6 @@ HttpServer::Handler(void* cls,
     // Get the headers
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &headers);
-
     // Retrieve Client IP
     const MHD_ConnectionInfo* info = MHD_get_connection_info(connection,
                                      MHD_CONNECTION_INFO_CLIENT_ADDRESS);
@@ -89,20 +88,19 @@ HttpServer::Handler(void* cls,
     if (info && info->client_addr) {
       char host[NI_MAXHOST];
 
-      if ( ! getnameinfo(info->client_addr, (info->client_addr->sa_family == AF_INET)? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST) )
-      {
-	headers["client-real-ip"] = host;
-      }
-      else
-      {
-	headers["client-real-ip"] = "NOIPLOOKUP";
+      if (! getnameinfo(info->client_addr,
+                        (info->client_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(
+                          struct sockaddr_in6), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST)) {
+        headers["client-real-ip"] = host;
+      } else {
+        headers["client-real-ip"] = "NOIPLOOKUP";
       }
 
       XrdNetAddr netaddr(info->client_addr);
       const char* name = netaddr.Name();
-      if (name)
-      {
-	headers["client-real-host"] = name;
+
+      if (name) {
+        headers["client-real-host"] = name;
       }
     }
 
@@ -264,6 +262,12 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
                      "Remote-User headers\"");
   } else {
     if (clientDN.length()) {
+      // Handle clientDN specified using RFC2253 (and RFC4514) where the
+      // separator is "," instead of the usual "/"
+      if (clientDN.find(',') != std::string::npos) {
+        std::replace(clientDN.begin(), clientDN.end(), ',', '/');
+      }
+
       // Stat the gridmap file
       struct stat info;
 
@@ -366,12 +370,11 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   if (headers.count("x-real-ip")) {
     // translate a proxied host name
     remotehost = const_cast<char*>(headers["x-real-ip"].c_str());
-
     XrdNetAddr netaddr;
     netaddr.Set(headers["x-real-ip"].c_str());
     const char* name = netaddr.Name();
-    if (name)
-    {
+
+    if (name) {
       remotehost = name;
     }
 
