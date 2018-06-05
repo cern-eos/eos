@@ -61,12 +61,12 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
   const std::string cache_size = "file_cache_size";
+  qclient::Members qdb_members;
 
   if ((config.find(key_cluster) != config.end()) &&
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
-    qclient::Members qdb_members;
 
     if (!qdb_members.parse(qdb_cluster)) {
       eos::MDException e(EINVAL);
@@ -82,7 +82,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
-  mMetadataProvider.reset(new MetadataProvider(*pQcl, pContSvc, this));
+  mMetadataProvider.reset(new MetadataProvider(qdb_members, pContSvc, this));
   static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider(
     mMetadataProvider.get());
 

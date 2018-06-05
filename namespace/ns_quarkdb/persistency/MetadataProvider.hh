@@ -51,7 +51,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataProvider(qclient::QClient &qcl, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
+  MetadataProvider(const qclient::Members &members, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
 
   //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID.
@@ -112,7 +112,19 @@ private:
     >
   );
 
-  qclient::QClient &mQcl;
+  //----------------------------------------------------------------------------
+  //! Pick a qclient out of the pool for the given file.
+  //----------------------------------------------------------------------------
+  qclient::QClient& pickQcl(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Pick a qclient out of the pool for the given container.
+  //----------------------------------------------------------------------------
+  qclient::QClient& pickQcl(ContainerIdentifier id);
+
+  static constexpr size_t kQClientPoolSize = 8;
+  std::vector<qclient::QClient*> mQclPool;
+
   IContainerMDSvc *mContSvc;
   IFileMDSvc *mFileSvc;
 

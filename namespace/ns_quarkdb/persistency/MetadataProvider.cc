@@ -27,6 +27,7 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/MDException.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "common/Assert.hh"
 #include <functional>
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -38,11 +39,15 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataProvider::MetadataProvider(qclient::QClient &qcl,
+MetadataProvider::MetadataProvider(const qclient::Members &members,
   IContainerMDSvc *contsvc, IFileMDSvc *filesvc)
-: mQcl(qcl), mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7) {
+: mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7) {
 
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
+
+  for(size_t i = 0; i < kQClientPoolSize; i++) {
+    mQclPool.emplace_back(eos::BackendClient::getInstance(members, SSTR("md-provider-" << i)));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -86,9 +91,9 @@ folly::Future<IContainerMDPtr> MetadataProvider::retrieveContainerMD(ContainerId
   // Nope, need to fetch, and insert into the in-flight staging area. Merge
   // three asynchronous operations into one.
   //----------------------------------------------------------------------------
-  folly::Future<eos::ns::ContainerMdProto> protoFut = MetadataFetcher::getContainerFromId(mQcl, id);
-  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(mQcl, id);
-  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(mQcl, id);
+  folly::Future<eos::ns::ContainerMdProto> protoFut = MetadataFetcher::getContainerFromId(pickQcl(id), id);
+  folly::Future<IContainerMD::FileMap> fileMapFut = MetadataFetcher::getFilesInContainer(pickQcl(id), id);
+  folly::Future<IContainerMD::ContainerMap> containerMapFut = MetadataFetcher::getSubContainers(pickQcl(id), id);
 
   folly::Future<IContainerMDPtr> fut = folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor.get())
@@ -146,7 +151,7 @@ folly::Future<IFileMDPtr> MetadataProvider::retrieveFileMD(FileIdentifier id) {
   //----------------------------------------------------------------------------
   // Nope, need to fetch, and insert into the in-flight staging area.
   //----------------------------------------------------------------------------
-  folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(mQcl, id)
+  folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(pickQcl(id), id)
     .via(mExecutor.get())
     .then(std::bind(&MetadataProvider::processIncomingFileMdProto, this, id, _1))
     .onError([this, id](const folly::exception_wrapper& e) {
@@ -170,9 +175,9 @@ void MetadataProvider::insertFileMD(FileIdentifier id, IFileMDPtr item) {
   mFileCache.put(id, item);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Insert newly created item into the cache.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void MetadataProvider::insertContainerMD(ContainerIdentifier id, IContainerMDPtr item) {
   std::lock_guard<std::mutex> lock(mMutex);
   mContainerCache.put(id, item);
@@ -294,6 +299,20 @@ CacheStatistics MetadataProvider::getContainerMDCacheStats() {
   stats.occupancy = mContainerCache.size();
   stats.maxSize = mContainerCache.get_max_size();
   return stats;
+}
+
+//------------------------------------------------------------------------------
+//! Pick a qclient out of the pool for the given file.
+//------------------------------------------------------------------------------
+qclient::QClient& MetadataProvider::pickQcl(FileIdentifier id) {
+  return *(mQclPool[id.getUnderlyingUInt64() % kQClientPoolSize]);
+}
+
+//------------------------------------------------------------------------------
+//! Pick a qclient out of the pool for the given container.
+//------------------------------------------------------------------------------
+qclient::QClient& MetadataProvider::pickQcl(ContainerIdentifier id) {
+  return *(mQclPool[id.getUnderlyingUInt64() % kQClientPoolSize]);
 }
 
 EOSNSNAMESPACE_END
