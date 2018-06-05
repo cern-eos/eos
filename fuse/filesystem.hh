@@ -49,7 +49,6 @@
 #include <google/sparse_hash_map>
 #include <google/sparsehash/densehashtable.h>
 #include "FuseCacheEntry.hh"
-#include "ProcCache.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"

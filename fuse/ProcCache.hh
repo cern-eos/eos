@@ -311,11 +311,18 @@ class ProcCache
   std::string pProcPath;
 
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   ProcCache()
   {
     pMutex.SetBlocking(true);
     pProcPath = "/proc/";
   }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~ProcCache()
   {
     eos::common::RWMutexWriteLock lock(pMutex);
@@ -324,6 +331,27 @@ public:
       delete it->second;
     }
   }
+
+  //----------------------------------------------------------------------------
+  //! Move constructor
+  //----------------------------------------------------------------------------
+  ProcCache(ProcCache&& other);
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  ProcCache& operator=(ProcCache&& other);
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  ProcCache(const ProcCache&) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Copy assignment operator
+  //----------------------------------------------------------------------------
+  ProcCache& operator=(const ProcCache&) = delete;
+
 
   //! returns true if the cache has an entry for the given pid, false else
   //! regardless of the fact it's up-to-date or not
@@ -397,7 +425,7 @@ public:
       if (protect && protect->count(it->first)) {
         ++it;
       } else {
-	delete it->second;
+        delete it->second;
         pCatalog.erase(it++);
         ++count;
       }

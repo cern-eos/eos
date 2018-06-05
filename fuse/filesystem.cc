@@ -48,6 +48,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "MacOSXHelper.hh"
 #include "FuseCache/CacheEntry.hh"
+#include "ProcCache.hh"
 #include "common/XrdErrorMap.hh"
 #include "filesystem.hh"
 #include "xrdutils.hh"

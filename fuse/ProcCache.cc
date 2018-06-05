@@ -44,6 +44,32 @@ int gProcCacheShardSize;
 
 ProcCache gProcCache;
 
+//------------------------------------------------------------------------------
+// Move constructor
+//------------------------------------------------------------------------------
+ProcCache::ProcCache(ProcCache&& other)
+{
+  *this = std::move(other);
+}
+
+//------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+ProcCache&
+ProcCache::operator=(ProcCache&& other)
+{
+  if (this != &other) {
+    std::swap(this->pMutex, other.pMutex);
+    std::swap(this->pCatalog, other.pCatalog);
+    this->pProcPath = other.pProcPath;
+  }
+
+  return *this;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 int ProcReaderCmdLine::ReadContent(std::vector<std::string>& cmdLine)
 {
   int ret = 1;
