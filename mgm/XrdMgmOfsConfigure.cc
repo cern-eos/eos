@@ -1818,8 +1818,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     if (MgmOfsVstBrokerUrl.length() &&
-        (!getenv("EOS_VST_BROKER_DISABLE") ||
-         (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1")))) {
+        (getenv("EOS_VST_BROKER_ENABLE") && 
+         (strcmp(getenv("EOS_VST_BROKER_ENABLE"), "1")))) {
       MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(),
                                             "/eos/*/vst", true, true, 0);
 

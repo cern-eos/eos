@@ -476,8 +476,8 @@ export EOS_TEST_TESTTIMESLICE=300;
 # define the global broker for subscription
 # export EOS_VST_BROKER_URL=root://eos.cern.ch:1099//eos/
 
-# disable subscription to the global broker if desired
-# export EOS_VST_BROKER_DISABLE=0
+# enable subscription to the global broker if desired
+# export EOS_VST_BROKER_ENABLE=1
 
 # define which client we trust for querying this MGM
 # export EOS_VST_TRUSTED_HOST=eos.cern.ch
