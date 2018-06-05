@@ -957,8 +957,12 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
 
   if (!proxy())
     return;
-  if (!mProxy->HasReadsInFlight())
-    mProxy->CheckSelfDestruction();
+
+  {
+    XrdSysCondVarHelper lLock(mProxy->ReadCondVar());
+    if (!mProxy->HasReadsInFlight())
+      mProxy->CheckSelfDestruction();
+  }
 }
 
 /* -------------------------------------------------------------------------- */
