@@ -29,6 +29,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/FsView.hh"
 #include "common/Constants.hh"
+#include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -120,6 +121,7 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid = 99;
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid = 99;
     try {
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
       eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       fullPath = gOFS->eosView->getUri(fmd.get());

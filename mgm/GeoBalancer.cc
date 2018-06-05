@@ -27,6 +27,7 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -324,6 +325,7 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
   {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
@@ -463,6 +465,7 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   std::vector<eos::common::FileSystem::fsid_t>& validFs = mGeotagFs[geotag];
+  // TODO(gbitzes): Add prefetching here.
 
   while (validFs.size() > 0) {
     rndIndex = getRandom(validFs.size() - 1);

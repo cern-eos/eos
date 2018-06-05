@@ -173,9 +173,20 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
 }
 
 //------------------------------------------------------------------------------
+// Prefetch FileMD inode, along with all its parents, and wait
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchFileMDWithParentsAndWait(IView *view, IFileMD::id_t id) {
+  if(view->inMemory()) return;
+
+  Prefetcher prefetcher(view);
+  prefetcher.stageFileMDWithParents(id);
+  prefetcher.wait();
+}
+
+//------------------------------------------------------------------------------
 // Prefetch ContainerMD inode, along with all its parents, and wait
 //------------------------------------------------------------------------------
-void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id) {
+void Prefetcher::prefetchContainerMDWithParentsAndWait(IView *view, IContainerMD::id_t id) {
   if(view->inMemory()) return;
 
   Prefetcher prefetcher(view);

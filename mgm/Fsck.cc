@@ -321,6 +321,13 @@ Fsck::Check(void)
 
         for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
              (it_fid && it_fid->valid()); it_fid->next()) {
+
+          if(!needLockThroughout) {
+            nslock.Release();
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, it_fid->getElement());
+            nslock.Grab(gOFS->eosViewRWMutex);
+          }
+
           auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
           std::string path = gOFS->eosView->getUri(fmd.get());
           XrdOucString fullpath = path.c_str();
@@ -395,6 +402,7 @@ Fsck::Check(void)
 
         // Check if locations are online
         try {
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
           eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(*it);
         } catch (eos::MDException& e) {}
@@ -461,6 +469,9 @@ Fsck::Check(void)
         IFileMD::location_t nfsid = it->getElement();
 
         try {
+          // TODO(gbitzes): Urgent fix for QDB namespace needed.. This loop
+          // will need to load all filesystems in memory, just to get a couple
+          // of silly counters.
           uint64_t num_files = gOFS->eosFsView->getNumFilesOnFs(nfsid);
 
           if (num_files) {
@@ -582,6 +593,8 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                fidit != emapit->second.end();
                fidit++) {
             std::shared_ptr<eos::IFileMD> fmd;
+
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
             try {
@@ -682,6 +695,8 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                  fidit++) {
               std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((
                                                     eos::IFileMD*)0);
+
+              eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
               try {
@@ -783,6 +798,8 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                fidit != emapit->second.cend(); fidit++) {
             std::shared_ptr<eos::IFileMD> fmd =
               std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
+
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
             try {
@@ -878,6 +895,8 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
               for (auto fidit = efsmapit->second.cbegin();
                    fidit != efsmapit->second.cend(); ++fidit) {
                 std::shared_ptr<eos::IFileMD> fmd;
+
+                eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
                 try {
@@ -970,6 +989,8 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            it != efsmapit->second.cend(); ++it) {
         std::string path = "";
         std::shared_ptr<eos::IFileMD> fmd;
+
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
         try {
@@ -1047,6 +1068,8 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         std::string path = "";
         std::shared_ptr<eos::IFileMD> fmd =
           std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
+
+        eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
         try {
@@ -1106,6 +1129,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
         // Crosscheck if the location really is not attached
         try {
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(*it);
           spath = gOFS->eosView->getUri(fmd.get());
@@ -1166,6 +1190,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
         std::shared_ptr<eos::IFileMD> fmd;
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         bool haslocation = false;
 
@@ -1223,6 +1248,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
         try {
           {
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             fmd = gOFS->eosFileService->getFileMD(*it);
             path = gOFS->eosView->getUri(fmd.get());
@@ -1283,6 +1309,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
         // Crosscheck if the location really is not attached
         try {
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(*it);
           path = gOFS->eosView->getUri(fmd.get());
@@ -1366,6 +1393,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       ctime.tv_nsec = 0;
 
       try {
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         fmd = gOFS->eosFileService->getFileMD(*it);
         path = gOFS->eosView->getUri(fmd.get());
@@ -1414,6 +1442,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         std::string path;
         std::shared_ptr<eos::IFileMD> fmd;
         {
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
           try {

@@ -69,6 +69,8 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
 
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
+
   if (take_lock) {
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
@@ -192,6 +194,8 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::RWMutexWriteLock ns_wr_lock;
+
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   if (take_lock) {
     ns_wr_lock.Grab(gOFS->eosViewRWMutex);
@@ -334,6 +338,8 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
     }
   }
 
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
+
   if (take_lock) {
     gOFS->eosViewRWMutex.LockRead();
   }
@@ -430,6 +436,7 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
   //----------------------------------------------------------------------------
   std::string linkedContainer = md.getAttribute(kMagicKey);
   std::shared_ptr<eos::IContainerMD> dh;
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, linkedContainer);
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
   try {
@@ -492,6 +499,7 @@ XrdMgmOfs::_attr_get(uint64_t cid, std::string key, std::string& rvalue)
   XrdOucString value = "";
   XrdOucString link;
   {
+    eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, cid);
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
     try {
@@ -588,6 +596,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
     return Emsg(epname, error, EINVAL, "delete attribute", path);
   }
 
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {

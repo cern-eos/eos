@@ -155,7 +155,9 @@ XrdMgmOfs::_stat(const char* path,
   }
 
   // Prefetch path
+  // TODO(gbitzes): This could be more precise..
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -362,6 +364,7 @@ XrdMgmOfs::_getchecksum(const char* Name,
     std::shared_ptr<eos::IFileMD> fmd;
     eos::common::Path cPath(Name);
 
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {

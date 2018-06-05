@@ -96,7 +96,12 @@ public:
   //----------------------------------------------------------------------------
   //! Prefetch FileMD inode, along with all its parents, and wait
   //----------------------------------------------------------------------------
-  static void prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id);
+  static void prefetchFileMDWithParentsAndWait(IView *view, IFileMD::id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch ContainerMD inode, along with all its parents, and wait
+  //----------------------------------------------------------------------------
+  static void prefetchContainerMDWithParentsAndWait(IView *view, IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Prefetch FileList for the given filesystem ID

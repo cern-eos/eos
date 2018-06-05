@@ -30,6 +30,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
@@ -1077,6 +1078,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         {
           unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
           eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
           try {
@@ -1106,6 +1108,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         {
           unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
           eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
           try {

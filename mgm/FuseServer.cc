@@ -31,6 +31,7 @@
 #include "mgm/Recycle.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/Prefetcher.hh"
 #include <thread>
 #include <regex.h>
 #include "common/Logging.hh"
@@ -2807,8 +2808,8 @@ FuseServer::HandleMD(const std::string& id,
         {
           // file update
           op = UPDATE;
-	} 
-	else 
+	}
+	else
 	{
 	  op = CREATE;
 	  fmd = gOFS->eosFileService->createFile();
@@ -2838,7 +2839,7 @@ FuseServer::HandleMD(const std::string& id,
         fmd->setMTime(mtime);
         fmd->clearAttributes();
 
-	if ( op == CREATE ) 
+	if ( op == CREATE )
 	{
 	  // store the birth time as an extended attribute
 	  char btime[256];

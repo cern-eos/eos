@@ -457,6 +457,8 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+  // TODO(gbitzes): Add prefetching, make more efficient.
   std::vector<int> validFsIndexes(group->size());
 
   for (size_t i = 0; i < group->size(); i++) {

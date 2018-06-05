@@ -29,6 +29,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
@@ -325,6 +326,7 @@ retry:
   XrdSysThread::SetCancelOff();
   {
     //---------------------------------------------------------------------------
+    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
@@ -480,6 +482,10 @@ retry:
     bool stalled = ((time(NULL) - last_filesleft_change) > 600);
     SetSpaceNode();
     {
+      // TODO(gbitzes): It's a shame to prefetch the whole thing just to get its
+      // size.. make getNumFilesOnFs not need to load the whole thing, or at
+      // least introduce an async version.
+      eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       last_filesleft = filesleft;
       filesleft = gOFS->eosFsView->getNumFilesOnFs(mFsId);

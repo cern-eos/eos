@@ -866,7 +866,9 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
   while (rprefix.replace("//", "/")) {}
 
   {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+    // TODO(gbitzes): This could be more precise...
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+    eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     if (!force_directory) {

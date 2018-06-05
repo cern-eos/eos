@@ -95,6 +95,8 @@ XrdMgmOfs::_chmod(const char* path,
   static const char* epname = "chmod";
   EXEC_TIMING_BEGIN("Chmod");
   // ---------------------------------------------------------------------------
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
@@ -207,4 +209,3 @@ XrdMgmOfs::_chmod(const char* path,
 
   return Emsg(epname, error, errno, "chmod", path);
 }
-

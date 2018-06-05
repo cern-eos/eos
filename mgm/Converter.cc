@@ -28,6 +28,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -102,6 +103,7 @@ ConverterJob::DoIt()
     startConverter = Converter::gConverterMap[mConverterName];
   }
   {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
     try {
@@ -231,6 +233,7 @@ ConverterJob::DoIt()
   // check if the file is still the same on source side
   // ---------------------------------------------------------------------------
   {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
     try {

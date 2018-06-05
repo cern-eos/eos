@@ -33,6 +33,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
@@ -379,6 +380,7 @@ LRU::AgeExpire(const char* dir,
   {
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dir);
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
@@ -639,6 +641,7 @@ LRU::ConvertMatch(const char* dir,
     // check the directory contents
     // -------------------------------------------------------------------------
     std::shared_ptr<eos::IContainerMD> cmd;
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dir);
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {

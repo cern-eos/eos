@@ -35,6 +35,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "Xrd/XrdScheduler.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
@@ -482,6 +483,9 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   std::string vids = eos::common::Mapping::VidToString(mVid);
 
   try {
+    // The point of prefetching here is to get the chunks preceeding the final
+    // one, so that createFile is guaranteed not to wait on network requests.
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, workflowpath);
     eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex};
     auto fmd = gOFS->eosView->createFile(workflowpath, 0, 0);
     auto cid = fmd->getContainerId();
@@ -543,6 +547,7 @@ WFE::Job::Load(std::string path2entry)
     mFid = eos::common::FileId::Hex2Fid(id.c_str());
     eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
     {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path2entry);
       eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
       auto fmd = gOFS->eosView->getFile(path2entry);
 
@@ -854,6 +859,7 @@ WFE::Job::DoIt(bool issync)
           std::shared_ptr<eos::IFileMD> fmd ;
           std::shared_ptr<eos::IContainerMD> cmd ;
           // do meta replacement
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
           gOFS->eosViewRWMutex.LockRead();
 
           try {
@@ -1467,6 +1473,7 @@ WFE::Job::DoIt(bool issync)
                     value.erase(value.length() - 1);
                   }
 
+                  eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
                   eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
                   try {
@@ -1567,6 +1574,7 @@ WFE::Job::DoIt(bool issync)
                     value.assign(outerr.c_str(), xend + 1, string::npos);
                   }
 
+                  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mWorkflowPath);
                   eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
                   try {
@@ -1619,6 +1627,7 @@ WFE::Job::DoIt(bool issync)
         std::string fullPath;
 
         try {
+          eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
           eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(mFid);
           fullPath = gOFS->eosView->getUri(fmd.get());
@@ -2158,6 +2167,7 @@ WFE::Job::MoveToRetry(const std::string& filePath)
     {
       eos::common::Path cPath(filePath.c_str());
       auto parentPath = cPath.GetParentPath();
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, parentPath);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       auto cmd = gOFS->eosView->getContainer(parentPath);
 
