@@ -83,41 +83,31 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
       no_option = false;
     }
 
-    eos::common::PthreadRWMutex* fs_mtx =
-      dynamic_cast<eos::common::PthreadRWMutex*>
-      (FsView::gFsView.ViewMutex.GetRawPtr());
-    eos::common::PthreadRWMutex* quota_mtx =
-      dynamic_cast<eos::common::PthreadRWMutex*>(Quota::pMapMutex.GetRawPtr());
-    eos::common::PthreadRWMutex* ns_mtx =
-      dynamic_cast<eos::common::PthreadRWMutex*>(gOFS->eosViewRWMutex.GetRawPtr());
-
-    if ((fs_mtx == nullptr) || (quota_mtx == nullptr) || (ns_mtx == nullptr)) {
-      reply.set_std_err("error: mutex type does not support such options");
-      reply.set_retc(EINVAL);
-      return;
-    }
+    eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
+    eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
+    eos::common::RWMutex* ns_mtx = &gOFS->eosViewRWMutex;
 
     if (no_option) {
-      size_t cycleperiod = eos::common::PthreadRWMutex::GetLockUnlockDuration();
+      size_t cycleperiod = eos::common::RWMutex::GetLockUnlockDuration();
       std::string line = "# ------------------------------------------------------"
                          "------------------------------";
       oss << line << std::endl
           << "# Mutex Monitoring Management" << std::endl
           << line << std::endl
           << "order checking is : "
-          << (eos::common::PthreadRWMutex::GetOrderCheckingGlobal() ? "on " : "off")
+          << (eos::common::RWMutex::GetOrderCheckingGlobal() ? "on " : "off")
           << " (estimated order checking latency for 1 rule ";
-      size_t orderlatency = eos::common::PthreadRWMutex::GetOrderCheckingLatency();
+      size_t orderlatency = eos::common::RWMutex::GetOrderCheckingLatency();
       oss <<  orderlatency << " nsec / "
           << int(double(orderlatency) / cycleperiod * 100)
           << "% of the mutex lock/unlock cycle duration)" << std::endl
           << "deadlock checking is : "
-          << (eos::common::PthreadRWMutex::GetDeadlockCheckingGlobal() ? "on" : "off")
+          << (eos::common::RWMutex::GetDeadlockCheckingGlobal() ? "on" : "off")
           << std::endl
           << "timing         is : "
           << (fs_mtx->GetTiming() ? "on " : "off")
           << " (estimated timing latency for 1 lock ";
-      size_t timinglatency = eos::common::PthreadRWMutex::GetTimingLatency();
+      size_t timinglatency = eos::common::RWMutex::GetTimingLatency();
       oss << timinglatency << " nsec / "
           << int(double(timinglatency) / cycleperiod * 100)
           << "% of the mutex lock/unlock cycle duration)" << std::endl
@@ -152,21 +142,21 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
     }
 
     if (mutex.toggle_order()) {
-      if (eos::common::PthreadRWMutex::GetOrderCheckingGlobal()) {
-        eos::common::PthreadRWMutex::SetOrderCheckingGlobal(false);
+      if (eos::common::RWMutex::GetOrderCheckingGlobal()) {
+        eos::common::RWMutex::SetOrderCheckingGlobal(false);
         oss << "mutex order checking is off" << std::endl;
       } else {
-        eos::common::PthreadRWMutex::SetOrderCheckingGlobal(true);
+        eos::common::RWMutex::SetOrderCheckingGlobal(true);
         oss << "mutex order checking is on" << std::endl;
       }
     }
 
     if (mutex.toggle_deadlock()) {
-      if (eos::common::PthreadRWMutex::GetDeadlockCheckingGlobal()) {
-        eos::common::PthreadRWMutex::SetDeadlockCheckingGlobal(false);
+      if (eos::common::RWMutex::GetDeadlockCheckingGlobal()) {
+        eos::common::RWMutex::SetDeadlockCheckingGlobal(false);
         oss << "mutex deadlock checking is off" << std::endl;
       } else {
-        eos::common::PthreadRWMutex::SetDeadlockCheckingGlobal(true);
+        eos::common::RWMutex::SetDeadlockCheckingGlobal(true);
         oss << "mutex deadlock checking is on" << std::endl;
       }
     }

@@ -24,17 +24,16 @@
 //----------------------------------------------------------------------------
 // Program demonstrating the timing facilities of the RWMutex class
 //----------------------------------------------------------------------------
-#include <iostream>
-#include "common/PthreadRWMutex.hh"
 #include "common/RWMutex.hh"
+#include <iostream>
 
 using namespace eos::common;
 const int loopsize = 10e6;
 const unsigned long int NNUM_THREADS = 10;
 pthread_t threads[NNUM_THREADS];
 unsigned long int NUM_THREADS = NNUM_THREADS;
-PthreadRWMutex globmutex;
-PthreadRWMutex gm1, gm2, gm3;
+RWMutex globmutex;
+RWMutex gm1, gm2, gm3;
 
 //----------------------------------------------------------------------------
 //! Output to stream operator for TimingStats structure
@@ -45,12 +44,12 @@ PthreadRWMutex gm1, gm2, gm3;
 //! @return reference to output stream
 //----------------------------------------------------------------------------
 inline std::ostream& operator << (std::ostream& os,
-                                  const PthreadRWMutex::TimingStats& stats)
+                                  const RWMutex::TimingStats& stats)
 {
-  os << "\t" << "PthreadRWMutex Read  Wait (number : min , avg , max)" << " = "
+  os << "\t" << "RWMutex Read  Wait (number : min , avg , max)" << " = "
      << stats.readLockCounterSample << " : " << stats.minwaitread << " , "
      << stats.averagewaitread << " , " << stats.maxwaitread << std::endl
-     << "\t" << "PthreadRWMutex Write Wait (number : min , avg , max)" << " = "
+     << "\t" << "RWMutex Write Wait (number : min , avg , max)" << " = "
      << stats.writeLockCounterSample << " : " << stats.minwaitwrite << " , "
      << stats.averagewaitwrite << " , " << stats.maxwaitwrite << std::endl;
   return os;
@@ -142,9 +141,9 @@ TestThread2(void* threadid)
 int
 main()
 {
-  PthreadRWMutex::SetOrderCheckingGlobal(false);
-  std::cout << " Using Instrumented Version of PthreadRWMutex class" << std::endl;
-  PthreadRWMutex::EstimateLatenciesAndCompensation();
+  RWMutex::SetOrderCheckingGlobal(false);
+  std::cout << " Using Instrumented Version of RWMutex class" << std::endl;
+  RWMutex::EstimateLatenciesAndCompensation();
   size_t t = Timing::GetNowInNs();
 
   for (int k = 0; k < loopsize; ++k) {
@@ -160,8 +159,8 @@ main()
             1.0e9 << " sec" << " (" << double(loopsize) / (t / 1.0e9) << "Hz" << ")" <<
             std::endl;
   std::cout << " ------------------------- " << std::endl << std::endl;
-  PthreadRWMutex::SetTimingGlobal(true);
-  PthreadRWMutex mutex, mutex2;
+  RWMutex::SetTimingGlobal(true);
+  RWMutex mutex, mutex2;
   mutex.SetTiming(true);
   t = Timing::GetNowInNs();
 
@@ -171,7 +170,7 @@ main()
   }
 
   t = Timing::GetNowInNs() - t;
-  PthreadRWMutex::TimingStats stats;
+  RWMutex::TimingStats stats;
   mutex.GetTimingStatistics(stats);
   std::cout << " ------------------------- " << std::endl;
   std::cout << " Monothreaded Loop of size " << double(loopsize) << " took " <<
@@ -180,7 +179,7 @@ main()
             std::endl;
   std::cout << stats;
   std::cout << " ------------------------- " << std::endl << std::endl;
-  float rate = PthreadRWMutex::GetSamplingRateFromCPUOverhead(0.033);
+  float rate = RWMutex::GetSamplingRateFromCPUOverhead(0.033);
   std::cout << " suggested sample rate is " << rate << std::endl << std::endl;
   mutex2.SetTiming(true);
   mutex2.SetSampling(true);
@@ -199,9 +198,9 @@ main()
             double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
   std::cout << stats;
   std::cout << " ------------------------- " << std::endl << std::endl;
-  PthreadRWMutex mutex3;
+  RWMutex mutex3;
   // By default no local timing, but global timing with samplerate of 1
-  PthreadRWMutex::SetTimingGlobal(false);
+  RWMutex::SetTimingGlobal(false);
   t = Timing::GetNowInNs();
 
   for (int k = 0; k < loopsize; ++k) {
@@ -217,7 +216,7 @@ main()
   std::cout << " no stats available" << std::endl;
   std::cout << " ------------------------- " << std::endl << std::endl;
   globmutex.SetBlocking(true);
-  PthreadRWMutex::SetTimingGlobal(false);
+  RWMutex::SetTimingGlobal(false);
   t = Timing::GetNowInNs();
   RunThreads(&TestThread);
   t = Timing::GetNowInNs() - t;
@@ -232,7 +231,7 @@ main()
   sleep(1);
   //----------------------------------------------------------------------------
   globmutex.SetBlocking(false);
-  PthreadRWMutex::SetTimingGlobal(false);
+  RWMutex::SetTimingGlobal(false);
   t = Timing::GetNowInNs();
   RunThreads(&TestThread);
   t = Timing::GetNowInNs() - t;
@@ -248,7 +247,7 @@ main()
   //----------------------------------------------------------------------------
   globmutex.SetBlocking(true);
   globmutex.SetDeadlockCheck(true);
-  PthreadRWMutex::SetTimingGlobal(false);
+  RWMutex::SetTimingGlobal(false);
   t = Timing::GetNowInNs();
   RunThreads(&TestThread);
   t = Timing::GetNowInNs() - t;
@@ -273,7 +272,7 @@ main()
   globmutex.SetTiming(true);
   globmutex.SetSampling(true);
   globmutex.ResetTimingStatistics();
-  PthreadRWMutex::SetTimingGlobal(true);
+  RWMutex::SetTimingGlobal(true);
   t = Timing::GetNowInNs();
   RunThreads(&TestThread);
   t = Timing::GetNowInNs() - t;
@@ -291,7 +290,7 @@ main()
   globmutex.SetTiming(true);
   globmutex.SetSampling(true);
   globmutex.ResetTimingStatistics();
-  PthreadRWMutex::SetTimingGlobal(true);
+  RWMutex::SetTimingGlobal(true);
   t = Timing::GetNowInNs();
   RunThreads(&TestThread);
   t = Timing::GetNowInNs() - t;
@@ -306,26 +305,26 @@ main()
   std::cout << " ------------------------- " << std::endl << std::endl;
   std::cout << " ------------------------- " << std::endl;
   std::cout << " Global statistics" << std::endl;
-  PthreadRWMutex::GetTimingStatisticsGlobal(stats);
+  RWMutex::GetTimingStatisticsGlobal(stats);
   std::cout << stats;
   std::cout << " ------------------------- " << std::endl << std::endl;
   std::cout << "#################################################" << std::endl;
   std::cout << "######## MONOTHREADED ORDER CHECKING TESTS ######" << std::endl;
   std::cout << "#################################################" << std::endl;
-  PthreadRWMutex::SetTimingGlobal(false);
-  PthreadRWMutex::SetOrderCheckingGlobal(true);
-  vector<IRWMutex*> order;
+  RWMutex::SetTimingGlobal(false);
+  RWMutex::SetOrderCheckingGlobal(true);
+  vector<RWMutex*> order;
   order.push_back(&gm1);
   gm1.SetDebugName("mutex1");
   order.push_back(&gm2);
   gm2.SetDebugName("mutex2");
   order.push_back(&gm3);
   gm3.SetDebugName("mutex3");
-  PthreadRWMutex::AddOrderRule("rule1", order);
+  RWMutex::AddOrderRule("rule1", order);
   order.clear();
   order.push_back(&gm2);
   order.push_back(&gm3);
-  PthreadRWMutex::AddOrderRule("rule2", order);
+  RWMutex::AddOrderRule("rule2", order);
   std::cout << "==== Trying lock/unlock mutex in proper order... ====" <<
             std::endl;
   std::cout.flush();
@@ -348,7 +347,7 @@ main()
   gm1.UnLockWrite();
   std::cout << "======== ... done ========" << std::endl << std::endl;
   std::cout.flush();
-  PthreadRWMutex::SetOrderCheckingGlobal(false);
+  RWMutex::SetOrderCheckingGlobal(false);
   t = Timing::GetNowInNs();
 
   for (int k = 0; k < loopsize; ++k) {
@@ -367,7 +366,7 @@ main()
             << double(loopsize) / (t / 1.0e9) << "Hz" << ")" << std::endl;
   std::cout << " no stats available" << std::endl;
   std::cout << " ------------------------- " << std::endl << std::endl;
-  PthreadRWMutex::SetOrderCheckingGlobal(true);
+  RWMutex::SetOrderCheckingGlobal(true);
   t = Timing::GetNowInNs();
 
   for (int k = 0; k < loopsize; ++k) {
@@ -397,8 +396,8 @@ main()
 int
 main()
 {
-  std::cout << " Using NON-Instrumented Version of PthreadRWMutex class" << std::endl;
-  PthreadRWMutex mutex3;
+  std::cout << " Using NON-Instrumented Version of RWMutex class" << std::endl;
+  RWMutex mutex3;
   size_t t = Timing::GetNowInNs();
 
   for (int k = 0; k < loopsize; ++k) {

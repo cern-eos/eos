@@ -24,7 +24,6 @@
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
 #include <shared_mutex>
-#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -67,71 +66,43 @@ public:
   //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
-  void LockRead() override;
+  int LockRead() override;
 
   //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
-  void UnLockRead() override;
+  int UnLockRead() override;
 
   //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return true if lock acquired successfully, otherwise false
+  //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  bool TimedRdLock(uint64_t timeout_ns) override;
+  int TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Lock for write
   //----------------------------------------------------------------------------
-  void LockWrite() override;
+  int LockWrite() override;
 
   //----------------------------------------------------------------------------
   //! Unlock a write lock
   //----------------------------------------------------------------------------
-  void UnLockWrite() override;
+  int UnLockWrite() override;
 
   //----------------------------------------------------------------------------
   //! Try to write lock the mutex within the timeout
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return true if lock acquired successfully, otherwise false
+  //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  bool TimedWrLock(uint64_t timeout_ns) override;
-
-  //----------------------------------------------------------------------------
-  //! Get Readlock Counter
-  //----------------------------------------------------------------------------
-  inline uint64_t GetReadLockCounter() override
-  {
-    return mRdLockCounter.load();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get Writelock Counter
-  //----------------------------------------------------------------------------
-  uint64_t GetWriteLockCounter() override
-  {
-    return mWrLockCounter.load();
-  }
+  int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
-  //----------------------------------------------------------------------------
-  //! Set the write lock to blocking or not blocking
-  //!
-  //! @param block blocking mode
-  //----------------------------------------------------------------------------
-  inline void SetBlocking(bool block)
-  {
-    return; // no supported
-  }
-
   std::shared_timed_mutex mSharedMutex;
-  std::atomic<uint64_t> mRdLockCounter; ///< Number of read lock operations
-  std::atomic<uint64_t> mWrLockCounter; ///< Number of write lock operations
 };
 
 EOSCOMMONNAMESPACE_END

@@ -1839,32 +1839,24 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // default.eoscf in which it only holds a few entries.
   FsView::gFsView.SetConfigEngine(ConfEngine);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  eos::common::PthreadRWMutex* fs_mtx =
-    dynamic_cast<eos::common::PthreadRWMutex*>
-    (FsView::gFsView.ViewMutex.GetRawPtr());
-  eos::common::PthreadRWMutex* quota_mtx =
-    dynamic_cast<eos::common::PthreadRWMutex*>(Quota::pMapMutex.GetRawPtr());
-  eos::common::PthreadRWMutex* ns_mtx =
-    dynamic_cast<eos::common::PthreadRWMutex*>(eosViewRWMutex.GetRawPtr());
-
-  if (fs_mtx && quota_mtx && ns_mtx) {
-    eos::common::PthreadRWMutex::EstimateLatenciesAndCompensation();
-    fs_mtx->SetDebugName("FsView");
-    fs_mtx->SetTiming(false);
-    fs_mtx->SetSampling(true, 0.01);
-    quota_mtx->SetDebugName("QuotaView");
-    quota_mtx->SetTiming(false);
-    quota_mtx->SetSampling(true, 0.01);
-    ns_mtx->SetDebugName("eosView");
-    ns_mtx->SetTiming(false);
-    ns_mtx->SetSampling(true, 0.01);
-    std::vector<eos::common::IRWMutex*> order;
-    order.push_back(FsView::gFsView.ViewMutex.GetRawPtr());
-    order.push_back(eosViewRWMutex.GetRawPtr());
-    order.push_back(Quota::pMapMutex.GetRawPtr());
-    eos::common::PthreadRWMutex::AddOrderRule("Eos Mgm Mutexes", order);
-  }
-
+  eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
+  eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
+  eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
+  eos::common::RWMutex::EstimateLatenciesAndCompensation();
+  fs_mtx->SetDebugName("FsView");
+  fs_mtx->SetTiming(false);
+  fs_mtx->SetSampling(true, 0.01);
+  quota_mtx->SetDebugName("QuotaView");
+  quota_mtx->SetTiming(false);
+  quota_mtx->SetSampling(true, 0.01);
+  ns_mtx->SetDebugName("eosView");
+  ns_mtx->SetTiming(false);
+  ns_mtx->SetSampling(true, 0.01);
+  std::vector<eos::common::RWMutex*> order;
+  order.push_back(fs_mtx);
+  order.push_back(ns_mtx);
+  order.push_back(quota_mtx);
+  eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
   eos_info("starting statistics thread");
 

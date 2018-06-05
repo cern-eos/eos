@@ -40,59 +40,42 @@ public:
   virtual ~IRWMutex() = default;
 
   //----------------------------------------------------------------------------
-  //! Set the write lock to blocking or not blocking
-  //!
-  //! @param block blocking mode
-  //----------------------------------------------------------------------------
-  virtual void SetBlocking(bool block) = 0;
-
-  //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
-  virtual void LockRead() = 0;
+  virtual int LockRead() = 0;
 
   //----------------------------------------------------------------------------
   //! Unlock a read lock
   //----------------------------------------------------------------------------
-  virtual void UnLockRead() = 0;
+  virtual int UnLockRead() = 0;
 
   //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return true if lock acquired successfully, otherwise false
+  //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  virtual bool TimedRdLock(uint64_t timeout_ns) = 0;
+  virtual int TimedRdLock(uint64_t timeout_ns) = 0;
 
   //----------------------------------------------------------------------------
   //! Lock for write
   //----------------------------------------------------------------------------
-  virtual void LockWrite() = 0;
+  virtual int LockWrite() = 0;
 
   //----------------------------------------------------------------------------
   //! Unlock a write lock
   //----------------------------------------------------------------------------
-  virtual void UnLockWrite() = 0;
+  virtual int UnLockWrite() = 0;
 
   //----------------------------------------------------------------------------
   //! Try to write lock the mutex within the timeout
   //!
   //! @param timeout_ns nano seconds timeout
   //!
-  //! @return true if lock acquired successfully, otherwise false
+  //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  virtual bool TimedWrLock(uint64_t timeout_ns) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get read lock counter
-  //----------------------------------------------------------------------------
-  virtual uint64_t GetReadLockCounter() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get write lock counter
-  //----------------------------------------------------------------------------
-  virtual uint64_t GetWriteLockCounter() = 0;
+  virtual int TimedWrLock(uint64_t timeout_ns) = 0;
 };
 
 EOSCOMMONNAMESPACE_END

@@ -27,61 +27,71 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Lock for read
 //------------------------------------------------------------------------------
-void
+int
 SharedMutex::LockRead()
 {
-  ++mRdLockCounter;
   mSharedMutex.lock_shared();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 // Unlock a read lock
 //-----------------------------------------------------------------------------
-void
+int
 SharedMutex::UnLockRead()
 {
   mSharedMutex.unlock_shared();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timeout
 //------------------------------------------------------------------------------
-bool
+int
 SharedMutex::TimedRdLock(uint64_t timeout_ns)
 {
   std::chrono::nanoseconds ns(timeout_ns);
-  ++mRdLockCounter;
-  return mSharedMutex.try_lock_shared_for(ns);
+
+  if (mSharedMutex.try_lock_shared_for(ns)) {
+    return 0;
+  } else {
+    return ETIMEDOUT;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Lock for write
 //------------------------------------------------------------------------------
-void
+int
 SharedMutex::LockWrite()
 {
-  ++mWrLockCounter;
   mSharedMutex.lock();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 // Unlock a write lock
 //------------------------------------------------------------------------------
-void
+int
 SharedMutex::UnLockWrite()
 {
   mSharedMutex.unlock();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 // Try to write lock the mutex within the timeout
 //------------------------------------------------------------------------------
-bool
+int
 SharedMutex::TimedWrLock(uint64_t timeout_ns)
 {
   std::chrono::nanoseconds ns(timeout_ns);
-  ++mWrLockCounter;
-  return mSharedMutex.try_lock_for(ns);
+
+  if (mSharedMutex.try_lock_for(ns)) {
+    return 0;
+  } else {
+    return ETIMEDOUT;
+  }
 }
 
 EOSCOMMONNAMESPACE_END

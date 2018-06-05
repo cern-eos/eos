@@ -221,11 +221,8 @@ endif()
 #-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-  add_executable(mutextest
-    mutextest/RWMutexTest.cc
-    RWMutex.cc
-    SharedMutex.cc
-    PthreadRWMutex.cc)
+  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc)
+
   add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
@@ -237,8 +234,7 @@ if(NOT CLIENT AND Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(mutextest PRIVATE
-    eosCommon
-    eosCommonServer
+    eosCommon-Static
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(dbmaptestfunc PRIVATE
