@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 
@@ -151,13 +152,14 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
   } else {
     int fsid = atoi(fsidst.c_str());
     std::shared_ptr<eos::IFileMD> fmd;
-    // @todo (esindril): enable after dev merge
-    // eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
-    //   gOFS->eosView, gOFS->eosFsView, fsid);
-    // if (monitor) {
-    //   eos::Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(
-    //     gOFS->eosView, gOFS->eosFsView, fsid);
-    // }
+    eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+      gOFS->eosView, gOFS->eosFsView, fsid);
+
+    if (monitor) {
+      eos::Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(
+        gOFS->eosView, gOFS->eosFsView, fsid);
+    }
+
     eos::common::RWMutexReadLock ns_rd_lock;
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
 

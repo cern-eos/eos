@@ -36,6 +36,7 @@
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/Prefetcher.cc"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -281,6 +282,9 @@ Fsck::Check(void)
         } else {
           // Not ok and contributes to replica offline errors
           try {
+            // TODO(gbitzes): This could be improved for QDB namespace. We don't
+            // need the FileMD contents, we just need to know if it exists.
+            eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(gOFS->eosView, gOFS->eosFsView, fsid);
             XrdSysMutexHelper lock(eMutex);
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
 

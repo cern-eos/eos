@@ -219,7 +219,6 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *v
   }
 
   prefetcher.wait();
-
 }
 
 
