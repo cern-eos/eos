@@ -199,8 +199,8 @@
 
         // check if this file is already unlinked from the visible namespace
         if (!(cid = fmd->getContainerId())) {
-          eos_thread_warning("commit for fid=%lu but file is disconnected from any container",
-                             fmd->getId());
+          eos_thread_debug("commit for fid=%lu but file is disconnected from any container",
+			   fmd->getId());
           gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
           return Emsg(epname, error, EIDRM,
                       "commit filesize change - file is already removed [EIDRM]", "");
