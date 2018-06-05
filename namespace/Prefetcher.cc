@@ -48,8 +48,8 @@ void Prefetcher::stageFileMD(IFileMD::id_t id) {
 }
 
 //------------------------------------------------------------------------------
-//! Declare an intent to access FileMD with the given id soon, along with
-//! its parents
+// Declare an intent to access FileMD with the given id soon, along with
+// its parents
 //------------------------------------------------------------------------------
 void Prefetcher::stageFileMDWithParents(IFileMD::id_t id) {
   if(pView->inMemory()) return;
@@ -62,8 +62,8 @@ void Prefetcher::stageFileMDWithParents(IFileMD::id_t id) {
 }
 
 //------------------------------------------------------------------------------
-//! Declare an intent to access ContainerMD with the given id soon, along with
-//! its parents
+// Declare an intent to access ContainerMD with the given id soon, along with
+// its parents
 //------------------------------------------------------------------------------
 void Prefetcher::stageContainerMDWithParents(IContainerMD::id_t id) {
   if(pView->inMemory()) return;
@@ -118,7 +118,7 @@ void Prefetcher::wait() {
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch FileMD by path and wait
+// Prefetch FileMD by path and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFileMDAndWait(IView *view, const std::string &path, bool follow) {
   Prefetcher prefetcher(view);
@@ -127,7 +127,7 @@ void Prefetcher::prefetchFileMDAndWait(IView *view, const std::string &path, boo
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch FileMD by id and wait
+// Prefetch FileMD by id and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFileMDAndWait(IView *view, IFileMD::id_t id) {
   Prefetcher prefetcher(view);
@@ -137,7 +137,7 @@ void Prefetcher::prefetchFileMDAndWait(IView *view, IFileMD::id_t id) {
 
 
 //------------------------------------------------------------------------------
-//! Prefetch ContainerMD and wait
+// Prefetch ContainerMD and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow) {
   Prefetcher prefetcher(view);
@@ -146,7 +146,7 @@ void Prefetcher::prefetchContainerMDAndWait(IView *view, const std::string &path
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch ContainerMD, along with all its children, and wait
+// Prefetch ContainerMD, along with all its children, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::string &path, bool follow) {
   if(view->inMemory()) return;
@@ -173,7 +173,7 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch ContainerMD inode, along with all its parents, and wait
+// Prefetch ContainerMD inode, along with all its parents, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id) {
   if(view->inMemory()) return;
@@ -184,16 +184,39 @@ void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContaine
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch FileList for the given filesystem ID
+// Prefetch FileList for the given filesystem ID
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFilesystemFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
   if(view->inMemory()) return;
   auto it = fsview->getFileList(location);
 }
 
+//----------------------------------------------------------------------------
+// Prefetch unlinked FileList for the given filesystem ID
+//----------------------------------------------------------------------------
+void Prefetcher::prefetchFilesystemUnlinkedFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
+  if(view->inMemory()) return;
+  auto it = fsview->getUnlinkedFileList(location);
+}
+
+//----------------------------------------------------------------------------
+// Prefetch unlinked FileList for the given filesystem ID, along with all
+// contained FileMDs.
+//----------------------------------------------------------------------------
+void Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
+  if(view->inMemory()) return;
+
+  Prefetcher prefetcher(view);
+  for(auto it = fsview->getUnlinkedFileList(location); it->valid(); it->next()) {
+    prefetcher.stageFileMD(it->getElement());
+  }
+
+  prefetcher.wait();
+}
+
 //------------------------------------------------------------------------------
-//! Prefetch FileList for the given filesystem ID, along with all contained
-//! FileMDs.
+// Prefetch FileList for the given filesystem ID, along with all contained
+// FileMDs.
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
   if(view->inMemory()) return;
@@ -207,8 +230,8 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsVi
 }
 
 //------------------------------------------------------------------------------
-//! Prefetch FileList for the given filesystem ID, along with all contained
-//! FileMDs, and all parents of those.
+// Prefetch FileList for the given filesystem ID, along with all contained
+// FileMDs, and all parents of those.
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location) {
   if(view->inMemory()) return;

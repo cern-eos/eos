@@ -61,6 +61,7 @@
   for (unsigned long i = 0ul; i < fslist.size(); i++)
   {
     // Loop over all file systems
+    eos::Prefetcher::prefetchFilesystemUnlinkedFileListAndWait(gOFS->eosView, gOFS->eosFsView, fslist[i]);
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     std::unordered_set<eos::IFileMD::id_t> set_fids;
     {
