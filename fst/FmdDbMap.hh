@@ -105,6 +105,12 @@ public:
   virtual ~FmdDbMapHandler()
   {
     Shutdown();
+
+    for (auto it = mFsMtxMap.begin(); it != mFsMtxMap.end(); ++it) {
+      delete it->second;
+    }
+
+    mFsMtxMap.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -400,7 +406,7 @@ private:
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
   std::map<eos::common::FileSystem::fsid_t, bool> mIsSyncing;
   ///! Map containing mutexes for each file system id
-  google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex>
+  google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex*>
   mFsMtxMap;
   eos::common::RWMutex mFsMtxMapMutex; ///< Mutex protecting the previous map
 
@@ -417,20 +423,21 @@ private:
 
     if (mFsMtxMap.count(fsid)) {
       if (write) {
-        mFsMtxMap[fsid].LockWrite();
+        mFsMtxMap[fsid]->LockWrite();
       } else {
-        mFsMtxMap[fsid].LockRead();
+        mFsMtxMap[fsid]->LockRead();
       }
 
       mFsMtxMapMutex.UnLockRead();
     } else {
       mFsMtxMapMutex.UnLockRead();
       mFsMtxMapMutex.LockWrite();
+      mFsMtxMap[fsid] = new eos::common::RWMutex();
 
       if (write) {
-        mFsMtxMap[fsid].LockWrite();
+        mFsMtxMap[fsid]->LockWrite();
       } else {
-        mFsMtxMap[fsid].LockRead();
+        mFsMtxMap[fsid]->LockRead();
       }
 
       mFsMtxMapMutex.UnLockWrite();
@@ -450,9 +457,9 @@ private:
 
     if (mFsMtxMap.count(fsid)) {
       if (write) {
-        mFsMtxMap[fsid].UnLockWrite();
+        mFsMtxMap[fsid]->UnLockWrite();
       } else {
-        mFsMtxMap[fsid].UnLockRead();
+        mFsMtxMap[fsid]->UnLockRead();
       }
 
       mFsMtxMapMutex.UnLockRead();
@@ -461,11 +468,12 @@ private:
       // mutex #i should have been locked at some point.
       mFsMtxMapMutex.UnLockRead();
       mFsMtxMapMutex.LockWrite();
+      mFsMtxMap[fsid] = new eos::common::RWMutex();
 
       if (write) {
-        mFsMtxMap[fsid].UnLockWrite();
+        mFsMtxMap[fsid]->UnLockWrite();
       } else {
-        mFsMtxMap[fsid].UnLockRead();
+        mFsMtxMap[fsid]->UnLockRead();
       }
 
       mFsMtxMapMutex.UnLockWrite();

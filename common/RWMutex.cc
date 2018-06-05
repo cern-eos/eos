@@ -115,7 +115,8 @@ pthread_rwlock_t RWMutex::mOrderChkLock;
 // Constructor
 //------------------------------------------------------------------------------
 RWMutex::RWMutex(bool prefer_rd):
-  mBlocking(false), mRdLockCounter(0), mWrLockCounter(0), mPreferRd(prefer_rd)
+  mBlocking(false), mMutexImp(nullptr), mRdLockCounter(0), mWrLockCounter(0),
+  mPreferRd(prefer_rd)
 {
   // Try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
@@ -184,6 +185,31 @@ RWMutex::~RWMutex()
 #endif
   delete mMutexImp;
 }
+
+
+//------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+RWMutex&
+RWMutex::operator=(RWMutex&& other) noexcept
+{
+  if (this != &other) {
+    this->mMutexImp = other.mMutexImp;
+    other.mMutexImp = nullptr;
+    this->mBlocking = other.mBlocking;
+  }
+
+  return *this;
+}
+
+//------------------------------------------------------------------------------
+// Move constructor
+//------------------------------------------------------------------------------
+RWMutex::RWMutex(RWMutex&& other) noexcept
+{
+  *this = std::move(other);
+}
+
 
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timout value
@@ -814,16 +840,20 @@ size_t
 RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes,
     size_t loopsize)
 {
-  std::vector<RWMutex> mutexes;
-  mutexes.resize(nmutexes);
-  std::vector<RWMutex*> order;
-  order.resize(nmutexes);
-  int count = 0;
+  std::vector<RWMutex*> mutexes;
+  mutexes.reserve(nmutexes);
 
-  for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
-    it->SetTiming(false);
-    it->SetSampling(false);
-    order[count++] = &(*it);
+  for (size_t i = 0; i < nmutexes; ++i) {
+    mutexes.push_back(new RWMutex());
+  }
+
+  std::vector<RWMutex*> order;
+  order.reserve(nmutexes);
+
+  for (auto& mtx : mutexes) {
+    mtx->SetTiming(false);
+    mtx->SetSampling(false);
+    order.push_back(mtx);
   }
 
   RWMutex::AddOrderRule("estimaterule", order);
@@ -835,11 +865,11 @@ RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes,
 
   for (size_t k = 0; k < loopsize; k++) {
     for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
-      it->LockWrite();
+      (*it)->LockWrite();
     }
 
-    for (auto rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
-      rit->UnLockWrite();
+    for (auto it = mutexes.rbegin(); it != mutexes.rend(); ++it) {
+      (*it)->UnLockWrite();
     }
   }
 
@@ -849,11 +879,11 @@ RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes,
 
   for (size_t k = 0; k < loopsize; ++k) {
     for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
-      it->LockWrite();
+      (*it)->LockWrite();
     }
 
-    for (auto rit = mutexes.rbegin(); rit != mutexes.rend(); ++rit) {
-      rit->UnLockWrite();
+    for (auto it = mutexes.rbegin(); it != mutexes.rend(); ++it) {
+      (*it)->UnLockWrite();
     }
   }
 
@@ -861,6 +891,11 @@ RWMutex::EstimateOrderCheckingAddedLatency(size_t nmutexes,
   RWMutex::SetTimingGlobal(sav);
   RWMutex::SetOrderCheckingGlobal(sav2);
   RemoveOrderRule("estimaterule");
+
+  for (size_t i = 0; i < nmutexes; ++i) {
+    delete mutexes[i];
+  }
+
   return size_t(double(s - t) / (loopsize * nmutexes));
 }
 
