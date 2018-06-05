@@ -77,7 +77,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 /// check if we are in master read access mode
 #define IS_ACCESSMODE_R_MASTER (__AccessMode__ == 2)
 
-#define WAIT_BOOT while (1) {XrdSysMutexHelper(gOFS->InitializationMutex); if (gOFS->Initialized == gOFS->kBooted)break; XrdSysTimer sleeper; sleeper.Snooze(5);}
+#define WAIT_BOOT while (1) {if (gOFS->IsNsBooted()) break; XrdSysTimer sleeper; sleeper.Snooze(5);}
 
 
 
