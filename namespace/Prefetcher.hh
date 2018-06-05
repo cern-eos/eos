@@ -31,6 +31,7 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IFileMDSvc;
 class IView;
+class IFsView;
 
 class Prefetcher {
 public:
@@ -43,6 +44,18 @@ public:
   //! Declare an intent to access FileMD with the given id soon
   //----------------------------------------------------------------------------
   void stageFileMD(IFileMD::id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Declare an intent to access FileMD with the given id soon, along with
+  //! its parents
+  //----------------------------------------------------------------------------
+  void stageFileMDWithParents(IFileMD::id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Declare an intent to access FileMD with the given id soon, along with
+  //! its parents
+  //----------------------------------------------------------------------------
+  void stageContainerMDWithParents(IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Declare an intent to access FileMD with the given path soon
@@ -92,6 +105,7 @@ private:
 
   std::vector<folly::Future<IFileMDPtr>> mFileMDs;
   std::vector<folly::Future<IContainerMDPtr>> mContainerMDs;
+  std::vector<folly::Future<std::string>> mUris;
 };
 
 EOSNSNAMESPACE_END

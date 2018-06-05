@@ -24,6 +24,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/IFsView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 
@@ -44,6 +45,34 @@ Prefetcher::Prefetcher(IView *view) {
 void Prefetcher::stageFileMD(IFileMD::id_t id) {
   if(pView->inMemory()) return;
   mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
+}
+
+//------------------------------------------------------------------------------
+//! Declare an intent to access FileMD with the given id soon, along with
+//! its parents
+//------------------------------------------------------------------------------
+void Prefetcher::stageFileMDWithParents(IFileMD::id_t id) {
+  if(pView->inMemory()) return;
+
+  folly::Future<IFileMDPtr> fut = pFileMDSvc->getFileMDFut(id);
+
+  mUris.emplace_back(fut.then([this](IFileMDPtr result) {
+    return this->pView->getUriFut(result.get());
+  } ));
+}
+
+//------------------------------------------------------------------------------
+//! Declare an intent to access ContainerMD with the given id soon, along with
+//! its parents
+//------------------------------------------------------------------------------
+void Prefetcher::stageContainerMDWithParents(IContainerMD::id_t id) {
+  if(pView->inMemory()) return;
+
+  folly::Future<IContainerMDPtr> fut = pContainerMDSvc->getContainerMDFut(id);
+
+  mUris.emplace_back(fut.then([this](IContainerMDPtr result) {
+    return this->pView->getUriFut(result.get());
+  } ));
 }
 
 //----------------------------------------------------------------------------
@@ -81,6 +110,10 @@ void Prefetcher::wait() {
 
   for(size_t i = 0; i < mContainerMDs.size(); i++) {
     mContainerMDs[i].wait();
+  }
+
+  for(size_t i = 0; i < mUris.size(); i++) {
+    mUris[i].wait();
   }
 }
 
@@ -145,15 +178,9 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
 void Prefetcher::prefetchContainerMDWithAllParentsAndWait(IView *view, IContainerMD::id_t id) {
   if(view->inMemory()) return;
 
-  try {
-    folly::Future<IContainerMDPtr> fut = view->getContainerMDSvc()->getContainerMDFut(id);
-    fut.wait();
-    if(fut.hasException()) return;
-    view->getUriFut(fut.get().get()).wait();
-  }
-  catch(...) {
-    // we don't care lol, this is just prefetching
-  }
+  Prefetcher prefetcher(view);
+  prefetcher.stageContainerMDWithParents(id);
+  prefetcher.wait();
 }
 
 EOSNSNAMESPACE_END
