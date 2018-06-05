@@ -100,7 +100,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
 
         XrdSysCondVarHelper lLock(it->second->ReadCondVar());
 
-        eos_debug("----: eval offset=%lu chunk-offset=%lu", offset, it->second->offset());
+        eos_debug("----: eval offset=%lu chunk-offset=%lu rah-position=%lu", offset, it->second->offset(), mReadAheadPosition);
         if (it->second->matches(current_offset, current_size, match_offset, match_size))
         {
           readahead_window_hit++;
@@ -150,7 +150,6 @@ XrdCl::Proxy::Read( uint64_t  offset,
             // remove this chunk
             delete_chunk.insert(it->first);
             request_next = false;
-	    XReadAheadNom = XReadAheadMin;
           }
           else
           {
@@ -159,12 +158,10 @@ XrdCl::Proxy::Read( uint64_t  offset,
         }
       }
 
-      if (!has_successor)
+      if (!has_successor) {
         request_next = true;
-      else
-      {
+      } else {
         request_next = false;
-	XReadAheadNom = XReadAheadMin;
       }
       // check if we can remove previous prefetched chunks
       for ( auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
@@ -188,11 +185,18 @@ XrdCl::Proxy::Read( uint64_t  offset,
       {
         // re-enable read-ahead if sequential reading occurs
         request_next = true;
+	if (!mReadAheadPosition) {
+	  mReadAheadPosition = offset + size;
+	  // tune the read-ahead size with the read-pattern
+	  if (size > XReadAheadNom)
+	    XReadAheadNom = size;
+	}
       }
       else
       {
         request_next = false;
 	XReadAheadNom = XReadAheadMin;
+	mReadAheadPosition = 0;
       }
     }
 
@@ -210,7 +214,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
         }
       }
 
-      off_t align_offset = aligned_offset( ChunkRMap().size() ? offset + XReadAheadNom : offset);
+      off_t align_offset = mReadAheadPosition;
       eos_debug("----: pre-fetch window=%lu pf-offset=%lu,",
                 XReadAheadNom,
                 (unsigned long) align_offset
@@ -226,6 +230,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
         XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(align_offset, XReadAheadNom);
         XRootDStatus rstatus = PreReadAsync(align_offset, XReadAheadNom,
                                             rahread, timeout);
+	mReadAheadPosition = align_offset + XReadAheadNom;
       }
     }
     else

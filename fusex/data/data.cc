@@ -1,4 +1,3 @@
-
 //------------------------------------------------------------------------------
 //! @file data.cc
 //! @author Andreas-Joachim Peters CERN
@@ -690,7 +689,12 @@ data::datax::prefetch(fuse_req_t req, bool lock)
       if (!status.IsOK()) {
         eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
         mPrefetchHandler = 0;
+      } else {
+	// instruct the read-ahead handler where to start
+	proxy->set_readahead_position(prefetch_size);
+	proxy->set_readahead_nominal(prefetch_size);
       }
+      
     }
   }
 

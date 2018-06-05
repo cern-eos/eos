@@ -460,6 +460,7 @@ namespace XrdCl
       XReadAheadNom = 256 * 1204;
       XReadAheadMax = 1024 * 1024;
       mPosition = 0;
+      mReadAheadPosition = 0;
       mTotalBytes = 0;
       mTotalReadAheadHitBytes  = 0;
       mAttached = 0;
@@ -907,6 +908,10 @@ namespace XrdCl
       return XReadAheadNom;
     }
 
+    void set_readahead_position(off_t pos) {mReadAheadPosition = pos;}
+    void set_readahead_nominal(size_t size) { XReadAheadNom = size;} 
+    off_t readahead_position() { return mReadAheadPosition; }
+
     // ref counting
     void attach();
     size_t detach();
@@ -967,6 +972,7 @@ namespace XrdCl
     size_t XReadAheadMax;
 
     off_t mPosition;
+    off_t mReadAheadPosition;
     off_t mTotalBytes;
     off_t mTotalReadAheadHitBytes;
 
