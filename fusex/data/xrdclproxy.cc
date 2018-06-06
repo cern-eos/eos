@@ -952,6 +952,7 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     }
     mDone = true;
     delete status;
+    mProxy->dec_read_chunks_in_flight();
     ReadCondVar().Signal();
   }
 
@@ -959,7 +960,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     return;
 
   {
-    XrdSysCondVarHelper lLock(mProxy->ReadCondVar());
     if (!mProxy->HasReadsInFlight())
       mProxy->CheckSelfDestruction();
   }
@@ -974,6 +974,9 @@ XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size)
   eos_debug("");
   read_handler src = std::make_shared<ReadAsyncHandler>(this, offset, size);
   XrdSysCondVarHelper lLock(ReadCondVar());
+  if (!ChunkRMap().count(src->offset())) {
+    inc_read_chunks_in_flight();
+  }
   ChunkRMap()[(uint64_t) src->offset()] = src;
   ReadCondVar().Signal();
   return src;
@@ -1023,6 +1026,7 @@ XrdCl::Proxy::WaitRead(read_handler handler)
 	it->second->disable();
 	sTimeoutReadAsyncChunks.push_back(it->second);
       }
+      clear_read_chunks_in_flight();
       ChunkRMap().clear();
 
       return XRootDStatus(XrdCl::stFatal,

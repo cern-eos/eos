@@ -201,6 +201,8 @@ namespace XrdCl
   {
   public:
 
+    class ReadAsyncHandler; 
+
     static BufferManager sWrBufferManager; // write buffer manager
     static BufferManager sRaBufferManager; // async read buffer manager
 
@@ -466,6 +468,7 @@ namespace XrdCl
       mAttached = 0;
       mTimeout = 0;
       mSelfDestruction.store(false, std::memory_order_seq_cst);
+      mRChunksInFlight.store(0, std::memory_order_seq_cst);
     }
 
     void Collect()
@@ -482,14 +485,7 @@ namespace XrdCl
 
     bool HasReadsInFlight()
     {
-      // needs ReadCondVar locked
-      for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
-      {
-        XrdSysCondVarHelper llLock(it->second->ReadCondVar());
-	if (!it->second->done())
-	  return true;
-      }
-      return false;
+      return (read_chunks_in_flight())?true:false;
     }
 
     bool HasWritesInFlight()
@@ -934,6 +930,26 @@ namespace XrdCl
       return mSelfDestruction.load();
     }
 
+    int read_chunks_in_flight() 
+    {
+      return mRChunksInFlight.load();
+    }
+
+    void clear_read_chunks_in_flight()
+    {
+      mRChunksInFlight.store(0, std::memory_order_seq_cst);
+    }
+
+    void inc_read_chunks_in_flight() 
+    {
+      mRChunksInFlight.fetch_add(1, std::memory_order_seq_cst);
+    }
+
+    void dec_read_chunks_in_flight()
+    {
+      mRChunksInFlight.fetch_sub(1, std::memory_order_seq_cst);
+    }
+
     void CheckSelfDestruction();
 
     static ssize_t chunk_timeout(ssize_t to=0) { if (to) sChunkTimeout = to; return sChunkTimeout; }
@@ -986,6 +1002,7 @@ namespace XrdCl
     Access::Mode mMode;
     uint16_t mTimeout;
 
+    std::atomic<int> mRChunksInFlight;
     std::atomic<bool> mSelfDestruction;
   } ;
 }

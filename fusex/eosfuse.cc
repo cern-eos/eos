@@ -4378,7 +4378,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
 
-      if (Instance().Config().options.mkdir_is_sync) {
+      if (Instance().Config().options.symlink_is_sync) {
         md->set_type(md->EXCL);
         rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
 	md->set_type(md->MD);
