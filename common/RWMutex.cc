@@ -361,7 +361,7 @@ RWMutex::LockWrite()
           std::terminate();
         } else {
           // fprintf(stderr,"==== WRITE LOCK PENDING ==== TID=%llu OBJECT=%llx\n",
-          // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+          //        (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
           XrdSysTimer msSleep;
           msSleep.Wait(500);
         }
@@ -909,10 +909,10 @@ RWMutex::EstimateLatenciesAndCompensation(size_t loopsize)
   timingLatency = EstimateTimingAddedLatency(loopsize);
   orderCheckingLatency = EstimateOrderCheckingAddedLatency(3, loopsize);
   lockUnlockDuration = EstimateLockUnlockDuration(loopsize);
-  //std::cerr<< " timing compensation = "<<timingCompensation<<std::endl;
-  //std::cerr<< " timing latency = "<<timingLatency<<std::endl;
-  //std::cerr<< " order  latency = "<<orderCheckingLatency<<std::endl;
-  //std::cerr<< " lock/unlock duration = "<<lockUnlockDuration<<std::endl;
+  std::cerr << " timing compensation = " << timingCompensation << std::endl;
+  std::cerr << " timing latency = " << timingLatency << std::endl;
+  std::cerr << " order  latency = " << orderCheckingLatency << std::endl;
+  std::cerr << " lock/unlock duration = " << lockUnlockDuration << std::endl;
 }
 
 //------------------------------------------------------------------------------

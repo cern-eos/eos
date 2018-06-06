@@ -85,9 +85,7 @@ SharedMutex::UnLockWrite()
 int
 SharedMutex::TimedWrLock(uint64_t timeout_ns)
 {
-  std::chrono::nanoseconds ns(timeout_ns);
-
-  if (mSharedMutex.try_lock_for(ns)) {
+  if (mSharedMutex.try_lock_for(std::chrono::nanoseconds(timeout_ns))) {
     return 0;
   } else {
     return ETIMEDOUT;
