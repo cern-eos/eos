@@ -122,10 +122,9 @@ mkdir 005-eosclient-tests
 cd 005-eosclient-tests
 git clone https://gitlab.cern.ch/dss/eosclient-tests.git >& /tmp/005-eos-clienttests.log
 cd eosclient-tests/
-cd microtests
 echo "005a... micro-tests"
-python run-testing.py >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
-cd ../functional/
+python run.py --workdir=$PWD microbench >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
+cd functional_tests/
 echo "005b... zlib-compile"
 ./zlib-compile-selftest.sh $PWD >& /tmp/005-eos-clienttests.log 2>&1 || exit 5
 echo "005c... git-clone"
