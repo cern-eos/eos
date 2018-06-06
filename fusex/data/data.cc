@@ -1287,7 +1287,7 @@ data::datax::recover_write(fuse_req_t req)
     
     if (rc)
     {
-      delete proxy;
+      delete aproxy;
       return rc;
     }
   }
