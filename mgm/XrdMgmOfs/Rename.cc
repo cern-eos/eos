@@ -647,6 +647,7 @@ XrdMgmOfs::_rename (const char *old_name,
 	      rdir->notifyMTimeChange( gOFS->eosDirectoryService );
 	      eosView->updateContainerStore(rdir);
 	      gOFS->FuseXCast(rdir->getId());
+	      gOFS->FuseXCast(rdir->getParentId());
 	    }
 	    else
 	    {
