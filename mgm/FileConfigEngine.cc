@@ -303,7 +303,7 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-// Store the current configuration to a given file or Redis. This method must
+// Store the current configuration to a given file or QuarkDB. This method must
 // be executed by one thread at a time.
 //------------------------------------------------------------------------------
 bool

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RedisConfigEngine.cc
+// File: QuarkDBConfigEngine.cc
 // Author: Andrea Manzi - CERN
 // ----------------------------------------------------------------------
 
@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/RedisConfigEngine.hh"
+#include "mgm/QuarkDBConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "common/GlobalConfig.hh"
@@ -30,21 +30,21 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//                   **** RedisCfgEngineChangelog class ****
+//                   **** QuarkDBCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
 
-std::string RedisCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
+std::string QuarkDBCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RedisCfgEngineChangelog::RedisCfgEngineChangelog(qclient::QClient* client)
+QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
   : mChLogHash(*client, sChLogHashKey) {}
 
 //------------------------------------------------------------------------------
 // Add entry to the changelog
 //------------------------------------------------------------------------------
-bool RedisCfgEngineChangelog::AddEntry(const char* info)
+bool QuarkDBCfgEngineChangelog::AddEntry(const char* info)
 {
   std::string key, value, action;
 
@@ -75,7 +75,7 @@ bool RedisCfgEngineChangelog::AddEntry(const char* info)
 //------------------------------------------------------------------------------
 // Get tail of the changelog
 //------------------------------------------------------------------------------
-bool RedisCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
+bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 {
   // TODO (amanzi): grab the keys and values in one go and check if they are
   // not already sorted by the keys - therefore avoid the sort overhead and
@@ -112,24 +112,23 @@ bool RedisCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 }
 
 //------------------------------------------------------------------------------
-//                     *** RedisConfigEngine class ***
+//                     *** QuarkDBConfigEngine class ***
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RedisConfigEngine::RedisConfigEngine(const char* configdir,
-                                     const char* redisHost, int redisPort)
+QuarkDBConfigEngine::QuarkDBConfigEngine(const char* configdir, const string & qdbcluster)
 {
   SetConfigDir(configdir);
-  client = BackendClient::getInstance(redisHost, redisPort);
-  mChangelog.reset(new RedisCfgEngineChangelog(client));
+  client = BackendClient::getInstance(qdbcluster, "config");
+  mChangelog.reset(new QuarkDBCfgEngineChangelog(client));
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-RedisConfigEngine::~RedisConfigEngine()
+QuarkDBConfigEngine::~QuarkDBConfigEngine()
 {
 }
 
@@ -137,7 +136,7 @@ RedisConfigEngine::~RedisConfigEngine()
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
+QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -158,7 +157,7 @@ RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
   qclient::QHash q_hash(*client, hash_key);
 
-  if (!PullFromRedis(q_hash, err)) {
+  if (!PullFromQuarkDB(q_hash, err)) {
     return false;
   }
 
@@ -180,10 +179,10 @@ RedisConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-// Store the current configuration to a given file or Redis
+// Store the current configuration to a given file or QuarkDB
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
+QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -288,13 +287,13 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   mMutex.Lock();
-  sConfigDefinitions.Apply(SetConfigToRedisHash, &q_hash);
+  sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
   mMutex.UnLock();
   // Adding  timestamp
   XrdOucString stime;
   getTimeStamp(stime);
   q_hash.hset("timestamp", stime.c_str());
-  // We store in redis the list of available EOSConfigs as Set
+  // We store in quarkdb the list of available EOSConfigs as Set
   qclient::QSet q_set(*client, conf_set_key);
 
   // Add the hash key to the set if it's not there
@@ -316,12 +315,12 @@ RedisConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 // List the existing configurations
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
+QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
 {
-  configlist = "Existing Configurations on Redis\n";
+  configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
-  // Get the set from redis with the available configurations
+  // Get the set from quarkdb with the available configurations
   qclient::QSet q_set(*client, conf_set_key);
 
   for (auto && elem : q_set.smembers()) {
@@ -354,7 +353,7 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
   if (showbackup) {
     configlist += "=======================================\n";
-    configlist += "Existing Backup Configurations on Redis\n";
+    configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
     qclient::QSet q_set_backup(*client, conf_set_backup_key);
 
@@ -385,10 +384,10 @@ RedisConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 }
 
 //------------------------------------------------------------------------------
-// Pull the configuration from Redis
+// Pull the configuration from QuarkDB
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::PullFromRedis(qclient::QHash& hash, XrdOucString& err)
+QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 {
   err = "";
   mMutex.Lock();
@@ -414,7 +413,7 @@ RedisConfigEngine::PullFromRedis(qclient::QHash& hash, XrdOucString& err)
 // Filter the configuration and store in output string
 //------------------------------------------------------------------------------
 void
-RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
+QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
                                 const char* configName)
 
 {
@@ -459,7 +458,7 @@ RedisConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 // Do an autosave
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::AutoSave()
+QuarkDBConfigEngine::AutoSave()
 {
   if (mAutosave && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
@@ -484,7 +483,7 @@ RedisConfigEngine::AutoSave()
 // Set a configuration value
 //------------------------------------------------------------------------------
 void
-RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
+QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                   const char* val, bool not_bcast)
 {
   XrdOucString cl = "set config ";
@@ -558,7 +557,7 @@ RedisConfigEngine::SetConfigValue(const char* prefix, const char* key,
 // Delete a configuration value
 //------------------------------------------------------------------------------
 void
-RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
+QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                      bool not_bcast)
 {
   XrdOucString cl = "del config ";
@@ -618,10 +617,10 @@ RedisConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 }
 
 //------------------------------------------------------------------------------
-// Dump a configuration to Redis from the current loaded config
+// Dump a configuration to QuarkDB from the current loaded config
 //------------------------------------------------------------------------------
 bool
-RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
+QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 
 {
   const char* name = env.Get("mgm.config.file");
@@ -720,19 +719,19 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
           errno = EEXIST;
           err = "error: a configuration with name \"";
           err += name;
-          err += "\" exists already on Redis!";
+          err += "\" exists already on QuarkDB!";
           return false;
         }
       }
 
       mMutex.Lock();
-      sConfigDefinitions.Apply(SetConfigToRedisHash, &q_hash);
+      sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
       mMutex.UnLock();
       // Adding key for timestamp
       XrdOucString stime;
       getTimeStamp(stime);
       q_hash.hset("timestamp", stime.c_str());
-      // We store in redis the list of available EOSConfigs as Set
+      // We store in quarkdb the list of available EOSConfigs as Set
       qclient::QSet q_set(*client, conf_set_key);
 
       // Add the hash key to the set if it's not there
@@ -761,7 +760,7 @@ RedisConfigEngine::PushToRedis(XrdOucEnv& env, XrdOucString& err)
 // configuration values.
 //------------------------------------------------------------------------------
 int
-RedisConfigEngine::SetConfigToRedisHash(const char* key, XrdOucString* def,
+QuarkDBConfigEngine::SetConfigToQuarkDBHash(const char* key, XrdOucString* def,
                                         void* arg)
 
 {
@@ -775,7 +774,7 @@ RedisConfigEngine::SetConfigToRedisHash(const char* key, XrdOucString* def,
 // Get current timestamp
 //------------------------------------------------------------------------------
 void
-RedisConfigEngine::getTimeStamp(XrdOucString& out)
+QuarkDBConfigEngine::getTimeStamp(XrdOucString& out)
 {
   time_t now = time(0);
   out = ctime(&now);

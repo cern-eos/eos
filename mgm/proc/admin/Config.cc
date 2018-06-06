@@ -90,11 +90,11 @@ ProcCommand::Config()
   if (mSubCmd == "export") {
     if (gOFS->MgmOfsConfigEngineType == "file") {
       retc = EINVAL;
-      stdErr = "error: this command is available only with ConfigEngine type 'redis'";
+      stdErr = "error: this command is available only with ConfigEngine type 'quarkdb'";
     } else if (pVid->uid == 0) {
       eos_notice("config export: %s", pOpaque->Env(envlen));
 
-      if (!gOFS->ConfEngine->PushToRedis(*pOpaque, stdErr)) {
+      if (!gOFS->ConfEngine->PushToQuarkDB(*pOpaque, stdErr)) {
         retc = errno;
       } else {
         stdOut = "success: configuration successfully loaded!";

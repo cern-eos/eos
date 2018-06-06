@@ -159,7 +159,7 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), ConfEngine(0), CapabilityEngine(0), mCapabilityValidity(3600),
   MgmOfsMessaging(0), MgmOfsVstMessaging(0),  ManagerPort(1094),
-  MgmOfsConfigEngineRedisPort(0), LinuxStatsStartup{0},
+  LinuxStatsStartup{0},
   StartTime(0), HostName(0), HostPref(0), Initialized(kDown), mFileInitTime(0),
   mTotalInitTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
   BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),

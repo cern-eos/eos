@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// @file RedisConfigEngine.hh
+// @file QuarkDBConfigEngine.hh
 // @author Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_REDISCONFIGENGINE__HH__
-#define __EOSMGM_REDISCONFIGENGINE__HH__
+#ifndef __EOSMGM_QUARKDBCONFIGENGINE__HH__
+#define __EOSMGM_QUARKDBCONFIGENGINE__HH__
 
 #include "mgm/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
@@ -35,9 +35,9 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class RedisCfgEngineChangelog
+//! Class QuarkDBCfgEngineChangelog
 //------------------------------------------------------------------------------
-class RedisCfgEngineChangelog : public ICfgEngineChangelog
+class QuarkDBCfgEngineChangelog : public ICfgEngineChangelog
 {
 public:
   //----------------------------------------------------------------------------
@@ -45,12 +45,12 @@ public:
   //!
   //! @param client qclient client
   //----------------------------------------------------------------------------
-  RedisCfgEngineChangelog(qclient::QClient* client);
+  QuarkDBCfgEngineChangelog(qclient::QClient* client);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~RedisCfgEngineChangelog() {};
+  virtual ~QuarkDBCfgEngineChangelog() {};
 
   //----------------------------------------------------------------------------
   //! Add entry to the changelog
@@ -73,14 +73,14 @@ public:
 
 private:
   static std::string sChLogHashKey; ///< Hash map key
-  qclient::QHash mChLogHash; ///< Redis changelog hash map
+  qclient::QHash mChLogHash; ///< QuarkDB changelog hash map
 };
 
 
 //------------------------------------------------------------------------------
-//! Class RedisConfigEngine
+//! Class QuarkDBConfigEngine
 //------------------------------------------------------------------------------
-class RedisConfigEngine : public IConfigEngine
+class QuarkDBConfigEngine : public IConfigEngine
 {
 public:
   //----------------------------------------------------------------------------
@@ -96,21 +96,20 @@ public:
   //!         > 0 - processing stops and the hash table item is returned
   //----------------------------------------------------------------------------
   static int
-  SetConfigToRedisHash(const char* key, XrdOucString* def, void* Arg);
+  SetConfigToQuarkDBHash(const char* key, XrdOucString* def, void* Arg);
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param configdir
-  //! @param redisHost
-  //! @param redisPort
+  //! @param quarkDBcluster
   //----------------------------------------------------------------------------
-  RedisConfigEngine(const char* configdir, const char* redisHost, int redisPort);
+  QuarkDBConfigEngine(const char* configdir, const string& quarkDBcluster );
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~RedisConfigEngine();
+  virtual ~QuarkDBConfigEngine();
 
   //----------------------------------------------------------------------------
   //! Load a given configuratino file
@@ -181,28 +180,28 @@ public:
                          bool not_bcast = true);
 
   //----------------------------------------------------------------------------
-  //         Redis configuration specific functions
+  //         QuarkDB configuration specific functions
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to Redis
+  //! Push a configuration to QuarkDB
   //!
   //! @param env
   //! @param err
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PushToRedis(XrdOucEnv& env, XrdOucString& err);
+  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err);
 
   //----------------------------------------------------------------------------
-  //! Load a configuration from Redis
+  //! Load a configuration from QuarkDB
   //!
   //! @param hash
   //! @param err
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PullFromRedis(qclient::QHash& hash, XrdOucString& err);
+  bool PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Set configuration folder

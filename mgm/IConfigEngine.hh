@@ -256,14 +256,14 @@ public:
   virtual void SetConfigDir(const char* configdir) = 0;
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to Redis
+  //! Push a configuration to QuarkDB
   //!
   //! @param env environment holding information about the configuration
   //! @param err object collecting any possible errors
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool PushToRedis(XrdOucEnv& env, XrdOucString& err) = 0;
+  virtual bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object

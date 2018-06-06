@@ -48,7 +48,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
-#include "mgm/RedisConfigEngine.hh"
+#include "mgm/QuarkDBConfigEngine.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
 #include "common/ZMQ.hh"
@@ -397,8 +397,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
   MgmOfsConfigEngineType = "file";
-  MgmOfsConfigEngineRedisHost = "localhost";
-  MgmOfsConfigEngineRedisPort = 6379;
   MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
@@ -625,26 +623,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             Eroute.Say("=====> mgmofs.cfgtype: ", val, "");
             MgmOfsConfigEngineType = val;
-          }
-        }
-
-        if (!strcmp("cfgredishost", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for cfgredishost invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.cfgredishost: ", val, "");
-            MgmOfsConfigEngineRedisHost = val;
-          }
-        }
-
-        if (!strcmp("cfgredisport", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for cfgredisport invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.cfgredisport: ", val, "");
-            MgmOfsConfigEngineRedisPort = atoi(val);
           }
         }
 
@@ -1396,10 +1374,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the config engine
   if (MgmOfsConfigEngineType == "file") {
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
-  } else if (MgmOfsConfigEngineType == "redis") {
-    ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),
-                                       MgmOfsConfigEngineRedisHost.c_str(),
-                                       MgmOfsConfigEngineRedisPort);
+  } else if (MgmOfsConfigEngineType == "quarkdb") {
+    if (gOFS->mQdbCluster.empty()) {
+      Eroute.Emsg("Config", "The QuarkDB configuration is empty!");
+      NoGo = 1;
+    } else {
+      ConfEngine = new QuarkDBConfigEngine(MgmConfigDir.c_str(),
+                                       gOFS->mQdbCluster);
+    }
   } else {
     Eroute.Emsg("Config", "Unknown configuration engine type!",
                 MgmOfsConfigEngineType.c_str());

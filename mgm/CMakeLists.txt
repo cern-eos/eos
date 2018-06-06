@@ -65,7 +65,7 @@ add_library(
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
-  RedisConfigEngine.cc
+  QuarkDBConfigEngine.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc

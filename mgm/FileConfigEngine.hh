@@ -177,9 +177,9 @@ public:
   void SetConfigDir(const char* configdir);
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to Redis (not invoked in case of FileConfig)
+  //! Push a configuration to QuarkDB (not invoked in case of FileConfig)
   //----------------------------------------------------------------------------
-  bool PushToRedis(XrdOucEnv& env, XrdOucString& err)
+  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
   {
     return true;
   }
