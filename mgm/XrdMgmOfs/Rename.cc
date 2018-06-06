@@ -572,6 +572,7 @@ XrdMgmOfs::_rename(const char* old_name,
             rdir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
             gOFS->FuseXCast(rdir->getId());
+            gOFS->FuseXCast(rdir->getParentId());
           } else {
             // Remove from one container to another one
             unsigned long long tree_size = rdir->getTreeSize();
