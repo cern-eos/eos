@@ -29,12 +29,12 @@
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/interface/Misc.hh"
 #include <qclient/QClient.hh>
-
 #include <folly/futures/Future.h>
 #include <folly/futures/FutureSplitter.h>
 
-namespace folly {
-  class Executor;
+namespace folly
+{
+class Executor;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -51,35 +51,36 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataProvider(const qclient::Members &members, IContainerMDSvc *contsvc, IFileMDSvc *filemvc);
+  MetadataProvider(const qclient::Members& members, IContainerMDSvc* contsvc,
+                   IFileMDSvc* filemvc);
 
   //----------------------------------------------------------------------------
-  //! Retrieve ContainerMD by ID.
+  //! Retrieve ContainerMD by ID
   //----------------------------------------------------------------------------
   folly::Future<IContainerMDPtr> retrieveContainerMD(ContainerIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Retrieve FileMD by ID.
+  //! Retrieve FileMD by ID
   //----------------------------------------------------------------------------
   folly::Future<IFileMDPtr> retrieveFileMD(FileIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Insert newly created item into the cache.
+  //! Insert newly created item into the cache
   //----------------------------------------------------------------------------
   void insertFileMD(FileIdentifier id, IFileMDPtr item);
 
   //----------------------------------------------------------------------------
-  //! Insert newly created item into the cache.
+  //! Insert newly created item into the cache
   //----------------------------------------------------------------------------
   void insertContainerMD(ContainerIdentifier id, IContainerMDPtr item);
 
   //----------------------------------------------------------------------------
-  //! Change file cache size.
+  //! Change file cache size
   //----------------------------------------------------------------------------
   void setFileMDCacheSize(uint64_t size);
 
   //----------------------------------------------------------------------------
-  //! Change container cache size.
+  //! Change container cache size
   //----------------------------------------------------------------------------
   void setContainerMDCacheSize(uint64_t size);
 
@@ -96,47 +97,43 @@ public:
 private:
   //----------------------------------------------------------------------------
   //! Turn an incoming FileMDProto into FileMD, removing from the inFlight
-  //! staging area, and inserting into the cache.
+  //! staging area, and inserting into the cache
   //----------------------------------------------------------------------------
-  IFileMDPtr processIncomingFileMdProto(FileIdentifier id, eos::ns::FileMdProto proto);
+  IFileMDPtr processIncomingFileMdProto(FileIdentifier id,
+                                        eos::ns::FileMdProto proto);
 
   //----------------------------------------------------------------------------
   //! Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
-  //! ContainerMDPtr, and insert into the cache.
+  //! ContainerMDPtr and insert into the cache
   //----------------------------------------------------------------------------
   IContainerMDPtr processIncomingContainerMD(ContainerIdentifier id,
-    std::tuple<
+      std::tuple <
       eos::ns::ContainerMdProto,
       IContainerMD::FileMap,
       IContainerMD::ContainerMap
-    >
-  );
+      > tup);
 
   //----------------------------------------------------------------------------
-  //! Pick a qclient out of the pool for the given file.
+  //! Pick a qclient out of the pool for the given file
   //----------------------------------------------------------------------------
   qclient::QClient& pickQcl(FileIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Pick a qclient out of the pool for the given container.
+  //! Pick a qclient out of the pool for the given container
   //----------------------------------------------------------------------------
   qclient::QClient& pickQcl(ContainerIdentifier id);
 
   static constexpr size_t kQClientPoolSize = 8;
   std::vector<qclient::QClient*> mQclPool;
-
-  IContainerMDSvc *mContSvc;
-  IFileMDSvc *mFileSvc;
-
+  IContainerMDSvc* mContSvc;
+  IFileMDSvc* mFileSvc;
   std::mutex mMutex;
-  std::map<ContainerIdentifier, folly::FutureSplitter<IContainerMDPtr>> mInFlightContainers;
+  std::map<ContainerIdentifier,
+      folly::FutureSplitter<IContainerMDPtr>> mInFlightContainers;
   std::map<FileIdentifier, folly::FutureSplitter<IFileMDPtr>> mInFlightFiles;
-
   LRU<ContainerIdentifier, IContainerMD> mContainerCache;
   LRU<FileIdentifier, IFileMD> mFileCache;
-
   std::unique_ptr<folly::Executor> mExecutor;
-
 };
 
 EOSNSNAMESPACE_END

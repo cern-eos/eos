@@ -163,7 +163,6 @@ private:
   MapT mMap;   ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects where new/used objects are at the
   ///< end of the list
-  // TODO: in C++17 use std::shared_mutex
   //! Mutext to protect access to the map and list which is set to blocking
   // mutable eos::common::RWMutex mMutex;
   mutable eos::common::RWMutex mMutex;
