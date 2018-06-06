@@ -255,6 +255,12 @@ XrdMgmOfsFile::open(const char* inpath,
         isFuse = true;
       }
     }
+    if ((val = openOpaque->Get("xrd.appname"))) {
+      XrdOucString application = val;
+      if (application == "xrootdfs") {
+	isFuse = true;
+      }
+    }
   }
   {
     // figure out if this is an OC upload
