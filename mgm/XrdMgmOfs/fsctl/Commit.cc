@@ -82,6 +82,8 @@
   memset(binchecksum, 0, sizeof(binchecksum));
   unsigned long dropfsid = 0;
 
+  epname = "commit";
+
   if (adropfsid.length())
   {
     dropfsid = strtoul(adropfsid.c_str(), 0, 10);

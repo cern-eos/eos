@@ -584,7 +584,7 @@ XrdMgmOfs::Emsg(const char* pfx,
     eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
     if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) ||
-        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls"))) &&
+        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls")) || (!strcmp(pfx, "commit"))) &&
          (ecode == ENOENT))) {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
