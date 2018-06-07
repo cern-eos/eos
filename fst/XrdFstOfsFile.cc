@@ -1111,7 +1111,7 @@ XrdFstOfsFile::close()
       deleteOnClose = true;
       layOut->Remove();
 
-      if (layOut->IsEntryServer() && (!isReplication)) {
+      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
         capOpaqueString += "&mgm.dropall=1";
       }
 
@@ -1195,7 +1195,7 @@ XrdFstOfsFile::close()
         deleteOnClose = true;
         layOut->Remove();
 
-        if (layOut->IsEntryServer() && (!isReplication)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
           capOpaqueString += "&mgm.dropall=1";
         }
 
@@ -1565,7 +1565,7 @@ XrdFstOfsFile::close()
         OpaqueString += hexstring;
 
         // If deleteOnClose at the gateway then we drop all replicas
-        if (layOut->IsEntryServer() && (!isReplication)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
           OpaqueString += "&mgm.dropall=1";
         }
 
