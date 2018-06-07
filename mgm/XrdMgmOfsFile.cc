@@ -255,10 +255,12 @@ XrdMgmOfsFile::open(const char* inpath,
         isFuse = true;
       }
     }
+
     if ((val = openOpaque->Get("xrd.appname"))) {
       XrdOucString application = val;
+
       if (application == "xrootdfs") {
-	isFuse = true;
+        isFuse = true;
       }
     }
   }
@@ -827,12 +829,12 @@ XrdMgmOfsFile::open(const char* inpath,
 
           try {
             if (!fmd) {
-
               // we create files with the uid/gid of the parent directory
               if (isAtomicUpload) {
                 eos::common::Path cPath(path);
                 creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
                 eos_info("atomic-path=%s", creation_path.c_str());
+
                 try {
                   ref_fmd = gOFS->eosView->getFile(path);
                 } catch (eos::MDException& e) {
@@ -1285,46 +1287,61 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
 
-    if (((retc == ENETUNREACH) || (retc == EROFS)) &&
-        (((!fmd->getSize()) && (!bookingsize)) || isRepair)) {
-      const char* containertag = 0;
+    if ((retc == ENETUNREACH) || (retc == EROFS)) {
+      if ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair)) {
+        // File-recreation due to offline/full file systems
+        const char* containertag = 0;
 
-      if (attrmap.count("user.tag")) {
-        containertag = attrmap["user.tag"].c_str();
+        if (attrmap.count("user.tag")) {
+          containertag = attrmap["user.tag"].c_str();
+        }
+
+        isCreation = true;
+        /// ###############
+        // if the client should go through a firewall entrypoint, try to get it
+        // if the scheduled fs need to be accessed through a dataproxy, try to get it
+        // if any of the two fails, the scheduling operation fails
+        Scheduler::PlacementArguments plctargs;
+        plctargs.alreadyused_filesystems = &selectedfs;
+        plctargs.bookingsize = bookingsize;
+        plctargs.dataproxys = &proxys;
+        plctargs.firewallentpts = &firewalleps;
+        plctargs.forced_scheduling_group_index = forcedGroup;
+        plctargs.grouptag = containertag;
+        plctargs.lid = layoutId;
+        plctargs.inode = (ino64_t) fmd->getId();
+        plctargs.path = path;
+        plctargs.plctTrgGeotag = &targetgeotag;
+        plctargs.plctpolicy = plctplcy;
+        plctargs.selected_filesystems = &selectedfs;
+        std::string spacename = space.c_str();
+        plctargs.spacename = &spacename;
+        plctargs.truncate = open_mode & SFS_O_TRUNC;
+        plctargs.vid = &vid;
+
+        if (!plctargs.isValid()) {
+          // there is something wrong in the arguments of file placement
+          return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+        }
+
+        retc = Quota::FilePlacement(&plctargs);
+        eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
+                 path, retc);
+        isRecreation = true;
+      } else {
+        // Normal read failed, try to reply with the tiredrc value if this
+        // exists in the URL otherwise we'll return ENETUNREACH which is a
+        // client recoverable error.
+        char* triedrc = openOpaque->Get("triedrc");
+
+        if (triedrc) {
+          int errno_tried = GetTriedrcErrno(triedrc);
+
+          if (errno_tried) {
+            return Emsg(epname, error, errno_tried, "open file", path);
+          }
+        }
       }
-
-      isCreation = true;
-      /// ###############
-      // if the client should go through a firewall entrypoint, try to get it
-      // if the scheduled fs need to be accessed through a dataproxy, try to get it
-      // if any of the two fails, the scheduling operation fails
-      Scheduler::PlacementArguments plctargs;
-      plctargs.alreadyused_filesystems = &selectedfs;
-      plctargs.bookingsize = bookingsize;
-      plctargs.dataproxys = &proxys;
-      plctargs.firewallentpts = &firewalleps;
-      plctargs.forced_scheduling_group_index = forcedGroup;
-      plctargs.grouptag = containertag;
-      plctargs.lid = layoutId;
-      plctargs.inode = (ino64_t) fmd->getId();
-      plctargs.path = path;
-      plctargs.plctTrgGeotag = &targetgeotag;
-      plctargs.plctpolicy = plctplcy;
-      plctargs.selected_filesystems = &selectedfs;
-      std::string spacename = space.c_str();
-      plctargs.spacename = &spacename;
-      plctargs.truncate = open_mode & SFS_O_TRUNC;
-      plctargs.vid = &vid;
-
-      if (!plctargs.isValid()) {
-        // there is something wrong in the arguments of file placement
-        return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
-      }
-
-      retc = Quota::FilePlacement(&plctargs);
-      eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
-               path, retc);
-      isRecreation = true;
     }
 
     if (retc == EXDEV) {
@@ -1761,11 +1778,11 @@ XrdMgmOfsFile::open(const char* inpath,
         targethost = firewalleps[fsIndex].substr(0, idx).c_str();
         targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                           std::string::npos).c_str());
-	targethttpport = 8001;
+        targethttpport = 8001;
       } else {
         targethost = firewalleps[fsIndex].c_str();
         targetport = 0;
-	targethttpport = 8001;
+        targethttpport = 8001;
       }
 
       std::ostringstream oss;
@@ -1792,11 +1809,11 @@ XrdMgmOfsFile::open(const char* inpath,
         if (idx != std::string::npos) {
           targethost = proxys[fsIndex].substr(0, idx).c_str();
           targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
-	  targethttpport = 8001;
+          targethttpport = 8001;
         } else {
           targethost = proxys[fsIndex].c_str();
           targetport = 0;
-	  targethttpport = 0;
+          targethttpport = 0;
         }
       }
 
@@ -2147,11 +2164,11 @@ XrdMgmOfsFile::open(const char* inpath,
               targethost = firewalleps[fsIndex].substr(0, idx).c_str();
               targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                                 std::string::npos).c_str());
-	      targethttpport = 8001;
+              targethttpport = 8001;
             } else {
               targethost = firewalleps[fsIndex].c_str();
               targetport = 0;
-	      targethttpport = 0;
+              targethttpport = 0;
             }
 
             std::ostringstream oss;
@@ -2175,11 +2192,11 @@ XrdMgmOfsFile::open(const char* inpath,
               if (idx != std::string::npos) {
                 targethost = proxys[fsIndex].substr(0, idx).c_str();
                 targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
-		targethttpport = 8001;
+                targethttpport = 8001;
               } else {
                 targethost = proxys[fsIndex].c_str();
                 targetport = 0;
-		targethttpport = 0;
+                targethttpport = 0;
               }
             } else {
               // There is no proxy to use
@@ -2400,11 +2417,12 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Always redirect
-  if ( (vid.prot == "https") || 
-       (vid.prot == "http") )
+  if ((vid.prot == "https") ||
+      (vid.prot == "http")) {
     ecode = targethttpport;
-  else
+  } else {
     ecode = targetport;
+  }
 
   rcode = SFS_REDIRECT;
   error.setErrInfo(ecode, redirectionhost.c_str());
@@ -2716,15 +2734,7 @@ XrdMgmOfsFile::~XrdMgmOfsFile()
   }
 }
 
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::Emsg(const char* pfx,
-                    XrdOucErrInfo& einfo,
-                    int ecode,
-                    const char* op,
-                    const char* target)
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 /*
  * @brief create an error message for a file object
  *
@@ -2738,13 +2748,17 @@ XrdMgmOfsFile::Emsg(const char* pfx,
  *
  * This routines prints also an error message into the EOS log.
  */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::Emsg(const char* pfx,
+                    XrdOucErrInfo& einfo,
+                    int ecode,
+                    const char* op,
+                    const char* target)
 {
   char* etext, buffer[4096], unkbuff[64];
 
-  // ---------------------------------------------------------------------------
   // Get the reason for the error
-  // ---------------------------------------------------------------------------
   if (ecode < 0) {
     ecode = -ecode;
   }
@@ -2754,20 +2768,38 @@ XrdMgmOfsFile::Emsg(const char* pfx,
     etext = unkbuff;
   }
 
-  // ---------------------------------------------------------------------------
   // Format the error message
-  // ---------------------------------------------------------------------------
   snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
   eos_err("Unable to %s %s; %s", op, target, etext);
-  // ---------------------------------------------------------------------------
-  // Print it out if debugging is enabled
-  // ---------------------------------------------------------------------------
-#ifndef NODEBUG
-  //   XrdMgmOfs::eDest->Emsg(pfx, buffer);
-#endif
-  // ---------------------------------------------------------------------------
   // Place the error message in the error object and return
-  // ---------------------------------------------------------------------------
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Parse the triedrc opaque info and return the corresponding error number
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::GetTriedrcErrno(const std::string& input) const
+{
+  if (input.empty()) {
+    return 0;
+  }
+
+  std::vector<std::string> vect_err;
+  eos::common::StringConversion::Tokenize(input, vect_err, ",");
+
+  for (const auto& elem : vect_err) {
+    if (elem == "enoent") {
+      return ENOENT;
+    } else if (elem == "ioerr") {
+      return EIO;
+    } else if (elem == "fserr") {
+      return EFAULT;
+    } else if (elem == "srverr") {
+      return EFAULT;
+    }
+  }
+
+  return 0;
 }

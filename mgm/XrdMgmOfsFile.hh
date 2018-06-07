@@ -205,6 +205,16 @@ public:
   bool isZeroSizeFile; //< true if the file has 0 size
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Parse the triedrc opaque info and return the corresponding error number
+  //!
+  //! @param input input string in the form of "enoent,ioerr,fserr,srverr"
+  //!
+  //! @return error number
+  //----------------------------------------------------------------------------
+  int GetTriedrcErrno(const std::string& input) const;
+
   int oh; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque; //< opaque info given with 'open'
