@@ -352,6 +352,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // The open will fail but the client will get a recoverable error,
       // therefore it will try to read again from the other replicas.
       eos_warning("open for read, local file does not exists");
+      return gOFS.Emsg(epname, error, ENOENT, "open, file does not exist ",
+                       mCapOpaque->Env(envlen));
     }
   } else {
     eos_debug("removing creation flag because of %d %d", retc, errno);
@@ -612,14 +614,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     // Try to get error if the file has a scan error
     io->attrGet("user.eos.filecxerror", filecxerror);
-  }
 
-  if ((!isRW) && (filecxerror == "1")) {
-    if (eos::common::LayoutId::GetLayoutType(mLid) ==
-        eos::common::LayoutId::kReplica) {
-      eos_err("open of %s failed - replica has a checksum mismatch", mNsPath.c_str());
-      return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch",
-                       mNsPath.c_str());
+    if ((!isRW) && (filecxerror == "1")) {
+      if (eos::common::LayoutId::GetLayoutType(mLid) ==
+          eos::common::LayoutId::kReplica) {
+        eos_err("open of %s failed - replica has a checksum mismatch", mNsPath.c_str());
+        return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch",
+                         mNsPath.c_str());
+      }
     }
   }
 
@@ -642,20 +644,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       if (hasCreationMode) {
         dropall(mFileId, path, mRedirectManager.c_str());
       }
-
-      // Return an error that can be recovered at the MGM
-      return gOFS.Emsg(epname, error, EIO, "open - failed open");
-    } else {
-      eos_warning("opening %s failed", mNsPath.c_str());
-      return gOFS.Emsg(epname, error, EIO, "open", mNsPath.c_str());
     }
+
+    // Return an error that can be recovered at the MGM
+    return gOFS.Emsg(epname, error, EIO, "open - failed open");
   }
 
-  if (rc == SFS_OK) {
-    if (isRW) {
-      if (!gOFS.Storage->OpenTransaction(mFsId, mFileId)) {
-        eos_crit("cannot open transaction for fsid=%u fid=%llu", mFsId, mFileId);
-      }
+  if (isRW) {
+    if (!gOFS.Storage->OpenTransaction(mFsId, mFileId)) {
+      eos_crit("cannot open transaction for fsid=%u fid=%llu", mFsId, mFileId);
     }
   }
 
