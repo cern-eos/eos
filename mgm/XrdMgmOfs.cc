@@ -788,7 +788,7 @@ bool
 XrdMgmOfs::IsNsBooted() const
 {
   XrdSysMutexHelper lock(InitializationMutex);
-  return Initialized == kBooted;
+  return ((Initialized == kBooted) || (Initialized == kCompacting));
 }
 
 std::string
