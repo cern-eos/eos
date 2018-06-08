@@ -33,6 +33,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Master.hh"
+#include "mgm/ZMQ.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -305,8 +306,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
-        << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl;
-
+        << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
+        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
+        << "uid=all gid=all ns.fusex.clients=" << gOFS->zMQ->gFuseServer.Client().nclients() << std::endl;
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
       oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
           (pstat.vsize - gOFS->LinuxStatsStartup.vsize) << std::endl;
@@ -359,6 +361,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << std::endl
         << "ALL      current container id             " << cid_now
         << std::endl
+        << line << std::endl
+        << "ALL      eosxd caps                       " << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
+        << "ALL      eosxd clients                    " << gOFS->zMQ->gFuseServer.Client().nclients() << std::endl
         << line << std::endl;
     CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
     CacheStatistics containerCacheStats =
