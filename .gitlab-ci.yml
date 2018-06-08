@@ -647,8 +647,8 @@ eos_periodic_coverity:
   tags:
     - coverity
   allow_failure: true
-#  only:
-#    - schedules
+  only:
+    - triggers
 
 eos_cppcheck_sonar:
   stage: build:rpm
