@@ -46,6 +46,22 @@
   eos::common::FileSystem::fsid_t >> sZeroMove;
   static time_t sScheduledFidCleanupTime = 0;
 
+  {
+    // If distributed drain not enabled this doesn't return anything
+    eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto fs = FsView::gFsView.mIdView[fsid];
+
+    if (fs)
+    {
+      if (FsView::gFsView.GetDrainType(fs, gOFS->MasterPtr->IsActivated()) !=
+      FsView::DrainType::Distributed) {
+        error.setErrInfo(0, "");
+        return SFS_DATA;
+      }
+    }
+  }
+
   // Deal with 0-size files 'scheduled' before, which just need a move in the
   // namespace
   bool has_zero_mv_files = false;
@@ -217,10 +233,13 @@
   // Lock namespace view here to avoid deadlock with the Commit.cc code on
   // the ScheduledToDrainFidMutex
 
-  if(!gOFS->eosView->inMemory()) {
+  if (!gOFS->eosView->inMemory())
+  {
     eos_thread_crit("msg=\"old style draining enabled for QDB namespace. Prefetching entire filesystem to minimize impact on performance.\"");
-    eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(gOFS->eosView, gOFS->eosFsView, source_fsid);
-    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, target_fsid);
+    eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+      gOFS->eosView, gOFS->eosFsView, source_fsid);
+    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+        gOFS->eosFsView, target_fsid);
   }
 
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
