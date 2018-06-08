@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::FuseX()
 {
-  gOFS->MgmStats.Add("FUSEx-0-STREAM", pVid->uid, pVid->gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::0-STREAM", pVid->uid, pVid->gid, 1);
   // -------------------------------------------------------------------------------------------------------
   // This function returns meta data by inode or if provided first translates a path into an inode.
   // The client can provide the meta-data clock. If it is equivalent to the stored clock, this function

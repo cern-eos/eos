@@ -103,6 +103,13 @@ public:
     typedef std::map<clientid_t, authid_set_t> client_set_t;
     typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
 
+
+    ssize_t ncaps() 
+    {
+      XrdSysMutexHelper lock(this);
+      return mTimeOrderedCap.size();
+    }
+
     void pop()
     {
       XrdSysMutexHelper lock(this);
@@ -274,6 +281,12 @@ public:
 
     typedef std::map<std::string, Client> client_map_t;
     typedef std::map<std::string, std::string> client_uuid_t;
+
+
+    ssize_t nclients() {
+      XrdSysMutexHelper lock(this);
+      return mMap.size();
+    }
 
     client_map_t& map()
     {
@@ -489,8 +502,8 @@ public:
 
   void Print(std::string& out, std::string options = "", bool monitoring = false);
 
-  int FillContainerMD(uint64_t id, eos::fusex::md& dir);
-  bool FillFileMD(uint64_t id, eos::fusex::md& file);
+  int FillContainerMD(uint64_t id, eos::fusex::md& dir, eos::common::Mapping::VirtualIdentity* vid);
+  bool FillFileMD(uint64_t id, eos::fusex::md& file, eos::common::Mapping::VirtualIdentity* vid);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
                         eos::common::Mapping::VirtualIdentity* vid,
                         std::string reuse_uuid = "",

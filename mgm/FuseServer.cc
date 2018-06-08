@@ -261,13 +261,13 @@ FuseServer::MonitorCaps()
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
-        eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
+        if (EOS_LOGS_DEBUG) eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         XrdSysMutexHelper cLock(&Cap());
         std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
           Cap().GetCaps();
 
         for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
-          eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
+          if (EOS_LOGS_DEBUG) eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
 
           // if we find a cap with 'noquota' contents, we just ignore this one
           if (it->second->_quota().inode_quota() == noquota) {
@@ -291,7 +291,7 @@ FuseServer::MonitorCaps()
 
       for (auto it = qmap.begin(); it != qmap.end(); ++it) {
         eos::IContainerMD::id_t qino_id = it->second.qid;
-        eos_static_debug("checking qino=%d", qino_id);
+        if (EOS_LOGS_DEBUG) eos_static_debug("checking qino=%d", qino_id);
         long long avail_bytes = 0;
         long long avail_files = 0;
 
@@ -299,7 +299,7 @@ FuseServer::MonitorCaps()
                                  avail_files, avail_bytes)) {
           for (auto auit = it->second.authids.begin();
                auit != it->second.authids.end(); ++auit) {
-            eos_static_debug("checking qino=%d files=%ld bytes=%ld authid=%s",
+            if (EOS_LOGS_DEBUG) eos_static_debug("checking qino=%d files=%ld bytes=%ld authid=%s",
                              qino_id, avail_files, avail_bytes, auit->c_str());
 
             if (((!avail_files || !avail_bytes) && (!outofquota.count(*auit))) ||
@@ -352,6 +352,7 @@ FuseServer::MonitorCaps()
     }
 
     cnt++;
+    gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0 , 1);
   }
 
   return ;
@@ -607,6 +608,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
                                 const std::string& clientid
                                )
 {
+  gOFS->MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0 , 1);
   // prepare release cap message
   eos::fusex::response rsp;
   rsp.set_type(rsp.LEASE);
@@ -641,7 +643,9 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
                             struct timespec& p_mtime
                            )
 /*----------------------------------------------------------------------------*/
+
 {
+  gOFS->MgmStats.Add("Eosxd::int::SendMD", 0, 0 , 1);
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.MD);
@@ -681,6 +685,7 @@ int
 FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
 /*----------------------------------------------------------------------------*/
 {
+  gOFS->MgmStats.Add("Eosxd::int::SendCAP", 0, 0 , 1);
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CAP);
@@ -709,7 +714,7 @@ FuseServer::Clients::HandleStatistics(const std::string identity,
                                       const eos::fusex::statistics& stats)
 {
   (this->map())[identity].statistics() = stats;
-  eos_static_debug("");
+  if (EOS_LOGS_DEBUG) eos_static_debug("");
 }
 
 //------------------------------------------------------------------------------
@@ -719,6 +724,7 @@ void
 FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                         eos::common::Mapping::VirtualIdentity* vid)
 {
+  gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0 , 1);
   XrdSysMutexHelper lock(this);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
@@ -827,6 +833,7 @@ FuseServer::Clients::BroadcastConfig(const std::string& identity,
                                      eos::fusex::config& cfg)
 /*----------------------------------------------------------------------------*/
 {
+  gOFS->MgmStats.Add("Eosxd::int::BcConfig", 0, 0 , 1);
   // prepare new heartbeat interval message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CONFIG);
@@ -845,6 +852,7 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
     eos::fusex::heartbeat& hb)
 /*----------------------------------------------------------------------------*/
 {
+  gOFS->MgmStats.Add("Eosxd::int::BcDropAll", 0, 0 , 1);
   // prepare drop all caps message
   eos::fusex::response rsp;
   rsp.set_type(rsp.DROPCAPS);
@@ -862,6 +870,7 @@ int
 FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 /*----------------------------------------------------------------------------*/
 {
+  gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0 , 1);
   // broad-cast release for a given inode
   XrdSysMutexHelper lock(this);
   eos_static_info("id=%lx ",
@@ -894,6 +903,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 int
 FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
+  gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0 , 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   XrdSysMutexHelper lock(this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -952,6 +962,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               uint64_t clock,
                               struct timespec& p_mtime)
 {
+  gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0 , 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   XrdSysMutexHelper lock(this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -1269,7 +1280,7 @@ FuseServer::Lock::dropLocks(uint64_t id, pid_t pid)
 int
 FuseServer::Lock::dropLocks(const std::string& owner)
 {
-  eos_static_debug("owner=%s", owner.c_str());
+  if (EOS_LOGS_DEBUG) eos_static_debug("owner=%s", owner.c_str());
   // drop locks for a given owner
   int retc = 0;
   {
@@ -1443,13 +1454,14 @@ FuseServer::Flush::Print(std::string& out)
 //
 //------------------------------------------------------------------------------
 int
-FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
+FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir, eos::common::Mapping::VirtualIdentity* vid)
 {
+  gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid->uid, vid->gid , 1);
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::ctime_t ctime;
   eos::IContainerMD::ctime_t mtime;
   uint64_t clock = 0;
-  eos_static_debug("container-id=%llx", id);
+  if (EOS_LOGS_DEBUG) eos_static_debug("container-id=%llx", id);
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
@@ -1507,7 +1519,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
       dir.set_type(dir.MDLS);
     } else {
       // indicate that this MD record contains only MD but no children information
-      eos_static_debug("setting md type");
+      if (EOS_LOGS_DEBUG) eos_static_debug("setting md type");
       dir.set_type(dir.MD);
     }
 
@@ -1527,14 +1539,15 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir)
 //
 //------------------------------------------------------------------------------
 bool
-FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
+FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file, eos::common::Mapping::VirtualIdentity* vid)
 {
+  gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid->uid, vid->gid , 1);
   // fills file meta data by inode number
   std::shared_ptr<eos::IFileMD> fmd, gmd;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   uint64_t clock = 0;
-  eos_static_debug("file-inode=%llx file-id=%llx", inode,
+  if (EOS_LOGS_DEBUG) eos_static_debug("file-inode=%llx file-id=%llx", inode,
                    eos::common::FileId::InodeToFid(inode));
 
   try {
@@ -1583,7 +1596,7 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file)
 
     if (fmd->hasAttribute(k_nlink)) {
       nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1;
-      eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(),
+      if (EOS_LOGS_DEBUG) eos_static_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(),
                        nlink);
     }
 
@@ -1631,8 +1644,9 @@ FuseServer::FillContainerCAP(uint64_t id,
                              std::string reuse_uuid,
                              bool issue_only_one)
 {
+  gOFS->MgmStats.Add("Eosxd::int::FillContainerCAP", vid->uid, vid->gid , 1);
   if (issue_only_one) {
-    eos_static_info("checking for id=%s", dir.clientid().c_str());
+    if (EOS_LOGS_DEBUG) eos_static_debug("checking for id=%s", dir.clientid().c_str());
     // check if the client has already a cap, in case yes, we don't return a new
     // one
     XrdSysMutexHelper lock(Cap());
@@ -1645,7 +1659,7 @@ FuseServer::FillContainerCAP(uint64_t id,
   }
 
   dir.mutable_capability()->set_id(id);
-  eos_static_debug("container-id=%llx", id);
+  if (EOS_LOGS_DEBUG) eos_static_debug("container-id=%llx", id);
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
   dir.mutable_capability()->set_vtime(ts.tv_sec + 300);
@@ -1878,7 +1892,7 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode)
     return 0;
   }
 
-  eos_static_debug("cap-mode=%x mode=%x", cap->mode(), mode);
+  if (EOS_LOGS_DEBUG) eos_static_debug("cap-mode=%x mode=%x", cap->mode(), mode);
 
   if ((cap->mode() & mode) == mode) {
     uint64_t now = (uint64_t) time(NULL);
@@ -1907,10 +1921,10 @@ FuseServer::InodeFromCAP(const eos::fusex::md& md)
 
   // no cap - go away
   if (!cap) {
-    eos_static_debug("no cap for authid=%s", md.authid().c_str());
+    if (EOS_LOGS_DEBUG) eos_static_debug("no cap for authid=%s", md.authid().c_str());
     return 0;
   } else {
-    eos_static_debug("authid=%s cap-ino=%lx", md.authid().c_str(), cap->id());
+    if (EOS_LOGS_DEBUG) eos_static_debug("authid=%s cap-ino=%lx", md.authid().c_str(), cap->id());
   }
 
   return cap->id();
@@ -1933,6 +1947,7 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
                          eos::common::Mapping::VirtualIdentity* vid,
                          bool take_lock)
 {
+  gOFS->MgmStats.Add("Eosxd::int::ValidatePERM", vid->uid, vid->gid , 1);
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
   //   permissions on the fly again
@@ -2101,7 +2116,7 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   if (md.operation() == md.BEGINFLUSH) {
-    gOFS->MgmStats.Add("FUSEx-BEGINFLUSH", vid->uid, vid->gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::BEGINFLUSH", vid->uid, vid->gid, 1);
     // this is a flush begin/end indicator
     Flushs().beginFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
@@ -2111,7 +2126,7 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   if (md.operation() == md.ENDFLUSH) {
-    gOFS->MgmStats.Add("FUSEx-ENDFLUSH", vid->uid, vid->gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::ENDFLUSH", vid->uid, vid->gid, 1);
     Flushs().endFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
     resp.set_type(resp.NONE);
@@ -2140,17 +2155,17 @@ FuseServer::HandleMD(const std::string& id,
       (*parent)[md.md_ino()].set_clientid(md.clientid());
 
       if (md.operation() == md.LS) {
-        gOFS->MgmStats.Add("FUSEx-LS", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::LS", vid->uid, vid->gid, 1);
         (*parent)[md.md_ino()].set_operation(md.LS);
       } else {
-        gOFS->MgmStats.Add("FUSEx-GET", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::GET", vid->uid, vid->gid, 1);
       }
 
       size_t n_attached = 1;
       int retc = 0;
 
       // retrieve directory meta data
-      if (!(retc = FillContainerMD(md.md_ino(), (*parent)[md.md_ino()]))) {
+      if (!(retc = FillContainerMD(md.md_ino(), (*parent)[md.md_ino()], vid))) {
         // refresh the cap with the same authid
         FillContainerCAP(md.md_ino(), (*parent)[md.md_ino()], vid,
                          md.authid());
@@ -2172,14 +2187,14 @@ FuseServer::HandleMD(const std::string& id,
 
             if (eos::common::FileId::IsFileInode(it->second)) {
               // this is a file
-              FillFileMD(it->second, *child_md);
+              FillFileMD(it->second, *child_md, vid);
             } else {
               // we don't fill the LS information for the children, just the MD
               child_md->set_operation(md.GET);
               child_md->set_clientuuid(md.clientuuid());
               child_md->set_clientid(md.clientid());
               // this is a directory
-              FillContainerMD(it->second, *child_md);
+              FillContainerMD(it->second, *child_md, vid);
               // get the capability
               FillContainerCAP(it->second, *child_md, vid, "", true);
               child_md->clear_operation();
@@ -2233,7 +2248,7 @@ FuseServer::HandleMD(const std::string& id,
       eos_static_info("ino=%lx get-file/link", (long) md.md_ino());
       cont.set_type(cont.MD);
       cont.set_ref_inode_(md.md_ino());
-      FillFileMD(md.md_ino(), (*cont.mutable_md_()));
+      FillFileMD(md.md_ino(), (*cont.mutable_md_()), vid);
       std::string rspstream;
       cont.SerializeToString(&rspstream);
 
@@ -2255,7 +2270,7 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   if (md.operation() == md.SET) {
-    gOFS->MgmStats.Add("FUSEx-SET", vid->uid, vid->gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::SET", vid->uid, vid->gid, 1);
     uint64_t md_pino = md.md_pino();
 
     if (!md_pino) {
@@ -2471,19 +2486,19 @@ FuseServer::HandleMD(const std::string& id,
 
         switch (op) {
         case MOVE:
-          gOFS->MgmStats.Add("FUSEx-MV", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::MV", vid->uid, vid->gid, 1);
           break;
 
         case UPDATE:
-          gOFS->MgmStats.Add("FUSEx-UPDATE", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid->uid, vid->gid, 1);
           break;
 
         case CREATE:
-          gOFS->MgmStats.Add("FUSEx-MKDIR", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::MKDIR", vid->uid, vid->gid, 1);
           break;
 
         case RENAME:
-          gOFS->MgmStats.Add("FUSEx-RENAME", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid->uid, vid->gid, 1);
           break;
         }
 
@@ -2540,13 +2555,13 @@ FuseServer::HandleMD(const std::string& id,
           // dir update
           fmd = gOFS->eosFileService->getFileMD(fid);
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
-          eos_static_debug("updating %s => %s ", fmd->getName().c_str(),
+          if (EOS_LOGS_DEBUG) eos_static_debug("updating %s => %s ", fmd->getName().c_str(),
                            md.name().c_str());
 
           if (fmd->getContainerId() != md.md_pino()) {
             // this indicates a file move
             op = MOVE;
-            eos_static_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
+            if (EOS_LOGS_DEBUG) eos_static_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
             cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
             cpcmd->removeFile(fmd->getName());
             gOFS->eosView->updateContainerStore(cpcmd.get());
@@ -2555,7 +2570,7 @@ FuseServer::HandleMD(const std::string& id,
 
             if (ofmd) {
               // the target might exist, so we remove it
-              eos_static_debug("removing previous file in move %s", md.name().c_str());
+              if (EOS_LOGS_DEBUG) eos_static_debug("removing previous file in move %s", md.name().c_str());
 
               try {
                 pcmd->removeFile(md.name());
@@ -2577,13 +2592,13 @@ FuseServer::HandleMD(const std::string& id,
               // this indicates a file rename
               op = RENAME;
               ofmd = pcmd->findFile(md.name());
-              eos_static_debug("rename %s [%lx] => %s [%lx]", fmd->getName().c_str(), fid,
+              if (EOS_LOGS_DEBUG) eos_static_debug("rename %s [%lx] => %s [%lx]", fmd->getName().c_str(), fid,
                                md.name().c_str(),
                                ofmd ? ofmd->getId() : 0);
 
               if (ofmd) {
                 // the target might exist, so we remove it
-                eos_static_debug("removing previous file in update %s", md.name().c_str());
+                if (EOS_LOGS_DEBUG) eos_static_debug("removing previous file in update %s", md.name().c_str());
 
                 try {
                   pcmd->removeFile(md.name());
@@ -2623,14 +2638,14 @@ FuseServer::HandleMD(const std::string& id,
           int nlink;
           nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
                     k_nlink)) + 1 : 1;
-          eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
+          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
                            (long) fid, fmd->getName().c_str(), nlink, md.name().c_str());
           fmd->setAttribute(k_nlink, std::to_string(nlink));
           gOFS->eosFileService->updateStore(fmd.get());
           gmd->setAttribute(k_mdino, std::to_string(tgt_md_ino));
           gmd->setName(md.name());
           gOFS->eosFileService->updateStore(gmd.get());
-          eos_static_debug("hlnk %s mdino %s %s nlink %s",
+          if (EOS_LOGS_DEBUG) eos_static_debug("hlnk %s mdino %s %s nlink %s",
                            gmd->getName().c_str(),
                            gmd->getAttribute(k_mdino).c_str(),
                            fmd->getName().c_str(),
@@ -2743,19 +2758,19 @@ FuseServer::HandleMD(const std::string& id,
 
         switch (op) {
         case MOVE:
-          gOFS->MgmStats.Add("FUSEx-MV", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::MV", vid->uid, vid->gid, 1);
           break;
 
         case UPDATE:
-          gOFS->MgmStats.Add("FUSEx-UPDATE", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid->uid, vid->gid, 1);
           break;
 
         case CREATE:
-          gOFS->MgmStats.Add("FUSEx-CREATE", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::CREATE", vid->uid, vid->gid, 1);
           break;
 
         case RENAME:
-          gOFS->MgmStats.Add("FUSEx-RENAME", vid->uid, vid->gid, 1);
+          gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid->uid, vid->gid, 1);
           break;
         }
 
@@ -2793,7 +2808,7 @@ FuseServer::HandleMD(const std::string& id,
       uint64_t md_pino = md.md_pino();
 
       try {
-        gOFS->MgmStats.Add("FUSEx-CREATELNK", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid->uid, vid->gid, 1);
         // link creation
         pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
@@ -2917,7 +2932,7 @@ FuseServer::HandleMD(const std::string& id,
       pcmd->setMTime(mtime);
 
       if (S_ISDIR(md.mode())) {
-        gOFS->MgmStats.Add("FUSEx-RMDIR", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::RMDIR", vid->uid, vid->gid, 1);
 
         // check if this directory is empty
         if (cmd->getNumContainers() || cmd->getNumFiles()) {
@@ -2945,7 +2960,7 @@ FuseServer::HandleMD(const std::string& id,
       }
 
       if (S_ISREG(md.mode())) {
-        gOFS->MgmStats.Add("FUSEx-DELETE", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::DELETE", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
         eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
@@ -3040,7 +3055,7 @@ FuseServer::HandleMD(const std::string& id,
       }
 
       if (S_ISLNK(md.mode())) {
-        gOFS->MgmStats.Add("FUSEx-DELETELNK", vid->uid, vid->gid, 1);
+        gOFS->MgmStats.Add("Eosxd::ext::DELETELNK", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-link", (long) md.md_ino());
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
@@ -3069,7 +3084,7 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   if (md.operation() == md.GETCAP) {
-    gOFS->MgmStats.Add("FUSEx-GETCAP", vid->uid, vid->gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::GETCAP", vid->uid, vid->gid, 1);
     eos::fusex::container cont;
     cont.set_type(cont.CAP);
     eos::fusex::md lmd;
@@ -3077,7 +3092,7 @@ FuseServer::HandleMD(const std::string& id,
       eos::common::RWMutexReadLock rd_fs_lock(eos::mgm::FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
       // get the meta data
-      FillContainerMD((uint64_t) md.md_ino(), lmd);
+      FillContainerMD((uint64_t) md.md_ino(), lmd, vid);
       lmd.set_clientuuid(md.clientuuid());
       lmd.set_clientid(md.clientid());
       // get the capability
@@ -3101,7 +3116,7 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   if (md.operation() == md.GETLK) {
-    gOFS->MgmStats.Add("FUSEx-GETLK", vid->uid, vid->gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::GETLK", vid->uid, vid->gid, 1);
     eos::fusex::response resp;
     resp.set_type(resp.LOCK);
     struct flock lock;
@@ -3138,10 +3153,10 @@ FuseServer::HandleMD(const std::string& id,
     int sleep = 0;
 
     if (md.operation() == md.SETLKW) {
-      gOFS->MgmStats.Add("FUSEx-SETLKW", vid->uid, vid->gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::SETLKW", vid->uid, vid->gid, 1);
       sleep = 1;
     } else {
-      gOFS->MgmStats.Add("FUSEx-SETLK", vid->uid, vid->gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::SETLK", vid->uid, vid->gid, 1);
     }
 
     struct flock lock;
@@ -3206,7 +3221,7 @@ FuseServer::HandleMD(const std::string& id,
 void
 FuseServer::HandleDir(const std::string& identity, const eos::fusex::dir& dir)
 {
-  eos_static_debug("");
+  if (EOS_LOGS_DEBUG) eos_static_debug("");
 }
 
 EOSMGMNAMESPACE_END
