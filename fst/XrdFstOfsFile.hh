@@ -26,6 +26,7 @@
 #define __EOSFST_FSTOFSFILE_HH__
 
 #include <numeric>
+#include "fst/Fmd.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/storage/Storage.hh"
@@ -618,6 +619,28 @@ public:
   XrdSysMutex mTpcJobMutex; ///< TPC job mutex
   int mTpcRetc; ///< TPC job return code
   uint16_t mTimeout; ///< timeout for layout operations
+
+  //----------------------------------------------------------------------------
+  //! Notify the workflow protobuf endpoint that the user has closed a file that
+  //! they were writing to
+  //!
+  //! @param fmd The metadata of the file
+  //! @param ownerName The name of user that owns the file
+  //! @param ownerGroupName The name of the group that owns the file
+  //! @param requestorName Tha name of the user that closed the file
+  //! @param requestorGroupName The name of the group that closed the file
+  //! @param instanceName Tha name of the EOS instance
+  //! @param fullPath the full path of the file
+  //! @param managerName The name of the EOS manager
+  //! @param xattrs The extended attributes of teh file to be passed to the
+  //! workflow protobuf endpoint
+  //! @return
+  //----------------------------------------------------------------------------
+  int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+    const string& ownerGroupName, const string& requestorName,
+    const string& requestorGroupName, const string& instanceName,
+    const string& fullPath, const string &managerName,
+    const std::map<std::string, std::string>& xattrs);
 };
 
 EOSFSTNAMESPACE_END

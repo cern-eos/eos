@@ -306,12 +306,6 @@ public:
                   bool linkPerThread = false,
                   bool retry = true);
 
-  int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
-                            const string& ownerGroupName, const string& requestorName,
-                            const string& requestorGroupName, const string& instanceName,
-                            const string& fullPath, const string &managerName,
-                            const std::map<std::string, std::string>& xattrs);
-
   //----------------------------------------------------------------------------
   //! Function dealing with plugin calls
   //----------------------------------------------------------------------------
