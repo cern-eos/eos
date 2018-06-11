@@ -911,7 +911,6 @@ again:
     }
 
     if (rc != SFS_ERROR) {
-      fprintf(stderr,"setting error = %d\n", -rc);
       return gOFS.Emsg(epname, *error, rc, msg.c_str(), path);
     } else {
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
