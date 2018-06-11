@@ -641,6 +641,16 @@ public:
     const string& requestorGroupName, const string& instanceName,
     const string& fullPath, const string &managerName,
     const std::map<std::string, std::string>& xattrs);
+
+  //----------------------------------------------------------------------------
+  //! Send archive failed event to the manager
+  //!
+  //! @param fid The file identifier
+  //! @param errMsg The error message to enclosed in the archive failed event
+  //! @return SFS_OK if successful
+  //----------------------------------------------------------------------------
+  int SendArchiveFailedToManager(const uint64_t fid,
+    const std::string &errMsg);
 };
 
 EOSFSTNAMESPACE_END

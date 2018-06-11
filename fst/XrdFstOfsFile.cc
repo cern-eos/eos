@@ -3334,4 +3334,37 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
   }
 }
 
+//------------------------------------------------------------------------------
+// Send archive failed event to the manager
+//------------------------------------------------------------------------------
+int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid, const std::string &errMsg) {
+  const auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fid);
+
+  std::string encodedErrMsg;
+  if(!common::SymKey::Base64Encode(errMsg.c_str(), errMsg.length(), encodedErrMsg)) {
+    // "Failed to encode message using base64" in base64 is RmFpbGVkIHRvIGVuY29kZSBtZXNzYWdlIHVzaW5nIGJhc2U2NA==
+    encodedErrMsg = "RmFpbGVkIHRvIGVuY29kZSBtZXNzYWdlIHVzaW5nIGJhc2U2NA==";
+  } 
+
+  XrdOucString errorReportOpaque = "";
+  errorReportOpaque += "/?";
+  errorReportOpaque += "mgm.pcmd=event";
+  errorReportOpaque += "&mgm.fid=";
+  errorReportOpaque += fxidString.c_str();
+  errorReportOpaque += "&mgm.logid=cta";
+  errorReportOpaque += "&mgm.event=";
+  errorReportOpaque += common::ARCHIVE_FAILED_WORKFLOW_NAME;
+  errorReportOpaque += "&mgm.workflow=default";
+  errorReportOpaque += "&mgm.path=/eos/wfe/passwd";
+  errorReportOpaque += "&mgm.ruid=0";
+  errorReportOpaque += "&mgm.rgid=0";
+  errorReportOpaque += "&mgm.errmsg=";
+  errorReportOpaque += encodedErrMsg.c_str();
+  eos_info("msg=\"sending error message to manager\" path=\"%s\" manager=\"%s\" errorReportOpaque=\"%s\"",
+    mCapOpaque->Get("mgm.path"), mCapOpaque->Get("mgm.manager"), errorReportOpaque.c_str());
+
+  return gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"), mCapOpaque->Get("mgm.manager"),
+    errorReportOpaque, nullptr, 30, mSyncEventOnClose, false);
+}
+
 EOSFSTNAMESPACE_END
