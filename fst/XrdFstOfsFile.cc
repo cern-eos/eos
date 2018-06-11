@@ -1740,10 +1740,10 @@ XrdFstOfsFile::close()
           attributes,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-      rc = CallSynchronousClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
-                                 mEventRequestor, mEventRequestorGroup,
-                                 mEventInstance, mCapOpaque->Get("mgm.path"),
-                                 mCapOpaque->Get("mgm.manager"), attributes);
+      rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
+                                       mEventRequestor, mEventRequestorGroup,
+                                       mEventInstance, mCapOpaque->Get("mgm.path"),
+                                       mCapOpaque->Get("mgm.manager"), attributes);
 
       if (rc == SFS_OK) {
         return rc;
@@ -3219,7 +3219,7 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerName,
   const string& ownerGroupName, const string& requestorName,
   const string& requestorGroupName, const string& instanceName,
   const string& fullPath, const string &managerName,

@@ -636,7 +636,7 @@ public:
   //! workflow protobuf endpoint
   //! @return
   //----------------------------------------------------------------------------
-  int CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
+  int NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerName,
     const string& ownerGroupName, const string& requestorName,
     const string& requestorGroupName, const string& instanceName,
     const string& fullPath, const string &managerName,
