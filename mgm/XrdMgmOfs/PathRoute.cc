@@ -163,7 +163,7 @@ XrdMgmOfs::PathReroute (const char* inpath,
     return false;
   }
 
-  for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
+  for (size_t i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
     if (Routes.count(cPath.GetSubPath(i))) {
       if (vid.prot == "http" || vid.prot == "https") {
 	// http redirection
