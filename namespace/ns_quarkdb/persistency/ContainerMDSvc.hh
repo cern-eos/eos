@@ -216,6 +216,7 @@ private:
   NextInodeProvider mInodeProvider;     ///< Provide next free inode
   MetadataProvider* pMetadataProvider;  ///< Provider namespace metadata
   std::atomic<uint64_t> mNumConts;      ///< Total number of containers
+  std::string mCacheSize;               ///< Temporary workaround to store cache size
 };
 
 EOSNSNAMESPACE_END

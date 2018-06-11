@@ -1904,8 +1904,15 @@ Master::BootNamespace()
       contSettings["qdb_cluster"] = gOFS->mQdbCluster;
       contSettings["qdb_flusher_md"] = instance_name + "_md";
       contSettings["qdb_flusher_quota"] = instance_name + "_quota";
+      if (getenv("EOS_NS_DIR_CACHE_SIZE")) {
+        contSettings["dir_cache_size"] = getenv("EOS_NS_DIR_CACHE_SIZE");
+      }
+
       fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
       fileSettings["qdb_flusher_md"] = instance_name + "_md";
+      if (getenv("EOS_NS_FILE_CACHE_SIZE")) {
+        fileSettings["file_cache_size"] = getenv("EOS_NS_FILE_CACHE_SIZE");
+      }
     }
   }
 

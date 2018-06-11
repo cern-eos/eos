@@ -26,6 +26,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "common/Assert.hh"
+#include "common/Logging.hh"
 #include <memory>
 #include <numeric>
 
@@ -82,7 +83,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   }
 
   if (config.find(cache_size) != config.end()) {
-    pMetadataProvider->setContainerMDCacheSize(std::stoull(config.at(cache_size)));
+    mCacheSize = config.at(cache_size);
   }
 }
 
@@ -113,6 +114,9 @@ ContainerMDSvc::initialize()
     throw e;
   }
 
+  if(!mCacheSize.empty()) {
+    pMetadataProvider->setContainerMDCacheSize(std::stoull(mCacheSize));
+  }
   SafetyCheck();
   ComputeNumberOfContainers();
 }
