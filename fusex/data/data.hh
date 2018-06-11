@@ -129,7 +129,7 @@ public:
     bool prefetch(fuse_req_t req, bool lock = true);
     void WaitPrefetch(fuse_req_t req, bool lock = true);
     void WaitOpen();
-
+    void FlagDeleted();
 
     // IO recovery functions
     int TryRecovery(fuse_req_t req, bool is_write);
@@ -180,6 +180,7 @@ public:
 
     bool unlinked() 
     {
+      XrdSysMutexHelper lLock(Locker());
       return mIsUnlinked;
     }
 

@@ -451,7 +451,7 @@ namespace XrdCl
 	      XWriteQueueScheduledSubmission(0),
 	      XCloseAfterWrite(false),
 	      XCloseAfterWriteTimeout(0),
-	      mReq(0), mIno(0)
+	      mReq(0), mIno(0), mDeleted(false)
     {
       XrdSysCondVarHelper lLock(XOpenAsyncCond);
       set_state(CLOSED);
@@ -469,6 +469,7 @@ namespace XrdCl
       mTimeout = 0;
       mSelfDestruction.store(false, std::memory_order_seq_cst);
       mRChunksInFlight.store(0, std::memory_order_seq_cst);
+      mDeleted = false;
     }
 
     void Collect()
@@ -914,6 +915,12 @@ namespace XrdCl
     bool attached();
     size_t get_attached();
 
+    bool isDeleted() { return mDeleted; }
+    void setDeleted() { mDeleted = true; }
+
+
+
+
 
     std::string url()
     {
@@ -1004,6 +1011,8 @@ namespace XrdCl
 
     std::atomic<int> mRChunksInFlight;
     std::atomic<bool> mSelfDestruction;
+
+    bool mDeleted;
   } ;
 }
 

@@ -764,6 +764,22 @@ data::datax::WaitOpen()
   }
 }
 
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::datax::FlagDeleted()
+{
+  for (auto fit = mFile->get_xrdiorw().begin();
+       fit != mFile->get_xrdiorw().end(); ++fit) {
+    fit->second->setDeleted();
+  
+}  for (auto fit = mFile->get_xrdioro().begin();
+       fit != mFile->get_xrdioro().end(); ++fit) {
+    fit->second->setDeleted();
+  }
+
+}
+
 
 /* -------------------------------------------------------------------------- */
 int
@@ -1566,7 +1582,8 @@ data::datax::unlink(fuse_req_t req)
   int jcache = mFile->journal() ? mFile->journal()->unlink() : 0;
 
   mIsUnlinked = true;
-
+  FlagDeleted();
+  
   return bcache | jcache;
 }
 // IO bridge interface

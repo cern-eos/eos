@@ -453,7 +453,7 @@ XrdCl::Proxy::CloseAsync(uint16_t         timeout)
 						    timeout);
     set_state(CLOSING, &status);
   } else {
-    eos_warning("%x closing an unopened file state=%d url=%s\n", this, state(), mUrl.c_str());
+    eos_crit("%x closing an unopened file state=%d url=%s\n", this, state(), mUrl.c_str());
   }
   return XOpenState;
 }
