@@ -354,7 +354,7 @@ protected:
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
   bool mFusex; //! indicator that we are commiting from a fusex client
-
+  bool mFusexIsUnlinked; //! indicator for an already unlinked file
   bool closed; //! indicator the file is closed
   bool opened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified

@@ -54,6 +54,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   writeDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRedirectManager(""), mSecString(""), mTpcKey(""), mEtag(""), mFileId(0),
   mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0), mFusex(false),
+  mFusexIsUnlinked(false),
   closed(false), opened(false), mHasWrite(false), hasWriteError(false),
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
   isCreation(false), isReplication(false), mIsInjection(false),
@@ -149,7 +150,7 @@ XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path,
   int rcode = gOFS.CallManager(&error, path.c_str(), manager.c_str(),
                                capOpaqueString);
 
-  if (rcode && (rcode != -EIDRM)) {
+  if (rcode && (error.getErrInfo() != EIDRM)) {
     eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
                 hexstring.c_str(), fileid, manager.c_str());
   }
@@ -1351,34 +1352,35 @@ XrdFstOfsFile::close()
                                   mCapOpaque->Get("mgm.manager"), capOpaqueFile);
 
             if (rc) {
-              if ((rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) || (rc == -EREMCHG)) {
+              if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) || (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
                 if (!gOFS.Storage->CloseTransaction(mFsId, mFileId)) {
                   eos_crit("cannot close transaction for fsid=%u fid=%llu", mFsId, mFileId);
                 }
 
-                if (rc == -EIDRM) {
+                if (error.getErrInfo() == EIDRM) {
                   // This file has been deleted in the meanwhile ... we can
                   // unlink that immedeatly
                   eos_info("info=\"unlinking fid=%08x path=%s - "
                            "file has been already unlinked from the namespace\"",
                            fMd->mProtoFmd.fid(), mNsPath.c_str());
+		  mFusexIsUnlinked = true;
                 }
 
-                if (rc == -EBADE) {
+                if (error.getErrInfo() == EBADE) {
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "file size of replica does not match reference\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   consistencyerror = true;
                 }
 
-                if (rc == -EBADR) {
+                if (error.getErrInfo() == EBADR) {
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "checksum of replica does not match reference\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   consistencyerror = true;
                 }
 
-                if (rc == -EREMCHG) {
+                if (error.getErrInfo() == EREMCHG) {
                   eos_err("inof=\"unlinking fid=%08x path=%s - "
                           "overlapping atomic upload - discarding this one\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
@@ -1388,7 +1390,7 @@ XrdFstOfsFile::close()
                 deleteOnClose = true;
               } else {
                 eos_crit("commit returned an uncatched error msg=%s [probably timeout]"
-                         " - closing transaction to keep the file save", error.getErrText());
+                         " - closing transaction to keep the file save - rc = %d", error.getErrText(), rc);
 
                 if (isRW) {
                   gOFS.Storage->CloseTransaction(mFsId, mFileId);
@@ -1573,7 +1575,7 @@ XrdFstOfsFile::close()
         int rcode = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
                                      mCapOpaque->Get("mgm.manager"), capOpaqueString);
 
-        if (rcode && (rcode != -EIDRM)) {
+        if (rcode && (rcode != EIDRM)) {
           eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
                       hexstring.c_str(), mFileId, mCapOpaque->Get("mgm.manager"));
         }
@@ -1770,7 +1772,10 @@ XrdFstOfsFile::close()
                           false);
   }
 
-  eos_info("Return code rc=%i.", rc);
+  if (mFusexIsUnlinked) // mask close error for fusex, if the file had been removed already
+    rc = 0;
+
+  eos_info("Return code rc=%i errc=%d", rc, error.getErrInfo());
   return rc;
 }
 

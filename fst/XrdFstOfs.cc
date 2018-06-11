@@ -875,43 +875,44 @@ again:
     rc = SFS_ERROR;
 
     if (msg.find("[EIDRM]") != STR_NPOS) {
-      rc = -EIDRM;
+      rc = EIDRM;
     }
 
     if (msg.find("[EBADE]") != STR_NPOS) {
-      rc = -EBADE;
+      rc = EBADE;
     }
 
     if (msg.find("[EBADR]") != STR_NPOS) {
-      rc = -EBADR;
+      rc = EBADR;
     }
 
     if (msg.find("[EINVAL]") != STR_NPOS) {
-      rc = -EINVAL;
+      rc = EINVAL;
     }
 
     if (msg.find("[EADV]") != STR_NPOS) {
-      rc = -EADV;
+      rc = EADV;
     }
 
     if (msg.find("[EAGAIN]") != STR_NPOS) {
-      rc = -EAGAIN;
+      rc = EAGAIN;
     }
 
     if (msg.find("[ENOTCONN]") != STR_NPOS) {
-      rc = -ENOTCONN;
+      rc = ENOTCONN;
     }
 
     if (msg.find("[EPROTO]") != STR_NPOS) {
-      rc = -EPROTO;
+      rc = EPROTO;
     }
 
     if (msg.find("[EREMCHG]") != STR_NPOS) {
-      rc = -EREMCHG;
+      rc = EREMCHG;
     }
 
     if (rc != SFS_ERROR) {
-      return gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
+      fprintf(stderr,"setting error = %d\n", -rc);
+      return gOFS.Emsg(epname, *error, rc, msg.c_str(), path);
     } else {
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
                      status.code);
