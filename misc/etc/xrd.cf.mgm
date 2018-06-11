@@ -7,7 +7,7 @@ xrootd.chksum adler32
 
 xrd.sched mint 8 maxt 256 idle 64
 ###########################################################
-all.export /
+all.export / nolock
 all.role manager
 ###########################################################
 oss.fdlimit 16384 32768
