@@ -1740,10 +1740,12 @@ XrdFstOfsFile::close()
           attributes,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
+      std::string errMsgBack;
       rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
                                        mEventRequestor, mEventRequestorGroup,
                                        mEventInstance, mCapOpaque->Get("mgm.path"),
-                                       mCapOpaque->Get("mgm.manager"), attributes);
+                                       mCapOpaque->Get("mgm.manager"), attributes,
+                                       errMsgBack);
 
       if (rc == SFS_OK) {
         return rc;
@@ -3223,7 +3225,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
   const string& ownerGroupName, const string& requestorName,
   const string& requestorGroupName, const string& instanceName,
   const string& fullPath, const string &managerName,
-  const std::map<std::string, std::string>& xattrs) {
+  const std::map<std::string, std::string>& xattrs, string &errMsgBack) {
   using namespace eos::common;
 
   cta::xrd::Request request;
@@ -3325,6 +3327,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
   case cta::xrd::Response::RSP_ERR_USER:
   case cta::xrd::Response::RSP_ERR_PROTOBUF:
   case cta::xrd::Response::RSP_INVALID:
+    errMsgBack = response.message_txt();
     eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], fullPath.c_str(), response.message_txt().c_str());
     return EPROTO;
 

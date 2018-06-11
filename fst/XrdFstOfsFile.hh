@@ -634,13 +634,15 @@ public:
   //! @param managerName The name of the EOS manager
   //! @param xattrs The extended attributes of teh file to be passed to the
   //! workflow protobuf endpoint
+  //! @param errMsgBack Output parameter: Error message back from the workflow
+  //! protobuf endpoint
   //! @return
   //----------------------------------------------------------------------------
   int NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerName,
     const string& ownerGroupName, const string& requestorName,
     const string& requestorGroupName, const string& instanceName,
     const string& fullPath, const string &managerName,
-    const std::map<std::string, std::string>& xattrs);
+    const std::map<std::string, std::string>& xattrs, string &errMsgBack);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager
