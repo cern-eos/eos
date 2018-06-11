@@ -277,16 +277,16 @@ com_access_usage:
           "                                       [ENONET] : optional set a redirect if a file is offline (ENONET) \n");
   fprintf(stdout,
           "                                       [ENOENT] : optional set a redirect if a file is not existing     \n");
-  fprintf(stdout, "access rm  redirect :\n");
+  fprintf(stdout, "access rm redirect [r|w|ENOENT|ENONET]  :\n");
   fprintf(stdout,
           "                                                  removes global redirection\n");
-  fprintf(stdout, "access set stall <stall-time> [r|w|ENOENT|ENONET]\n");
+  fprintf(stdout, "access set stall <stall-time> [r|w|ENOENT|ENONET] :\n");
   fprintf(stdout,
           "                                                  allows to set a global stall time\n");
   fprintf(stdout,
           "                                   <stall-time> : time in seconds after which clients should rebounce\n");
   fprintf(stdout,
-          "                                          [r|w] : optional set stall time for read/write requests seperatly\n");
+          "                                          [r|w] : optional set stall time for read/write requests separately\n");
   fprintf(stdout,
           "                                       [ENONET] : optional set a stall if a file is offline (ENONET) \n");
   fprintf(stdout,
