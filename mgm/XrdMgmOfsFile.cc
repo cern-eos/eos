@@ -114,6 +114,8 @@ XrdMgmOfsFile::open(const char* inpath,
   bool isPioReconstruct = false;
   // flag indicating FUSE file access
   bool isFuse = false;
+  ssize_t fuse_bookingsize = 5*1024*1024*1024ll; // a FUSE file requires atleast 5GB of additional free space
+
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
@@ -1207,7 +1209,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // if any of the two fails, the scheduling operation fails
     Scheduler::PlacementArguments plctargs;
     plctargs.alreadyused_filesystems = &selectedfs;
-    plctargs.bookingsize = bookingsize;
+    plctargs.bookingsize = isFuse?fuse_bookingsize:bookingsize;
     plctargs.dataproxys = &proxys;
     plctargs.firewallentpts = &firewalleps;
     plctargs.forced_scheduling_group_index = forcedGroup;
