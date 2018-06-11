@@ -53,17 +53,6 @@ public:
   static void Finalize();
 
   //----------------------------------------------------------------------------
-  //! Get client for a particular quarkdb instance
-  //!
-  //! @param host quarkdb host
-  //! @param port quarkdb port
-  //!
-  //! @return qclient object
-  //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const std::string& host,
-                                       uint32_t port);
-
-  //----------------------------------------------------------------------------
   //! Get client for a particular quarkdb instance specified as a list of
   //! cluster members.
   //!
@@ -97,8 +86,6 @@ public:
                                        const std::string tag = "default");
 
 private:
-  friend class MetadataFlusherFactory;
-
   static std::atomic<qclient::QClient*> sQdbClient;
   static std::string sQdbHost; ///< quarkdb instance host
   static int sQdbPort;         ///< quarkddb instance port

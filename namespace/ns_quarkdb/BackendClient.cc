@@ -52,47 +52,6 @@ BackendClient::Finalize()
 }
 
 //------------------------------------------------------------------------------
-// Get instance
-//------------------------------------------------------------------------------
-qclient::QClient*
-BackendClient::getInstance(const std::string& host, uint32_t port)
-{
-  bool is_default{false};
-  std::string host_tmp{host};
-  qclient::QClient* instance{nullptr};
-
-  if (host_tmp.empty() || (port == 0u)) {
-    // Try to be as efficient as possible in the default case
-    instance = sQdbClient.load();
-
-    if (instance != nullptr) {
-      return instance;
-    }
-
-    host_tmp = sQdbHost;
-    port = sQdbPort;
-    is_default = true;
-  }
-
-  std::string qdb_id = host_tmp + ":" + std::to_string(port);
-  std::lock_guard<std::mutex> lock(pMutexMap);
-
-  if (pMapClients.find(qdb_id) == pMapClients.end()) {
-    instance = new qclient::QClient(host_tmp, port, true,
-      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
-    pMapClients.insert(std::make_pair(qdb_id, instance));
-
-    if (is_default) {
-      sQdbClient.store(instance);
-    }
-  } else {
-    instance = pMapClients[qdb_id];
-  }
-
-  return instance;
-}
-
-//------------------------------------------------------------------------------
 // Get client for a particular quarkdb instance specified as a list of cluster
 // members
 //------------------------------------------------------------------------------

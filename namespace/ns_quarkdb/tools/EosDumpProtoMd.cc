@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
     return usage_help();
   }
 
-  qclient::QClient* qcl = eos::BackendClient::getInstance(qdb_host, qdb_port);
+  qclient::QClient* qcl = eos::BackendClient::getInstance(qclient::Members(qdb_host, qdb_port));
 
   try {
     PrettyPrint(DumpProto(qcl, id, is_file));

@@ -1108,7 +1108,7 @@ main(int argc, char* argv[])
     std::string dir_chlog(argv[2]);
     sBkndHost = argv[3];
     sBkndPort = std::stoull(argv[4]);
-    sQcl = eos::BackendClient::getInstance(sBkndHost, sBkndPort);
+    sQcl = eos::BackendClient::getInstance(qclient::Members(sBkndHost, sBkndPort));
     // Check file and directory changelog files
     struct stat info = {0};
     std::list<std::string> lst_files {file_chlog, dir_chlog};

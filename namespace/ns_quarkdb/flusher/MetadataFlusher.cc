@@ -24,7 +24,6 @@
 #include <qclient/BackpressuredQueue.hh>
 #include <qclient/BackgroundFlusher.hh>
 #include <qclient/RocksDBPersistency.hh>
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "common/Logging.hh"
 #include <iostream>
