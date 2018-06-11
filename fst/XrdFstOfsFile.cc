@@ -1741,7 +1741,8 @@ XrdFstOfsFile::close()
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
       rc = gOFS.CallSynchronousClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
                                       mEventRequestor, mEventRequestorGroup,
-                                      mEventInstance, mCapOpaque->Get("mgm.path"), attributes);
+                                      mEventInstance, mCapOpaque->Get("mgm.path"),
+                                      mCapOpaque->Get("mgm.manager"), attributes);
 
       if (rc == SFS_OK) {
         return rc;

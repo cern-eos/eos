@@ -1602,8 +1602,8 @@ int
 XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
                                  const string& ownerGroupName, const string& requestorName,
                                  const string& requestorGroupName, const string& instanceName,
-                                 const string& fullPath, const std::map<std::string, std::string>& xattrs)
-{
+                                 const string& fullPath, const string &managerName,
+                                 const std::map<std::string, std::string>& xattrs) {
   using namespace eos::common;
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
@@ -1619,13 +1619,8 @@ XrdFstOfs::CallSynchronousClosew(const Fmd& fmd, const string& ownerName,
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
-  std::string managerName;
-  {
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    managerName = Config::gConfig.Manager.c_str();
-  }
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
-                      fmd.fid());
+
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
   std::ostringstream srcStream;
   srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
             << fxidString;
