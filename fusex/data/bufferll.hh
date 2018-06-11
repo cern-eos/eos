@@ -217,7 +217,10 @@ public:
   void put_buffer(shared_buffer buffer)
   {
     XrdSysMutexHelper lLock(this);
-    inflight_size -= buffer->capacity();
+    if (inflight_size >= buffer->capacity())
+      inflight_size -= buffer->capacity();
+    else
+      inflight_size = 0;
 
     if (queue.size() == max) {
       return;
