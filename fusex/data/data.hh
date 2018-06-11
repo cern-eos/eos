@@ -180,7 +180,7 @@ public:
 
     bool unlinked() 
     {
-      XrdSysMutexHelper lLock(Locker());
+      // caller has to have this object locked
       return mIsUnlinked;
     }
 
