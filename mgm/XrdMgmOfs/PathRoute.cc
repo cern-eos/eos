@@ -63,6 +63,8 @@ XrdMgmOfs::AddPathRoute (const char* source,
   eos::common::RWMutexWriteLock lock(PathRouteMutex);
   if (PathRoute.count(source))
   {
+    if (EOS_LOGS_DEBUG)
+      eos_debug("rejecting to add route %s\n", source);
     return false;
   }
   else
@@ -82,6 +84,9 @@ XrdMgmOfs::AddPathRoute (const char* source,
       RouteHttpPort[source] = atoi(items[2].c_str());
     else
       RouteHttpPort[source] = 8000;
+
+    if (EOS_LOGS_DEBUG)
+      eos_debug("adding route %s => %s %d %d", source, target, RouteXrdPort[source], RouteHttpPort[source]);
 
     ConfEngine->SetConfigValue("route", source, target);
     return true;
@@ -130,40 +135,52 @@ XrdMgmOfs::PathReroute (const char* inpath,
     inpath = attr["mgm.quota.space"].c_str();
   }
   
-  eos::common::Path cPath(inpath);
-  eos_debug("routepath=%s ndir=%d dirlevel=%d", inpath, PathRoute.size(), cPath.GetSubPathSize() - 1);
+  XrdOucString sinpath=inpath;
+  if (!sinpath.endswith("/"))
+    sinpath+="/";
+
+  eos::common::Path cPath(sinpath.c_str());
+  if (EOS_LOGS_DEBUG)
+    eos_debug("routepath=%s ndir=%d dirlevel=%d", inpath, PathRoute.size(), cPath.GetSubPathSize() - 1);
   
   if (!PathRoute.size()) {
+    if (EOS_LOGS_DEBUG)
+      eos_debug("no routes defined");
     return false;
   }
 
   std::string target = "Rt:";
 
-  if (Routes.count(inpath)) {
+  if (Routes.count(sinpath.c_str())) {
     if (vid.prot == "http" || vid.prot == "https") {
       // http redirection
-      outport = RouteHttpPort[inpath];
+      outport = RouteHttpPort[sinpath.c_str()];
       target += vid.prot.c_str();
     } else {
       // xrootd redirection
-      outport = RouteXrdPort[inpath];
+      outport = RouteXrdPort[sinpath.c_str()];
       target += "xrd";
     }
     
-    outhost = Routes[inpath].c_str();
+    outhost = Routes[sinpath.c_str()].c_str();
     target += ":";
     target += outhost.c_str();
 
-    eos_debug("re-reouting target=%s port=%d", target.c_str(), outport);
+    if (EOS_LOGS_DEBUG)
+      eos_debug("re-routing path=%s to target=%s port=%d", sinpath.c_str(), target.c_str(), outport);
     gOFS->MgmStats.Add(target.c_str(), vid.uid, vid.gid, 1);
     return true;
   }
   
   if (!cPath.GetSubPathSize()) {
+    if (EOS_LOGS_DEBUG)
+      eos_debug("given path has no subpath");
     return false;
   }
 
-  for (size_t i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
+  for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
+    if (EOS_LOGS_DEBUG)
+      eos_debug("[route] %s => %s\n", sinpath.c_str(), cPath.GetSubPath(i));
     if (Routes.count(cPath.GetSubPath(i))) {
       if (vid.prot == "http" || vid.prot == "https") {
 	// http redirection
@@ -179,7 +196,8 @@ XrdMgmOfs::PathReroute (const char* inpath,
       target += ":";
       target += outhost.c_str();
       gOFS->MgmStats.Add(target.c_str(), vid.uid, vid.gid, 1);
-      eos_debug("re-reouting target=%s port=%d", target.c_str(), outport);
+      if (EOS_LOGS_DEBUG)
+	eos_debug("re-routing path=%s to target=%s port=%d", sinpath.c_str(), target.c_str(), outport);
       return true;
     }
   }

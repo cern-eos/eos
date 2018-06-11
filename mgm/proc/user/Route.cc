@@ -72,7 +72,7 @@ ProcCommand::Route()
           stdErr += srcpath.c_str();
           stdErr += "' - remove the existing routing using 'route unlink'!";
         } else {
-          gOFS->PathRoute[srcpath.c_str()] = dstpath.c_str();
+          gOFS->AddPathRoute(srcpath.c_str(),dstpath.c_str());
           gOFS->ConfEngine->SetConfigValue("route", srcpath.c_str(), dstpath.c_str());
           stdOut = "success: added routing '";
           stdOut += srcpath.c_str();
