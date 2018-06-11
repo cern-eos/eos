@@ -110,7 +110,7 @@ FuseServer::Clients::MonitorHeartBeat()
     client_uuid_t evictmap;
     client_uuid_t evictversionmap;
     {
-      XrdSysMutexHelper lLock(this);
+      eos::common::RWMutexWriteLock lLock(*this);
       struct timespec tsnow;
       eos::common::Timing::GetTimeSpec(tsnow);
 
@@ -185,7 +185,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
   gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0 , 1);
   
   bool rc = true;
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
 
   if (this->map().count(identity)) {
     rc = false;
@@ -265,7 +265,7 @@ FuseServer::MonitorCaps()
       std::map<std::string, quotainfo_t> qmap;
       {
         if (EOS_LOGS_DEBUG) eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
-        XrdSysMutexHelper cLock(&Cap());
+	eos::common::RWMutexReadLock lLock(Cap());
         std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
           Cap().GetCaps();
 
@@ -312,8 +312,7 @@ FuseServer::MonitorCaps()
               // send the changed quota information via a cap update
               FuseServer::Caps::shared_cap cap;
               {
-                XrdSysMutexHelper cLock(&Cap());
-
+		eos::common::RWMutexReadLock lLock(Cap());
                 if (Cap().GetCaps().count(*auit)) {
                   cap = Cap().GetCaps()[*auit];
                 }
@@ -386,12 +385,12 @@ void
 FuseServer::Clients::Print(std::string& out, std::string options,
                            bool monitoring)
 {
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexReadLock lLock(*this);
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
   std::map<std::string, size_t> clientcaps;
   {
-    XrdSysMutexHelper lock(gOFS->zMQ->gFuseServer.Cap());
+    eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
 
     // count caps per client uuid
     for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
@@ -514,7 +513,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason)
   rsp.mutable_evict_()->set_reason(reason);
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexReadLock lLock(*this);
 
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
@@ -533,7 +532,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason)
 int
 FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
 {
-  XrdSysMutexHelper lock(gOFS->zMQ->gFuseServer.Cap());
+  eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
   out += " dropping caps of '";
   out += uuid;
   out += "' : ";
@@ -620,7 +619,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
   rsp.mutable_lease_()->set_clientid(clientid);
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexReadLock lLock(*this);
 
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
@@ -668,7 +667,8 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
   rsp.mutable_md_()->set_clock(clock);
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
-  XrdSysMutexHelper lLock(this);
+
+  eos::common::RWMutexReadLock lLock(*this);
 
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
@@ -696,7 +696,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   const std::string& uuid = cap->clientuuid();
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexReadLock lLock(*this);
 
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
@@ -728,7 +728,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                         eos::common::Mapping::VirtualIdentity* vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0 , 1);
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
                   ecap.clientid().c_str(),
@@ -786,7 +786,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 FuseServer::Caps::shared_cap
 FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
 {
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
 
   if (mCaps.count(id)) {
     return mCaps[id];
@@ -801,7 +801,7 @@ int
 FuseServer::Clients::SetHeartbeatInterval(int interval)
 {
   // broadcast to all clients
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
   mHeartBeatInterval = interval;
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
@@ -822,7 +822,7 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
 int
 FuseServer::Clients::SetQuotaCheckInterval(int interval)
 {
-  XrdSysMutexHelper lLock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
   mQuotaCheckInterval = interval;
   return 0;
 }
@@ -875,7 +875,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0 , 1);
   // broad-cast release for a given inode
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx ",
                   id);
 
@@ -908,7 +908,8 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0 , 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexReadLock lLock(*this);
+
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
                   refcap->clientid().c_str(),
@@ -952,7 +953,8 @@ int
 FuseServer::Caps::BroadcastCap(shared_cap cap)
 {
   if (cap && cap->id()) {
-    return gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
+    int rc;
+    rc = gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
   }
 
   return -1;
@@ -967,7 +969,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0 , 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
                   refcap->clientid().c_str(),
@@ -1024,7 +1026,13 @@ FuseServer::Caps::Print(std::string option, std::string filter)
   std::string out;
   std::string astring;
   uint64_t now = (uint64_t) time(NULL);
-  XrdSysMutexHelper lock(this);
+
+  eos::common::RWMutexReadLock lock;
+  
+  if (option == "p") 
+    lock.Grab(gOFS->eosViewRWMutex);
+
+  eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("option=%s string=%s", option.c_str(), filter.c_str());
   regex_t regex;
 
@@ -1121,7 +1129,6 @@ FuseServer::Caps::Print(std::string option, std::string filter)
     // print by inode
     for (auto it = mInodeCaps.begin(); it != mInodeCaps.end(); ++it) {
       std::string spath;
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       try {
         if (eos::common::FileId::IsFileInode(it->first)) {
@@ -1184,7 +1191,7 @@ FuseServer::Caps::Print(std::string option, std::string filter)
 int
 FuseServer::Caps::Delete(uint64_t md_ino)
 {
-  XrdSysMutexHelper lock(this);
+  eos::common::RWMutexWriteLock lLock(*this);
 
   if (!mInodeCaps.count(md_ino)) {
     return ENOENT;
@@ -1652,7 +1659,7 @@ FuseServer::FillContainerCAP(uint64_t id,
     if (EOS_LOGS_DEBUG) eos_static_debug("checking for id=%s", dir.clientid().c_str());
     // check if the client has already a cap, in case yes, we don't return a new
     // one
-    XrdSysMutexHelper lock(Cap());
+    eos::common::RWMutexReadLock lLock(Cap());
 
     if (Cap().ClientInoCaps().count(dir.clientid())) {
       if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {

@@ -56,7 +56,7 @@ public:
   //----------------------------------------------------------------------------
   //! Class Caps
   //----------------------------------------------------------------------------
-  class Caps : public XrdSysMutex
+  class Caps : public eos::common::RWMutex
   {
     friend class FuseServer;
   public:
@@ -106,19 +106,19 @@ public:
 
     ssize_t ncaps() 
     {
-      XrdSysMutexHelper lock(this);
+      eos::common::RWMutexReadLock lock(*this);      
       return mTimeOrderedCap.size();
     }
 
     void pop()
     {
-      XrdSysMutexHelper lock(this);
+      eos::common::RWMutexWriteLock lock(*this);      
       mTimeOrderedCap.pop_front();
     }
 
     bool expire()
     {
-      XrdSysMutexHelper lock(this);
+      eos::common::RWMutexWriteLock lock(*this);      
       authid_t id;
 
       if (!mTimeOrderedCap.empty()) {
@@ -212,7 +212,7 @@ public:
   //! Class Clients
   //----------------------------------------------------------------------------
 
-  class Clients : public XrdSysMutex
+  class Clients : public eos::common::RWMutex
   {
   public:
     Clients():
@@ -284,7 +284,7 @@ public:
 
 
     ssize_t nclients() {
-      XrdSysMutexHelper lock(this);
+      eos::common::RWMutexReadLock lock(*this);
       return mMap.size();
     }
 
