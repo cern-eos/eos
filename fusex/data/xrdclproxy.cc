@@ -278,12 +278,14 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   eos_debug("url=%s flags=%x mode=%x", url.c_str(), (int) flags, (int) mode);
   XrdSysCondVarHelper lLock(OpenCondVar());
 
+  int in_state = state();
   mUrl = url;
   mFlags = flags;
   mMode = mode;
   mTimeout = timeout;
 
-  if ( state() == OPENING )
+  if ( ( state() == OPENING ) || 
+       ( state() == WAITWRITE ) )
   {
     XRootDStatus status(XrdCl::stError,
                         suAlreadyDone,
@@ -306,7 +308,7 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
 
   if ( state() == FAILED )
   {
-
+    eos_err("url=%s flags=%x mode=%x state=failed", url.c_str(), (int) flags, (int) mode);
     return XOpenState;
   }
 
@@ -319,6 +321,9 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
   SetProperty("WriteRecovery", "false");
 #endif
 
+  if (EOS_LOGS_DEBUG)
+    eos_debug("this=%x url=%s in-state %d state %d\n", this, url.c_str(), in_state, state());
+  
   XrdCl::XRootDStatus status = Open(url.c_str(),
                                     flags,
                                     mode,
@@ -329,6 +334,7 @@ XrdCl::Proxy::OpenAsync( const std::string &url,
     set_state(OPENING);
   }
   else {
+    eos_err("url=%s flags=%x mode=%x state=failed errmsg=%s", url.c_str(), (int) flags, (int) mode, status.ToString().c_str());
     set_state(FAILED);
   }
 
@@ -385,6 +391,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* sta
     }
     else
     {
+      eos_static_err("state=failed async open returned errmsg=%s", status->ToString().c_str());
       proxy()->set_state(FAILED, status);
     }
     
@@ -415,6 +422,7 @@ XrdCl::Proxy::ReOpenAsync()
 			XrdCl::errUninitialized,
 			"never opened before"
 			);
+    eos_err("state=failed reopenasync errmsg=%s", status.ToString().c_str());
     set_state_TS(FAILED, &status);
     return status;
   }
@@ -439,13 +447,13 @@ XrdCl::Proxy::CloseAsync(uint16_t         timeout)
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   // only an opened file requires a close, otherwise we return the last known state
-  if (state() == OPENED) {
+  if ( (state() == OPENED) ||
+       (state() == WAITWRITE) ){
     XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
 						    timeout);
     set_state(CLOSING, &status);
   } else {
-    XrdCl::XRootDStatus status;
-    set_state(CLOSED, &status);
+    eos_warning("%x closing an unopened file state=%d url=%s\n", this, state(), mUrl.c_str());
   }
   return XOpenState;
 }
@@ -718,8 +726,12 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse (XrdCl::XRootDStatus* status,
     }
   }
 
+  write_handler myhandler;  // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
   {
     XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
+    if (mProxy->ChunkMap().count((uint64_t)this)) {
+      myhandler = mProxy->ChunkMap()[(uint64_t)this];
+    }
     mProxy->ChunkMap().erase((uint64_t)this);
   }
 
