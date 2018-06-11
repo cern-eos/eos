@@ -1772,8 +1772,10 @@ XrdFstOfsFile::close()
                           false);
   }
 
-  if (mFusexIsUnlinked) // mask close error for fusex, if the file had been removed already
+  if (mFusexIsUnlinked && mFusex) {// mask close error for fusex, if the file had been removed already
     rc = 0;
+    error.setErrCode(0);
+  }
 
   eos_info("Return code rc=%i errc=%d", rc, error.getErrInfo());
   return rc;
