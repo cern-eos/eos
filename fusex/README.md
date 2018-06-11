@@ -1,6 +1,11 @@
 eosxd
 =====
 
+Warning
+-------
+
+To have *eosxd* working properly with many writers you have to modify the MGM configuration file ```/etc/xrd.cf.mgm``` with the nolock option: ```all.export / nolock```
+
 Configuration File
 ------------------
 The configuration file name for an unnamed instance is ```/etc/eos/fuse.conf```.
