@@ -181,9 +181,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
+
   if (vid.prot == "sss") {
-    vid.key = (client->endorsements?client->endorsements:"");
+    vid.key = (client->endorsements ? client->endorsements : "");
   }
+
   // first map by alias
   XrdOucString useralias = client->prot;
   useralias += ":";
@@ -1152,7 +1154,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     if (sname.length() == 8) {
       bool known_tident = false;
 
-      if (sname.beginswith("*") || sname.beginswith("~")){
+      if (sname.beginswith("*") || sname.beginswith("~")) {
         known_tident = true;
         // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
@@ -1189,20 +1191,21 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             delete id;
           }
 
-	  if (sname.beginswith("*")) {
-	    id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
-	  } else {
-	    // only user id got forwarded, we retrieve the corresponding group
-	    uid_t ruid = (bituser >> 6) & 0xfffffffff;
+          if (sname.beginswith("*")) {
+            id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
+          } else {
+            // only user id got forwarded, we retrieve the corresponding group
+            uid_t ruid = (bituser >> 6) & 0xfffffffff;
+            gPhysicalIdMutex.UnLock();
+            struct passwd* pwbufp = 0;
 
-	    gPhysicalIdMutex.UnLock();
-	    struct passwd* pwbufp = 0;
-	    if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
-	      gPhysicalIdMutex.Lock();
-	      return;
-	    }
-	    id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-	  }
+            if (getpwuid_r(ruid, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp)) {
+              gPhysicalIdMutex.Lock();
+              return;
+            }
+
+            id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
+          }
 
           eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid,
                            id->gid);
@@ -1425,7 +1428,6 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
  *
  * @return user id
  */
-
 /*----------------------------------------------------------------------------*/
 uid_t
 Mapping::UserNameToUid(const std::string& username, int& errc)
@@ -1612,7 +1614,22 @@ Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
       number.assign(slist, 0, kommapos - 1);
       int errc;
       std::string username = number.c_str();
-      uid_t uid = UserNameToUid(username, errc);
+      uid_t uid = 99;
+
+      if (std::find_if(username.begin(), username.end(),
+      [](unsigned char c) {
+      return std::isalpha(c);
+      }) !=
+      username.end()) {
+        uid = eos::common::Mapping::UserNameToUid(username, errc);
+      }
+      else {
+        try {
+          uid = std::stoul(username);
+        } catch (const std::exception& e) {
+          uid = 99;
+        }
+      }
 
       if (!errc) {
         vector_list.push_back(uid);

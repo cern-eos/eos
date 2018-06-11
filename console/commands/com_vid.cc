@@ -484,7 +484,7 @@ com_vid(char* arg1)
 
 com_vid_usage:
   fprintf(stdout,
-          "usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n]                                          : list configured policies\n");
+          "usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n] : list configured policies\n");
   fprintf(stdout,
           "                                        -u : show only user role mappings\n");
   fprintf(stdout,
