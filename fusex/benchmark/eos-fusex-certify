@@ -152,9 +152,9 @@ mkdir build
 cd build
 uname -a | grep ".el6." >& /dev/null
 if [ $? -eq 0 ] ; then
-    scl enable devtoolset-2 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+    scl enable devtoolset-6 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
 else
-    cmake3 ../ -DPACKAGEONLY=1 >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+    scl enable devtoolset-6 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
 fi
 
 make srpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
