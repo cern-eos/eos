@@ -1333,14 +1333,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,placeNewReplicas,"
     "accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,"
     "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
-    "updateAtomicPenalties,updateFastStructures";
+    "updateAtomicPenalties,updateFastStructures,work";
   g_logging.SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
              "RegisterNode,SharedHash,placeNewReplicas,accessReplicas,"
              "placeNewReplicasOneGroup,accessReplicasOneGroup,"
              "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
-             "updateAtomicPenalties,updateFastStructures");
+             "updateAtomicPenalties,updateFastStructures,work");
   // Automatically append the host name to the config dir
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
@@ -2102,6 +2102,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::FillContainerCAP", 0, 0, 0);
   MgmStats.Add("Eosxd::int::FillContainerMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::FillFileMD", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 0);
   MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 0);
   MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 0);

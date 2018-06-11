@@ -181,6 +181,9 @@ bool
 FuseServer::Clients::Dispatch(const std::string identity,
                               eos::fusex::heartbeat& hb)
 {
+
+  gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0 , 1);
+  
   bool rc = true;
   XrdSysMutexHelper lLock(this);
 
