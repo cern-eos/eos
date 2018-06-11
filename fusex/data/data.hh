@@ -65,11 +65,14 @@ public:
 	      mSimulateWriteErrorInFlusher(false),
 	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
 
-    {}
+    { inline_buffer = nullptr;}
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-      mAttached(0), mMd(md), mPrefetchHandler(0), mSimulateWriteErrorInFlush(false),
-      mSimulateWriteErrorInFlusher(false),mFlags(0)
+				 mAttached(0), mMd(md), mPrefetchHandler(0), 
+				 mSimulateWriteErrorInFlush(false),
+				 mSimulateWriteErrorInFlusher(false),
+				 mFlags(0),  mXoff(false), 
+				 mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
     {}
 
     virtual ~datax() = default;
