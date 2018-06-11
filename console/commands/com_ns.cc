@@ -341,7 +341,7 @@ void com_ns_help()
       << std::endl
       << "  ns mutex [<option>]" << std::endl
       << "    manage mutex monitoring. Option can be:" << std::endl
-      << "    --toggletiming   : toggle the timing" << std::endl
+      << "    --toggletime     : toggle the timing" << std::endl
       << "    --toggleorder    : toggle the order" << std::endl
       << "    --toggledeadlock : toggle deadlock check" << std::endl
       << "    --smplrate1      : set timing sample rate at 1% (default, no slow-down)"
