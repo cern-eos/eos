@@ -59,7 +59,6 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
-  const std::string cache_size = "dir_cache_size";
 
   if ((config.find(key_cluster) != config.end()) &&
       (config.find(key_flusher) != config.end())) {
@@ -82,8 +81,12 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
   }
 
-  if (config.find(cache_size) != config.end()) {
-    mCacheSize = config.at(cache_size);
+  if (config.find(constants::sMaxNumCacheDirs) != config.end()) {
+    mCacheNum = config.at(constants::sMaxNumCacheDirs);
+
+    if (mMetadataProvider) {
+      mMetadataProvider->setContainerMDCacheNum(std::stoull(mCacheNum));
+    }
   }
 }
 
@@ -100,7 +103,7 @@ ContainerMDSvc::initialize()
     throw e;
   }
 
-  if (pMetadataProvider == nullptr) {
+  if (mMetadataProvider == nullptr) {
     MDException e(EINVAL);
     e.getMessage()  << __FUNCTION__  << " No metadata provider set for "
                     << "the container metadata service";
@@ -114,9 +117,10 @@ ContainerMDSvc::initialize()
     throw e;
   }
 
-  if(!mCacheSize.empty()) {
-    pMetadataProvider->setContainerMDCacheSize(std::stoull(mCacheSize));
+  if (!mCacheNum.empty()) {
+    mMetadataProvider->setContainerMDCacheNum(std::stoull(mCacheNum));
   }
+
   SafetyCheck();
   ComputeNumberOfContainers();
 }
@@ -133,19 +137,18 @@ ContainerMDSvc::SafetyCheck()
   std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
                                   100000, 150199, 200001, 1000002, 2000123
                                  };
-
   std::vector<folly::Future<eos::ns::ContainerMdProto>> futs;
 
   for (auto incr : offsets) {
     IContainerMD::id_t check_id = free_id + incr;
-    futs.emplace_back(MetadataFetcher::getContainerFromId(*pQcl, ContainerIdentifier(check_id)));
+    futs.emplace_back(MetadataFetcher::getContainerFromId(*pQcl,
+                      ContainerIdentifier(check_id)));
   }
 
-  for(size_t i = 0; i < futs.size(); i++) {
+  for (size_t i = 0; i < futs.size(); i++) {
     try {
       futs[i].get();
-    }
-    catch (eos::MDException& qdb_err) {
+    } catch (eos::MDException& qdb_err) {
       // All is good, we didn't find any container, as expected
       continue;
     }
@@ -169,11 +172,12 @@ ContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
   // immediatelly. Happens for files which have been unlinked, but not removed
   // yet.
   //----------------------------------------------------------------------------
-  if(id == 0) {
-    return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "Container #0 not found"));
+  if (id == 0) {
+    return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT,
+           "Container #0 not found"));
   }
 
-  return pMetadataProvider->retrieveContainerMD(ContainerIdentifier(id));
+  return mMetadataProvider->retrieveContainerMD(ContainerIdentifier(id));
 }
 
 //------------------------------------------------------------------------------
@@ -183,9 +187,11 @@ IContainerMDPtr
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 {
   IContainerMDPtr container = getContainerMDFut(id).get();
-  if(container && clock) {
+
+  if (container && clock) {
     *clock = container->getClock();
   }
+
   return container;
 }
 
@@ -199,7 +205,7 @@ ContainerMDSvc::createContainer()
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
-  pMetadataProvider->insertContainerMD(cont->getIdentifier(), cont);
+  mMetadataProvider->insertContainerMD(cont->getIdentifier(), cont);
   return cont;
 }
 
@@ -227,7 +233,8 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   std::string sid = stringify(obj->getId());
-  pFlusher->execute(RequestBuilder::deleteContainerProto(ContainerIdentifier(obj->getId())));
+  pFlusher->execute(RequestBuilder::deleteContainerProto(ContainerIdentifier(
+                      obj->getId())));
 
   // If this was the root container i.e. id=1 then drop also the meta map
   if (obj->getId() == 1) {
@@ -361,7 +368,8 @@ ContainerMDSvc::ComputeNumberOfContainers()
   (void) ah.Wait();
   auto resp = ah.GetResponses();
   mNumConts.store(std::accumulate(resp.begin(), resp.end(), 0ull));
-  mNumConts += pQcl->execute(RequestBuilder::getNumberOfContainers()).get()->integer;
+  mNumConts += pQcl->execute(
+                 RequestBuilder::getNumberOfContainers()).get()->integer;
 }
 
 //------------------------------------------------------------------------------
@@ -370,7 +378,7 @@ ContainerMDSvc::ComputeNumberOfContainers()
 CacheStatistics
 ContainerMDSvc::getCacheStatistics()
 {
-  return pMetadataProvider->getContainerMDCacheStats();
+  return mMetadataProvider->getContainerMDCacheStats();
 }
 
 EOSNSNAMESPACE_END

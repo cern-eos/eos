@@ -33,7 +33,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 struct CacheStatistics {
   bool enabled = false;
-  int64_t maxSize = 0;
+  int64_t maxNum = 0;
   int64_t occupancy = 0;
 };
 

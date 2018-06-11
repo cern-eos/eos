@@ -97,11 +97,20 @@ private:
   //----------------------------------------------------------------------------
   //! Execute tree size recompute
   //!
-  //! @param tree tree size  subcommand proto object
+  //! @param tree tree size subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute cache update command
+  //!
+  //! @param cache cache subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
+                   eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given

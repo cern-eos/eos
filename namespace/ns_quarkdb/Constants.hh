@@ -56,6 +56,14 @@ static const std::string sContKeySuffix{":c_bucket"};
 //! Sufix for file metadata in Redis
 static const std::string sFileKeySuffix{":f_bucket"};
 
+//! Tag for max num of file entries cached at the MGM
+static const std::string sMaxNumCacheFiles {"max_num_cache_files"};
+//! Tag for max size (bytes) of file entries cached at the MGM
+static const std::string sMaxSizeCacheFiles {"max_size_cache_files"};
+//! Tag for max num of dir/container entries cached at the MGM
+static const std::string sMaxNumCacheDirs {"max_num_cache_dirs"};
+//! Tag for max size (bytes) of dir/container entries cached at the MGM
+static const std::string sMaxSizeCacheDirs {"max_size_cache_dirs"};
 }
 
 //! Variable associated with the QuotaView

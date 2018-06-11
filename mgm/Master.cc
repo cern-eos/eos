@@ -36,6 +36,7 @@
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 
 // -----------------------------------------------------------------------------
 // Note: the defines after have to be in agreements with the defins in XrdMqOfs.cc
@@ -1904,15 +1905,8 @@ Master::BootNamespace()
       contSettings["qdb_cluster"] = gOFS->mQdbCluster;
       contSettings["qdb_flusher_md"] = instance_name + "_md";
       contSettings["qdb_flusher_quota"] = instance_name + "_quota";
-      if (getenv("EOS_NS_DIR_CACHE_SIZE")) {
-        contSettings["dir_cache_size"] = getenv("EOS_NS_DIR_CACHE_SIZE");
-      }
-
       fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
       fileSettings["qdb_flusher_md"] = instance_name + "_md";
-      if (getenv("EOS_NS_FILE_CACHE_SIZE")) {
-        fileSettings["file_cache_size"] = getenv("EOS_NS_FILE_CACHE_SIZE");
-      }
     }
   }
 

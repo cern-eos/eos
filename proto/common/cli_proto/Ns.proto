@@ -59,11 +59,18 @@ message NsProto {
     }
   }
 
+  message CacheProto {
+    bool for_file   = 1;
+    uint64 max_num  = 2;
+    uint64 max_size = 3;
+  }
+
   oneof subcmd {
     StatProto stat       = 1;
     MutexProto mutex     = 2;
     CompactProto compact = 3;
     MasterProto master   = 4;
     TreeSizeProto tree   = 5;
+    CacheProto cache     = 6;
   }
 }

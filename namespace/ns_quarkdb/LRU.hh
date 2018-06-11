@@ -124,27 +124,27 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get maximmu cache size
+  //! Get maximim number of entries in the cache
   //!
-  //! @return maximum cache size
+  //! @return maximum cache num entries
   //----------------------------------------------------------------------------
   inline std::uint64_t
-  get_max_size() const
+  get_max_num() const
   {
     eos::common::RWMutexWriteLock lock_w(mMutex);
-    return mMaxSize;
+    return mMaxNum;
   }
 
   //----------------------------------------------------------------------------
-  //! Set max size
+  //! Set max num entries
   //!
-  //! @param max_size new maximum number of entries
+  //! @param max_num new maximum number of entries
   //----------------------------------------------------------------------------
   inline void
-  set_max_size(const std::uint64_t max_size)
+  set_max_num(const std::uint64_t max_num)
   {
     eos::common::RWMutexWriteLock lock_w(mMutex);
-    mMaxSize = max_size;
+    mMaxNum = max_num;
   }
 
 private:
@@ -166,7 +166,7 @@ private:
   //! Mutext to protect access to the map and list which is set to blocking
   // mutable eos::common::RWMutex mMutex;
   mutable eos::common::RWMutex mMutex;
-  std::uint64_t mMaxSize; ///< Maximum number of entries
+  std::uint64_t mMaxNum; ///< Maximum number of entries
 };
 
 // Definition of class static member
@@ -177,7 +177,7 @@ constexpr double LRU<IdT, EntryT>::sPurgeStopRatio;
 // Constructor
 //------------------------------------------------------------------------------
 template <typename IdT, typename EntryT>
-LRU<IdT, EntryT>::LRU(std::uint64_t max_size) : mMutex(), mMaxSize(max_size)
+LRU<IdT, EntryT>::LRU(std::uint64_t max_num) : mMutex(), mMaxNum(max_num)
 {
   mMutex.SetBlocking(true);
 }
@@ -229,11 +229,11 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
   }
 
   // Check if map full and purge some entries if necessary 10% of max size
-  if (mMap.size() >= mMaxSize) {
+  if (mMap.size() >= mMaxNum) {
     auto iter = mList.begin();
 
     while ((iter != mList.end()) &&
-           (mMap.size() > sPurgeStopRatio * mMaxSize)) {
+           (mMap.size() > sPurgeStopRatio * mMaxNum)) {
       // If object is referenced also by someone else then skip it
       if (iter->use_count() > 1) {
         ++iter;

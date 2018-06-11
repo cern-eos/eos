@@ -180,19 +180,19 @@ MetadataProvider::insertContainerMD(ContainerIdentifier id,
 //------------------------------------------------------------------------------
 // Change file cache size.
 //------------------------------------------------------------------------------
-void MetadataProvider::setFileMDCacheSize(uint64_t size)
+void MetadataProvider::setFileMDCacheNum(uint64_t max_num)
 {
   std::lock_guard<std::mutex> lock(mMutex);
-  mFileCache.set_max_size(size);
+  mFileCache.set_max_num(max_num);
 }
 
 //------------------------------------------------------------------------------
 // Change container cache size.
 //------------------------------------------------------------------------------
-void MetadataProvider::setContainerMDCacheSize(uint64_t size)
+void MetadataProvider::setContainerMDCacheNum(uint64_t max_num)
 {
   std::lock_guard<std::mutex> lock(mMutex);
-  mContainerCache.set_max_size(size);
+  mContainerCache.set_max_num(max_num);
 }
 
 //------------------------------------------------------------------------------
@@ -260,7 +260,7 @@ CacheStatistics MetadataProvider::getFileMDCacheStats()
   CacheStatistics stats;
   stats.enabled = true;
   stats.occupancy = mFileCache.size();
-  stats.maxSize = mFileCache.get_max_size();
+  stats.maxNum = mFileCache.get_max_num();
   return stats;
 }
 
@@ -272,7 +272,7 @@ CacheStatistics MetadataProvider::getContainerMDCacheStats()
   CacheStatistics stats;
   stats.enabled = true;
   stats.occupancy = mContainerCache.size();
-  stats.maxSize = mContainerCache.get_max_size();
+  stats.maxNum = mContainerCache.get_max_num();
   return stats;
 }
 

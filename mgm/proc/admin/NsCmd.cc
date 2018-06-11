@@ -29,6 +29,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
@@ -59,6 +60,8 @@ NsCmd::ProcessRequest()
     MasterSubcmd(ns.master(), reply);
   } else if (subcmd == eos::console::NsProto::kTree) {
     TreeSizeSubcmd(ns.tree(), reply);
+  } else if (subcmd == eos::console::NsProto::kCache) {
+    CacheSubcmd(ns.cache(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -307,8 +310,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
-        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
-        << "uid=all gid=all ns.fusex.clients=" << gOFS->zMQ->gFuseServer.Client().nclients() << std::endl;
+        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
+        std::endl
+        << "uid=all gid=all ns.fusex.clients=" <<
+        gOFS->zMQ->gFuseServer.Client().nclients() << std::endl;
+
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
       oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
           (pstat.vsize - gOFS->LinuxStatsStartup.vsize) << std::endl;
@@ -362,19 +368,21 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      current container id             " << cid_now
         << std::endl
         << line << std::endl
-        << "ALL      eosxd caps                       " << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
-        << "ALL      eosxd clients                    " << gOFS->zMQ->gFuseServer.Client().nclients() << std::endl
+        << "ALL      eosxd caps                       " <<
+        gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
+        << "ALL      eosxd clients                    " <<
+        gOFS->zMQ->gFuseServer.Client().nclients() << std::endl
         << line << std::endl;
     CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
     CacheStatistics containerCacheStats =
       gOFS->eosDirectoryService->getCacheStatistics();
 
     if (fileCacheStats.enabled || containerCacheStats.enabled) {
-      oss << "ALL      File cache max size              " << fileCacheStats.maxSize <<
+      oss << "ALL      File cache max num               " << fileCacheStats.maxNum <<
           std::endl
           << "ALL      File cache occupancy             " << fileCacheStats.occupancy <<
           std::endl
-          << "ALL      Container cache max size         " << containerCacheStats.maxSize
+          << "ALL      Container cache max num          " << containerCacheStats.maxNum
           << std::endl
           << "ALL      Container cache occupancy        " << containerCacheStats.occupancy
           << std::endl
@@ -637,6 +645,27 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
   cont->setTreeSize(tree_size);
   gOFS->eosDirectoryService->updateStore(cont.get());
   gOFS->FuseXCast(cont->getId());
+}
+
+//------------------------------------------------------------------------------
+// Execute cache update command
+//------------------------------------------------------------------------------
+void
+NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
+                   eos::console::ReplyProto& reply)
+{
+  using namespace eos::constants;
+  std::map<std::string, std::string> map_cfg;
+
+  if (cache.for_file()) {
+    map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
+    map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
+    gOFS->eosFileService->configure(map_cfg);
+  } else {
+    map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
+    map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
+    gOFS->eosDirectoryService->configure(map_cfg);
+  }
 }
 
 //------------------------------------------------------------------------------

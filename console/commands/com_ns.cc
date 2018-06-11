@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
@@ -249,6 +250,47 @@ NsHelper::ParseCommand(const char* arg)
         }
       }
     }
+  } else if (cmd == "cache") {
+    eos::console::NsProto_CacheProto* cache = ns->mutable_cache();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    bool for_file = false;
+    soption = option;
+
+    if (soption == "-f")  {
+      for_file = true;
+    } else if (soption == "-d") {
+      for_file = false;
+    } else {
+      return false;
+    }
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    uint64_t max_num = 0ull, max_size = 0ull;
+
+    try {
+      max_num = std::stoull(option);
+    } catch (const std::exception& e) {
+      return false;
+    }
+
+    if ((option = tokenizer.GetToken())) {
+      try {
+        max_size = eos::common::StringConversion::GetDataSizeFromString(option);
+      } catch (const std::exception& e) {
+        return false;
+      }
+    }
+
+    cache->set_for_file(for_file);
+    cache->set_max_num(max_num);
+    cache->set_max_size(max_size);
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -337,6 +379,16 @@ void com_ns_help()
       << "    recompute the tree size of a directory and all its subdirectories"
       << std::endl
       << "    --depth : maximum depth for recomputation, default 0 i.e no limit"
+      << std::endl
+      << std::endl
+      << "  ns cache -d|-f <max_num> [<max_size>K|M|G...]" << std::endl
+      << "    set the max number of entries or the max size of the cache. Use the" <<
+      std::endl
+      << "    ns stat command to see the current values." << std::endl
+      << "    -d         : control the directory cache" << std::endl
+      << "    -f         : control the file cache" << std::endl
+      << "    <max_num>  : max number of entries" << std::endl
+      << "    <max_size> : max size of the cache - not implemented yet" << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

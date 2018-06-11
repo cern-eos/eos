@@ -60,7 +60,6 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
-  const std::string cache_size = "file_cache_size";
   qclient::Members qdb_members;
 
   if ((config.find(key_cluster) != config.end()) &&
@@ -80,14 +79,14 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setClient(*pQcl);
     mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
+    mMetadataProvider.reset(new MetadataProvider(qdb_members, pContSvc, this));
+    static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider
+    (mMetadataProvider.get());
   }
 
-  mMetadataProvider.reset(new MetadataProvider(qdb_members, pContSvc, this));
-  static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider(
-    mMetadataProvider.get());
-
-  if (config.find(cache_size) != config.end()) {
-    mMetadataProvider->setFileMDCacheSize(std::stoull(config.at(cache_size)));
+  if (config.find(constants::sMaxNumCacheFiles) != config.end()) {
+    std::string val = config.at(constants::sMaxNumCacheFiles);
+    mMetadataProvider->setFileMDCacheNum(std::stoull(val));
   }
 }
 

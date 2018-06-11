@@ -77,7 +77,8 @@ public:
   //----------------------------------------------------------------------------
   //! Asynchronously get the container metadata information for the given ID
   //----------------------------------------------------------------------------
-  virtual folly::Future<IContainerMDPtr> getContainerMDFut(IContainerMD::id_t id) override;
+  virtual folly::Future<IContainerMDPtr> getContainerMDFut(
+    IContainerMD::id_t id) override;
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
@@ -152,9 +153,9 @@ public:
   //! Set metadata provider
   //----------------------------------------------------------------------------
   void
-  setMetadataProvider(MetadataProvider *provider)
+  setMetadataProvider(MetadataProvider* provider)
   {
-    pMetadataProvider = provider;
+    mMetadataProvider = provider;
   }
 
   //----------------------------------------------------------------------------
@@ -212,11 +213,13 @@ private:
   IFileMDSvc* pFileSvc;                 ///< File metadata service
   qclient::QClient* pQcl;               ///< QClient object
   MetadataFlusher* pFlusher;            ///< Metadata flusher object
-  qclient::QHash mMetaMap ;             ///< Map holding metainfo about the namespace
+  qclient::QHash mMetaMap
+  ;             ///< Map holding metainfo about the namespace
   NextInodeProvider mInodeProvider;     ///< Provide next free inode
-  MetadataProvider* pMetadataProvider;  ///< Provider namespace metadata
+  MetadataProvider* mMetadataProvider;  ///< Provider namespace metadata
   std::atomic<uint64_t> mNumConts;      ///< Total number of containers
-  std::string mCacheSize;               ///< Temporary workaround to store cache size
+  std::string
+  mCacheNum;                ///< Temporary workaround to store cache size
 };
 
 EOSNSNAMESPACE_END

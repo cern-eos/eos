@@ -77,12 +77,12 @@ public:
   //----------------------------------------------------------------------------
   //! Change file cache size
   //----------------------------------------------------------------------------
-  void setFileMDCacheSize(uint64_t size);
+  void setFileMDCacheNum(uint64_t max_num);
 
   //----------------------------------------------------------------------------
   //! Change container cache size
   //----------------------------------------------------------------------------
-  void setContainerMDCacheSize(uint64_t size);
+  void setContainerMDCacheNum(uint64_t max_num);
 
   //----------------------------------------------------------------------------
   //! Get file cache statistics
