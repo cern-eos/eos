@@ -1740,15 +1740,21 @@ XrdFstOfsFile::close()
           attributes,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
           eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-      std::string errMsgBack;
+      std::string errMsgBackFromWfEndpoint;
       rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
                                        mEventRequestor, mEventRequestorGroup,
                                        mEventInstance, mCapOpaque->Get("mgm.path"),
                                        mCapOpaque->Get("mgm.manager"), attributes,
-                                       errMsgBack);
+                                       errMsgBackFromWfEndpoint);
 
       if (rc == SFS_OK) {
         return rc;
+      } else {
+        if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(), errMsgBackFromWfEndpoint)) {
+          eos_crit("msg=\"Failed to send archive failed event to manager\" errMsgBackFromWfEndpoint=\"%s\"",
+            errMsgBackFromWfEndpoint.c_str());
+        }
+        return ECANCELED;
       }
     }
 
