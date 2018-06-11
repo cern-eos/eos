@@ -80,10 +80,9 @@ ProcCommand::Quota()
         stdOut += out;
       }
     } else {
-      if (!is_ok)
-      {
-	stdErr += out;
-	retc = EINVAL;
+      if (!is_ok) {
+        stdErr += out;
+        retc = EINVAL;
       }
     }
 
@@ -99,10 +98,9 @@ ProcCommand::Quota()
         stdOut += out;
       }
     } else {
-      if (!is_ok)
-      {
-	stdErr += out;
-	retc = EINVAL;
+      if (!is_ok) {
+        stdErr += out;
+        retc = EINVAL;
       }
     }
 
@@ -233,7 +231,7 @@ ProcCommand::Quota()
         }
 
         // Deal with volume quota
-        unsigned long long size = StringConversion::GetSizeFromString(svolume);
+        unsigned long long size = StringConversion::GetDataSizeFromString(svolume);
 
         if (svolume.length() && (errno == EINVAL)) {
           stdErr = "error: the volume quota you specified is not a valid number";
@@ -251,7 +249,7 @@ ProcCommand::Quota()
         }
 
         // Deal with inode quota
-        unsigned long long inodes = StringConversion::GetSizeFromString(sinodes);
+        unsigned long long inodes = StringConversion::GetDataSizeFromString(sinodes);
 
         if (sinodes.length() && (errno == EINVAL)) {
           stdErr = "error: the inode quota you specified are not a valid number";

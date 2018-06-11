@@ -187,7 +187,6 @@ StringConversion::char_to_hex(const char input)
   static const char* const lut = "0123456789abcdef";
   std::string output;
   output.resize(2);
-
   const unsigned char c = input;
   output[0] = lut[c >> 4];
   output[1] = lut[c & 15];
@@ -271,6 +270,55 @@ StringConversion::GetSizeFromString(const char* instring)
 
   if (sizestring.endswith("Y") || sizestring.endswith("y")) {
     convfactor = 365 * 86400ll;
+  }
+
+  if (convfactor > 1) {
+    sizestring.erase(sizestring.length() - 1);
+  }
+
+  if ((sizestring.find(".")) != STR_NPOS) {
+    return ((unsigned long long)(strtod(sizestring.c_str(), NULL) * convfactor));
+  } else {
+    return (strtoll(sizestring.c_str(), 0, 10) * convfactor);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Convert a readable string into a number
+//------------------------------------------------------------------------------
+unsigned long long
+StringConversion::GetDataSizeFromString(const char* instring)
+{
+  if (!instring) {
+    errno = EINVAL;
+    return 0;
+  }
+
+  XrdOucString sizestring = instring;
+  unsigned long long convfactor;
+  convfactor = 1ll;
+  errno = 0;
+
+  if (!sizestring.length()) {
+    errno = EINVAL;
+    return 0;
+  } else if (sizestring.endswith("B") || sizestring.endswith("b")) {
+    sizestring.erase(sizestring.length() - 1);
+  } else if (sizestring.endswith("E") || sizestring.endswith("e")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("P") || sizestring.endswith("p")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("T") || sizestring.endswith("t")) {
+    convfactor = 1000ll * 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("G") || sizestring.endswith("g")) {
+    convfactor = 1000ll * 1000ll * 1000ll;
+  } else if (sizestring.endswith("M") || sizestring.endswith("m")) {
+    convfactor = 1000ll * 1000ll;
+  } else if (sizestring.endswith("K") || sizestring.endswith("k")) {
+    convfactor = 1000ll;
+  } else {
+    errno = EINVAL;
+    return 0;
   }
 
   if (convfactor > 1) {

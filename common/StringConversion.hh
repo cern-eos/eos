@@ -178,6 +178,30 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Convert a readable string into a number, only for data
+   *
+   * @param sizestring readable string like 4KB or 1000GB
+   *
+   * @return number
+   */
+  // ----------------------------------------------------------------------------
+  static unsigned long long
+  GetDataSizeFromString(const char* sizestring);
+
+  static unsigned long long
+  GetDataSizeFromString(const XrdOucString& sizestring)
+  {
+    return GetDataSizeFromString(sizestring.c_str());
+  }
+
+  static unsigned long long
+  GetDataSizeFromString(const std::string& sizestring)
+  {
+    return GetDataSizeFromString(sizestring.c_str());
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
    * Convert a long long number into a std::string
    *
    * @param sizestring returned string
