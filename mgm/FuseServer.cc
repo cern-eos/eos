@@ -341,9 +341,9 @@ FuseServer::MonitorCaps()
         if (((it->second) + 3600) < now) {
           auto erase_it = it++;
           outofquota.erase(erase_it);
-        }
-
-        ++it;
+        } else {
+	  it++;
+	}
       }
     }
 
