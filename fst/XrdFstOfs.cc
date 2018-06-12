@@ -681,7 +681,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.HashMutex.UnLockRead();
   // Start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
-  dumperfile += "so.fst.dump";
+  dumperfile += "so.fst.dump.";
+  dumperfile += (int) eos::fst::Config::gConfig.FstHostPort += myPort;
   ObjectManager.StartDumper(dumperfile.c_str());
   XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server

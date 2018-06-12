@@ -1831,7 +1831,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     hash = ObjectManager.GetHash("/eos/*");
     ObjectManager.HashMutex.UnLockRead();
     XrdOucString dumperfile = MgmMetaLogDir;
-    dumperfile += "/so.mgm.dump";
+    dumperfile += "/so.mgm.dump.";
+    dumperfile += ManagerPort;
     ObjectManager.StartDumper(dumperfile.c_str());
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
