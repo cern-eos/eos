@@ -200,7 +200,7 @@ ProcCommand::Ls()
               XrdOucString sizestring = "";
               struct tm* t_tm;
               struct tm t_tm_local;
-              t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
+              t_tm = localtime_r(&buf.st_mtime, &t_tm_local);
               strcpy(modestr, "----------");
 
               for (i = 0; i < 6; i++) if (ftype_v[i] == (S_IFMT & buf.st_mode)) {
