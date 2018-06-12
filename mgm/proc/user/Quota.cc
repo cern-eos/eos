@@ -249,7 +249,7 @@ ProcCommand::Quota()
         }
 
         // Deal with inode quota
-        unsigned long long inodes = StringConversion::GetDataSizeFromString(sinodes);
+        unsigned long long inodes = StringConversion::GetSizeFromString(sinodes);
 
         if (sinodes.length() && (errno == EINVAL)) {
           stdErr = "error: the inode quota you specified are not a valid number";
