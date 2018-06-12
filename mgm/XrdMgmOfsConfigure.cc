@@ -1832,7 +1832,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ObjectManager.HashMutex.UnLockRead();
     XrdOucString dumperfile = MgmMetaLogDir;
     dumperfile += "/so.mgm.dump.";
-    dumperfile += ManagerPort;
+    dumperfile += ManagerId;
     ObjectManager.StartDumper(dumperfile.c_str());
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
@@ -1975,7 +1975,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
-  ioaccounting += HostName;
+  ioaccounting += ManagerId;;
+  
   ioaccounting += ".dump";
   eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
