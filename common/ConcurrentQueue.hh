@@ -25,14 +25,11 @@
 #ifndef __EOS_CONCURRENTQUEUE_HH__
 #define __EOS_CONCURRENTQUEUE_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include <cstdio>
 #include <queue>
 #include <pthread.h>
 #include <common/Logging.hh>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -49,9 +46,7 @@ public:
   size_t size();
   void push(Data& data);
   bool push_size(Data& data, size_t max_size);
-
   bool empty();
-
   bool try_pop(Data& popped_value);
   void wait_pop(Data& popped_value);
   void clear();

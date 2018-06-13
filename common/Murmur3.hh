@@ -1,6 +1,4 @@
-#ifndef __MURMUR3__HH__
-#define __MURMUR3__HH__
-
+#pragma once
 #include <random>
 
 class Murmur3
@@ -82,5 +80,3 @@ public:
     }
   };
 };
-
-#endif

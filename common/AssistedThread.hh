@@ -55,59 +55,84 @@
 //   assistant.sleep_for(std::chrono::seconds(1));
 // }
 //------------------------------------------------------------------------------
-
 class AssistedThread;
-class ThreadAssistant {
+
+//------------------------------------------------------------------------------
+//! Class ThreadAssistant
+//------------------------------------------------------------------------------
+class ThreadAssistant
+{
 public:
   ThreadAssistant(bool flag) : stopFlag(flag) {}
 
-  void reset() {
+  void reset()
+  {
     stopFlag = false;
   }
 
-  void requestTermination() {
+  void requestTermination()
+  {
     std::lock_guard<std::mutex> lock(mtx);
     stopFlag = true;
     notifier.notify_all();
   }
 
-  bool terminationRequested() {
+  bool terminationRequested()
+  {
     return stopFlag;
   }
 
   template<typename T>
-  void wait_for(T duration) {
+  void wait_for(T duration)
+  {
     std::unique_lock<std::mutex> lock(mtx);
 
-    if(stopFlag) return;
+    if (stopFlag) {
+      return;
+    }
+
     notifier.wait_for(lock, duration);
   }
 
   template<typename T>
-  void wait_until(T duration) {
+  void wait_until(T duration)
+  {
     std::unique_lock<std::mutex> lock(mtx);
 
-    if(stopFlag) return;
+    if (stopFlag) {
+      return;
+    }
+
     notifier.wait_until(lock, duration);
   }
 
 private:
   friend class AssistedThread;
-
   std::atomic<bool> stopFlag;
   std::mutex mtx;
   std::condition_variable notifier;
 };
 
-class AssistedThread {
+//------------------------------------------------------------------------------
+//! Class AssistedThread
+//------------------------------------------------------------------------------
+class AssistedThread
+{
 public:
-  // null constructor, no underlying thread
+  //----------------------------------------------------------------------------
+  //! null constructor, no underlying thread
+  //----------------------------------------------------------------------------
   AssistedThread() : assistant(true), joined(true) { }
 
+  //----------------------------------------------------------------------------
   // universal references, perfect forwarding, variadic template
   // (C++ is intensifying)
+  //----------------------------------------------------------------------------
   template<typename... Args>
-  AssistedThread(Args&&... args) : assistant(false), joined(false), th(std::forward<Args>(args)..., std::ref(assistant)) {
+  AssistedThread(Args&& ... args) :
+    assistant(false), joined(false),
+    th(std::forward<Args>(args)..., std::ref(assistant))
+  {
   }
 
   // No assignment!
@@ -115,25 +140,33 @@ public:
   AssistedThread& operator=(AssistedThread&& src) = delete;
 
   template<typename... Args>
-  void reset(Args&&... args) {
+  void reset(Args&& ... args)
+  {
     join();
-
     assistant.reset();
     joined = false;
     th = std::thread(std::forward<Args>(args)..., std::ref(assistant));
   }
 
-  virtual ~AssistedThread() {
+  virtual ~AssistedThread()
+  {
     join();
   }
 
-  void stop() {
-    if(joined) return;
+  void stop()
+  {
+    if (joined) {
+      return;
+    }
+
     assistant.requestTermination();
   }
 
-  void join() {
-    if(joined) return;
+  void join()
+  {
+    if (joined) {
+      return;
+    }
 
     stop();
     th.join();
@@ -142,7 +175,6 @@ public:
 
 private:
   ThreadAssistant assistant;
-
   bool joined;
   std::thread th;
 };

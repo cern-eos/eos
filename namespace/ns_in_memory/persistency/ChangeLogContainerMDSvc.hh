@@ -34,8 +34,6 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "common/Murmur3.hh"
 #include "common/hopscotch_map.hh"
-#include <google/dense_hash_map>
-#include <google/sparse_hash_map>
 #include <list>
 #include <set>
 #include <map>
@@ -107,7 +105,8 @@ public:
   //----------------------------------------------------------------------------
   //! Asynchronously get the container metadata information for the given ID
   //----------------------------------------------------------------------------
-  virtual folly::Future<IContainerMDPtr> getContainerMDFut(IContainerMD::id_t id) override
+  virtual folly::Future<IContainerMDPtr> getContainerMDFut(
+    IContainerMD::id_t id) override
   {
     return folly::makeFuture(getContainerMD(id));
   }
