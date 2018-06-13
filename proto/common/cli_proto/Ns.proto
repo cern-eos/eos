@@ -60,7 +60,15 @@ message NsProto {
   }
 
   message CacheProto {
-    bool for_file   = 1;
+    enum OpType {
+      SET_FILE  = 0;
+      SET_DIR   = 1;
+      DROP_FILE = 2;
+      DROP_DIR  = 3;
+      DROP_ALL  = 4;
+    }
+
+    OpType op = 1;
     uint64 max_num  = 2;
     uint64 max_size = 3;
   }

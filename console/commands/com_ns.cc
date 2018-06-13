@@ -257,40 +257,62 @@ NsHelper::ParseCommand(const char* arg)
       return false;
     }
 
-    bool for_file = false;
     soption = option;
 
-    if (soption == "-f")  {
-      for_file = true;
-    } else if (soption == "-d") {
-      for_file = false;
-    } else {
-      return false;
-    }
+    if (soption == "set")  {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
 
-    if (!(option = tokenizer.GetToken())) {
-      return false;
-    }
+      soption = option;
 
-    uint64_t max_num = 0ull, max_size = 0ull;
+      if (soption == "-f") {
+        cache->set_op(eos::console::NsProto_CacheProto::SET_FILE);
+      } else if (soption == "-d") {
+        cache->set_op(eos::console::NsProto_CacheProto::SET_DIR);
+      } else {
+        return false;
+      }
 
-    try {
-      max_num = std::stoull(option);
-    } catch (const std::exception& e) {
-      return false;
-    }
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
 
-    if ((option = tokenizer.GetToken())) {
+      uint64_t max_num = 0ull, max_size = 0ull;
+
       try {
-        max_size = eos::common::StringConversion::GetDataSizeFromString(option);
+        max_num = std::stoull(option);
       } catch (const std::exception& e) {
         return false;
       }
-    }
 
-    cache->set_for_file(for_file);
-    cache->set_max_num(max_num);
-    cache->set_max_size(max_size);
+      if ((option = tokenizer.GetToken())) {
+        try {
+          max_size = eos::common::StringConversion::GetDataSizeFromString(option);
+        } catch (const std::exception& e) {
+          return false;
+        }
+      }
+
+      cache->set_max_num(max_num);
+      cache->set_max_size(max_size);
+    } else if (soption == "drop") {
+      if (!(option = tokenizer.GetToken())) {
+        cache->set_op(eos::console::NsProto_CacheProto::DROP_ALL);
+      } else {
+        soption = option;
+
+        if (soption == "-f") {
+          cache->set_op(eos::console::NsProto_CacheProto::DROP_FILE);
+        } else if (soption == "-d") {
+          cache->set_op(eos::console::NsProto_CacheProto::DROP_DIR);
+        } else {
+          return false;
+        }
+      }
+    } else {
+      return false;
+    }
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -330,7 +352,7 @@ int com_ns(char* arg)
 void com_ns_help()
 {
   std::ostringstream oss;
-  oss << "Usage: ns [stat|mutex|compact|master]" << std::endl
+  oss << "Usage: ns [stat|mutex|compact|master|cache]" << std::endl
       << "    print or configure basic namespace parameters" << std::endl
       << "  ns stat [-a] [-m] [-n] [--reset]" << std::endl
       << "    print namespace statistics" << std::endl
@@ -381,14 +403,17 @@ void com_ns_help()
       << "    --depth : maximum depth for recomputation, default 0 i.e no limit"
       << std::endl
       << std::endl
-      << "  ns cache -d|-f <max_num> [<max_size>K|M|G...]" << std::endl
+      << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl
       << "    set the max number of entries or the max size of the cache. Use the" <<
       std::endl
       << "    ns stat command to see the current values." << std::endl
+      << "    set        : update cache size for files or directories" << std::endl
+      << "    drop       : drop cached file and/or directory entries"
+      << std::endl
       << "    -d         : control the directory cache" << std::endl
       << "    -f         : control the file cache" << std::endl
       << "    <max_num>  : max number of entries" << std::endl
-      << "    <max_size> : max size of the cache - not implemented yet" << std::endl
+      << "    <max_size> : max size of the cache - not implemented yet"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

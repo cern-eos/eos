@@ -50,7 +50,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! FileIdentifier class
 //------------------------------------------------------------------------------
-class FileIdentifier {
+class FileIdentifier
+{
 public:
   //----------------------------------------------------------------------------
   //! Prevent implicit conversions between this type and uint64_t, by making
@@ -67,21 +68,32 @@ public:
   //! Retrieve the underlying uint64_t. Use this only if you have to, ie
   //! when serializing to disk.
   //----------------------------------------------------------------------------
-  uint64_t getUnderlyingUInt64() const {
+  uint64_t getUnderlyingUInt64() const
+  {
+    return val;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Overload function operator
+  //----------------------------------------------------------------------------
+  operator uint64_t() const
+  {
     return val;
   }
 
   //----------------------------------------------------------------------------
   //! Comparison operator, so we can store those as keys in maps, etc.
   //----------------------------------------------------------------------------
-  bool operator<(const FileIdentifier &other) const {
+  bool operator<(const FileIdentifier& other) const
+  {
     return val < other.val;
   }
 
   //----------------------------------------------------------------------------
   //! Equality operator.
   //----------------------------------------------------------------------------
-  bool operator==(const FileIdentifier &other) const {
+  bool operator==(const FileIdentifier& other) const
+  {
     return val == other.val;
   }
 
@@ -92,7 +104,8 @@ private:
 //------------------------------------------------------------------------------
 //! ContainerIdentifier class
 //------------------------------------------------------------------------------
-class ContainerIdentifier {
+class ContainerIdentifier
+{
 public:
   //----------------------------------------------------------------------------
   //! Prevent implicit conversions between this type and uint64_t, by making
@@ -106,24 +119,35 @@ public:
   ContainerIdentifier() : val(0) {}
 
   //----------------------------------------------------------------------------
+  //! Overload function operator
+  //----------------------------------------------------------------------------
+  operator uint64_t() const
+  {
+    return val;
+  }
+
+  //----------------------------------------------------------------------------
   //! Retrieve the underlying uint64_t. Use this only if you have to, ie
   //! when serializing to disk.
   //----------------------------------------------------------------------------
-  uint64_t getUnderlyingUInt64() const {
+  uint64_t getUnderlyingUInt64() const
+  {
     return val;
   }
 
   //----------------------------------------------------------------------------
   //! Comparison operator, so we can store those as keys in maps, etc.
   //----------------------------------------------------------------------------
-  bool operator<(const ContainerIdentifier &other) const {
+  bool operator<(const ContainerIdentifier& other) const
+  {
     return val < other.val;
   }
 
   //----------------------------------------------------------------------------
   //! Equality operator.
   //----------------------------------------------------------------------------
-  bool operator==(const ContainerIdentifier &other) const {
+  bool operator==(const ContainerIdentifier& other) const
+  {
     return val == other.val;
   }
 

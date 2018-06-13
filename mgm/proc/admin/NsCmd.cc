@@ -655,15 +655,31 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
                    eos::console::ReplyProto& reply)
 {
   using namespace eos::constants;
+  using eos::console::NsProto_CacheProto;
   std::map<std::string, std::string> map_cfg;
 
-  if (cache.for_file()) {
+  if (cache.op() == NsProto_CacheProto::SET_FILE) {
     map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
     map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
     gOFS->eosFileService->configure(map_cfg);
-  } else {
+  } else if (cache.op() == NsProto_CacheProto::SET_DIR) {
     map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
     map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
+    gOFS->eosDirectoryService->configure(map_cfg);
+  } else if (cache.op() == NsProto_CacheProto::DROP_FILE) {
+    map_cfg[sMaxNumCacheFiles] = "0";
+    map_cfg[sMaxSizeCacheFiles] = "0";
+    gOFS->eosFileService->configure(map_cfg);
+  } else if (cache.op() == NsProto_CacheProto::DROP_DIR) {
+    map_cfg[sMaxNumCacheDirs] = "0";
+    map_cfg[sMaxSizeCacheDirs] = "0";
+    gOFS->eosDirectoryService->configure(map_cfg);
+  } else if (cache.op() == NsProto_CacheProto::DROP_ALL) {
+    map_cfg[sMaxNumCacheFiles] = "0";
+    map_cfg[sMaxSizeCacheFiles] = "0";
+    map_cfg[sMaxNumCacheDirs] = "0";
+    map_cfg[sMaxSizeCacheDirs] = "0";
+    gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
   }
 }

@@ -22,11 +22,15 @@
 //!        which is still referenced in other parts of the program.
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_REDIS_LRU_HH__
-#define __EOS_NS_REDIS_LRU_HH__
+#ifndef __EOS_NS_LRU_HH__
+#define __EOS_NS_LRU_HH__
 
 #include "common/RWMutex.hh"
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
+#include "common/Murmur3.hh"
 #include "namespace/Namespace.hh"
+#include <google/dense_hash_map>
 #include <cstdint>
 #include <list>
 #include <map>
@@ -138,35 +142,63 @@ public:
   //----------------------------------------------------------------------------
   //! Set max num entries
   //!
-  //! @param max_num new maximum number of entries
+  //! @param max_num new maximum number of entries, if 0 then just drop the
+  //!                the current cache
   //----------------------------------------------------------------------------
   inline void
   set_max_num(const std::uint64_t max_num)
   {
     eos::common::RWMutexWriteLock lock_w(mMutex);
-    mMaxNum = max_num;
+
+    if (max_num == 0ull) {
+      Purge(0.0); // empty cache
+    } else {
+      mMaxNum = max_num;
+    }
   }
 
-private:
-  //! Percentage at which the cache purging stops
-  static constexpr double sPurgeStopRatio = 0.9;
-
+  //----------------------------------------------------------------------------
   //! Forbid copying or moving LRU objects
+  //----------------------------------------------------------------------------
   LRU(const LRU& other) = delete;
   LRU& operator=(const LRU& other) = delete;
   LRU(LRU&& other) = delete;
   LRU& operator=(LRU&& other) = delete;
 
+private:
+
+  //----------------------------------------------------------------------------
+  //! Cleaner job taking care of deallocating entries that are passed through
+  //! the queue to delete
+  //----------------------------------------------------------------------------
+  void CleanerJob(ThreadAssistant& assistant);
+
+  //----------------------------------------------------------------------------
+  //! Purge entries until stop ratio is achieved
+  //!
+  //! @param stop_ratio stop purge ratio
+  //! @note This method must be called with the mutex protecting the map and
+  //! the list locked.
+  //----------------------------------------------------------------------------
+  void Purge(double stop_ratio);
+
+  //! Percentage at which the cache purging stops
+  static constexpr double sPurgeStopRatio = 0.9;
   using ListT = std::list<std::shared_ptr<EntryT>>;
   typename std::list<std::shared_ptr<EntryT>>::iterator ListIterT;
-  using MapT = std::map<IdT, decltype(ListIterT)>;
+  //using MapT = std::map<IdT, decltype(ListIterT)>;
+  using MapT = google::dense_hash_map<IdT, decltype(ListIterT),
+        Murmur3::MurmurHasher<IdT>,
+        Murmur3::eqstr>;
   MapT mMap;   ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects where new/used objects are at the
   ///< end of the list
   //! Mutext to protect access to the map and list which is set to blocking
-  // mutable eos::common::RWMutex mMutex;
+  //! mutable eos::common::RWMutex mMutex;
   mutable eos::common::RWMutex mMutex;
   std::uint64_t mMaxNum; ///< Maximum number of entries
+  eos::common::ConcurrentQueue< std::shared_ptr<EntryT> > mToDelete;
+  AssistedThread mCleanerThread; ///< Thread doing the deallocations
 };
 
 // Definition of class static member
@@ -177,9 +209,13 @@ constexpr double LRU<IdT, EntryT>::sPurgeStopRatio;
 // Constructor
 //------------------------------------------------------------------------------
 template <typename IdT, typename EntryT>
-LRU<IdT, EntryT>::LRU(std::uint64_t max_num) : mMutex(), mMaxNum(max_num)
+LRU<IdT, EntryT>::LRU(std::uint64_t max_num) :
+  mMap(), mList(), mMutex(), mMaxNum(max_num), mToDelete()
 {
+  mMap.set_empty_key(IdT(0ull));
+  mMap.set_deleted_key(IdT(UINT64_MAX));
   mMutex.SetBlocking(true);
+  mCleanerThread.reset(&LRU::CleanerJob, this);
 }
 
 //------------------------------------------------------------------------------
@@ -188,6 +224,10 @@ LRU<IdT, EntryT>::LRU(std::uint64_t max_num) : mMutex(), mMaxNum(max_num)
 template <typename IdT, typename EntryT>
 LRU<IdT, EntryT>::~LRU()
 {
+  std::shared_ptr<EntryT> sentinel(nullptr);
+  mCleanerThread.stop();
+  mToDelete.push(sentinel);
+  mCleanerThread.join();
   eos::common::RWMutexWriteLock lock_w(mMutex);
   mMap.clear();
   mList.clear();
@@ -230,23 +270,11 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
 
   // Check if map full and purge some entries if necessary 10% of max size
   if (mMap.size() >= mMaxNum) {
-    auto iter = mList.begin();
-
-    while ((iter != mList.end()) &&
-           (mMap.size() > sPurgeStopRatio * mMaxNum)) {
-      // If object is referenced also by someone else then skip it
-      if (iter->use_count() > 1) {
-        ++iter;
-        continue;
-      }
-
-      mMap.erase(IdT((*iter)->getId()));
-      iter = mList.erase(iter);
-    }
+    Purge(sPurgeStopRatio);
   }
 
   auto iter = mList.insert(mList.end(), obj);
-  mMap.emplace(id, iter);
+  mMap[id] = iter;
   return *iter;
 }
 
@@ -269,6 +297,54 @@ LRU<IdT, EntryT>::remove(IdT id)
   return true;
 }
 
+//----------------------------------------------------------------------------
+// Cleaner job taking care of deallocating entries that are passed through
+// the queue to delete
+//----------------------------------------------------------------------------
+template <typename IdT, typename EntryT>
+void
+LRU<IdT, EntryT>::CleanerJob(ThreadAssistant& assistant)
+{
+  std::shared_ptr<EntryT> tmp;
+
+  while (!assistant.terminationRequested()) {
+    while (true) {
+      mToDelete.wait_pop(tmp);
+
+      if (tmp == nullptr) {
+        break;
+      } else {
+        tmp.reset();
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Purge entries until stop ratio is achieved
+//------------------------------------------------------------------------------
+template <typename IdT, typename EntryT>
+void
+LRU<IdT, EntryT>::Purge(double stop_ratio)
+{
+  auto iter = mList.begin();
+
+  while ((iter != mList.end()) &&
+         (mMap.size() > stop_ratio * mMaxNum)) {
+    // If object is referenced also by someone else then skip it
+    if (iter->use_count() > 1) {
+      ++iter;
+      continue;
+    }
+
+    mMap.erase(IdT((*iter)->getId()));
+    mToDelete.push(*iter);
+    iter = mList.erase(iter);
+  }
+  
+  mMap.resize(0); // compact after deletion
+}
+
 EOSNSNAMESPACE_END
 
-#endif // __EOS_NS_REDIS_LRU_HH__
+#endif // __EOS_NS_LRU_HH__
