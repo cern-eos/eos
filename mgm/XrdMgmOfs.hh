@@ -1073,7 +1073,17 @@ public:
                       int& port);
 
   //----------------------------------------------------------------------------
-  // Test if a  client should be routed
+  //! @brief Test if a client based on the called function and his identity
+  //! should be re-routed
+  //!
+  //! @param function name of the function to check
+  //! @param __AccessMode__ macro generated parameter defining if this is a
+  //!        reading or writing (namespace modifying) function
+  //! @param host returns the target host of a redirection
+  //! @param port returns the target port of a redirection
+  //! @return true if client should get a redirected otherwise false
+  //!
+  //! The routing table is defined using the 'route' CLI
   //----------------------------------------------------------------------------
   bool ShouldRoute(const char* function,
                    int accessmode,
@@ -1143,25 +1153,39 @@ public:
   // ---------------------------------------------------------------------------
   void ResetPathMap();  // reset/empty the path map
 
-  // ---------------------------------------------------------------------------
-  // Retrieve a route for a given path
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! @brief Route a path name according to the configured routing table
+  //!
+  //! @param inpath path to route
+  //! @param outpath rerouted path
+  //!
+  //! @return true if there is a routing
+  //! This function does the path translation according to the configured routing
+  //! table. It applies the 'longest' matching rule.
+  //----------------------------------------------------------------------------
   bool PathReroute(const char* inpath,
                    const char* ininfo,
                    eos::common::Mapping::VirtualIdentity_t& vid,
                    XrdOucString& outhost,
                    int& port);  // global namespace routing
 
-  // ---------------------------------------------------------------------------
-  // Add a path routing rule
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Add a source/target pair to the path routing table
+  //!
+  //! @param source prefix path to route
+  //! @param target target route for substitution of prefix
+  //!
+  //! This function allows e.g. toroute paths like /eos to external storages
+  //! like root://... It is used by the Configuration Engin to apply a routing
+  //! from a configuration file.
+  //----------------------------------------------------------------------------
   bool AddPathRoute(const char* source,
-                    const char* target);  // add a routing to the path map
+                    const char* target); // add a routing to the path map
 
-  // ---------------------------------------------------------------------------
-  // Reset path routing
-  // ---------------------------------------------------------------------------
-  void ResetPathRoute();  // reset/empty the path route
+  //----------------------------------------------------------------------------
+  //! Reset all the stored entries in the path routing table
+  //----------------------------------------------------------------------------
+  void ResetPathRoute(); // reset/empty the path route
 
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair
