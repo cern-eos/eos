@@ -1682,7 +1682,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
     char tag[1024];
     tag[0] = 0;
     // Parse output
-    int items = sscanf(response->GetBuffer(),
+    int items = sscanf(response->ToString().c_str(),
                        "%1023s %llu %llu %llu %llu %llu %llu %llu %llu "
                        "%llu %llu %llu %llu %llu %llu %llu %llu",
                        tag, (unsigned long long*) &sval[0],
@@ -1704,7 +1704,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 
     if ((items != 17) || (strcmp(tag, "stat:"))) {
       int retc = 0;
-      items = sscanf(response->GetBuffer(), "%1023s retc=%i", tag, &retc);
+      items = sscanf(response->ToString().c_str(), "%1023s retc=%i", tag, &retc);
 
       if ((!strcmp(tag, "stat:")) && (items == 2)) {
         errno = retc;
