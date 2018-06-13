@@ -1901,12 +1901,14 @@ Master::BootNamespace()
       MasterLog(eos_err("msg=\"mgmofs.qdbcluster configuration is missing\""));
       return false;
     } else {
-      std::string instance_name = gOFS->MgmOfsInstanceName.c_str();
+      std::ostringstream instance_id;
+      instance_id << gOFS->MgmOfsInstanceName << ":"
+                  << gOFS->ManagerPort;
       contSettings["qdb_cluster"] = gOFS->mQdbCluster;
-      contSettings["qdb_flusher_md"] = instance_name + "_md";
-      contSettings["qdb_flusher_quota"] = instance_name + "_quota";
+      contSettings["qdb_flusher_md"] = instance_id.str() + "_md";
+      contSettings["qdb_flusher_quota"] = instance_id.str() + "_quota";
       fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
-      fileSettings["qdb_flusher_md"] = instance_name + "_md";
+      fileSettings["qdb_flusher_md"] = instance_id.str() + "_md";
     }
   }
 

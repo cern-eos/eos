@@ -1312,7 +1312,7 @@ public:
   IConfigEngine* ConfEngine; ///< storing/restoring configuration
   //! Authorization module for token encryption/decryption
   XrdCapability* CapabilityEngine;
-  uint64_t mCapabilityValidity; ////< Time in seconds the capability is valid
+  uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
   XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
   XrdOucString MgmOfsVstBrokerUrl; ///< Url of the message broker

@@ -157,9 +157,9 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), ConfEngine(0), CapabilityEngine(0), mCapabilityValidity(3600),
-  MgmOfsMessaging(0), MgmOfsVstMessaging(0),  ManagerPort(1094),
-  LinuxStatsStartup{0},
+  ConfigFN(0), ConfEngine(0), CapabilityEngine(0),
+  mCapabilityValidity(3600), MgmOfsMessaging(0), MgmOfsVstMessaging(0),
+  ManagerPort(1094), LinuxStatsStartup{0},
   StartTime(0), HostName(0), HostPref(0), Initialized(kDown), mFileInitTime(0),
   mTotalInitTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
   BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),
@@ -584,7 +584,8 @@ XrdMgmOfs::Emsg(const char* pfx,
     eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
     if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) ||
-        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls")) || (!strcmp(pfx, "commit"))) &&
+        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls")) ||
+          (!strcmp(pfx, "commit"))) &&
          (ecode == ENOENT))) {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
