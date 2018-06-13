@@ -296,6 +296,26 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 
 /* -------------------------------------------------------------------------- */
 void
+metad::forget_all()
+{
+  // all but /
+  XrdSysMutexHelper lLock(mdmap);
+  for (auto it=mdmap.begin(); it!=mdmap.end(); ++it)
+  {
+    if (it->first != 1)
+    {
+      auto deleteit = it++;
+
+      if (!S_ISDIR(it->second->mode()) || it->second->deleted()) {
+	mdmap.erase(deleteit);
+      }
+    }
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+void
 metad::mdx::convert(struct fuse_entry_param& e)
 {
   const char *k_mdino = "sys.eos.mdino";

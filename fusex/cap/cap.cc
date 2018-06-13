@@ -488,6 +488,12 @@ cap::capflush(ThreadAssistant& assistant)
       cmap capdelmap;
       cinodes capdelinodes;
       capmap.Lock();
+
+      if (!capmap.size())
+      {
+	eos_static_debug("forgetting all md from mdmap");
+	mds->forget_all();
+      }
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
 	if (forgetlist.has(it->second->id()))

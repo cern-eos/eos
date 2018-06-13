@@ -520,6 +520,8 @@ public:
   void cleanup(shared_md md);
   void cleanup(fuse_ino_t ino, bool force=false);
 
+  void forget_all();
+
   class mdstat
   {
   public:
