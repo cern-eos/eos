@@ -566,7 +566,7 @@
               } catch (eos::MDException& e) {
               }
 
-              if (atomic_tag != fmd->getName())
+              if ( (!ocdone) && (atomic_tag != fmd->getName()))
               {
                 // this is not our atomic upload, just abort that and delete the temporary artefact
                 delete_path = fmd->getName();
