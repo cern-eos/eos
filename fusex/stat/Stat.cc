@@ -563,14 +563,14 @@ Stat::GetExec(const char* tag, double& deviation)
 // warning: you have to lock the mutex if directly used
 
 double
-Stat::GetTotalExec(double& deviation)
+Stat::GetTotalExec(double& deviation, size_t& ops)
 {
   // calculates average execution time for all commands
   google::sparse_hash_map<std::string, std::deque<float> >::const_iterator ittag;
   double sum = 0;
   double avg = 0;
+  size_t cnt = 0;
   deviation = 0;
-  int cnt = 0;
 
   for (ittag = StatExec.begin(); ittag != StatExec.end(); ittag++) {
     std::deque<float>::const_iterator it;
@@ -579,6 +579,7 @@ Stat::GetTotalExec(double& deviation)
       cnt++;
       sum += *it;
     }
+    ops += GetTotal(ittag->first.c_str());
   }
 
   if (cnt) {
@@ -649,18 +650,32 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   char outline[1024];
   double avg = 0;
   double sig = 0;
-  avg = GetTotalExec(sig);
+  size_t ops = 0;
+  double cumulative = 0;
+  for (it = tags.begin(); it != tags.end(); ++it) {
+    const char* tag = it->c_str();
+    double avg = 0;
+    double sig = 0;
+    double total = 0;
+    avg = GetExec(tag, sig);
+    total = avg * GetTotal(tag) / 1000.0;
+    cumulative += total;
+  }
+
+
+
+  avg = GetTotalExec(sig, ops);
 
   if (!monitoring) {
-    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f\n", "ALL", "Execution Time", avg,
-            sig);
+    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL", "Execution Time", avg,
+            sig, cumulative , ops);
     out += outline;
-    out += "# -----------------------------------------------------------------------------------------------------------\n";
-    sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s", "who",
-            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)");
+    out += "# -----------------------------------------------------------------------------------------------------------------------\n";
+    sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
+            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)", "cumul(s)");
     out += outline;
     out += "\n";
-    out += "# -----------------------------------------------------------------------------------------------------------\n";
+    out += "# -----------------------------------------------------------------------------------------------------------------------\n";
   } else {
     sprintf(outline,
             "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg, sig);
@@ -675,8 +690,10 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     char a3600[1024];
     char aexec[1024];
     char aexecsig[1024];
+    char atotal[1024];
     double avg = 0;
     double sig = 0;
+    double total = 0;
     avg = GetExec(tag, sig);
     sprintf(a5, "%3.02f", GetTotalAvg5(tag));
     sprintf(a60, "%3.02f", GetTotalAvg60(tag));
@@ -695,13 +712,17 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       sprintf(aexecsig, "-NA-");
     }
 
+    total = avg * GetTotal(tag) / 1000.0;
+
+    sprintf(atotal,"%04.02f", total);
+
     if (!monitoring) {
-      sprintf(outline, "ALL        %-32s %12llu %8s %8s %8s %8s %8s +- %-10s\n", tag,
-              GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig);
+      sprintf(outline, "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n", tag,
+              GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig, atotal);
     } else {
       sprintf(outline,
-              "uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f\n",
-              tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig);
+              "uid=all gid=all cmd=%s total=%llu 5s=%s 60s=%s 300s=%s 3600s=%s exec=%f execsig=%f cumulated=%f\n",
+              tag, GetTotal(tag), a5, a60, a300, a3600, avg, sig, total);
     }
 
     out += outline;
@@ -766,16 +787,16 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
     if (details) {
       if (!monitoring) {
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "spl", n5, n60,
                 n300, n3600);
         out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "min", m5, m60,
                 m300, m3600);
         out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "avg", a5, a60,
                 a300, a3600);
         out += outline;
-        sprintf(outline, "ALL        %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
+        sprintf(outline, "ALL     %-32s %12s %8s %8s %8s %8s\n", tag, "max", M5, M60,
                 M300, M3600);
         out += outline;
       } else {
@@ -854,7 +875,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     Mutex.Lock();
 
     if (!monitoring) {
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
+      out += "# -----------------------------------------------------------------------------------------------------------------------\n";
     }
 
     std::vector <std::string> uidout;

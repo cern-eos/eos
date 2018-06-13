@@ -564,7 +564,7 @@ public:
   double GetExec(const char* tag, double& deviation);
 
   // warning: you have to lock the mutex if directly used
-  double GetTotalExec(double& deviation);
+  double GetTotalExec(double& deviation, size_t& cnt);
 
   void Clear();
 
