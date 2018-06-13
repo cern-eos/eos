@@ -71,7 +71,7 @@ public:
       kMaxThread = 16
     } ;
 
-    void run()
+    void run() noexcept
     {
       int enable_ipv6 = 1;
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
