@@ -56,8 +56,9 @@ MDStatus ensureStringReply(redisReplyPtr& reply)
   }
 
   if (reply->type != REDIS_REPLY_STRING) {
-    return MDStatus(EFAULT, SSTR("Received unexpected response, was expecting string: "
-                                 << qclient::describeRedisReply(reply)));
+    return MDStatus(EFAULT,
+                    SSTR("Received unexpected response, was expecting string: "
+                         << qclient::describeRedisReply(reply)));
   }
 
   return MDStatus();
@@ -109,7 +110,8 @@ public:
   //! @param qcl qclient object
   //! @param trg target container id
   //----------------------------------------------------------------------------
-  folly::Future<ContainerType> initialize(qclient::QClient& qcl, ContainerIdentifier trg)
+  folly::Future<ContainerType> initialize(qclient::QClient& qcl,
+                                          ContainerIdentifier trg)
   {
     mQcl = &qcl;
     mTarget = trg;
@@ -121,7 +123,8 @@ public:
     // and *this has been destroyed already.
     // Not safe to access member variables after execCB, so we fetch the future
     // beforehand.
-    mQcl->execCB(this, "HSCAN", Trait::getKey(mTarget.getUnderlyingUInt64()), "0", "COUNT", SSTR(kCount));
+    mQcl->execCB(this, "HSCAN", Trait::getKey(mTarget.getUnderlyingUInt64()), "0",
+                 "COUNT", SSTR(kCount));
     // fut is a stack object, safe to access.
     return fut;
   }
@@ -181,7 +184,8 @@ public:
       return;
     }
 
-    mQcl->execCB(this, "HSCAN", Trait::getKey(mTarget.getUnderlyingUInt64()), cursor, "COUNT",
+    mQcl->execCB(this, "HSCAN", Trait::getKey(mTarget.getUnderlyingUInt64()),
+                 cursor, "COUNT",
                  SSTR(kCount));
   }
 
@@ -219,13 +223,17 @@ private:
 //------------------------------------------------------------------------------
 // Parse FileMDProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::FileMdProto parseFileMdProtoResponse(redisReplyPtr reply, FileIdentifier id) {
-  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
-
+static eos::ns::FileMdProto
+parseFileMdProtoResponse(redisReplyPtr reply, FileIdentifier id)
+{
+  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching FileMD #"
+                                        << id.getUnderlyingUInt64()
+                                        << " protobuf from QDB: "));
   eos::ns::FileMdProto proto;
   Serialization::deserialize(reply->str, reply->len, proto)
-  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
-
+  .throwIfNotOk(SSTR("Error while deserializing FileMD #"
+                     << id.getUnderlyingUInt64()
+                     << " protobuf: "));
   return std::move(proto);
 }
 
@@ -236,19 +244,23 @@ folly::Future<eos::ns::FileMdProto>
 MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readFileProto(id))
-    .then(std::bind(parseFileMdProtoResponse, _1, id));
+         .then(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
 //------------------------------------------------------------------------------
 // Parse ContainerMdProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
-static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr reply, ContainerIdentifier id) {
-  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching ContainerMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
-
+static eos::ns::ContainerMdProto
+parseContainerMdProtoResponse(redisReplyPtr reply, ContainerIdentifier id)
+{
+  ensureStringReply(reply).throwIfNotOk(SSTR("Error while fetching ContainerMD #"
+                                        << id.getUnderlyingUInt64()
+                                        << " protobuf from QDB: "));
   eos::ns::ContainerMdProto proto;
   Serialization::deserialize(reply->str, reply->len, proto)
-  .throwIfNotOk(SSTR("Error while fetching FileMD #" << id.getUnderlyingUInt64() << " protobuf from QDB: "));
-
+  .throwIfNotOk(SSTR("Error while deserializing ContainerMd #"
+                     << id.getUnderlyingUInt64()
+                     << " protobuf: "));
   return std::move(proto);
 }
 
@@ -256,10 +268,11 @@ static eos::ns::ContainerMdProto parseContainerMdProtoResponse(redisReplyPtr rep
 // Fetch container metadata info for current id
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::ContainerMdProto>
-MetadataFetcher::getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id)
+MetadataFetcher::getContainerFromId(qclient::QClient& qcl,
+                                    ContainerIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readContainerProto(id))
-    .then(std::bind(parseContainerMdProtoResponse, _1, id));
+         .then(std::bind(parseContainerMdProtoResponse, _1, id));
 }
 
 //------------------------------------------------------------------------------
@@ -286,7 +299,8 @@ std::string MetadataFetcher::keySubFiles(IContainerMD::id_t id)
 // Fetch all files for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::FileMap>
-MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, ContainerIdentifier container)
+MetadataFetcher::getFilesInContainer(qclient::QClient& qcl,
+                                     ContainerIdentifier container)
 {
   MapFetcher<MapFetcherFileTrait>* fetcher = new
   MapFetcher<MapFetcherFileTrait>();
@@ -297,7 +311,8 @@ MetadataFetcher::getFilesInContainer(qclient::QClient& qcl, ContainerIdentifier 
 // Fetch all subcontaniers for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>
-MetadataFetcher::getSubContainers(qclient::QClient& qcl, ContainerIdentifier container)
+MetadataFetcher::getSubContainers(qclient::QClient& qcl,
+                                  ContainerIdentifier container)
 {
   MapFetcher<MapFetcherContainerTrait>* fetcher =
     new MapFetcher<MapFetcherContainerTrait>();
@@ -308,31 +323,31 @@ MetadataFetcher::getSubContainers(qclient::QClient& qcl, ContainerIdentifier con
 // Parse response when looking up a ContainerID / FileID from (parent id, name)
 //------------------------------------------------------------------------------
 static int64_t parseIDFromNameResponse(redisReplyPtr reply,
-  ContainerIdentifier parentID, const std::string &name) {
-
-  std::string errorPrefix = SSTR("Error while fetching FileID / ContainerID out of (parent id, name) = "
-    "(" << parentID.getUnderlyingUInt64() << ", " << name << "): ");
-
+                                       ContainerIdentifier parentID, const std::string& name)
+{
+  std::string errorPrefix =
+    SSTR("Error while fetching FileID / ContainerID out of (parent id, name) = "
+         "(" << parentID.getUnderlyingUInt64() << ", " << name << "): ");
   ensureStringReply(reply).throwIfNotOk(errorPrefix);
-
   int64_t retval;
   Serialization::deserialize(reply->str, reply->len, retval)
-    .throwIfNotOk(errorPrefix);
-
+  .throwIfNotOk(errorPrefix);
   return retval;
 }
 
 //------------------------------------------------------------------------------
 // int64_t -> FileIdentifier
 //------------------------------------------------------------------------------
-static FileIdentifier convertInt64ToFileIdentifier(int64_t id) {
+static FileIdentifier convertInt64ToFileIdentifier(int64_t id)
+{
   return FileIdentifier(id);
 }
 
 //------------------------------------------------------------------------------
 // int64_t -> ContainerIdentifier
 //------------------------------------------------------------------------------
-static ContainerIdentifier convertInt64ToContainerIdentifier(int64_t id) {
+static ContainerIdentifier convertInt64ToContainerIdentifier(int64_t id)
+{
   return ContainerIdentifier(id);
 }
 
@@ -340,24 +355,28 @@ static ContainerIdentifier convertInt64ToContainerIdentifier(int64_t id) {
 // Fetch a file id given its parent and its name
 //------------------------------------------------------------------------------
 folly::Future<FileIdentifier>
-MetadataFetcher::getFileIDFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+MetadataFetcher::getFileIDFromName(qclient::QClient& qcl,
+                                   ContainerIdentifier parent_id,
                                    const std::string& name)
 {
-  return qcl.follyExec("HGET", SSTR(parent_id.getUnderlyingUInt64() << constants::sMapFilesSuffix), name)
-    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
-    .then(convertInt64ToFileIdentifier);
+  return qcl.follyExec("HGET",
+                       SSTR(parent_id.getUnderlyingUInt64() << constants::sMapFilesSuffix), name)
+         .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+         .then(convertInt64ToFileIdentifier);
 }
 
 //------------------------------------------------------------------------------
 // Fetch a container id given its parent and its name
 //------------------------------------------------------------------------------
 folly::Future<ContainerIdentifier>
-MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl,
+                                        ContainerIdentifier parent_id,
                                         const std::string& name)
 {
-  return qcl.follyExec("HGET", SSTR(parent_id.getUnderlyingUInt64() << constants::sMapDirsSuffix), name)
-    .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
-    .then(convertInt64ToContainerIdentifier);
+  return qcl.follyExec("HGET",
+                       SSTR(parent_id.getUnderlyingUInt64() << constants::sMapDirsSuffix), name)
+         .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+         .then(convertInt64ToContainerIdentifier);
 }
 
 EOSNSNAMESPACE_END
