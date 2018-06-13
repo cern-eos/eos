@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.2.24 Citrine``
+===================
+
+2018-06-13
+
+Bug
+----
+
+* [EOS-2081] - "eosd" segfault in sscanf() / filesystem::stat() / EosFuse::lookup
+* [EOS-2600] - Clean FST shutdown wrongly marks local LevelDB as dirty
+
+New Feature
+-----------
+
+* Use std::shared_timed_mutex for the implementation of RWMutex. This is by default
+disabled and can be enabled by setting the EOS_USE_SHARED_MUTEX=1 environment var.
+
+Improvement
+-----------
+
+* The FSTs no longer do the dumpmd when booting.
+
+
 ``v4.2.23 Citrine``
 ===================
 
