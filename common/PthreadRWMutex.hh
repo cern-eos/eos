@@ -64,7 +64,7 @@ public:
   //!
   //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  bool TimedRdLock(uint64_t timeout_ns) override;
+  int TimedRdLock(uint64_t timeout_ns) override;
 
   //----------------------------------------------------------------------------
   //! Unlock a read lock
@@ -88,7 +88,7 @@ public:
   //!
   //! @return 0 if successful, otherwise error number
   //----------------------------------------------------------------------------
-  bool TimedWrLock(uint64_t timeout_ns) override;
+  int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
   pthread_rwlock_t mMutex;

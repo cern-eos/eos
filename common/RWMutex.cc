@@ -115,7 +115,7 @@ pthread_rwlock_t RWMutex::mOrderChkLock;
 // Constructor
 //------------------------------------------------------------------------------
 RWMutex::RWMutex(bool prefer_rd):
-  mBlocking(false), mMutexImp(nullptr), mRdLockCounter(0), mWrLockCounter(0),
+  mBlocking(false), mMutexImpl(nullptr), mRdLockCounter(0), mWrLockCounter(0),
   mPreferRd(prefer_rd)
 {
   // Try to get write lock in 5 seconds, then release quickly and retry
@@ -140,9 +140,9 @@ RWMutex::RWMutex(bool prefer_rd):
 #endif
 
   if (getenv("EOS_USE_SHARED_MUTEX")) {
-    mMutexImp = new SharedMutex();
+    mMutexImpl = new SharedMutex();
   } else {
-    mMutexImp = new PthreadRWMutex(prefer_rd);
+    mMutexImpl = new PthreadRWMutex(prefer_rd);
   }
 }
 
@@ -183,7 +183,7 @@ RWMutex::~RWMutex()
   }
 
 #endif
-  delete mMutexImp;
+  delete mMutexImpl;
 }
 
 
@@ -194,8 +194,8 @@ RWMutex&
 RWMutex::operator=(RWMutex&& other) noexcept
 {
   if (this != &other) {
-    this->mMutexImp = other.mMutexImp;
-    other.mMutexImp = nullptr;
+    this->mMutexImpl = other.mMutexImpl;
+    other.mMutexImpl = nullptr;
     this->mBlocking = other.mBlocking;
   }
 
@@ -230,7 +230,7 @@ RWMutex::TimedRdLock(uint64_t timeout_ns)
   }
 
 #endif
-  int retc = mMutexImp->TimedRdLock(timeout_ns);
+  int retc = mMutexImpl->TimedRdLock(timeout_ns);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {
@@ -263,7 +263,7 @@ RWMutex::LockRead()
 #endif
   int retc = 0;
 
-  if ((retc = mMutexImp->LockRead())) {
+  if ((retc = mMutexImpl->LockRead())) {
     fprintf(stderr, "%s Failed to read-lock: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
@@ -288,7 +288,7 @@ RWMutex::UnLockRead()
 #endif
   int retc = 0;
 
-  if ((retc = mMutexImp->UnLockRead())) {
+  if ((retc = mMutexImpl->UnLockRead())) {
     fprintf(stderr, "%s Failed to read-unlock: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
@@ -330,7 +330,7 @@ RWMutex::LockWrite()
 
   if (mBlocking) {
     // A blocking mutex is just a normal lock for write
-    if ((retc = mMutexImp->LockWrite())) {
+    if ((retc = mMutexImpl->LockWrite())) {
       fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
               strerror(retc));
       std::terminate();
@@ -339,7 +339,7 @@ RWMutex::LockWrite()
 #ifdef __APPLE__
 
     // Mac does not support timed mutexes
-    if ((retc = mMutexImp->LockWrite())) {
+    if ((retc = mMutexImpl->LockWrite())) {
       fprintf(stderr, "%s Failed to write-lock: %s\n", __FUNCTION__,
               strerror(retc));
       std::terminate();
@@ -352,7 +352,7 @@ RWMutex::LockWrite()
     // the lock queue.
     while (true) {
       uint64_t timeout_ns = wlocktime.tv_nsec + wlocktime.tv_sec * 1e9;
-      int rc = mMutexImp->TimedWrLock(timeout_ns);
+      int rc = mMutexImpl->TimedWrLock(timeout_ns);
 
       if (rc) {
         if (rc != ETIMEDOUT) {
@@ -394,7 +394,7 @@ RWMutex::UnLockWrite()
 #endif
   int retc = 0;
 
-  if ((retc = mMutexImp->UnLockWrite())) {
+  if ((retc = mMutexImpl->UnLockWrite())) {
     fprintf(stderr, "%s Failed to write-unlock: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
@@ -433,7 +433,7 @@ RWMutex::TimedWrLock(uint64_t timeout_ns)
   }
 
 #endif
-  int retc = mMutexImp->TimedWrLock(timeout_ns);
+  int retc = mMutexImpl->TimedWrLock(timeout_ns);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
   if (retc && (mEnableDeadlockCheck || mTransientDeadlockCheck)) {

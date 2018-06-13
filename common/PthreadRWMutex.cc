@@ -81,7 +81,7 @@ PthreadRWMutex::LockRead()
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timeout
 //------------------------------------------------------------------------------
-bool
+int
 PthreadRWMutex::TimedRdLock(uint64_t timeout_ns)
 {
   int retc = 0;
@@ -135,7 +135,7 @@ PthreadRWMutex::UnLockWrite()
 //------------------------------------------------------------------------------
 // Try to write lock the mutex within the timeout
 //------------------------------------------------------------------------------
-bool
+int
 PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
 {
   int retc = 0;
@@ -155,9 +155,8 @@ PthreadRWMutex::TimedWrLock(uint64_t timeout_ns)
   retc = pthread_rwlock_wrlock(&mMutex);
 #else
   retc = pthread_rwlock_timedwrlock(&mMutex, &timeout);
-
 #endif
-  return (retc == 0);
+  return retc;
 }
 
 EOSCOMMONNAMESPACE_END
