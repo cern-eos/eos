@@ -3261,13 +3261,13 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
   std::ostringstream reportStream;
   reportStream << "eosQuery://" << managerName
     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-    << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0";
+    << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0";
   notification->mutable_transport()->set_report_url(reportStream.str());
 
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << managerName
     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/eos/wfe/passwd&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
   notification->mutable_transport()->set_error_report_url(errorReportStream.str());
 
   for (const auto& attrPair : xattrs)
@@ -3364,7 +3364,7 @@ int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid, const std::str
   errorReportOpaque += "&mgm.event=";
   errorReportOpaque += common::ARCHIVE_FAILED_WORKFLOW_NAME;
   errorReportOpaque += "&mgm.workflow=default";
-  errorReportOpaque += "&mgm.path=/eos/wfe/passwd";
+  errorReportOpaque += "&mgm.path=/dummy_path";
   errorReportOpaque += "&mgm.ruid=0";
   errorReportOpaque += "&mgm.rgid=0";
   errorReportOpaque += "&mgm.errmsg=";
