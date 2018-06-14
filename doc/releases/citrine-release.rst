@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.2.25 Citrine``
+===================
+
+2018-06-14
+
+Bug
+---
+
+* Put back option to enable external authorization library
+
+
 ``v4.2.24 Citrine``
 ===================
 
