@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.6
+Version: 1.1.7
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
@@ -68,3 +68,4 @@ rm -rf $RPM_BUILD_ROOT
 
 * Mon Mar 12 2011 root <peters@pcsmd01.cern.ch> - 1.1.0-0
 - Initial build.
+
