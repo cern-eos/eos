@@ -104,12 +104,12 @@ public:
   //! @param configdir
   //! @param quarkDBcluster
   //----------------------------------------------------------------------------
-  QuarkDBConfigEngine(const char* configdir, const string& quarkDBcluster );
+  QuarkDBConfigEngine(const char* configdir, const string& quarkDBcluster);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~QuarkDBConfigEngine();
+  virtual ~QuarkDBConfigEngine() = default;
 
   //----------------------------------------------------------------------------
   //! Load a given configuratino file
@@ -217,7 +217,7 @@ public:
 
 private:
 
-  qclient::QClient* client;
+  qclient::QClient* mQcl;
   std::string conf_set_key = "EOSConfig:list";
   std::string conf_hash_key_prefix = "EOSConfig";
   std::string conf_backup_hash_key_prefix = "EOSConfig:backup";

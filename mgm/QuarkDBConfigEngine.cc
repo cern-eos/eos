@@ -33,7 +33,8 @@ EOSMGMNAMESPACE_BEGIN
 //                   **** QuarkDBCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
 
-std::string QuarkDBCfgEngineChangelog::sChLogHashKey = "EOSConfig:changeLogHash";
+std::string QuarkDBCfgEngineChangelog::sChLogHashKey =
+  "EOSConfig:changeLogHash";
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -55,7 +56,6 @@ bool QuarkDBCfgEngineChangelog::AddEntry(const char* info)
   }
 
   // Add entry to the set
-  // coverity[TAINED_SCALAR]
   std::ostringstream oss(action.c_str());
 
   if (key != "") {
@@ -118,18 +118,12 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkDBConfigEngine::QuarkDBConfigEngine(const char* configdir, const string & qdbcluster)
+QuarkDBConfigEngine::QuarkDBConfigEngine(const char* configdir,
+    const string& qdbcluster)
 {
   SetConfigDir(configdir);
-  client = BackendClient::getInstance(qdbcluster, "config");
-  mChangelog.reset(new QuarkDBCfgEngineChangelog(client));
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-QuarkDBConfigEngine::~QuarkDBConfigEngine()
-{
+  mQcl = BackendClient::getInstance(qdbcluster, "config");
+  mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl));
 }
 
 //------------------------------------------------------------------------------
@@ -155,7 +149,7 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  qclient::QHash q_hash(*client, hash_key);
+  qclient::QHash q_hash(*mQcl, hash_key);
 
   if (!PullFromQuarkDB(q_hash, err)) {
     return false;
@@ -245,7 +239,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  qclient::QHash q_hash(*client, hash_key);
+  qclient::QHash q_hash(*mQcl, hash_key);
 
   if (q_hash.hlen() > 0) {
     if (force) {
@@ -261,7 +255,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       hash_key_backup += buff;
       eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
       // Backup hash
-      qclient::QHash q_hash_backup(*client, hash_key_backup);
+      qclient::QHash q_hash_backup(*mQcl, hash_key_backup);
       std::vector<std::string> resp = q_hash.hkeys();
 
       for (auto && elem : resp) {
@@ -274,7 +268,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       }
 
       // Add hash to backup set
-      qclient::QSet q_set_backup(*client, conf_set_backup_key);
+      qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
       // Add the hash key to the set if it's not there
       q_set_backup.sadd(hash_key_backup);
     } else {
@@ -293,8 +287,8 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString stime;
   getTimeStamp(stime);
   q_hash.hset("timestamp", stime.c_str());
-  // We store in quarkdb the list of available EOSConfigs as Set
-  qclient::QSet q_set(*client, conf_set_key);
+  // We store in quarkdb the list of available EOSConfigs as a set
+  qclient::QSet q_set(*mQcl, conf_set_key);
 
   // Add the hash key to the set if it's not there
   if (!q_set.sismember(hash_key)) {
@@ -321,10 +315,10 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
   // Get the set from quarkdb with the available configurations
-  qclient::QSet q_set(*client, conf_set_key);
+  qclient::QSet q_set(*mQcl, conf_set_key);
 
   for (auto && elem : q_set.smembers()) {
-    qclient::QHash q_hash(*client, elem);
+    qclient::QHash q_hash(*mQcl, elem);
     // Strip the prefix
     XrdOucString key = elem.c_str();
     int pos = key.rfind(":");
@@ -355,10 +349,10 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
-    qclient::QSet q_set_backup(*client, conf_set_backup_key);
+    qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
 
     for (auto && elem : q_set_backup.smembers()) {
-      qclient::QHash q_hash(*client, elem);
+      qclient::QHash q_hash(*mQcl, elem);
       XrdOucString key = elem.c_str();
       int pos = key.rfind(":");
 
@@ -414,7 +408,7 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
-                                const char* configName)
+                                  const char* configName)
 
 {
   std::string hash_key;
@@ -422,7 +416,7 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   hash_key += ":";
   hash_key += configName;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  qclient::QHash q_hash(*client, hash_key);
+  qclient::QHash q_hash(*mQcl, hash_key);
   std::vector<std::string> resp = q_hash.hkeys();
   std::sort(resp.begin(), resp.end());
   bool filtered;
@@ -484,7 +478,7 @@ QuarkDBConfigEngine::AutoSave()
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
-                                  const char* val, bool not_bcast)
+                                    const char* val, bool not_bcast)
 {
   XrdOucString cl = "set config ";
 
@@ -558,7 +552,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
-                                     bool not_bcast)
+                                       bool not_bcast)
 {
   XrdOucString cl = "del config ";
   XrdOucString configname;
@@ -683,7 +677,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       hash_key += ":";
       hash_key += name;
       eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-      qclient::QHash q_hash(*client, hash_key);
+      qclient::QHash q_hash(*mQcl, hash_key);
 
       if (q_hash.hlen() > 0) {
         if (force) {
@@ -699,7 +693,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
           hash_key_backup += buff;
           eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
           // Backup hash
-          qclient::QHash q_hash_backup(*client, hash_key_backup);
+          qclient::QHash q_hash_backup(*mQcl, hash_key_backup);
           std::vector<std::string> resp = q_hash.hkeys();
 
           for (auto && elem : resp) {
@@ -712,7 +706,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
           }
 
           // Add hash to backup set
-          qclient::QSet q_set_backup(*client, conf_set_backup_key);
+          qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
           // Add the hash key to the set if it's not there
           q_set_backup.sadd(hash_key_backup);
         } else {
@@ -732,7 +726,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       getTimeStamp(stime);
       q_hash.hset("timestamp", stime.c_str());
       // We store in quarkdb the list of available EOSConfigs as Set
-      qclient::QSet q_set(*client, conf_set_key);
+      qclient::QSet q_set(*mQcl, conf_set_key);
 
       // Add the hash key to the set if it's not there
       if (!q_set.sismember(hash_key)) {
@@ -756,13 +750,11 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-// XrdOucHash callback function to add to the Redox hash all the
-// configuration values.
+// XrdOucHash callback function to add to the hash all the config values
 //------------------------------------------------------------------------------
 int
 QuarkDBConfigEngine::SetConfigToQuarkDBHash(const char* key, XrdOucString* def,
-                                        void* arg)
-
+    void* arg)
 {
   eos_static_debug("%s => %s", key, def->c_str());
   qclient::QHash* hash = reinterpret_cast<qclient::QHash*>(arg);
