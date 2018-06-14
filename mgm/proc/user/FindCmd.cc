@@ -517,7 +517,7 @@ eos::mgm::FindCmd::printPath(std::ofstream& ss, const std::string& path,
     ss << "root://" << gOFS->MgmOfsAlias << "/";
   }
 
-  ss << path;
+  ss << "path=" << path;
 }
 
 //------------------------------------------------------------------------------
@@ -841,7 +841,7 @@ eos::mgm::FindCmd::ProcessRequest()
   unsigned long long filecounter = 0;
   unsigned long long dircounter = 0;
 
-  if (findRequest.files() || !dirs) {
+  if (findRequest.files() || !nodirs) {
     FindResult findResult;
 
     while (findResultProvider->next(findResult)) {

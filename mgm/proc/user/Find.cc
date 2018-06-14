@@ -248,6 +248,12 @@ ProcCommand::Find()
     }
   }
 
+  if ((option.find('f') == STR_NPOS) && (option.find('d') == STR_NPOS)) {
+    if (!printcounter) {
+      option += "df";
+    }
+  }
+
   if (attribute.length()) {
     key.erase(attribute.find("="));
     val.erase(0, attribute.find("=") + 1);
@@ -896,7 +902,7 @@ ProcCommand::Find()
                 fprintf(fstdout, "%s", url.c_str());
               }
 
-              fprintf(fstdout, "%s", foundit->first.c_str());
+              fprintf(fstdout, "path=%s", foundit->first.c_str());
 
               if (printuid || printgid) {
                 eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
