@@ -504,12 +504,12 @@ sub readEosDiskValues {
 
 sub readEosRpmValues {
     my $this = shift;
-    if (open IN, "rpm -qa xrootd |") {
+    if (open IN, "rpm -qa xrootd | cut -d '-' -f2 |") {
         my $all = <IN>;
         if ($all) {
             chomp $all;
             $all =~ s/xrootd-//;
-            $this->{DATA}->{"xrootd_rpm_version"} = $all;
+            $this->{DATA}->{"xrootd_rpm_version"} = 'v'.$all;
         }
         close(IN);
     }
