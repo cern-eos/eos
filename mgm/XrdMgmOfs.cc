@@ -174,7 +174,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000), mFusexPort(1100),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
@@ -183,6 +183,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   if (getenv("EOS_MGM_HTTP_PORT")) {
     mHttpdPort = strtol(getenv("EOS_MGM_HTTP_PORT"), 0, 10);
+  }
+
+  if (getenv("EOS_MGM_FUSEX_PORT")) {
+    mFusexPort = strtol(getenv("EOS_MGM_FUSEX_PORT"), 0, 10);
   }
 
   eos::common::LogId::SetSingleShotLogId();

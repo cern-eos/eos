@@ -1586,6 +1586,7 @@ public:
   int mFstGwPort; ///< FST gateway redirect port, default 1094
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
   int mHttpdPort; ///< port of the http server, default 8000
+  int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
 
 private:
   std::map<std::string, XrdMgmOfsDirectory*>

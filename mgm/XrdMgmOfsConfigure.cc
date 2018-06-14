@@ -1818,7 +1818,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     // Create the ZMQ processor used especially for fuse
-    zMQ = new ZMQ("tcp://*:1100");
+    XrdOucString zmq_port = "tcp://*:";
+    zmq_port += (int) mFusexPort;
+    zMQ = new ZMQ(zmq_port.c_str());
 
     if (!zMQ) {
       Eroute.Emsg("Config", "cannto start ZMQ processor");
