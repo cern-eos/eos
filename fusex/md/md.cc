@@ -300,15 +300,17 @@ metad::forget_all()
 {
   // all but /
   XrdSysMutexHelper lLock(mdmap);
-  for (auto it=mdmap.begin(); it!=mdmap.end(); ++it)
+  for (auto it=mdmap.begin(); it!=mdmap.end();)
   {
-    if (it->first != 1)
-    {
-      auto deleteit = it++;
-
+    if (it->first != 1) {
       if (!S_ISDIR(it->second->mode()) || it->second->deleted()) {
-	mdmap.erase(deleteit);
+	it = mdmap.erase(it);
+	stat.inodes_dec();
+      } else {
+	it++;
       }
+    } else {
+      it++;
     }
   }
 }
