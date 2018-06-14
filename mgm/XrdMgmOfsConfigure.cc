@@ -728,6 +728,37 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
         }
 
+        if (!strcmp("authlib", var)) {
+          if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
+            Eroute.Emsg("Config", "I cannot acccess you authorization library!");
+            NoGo = 1;
+          } else {
+            mAuthLib = val;
+          }
+
+          Eroute.Say("=====> mgmofs.authlib : ", mAuthLib.c_str());
+        }
+
+        if (!strcmp("authorize", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              mAuthorize = true;
+            }
+          }
+
+          if (mAuthorize) {
+            Eroute.Say("=====> mgmofs.authorize : true");
+          } else {
+            Eroute.Say("=====> mgmofs.authorize : false");
+          }
+        }
+
         if (!strcmp("errorlog", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
@@ -1278,6 +1309,29 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.errorlog : enabled");
   } else {
     Eroute.Say("=====> mgmofs.errorlog : disabled");
+  }
+
+  // Load the authorization plugin if requested
+  if (!mAuthLib.empty() && mAuthorize) {
+    XrdSysPlugin* myLib;
+    XrdAccAuthorize * (*ep)(XrdSysLogger*, const char*, const char*);
+    // Authorization comes from the library or we use the default
+    Authorization = XrdAccAuthorizeObject(Eroute.logger(), ConfigFN, 0);
+
+    if (!(myLib = new XrdSysPlugin(&Eroute, mAuthLib.c_str()))) {
+      Eroute.Emsg("Config", "Failed to load authorization library!");
+      NoGo = 1;
+    } else {
+      ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*, const char*))
+           (myLib->getPlugin("XrdAccAuthorizeObject"));
+
+      if (!ep) {
+        Eroute.Emsg("Config", "Failed to get authorization library plugin!");
+        NoGo = 1;
+      } else {
+        Authorization = ep(Eroute.logger(), ConfigFN, 0);
+      }
+    }
   }
 
   // We need to specify this if the server was not started with the explicit

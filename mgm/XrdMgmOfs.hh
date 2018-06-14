@@ -1342,7 +1342,8 @@ public:
   eos::common::FileId::fileid_t BootContainerId;
   bool IsRedirect; ///< true if the Redirect function should be called to redirect
   bool IsStall; ///< true if the Stall function should be called to send a wait
-  bool authorize; ///< determins if the autorization should be applied or not
+  bool mAuthorize; ///< Determine if the autorization should be applied or not
+  std::string mAuthLib; ///< Path to authorization library
   bool IssueCapability; ///< defines if the Mgm issues capabilities
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
