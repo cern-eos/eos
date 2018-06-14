@@ -1126,7 +1126,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         std::shared_ptr<eos::IFileMD> fmd;
         bool haslocation = false;
         std::string spath = "";
-
+	
         // Crosscheck if the location really is not attached
         try {
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
@@ -1156,7 +1156,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
         if (haslocation) {
           // Drop from the namespace
-          if (gOFS->_dropstripe(spath.c_str(), error, vid, efsmapit->first, false)) {
+          if (gOFS->_dropstripe(spath.c_str(), *it, error, vid, efsmapit->first, false)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
                      "error: unable to drop stripe on fsid=%u fxid=%llx\n",
@@ -1335,7 +1335,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           }
         } else {
           // Drop from the namespace
-          if (gOFS->_dropstripe(path.c_str(), error, vid,
+          if (gOFS->_dropstripe(path.c_str(), *it, error, vid,
                                 efsmapit->first, false)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
@@ -1497,7 +1497,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         eos::common::Mapping::Root(vid);
         XrdOucErrInfo error;
 
-        if (gOFS->_dropstripe(path.c_str(), error, vid, efsmapit.first, true)) {
+        if (gOFS->_dropstripe(path.c_str(), fid, error, vid, efsmapit.first, true)) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
                    "error: unable to repair file fsid=%u fxid=%llx, could not drop it\n",

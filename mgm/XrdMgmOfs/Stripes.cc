@@ -72,16 +72,20 @@ XrdMgmOfs::_verifystripe(const char* path,
     dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
   } catch (eos::MDException& e) {
     dh.reset();
-    errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   // Check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
     if (!errno) {
       errno = EPERM;
     }
+  } else {
+    // only root can delete a detached replica
+    if (vid.uid)
+      errno = EPERM;
+  }
 
   if (errno) {
     return Emsg(epname, error, errno, "verify stripe", path);
@@ -175,6 +179,7 @@ XrdMgmOfs::_verifystripe(const char* path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_dropstripe(const char* path,
+		       eos::common::FileId::fileid_t fid,
                        XrdOucErrInfo& error,
                        eos::common::Mapping::VirtualIdentity& vid,
                        unsigned long fsid,
@@ -184,6 +189,7 @@ XrdMgmOfs::_dropstripe(const char* path,
  * @brief send a drop message to a file system for a given file
  *
  * @param path file name to drop stripe
+ * #param file id of the file to drop stripe
  * @param error error object
  * @param vid virtual identity of the client
  * @param fsid filesystem id where to run the drop
@@ -217,10 +223,15 @@ XrdMgmOfs::_dropstripe(const char* path,
   }
 
   // Check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
+  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
     if (!errno) {
       errno = EPERM;
     }
+  } else {
+    // only root can drop by file id
+    if (vid.uid)
+      errno = EPERM;
+  }
 
   if (errno) {
     return Emsg(epname, error, errno, "drop stripe", path);
@@ -228,7 +239,11 @@ XrdMgmOfs::_dropstripe(const char* path,
 
   // get the file
   try {
-    fmd = gOFS->eosView->getFile(path);
+    if (fid) {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+    } else {
+      fmd = gOFS->eosView->getFile(path);
+    }
 
     if (!forceRemove) {
       // we only unlink a location

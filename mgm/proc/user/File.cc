@@ -65,7 +65,7 @@ ProcCommand::File()
   spath = path;
   bool cmdok = false;
 
-  if (!spath.length()) {
+  if (!spath.length() && (mSubCmd != "drop")) {
     stdErr = "error: you have to give a path name to call 'file'";
     retc = EINVAL;
     return SFS_OK;
@@ -84,8 +84,10 @@ ProcCommand::File()
       }
 
       unsigned long fsid = (sfsid.length()) ? strtoul(sfsid.c_str(), 0, 10) : 0;
+      unsigned long fid = (spathid.length()) ? strtoul(spathid.c_str(), 0, 10) : 0;
 
-      if (gOFS->_dropstripe(spath.c_str(), *mError, *pVid, fsid, forceRemove)) {
+      
+      if (gOFS->_dropstripe(spath.c_str(), fid, *mError, *pVid, fsid, forceRemove)) {
         stdErr += "error: unable to drop stripe";
         retc = errno;
       } else {

@@ -845,6 +845,7 @@ public:
   // drop stripe by vid
   // ---------------------------------------------------------------------------
   int _dropstripe(const char* path,
+		  eos::common::FileId::fileid_t fid, 
                   XrdOucErrInfo& error,
                   eos::common::Mapping::VirtualIdentity& vid,
                   unsigned long fsid,

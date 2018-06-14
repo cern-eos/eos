@@ -620,22 +620,23 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Drop files attached to a file system but file id
+//------------------------------------------------------------------------------
 int
 FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 {
   XrdOucErrInfo errInfo;
   auto filesDeleted = 0u;
   // Create a snapshot to avoid deadlock with dropstripe
-  std::list<std::string> files;
+  std::vector<eos::common::FileId::fileid_t> fileids;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(dropfilesProto.fsid());
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
-        auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
-        files.emplace_back(gOFS->eosView->getUri(fmd.get()));
-        // fileids.push_back(it_fid->getElement());
+	fileids.push_back(it_fid->getElement());
       } catch (eos::MDException& e) {
         eos_err("Could not get metadata for file %ul, ignoring it",
                 it_fid->getElement());
@@ -643,13 +644,12 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
     }
   }
 
-  for (const auto& filePath : files) {
+  for (const auto& fid : fileids) {
     errInfo.clear();
 
-    if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(),
+    if (gOFS->_dropstripe("", fid, errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
-      eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(),
-              //eos_err("Could not delete file replica %ul  on filesystem %u", fileId,
+      eos_err("Could not delete file replica %ul  on filesystem %u", fid, 
               dropfilesProto.fsid());
     } else {
       filesDeleted++;
@@ -663,6 +663,9 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Compare two file systemd in therm of the files they contain
+//------------------------------------------------------------------------------
 int
 FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
 {
@@ -710,6 +713,9 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Clone the contents of one file system to another
+//------------------------------------------------------------------------------
 int
 FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
 {
