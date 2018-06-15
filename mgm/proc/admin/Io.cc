@@ -80,7 +80,6 @@ ProcCommand::Io()
                 stdOut += "success: enabled IO report collection";
               } else {
                 stdErr += "error: IO report collection already enabled";
-                ;
                 retc = EINVAL;
               }
             }
@@ -119,7 +118,7 @@ ProcCommand::Io()
       } else {
         if (reports) {
           if (mSubCmd == "enable") {
-            if (gOFS->IoStats->StartReport()) {
+            if (!gOFS->IoStats->StartReport()) {
               stdErr += "error: IO report store already enabled";
               retc = EINVAL;
             } else {
@@ -206,7 +205,7 @@ ProcCommand::Io()
 
     eos_info("io stat");
     gOFS->IoStats->PrintOut(stdOut, summary, details, monitoring, numerical,
-                           top, domain, apps, option);
+                            top, domain, apps, option);
   }
 
   if (mSubCmd == "ns") {

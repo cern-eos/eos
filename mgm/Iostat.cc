@@ -42,7 +42,7 @@ const char* Iostat::gIostatReport = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";
 const char* Iostat::gIostatUdpTargetList = "iostat::udptargets";
-FILE* Iostat::gOpenReportFD=0;
+FILE* Iostat::gOpenReportFD = 0;
 
 /* ------------------------------------------------------------------------- */
 Iostat::Iostat()
@@ -106,7 +106,6 @@ Iostat::StartCirculate()
 void
 Iostat::ApplyIostatConfig()
 {
-  std::string enabled;
   std::string iocollect = FsView::gFsView.GetGlobalConfig(Iostat::gIostatCollect);
   std::string ioreport = FsView::gFsView.GetGlobalConfig(Iostat::gIostatReport);
   std::string ioreportns = FsView::gFsView.GetGlobalConfig(
@@ -123,7 +122,6 @@ Iostat::ApplyIostatConfig()
 
   {
     XrdSysMutexHelper mLock(Mutex);
-
     mReport = (ioreport == "true");
     mReportNamespace = (ioreportns == "true");
     mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
@@ -278,14 +276,12 @@ Iostat::Receive(void)
           report->ots, report->cts);
       Add("disk_time_write", report->uid, report->gid,
           (unsigned long long) report->wt, report->ots, report->cts);
-
       {
-	// track deletions
-	time_t now = time(NULL);
-	Add("bytes_deleted", 0, 0, report->dsize, now-30, now);
-	Add("files_deleted", 0, 0, 1, now-30, now);
+        // track deletions
+        time_t now = time(NULL);
+        Add("bytes_deleted", 0, 0, report->dsize, now - 30, now);
+        Add("files_deleted", 0, 0, 1, now - 30, now);
       }
-
       // do the UDP broadcasting here
       {
         XrdSysMutexHelper mLock(BroadcastMutex);
@@ -421,7 +417,7 @@ Iostat::Receive(void)
               fflush(gOpenReportFD);
             }
           } else {
-	    Mutex.Lock();
+            Mutex.Lock();
 
             if (gOpenReportFD) {
               fclose(gOpenReportFD);
@@ -439,7 +435,8 @@ Iostat::Receive(void)
 
               openreportfile = reportfile;
             }
-	    Mutex.UnLock();
+
+            Mutex.UnLock();
           }
         }
       }
@@ -478,12 +475,12 @@ Iostat::Receive(void)
 
 /* ------------------------------------------------------------------------- */
 void
-Iostat::WriteRecord(std::string &record)
+Iostat::WriteRecord(std::string& record)
 {
   Mutex.Lock();
-  if (gOpenReportFD)
-  {
-    fprintf(gOpenReportFD,"%s\n", record.c_str());
+
+  if (gOpenReportFD) {
+    fprintf(gOpenReportFD, "%s\n", record.c_str());
     fflush(gOpenReportFD);
   }
 
@@ -1090,11 +1087,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         if (rank > 1) {
           data.emplace_back(std::make_tuple(
-                           "read", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
+                              "read", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
         }
 
         data_monitoring.emplace_back(std::make_tuple(
-                                    "hotfile", "read", key.c_str(), it->first, path.c_str(), val.c_str()));
+                                       "hotfile", "read", key.c_str(), it->first, path.c_str(), val.c_str()));
       }
 
       // Get information for write
@@ -1120,11 +1117,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
         if (rank > 1) {
           data.emplace_back(std::make_tuple(
-                           "write", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
+                              "write", key.c_str(), id.c_str(), host.c_str(), path.c_str()));
         }
 
         data_monitoring.emplace_back(std::make_tuple(
-                                    "hotfile", "write", key.c_str(), it->first, path.c_str(), val.c_str()));
+                                       "hotfile", "write", key.c_str(), it->first, path.c_str(), val.c_str()));
       }
 
       // Sort and output
