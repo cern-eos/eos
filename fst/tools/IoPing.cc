@@ -44,6 +44,7 @@
 # define HAVE_DIRECT_IO
 # define HAVE_LINUX_ASYNC_IO
 # define HAVE_ERR_INCLUDE
+# define HAVE_STRUCT_TIMESPEC
 #endif
 
 #ifdef __gnu_hurd__
