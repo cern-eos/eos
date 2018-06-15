@@ -212,7 +212,7 @@ template <typename IdT, typename EntryT>
 LRU<IdT, EntryT>::LRU(std::uint64_t max_num) :
   mMap(), mList(), mMutex(), mMaxNum(max_num), mToDelete()
 {
-  mMap.set_empty_key(IdT(0ull));
+  mMap.set_empty_key(IdT(UINT64_MAX - 1));
   mMap.set_deleted_key(IdT(UINT64_MAX));
   mMutex.SetBlocking(true);
   mCleanerThread.reset(&LRU::CleanerJob, this);
