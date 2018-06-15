@@ -60,24 +60,23 @@ public:
 };
 
 bool
-RmHelper::ParseCommand(const char* arg) {
+RmHelper::ParseCommand(const char* arg)
+{
   XrdOucString option;
   eos::console::RmProto* rm = mReq.mutable_rm();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
 
-  while ((option = tokenizer.GetToken()).length() > 0 && (option.beginswith("-"))) {
+  while ((option = tokenizer.GetToken()).length() > 0 &&
+         (option.beginswith("-"))) {
     if (option == "-r") {
       rm->set_recursive(true);
-    }
-    else if (option == "-f") {
+    } else if (option == "-f") {
       rm->set_bypassrecycle(true);
-    }
-    else if (option == "-rF" || option == "-Fr") {
+    } else if (option == "-rF" || option == "-Fr") {
       rm->set_recursive(true);
       rm->set_bypassrecycle(true);
-    }
-    else {
+    } else {
       return false;
     }
   }
@@ -103,13 +102,14 @@ RmHelper::ParseCommand(const char* arg) {
   }
 
   auto id = 0ull;
+
   if (Path2FileDenominator(path, id)) {
     rm->set_fileid(id);
-    path="";
+    path = "";
   } else {
     if (Path2ContainerDenominator(path, id)) {
       rm->set_containerid(id);
-      path="";
+      path = "";
     } else {
       path = abspath(path.c_str());
       rm->set_path(path.c_str());
@@ -118,8 +118,10 @@ RmHelper::ParseCommand(const char* arg) {
   }
 
   eos::common::Path cPath(path.c_str());
-  if (path.length())
+
+  if (path.length()) {
     mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
+  }
 
   return true;
 }
@@ -162,7 +164,8 @@ int com_protorm(char* arg)
   return global_retc;
 }
 
-void com_rm_help() {
+void com_rm_help()
+{
   std::ostringstream oss;
   oss << "Usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
       << std::endl

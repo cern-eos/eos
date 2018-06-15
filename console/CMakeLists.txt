@@ -51,7 +51,6 @@ add_library(
   commands/HealthCommand.cc    commands/HealthCommand.hh
   commands/com_access.cc
   commands/com_accounting.cc
-  commands/com_acl.cc
   commands/com_archive.cc
   commands/com_attr.cc
   commands/com_backup.cc
@@ -67,7 +66,6 @@ add_library(
   commands/com_file.cc
   commands/com_find.cc
   commands/com_fs.cc
-  commands/com_protofs.cc
   commands/com_fsck.cc
   commands/com_fuse.cc
   commands/com_fusex.cc
@@ -87,7 +85,6 @@ add_library(
   commands/com_motd.cc
   commands/com_mv.cc
   commands/com_node.cc
-  commands/com_ns.cc
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc
@@ -111,7 +108,12 @@ add_library(
   commands/com_vid.cc
   commands/com_vst.cc
   commands/com_whoami.cc
-  commands/com_who.cc commands/com_protorm.cc commands/com_stagerrm.cc)
+  commands/com_who.cc
+  commands/com_proto_acl.cc
+  commands/com_proto_fs.cc
+  commands/com_proto_rm.cc
+  commands/com_proto_ns.cc
+  commands/com_stagerrm.cc)
 
 add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)
 
