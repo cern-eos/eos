@@ -845,7 +845,7 @@ public:
   // drop stripe by vid
   // ---------------------------------------------------------------------------
   int _dropstripe(const char* path,
-		  eos::common::FileId::fileid_t fid, 
+		  eos::common::FileId::fileid_t fid,
                   XrdOucErrInfo& error,
                   eos::common::Mapping::VirtualIdentity& vid,
                   unsigned long fsid,
@@ -1585,6 +1585,7 @@ public:
   std::string mFstGwHost; ///< FST gateway redirect fqdn host
   int mFstGwPort; ///< FST gateway redirect port, default 1094
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
+  std::string mQdbPassword; ///< Quarkdb cluster password
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
 

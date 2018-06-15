@@ -1905,9 +1905,12 @@ Master::BootNamespace()
       instance_id << gOFS->MgmOfsInstanceName << ":"
                   << gOFS->ManagerPort;
       contSettings["qdb_cluster"] = gOFS->mQdbCluster;
+      contSettings["qdb_password"] = gOFS->mQdbPassword;
       contSettings["qdb_flusher_md"] = instance_id.str() + "_md";
       contSettings["qdb_flusher_quota"] = instance_id.str() + "_quota";
+
       fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
+      fileSettings["qdb_password"] = gOFS->mQdbPassword;
       fileSettings["qdb_flusher_md"] = instance_id.str() + "_md";
     }
   }

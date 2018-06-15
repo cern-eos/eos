@@ -338,7 +338,7 @@ public:
 
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
-  void MakeDeletionReport(eos::common::FileSystem::fsid_t fsid, 
+  void MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
 			  unsigned long long fid,
 			  struct stat &deletion_stat);
 
@@ -381,6 +381,7 @@ public:
   const char* mHostName; ///< FST hostname
   std::unique_ptr<qclient::QClient> mQcl; ///< Qclient object
   qclient::Members mQdbMembers; ///< QDB member endpoints
+  std::string mQdbPassword;     ///< QDB password
   int mHttpdPort; ///< listening port of the http server
 private:
   HttpServer* mHttpd; ///< Embedded http server

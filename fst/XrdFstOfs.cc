@@ -493,6 +493,15 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             }
           }
         }
+
+        if(!strcmp("qdbpassword", var)) {
+          while ((val = Config.GetWord())) {
+            mQdbPassword += val;
+          }
+
+          std::string pwlen = std::to_string(mQdbPassword.size());
+          Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
+        }
       }
     }
 

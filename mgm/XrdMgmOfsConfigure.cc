@@ -707,6 +707,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
         }
 
+        if (!strcmp("qdbpassword", var)) {
+          while ((val = Config.GetWord())) {
+            mQdbPassword += val;
+            mQdbPassword += " ";
+          }
+
+          std::string pwlen = std::to_string(mQdbPassword.size());
+          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+        }
+
         if (!strcmp("authlib", var)) {
           if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
             Eroute.Emsg("Config", "I cannot acccess you authorization library!");
@@ -1800,7 +1810,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     if (MgmOfsVstBrokerUrl.length() &&
-        (getenv("EOS_VST_BROKER_ENABLE") && 
+        (getenv("EOS_VST_BROKER_ENABLE") &&
          (strcmp(getenv("EOS_VST_BROKER_ENABLE"), "1")))) {
       MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(),
                                             "/eos/*/vst", true, true, 0);
@@ -1978,7 +1988,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
   ioaccounting += ManagerId;;
-  
+
   ioaccounting += ".dump";
   eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
