@@ -57,7 +57,7 @@ BackendClient::Finalize()
 //------------------------------------------------------------------------------
 qclient::QClient*
 BackendClient::getInstance(const qclient::Members& qdb_members,
-                           const std::string tag)
+                           const std::string& tag)
 {
   std::ostringstream oss;
   oss << tag << ":";
@@ -90,7 +90,7 @@ BackendClient::getInstance(const qclient::Members& qdb_members,
 //------------------------------------------------------------------------------
 qclient::QClient*
 BackendClient::getInstance(const std::string& qdb_cluster,
-                           const std::string tag)
+                           const std::string& tag)
 {
   qclient::Members qdb_members;
 
@@ -98,33 +98,8 @@ BackendClient::getInstance(const std::string& qdb_cluster,
     return nullptr;
   }
 
-  std::ostringstream oss;
-  oss << tag << ":";
-
-  for (const auto& elem : qdb_members.getEndpoints()) {
-    oss << elem.toString() << " ";
-  }
-
-  std::string qdb_id = oss.str();
-  qdb_id.pop_back();
-  qclient::QClient* instance{nullptr};
-  std::lock_guard<std::mutex> lock(pMutexMap);
-
-  if (pMapClients.find(qdb_id) == pMapClients.end()) {
-    qclient::Options opts;
-    opts.transparentRedirects = true;
-    opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
-    instance = new qclient::QClient(qdb_members, std::move(opts));
-    pMapClients.insert(std::make_pair(qdb_id, instance));
-  } else {
-    instance = pMapClients[qdb_id];
-  }
-
-  return instance;
+  return getInstance(qdb_members, tag);
 }
-
-
-
 
 //------------------------------------------------------------------------------
 // Initialization and finalization

@@ -66,7 +66,7 @@ public:
   //! @return qclient object
   //----------------------------------------------------------------------------
   static qclient::QClient* getInstance(const qclient::Members& qdb_members,
-                                       const std::string tag = "default");
+                                       const std::string &tag = "default");
 
   //----------------------------------------------------------------------------
   //! Get client for a particular quarkdb instance specified as a list of
@@ -83,7 +83,7 @@ public:
   //! @return qclient object
   //----------------------------------------------------------------------------
   static qclient::QClient* getInstance(const std::string& qdb_cluster,
-                                       const std::string tag = "default");
+                                       const std::string &tag = "default");
 
 private:
   static std::atomic<qclient::QClient*> sQdbClient;
