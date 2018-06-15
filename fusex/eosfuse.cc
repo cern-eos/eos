@@ -742,6 +742,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["cache"]["read-ahead-bytes-max"] = 8 * 1024 * 1024;
     }
 
+    if (!root["cache"].isMember("read-ahead-blocks-max")) {
+      root["cache"]["read-ahead-blocks-max"] = 16;
+    }
+
     if (!root["cache"].isMember("read-ahead-strategy")) {
       root["cache"]["read-ahead-strategy"] = "dynamic";
     }
@@ -751,6 +755,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     cconfig.default_read_ahead_size =
       root["cache"]["read-ahead-bytes-nominal"].asInt();
     cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
+    cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
     cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
 
     if ((cconfig.read_ahead_strategy != "none") &&
@@ -1244,10 +1249,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 		       config.options.rm_rf_protect_levels,
 		       config.options.rm_rf_bulk
                       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
                        cconfig.max_read_ahead_size,
+                       cconfig.max_read_ahead_blocks,
                        cconfig.total_file_cache_size,
                        cconfig.total_file_cache_inodes,
                        cconfig.location.c_str(),

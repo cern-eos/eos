@@ -402,12 +402,15 @@ namespace XrdCl
     }
 
     void set_readahead_strategy(READAHEAD_STRATEGY rhs,
-                                size_t min, size_t nom, size_t max)
+                                size_t min, size_t nom, size_t max, size_t rablocks)
     {
       XReadAheadStrategy = rhs;
       XReadAheadMin = min;
       XReadAheadNom = nom;
       XReadAheadMax = max;
+      XReadAheadBlocksMax = rablocks;
+      XReadAheadBlocksNom = 1;
+      XReadAheadBlocksMin = 1;
     }
 
     float get_readahead_efficiency()
@@ -416,9 +419,10 @@ namespace XrdCl
       return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalBytes) : 0.0;
     }
 
-    off_t aligned_offset(off_t offset) const
+    float get_readahead_volume_efficiency()
     {
-      return offset / XReadAheadNom*XReadAheadNom;
+      XrdSysCondVarHelper lLock(ReadCondVar());
+      return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes) : 0.0;
     }
 
     void set_id( uint64_t ino, fuse_req_t req)
@@ -461,6 +465,10 @@ namespace XrdCl
       XReadAheadMin = 4 * 1024;
       XReadAheadNom = 256 * 1204;
       XReadAheadMax = 1024 * 1024;
+      XReadAheadBlocksMax = 16;
+      XReadAheadBlocksNom = 1;
+      XReadAheadBlocksMin = 1;
+      XReadAheadBlocksIs = 0;
       mPosition = 0;
       mReadAheadPosition = 0;
       mTotalBytes = 0;
@@ -520,7 +528,7 @@ namespace XrdCl
     virtual ~Proxy()
     {
       Collect();
-      eos_notice("ra-efficiency=%f", get_readahead_efficiency());
+      eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(), get_readahead_volume_efficiency());
     }
 
     // ---------------------------------------------------------------------- //
@@ -990,14 +998,18 @@ namespace XrdCl
     uint16_t XCloseAfterWriteTimeout;
 
     READAHEAD_STRATEGY XReadAheadStrategy;
-    size_t XReadAheadMin;
-    size_t XReadAheadNom;
-    size_t XReadAheadMax;
-
+    size_t XReadAheadMin; // minimum ra block size when re-enabling
+    size_t XReadAheadNom; // nominal ra block size when 
+    size_t XReadAheadMax; // maximum pow2 scaled window
+    size_t XReadAheadBlocksMin; // minimum number of prefetch blocks
+    size_t XReadAheadBlocksNom; // nominal number of prefetch blocks
+    size_t XReadAheadBlocksMax; // maximum number of prefetch blocks
+    size_t XReadAheadBlocksIs; // current blocks in the read-ahead
     off_t mPosition;
     off_t mReadAheadPosition;
     off_t mTotalBytes;
     off_t mTotalReadAheadHitBytes;
+    off_t mTotalReadAheadBytes;
 
     XrdSysMutex mAttachedMutex;
     size_t mAttached;

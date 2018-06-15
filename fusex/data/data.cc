@@ -594,7 +594,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 						       XrdCl::Proxy::readahead_strategy_from_string(cachehandler::instance().get_config().read_ahead_strategy),
 						       4096,
 						       cachehandler::instance().get_config().default_read_ahead_size,
-						       cachehandler::instance().get_config().max_read_ahead_size
+						       cachehandler::instance().get_config().max_read_ahead_size,
+						       cachehandler::instance().get_config().max_read_ahead_blocks
 						       );
         }
       }

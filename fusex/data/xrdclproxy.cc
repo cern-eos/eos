@@ -74,12 +74,14 @@ XrdCl::Proxy::Read( uint64_t  offset,
 
   eos_debug("----: read: offset=%lu size=%u", offset, size);
   int readahead_window_hit = 0;
-
+  
   uint64_t current_offset = offset;
   uint32_t current_size = size;
 
   bool isEOF=false;
   bool request_next = true;
+  size_t n_successor = 0;
+
   std::set<uint64_t> delete_chunk;
 
   void *pbuffer = buffer;
@@ -92,6 +94,8 @@ XrdCl::Proxy::Read( uint64_t  offset,
     if ( ChunkRMap().size())
     {
       bool has_successor = false;
+      off_t successor_offset = offset;
+
       // see if there is anything in our read-ahead map
       for ( auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it)
       {
@@ -135,6 +139,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
             {
               request_next = false;
 	      XReadAheadNom = XReadAheadMin;
+	      XReadAheadBlocksNom = XReadAheadBlocksMin;
               break;
             }
           }
@@ -142,7 +147,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
         else
         {
           eos_debug("----: considering chunk address=%lx offset=%ld", it->first, it->second->offset());
-          if (!it->second->successor(offset, size))
+          if (!it->second->successor(successor_offset, size))
           {
             eos_debug("----: delete chunk address=%lx offset=%ld", it->first, it->second->offset());
             while ( !it->second->done() )
@@ -154,6 +159,8 @@ XrdCl::Proxy::Read( uint64_t  offset,
           else
           {
             has_successor = true;
+	    successor_offset = it->second->offset();
+	    n_successor++;
           }
         }
       }
@@ -196,6 +203,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
       {
         request_next = false;
 	XReadAheadNom = XReadAheadMin;
+	XReadAheadBlocksNom = XReadAheadBlocksMin;
 	mReadAheadPosition = 0;
       }
     }
@@ -211,26 +219,38 @@ XrdCl::Proxy::Read( uint64_t  offset,
           XReadAheadNom *=2;
           if (XReadAheadNom > XReadAheadMax)
             XReadAheadNom = XReadAheadMax;
+
+	  // increase the number of pre-fetched blocks
+	  XReadAheadBlocksNom *= 2;
+	  if (XReadAheadBlocksNom > XReadAheadBlocksMax)
+	    XReadAheadBlocksNom = XReadAheadBlocksMax;
         }
       }
 
-      off_t align_offset = mReadAheadPosition;
-      eos_debug("----: pre-fetch window=%lu pf-offset=%lu,",
-                XReadAheadNom,
-                (unsigned long) align_offset
-                );
-
-      if (ChunkRMap().count(align_offset))
+      // pre-fetch missing read-ahead blocks
+      size_t blocks_to_fetch = XReadAheadBlocksNom - n_successor;
+      for (size_t n_fetch = 0 ; n_fetch < blocks_to_fetch ; n_fetch++)
       {
-        ReadCondVar().UnLock();
-      }
-      else
-      {
-        ReadCondVar().UnLock();
-        XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(align_offset, XReadAheadNom);
-        XRootDStatus rstatus = PreReadAsync(align_offset, XReadAheadNom,
-                                            rahread, timeout);
-	mReadAheadPosition = align_offset + XReadAheadNom;
+	off_t align_offset = mReadAheadPosition;
+	eos_debug("----: pre-fetch window=%lu pf-offset=%lu block(%d/%d),",
+		  XReadAheadNom,
+		  (unsigned long) align_offset,
+		  n_fetch,blocks_to_fetch
+		  );
+	
+	if (ChunkRMap().count(align_offset))
+	  {
+	    ReadCondVar().UnLock();
+	  }
+	else
+	  {
+	    ReadCondVar().UnLock();
+	    XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(align_offset, XReadAheadNom);
+	    XRootDStatus rstatus = PreReadAsync(align_offset, XReadAheadNom,
+						rahread, timeout);
+	    mReadAheadPosition = align_offset + XReadAheadNom;
+            mTotalReadAheadBytes += XReadAheadNom;
+	  }
       }
     }
     else
