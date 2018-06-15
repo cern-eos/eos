@@ -303,7 +303,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
     FAIL();
   }
   catch(const MDException &exc) {
-    ASSERT_STREQ(exc.what(), "Error while fetching FileMD #1 protobuf from QDB: FileMD object checksum mismatch");
+    ASSERT_STREQ(exc.what(), "Error while deserializing FileMD #1 protobuf: FileMD object checksum mismatch");
   }
 
   shut_down_everything();
