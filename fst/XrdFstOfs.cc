@@ -486,8 +486,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
               Eroute.Emsg("Config", "failed to parse qdbcluster members");
               NoGo = 1;
             } else {
-              mQcl.reset(new ::qclient::QClient(mQdbMembers, true,
-                                                qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60))));
+              qclient::Options opts;
+              opts.transparentRedirects = true;
+              opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
+              mQcl.reset(new ::qclient::QClient(mQdbMembers, std::move(opts)));
             }
           }
         }
@@ -682,7 +684,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump.";
   dumperfile += eos::fst::Config::gConfig.FstHostPort;
-  
+
   ObjectManager.StartDumper(dumperfile.c_str());
   XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server

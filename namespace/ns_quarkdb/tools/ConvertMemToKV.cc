@@ -481,7 +481,10 @@ ConvertContainerMDSvc::commitToBackend()
     std::shared_ptr<IContainerMD> container;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
-    qclient::QClient qclient{sBkndHost, sBkndPort};
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::NoRetries();
+    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort), std::move(opts));
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
@@ -604,7 +607,10 @@ ConvertFileMDSvc::initialize()
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
     qclient::AsyncHandler ah;
-    qclient::QClient qclient {sBkndHost, sBkndPort};
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::NoRetries();
+    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort), std::move(opts));
     int max_elem = ((i == (nthreads - 1) ? last_chunk : chunk));
 
     for (int n = 0; n < max_elem; ++n) {
@@ -821,7 +827,11 @@ void
 ConvertQuotaView::commitToBackend()
 {
   qclient::AsyncHandler ah;
-  qclient::QClient qcl {sBkndHost, sBkndPort};
+  qclient::Options opts;
+  opts.transparentRedirects = true;
+  opts.retryStrategy = qclient::RetryStrategy::NoRetries();
+
+  qclient::QClient qcl(sBkndHost, sBkndPort, std::move(opts));
   std::string uid_key, gid_key;
   std::uint64_t count = 0u;
   std::uint64_t max_count = 100;
@@ -928,7 +938,10 @@ ConvertFsView::commitToBackend()
     std::uint64_t count = 0u;
     std::string key, val;
     qclient::AsyncHandler ah;
-    qclient::QClient qclient{sBkndHost, sBkndPort};
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::NoRetries();
+    qclient::QClient qclient(sBkndHost, sBkndPort, std::move(opts));
     qclient::QSet fs_set(qclient, "");
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
     auto it = mFsView.begin();

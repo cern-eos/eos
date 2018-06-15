@@ -1192,8 +1192,10 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   std::string cursor = "0";
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
-  std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, true,
-                                        qclient::RetryStrategy::WithTimeout(seconds(60))));
+  qclient::Options opts;
+  opts.transparentRedirects = true;
+  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(minutes(2));
+  std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, std::move(opts)));
   qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 

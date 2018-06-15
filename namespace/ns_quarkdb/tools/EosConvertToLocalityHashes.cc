@@ -127,7 +127,10 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  qclient::QClient qcl(members, true, qclient::RetryStrategy::WithTimeout(std::chrono::seconds(5)));
+  qclient::Options opts;
+  opts.transparentRedirects = true;
+  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(20));
+  qclient::QClient qcl(members, std::move(opts));
 
   for(uint64_t i = 0; i < eos::RequestBuilder::sNumFileBuckets; i++) {
     processFileBucket(qcl, i);

@@ -36,8 +36,10 @@ EOSNSTESTING_BEGIN
 
 FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
 : members(mbr) {
-  qclient::RetryStrategy strategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(10));
-  qclient::QClient qcl(members, true, strategy);
+  qclient::Options opts;
+  opts.transparentRedirects = true;
+  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(10));
+  qclient::QClient qcl(members, std::move(opts));
   qcl.exec("FLUSHALL").get();
   qcl.exec("SET", "QDB-INSTANCE-FOR-EOS-NS-TESTS", "YES");
 }
@@ -168,9 +170,12 @@ void NsTestsFixture::shut_down_everything() {
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
-  qclient::RetryStrategy retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60));
+  qclient::Options opts;
+  opts.transparentRedirects = true;
+  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
+
   return std::unique_ptr<qclient::QClient>(
-    new qclient::QClient(getMembers(), true, retryStrategy)
+    new qclient::QClient(getMembers(), std::move(opts))
   );
 }
 

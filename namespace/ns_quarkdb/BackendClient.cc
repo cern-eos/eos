@@ -72,8 +72,10 @@ BackendClient::getInstance(const qclient::Members& qdb_members,
   std::lock_guard<std::mutex> lock(pMutexMap);
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
-    instance = new qclient::QClient(qdb_members, true,
-      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
+    instance = new qclient::QClient(qdb_members, std::move(opts));
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];
@@ -109,8 +111,10 @@ BackendClient::getInstance(const std::string& qdb_cluster,
   std::lock_guard<std::mutex> lock(pMutexMap);
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
-    instance = new qclient::QClient(qdb_members, true,
-      qclient::RetryStrategy::WithTimeout(std::chrono::seconds(60)));
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
+    instance = new qclient::QClient(qdb_members, std::move(opts));
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];

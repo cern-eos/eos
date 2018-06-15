@@ -49,7 +49,7 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
                                  const qclient::Members& qdb_members):
   id(basename(path.c_str())),
   notifier(*this),
-  backgroundFlusher(qdb_members, notifier, new qclient::RocksDBPersistency(path)),
+  backgroundFlusher(qdb_members, qclient::Options(), notifier, new qclient::RocksDBPersistency(path)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
