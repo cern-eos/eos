@@ -432,7 +432,9 @@ add_executable(eos-adler32
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
-add_executable(eos-ioping tools/IoPing.cc)
+add_executable(eos-ioping tools/IoPing.c)
+set_property(TARGET eos-ioping PROPERTY C_STANDARD 99)
+target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
 target_link_libraries(eos-check-blockxs PRIVATE
   EosFstIo-Static
@@ -455,8 +457,6 @@ target_link_libraries(eos-scan-fs PRIVATE
   ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
 install(PROGRAMS
   tools/eosfstregister

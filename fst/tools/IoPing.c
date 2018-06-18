@@ -1,7 +1,7 @@
 /*
  *  ioping  -- simple I/0 latency measuring tool
  *
- *  Copyright (C) 2011-2013 Konstantin Khlebnikov <koct9i@gmail.com>
+ *  Copyright (C) 2011-2015 Konstantin Khlebnikov <koct9i@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
  *
  */
 
+#ifndef VERSION
+# define VERSION "1.0"
+#endif
+
+#ifndef EXTRA_VERSION
+# define EXTRA_VERSION ""
+#endif
+
+#define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
 
 #include <stdio.h>
@@ -32,23 +41,29 @@
 #include <math.h>
 #include <limits.h>
 #include <signal.h>
-#include <sys/sysmacros.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 
 #ifdef __linux__
 # include <sys/ioctl.h>
 # include <sys/mount.h>
+# include <sys/sysmacros.h>
+# define HAVE_CLOCK_GETTIME
 # define HAVE_POSIX_FADVICE
 # define HAVE_POSIX_MEMALIGN
+# define HAVE_MKOSTEMP
 # define HAVE_DIRECT_IO
 # define HAVE_LINUX_ASYNC_IO
 # define HAVE_ERR_INCLUDE
+# define MAX_RW_COUNT   0x7ffff000 /* 2G - 4K */
 #endif
 
 #ifdef __gnu_hurd__
 # include <sys/ioctl.h>
+# define HAVE_CLOCK_GETTIME
 # define HAVE_POSIX_MEMALIGN
+# define HAVE_MKOSTEMP
 # define HAVE_ERR_INCLUDE
 #endif
 
@@ -56,12 +71,16 @@
 # include <sys/ioctl.h>
 # include <sys/mount.h>
 # include <sys/disk.h>
+# define HAVE_CLOCK_GETTIME
+# define HAVE_MKOSTEMP
 # define HAVE_DIRECT_IO
 # define HAVE_ERR_INCLUDE
 #endif
 
 #ifdef __DragonFly__
 # include <sys/diskslice.h>
+# define HAVE_CLOCK_GETTIME
+# define HAVE_MKOSTEMP
 # define HAVE_ERR_INCLUDE
 #endif
 
@@ -71,11 +90,13 @@
 # include <sys/dkio.h>
 # include <sys/param.h>
 # include <sys/mount.h>
+# define HAVE_CLOCK_GETTIME
 # define HAVE_POSIX_MEMALIGN
+# define HAVE_MKOSTEMP
 # define HAVE_ERR_INCLUDE
 #endif
 
-#ifdef __APPLE__
+#ifdef __APPLE__ /* OS X */
 # include <sys/ioctl.h>
 # include <sys/mount.h>
 # include <sys/disk.h>
@@ -84,12 +105,21 @@
 # define HAVE_ERR_INCLUDE
 #endif
 
-#ifdef __sun__  /* Solaris */
+#ifdef __sun  /* Solaris */
 # include <sys/dkio.h>
 # include <sys/vtoc.h>
+# define HAVE_CLOCK_GETTIME
 # define HAVE_DIRECT_IO
 # define O_DIRECT O_DSYNC
 # define HAVE_ERR_INCLUDE
+#endif
+
+#ifdef __MINGW32__ /* Windows */
+# include <io.h>
+# include <stdarg.h>
+# include <windows.h>
+# define HAVE_DIRECT_IO
+# define HAVE_MKOSTEMP /* not required */
 #endif
 
 #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
@@ -136,10 +166,54 @@ void warnx(const char* fmt, ...)
 
 #endif /* HAVE_ERR_INCLUDE */
 
+#define NSEC_PER_SEC  1000000000ll
+
+#ifdef HAVE_CLOCK_GETTIME
+
+static inline long long now(void)
+{
+  struct timespec ts;
+
+  if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
+    err(3, "clock_gettime failed");
+  }
+
+  return ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+}
+
+#else
+
+static inline long long now(void)
+{
+  struct timeval tv;
+
+  if (gettimeofday(&tv, NULL)) {
+    err(3, "gettimeofday failed");
+  }
+
+  return tv.tv_sec * NSEC_PER_SEC + tv.tv_usec * 1000ll;
+}
+
+#endif /* HAVE_CLOCK_GETTIME */
+
+#ifndef HAVE_MKOSTEMP
+int mkostemp(char* template, int flags)
+{
+  int fd;
+  fd = mkstemp(template);
+
+  if (!flags || fd < 0) {
+    return fd;
+  }
+
+  close(fd);
+  return open(template, O_RDWR | flags);
+}
+#endif
+
+int async = 0;
+
 #ifdef __MINGW32__
-#include <io.h>
-#include <stdarg.h>
-#include <windows.h>
 
 ssize_t pread(int fd, void* buf, size_t count, off_t offset)
 {
@@ -151,6 +225,11 @@ ssize_t pread(int fd, void* buf, size_t count, off_t offset)
   o.OffsetHigh = offset >> 32;
 
   if (ReadFile(h, buf, count, &r, &o)) {
+    return r;
+  }
+
+  if (async && GetLastError() == ERROR_IO_PENDING &&
+      GetOverlappedResult(h, &o, &r, TRUE)) {
     return r;
   }
 
@@ -170,6 +249,11 @@ ssize_t pwrite(int fd, void* buf, size_t count, off_t offset)
     return r;
   }
 
+  if (async && GetLastError() == ERROR_IO_PENDING &&
+      GetOverlappedResult(h, &o, &r, TRUE)) {
+    return r;
+  }
+
   return -1;
 }
 
@@ -186,7 +270,7 @@ void srandom(unsigned int seed)
 
 long int random(void)
 {
-  return rand();
+  return rand() * (RAND_MAX + 1) + rand();
 }
 
 int nanosleep(const struct timespec* req, struct timespec* rem)
@@ -203,7 +287,7 @@ int nanosleep(const struct timespec* req, struct timespec* rem)
 int posix_memalign(void** memptr, size_t alignment, size_t size)
 {
   char* ptr;
-  ptr = (char*)malloc(size + alignment);
+  ptr = malloc(size + alignment);
 
   if (!ptr) {
     return -ENOMEM;
@@ -224,26 +308,32 @@ int fdatasync(int fd)
 void usage(void)
 {
   fprintf(stderr,
-          " Usage: ioping [-LABCDWRq] [-c count] [-w deadline] [-pP period] [-i interval]\n"
-          "               [-s size] [-S wsize] [-o offset] directory|file|device\n"
+          " Usage: ioping [-ABCDRLWYykq] [-c count] [-i interval] [-s size] [-S wsize]\n"
+          "               [-o offset] [-w deadline] [-pP period] directory|file|device\n"
           "        ioping -h | -v\n"
           "\n"
           "      -c <count>      stop after <count> requests\n"
-          "      -w <deadline>   stop after <deadline>\n"
-          "      -p <period>     print raw statistics for every <period> requests\n"
-          "      -P <period>     print raw statistics for every <period> in time\n"
           "      -i <interval>   interval between requests (1s)\n"
+          "      -l <speed>      speed limit in bytes per second\n"
+          "      -t <time>       minimal valid request time (0us)\n"
+          "      -T <time>       maximum valid request time\n"
           "      -s <size>       request size (4k)\n"
           "      -S <wsize>      working set size (1m)\n"
           "      -o <offset>     working set offset (0)\n"
-          "      -k              keep and reuse temporary working file\n"
-          "      -L              use sequential operations (includes -s 256k)\n"
+          "      -w <deadline>   stop after <deadline> time passed\n"
+          "      -p <period>     print raw statistics for every <period> requests\n"
+          "      -P <period>     print raw statistics for every <period> in time\n"
           "      -A              use asynchronous I/O\n"
-          "      -C              use cached I/O\n"
-          "      -D              use direct I/O\n"
-          "      -W              use write I/O *DANGEROUS*\n"
-          "      -R              seek rate test (same as -q -i 0 -w 3 -S 64m)\n"
+          "      -C              use cached I/O (no cache flush/drop)\n"
           "      -B              print final statistics in raw format\n"
+          "      -D              use direct I/O (O_DIRECT)\n"
+          "      -R              seek rate test\n"
+          "      -L              use sequential operations\n"
+          "      -W              use write I/O (please read manpage)\n"
+          "      -G              read-write ping-pong mode\n"
+          "      -Y              use sync I/O (O_SYNC)\n"
+          "      -y              use data sync I/O (O_DSYNC)\n"
+          "      -k              keep and reuse temporary file (ioping.tmp)\n"
           "      -q              suppress human-readable output\n"
           "      -h              display this message and exit\n"
           "      -v              display version and exit\n"
@@ -251,14 +341,9 @@ void usage(void)
          );
 }
 
-#ifndef VERSION
-# warning ioping version undefined
-# define VERSION ""
-#endif
-
 void version(void)
 {
-  fprintf(stderr, "ioping %s\n", VERSION);
+  fprintf(stderr, "ioping %s\n", VERSION EXTRA_VERSION);
 }
 
 struct suffix {
@@ -304,58 +389,82 @@ static struct suffix size_suffix[] = {
 };
 
 static struct suffix time_suffix[] = {
-  { "day",  1000000ll * 60 * 60 * 24 },
-  { "hour", 1000000ll * 60 * 60 },
-  { "min",  1000000ll * 60 },
-  { "s",    1000000ll },
-  { "ms",   1000ll },
-  { "us",   1ll },
-  { "usec", 1ll },
-  { "msec", 1000ll },
-  { "",   1000000ll },
-  { "sec",  1000000ll },
-  { "m",    1000000ll * 60 },
-  { "h",    1000000ll * 60 * 60 },
-  { "week", 1000000ll * 60 * 60 * 24 * 7 },
-  { "month",  1000000ll * 60 * 60 * 24 * 7 * 30 },
-  { "year", 1000000ll * 60 * 60 * 24 * 7 * 365 },
-  { "century",  1000000ll * 60 * 60 * 24 * 7 * 365 * 100 },
-  { "millenium",  1000000ll * 60 * 60 * 24 * 7 * 365 * 1000 },
+  { "hour", NSEC_PER_SEC * 60 * 60 },
+  { "min",  NSEC_PER_SEC * 60 },
+  { "s",    NSEC_PER_SEC },
+  { "ms",   1000000ll },
+  { "us",   1000ll },
+  { "ns",   1ll },
+  { "nsec", 1ll },
+  { "usec", 1000ll },
+  { "msec", 1000000ll },
+  { "",   NSEC_PER_SEC },
+  { "sec",  NSEC_PER_SEC },
+  { "m",    NSEC_PER_SEC * 60 },
+  { "h",    NSEC_PER_SEC * 60 * 60 },
   { NULL,   0ll },
 };
 
-long long parse_suffix(const char* str, struct suffix* sfx)
+long long parse_suffix(const char* str, struct suffix* sfx,
+                       long long min, long long max)
 {
   char* end;
-  double val;
+  double val, den;
   val = strtod(str, &end);
 
-  for (; sfx->txt ; sfx++) {
-    if (!strcasecmp(end, sfx->txt)) {
-      return val * sfx->mul;
+  if (*end == '/') {
+    if (end == str) {
+      val = 1;
     }
+
+    den = strtod(end + 1, &end);
+
+    if (!den) {
+      errx(1, "division by zero in parsing argument: %s", str);
+    }
+
+    val /= den;
+  }
+
+  for (; sfx->txt ; sfx++) {
+    if (strcasecmp(end, sfx->txt)) {
+      continue;
+    }
+
+    val *= sfx->mul;
+
+    if (val < min || val > max) {
+      errx(1, "integer overflow at parsing argument: %s", str);
+    }
+
+    return val;
   }
 
   errx(1, "invalid suffix: \"%s\"", end);
   return 0;
 }
 
-long long parse_int(const char* str)
+int parse_int(const char* str)
 {
-  return parse_suffix(str, int_suffix);
+  return parse_suffix(str, int_suffix, 0, INT_MAX);
 }
 
-long long parse_size(const char* str)
+ssize_t parse_size(const char* str)
 {
-  return parse_suffix(str, size_suffix);
+  return parse_suffix(str, size_suffix, 0, LONG_MAX);
+}
+
+off_t parse_offset(const char* str)
+{
+  return parse_suffix(str, size_suffix, 0, LLONG_MAX);
 }
 
 long long parse_time(const char* str)
 {
-  return parse_suffix(str, time_suffix);
+  return parse_suffix(str, time_suffix, 0, LLONG_MAX);
 }
 
-void print_suffix(int64_t val, struct suffix* sfx)
+void print_suffix(long long val, struct suffix* sfx)
 {
   int precision;
 
@@ -393,20 +502,9 @@ void print_time(long long val)
   print_suffix(val, time_suffix);
 }
 
-long long now(void)
-{
-  struct timeval tv;
-
-  if (gettimeofday(&tv, NULL)) {
-    err(3, "gettimeofday failed");
-  }
-
-  return tv.tv_sec * 1000000ll + tv.tv_usec;
-}
-
 char* path = NULL;
-char* fstype = 0;
-char* device = 0;
+char* fstype = "";
+char* device = "";
 off_t device_size = 0;
 
 int fd;
@@ -415,21 +513,27 @@ void* buf;
 int quiet = 0;
 int batch_mode = 0;
 int direct = 0;
-int async = 0;
 int cached = 0;
+int syncio = 0;
+int data_syncio = 0;
 int randomize = 1;
 int write_test = 0;
+int write_read_test = 0;
 
-ssize_t (*make_request)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
-
-int period_request = 0;
+long long period_request = 0;
 long long period_time = 0;
 
-long long interval = 1000000;
+int custom_interval, custom_deadline;
+long long interval = NSEC_PER_SEC;
 struct timespec interval_ts;
 long long deadline = 0;
+long long speed_limit = 0;
 
-ssize_t size = 1 << 12;
+long long min_valid_time = 0;
+long long max_valid_time = LLONG_MAX;
+
+ssize_t default_size = 1 << 12;
+ssize_t size = 0;
 off_t wsize = 0;
 off_t temp_wsize = 1 << 20;
 
@@ -438,8 +542,7 @@ int keep_file = 0;
 off_t offset = 0;
 off_t woffset = 0;
 
-int request;
-int count = 0;
+long long stop_at_request = 0;
 
 int exiting = 0;
 
@@ -452,7 +555,8 @@ void parse_options(int argc, char** argv)
     exit(1);
   }
 
-  while ((opt = getopt(argc, argv, "hvkALRDCWBqi:w:s:S:c:o:p:P:")) != -1) {
+  while ((opt = getopt(argc, argv,
+                       "hvkALRDCWGYBqyi:t:T:w:s:S:c:o:p:P:l:")) != -1) {
     switch (opt) {
     case 'h':
       usage();
@@ -464,12 +568,22 @@ void parse_options(int argc, char** argv)
 
     case 'L':
       randomize = 0;
-      size = 1 << 18;
+      default_size = 1 << 18;
+      break;
+
+    case 'l':
+      speed_limit = parse_size(optarg);
       break;
 
     case 'R':
-      interval = 0;
-      deadline = 3000000;
+      if (!custom_interval) {
+        interval = 0;
+      }
+
+      if (!custom_deadline) {
+        deadline = 3 * NSEC_PER_SEC;
+      }
+
       temp_wsize = 1 << 26;
       quiet = 1;
       break;
@@ -490,12 +604,35 @@ void parse_options(int argc, char** argv)
       write_test++;
       break;
 
+    case 'G':
+      write_test++;
+      write_read_test = 1;
+      break;
+
+    case 'Y':
+      syncio = 1;
+      break;
+
+    case 'y':
+      data_syncio = 1;
+      break;
+
     case 'i':
       interval = parse_time(optarg);
+      custom_interval = 1;
+      break;
+
+    case 't':
+      min_valid_time = parse_time(optarg);
+      break;
+
+    case 'T':
+      max_valid_time = parse_time(optarg);
       break;
 
     case 'w':
       deadline = parse_time(optarg);
+      custom_deadline = 1;
       break;
 
     case 's':
@@ -503,11 +640,11 @@ void parse_options(int argc, char** argv)
       break;
 
     case 'S':
-      wsize = parse_size(optarg);
+      wsize = parse_offset(optarg);
       break;
 
     case 'o':
-      offset = parse_size(optarg);
+      offset = parse_offset(optarg);
       break;
 
     case 'p':
@@ -528,7 +665,7 @@ void parse_options(int argc, char** argv)
       break;
 
     case 'c':
-      count = parse_int(optarg);
+      stop_at_request = parse_int(optarg);
       break;
 
     case 'k':
@@ -561,6 +698,7 @@ void parse_device(dev_t dev)
   struct stat st;
   size_t len;
   FILE* file;
+  char* real;
   /* since v2.6.26 */
   file = fopen("/proc/self/mountinfo", "r");
 
@@ -569,7 +707,7 @@ void parse_device(dev_t dev)
   }
 
   while (getline(&buf, &len, file) > 0) {
-    (void)sscanf(buf, "%*d %*d %u:%u", &major, &minor);
+    sscanf(buf, "%*d %*d %u:%u", &major, &minor);
 
     if (makedev(major, minor) != dev) {
       continue;
@@ -606,6 +744,12 @@ old:
 out:
   free(buf);
   fclose(file);
+  real = realpath(device, NULL);
+
+  if (real) {
+    free(device);
+    device = real;
+  }
 }
 
 #elif defined(__APPLE__) || defined(__OpenBSD__) \
@@ -633,7 +777,7 @@ void parse_device(dev_t dev)
 
 #endif
 
-off_t get_device_size(int fd, struct stat* st)
+int get_device_size(int fd, struct stat* st)
 {
   unsigned long long blksize = 0;
   int ret = 0;
@@ -662,7 +806,7 @@ off_t get_device_size(int fd, struct stat* st)
   ret = ioctl(fd, DIOCGDINFO, &label);
   part = label.d_partitions[DISKPART(st->st_rdev)];
   blksize = DL_GETPSIZE(&part) * label.d_secsize;
-#elif defined(__sun__)
+#elif defined(__sun)
   struct dk_minfo dkmp;
   ret = ioctl(fd, DKIOCGMEDIAINFO, &dkmp);
   blksize =  dkmp.dki_capacity * dkmp.dki_lbsize;
@@ -673,13 +817,8 @@ off_t get_device_size(int fd, struct stat* st)
   blksize = 0;
 #endif
   (void)fd;
-  (void)st;
-
-  if (ret) {
-    err(2, "block get size ioctl failed");
-  }
-
-  return blksize;
+  st->st_size = blksize;
+  return ret;
 }
 
 ssize_t do_pwrite(int fd, void* buf, size_t nbytes, off_t offset)
@@ -692,11 +831,16 @@ ssize_t do_pwrite(int fd, void* buf, size_t nbytes, off_t offset)
   }
 
   if (!cached && fdatasync(fd) < 0) {
-    return -1;
+    err(3, "fdatasync failed, please retry with option -C");
   }
 
   return ret;
 }
+
+ssize_t (*make_pread)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
+ssize_t (*make_pwrite)(int fd, void* buf, size_t nbytes,
+                       off_t offset) = do_pwrite;
+ssize_t (*make_request)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
 
 #ifdef HAVE_LINUX_ASYNC_IO
 
@@ -783,7 +927,7 @@ static ssize_t aio_pwrite(int fd, void* buf, size_t nbytes, off_t offset)
   }
 
   if (!cached && fdatasync(fd) < 0) {
-    return -1;
+    err(3, "fdatasync failed, please retry with option -C");
   }
 
   return aio_ev.res;
@@ -814,40 +958,49 @@ static void aio_setup(void)
     err(2, "aio setup failed");
   }
 
-  make_request = write_test ? aio_pwrite : aio_pread;
+  make_pread = aio_pread;
+  make_pwrite = aio_pwrite;
 }
 
 #else
 
 static void aio_setup(void)
 {
+#ifndef __MINGW32__
   errx(1, "asynchronous I/O not supported by this platform");
+#endif
 }
 
 #endif
 
 #ifdef __MINGW32__
 
-int create_temp(char* path, char* name)
+int open_file(const char* path, const char* temp)
 {
-  int length = strlen(path) + strlen(name) + 9;
-  char* temp = malloc(length);
+  char* file_path = (char*)path;
+  DWORD action = OPEN_ALWAYS;
   DWORD attr = 0;
   HANDLE h;
 
-  if (!temp) {
-    err(2, NULL);
+  if (temp) {
+    int length = strlen(path) + strlen(temp) + 9;
+    file_path = malloc(length);
+
+    if (!file_path) {
+      err(2, NULL);
+    }
+
+    snprintf(file_path, length, "%s\\%s", path, temp);
+
+    if (!keep_file) {
+      strcat(file_path, ".XXXXXX");
+      mktemp(file_path);
+      action = CREATE_NEW;
+      attr |= FILE_ATTRIBUTE_HIDDEN | FILE_FLAG_DELETE_ON_CLOSE;
+    }
   }
 
-  snprintf(temp, length, "%s\\%s", path, name);
-
-  if (!keep_file) {
-    strcat(tmp, ".XXXXXX");
-    mktemp(temp);
-    attr |= FILE_ATTRIBUTE_HIDDEN | FILE_FLAG_DELETE_ON_CLOSE;
-  }
-
-  if (!cached) {
+  if (direct) {
     attr |= FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH;
   }
 
@@ -857,10 +1010,17 @@ int create_temp(char* path, char* name)
     attr |= FILE_FLAG_SEQUENTIAL_SCAN;
   }
 
-  h = CreateFile(temp, GENERIC_READ | GENERIC_WRITE,
+  if (async) {
+    attr |= FILE_FLAG_OVERLAPPED;
+  }
+
+  h = CreateFile(file_path, GENERIC_READ | GENERIC_WRITE,
                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                 NULL, CREATE_ALWAYS, attr, NULL);
-  free(temp);
+                 NULL, action, attr, NULL);
+
+  if (file_path != path) {
+    free(file_path);
+  }
 
   if (h == INVALID_HANDLE_VALUE) {
     return -1;
@@ -892,20 +1052,47 @@ void set_signal(void)
 
 #else /* __MINGW32__ */
 
-int create_temp(char* path, char* name)
+int open_file(const char* path, const char* temp)
 {
-  int length = strlen(path) + strlen(name) + 9;
-  char* temp = (char*) malloc(length);
-  int fd;
+  char* file_path = NULL;
+  int length, fd;
+  int flags = 0;
+#ifdef O_SYNC
+
+  if (syncio) {
+    flags |= O_SYNC;
+  }
+
+#endif
+#ifdef O_DSYNC
+
+  if (data_syncio) {
+    flags |= O_DSYNC;
+  }
+
+#endif
 
   if (!temp) {
+    fd = open(path, (write_test ? O_RDWR : O_RDONLY) | flags);
+
+    if (fd < 0) {
+      goto out;
+    }
+
+    goto done;
+  }
+
+  length = strlen(path) + strlen(temp) + 9;
+  file_path = malloc(length);
+
+  if (!file_path) {
     err(2, NULL);
   }
 
-  snprintf(temp, length, "%s/%s", path, name);
+  snprintf(file_path, length, "%s/%s", path, temp);
 
   if (keep_file) {
-    fd = open(temp, O_RDWR | O_CREAT, 0600);
+    fd = open(file_path, O_RDWR | O_CREAT | flags, 0600);
 
     if (fd < 0) {
       goto out;
@@ -915,34 +1102,38 @@ int create_temp(char* path, char* name)
   }
 
 #ifdef O_TMPFILE
-  fd = open(temp, O_RDWR | O_TMPFILE, 0600);
+  fd = open(path, O_RDWR | O_TMPFILE | flags, 0600);
 
   if (fd >= 0) {
     goto done;
   }
 
 #endif
-  strcat(temp, ".XXXXXX");
-  fd = mkstemp(temp);
+  strcat(file_path, ".XXXXXX");
+  fd = mkostemp(file_path, flags);
 
   if (fd < 0) {
     goto out;
   }
 
-  if (unlink(temp)) {
-    err(2, "unlink \"%s\" failed", temp);
+  if (unlink(file_path)) {
+    err(2, "unlink \"%s\" failed", file_path);
   }
 
 done:
 #ifdef HAVE_DIRECT_IO
 
-  if (direct && fcntl(fd, F_SETFL, O_DIRECT)) {
-    errx(2, "fcntl failed, please retry without -D");
-  }
+  if (direct && fcntl(fd, F_SETFL, O_DIRECT))
+    err(2, "fcntl(O_DIRECT) failed, "
+        "please retry without option -D");
 
 #endif
 out:
-  free(temp);
+
+  if (file_path != path) {
+    free(file_path);
+  }
+
   return fd;
 }
 
@@ -967,21 +1158,176 @@ void set_signal(void)
 
 #endif /* __MINGW32__ */
 
+static unsigned long long random_state[2];
+
+/* xorshift128+ */
+static inline unsigned long long random64(void)
+{
+  unsigned long long s1 = random_state[0];
+  const unsigned long long s0 = random_state[1];
+  random_state[0] = s0;
+  s1 ^= s1 << 23; // a
+  random_state[1] = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26); // b, c
+  return random_state[1] + s0;
+}
+
+static void random_init(void)
+{
+  srandom(now());
+  random_state[0] = random();
+  random_state[1] = random();
+  (void)random64();
+  (void)random64();
+}
+
+static void random_memory(void* buf, size_t len)
+{
+  unsigned long long* ptr = buf;
+  size_t words = len >> 3;
+
+  while (words--) {
+    *ptr++ = random64();
+  }
+
+  if (len & 7) {
+    unsigned long long last = random64();
+    memcpy(ptr, &last, len & 7);
+  }
+}
+
+struct statistics {
+  long long start, finish, load_time;
+  long long count, valid, too_slow, too_fast;
+  long long min, max;
+  double sum, sum2, avg, mdev;
+  double speed, iops, load_speed, load_iops;
+  long long size, load_size;
+};
+
+static void start_statistics(struct statistics* s, unsigned long long start)
+{
+  memset(s, 0, sizeof(*s));
+  s->min = LLONG_MAX;
+  s->max = LLONG_MIN;
+  s->start = start;
+}
+
+static void add_statistics(struct statistics* s, long long val)
+{
+  s->count++;
+
+  if (val < min_valid_time) {
+    s->too_fast++;
+  } else if (val > max_valid_time) {
+    s->too_slow++;
+  } else {
+    s->valid++;
+    s->sum += val;
+    s->sum2 += (double)val * val;
+
+    if (val < s->min) {
+      s->min = val;
+    }
+
+    if (val > s->max) {
+      s->max = val;
+    }
+  }
+}
+
+static void merge_statistics(struct statistics* s, struct statistics* o)
+{
+  s->count += o->count;
+  s->too_fast += o->too_fast;
+  s->too_slow += o->too_slow;
+
+  if (o->valid) {
+    s->valid += o->valid;
+    s->sum += o->sum;
+    s->sum2 += o->sum2;
+
+    if (o->min < s->min) {
+      s->min = o->min;
+    }
+
+    if (o->max > s->max) {
+      s->max = o->max;
+    }
+  }
+}
+
+static void finish_statistics(struct statistics* s, unsigned long long finish)
+{
+  s->finish = finish;
+  s->load_time = finish - s->start;
+
+  if (s->valid) {
+    s->avg = s->sum / s->valid;
+    s->mdev = sqrt(s->sum2 / s->valid - s->avg * s->avg);
+  } else {
+    s->min = 0;
+    s->max = 0;
+  }
+
+  if (s->sum) {
+    s->iops = (double)NSEC_PER_SEC * s->valid / s->sum;
+  }
+
+  if (s->load_time) {
+    s->load_iops = (double)NSEC_PER_SEC * s->count / s->load_time;
+  }
+
+  s->speed = s->iops * size;
+  s->load_speed = s->load_iops * size;
+  s->size = s->valid * size;
+  s->load_size = s->count * size;
+}
+
+static void dump_statistics(struct statistics* s)
+{
+  printf("%lu %.0f %.0f %.0f %lu %.0f %lu %.0f %lu %lu\n",
+         (unsigned long)s->valid, s->sum,
+         s->iops, s->speed,
+         (unsigned long)s->min, s->avg,
+         (unsigned long)s->max, s->mdev,
+         (unsigned long)s->count,
+         (unsigned long)s->load_time);
+}
+
 int main(int argc, char** argv)
 {
-  long ret_size;
+  ssize_t ret_size;
   struct stat st;
-  int ret, flags;
-  int part_request;
-  long long this_time, time_total;
-  double part_min, part_max, time_min, time_max;
-  double time_sum, time_sum2, time_mdev, time_avg;
-  double part_sum, part_sum2, part_mdev, part_avg;
+  int ret;
+  struct statistics part, total;
+  long long request, this_time;
   long long time_now, time_next, period_deadline;
   setvbuf(stdout, NULL, _IOLBF, 0);
   parse_options(argc, argv);
-  interval_ts.tv_sec = interval / 1000000;
-  interval_ts.tv_nsec = (interval % 1000000) * 1000;
+
+  if (!size) {
+    size = default_size;
+  }
+
+  if (size <= 0) {
+    errx(1, "request size must be greater than zero");
+  }
+
+  if (custom_interval && speed_limit) {
+    errx(1, "speed limit and interval cannot be set simultaneously");
+  }
+
+  if (speed_limit) {
+    interval = size * NSEC_PER_SEC / speed_limit;
+  }
+
+#ifdef MAX_RW_COUNT
+
+  if (size > MAX_RW_COUNT)
+    warnx("this platform supports requests %u bytes at most",
+          MAX_RW_COUNT);
+
+#endif
 
   if (wsize) {
     temp_wsize = wsize;
@@ -989,18 +1335,18 @@ int main(int argc, char** argv)
     temp_wsize = size;
   }
 
-  if (size <= 0) {
-    errx(1, "request size must be greather than zero");
-  }
-
-  flags = O_RDONLY;
 #if !defined(HAVE_POSIX_FADVICE) && !defined(HAVE_NOCACHE_IO)
 # if defined(HAVE_DIRECT_IO)
-  direct |= !cached;
+
+  if (!direct && !cached) {
+    warnx("non-cached I/O not supported, will use direct I/O");
+    direct = cached = 1;
+  }
+
 # else
 
   if (!cached && !write_test) {
-    warnx("non-cached read I/O not supported by this platform");
+    warnx("non-cached I/O not supported by this platform");
     warnx("you can use write I/O to get reliable results");
     cached = 1;
   }
@@ -1008,24 +1354,31 @@ int main(int argc, char** argv)
 # endif
 #endif
 
-  if (write_test) {
-    flags = O_RDWR;
-    make_request = do_pwrite;
-  }
-
   if (async) {
     aio_setup();
   }
 
-  if (direct)
-#ifdef HAVE_DIRECT_IO
-    flags |= O_DIRECT;
+  make_request = write_test ? make_pwrite : make_pread;
+#ifndef HAVE_DIRECT_IO
 
-#else
+  if (direct) {
     errx(1, "direct I/O not supported by this platform");
+  }
+
 #endif
-#ifdef __MINGW32__
-  flags |= O_BINARY;
+#ifndef O_SYNC
+
+  if (syncio) {
+    errx(1, "sync I/O not supported by this platform");
+  }
+
+#endif
+#ifndef O_DSYNC
+
+  if (data_syncio) {
+    errx(1, "data sync I/O not supported by this platform");
+  }
+
 #endif
 
   if (stat(path, &st)) {
@@ -1043,20 +1396,30 @@ int main(int argc, char** argv)
 
     parse_device(st.st_dev);
   } else if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode)) {
-    fd = open(path, flags);
+    fd = open_file(path, NULL);
 
     if (fd < 0) {
       err(2, "failed to open \"%s\"", path);
     }
 
-    device_size = get_device_size(fd, &st);
-    st.st_size = device_size;
-    fstype = (char*)"device";
+    if (get_device_size(fd, &st)) {
+      if (!S_ISCHR(st.st_mode)) {
+        err(2, "block get size ioctl failed");
+      }
+
+      st.st_size = offset + temp_wsize;
+      fstype = "character";
+      device = "device";
+    } else {
+      device_size = st.st_size;
+      fstype = "block";
+      device = "device ";
+    }
   } else {
     errx(2, "unsupported destination: \"%s\"", path);
   }
 
-  if (offset + wsize > st.st_size) {
+  if (wsize > st.st_size || offset > st.st_size - wsize) {
     errx(2, "target is too small for this");
   }
 
@@ -1074,10 +1437,11 @@ int main(int argc, char** argv)
     errx(2, "buffer allocation failed");
   }
 
-  memset(buf, '*', size);
+  random_init();
+  random_memory(buf, size);
 
   if (S_ISDIR(st.st_mode)) {
-    fd = create_temp(path, (char*)"ioping.tmp");
+    fd = open_file(path, "ioping.tmp");
 
     if (fd < 0) {
       err(2, "failed to create temporary file at \"%s\"", path);
@@ -1088,15 +1452,28 @@ int main(int argc, char** argv)
         err(2, "fstat at \"%s\" failed", path);
       }
 
-      if (st.st_size >= offset + wsize &&
-          st.st_blocks >= (st.st_size + 511) / 512) {
-        goto skip_preparation;
-      }
+      if (st.st_size >= offset + wsize)
+#ifndef __MINGW32__
+        if (st.st_blocks >= (st.st_size + 511) / 512)
+#endif
+          goto skip_preparation;
     }
 
-    for (woffset = 0 ; woffset + size <= wsize ; woffset += size) {
-      if (pwrite(fd, buf, size, offset + woffset) != size) {
-        err(2, "write failed");
+    for (woffset = 0 ; woffset < wsize ; woffset += ret_size) {
+      ret_size = size;
+
+      if (woffset + ret_size > wsize) {
+        ret_size = wsize - woffset;
+      }
+
+      if (woffset) {
+        random_memory(buf, ret_size);
+      }
+
+      ret_size = pwrite(fd, buf, ret_size, offset + woffset);
+
+      if (ret_size <= 0) {
+        err(2, "preparation write failed");
       }
     }
 
@@ -1106,56 +1483,55 @@ skip_preparation:
       err(2, "fsync failed");
     }
   } else if (S_ISREG(st.st_mode)) {
-    fd = open(path, flags);
+    fd = open_file(path, NULL);
 
     if (fd < 0) {
       err(2, "failed to open \"%s\"", path);
     }
   }
 
-  if (!cached) {
+  /* No readahead for non-cached I/O, we'll invalidate it anyway */
+  if (randomize || !cached) {
 #ifdef HAVE_POSIX_FADVICE
     ret = posix_fadvise(fd, offset, wsize, POSIX_FADV_RANDOM);
 
-    if (ret) {
-      err(2, "fadvise failed");
-    }
-
-#endif
-#ifdef HAVE_NOCACHE_IO
-    ret = fcntl(fd, F_NOCACHE, 1);
-
-    if (ret) {
-      err(2, "fcntl nocache failed");
-    }
+    if (ret)
+      warn("fadvise(RANDOM) failed, "
+           "operations might perform unneeded readahead");
 
 #endif
   }
 
-  srandom(now());
+  if (!cached) {
+#ifdef HAVE_NOCACHE_IO
+    ret = fcntl(fd, F_NOCACHE, 1);
 
-  if (deadline) {
-    deadline += now();
+    if (ret)
+      err(2, "fcntl(F_NOCACHE) failed, "
+          "please retry with option -C");
+
+#endif
   }
 
   set_signal();
   request = 0;
   woffset = 0;
-  part_request = 0;
-  part_min = time_min = LLONG_MAX;
-  part_max = time_max = LLONG_MIN;
-  part_sum = time_sum = 0;
-  part_sum2 = time_sum2 = 0;
   time_now = now();
-  time_total = time_now;
+  start_statistics(&part, time_now);
+  start_statistics(&total, time_now);
+
+  if (deadline) {
+    deadline += time_now;
+  }
+
   period_deadline = time_now + period_time;
+  time_next = time_now;
 
   while (!exiting) {
     request++;
-    part_request++;
 
     if (randomize) {
-      woffset = random() % (wsize / size) * size;
+      woffset = random64() % (wsize / size) * size;
     }
 
 #ifdef HAVE_POSIX_FADVICE
@@ -1164,71 +1540,89 @@ skip_preparation:
       ret = posix_fadvise(fd, offset + woffset, size,
                           POSIX_FADV_DONTNEED);
 
-      if (ret) {
-        err(3, "fadvise failed");
-      }
+      if (ret)
+        err(3, "fadvise(DONTNEED) failed, "
+            "please retry with option -C");
     }
 
 #endif
+
+    if (write_read_test) {
+      write_test = request & 1;
+      make_request = write_test ? make_pwrite : make_pread;
+    }
+
+    if (write_test) {
+      random_memory(buf, size);
+    }
+
     this_time = now();
     ret_size = make_request(fd, buf, size, offset + woffset);
 
-    if (ret_size < 0 && errno != EINTR) {
-      err(3, "request failed");
+    if (ret_size < 0) {
+      if (errno != EINTR) {
+        err(3, "request failed");
+      }
+    } else if (ret_size < size) {
+      warnx("request returned less than expected: %zu", ret_size);
+    } else if (ret_size > size) {
+      errx(3, "request returned more than expected: %zu", ret_size);
     }
 
     time_now = now();
-    this_time = time_now - this_time;
-    time_next = time_now + interval;
-    part_sum += this_time;
-    part_sum2 += this_time * this_time;
+    time_next += interval;
 
-    if (this_time < part_min) {
-      part_min = this_time;
+    if ((time_now - time_next) > 0) {
+      time_next = time_now;
     }
 
-    if (this_time > part_max) {
-      part_max = this_time;
+    this_time = time_now - this_time;
+
+    if (request == 1) {
+      /* warmup */
+      part.count++;
+    } else {
+      add_statistics(&part, this_time);
     }
 
     if (!quiet) {
       print_size(ret_size);
-      printf(" from %s (%s %s", path, fstype, device);
+      printf(" %s %s (%s %s", write_test ? ">>>" : "<<<",
+             path, fstype, device);
 
       if (device_size) {
         print_size(device_size);
       }
 
-      printf("): request=%d time=", request);
+      printf("): request=%lu time=", (long unsigned)request);
       print_time(this_time);
+
+      if (request == 1) {
+        printf(" (warmup)");
+      } else if (this_time < min_valid_time) {
+        printf(" (too fast)");
+      } else if (this_time > max_valid_time) {
+        printf(" (too slow)");
+      } else if (part.valid > 5 && part.min < part.max) {
+        int percent = (this_time - part.min) * 100 /
+                      (part.max - part.min);
+
+        if (percent < 5) {
+          printf(" (fast)");
+        } else if (percent > 95) {
+          printf(" (slow)");
+        }
+      }
+
       printf("\n");
     }
 
-    if ((period_request && (part_request >= period_request)) ||
+    if ((period_request && (part.count >= period_request)) ||
         (period_time && (time_next >= period_deadline))) {
-      part_avg = part_sum / part_request;
-      part_mdev = sqrt(part_sum2 / part_request - part_avg * part_avg);
-      printf("%d %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n",
-             part_request, part_sum,
-             1000000. * part_request / part_sum,
-             1000000. * part_request * size / part_sum,
-             part_min, part_avg,
-             part_max, part_mdev);
-      time_sum += part_sum;
-      time_sum2 += part_sum2;
-
-      if (part_min < time_min) {
-        time_min = part_min;
-      }
-
-      if (part_max > time_max) {
-        time_max = part_max;
-      }
-
-      part_min = LLONG_MAX;
-      part_max = LLONG_MIN;
-      part_sum = part_sum2 = 0;
-      part_request = 0;
+      finish_statistics(&part, time_now);
+      dump_statistics(&part);
+      merge_statistics(&total, &part);
+      start_statistics(&part, time_now);
       period_deadline = time_now + period_time;
     }
 
@@ -1244,7 +1638,7 @@ skip_preparation:
       break;
     }
 
-    if (count && request >= count) {
+    if (stop_at_request && request >= stop_at_request) {
       break;
     }
 
@@ -1252,64 +1646,76 @@ skip_preparation:
       break;
     }
 
-    if (interval) {
+    if ((time_next - time_now) > 0) {
+      long long delta = time_next - time_now;
+      interval_ts.tv_sec = delta / NSEC_PER_SEC;
+      interval_ts.tv_nsec = delta % NSEC_PER_SEC;
       nanosleep(&interval_ts, NULL);
     }
   }
 
-  time_total = now() - time_total;
-  time_sum += part_sum;
-  time_sum2 += part_sum2;
-
-  if (part_min < time_min) {
-    time_min = part_min;
-  }
-
-  if (part_max > time_max) {
-    time_max = part_max;
-  }
-
-  // To avoid division by 0 afterwards
-  if (!request) {
-    request = 1;
-  }
-
-  time_avg = time_sum / request;
-  time_mdev = sqrt(time_sum2 / request - time_avg * time_avg);
+  time_now = now();
+  finish_statistics(&part, time_now);
+  merge_statistics(&total, &part);
+  finish_statistics(&total, time_now);
 
   if (batch_mode) {
-    printf("%d %.0f %.0f %.0f %.0f %.0f %.0f %.0f\n",
-           request, time_sum,
-           1000000. * request / time_sum,
-           1000000. * request * size / time_sum,
-           time_min, time_avg,
-           time_max, time_mdev);
-  } else if (!quiet || (!period_time && !period_request)) {
-    printf("\n--- %s (%s %s", path, fstype, device);
-
-    if (device_size) {
-      print_size(device_size);
-    }
-
-    printf(") ioping statistics ---\n");
-    print_int(request);
-    printf(" requests completed in ");
-    print_time(time_total);
-    printf(", ");
-    print_int(request * 1000000. / time_sum);
-    printf(" iops, ");
-    print_size(request * size * 1000000. / time_sum);
-    printf("/s\n");
-    printf("min/avg/max/mdev = ");
-    print_time(time_min);
-    printf(" / ");
-    print_time(time_avg);
-    printf(" / ");
-    print_time(time_max);
-    printf(" / ");
-    print_time(time_mdev);
-    printf("\n");
+    dump_statistics(&total);
+    return 0;
   }
 
+  if (quiet && (period_time || period_request)) {
+    return 0;
+  }
+
+  printf("\n--- %s (%s %s", path, fstype, device);
+
+  if (device_size) {
+    print_size(device_size);
+  }
+
+  printf(") ioping statistics ---\n");
+  print_int(total.valid);
+  printf(" requests completed in ");
+  print_time(total.sum);
+  printf(", ");
+  print_size(total.size);
+  printf("%s, ", write_read_test ? "" :
+         write_test ? " written" : " read");
+  print_int(total.iops);
+  printf(" iops, ");
+  print_size(total.speed);
+  printf("/s\n");
+
+  if (total.too_fast) {
+    print_int(total.too_fast);
+    printf(" too fast, ");
+  }
+
+  if (total.too_slow) {
+    print_int(total.too_slow);
+    printf(" too slow, ");
+  }
+
+  printf("generated ");
+  print_int(total.count);
+  printf(" requests in ");
+  print_time(total.load_time);
+  printf(", ");
+  print_size(total.load_size);
+  printf(", ");
+  print_int(total.load_iops);
+  printf(" iops, ");
+  print_size(total.load_speed);
+  printf("/s\n");
+  printf("min/avg/max/mdev = ");
+  print_time(total.min);
+  printf(" / ");
+  print_time(total.avg);
+  printf(" / ");
+  print_time(total.max);
+  printf(" / ");
+  print_time(total.mdev);
+  printf("\n");
   return 0;
 }
