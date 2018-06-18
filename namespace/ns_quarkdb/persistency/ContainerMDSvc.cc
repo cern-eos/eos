@@ -74,12 +74,12 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(contactDetails.members);
+    pQcl = BackendClient::getInstance(contactDetails);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
     mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
   }
 
   if (config.find(constants::sMaxNumCacheDirs) != config.end()) {

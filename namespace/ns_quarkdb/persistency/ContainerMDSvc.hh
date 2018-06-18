@@ -21,8 +21,8 @@
 //! @brief Container metadata service based on QuarkDB
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_CONTAINER_MD_SVC_HH__
-#define __EOS_NS_CONTAINER_MD_SVC_HH__
+#ifndef EOS_NS_CONTAINER_MD_SVC_HH
+#define EOS_NS_CONTAINER_MD_SVC_HH
 
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"

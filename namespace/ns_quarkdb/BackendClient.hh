@@ -35,6 +35,7 @@
 EOSNSNAMESPACE_BEGIN
 
 class MetadataFlusherFactory;
+class QdbContactDetails;
 
 //------------------------------------------------------------------------------
 //! Singleton client class used throughout the namespace implementation
@@ -65,7 +66,7 @@ public:
   //!
   //! @return qclient object
   //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const qclient::Members& qdb_members,
+  static qclient::QClient* getInstance(const QdbContactDetails &contactDetails,
                                        const std::string &tag = "default");
 
   //----------------------------------------------------------------------------

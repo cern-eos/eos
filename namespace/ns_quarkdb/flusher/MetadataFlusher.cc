@@ -25,6 +25,7 @@
 #include <qclient/BackgroundFlusher.hh>
 #include <qclient/RocksDBPersistency.hh>
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "common/Logging.hh"
 #include <iostream>
 #include <chrono>
@@ -39,10 +40,11 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string& path,
-                                 const qclient::Members& qdb_members):
+                                 const QdbContactDetails& contactDetails) :
   id(basename(path.c_str())),
   notifier(*this),
-  backgroundFlusher(qdb_members, qclient::Options(), notifier, new qclient::RocksDBPersistency(path)),
+  backgroundFlusher(contactDetails.members, contactDetails.constructOptions(),
+    notifier, new qclient::RocksDBPersistency(path)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
@@ -188,25 +190,26 @@ void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
 
 MetadataFlusher*
 MetadataFlusherFactory::getInstance(const std::string& id,
-                                    const qclient::Members& members)
+                                    const QdbContactDetails& contactDetails)
 {
   std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
 
-  if (members.empty()) {
-    eos_static_crit("MetadataFlusherFactory::getInstance received empty qclient::Members!");
+  if (contactDetails.empty()) {
+    eos_static_crit("MetadataFlusherFactory::getInstance received empty QdbContactDetails!");
     std::terminate();
   }
 
-  std::tuple<std::string, qclient::Members> key = std::make_tuple(id, members);
+  std::tuple<std::string, qclient::Members> key = std::make_tuple(id,
+    contactDetails.members);
   auto it = instances.find(key);
 
   if (it != instances.end()) {
     return it->second;
   }
 
-  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, members);
+  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, contactDetails);
   eos_static_notice("Created new metadata flusher towards %s",
-                    members.toString().c_str());
+                    contactDetails.members.toString().c_str());
   instances[key] = flusher;
   return flusher;
 }

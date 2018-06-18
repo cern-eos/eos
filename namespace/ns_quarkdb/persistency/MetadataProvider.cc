@@ -39,7 +39,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataProvider::MetadataProvider(const qclient::Members& members,
+MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
                                    IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
   : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7)
 {
@@ -47,7 +47,7 @@ MetadataProvider::MetadataProvider(const qclient::Members& members,
 
   for (size_t i = 0; i < kQClientPoolSize; i++) {
     mQclPool.emplace_back(eos::BackendClient::getInstance
-                          (members, SSTR("md-provider-" << i)));
+                          (contactDetails, SSTR("md-provider-" << i)));
   }
 }
 

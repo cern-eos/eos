@@ -25,7 +25,11 @@
 #ifndef EOS_NS_QDB_CONTACT_DETAILS_HH
 #define EOS_NS_QDB_CONTACT_DETAILS_HH
 
+#include <chrono>
+
 #include <qclient/Members.hh>
+#include <qclient/Options.hh>
+#include <qclient/Handshake.hh>
 #include "namespace/Namespace.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -46,6 +50,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Constructor taking qclient::Members and password
+  //----------------------------------------------------------------------------
+  QdbContactDetails(const qclient::Members& memb, const std::string &pw)
+  {
+    members = memb;
+    password = pw;
+  }
+
+  //----------------------------------------------------------------------------
   //! Check whether object is empty.
   //! It's valid that the password is empty, for now.
   //! TODO(gbitzes): Maybe in the future, disallow contacting unsecured
@@ -54,6 +67,20 @@ public:
   bool empty() const
   {
     return members.empty();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Construct reasonable QClient options, using the password as handshake
+  //! if available.
+  //----------------------------------------------------------------------------
+  qclient::Options constructOptions() const
+  {
+    qclient::Options opts;
+    opts.transparentRedirects = true;
+    opts.retryStrategy = qclient::RetryStrategy::WithTimeout(
+      std::chrono::minutes(2));
+    opts.withHmacHandshake(password);
+    return opts;
   }
 
   qclient::Members members;

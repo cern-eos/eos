@@ -23,6 +23,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -1121,7 +1122,7 @@ main(int argc, char* argv[])
     std::string dir_chlog(argv[2]);
     sBkndHost = argv[3];
     sBkndPort = std::stoull(argv[4]);
-    sQcl = eos::BackendClient::getInstance(qclient::Members(sBkndHost, sBkndPort));
+    sQcl = eos::BackendClient::getInstance(eos::QdbContactDetails(qclient::Members(sBkndHost, sBkndPort), ""));
     // Check file and directory changelog files
     struct stat info = {0};
     std::list<std::string> lst_files {file_chlog, dir_chlog};

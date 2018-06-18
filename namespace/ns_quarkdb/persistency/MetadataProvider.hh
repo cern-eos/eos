@@ -41,6 +41,7 @@ EOSNSNAMESPACE_BEGIN
 
 class IContainerMDSvc;
 class IFileMDSvc;
+class QdbContactDetails;
 
 //------------------------------------------------------------------------------
 //! Class MetadataProvider
@@ -51,7 +52,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataProvider(const qclient::Members& members, IContainerMDSvc* contsvc,
+  MetadataProvider(const QdbContactDetails& contactDetails, IContainerMDSvc* contsvc,
                    IFileMDSvc* filemvc);
 
   //----------------------------------------------------------------------------

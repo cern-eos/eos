@@ -34,12 +34,9 @@
 
 EOSNSTESTING_BEGIN
 
-FlushAllOnConstruction::FlushAllOnConstruction(const qclient::Members &mbr)
-: members(mbr) {
-  qclient::Options opts;
-  opts.transparentRedirects = true;
-  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::seconds(10));
-  qclient::QClient qcl(members, std::move(opts));
+FlushAllOnConstruction::FlushAllOnConstruction(const QdbContactDetails& cd)
+: contactDetails(cd) {
+  qclient::QClient qcl(cd.members, cd.constructOptions());
   qcl.exec("FLUSHALL").get();
   qcl.exec("SET", "QDB-INSTANCE-FOR-EOS-NS-TESTS", "YES");
 }
@@ -57,11 +54,15 @@ NsTestsFixture::NsTestsFixture() {
     {"qdb_flusher_quota", "tests_quota"}
   };
 
-  guard.reset(new eos::ns::testing::FlushAllOnConstruction(qclient::Members::fromString(testconfig["qdb_cluster"])));
+  guard.reset(new eos::ns::testing::FlushAllOnConstruction(getContactDetails()));
 }
 
 NsTestsFixture::~NsTestsFixture() {
   shut_down_everything();
+}
+
+QdbContactDetails NsTestsFixture::getContactDetails() {
+  return QdbContactDetails(getMembers(), testconfig["qdb_password"]);
 }
 
 qclient::Members NsTestsFixture::getMembers() {
@@ -132,14 +133,14 @@ qclient::QClient& NsTestsFixture::qcl() {
 
 eos::MetadataFlusher* NsTestsFixture::mdFlusher() {
   if(!mdFlusherPtr) {
-    mdFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_md"], getMembers());
+    mdFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_md"], getContactDetails());
   }
   return mdFlusherPtr;
 }
 
 eos::MetadataFlusher* NsTestsFixture::quotaFlusher() {
   if(!quotaFlusherPtr) {
-    quotaFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_quota"], getMembers());
+    quotaFlusherPtr = eos::MetadataFlusherFactory::getInstance(testconfig["qdb_flusher_quota"], getContactDetails());
   }
   return quotaFlusherPtr;
 }
@@ -170,12 +171,9 @@ void NsTestsFixture::shut_down_everything() {
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient() {
-  qclient::Options opts;
-  opts.transparentRedirects = true;
-  opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
-
+  QdbContactDetails cd = getContactDetails();
   return std::unique_ptr<qclient::QClient>(
-    new qclient::QClient(getMembers(), std::move(opts))
+    new qclient::QClient(cd.members, cd.constructOptions())
   );
 }
 

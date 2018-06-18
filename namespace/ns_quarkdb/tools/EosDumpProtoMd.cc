@@ -25,6 +25,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "common/StringTokenizer.hh"
 #include <getopt.h>
 
@@ -120,7 +121,7 @@ int main(int argc, char* argv[])
     return usage_help();
   }
 
-  qclient::QClient* qcl = eos::BackendClient::getInstance(qclient::Members(qdb_host, qdb_port));
+  qclient::QClient* qcl = eos::BackendClient::getInstance(eos::QdbContactDetails(qclient::Members(qdb_host, qdb_port), ""));
 
   try {
     PrettyPrint(DumpProto(qcl, id, is_file));

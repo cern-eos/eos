@@ -75,12 +75,12 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(contactDetails.members);
+    pQcl = BackendClient::getInstance(contactDetails);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
-    mMetadataProvider.reset(new MetadataProvider(contactDetails.members, pContSvc, this));
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
+    mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
     static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());
   }

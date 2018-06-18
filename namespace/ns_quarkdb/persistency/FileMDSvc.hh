@@ -21,8 +21,8 @@
 //! @brief File MD service based on quarkdb
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_FILE_MD_SVC_HH__
-#define __EOS_NS_FILE_MD_SVC_HH__
+#ifndef EOS_NS_FILE_MD_SVC_HH
+#define EOS_NS_FILE_MD_SVC_HH
 
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"

@@ -280,8 +280,8 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(contactDetails.members);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
+    pQcl = BackendClient::getInstance(contactDetails);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
   } else {
     if ((pQcl == nullptr) && (pFlusher == nullptr)) {
       eos::MDException e(EINVAL);

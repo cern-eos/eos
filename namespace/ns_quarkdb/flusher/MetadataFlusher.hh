@@ -22,8 +22,8 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-#include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "qclient/BackgroundFlusher.hh"
@@ -34,6 +34,7 @@
 EOSNSNAMESPACE_BEGIN
 
 class MetadataFlusher;
+class QdbContactDetails;
 
 //------------------------------------------------------------------------------
 //! Class to receive notifications from the BackgroundFlusher
@@ -58,7 +59,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataFlusher(const std::string& path, const qclient::Members& qdb_members);
+  MetadataFlusher(const std::string& path,
+    const QdbContactDetails &contactDetails);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -110,7 +112,7 @@ class MetadataFlusherFactory
 {
 public:
   static MetadataFlusher* getInstance(const std::string& id,
-                                      const qclient::Members& members);
+                                      const QdbContactDetails &contactDetails);
   static void setQueuePath(const std::string& newpath);
 private:
   static std::string queuePath;

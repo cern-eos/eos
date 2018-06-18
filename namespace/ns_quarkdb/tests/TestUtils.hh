@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include "Namespace.hh"
 #include "qclient/Members.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <memory>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
@@ -96,16 +97,16 @@ bool verifyContents(Iterator start, Iterator end, std::set<T> contents) {
 }
 
 //------------------------------------------------------------------------------
-//! Class FlushAllOnDestruction
+//! Class FlushAllOnConstruction
 //------------------------------------------------------------------------------
 class FlushAllOnConstruction
 {
 public:
-  FlushAllOnConstruction(const qclient::Members& mbr);
+  FlushAllOnConstruction(const QdbContactDetails& cd);
   ~FlushAllOnConstruction();
 
 private:
-  qclient::Members members;
+  QdbContactDetails contactDetails;
 };
 
 //------------------------------------------------------------------------------
@@ -132,6 +133,9 @@ public:
 
   // explicit transfer of ownership
   std::unique_ptr<qclient::QClient> createQClient();
+
+  // get a contact details object
+  QdbContactDetails getContactDetails();
 
   // Return test cluster members
   qclient::Members getMembers();
