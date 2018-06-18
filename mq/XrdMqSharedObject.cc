@@ -405,7 +405,7 @@ XrdMqSharedHash::CloseTransaction()
     MakeUpdateEnvHeader(txmessage);
     AddTransactionsToEnvString(txmessage, false);
 
-    if (txmessage.length() > (2 * 1000 * 1000)) {
+    if (txmessage.length() > XrdMqClient::XrdMqMaxMessageLen) {
       // Set the message size limit to 2M, if the message is bigger then just
       // send transaction item by item.
       for (auto it = mTransactions.begin(); it != mTransactions.end(); ++it) {
