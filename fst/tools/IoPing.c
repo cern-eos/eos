@@ -846,12 +846,26 @@ ssize_t (*make_request)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
 
 #include <sys/syscall.h>
 #define timespec linux_timespec
-#define timval linux_timeval
+#define timeval linux_timeval
+#define itimerval linux_itimerval
 #define itimerspec linux_itimerspc
+#define timezone linux_timezone_
 #define sigset_t linux_sigset_t
+#define sigaction linux_sigaction
+#define stack_t linux_stack_t
+#define sigaval_t linux_sigval_t
+#define siginfo_t linux_siginfo_t
+#define sigevent_t linux_sigevent_t
 #include <linux/aio_abi.h>
+#undef sigevent_t
+#undef siginfo_t
+#undef sigval_t
+#undef stack_t
+#undef sigaction
 #undef sigset_t
+#undef timezone
 #undef itimerspec
+#undef itimerval
 #undef timeval
 #undef timespec
 
