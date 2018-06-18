@@ -289,7 +289,7 @@ com_quota(char* arg1)
     }
 
     string s;
-    fprintf(stdout, "Do you really want to delete the quota node under path %s ?\n",
+    fprintf(stdout, "Do you really want to delete the quota node under path %s?\n",
             space.c_str());
     fprintf(stdout, "Confirm the deletion by typing => ");
     XrdOucString confirmation = "";
@@ -305,7 +305,7 @@ com_quota(char* arg1)
     std::string sconfirmation = confirmation.c_str();
 
     if (s == sconfirmation) {
-      fprintf(stdout, "\nDeletion confirmed\n");
+      fprintf(stdout, "\nSending deletion request to server ...\n");
       global_retc = output_result(client_command(in, true));
     } else {
       fprintf(stdout, "\nDeletion aborted!\n");
