@@ -50,25 +50,14 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
   const std::string key_flusher = "qdb_flusher_md";
 
   if ((pQcl == nullptr) && (pFlusher == nullptr)) {
-    if ((config.find(key_cluster) != config.end()) &&
-        (config.find(key_flusher) != config.end())) {
-      qdb_cluster = config.at(key_cluster);
-      qdb_flusher_id = config.at(key_flusher);
-    } else {
-      eos::MDException e(EINVAL);
-      e.getMessage() << __FUNCTION__  << " No " << key_cluster << " or "
-                     << key_flusher << " configuration info provided";
-      throw e;
+    QdbContactDetails contactDetails = QdbContactDetails::parseConfiguration(config);
+
+    if(config.find(key_flusher) == config.end()) {
+      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
+                        << " configuration was provided");
     }
 
-    QdbContactDetails contactDetails;
-
-    if (!contactDetails.members.parse(qdb_cluster)) {
-      eos::MDException e(EINVAL);
-      e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
-                     << qdb_cluster;
-      throw e;
-    }
+    std::string qdb_flusher_id = config.at(key_flusher);
 
     pQcl = BackendClient::getInstance(contactDetails);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);

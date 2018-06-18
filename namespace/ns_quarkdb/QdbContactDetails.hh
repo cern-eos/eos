@@ -31,6 +31,7 @@
 #include <qclient/Options.hh>
 #include <qclient/Handshake.hh>
 #include "namespace/Namespace.hh"
+#include "namespace/MDException.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -79,12 +80,45 @@ public:
     opts.transparentRedirects = true;
     opts.retryStrategy = qclient::RetryStrategy::WithTimeout(
       std::chrono::minutes(2));
-    opts.withHmacHandshake(password);
+
+    if(!password.empty()) {
+      opts.handshake.reset(new qclient::HmacAuthHandshake(password));
+    }
     return opts;
   }
 
   qclient::Members members;
   std::string password;
+
+  //----------------------------------------------------------------------------
+  //! Parse a configuration map, and extract a QdbContactDetails out of it.
+  //! Throws in case that's not possible.
+  //----------------------------------------------------------------------------
+  static QdbContactDetails parseConfiguration(const
+    std::map<std::string, std::string> &configuration)
+  {
+    QdbContactDetails contactDetails;
+
+    const std::string key_cluster = "qdb_cluster";
+    const std::string key_password = "qdb_password";
+
+    auto it = configuration.find(key_cluster);
+    if(it == configuration.end()) {
+      throw_mdexception(EINVAL, "Could not find qdb_cluster in NS configuration!");
+    }
+
+    if(!contactDetails.members.parse(it->second)) {
+      throw_mdexception(EINVAL, "Could not parse qdb_cluster");
+    }
+
+    it = configuration.find(key_password);
+    if(it != configuration.end()) {
+      contactDetails.password = it->second;
+    }
+
+    return contactDetails;
+  }
+
 };
 
 EOSNSNAMESPACE_END

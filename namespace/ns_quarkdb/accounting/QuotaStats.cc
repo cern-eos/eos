@@ -266,29 +266,18 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_quota";
 
-  if ((config.find(key_cluster) != config.end()) &&
-      (config.find(key_flusher) != config.end())) {
-    qdb_cluster = config.at(key_cluster);
-    qdb_flusher_id = config.at(key_flusher);
+  if(pQcl == nullptr && pFlusher == nullptr) {
+    QdbContactDetails contactDetails = QdbContactDetails::parseConfiguration(config);
 
-    QdbContactDetails contactDetails;
-
-    if (!contactDetails.members.parse(qdb_cluster)) {
-      eos::MDException e(EINVAL);
-      e.getMessage() << __FUNCTION__
-                     << " Failed to parse qdbcluster members";
-      throw e;
+    if(config.find(key_flusher) == config.end()) {
+      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
+                        << " configuration was provided");
     }
+
+    std::string qdb_flusher_id = config.at(key_flusher);
 
     pQcl = BackendClient::getInstance(contactDetails);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
-  } else {
-    if ((pQcl == nullptr) && (pFlusher == nullptr)) {
-      eos::MDException e(EINVAL);
-      e.getMessage() << __FUNCTION__  << " No qdb_cluster or qdb_flusher_quota "
-                     << "configuration info provided";
-      throw e;
-    }
   }
 }
 

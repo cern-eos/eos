@@ -51,7 +51,8 @@ NsTestsFixture::NsTestsFixture() {
   testconfig = {
     {"qdb_cluster", "localhost:9999"},
     {"qdb_flusher_md", "tests_md"},
-    {"qdb_flusher_quota", "tests_quota"}
+    {"qdb_flusher_quota", "tests_quota"},
+    {"qdb_password", "turtles_turtles_turtles_turtles_turtles"}
   };
 
   guard.reset(new eos::ns::testing::FlushAllOnConstruction(getContactDetails()));
