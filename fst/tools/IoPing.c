@@ -853,10 +853,12 @@ ssize_t (*make_request)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
 #define sigset_t linux_sigset_t
 #define sigaction linux_sigaction
 #define stack_t linux_stack_t
-#define sigaval_t linux_sigval_t
+#define sigval_t linux_sigval_t
 #define siginfo_t linux_siginfo_t
 #define sigevent_t linux_sigevent_t
+#define sigevent linux_sigevent
 #include <linux/aio_abi.h>
+#undef sigevent
 #undef sigevent_t
 #undef siginfo_t
 #undef sigval_t
