@@ -674,7 +674,6 @@ ProcCommand::Space()
             // to autosave and evt. save all changes
             bool autosave = gOFS->ConfEngine->GetAutoSave();
             gOFS->ConfEngine->SetAutoSave(false);
-            eos::mgm::BaseView::const_iterator it;
 
             // store these as a global parameter of the space
             if (((key == "headroom") || (key == "scaninterval") ||
@@ -692,13 +691,15 @@ ProcCommand::Space()
                 retc = EINVAL;
               }
             } else {
-              stdErr += "error: not an allowed parameter <";
-              stdErr += key.c_str();
-              stdErr += ">\n";
-              retc = EINVAL;
+              if (key != "configstatus") {
+                stdErr += "error: not an allowed parameter <";
+                stdErr += key.c_str();
+                stdErr += ">\n";
+                retc = EINVAL;
+              }
             }
 
-            for (it = FsView::gFsView.mSpaceView[identifier]->begin();
+            for (auto it = FsView::gFsView.mSpaceView[identifier]->begin();
                  it != FsView::gFsView.mSpaceView[identifier]->end(); it++) {
               if (FsView::gFsView.mIdView.count(*it)) {
                 fs = FsView::gFsView.mIdView[*it];
@@ -732,6 +733,7 @@ ProcCommand::Space()
                       stdErr += key.c_str();
                       stdErr += ">\n";
                       retc = EINVAL;
+                      break;
                     }
                   }
                 } else {
