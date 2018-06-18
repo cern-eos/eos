@@ -433,8 +433,8 @@ add_executable(eos-adler32
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
-set_property(TARGET eos-ioping PROPERTY C_STANDARD 99)
-target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
+target_compile_options(eos-ioping PRIVATE -std=gnu99)
+target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
 
 target_link_libraries(eos-check-blockxs PRIVATE
   EosFstIo-Static
