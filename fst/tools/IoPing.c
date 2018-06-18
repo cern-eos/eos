@@ -845,7 +845,16 @@ ssize_t (*make_request)(int fd, void* buf, size_t nbytes, off_t offset) = pread;
 #ifdef HAVE_LINUX_ASYNC_IO
 
 #include <sys/syscall.h>
+#define timespec linux_timespec
+#define timval linux_timeval
+#define itimerspec linux_itimerspc
+#define sigset_t linux_sigset_t
 #include <linux/aio_abi.h>
+#undef sigset_t
+#undef itimerspec
+#undef timeval
+#undef timespec
+
 
 static long io_setup(unsigned nr_reqs, aio_context_t* ctx)
 {
