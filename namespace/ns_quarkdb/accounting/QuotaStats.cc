@@ -22,9 +22,10 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/QScanner.hh"
 #include "qclient/QHash.hh"
 #include "common/StringTokenizer.hh"
@@ -269,17 +270,18 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
-    qclient::Members qdb_members;
 
-    if (!qdb_members.parse(qdb_cluster)) {
+    QdbContactDetails contactDetails;
+
+    if (!contactDetails.members.parse(qdb_cluster)) {
       eos::MDException e(EINVAL);
       e.getMessage() << __FUNCTION__
                      << " Failed to parse qdbcluster members";
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(qdb_members);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
+    pQcl = BackendClient::getInstance(contactDetails.members);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
   } else {
     if ((pQcl == nullptr) && (pFlusher == nullptr)) {
       eos::MDException e(EINVAL);

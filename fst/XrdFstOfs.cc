@@ -482,7 +482,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           Eroute.Say("=====> fstofs.qdbcluster : ", qdb_cluster.c_str());
 
           if (!qdb_cluster.empty()) {
-            if (!mQdbMembers.parse(qdb_cluster)) {
+            if (!mQdbContactDetails.members.parse(qdb_cluster)) {
               Eroute.Emsg("Config", "failed to parse qdbcluster members");
               NoGo = 1;
             }
@@ -491,10 +491,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
         if(!strcmp("qdbpassword", var)) {
           while ((val = Config.GetWord())) {
-            mQdbPassword += val;
+            mQdbContactDetails.password += val;
           }
 
-          std::string pwlen = std::to_string(mQdbPassword.size());
+          std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
       }

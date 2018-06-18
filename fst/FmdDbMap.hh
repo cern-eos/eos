@@ -41,6 +41,7 @@ namespace ns
 {
 class FileMdProto;
 }
+class QdbContactDetails;
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -294,7 +295,7 @@ public:
   //!
   //! @return true if successfull, otherwise false
   //----------------------------------------------------------------------------
-  bool ResyncAllFromQdb(const qclient::Members& qdb_members,
+  bool ResyncAllFromQdb(const QdbContactDetails &contactDetails,
                         eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------

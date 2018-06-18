@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -60,17 +61,17 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
       throw e;
     }
 
-    qclient::Members qdb_members;
+    QdbContactDetails contactDetails;
 
-    if (!qdb_members.parse(qdb_cluster)) {
+    if (!contactDetails.members.parse(qdb_cluster)) {
       eos::MDException e(EINVAL);
       e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
                      << qdb_cluster;
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(qdb_members);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
+    pQcl = BackendClient::getInstance(contactDetails.members);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
   }
 
   auto start = std::time(nullptr);

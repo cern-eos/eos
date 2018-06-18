@@ -25,6 +25,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "common/Assert.hh"
 #include "common/Logging.hh"
 #include <memory>
@@ -64,21 +65,21 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
-    qclient::Members qdb_members;
+    QdbContactDetails contactDetails;
 
-    if (!qdb_members.parse(qdb_cluster)) {
+    if (!contactDetails.members.parse(qdb_cluster)) {
       eos::MDException e(EINVAL);
       e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
                      << qdb_cluster;
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(qdb_members);
+    pQcl = BackendClient::getInstance(contactDetails.members);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
     mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
   }
 
   if (config.find(constants::sMaxNumCacheDirs) != config.end()) {

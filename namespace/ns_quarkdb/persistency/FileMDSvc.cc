@@ -26,6 +26,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include <numeric>
 
@@ -60,26 +61,26 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   std::string qdb_flusher_id;
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
-  qclient::Members qdb_members;
+  QdbContactDetails contactDetails;
 
   if ((config.find(key_cluster) != config.end()) &&
       (config.find(key_flusher) != config.end())) {
     qdb_cluster = config.at(key_cluster);
     qdb_flusher_id = config.at(key_flusher);
 
-    if (!qdb_members.parse(qdb_cluster)) {
+    if (!contactDetails.members.parse(qdb_cluster)) {
       eos::MDException e(EINVAL);
       e.getMessage() << __FUNCTION__ << " Failed to parse qdbcluster members: "
                      << qdb_cluster;
       throw e;
     }
 
-    pQcl = BackendClient::getInstance(qdb_members);
+    pQcl = BackendClient::getInstance(contactDetails.members);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, qdb_members);
-    mMetadataProvider.reset(new MetadataProvider(qdb_members, pContSvc, this));
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails.members);
+    mMetadataProvider.reset(new MetadataProvider(contactDetails.members, pContSvc, this));
     static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());
   }

@@ -39,13 +39,6 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataFlusher::MetadataFlusher(const std::string& path,
-                                 const std::string& host, int port)
-  : MetadataFlusher(path, qclient::Members(host, port)) {}
-
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-MetadataFlusher::MetadataFlusher(const std::string& path,
                                  const qclient::Members& qdb_members):
   id(basename(path.c_str())),
   notifier(*this),

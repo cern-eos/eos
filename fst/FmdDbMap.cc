@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>
@@ -1178,7 +1179,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
+FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails &contactDetails,
                                   eos::common::FileSystem::fsid_t fsid)
 {
   using namespace std::chrono;
@@ -1195,7 +1196,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const qclient::Members& qdb_members,
   qclient::Options opts;
   opts.transparentRedirects = true;
   opts.retryStrategy = qclient::RetryStrategy::WithTimeout(minutes(2));
-  std::unique_ptr<qclient::QClient> qcl(new qclient::QClient(qdb_members, std::move(opts)));
+  std::unique_ptr<qclient::QClient> qcl(new
+    qclient::QClient(contactDetails.members, std::move(opts)));
   qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 

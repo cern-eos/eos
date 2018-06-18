@@ -33,7 +33,7 @@
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "qclient/Members.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <google/sparse_hash_map>
 #include <sys/mman.h>
 #include <queue>
@@ -379,8 +379,7 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
-  qclient::Members mQdbMembers; ///< QDB member endpoints
-  std::string mQdbPassword;     ///< QDB password
+  QdbContactDetails mQdbContactDetails; ///< QDB contact details
   int mHttpdPort; ///< listening port of the http server
 private:
   HttpServer* mHttpd; ///< Embedded http server
