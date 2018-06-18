@@ -379,7 +379,6 @@ public:
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
-  std::unique_ptr<qclient::QClient> mQcl; ///< Qclient object
   qclient::Members mQdbMembers; ///< QDB member endpoints
   std::string mQdbPassword;     ///< QDB password
   int mHttpdPort; ///< listening port of the http server

@@ -485,11 +485,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             if (!mQdbMembers.parse(qdb_cluster)) {
               Eroute.Emsg("Config", "failed to parse qdbcluster members");
               NoGo = 1;
-            } else {
-              qclient::Options opts;
-              opts.transparentRedirects = true;
-              opts.retryStrategy = qclient::RetryStrategy::WithTimeout(std::chrono::minutes(2));
-              mQcl.reset(new ::qclient::QClient(mQdbMembers, std::move(opts)));
             }
           }
         }

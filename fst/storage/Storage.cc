@@ -467,7 +467,7 @@ Storage::Boot(FileSystem* fs)
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
 
-    if (gOFS.mQcl) {
+    if (!gOFS.mQdbMembers.empty()) {
       // Resync meta data connecting directly to QuarkDB
       eos_info("msg=\"synchronizing from QuarkDB backend\"");
 
