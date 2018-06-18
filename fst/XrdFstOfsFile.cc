@@ -2982,8 +2982,16 @@ XrdFstOfsFile::ProcessMixedOpaque()
   }
 
   mFsId = atoi(sfsid);
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
-                             mLocalPrefix.c_str(), mFstPath);
+
+  // Generate fst path
+  if (mCapOpaque->Get("mgm.logicalpath")) {
+    mFstPath = mLocalPrefix + mNsPath;
+    mFstPath.replace("//", "/", mLocalPrefix.length() - 1);
+  } else {
+    FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
+                               mLocalPrefix.c_str(), mFstPath);
+  }
+
   return SFS_OK;
 }
 
