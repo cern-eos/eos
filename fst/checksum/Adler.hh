@@ -114,8 +114,8 @@ public:
     maxoffset = 0;
     adleroffset = offsetInit + lengthInit;
 
-    // Theck if this is actually a valid pointer
-    if (checksumInitHex == NULL) {
+    // Theck if this is actually a valid pointer or a filled string
+    if ( (checksumInitHex == NULL) || (!strlen(checksumInitHex))) {
       return;
     }
 
