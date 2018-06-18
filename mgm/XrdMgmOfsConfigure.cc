@@ -710,8 +710,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         if (!strcmp("qdbpassword", var)) {
           while ((val = Config.GetWord())) {
             mQdbPassword += val;
-            mQdbPassword += " ";
           }
+
+          // Trim whitespace at the end
+          mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
 
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());

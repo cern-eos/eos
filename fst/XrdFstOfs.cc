@@ -494,6 +494,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             mQdbContactDetails.password += val;
           }
 
+          // Trim whitespace at the end
+          mQdbContactDetails.password.erase(mQdbContactDetails.password.find_last_not_of(" \t\n\r\f\v") + 1);
+
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
