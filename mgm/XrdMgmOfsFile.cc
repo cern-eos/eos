@@ -1908,6 +1908,12 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += "&mgm.zerosize=1";
   }
 
+  // Create file using logical path
+  if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    capability += "&mgm.logicalpath=1";
+    fmd->setAttribute("logicalpath", path);
+  }
+
   // Add the store flag for RAIN reconstruct jobs
   if (isPioReconstruct) {
     capability += "&mgm.rain.store=1";
