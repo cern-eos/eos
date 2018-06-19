@@ -48,11 +48,11 @@ Storage::Remover()
     while ((to_del = GetDeletion())) {
       eos_static_debug("%u files to delete", GetNumDeletions());
 
-      for (unsigned int j = 0; j < to_del->fIdVector.size(); ++j) {
-        eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->fIdVector[j],
-                         to_del->fsId);
+      for (unsigned int j = 0; j < to_del->fileVector.size(); ++j) {
+        eos_static_debug("Deleting file_id=%llu on fs_id=%u",
+                         to_del->fileVector[j].fId, to_del->fsId);
         XrdOucString hexstring = "";
-        eos::common::FileId::Fid2Hex(to_del->fIdVector[j], hexstring);
+        eos::common::FileId::Fid2Hex(to_del->fileVector[j].fId, hexstring);
         XrdOucErrInfo error;
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
@@ -62,13 +62,24 @@ Storage::Remover()
         OpaqueString += hexstring;
         OpaqueString += "&mgm.localprefix=";
         OpaqueString += to_del->localPrefix;
+        if (to_del->fileVector[j].logicalPath.length()) {
+          OpaqueString += "&mgm.logicalpath=";
+          OpaqueString += to_del->fileVector[j].logicalPath;
+          OpaqueString += "&mgm.ctime=";
+          OpaqueString += to_del->fileVector[j].cTime;
+        }
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
 
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true) != SFS_OK)) {
-          eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",
-                             hexstring.c_str(), to_del->fsId, to_del->localPrefix.c_str());
+          std::string errMsg = "unable to remove fid %s fsid %lu localprefix=%s";
+          if (to_del->fileVector[j].logicalPath.length()) {
+            errMsg += " logicalpath=%s creation_time %s";
+          }
+          eos_static_err(errMsg.c_str(), hexstring.c_str(), to_del->fsId, to_del->localPrefix.c_str(),
+                         to_del->fileVector[j].logicalPath.c_str(),
+                         to_del->fileVector[j].cTime.c_str());
         }
 
         // Update the manager

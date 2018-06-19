@@ -42,16 +42,25 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 class Deletion
 {
+private:
+  class FileDeletion
+  {
+  public:
+      unsigned long long fId;
+      XrdOucString logicalPath;
+      XrdOucString cTime;
+  };
+
 public:
-  std::vector<unsigned long long> fIdVector;
+  std::vector<FileDeletion> fileVector;
   unsigned long fsId;
   XrdOucString localPrefix;
   XrdOucString managerId;
   XrdOucString opaque;
 
-  Deletion (std::vector<unsigned long long> &idvector, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque)
+  Deletion (std::vector<FileDeletion> &filevector, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque)
   {
-    fIdVector = idvector;
+    fileVector = filevector;
     fsId = fsid;
     localPrefix = localprefix;
     managerId = managerid;
@@ -66,12 +75,14 @@ public:
     XrdOucString hexfids = "";
     XrdOucString hexfid = "";
     XrdOucString access = "";
+    XrdOucString lpath = "";
+    XrdOucString ctime = "";
     const char* sfsid = 0;
     const char* smanager = 0;
-    std::vector <unsigned long long> idvector;
-
-    unsigned long long fileid = 0;
     unsigned long fsid = 0;
+
+    std::vector <FileDeletion> filevector;
+    FileDeletion *fDeletion;
 
     localprefix = capOpaque->Get("mgm.localprefix");
     hexfids = capOpaque->Get("mgm.fids");
@@ -99,8 +110,25 @@ public:
       hexfid = subtokenizer.GetToken();
       if (hexfid.length())
       {
-        fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
-        idvector.push_back(fileid);
+        fDeletion = new FileDeletion();
+
+        // extract logical path and creation time -- format hexfid[:lpath:ctime]
+        int pos1 = hexfid.find(":");
+        if (pos1 != STR_NPOS) {
+          int pos2 = hexfid.find(":", pos1 + 1);
+          lpath = ctime = hexfid;
+
+          lpath.keep(pos1 + 1, pos2 - pos1 - 1);
+          ctime.keep(pos2 + 1);
+          hexfid.erase(pos1);
+
+          fDeletion->logicalPath = lpath;
+          fDeletion->cTime = ctime;
+        }
+
+        // convert hexfid to fid
+        fDeletion->fId = eos::common::FileId::Hex2Fid(hexfid.c_str());
+        filevector.push_back(*fDeletion);
       }
       else
       {
@@ -109,7 +137,7 @@ public:
     }
 
     fsid = atoi(sfsid);
-    return new Deletion(idvector, fsid, localprefix, smanager, capOpaque->Env(envlen));
+    return new Deletion(filevector, fsid, localprefix, smanager, capOpaque->Env(envlen));
   };
 
   ~Deletion () { };
