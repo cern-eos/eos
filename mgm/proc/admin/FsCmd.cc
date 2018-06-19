@@ -649,7 +649,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 
     if (gOFS->_dropstripe("", fid, errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
-      eos_err("Could not delete file replica %ul  on filesystem %u", fid, 
+      eos_err("Could not delete file replica %ul on filesystem %u", fid, 
               dropfilesProto.fsid());
     } else {
       filesDeleted++;
