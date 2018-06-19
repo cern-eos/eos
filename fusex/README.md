@@ -80,14 +80,14 @@ You also need to define a local cache directory (location) where small files are
     "location" : "/var/cache/eos/fusex/cache/",
     "journal" : "/var/cache/eos/fusex/journal/",
     "read-ahead-strategy" : "static",
-    "read-ahead-bytes-nominal" : 2097152,
+    "read-ahead-bytes-nominal" : 262144,
     "read-ahead-bytes-max" : 2097152,
-    "read-ahead-blocks-max" : 8
+    "read-ahead-blocks-max" : 16
   }
 
 ```
 
-The available read-ahead strategies are 'dynamic', 'static' or 'none'. Dynamic read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits. The default is a static read-ahead with fixed number of read-ahead blocks.
+The available read-ahead strategies are 'dynamic', 'static' or 'none'. Dynamic read-ahead doubles the read-ahead window from nominal to max if the strategy provides cache hits. The default is a dynamic read-ahead starting with 512kb and using 2,4,8,16 blocks resizing blocks up to 2M.
 
 The daemon automatically appends a directory to the mdcachedir, location and journal path and automatically creates these directory private to root (mode=700).
 
