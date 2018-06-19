@@ -1910,8 +1910,16 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // Create file using logical path
   if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    eos::IFileMD::ctime_t ctime;
+    char buff[64];
+
     capability += "&mgm.logicalpath=1";
     fmd->setAttribute("logicalpath", path);
+
+    fmd->getCTime(ctime);
+    sprintf(buff, "%ld", ctime.tv_sec);
+    capability += "&mgm.ctime=";
+    capability += buff;
   }
 
   // Add the store flag for RAIN reconstruct jobs

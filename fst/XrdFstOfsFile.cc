@@ -590,11 +590,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   std::string filecxerror = "0";
 
   if (!rc) {
-    // Set the eos lfn as extended attribute
+    // Set extended attributes
     std::unique_ptr<FileIo> io(FileIoPlugin::GetIoObject(
                                  layOut->GetLocalReplicaPath(), this));
 
     if (isRW) {
+      // Set the eos lfn attribute
       if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
         if (mCapOpaque->Get("mgm.path")) {
           XrdOucString unsealedpath = mCapOpaque->Get("mgm.path");
@@ -610,6 +611,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       } else {
         if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
           eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
+        }
+      }
+
+      // Set the eos creation time attribute
+      if (mCapOpaque->Get("mgm.logicalpath") && mCapOpaque->Get("mgm.ctime")) {
+        if (io->attrSet("user.eos.ctime", mCapOpaque->Get("mgm.ctime"))) {
+          eos_err("unable to set extended attribute <eos.ctime> errno=%d", errno);
         }
       }
     }
