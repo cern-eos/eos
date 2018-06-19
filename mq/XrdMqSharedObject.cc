@@ -803,7 +803,10 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
     for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
       XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
-      formattags[keyval[0]] = keyval[1];
+
+      if (keyval.size() >= 2) {
+        formattags[keyval[0]] = keyval[1];
+      }
     }
 
     if (formattags.count("format")) {
@@ -813,7 +816,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 
       // Normal member printout
       if (formattags.count("key")) {
-        if ((format.find("s")) != std::string::npos) {
+        if (format.find("s") != std::string::npos) {
           table_mq_data.back().push_back(
             TableCell(Get(formattags["key"].c_str()), format));
         }

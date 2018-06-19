@@ -634,12 +634,8 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
         auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
-        <<< <<< < HEAD
         files.emplace_back(gOFS->eosView->getUri(fmd.get()));
-        == == == =
-          fileids.push_back(it_fid->getElement());
->>> >>> > 9f1e2c3... MGM:
-        Rewrite const_iterator implementation in FsView which was doing unsafe
+        // fileids.push_back(it_fid->getElement());
       } catch (eos::MDException& e) {
         eos_err("Could not get metadata for file %ul, ignoring it",
                 it_fid->getElement());
@@ -652,13 +648,9 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 
     if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
-      <<< <<< < HEAD
       eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(),
-              == == == =
-                eos_err("Could not delete file replica %ul  on filesystem %u", fileId,
-                        >>> >>> > 9f1e2c3... MGM: Rewrite const_iterator implementation in FsView which
-                        was doing unsafe
-                        dropfilesProto.fsid());
+              //eos_err("Could not delete file replica %ul  on filesystem %u", fileId,
+              dropfilesProto.fsid());
     } else {
       filesDeleted++;
     }
