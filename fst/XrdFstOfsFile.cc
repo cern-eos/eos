@@ -567,7 +567,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // Preset with the last known checksum
-    if (mCheckSum && isRW) {
+    if (mCheckSum && isRW && !mIsOCchunk) {
       eos_info("msg=\"reset init\" file-xs=%s", fMd->mProtoFmd.checksum().c_str());
       mCheckSum->ResetInit(0, openSize, fMd->mProtoFmd.checksum().c_str());
     }
