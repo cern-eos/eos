@@ -49,7 +49,7 @@ std::string getAttrUrl(std::string path)
 }
 
 //------------------------------------------------------------------------------
-// Constructor
+//! Constructor
 //------------------------------------------------------------------------------
 
 DavixIo::DavixIo(std::string path, std::string s3credentials)
@@ -132,7 +132,7 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
 
 
 //------------------------------------------------------------------------------
-// Destructor
+//! Destructor
 //------------------------------------------------------------------------------
 
 DavixIo::~DavixIo()
@@ -151,7 +151,7 @@ DavixIo::~DavixIo()
 }
 
 //------------------------------------------------------------------------------
-// Convert DAVIX errors
+//! Convert DAVIX errors
 //------------------------------------------------------------------------------
 
 int
@@ -221,9 +221,8 @@ DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
   return -1;
 }
 
-
 //------------------------------------------------------------------------------
-// Returns the s3 credentials in-use by this davix client
+//! Returns the s3 credentials in-use by this Davix client
 //------------------------------------------------------------------------------
 
 std::string
@@ -241,7 +240,7 @@ DavixIo::RetrieveS3Credentials()
 }
 
 //----------------------------------------------------------------------------
-// Open file
+//! Open file
 //----------------------------------------------------------------------------
 
 int
@@ -314,7 +313,7 @@ DavixIo::fileOpen(
 
 
 //------------------------------------------------------------------------------
-// Read from file - sync
+//! Read from file - sync
 //------------------------------------------------------------------------------
 
 int64_t
@@ -353,7 +352,7 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Write to file - sync
+//! Write to file - sync
 //------------------------------------------------------------------------------
 
 int64_t
@@ -387,7 +386,7 @@ DavixIo::fileWrite(XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Read from file async - falls back on synchronous mode
+//! Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 
 int64_t
@@ -402,7 +401,7 @@ DavixIo::fileReadAsync(XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Write to file async - falls back on synchronous mode
+//! Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 
 int64_t
@@ -435,7 +434,7 @@ DavixIo::fileClose(uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Truncate file
+//! Truncate file
 //------------------------------------------------------------------------------
 
 int
@@ -449,7 +448,7 @@ DavixIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Get stats about the file
+//! Get stats about the file
 //------------------------------------------------------------------------------
 
 int
@@ -476,7 +475,7 @@ DavixIo::fileStat(struct stat* buf, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Remove file
+//! Remove file
 //------------------------------------------------------------------------------
 
 int
@@ -494,7 +493,7 @@ DavixIo::fileRemove(uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Check for existence by path
+//! Check for existence by path
 //------------------------------------------------------------------------------
 
 int
@@ -515,7 +514,7 @@ DavixIo::fileExists()
 }
 
 //------------------------------------------------------------------------------
-// Delete by path
+//! Delete by path
 //------------------------------------------------------------------------------
 
 int
@@ -556,10 +555,10 @@ DavixIo::Rmdir(const char* path)
   return SetErrno(mDav.rmdir(&mParams, path, &err), &err);
 }
 
+//------------------------------------------------------------------------------
+//! Sync file - meaningless in HTTP PUT
+//------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-// Sync file - meaningless in HTTP PUT
-//------------------------------------------------------------------------------
 int
 DavixIo::fileSync(uint16_t timeout)
 {
@@ -568,7 +567,7 @@ DavixIo::fileSync(uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Get pointer to async meta handler object
+//! Get pointer to async meta handler object
 //------------------------------------------------------------------------------
 
 void*
@@ -655,6 +654,7 @@ DavixIo::Upload(std::string url, std::string& upload)
 
   return rc;
 }
+
 
 //------------------------------------------------------------------------------
 // Attribute Interface
@@ -825,6 +825,7 @@ DavixIo::attrGet(std::string name, std::string& value)
 // ------------------------------------------------------------------------
 //! Delete a binary attribute by name
 // ------------------------------------------------------------------------
+
 int
 DavixIo::attrDelete(const char* name)
 {
@@ -836,6 +837,7 @@ DavixIo::attrDelete(const char* name)
 // ------------------------------------------------------------------------
 //! List all attributes for the associated path
 // ------------------------------------------------------------------------
+
 int
 DavixIo::attrList(std::vector<std::string>& list)
 {
@@ -874,7 +876,7 @@ DavixIo::attrList(std::vector<std::string>& list)
 }
 
 //------------------------------------------------------------------------------
-// Statfs function calling quota propfind command
+//! Statfs function calling quota propfind command
 //------------------------------------------------------------------------------
 
 int
@@ -957,5 +959,3 @@ DavixIo::Statfs(struct statfs* sfs)
 }
 
 EOSFSTNAMESPACE_END
-
-
