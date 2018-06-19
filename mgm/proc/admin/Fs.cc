@@ -170,11 +170,10 @@ ProcCommand::Fs()
         // boot all filesystems
         if (pVid->uid == 0) {
           eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-          std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
           stdOut += "success: boot message send to";
 
-          for (it = FsView::gFsView.mIdView.begin(); it != FsView::gFsView.mIdView.end();
-               it++) {
+          for (auto it = FsView::gFsView.mIdView.begin();
+               it != FsView::gFsView.mIdView.end(); ++it) {
             if ((it->second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
               if (forcemgmsync.length()) {
                 // set the check flag
@@ -211,10 +210,9 @@ ProcCommand::Fs()
             retc = ENOENT;
           } else {
             stdOut += "success: boot message send to";
-            eos::mgm::BaseView::const_iterator it;
 
-            for (it = FsView::gFsView.mNodeView[node]->begin();
-                 it != FsView::gFsView.mNodeView[node]->end(); it++) {
+            for (auto it = FsView::gFsView.mNodeView[node]->begin();
+                 it != FsView::gFsView.mNodeView[node]->end(); ++it) {
               FileSystem* fs = 0;
 
               if (FsView::gFsView.mIdView.count(*it)) {
@@ -317,10 +315,8 @@ ProcCommand::Fs()
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (FsView::gFsView.mNodeView.count(node)) {
-          eos::mgm::BaseView::const_iterator it;
-
-          for (it = FsView::gFsView.mNodeView[node]->begin();
-               it != FsView::gFsView.mNodeView[node]->end(); it++) {
+          for (auto it = FsView::gFsView.mNodeView[node]->begin();
+               it != FsView::gFsView.mNodeView[node]->end(); ++it) {
             if (FsView::gFsView.mIdView.count(*it)) {
               if (FsView::gFsView.mIdView[*it]->GetPath() == mount) {
                 // this is the filesystem
@@ -363,6 +359,9 @@ ProcCommand::Fs()
               unsigned long long nfids_risky = 0;
               unsigned long long nfids_inaccessible = 0;
               unsigned long long nfids_todelete = 0;
+              // @todo (esindril): enable after dev merge
+              //eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+              //  gOFS->eosView, gOFS->eosFsView, fsid);
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
               try {

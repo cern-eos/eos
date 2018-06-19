@@ -60,8 +60,7 @@ ProcCommand::Node()
     eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
     FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
     stdOut += output.c_str();
-  }
-  else if (mSubCmd == "status") {
+  } else if (mSubCmd == "status") {
     std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -105,8 +104,7 @@ ProcCommand::Node()
       stdErr += node.c_str();
       retc = ENOENT;
     }
-  }
-  else if (mSubCmd == "set") {
+  } else if (mSubCmd == "set") {
     std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                            "";
     std::string status = (pOpaque->Get("mgm.node.state")) ?
@@ -225,7 +223,7 @@ ProcCommand::Node()
 
             proxygroups.clear();
 
-            for (auto it = groups.begin(); it != groups.end(); it++) {
+            for (auto it = groups.begin(); it != groups.end(); ++it) {
               proxygroups.append(*it + ",");
             }
 
@@ -252,8 +250,7 @@ ProcCommand::Node()
         }
       }
     }
-  }
-  else if (mSubCmd == "rm") {
+  } else if (mSubCmd == "rm") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                              "";
@@ -289,7 +286,7 @@ ProcCommand::Node()
 
           // Remove a node only if all filesystems are in empty state
           for (auto it = FsView::gFsView.mNodeView[nodename]->begin();
-               it != FsView::gFsView.mNodeView[nodename]->end(); it++) {
+               it != FsView::gFsView.mNodeView[nodename]->end(); ++it) {
             if (FsView::gFsView.mIdView.count(*it)) {
               FileSystem* fs = FsView::gFsView.mIdView[*it];
 
@@ -333,8 +330,7 @@ ProcCommand::Node()
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";
     }
-  }
-  else if (mSubCmd == "config") {
+  } else if (mSubCmd == "config") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string identifier = (pOpaque->Get("mgm.node.name")) ?
                                pOpaque->Get("mgm.node.name") : "";
@@ -353,10 +349,8 @@ ProcCommand::Node()
 
         if ((identifier.find('*') != std::string::npos)) {
           // apply this to all nodes !
-          std::map<std::string, FsNode*>::const_iterator it;
-
-          for (it = FsView::gFsView.mNodeView.begin();
-               it != FsView::gFsView.mNodeView.end(); it++) {
+          for (auto it = FsView::gFsView.mNodeView.begin();
+               it != FsView::gFsView.mNodeView.end(); ++it) {
             nodes.push_back(it->second);
           }
         } else {
@@ -379,9 +373,7 @@ ProcCommand::Node()
 
         for (size_t i = 0; i < nodes.size(); i++) {
           if (key == "configstatus") {
-            eos::mgm::BaseView::const_iterator it;
-
-            for (it = nodes[i]->begin(); it != nodes[i]->end(); it++) {
+            for (auto it = nodes[i]->begin(); it != nodes[i]->end(); ++it) {
               if (FsView::gFsView.mIdView.count(*it)) {
                 fs = FsView::gFsView.mIdView[*it];
 
@@ -510,8 +502,7 @@ ProcCommand::Node()
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";
     }
-  }
-  else if (mSubCmd == "register") {
+  } else if (mSubCmd == "register") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       XrdOucString registernode = pOpaque->Get("mgm.node.name");
       XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
@@ -566,8 +557,7 @@ ProcCommand::Node()
       stdErr = "error: you have to take the root role to execute the register command!";
       retc = EPERM;
     }
-  }
-  else {
+  } else {
     stdErr = "error: no such subcommand for node!";
     retc = EINVAL;
   }

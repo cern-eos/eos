@@ -274,118 +274,96 @@ bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
 //------------------------------------------------------------------------------
 std::string GeoTree::getGeoTag(const fsid_t& fs) const
 {
-  return FsView::gFsView.mIdView[fs]->GetString("stat.geotag");
+  auto it = FsView::gFsView.mIdView.find(fs);
+
+  if (it != FsView::gFsView.mIdView.end()) {
+    return FsView::gFsView.mIdView[fs]->GetString("stat.geotag");
+  } else {
+    return "";
+  }
 }
 
 //------------------------------------------------------------------------------
-// ++ operator post-increment
+//               * * *   Class GeoTree::const_iterator * * *
 //------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
-{
-  GeoTree::const_iterator it(mIt);
-  mIt++;
-  return it;
-}
 
 //------------------------------------------------------------------------------
-// -- operator post-decrement
+// Copy assignment operator
 //------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
+GeoTree::const_iterator&
+GeoTree::const_iterator::operator= (const const_iterator& it)
 {
-  GeoTree::const_iterator it(mIt);
-  mIt--;
-  return it;
+  if (this != &it) {
+    mIt = it.mIt;
+    mCont = it.mCont;
+  }
+
+  return *this;
 }
 
 //------------------------------------------------------------------------------
 // ++ operator pre-increment
 //------------------------------------------------------------------------------
-GeoTree::const_iterator& GeoTree::const_iterator::operator++()
+GeoTree::const_iterator&
+GeoTree::const_iterator::operator++()
 {
-  GeoTree::const_iterator it(mIt);
-  mIt++;
+  if (mIt != mCont->end()) {
+    ++mIt;
+  }
+
   return *this;
+}
+
+//------------------------------------------------------------------------------
+// ++ operator post-increment
+//------------------------------------------------------------------------------
+GeoTree::const_iterator
+GeoTree::const_iterator::operator++(int)
+{
+  GeoTree::const_iterator it(*this);
+
+  if (mIt != mCont->end()) {
+    ++mIt;
+  }
+
+  return it;
 }
 
 //------------------------------------------------------------------------------
 // -- operator pre-decrement
 //------------------------------------------------------------------------------
-GeoTree::const_iterator& GeoTree::const_iterator::operator--()
+GeoTree::const_iterator&
+GeoTree::const_iterator::operator--()
 {
-  GeoTree::const_iterator it(mIt);
-  mIt--;
+  if (mIt != mCont->begin()) {
+    --mIt;
+  }
+
   return *this;
 }
 
 //------------------------------------------------------------------------------
-// Pointer operator
+// -- operator post-decrement
+//------------------------------------------------------------------------------
+GeoTree::const_iterator
+GeoTree::const_iterator::operator--(int)
+{
+  GeoTree::const_iterator it(*this);
+
+  if (mIt != mCont->begin()) {
+    --mIt;
+  }
+
+  return it;
+}
+
+//------------------------------------------------------------------------------
+// Indirection operator
 //------------------------------------------------------------------------------
 const eos::common::FileSystem::fsid_t&
 GeoTree::const_iterator::operator*() const
 {
   return mIt->first;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-GeoTree::const_iterator::operator
-const eos::common::FileSystem::fsid_t* () const
-{
-  return &mIt->first;
-}
-
-//------------------------------------------------------------------------------
-// = operator
-//------------------------------------------------------------------------------
-const GeoTree::const_iterator&
-GeoTree::const_iterator::operator= (const const_iterator& it)
-{
-  mIt = it.mIt;
-  return *this;
-}
-
-//------------------------------------------------------------------------------
-// begin
-//------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::begin() const
-{
-  const_iterator it(pLeaves.begin());
-  return it;
-}
-
-//------------------------------------------------------------------------------
-// cbegin
-//------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::cbegin() const
-{
-  return begin();
-}
-
-//------------------------------------------------------------------------------
-// end
-//------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::end() const
-{
-  const_iterator it(pLeaves.end());
-  return it;
-}
-
-//------------------------------------------------------------------------------
-// cend
-//------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::cend() const
-{
-  return end();
-}
-
-//------------------------------------------------------------------------------
-// Find
-//------------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::find(const fsid_t& fsid) const
-{
-  const_iterator it(pLeaves.find(fsid));
-  return it;
 }
 
 //------------------------------------------------------------------------------
@@ -2821,7 +2799,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
 
   TableFormatterBase table;
 
-  for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
+  for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth, filter);
   }
 

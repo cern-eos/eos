@@ -109,11 +109,10 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
           FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
           FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
             eos::common::FileSystem::kOffline);
-          // propagate into filesystem states
-          eos::mgm::BaseView::const_iterator it;
 
-          for (it = FsView::gFsView.mNodeView[nodequeue]->begin();
-               it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+          // propagate into filesystem states
+          for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+               it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
             FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
           }
         }
@@ -122,11 +121,10 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
                         (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
         FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
           advmsg->kMessageHeader.kSenderTime_sec);
-        // propagate into filesystems
-        eos::mgm::BaseView::const_iterator it;
 
-        for (it = FsView::gFsView.mNodeView[nodequeue]->begin();
-             it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+        // propagate into filesystems
+        for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+             it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
           FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
               (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
         }
@@ -147,10 +145,9 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
           eos::common::FileSystem::kOffline);
         // propagate into filesystem states
-        eos::mgm::BaseView::const_iterator it;
 
-        for (it = FsView::gFsView.mNodeView[nodequeue]->begin();
-             it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+        for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+             it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
           FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
         }
       }
@@ -159,11 +156,10 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
                        (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
         advmsg->kMessageHeader.kSenderTime_sec);
-      // propagate into filesystems
-      eos::mgm::BaseView::const_iterator it;
 
-      for (it = FsView::gFsView.mNodeView[nodequeue]->begin();
-           it != FsView::gFsView.mNodeView[nodequeue]->end(); it++) {
+      // propagate into filesystems
+      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
         FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
             (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
       }

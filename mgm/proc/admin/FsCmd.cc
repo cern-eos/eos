@@ -177,9 +177,8 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
           retc = ENOENT;
         } else {
           outStream << "success: boot message send to";
-          eos::mgm::BaseView::const_iterator it;
 
-          for (it = FsView::gFsView.mNodeView[node]->begin();
+          for (auto it = FsView::gFsView.mNodeView[node]->begin();
                it != FsView::gFsView.mNodeView[node]->end(); ++it) {
             FileSystem* fs = nullptr;
 
@@ -440,10 +439,8 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       const std::string mount = queuepath.substr(pos + 4);
 
       if (FsView::gFsView.mNodeView.count(queue)) {
-        eos::mgm::BaseView::const_iterator it;
-
-        for (it = FsView::gFsView.mNodeView[queue]->begin();
-             it != FsView::gFsView.mNodeView[queue]->end(); it++) {
+        for (auto it = FsView::gFsView.mNodeView[queue]->begin();
+             it != FsView::gFsView.mNodeView[queue]->end(); ++it) {
           if (FsView::gFsView.mIdView.count(*it)) {
             if (FsView::gFsView.mIdView[*it]->GetPath() == mount) {
               // this is the filesystem
@@ -496,6 +493,9 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
           unsigned long long nfids_risky = 0;
           unsigned long long nfids_inaccessible = 0;
           unsigned long long nfids_todelete = 0;
+          // @todo (esindril): enable after dev merge
+          //eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+          //  gOFS->eosView, gOFS->eosFsView, fsid);
           eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
           try {
@@ -634,7 +634,12 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
         auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+        <<< <<< < HEAD
         files.emplace_back(gOFS->eosView->getUri(fmd.get()));
+        == == == =
+          fileids.push_back(it_fid->getElement());
+>>> >>> > 9f1e2c3... MGM:
+        Rewrite const_iterator implementation in FsView which was doing unsafe
       } catch (eos::MDException& e) {
         eos_err("Could not get metadata for file %ul, ignoring it",
                 it_fid->getElement());
@@ -647,8 +652,13 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 
     if (gOFS->_dropstripe(filePath.c_str(), errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
+      <<< <<< < HEAD
       eos_err("Could not delete file replica %s on filesystem %u", filePath.c_str(),
-              dropfilesProto.fsid());
+              == == == =
+                eos_err("Could not delete file replica %ul  on filesystem %u", fileId,
+                        >>> >>> > 9f1e2c3... MGM: Rewrite const_iterator implementation in FsView which
+                        was doing unsafe
+                        dropfilesProto.fsid());
     } else {
       filesDeleted++;
     }

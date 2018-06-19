@@ -258,26 +258,125 @@ public:
     std::iterator<std::bidirectional_iterator_tag, fsid_t>
   {
     friend class GeoTree;
-    std::map<fsid_t, tElement*>::const_iterator mIt;
+    using ContainerT = std::map<fsid_t, tElement*>;
+    ContainerT::const_iterator mIt; ///< Interator inside the container
+    ContainerT* mCont; ///< Pointer to original container
   public:
+    //--------------------------------------------------------------------------
+    //! Default constructor
+    //--------------------------------------------------------------------------
     const_iterator() = default;
-    const_iterator(std::map<fsid_t, tElement*>::const_iterator it):
-      mIt(it) {}
+
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param iterator inside map
+    //--------------------------------------------------------------------------
+    const_iterator(ContainerT::const_iterator it, ContainerT& cont):
+      mIt(it), mCont(&cont) {}
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
     ~const_iterator() = default;
-    const_iterator operator++(int);
-    const_iterator operator--(int);
+
+    //--------------------------------------------------------------------------
+    //! Copy assignment operator
+    //--------------------------------------------------------------------------
+    const_iterator& operator= (const const_iterator& it);
+
+    //--------------------------------------------------------------------------
+    //! Copy constructor
+    //--------------------------------------------------------------------------
+    const_iterator(const const_iterator& it)
+    {
+      *this = it;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Pre-increment
+    //--------------------------------------------------------------------------
     const_iterator& operator++();
+
+    //--------------------------------------------------------------------------
+    //! Post-increment
+    //--------------------------------------------------------------------------
+    const_iterator operator++(int);
+
+    //--------------------------------------------------------------------------
+    //! Pre-decrement
+    //--------------------------------------------------------------------------
     const_iterator& operator--();
+
+    //--------------------------------------------------------------------------
+    //! Post-decrement
+    //--------------------------------------------------------------------------
+    const_iterator operator--(int);
+
+    //--------------------------------------------------------------------------
+    //! Indirection operator
+    //--------------------------------------------------------------------------
     const eos::common::FileSystem::fsid_t& operator*() const;
-    operator const eos::common::FileSystem::fsid_t* () const;
-    const const_iterator& operator= (const const_iterator& it);
+
+    //--------------------------------------------------------------------------
+    // Inequality operator
+    //--------------------------------------------------------------------------
+    inline bool operator !=(const const_iterator& rhs) const
+    {
+      return mIt != rhs.mIt;
+    }
+
+    //--------------------------------------------------------------------------
+    // Equality operator
+    //--------------------------------------------------------------------------
+    inline bool operator ==(const const_iterator& rhs) const
+    {
+      return mIt == rhs.mIt;
+    }
   };
 
-  const_iterator begin() const;
-  const_iterator cbegin() const;
-  const_iterator end() const;
-  const_iterator cend() const;
-  const_iterator find(const fsid_t& fsid) const;
+  //----------------------------------------------------------------------------
+  // begin()
+  //----------------------------------------------------------------------------
+  inline const_iterator begin() const
+  {
+    const_iterator it(pLeaves.begin(), pLeaves);
+    return it;
+  }
+
+  //----------------------------------------------------------------------------
+  // cbegin()
+  //----------------------------------------------------------------------------
+  inline const_iterator cbegin() const
+  {
+    return begin();
+  }
+
+  //----------------------------------------------------------------------------
+  // end()
+  //----------------------------------------------------------------------------
+  inline const_iterator end() const
+  {
+    const_iterator it(pLeaves.end(), pLeaves);
+    return it;
+  }
+
+  //----------------------------------------------------------------------------
+  // cend()
+  //----------------------------------------------------------------------------
+  inline const_iterator cend() const
+  {
+    return end();
+  }
+
+  //----------------------------------------------------------------------------
+  // find()
+  //----------------------------------------------------------------------------
+  inline const_iterator find(const fsid_t& fsid) const
+  {
+    const_iterator it(pLeaves.find(fsid), pLeaves);
+    return it;
+  }
 
 private:
   //----------------------------------------------------------------------------
@@ -292,7 +391,7 @@ private:
   tElement* pRoot;   ///< The root branch of the tree
   //! All the elements of the tree collected by depth
   std::vector<std::set<tElement*, GeoTreeNodeOrderHelper > > pLevels;
-  std::map<fsid_t, tElement*> pLeaves; ///< All the leaves of the tree
+  mutable std::map<fsid_t, tElement*> pLeaves; ///< All the leaves of the tree
 };
 
 //------------------------------------------------------------------------------

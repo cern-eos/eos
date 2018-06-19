@@ -151,6 +151,13 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
   } else {
     int fsid = atoi(fsidst.c_str());
     std::shared_ptr<eos::IFileMD> fmd;
+    // @todo (esindril): enable after dev merge
+    // eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+    //   gOFS->eosView, gOFS->eosFsView, fsid);
+    // if (monitor) {
+    //   eos::Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(
+    //     gOFS->eosView, gOFS->eosFsView, fsid);
+    // }
     eos::common::RWMutexReadLock ns_rd_lock;
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
 
@@ -317,10 +324,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           }
 
           if (FsView::gFsView.mNodeView.count(identifier)) {
-            eos::mgm::BaseView::const_iterator it;
-
-            for (it = FsView::gFsView.mNodeView[identifier]->begin();
-                 it != FsView::gFsView.mNodeView[identifier]->end(); it++) {
+            for (auto it = FsView::gFsView.mNodeView[identifier]->begin();
+                 it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
               if (FsView::gFsView.mIdView.count(*it)) {
                 // This is the filesystem
                 if (FsView::gFsView.mIdView[*it]->GetPath() == path) {
@@ -418,6 +423,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             return retc;
           } else {
             size_t pos = value.find(':');
+
             if (pos == 0 || (pos + 1) == value.length()) {
               stdErr += "error: S3 credentials string is missing ";
               stdErr += (pos == 0)  ? "<accesskey>" : "<secretkey>";
@@ -585,11 +591,10 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                   break;
                 } else {
                   bool exists = false;
-                  eos::mgm::BaseView::const_iterator it;
 
                   // Check if this node doesn't already have a filesystem in this group
-                  for (it = FsView::gFsView.mGroupView[snewgroup]->begin();
-                       it != FsView::gFsView.mGroupView[snewgroup]->end(); it++) {
+                  for (auto it = FsView::gFsView.mGroupView[snewgroup]->begin();
+                       it != FsView::gFsView.mGroupView[snewgroup]->end(); ++it) {
                     if (FsView::gFsView.mIdView[*it]->GetString("host") ==
                         fs->GetString("host")) {
                       // This subgroup has already this host
