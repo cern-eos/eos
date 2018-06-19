@@ -41,6 +41,7 @@ set(MQ_UT_SRCS
 
 set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
+  mgm/FsViewTests.cc
   mgm/AclCmdTests.cc
   mgm/LockTrackerTests.cc)
 
