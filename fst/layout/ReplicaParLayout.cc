@@ -255,7 +255,7 @@ ReplicaParLayout::Read(XrdSfsFileOffset offset, char* buffer,
   for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
     rc = mReplicaFile[i]->fileRead(offset, buffer, length, mTimeout);
 
-    if (rc != length) {
+    if (rc == SFS_ERROR) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
       eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
