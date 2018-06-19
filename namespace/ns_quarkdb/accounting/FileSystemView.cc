@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -50,7 +51,7 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
   const std::string key_flusher = "qdb_flusher_md";
 
   if ((pQcl == nullptr) && (pFlusher == nullptr)) {
-    QdbContactDetails contactDetails = QdbContactDetails::parseConfiguration(config);
+    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
     if(config.find(key_flusher) == config.end()) {
       throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher

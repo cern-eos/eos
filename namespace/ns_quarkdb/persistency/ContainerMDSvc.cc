@@ -25,7 +25,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "common/Assert.hh"
 #include "common/Logging.hh"
 #include <memory>
@@ -62,7 +62,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_flusher = "qdb_flusher_md";
 
   if(pQcl == nullptr && pFlusher == nullptr) {
-    QdbContactDetails contactDetails = QdbContactDetails::parseConfiguration(config);
+    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
     if(config.find(key_flusher) == config.end()) {
       throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
