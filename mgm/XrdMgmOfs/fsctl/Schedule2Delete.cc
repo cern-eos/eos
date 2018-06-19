@@ -40,6 +40,8 @@
 // Utility function of sending message declared in anonymous namespace
 //----------------------------------------------------------------------------
 namespace {
+  const char* delete_message = "msg.cmd=drop";
+
   XrdOucString constructCapability(int fsid, const char* localprefix) {
     XrdOucString capability = "&mgm.access=delete";
     capability += "&mgm.manager=";
@@ -51,6 +53,41 @@ namespace {
     capability += "&mgm.fids=";
 
     return capability;
+  }
+
+  bool constructFileDeleteData(int fid,
+                               XrdOucString& idData,
+                               XrdOucErrInfo& error) {
+    std::shared_ptr<eos::IFileMD> fmd;
+    eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+    } catch(eos::MDException& e) {
+      error.setErrInfo(e.getErrno(), e.getMessage().str().c_str());
+      return false;
+    }
+
+    // IDs within the list follow the pattern -- hexfid[:lpath:ctime]
+    idData = eos::common::FileId::Fid2Hex(fid).c_str();
+
+    if (fmd->hasAttribute("logicalpath")) {
+      eos::IFileMD::ctime_t ctime;
+      char buff[64];
+
+      std::string lpath = fmd->getAttribute("logicalpath");
+      fmd->getCTime(ctime);
+      sprintf(buff, "%ld", ctime.tv_sec);
+
+      idData += ":";
+      idData += lpath.c_str();
+      idData += ":";
+      idData += buff;
+    }
+
+    idData += ",";
+
+    return true;
   }
 
   bool sendDeleteMessage(XrdOucString capability,
@@ -69,7 +106,7 @@ namespace {
                      capability.c_str(), rc);
     } else {
       int caplen = 0;
-      XrdOucString msgbody = "mgm.cmd=drop";
+      XrdOucString msgbody = delete_message;
       msgbody += outcapenv->Env(caplen);
 
       XrdMqMessage message("deletion");
@@ -171,6 +208,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
     XrdOucString capability = "";
     XrdOucString idlist = "";
     int ndeleted = 0;
+    int msgsize = 0;
 
     for (auto fid : set_fids) {
       // Loop over all files and emit a deletion message
@@ -206,15 +244,29 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         }
       }
 
-      ndeleted++;
-      totaldeleted++;
-      idlist += eos::common::FileId::Fid2Hex(fid).c_str();
-      idlist += ",";
+      XrdOucString idData = "";
+      if (constructFileDeleteData(fid, idData, error)) {
+        idlist += idData.c_str();
 
-      if (ndeleted > 1024) {
-        // Send deletions in bunches of max 1024 for efficiency
+        ndeleted++;
+        totaldeleted++;
+      } else {
+        eos_thread_err("could not process deletion of file fid=%llu. "
+                       "Skipping deletion. ec=%d emsg=\"%s\"",
+                       error.getErrInfo(), error.getErrText());
+        continue;
+      }
+
+      // Compute message size
+      msgsize = strlen(delete_message) + capability.length() + idlist.length();
+
+      // Segment the message into chunks of 1024 files
+      // or maximum 75% of MqMessage capacity
+      if (ndeleted > 1024 ||
+          msgsize > (0.75 * XrdMqClient::XrdMqMaxMessageLen)) {
         sendDeleteMessage(capability, idlist.c_str(),
                           receiver.c_str(), mCapabilityValidity);
+
         ndeleted = 0;
         idlist = "";
       }
