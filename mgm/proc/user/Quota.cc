@@ -233,7 +233,7 @@ ProcCommand::Quota()
         // Deal with volume quota
         unsigned long long size = StringConversion::GetDataSizeFromString(svolume);
 
-        if (svolume.length() && (errno == EINVAL)) {
+        if (svolume.length() && ((errno == EINVAL) || (errno == ERANGE))) {
           stdErr = "error: the volume quota you specified is not a valid number";
           retc = EINVAL;
           return SFS_OK;

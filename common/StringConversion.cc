@@ -205,9 +205,8 @@ StringConversion::GetSizeFromString(const char* instring)
   }
 
   XrdOucString sizestring = instring;
+  unsigned long long convfactor = 1ll;
   errno = 0;
-  unsigned long long convfactor;
-  convfactor = 1ll;
 
   if (!sizestring.length()) {
     errno = EINVAL;
@@ -291,17 +290,16 @@ StringConversion::GetDataSizeFromString(const char* instring)
 {
   if (!instring) {
     errno = EINVAL;
-    return 0;
+    return 0ll;
   }
 
   XrdOucString sizestring = instring;
-  unsigned long long convfactor;
-  convfactor = 1ll;
+  unsigned long long convfactor = 1ll;
   errno = 0;
 
   if (!sizestring.length()) {
     errno = EINVAL;
-    return 0;
+    return 0ll;
   } else if (sizestring.endswith("B") || sizestring.endswith("b")) {
     sizestring.erase(sizestring.length() - 1);
   } else if (sizestring.endswith("E") || sizestring.endswith("e")) {
@@ -316,12 +314,9 @@ StringConversion::GetDataSizeFromString(const char* instring)
     convfactor = 1000ll * 1000ll;
   } else if (sizestring.endswith("K") || sizestring.endswith("k")) {
     convfactor = 1000ll;
-  } else {
-    errno = EINVAL;
-    return 0;
   }
 
-  if (convfactor > 1) {
+  if (convfactor > 1ll) {
     sizestring.erase(sizestring.length() - 1);
   }
 
