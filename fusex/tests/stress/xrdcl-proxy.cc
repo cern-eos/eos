@@ -61,9 +61,9 @@ TEST(XrdClProxy, Write)
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
-  file.Collect();
+  
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
@@ -98,13 +98,13 @@ TEST(XrdClProxy, ReadSync)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4*1024*1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -170,13 +170,13 @@ TEST(XrdClProxy, ReadAsync)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4*1024*1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -250,13 +250,13 @@ TEST(XrdClProxy, ReadAheadStatic)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -327,13 +327,13 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -404,13 +404,13 @@ TEST(XrdClProxy, ReadAheadSparse)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -453,7 +453,7 @@ TEST(XrdClProxy, ReadAheadSparse)
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
           (int)(1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 96073176);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99121952);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -489,13 +489,13 @@ TEST(XrdClProxy, ReadAheadDisable)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -571,13 +571,13 @@ TEST(XrdClProxy, ReadAheadBackward)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -648,13 +648,13 @@ TEST(XrdClProxy, ReadAheadDynamic)
 
   for (size_t i = 0; i < 64 ; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(1);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
@@ -691,7 +691,7 @@ TEST(XrdClProxy, ReadAheadDynamic)
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
           (int)(1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99169920);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99475096);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -730,7 +730,7 @@ TEST(XrdClProxy, ScheduleWrite)
     ASSERT_TRUE(status.IsOK());
   }
 
-  status = file.WaitWrite();
+  status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[04] zero \n");
 
