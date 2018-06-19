@@ -30,6 +30,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
 #include "fst/http/HttpServer.hh"
+#include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -495,7 +496,22 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           // Trim whitespace at the end
-          mQdbContactDetails.password.erase(mQdbContactDetails.password.find_last_not_of(" \t\n\r\f\v") + 1);
+          common::PasswordHandler::rightTrimWhitespace(mQdbContactDetails.password);
+
+          std::string pwlen = std::to_string(mQdbContactDetails.password.size());
+          Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
+        }
+
+        if(!strcmp("qdbpassword_file", var)) {
+          std::string path;
+          while ((val = Config.GetWord())) {
+            path += val;
+          }
+
+          if(!common::PasswordHandler::readPasswordFile(path, mQdbContactDetails.password)) {
+            Eroute.Emsg("Config", "failed to open path pointed to by qdbpassword_file");
+            NoGo = 1;
+          }
 
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());

@@ -54,6 +54,7 @@
 #include "common/ZMQ.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
+#include "common/PasswordHandler.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -714,6 +715,21 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           // Trim whitespace at the end
           mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
+
+          std::string pwlen = std::to_string(mQdbPassword.size());
+          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+        }
+
+        if (!strcmp("qdbpassword_file", var)) {
+          std::string path;
+          while ((val = Config.GetWord())) {
+            path += val;
+          }
+
+          if(!eos::common::PasswordHandler::readPasswordFile(path, mQdbPassword)) {
+            Eroute.Emsg("Config", "failed to open path pointed to by qdbpassword_file");
+            NoGo = 1;
+          }
 
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
