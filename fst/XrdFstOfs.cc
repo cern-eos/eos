@@ -1221,9 +1221,12 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
 {
   EPNAME("rem");
   XrdOucString fstPath = "";
+  long delctime = 0;
   const char* localprefix = 0;
+  const char* logicalpath = 0;
   const char* hexfid = 0;
   const char* sfsid = 0;
+  std::string stime;
   eos_debug("");
 
   if ((!fstpath) && (!fsid) && (!fid)) {
@@ -1243,7 +1246,19 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                        "open - no file system id in capability", path);
     }
 
-    eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);
+    if ((logicalpath = capOpaque->Get("mgm.logicalpath"))) {
+      stime = capOpaque->Get("mgm.ctime");
+      delctime = atol(stime.c_str());
+    }
+
+    if (logicalpath) {
+      fstPath = localprefix;
+      fstPath += logicalpath;
+      fstPath.replace("//", "/", strlen(localprefix) - 1);
+    } else {
+      eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);
+    }
+
     fid = eos::common::FileId::Hex2Fid(hexfid);
     fsid = atoi(sfsid);
   } else {
@@ -1286,7 +1301,21 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                        sFstPath.c_str());
     }
 
-    // get the size before deletion
+    // Prevent a scheduled delete from erasing a newer file with the same lpath
+    if (logicalpath) {
+      io->attrGet("user.eos.ctime", stime);
+      long ioctime = atol(stime.c_str());
+
+      // File is newer and should not be deleted
+      if (ioctime > delctime) {
+        return SFS_OK;
+      } else if (ioctime == 0) {
+        eos_notice("could not retrieve creation time for file %s fstpath=%s "
+                    "fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+      }
+    }
+
+    // Get the size before deletion
     io->fileStat(&sbd);
     rc = io->fileRemove();
   }
