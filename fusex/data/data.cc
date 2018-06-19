@@ -693,7 +693,6 @@ data::datax::prefetch(fuse_req_t req, bool lock)
       } else {
 	// instruct the read-ahead handler where to start
 	proxy->set_readahead_position(prefetch_size);
-	proxy->set_readahead_nominal(prefetch_size);
       }
       
     }

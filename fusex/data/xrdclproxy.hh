@@ -235,6 +235,10 @@ namespace XrdCl
     // ---------------------------------------------------------------------- //
     XRootDStatus WaitWrite();
 
+    // ---------------------------------------------------------------------- //
+    XRootDStatus CollectWrites();
+
+    // ---------------------------------------------------------------------- //
     int WaitWrite(fuse_req_t); // waiting interrupts
 
     // ---------------------------------------------------------------------- //
@@ -411,6 +415,7 @@ namespace XrdCl
       XReadAheadBlocksMax = rablocks;
       XReadAheadBlocksNom = 1;
       XReadAheadBlocksMin = 1;
+      XReadAheadReenableHits = 0;
     }
 
     float get_readahead_efficiency()
@@ -468,6 +473,7 @@ namespace XrdCl
       XReadAheadBlocksMax = 16;
       XReadAheadBlocksNom = 1;
       XReadAheadBlocksMin = 1;
+      XReadAheadReenableHits = 0;
       XReadAheadBlocksIs = 0;
       mPosition = 0;
       mReadAheadPosition = 0;
@@ -758,7 +764,7 @@ namespace XrdCl
       {
         off_t match_offset;
         uint32_t match_size;
-        if (matches((off_t) (off + proxy()->nominal_read_ahead()), size, match_offset, match_size))
+        if (matches((off_t) off, size, match_offset, match_size))
         {
           return true;
         }
@@ -1005,6 +1011,7 @@ namespace XrdCl
     size_t XReadAheadBlocksNom; // nominal number of prefetch blocks
     size_t XReadAheadBlocksMax; // maximum number of prefetch blocks
     size_t XReadAheadBlocksIs; // current blocks in the read-ahead
+    size_t XReadAheadReenableHits; // sequential read hits in a row
     off_t mPosition;
     off_t mReadAheadPosition;
     off_t mTotalBytes;
