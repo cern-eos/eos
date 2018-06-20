@@ -245,7 +245,7 @@ XrdCl::Proxy::Read( uint64_t  offset,
 
       // pre-fetch missing read-ahead blocks, if there is a window !=0
       size_t blocks_to_fetch = XReadAheadNom?
-	((XReadAheadBlocksNom - XReadAheadBlocksIs)>0?((XReadAheadBlocksNom - XReadAheadBlocksIs)):0)
+	((XReadAheadBlocksNom > XReadAheadBlocksIs)?((XReadAheadBlocksNom - XReadAheadBlocksIs)):0)
 	:0;
       for (size_t n_fetch = 0 ; n_fetch < blocks_to_fetch ; n_fetch++)
       {
