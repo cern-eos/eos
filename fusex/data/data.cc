@@ -1145,10 +1145,18 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
     XrdCl::Access::UX;
   
+  // try to open
   XrdCl::XRootDStatus status = proxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
 
+  if (proxy->WaitOpen(req)==EINTR) {
+    eos_warning("request interrupted");
+    return EINTR;
+  }
+
+  // if that worked we are already fine, otherwise we enter a timebased logic for retries
   if (proxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !  
   {
+    eos_warning("re-opening for write succeeded");
     return 0;
   }
 
@@ -1810,7 +1818,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     
     mXoff = false;
     
-    if (!status.IsOK())
+    if ((!status.IsOK()) && (!EosFuse::Instance().Config().recovery.write))
     {
       errno = XrdCl::Proxy::status2errno (status);
       eos_err("async remote-io failed msg=\"%s\"", status.ToString().c_str());
