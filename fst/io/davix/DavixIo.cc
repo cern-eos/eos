@@ -888,20 +888,31 @@ DavixIo::attrList(std::vector<std::string>& list)
 FileIo::FtsHandle*
 DavixIo::ftsOpen()
 {
+  std::string filePath = mFilePath.c_str();
   Davix::DavixError* err = 0;
   struct dirent *ent;
   DAVIX_DIR* dir;
+  size_t qpos;
+
+  // Extract file path w/o opaque info
+  if (((qpos = filePath.find("?")) != std::string::npos)) {
+    filePath = filePath.erase(qpos);
+  }
+
+  if (filePath.at(filePath.length() - 1) != '/') {
+    filePath += "/";
+  }
 
   // Obtain Davix dir handler
-  dir = mDav.opendir(&mParams, mFilePath, &err);
+  dir = mDav.opendir(&mParams, filePath, &err);
   if (!dir) {
     SetErrno(-1, &err, false);
-    eos_err("url=\"%s\" msg=\"%s\" errno=%d", mFilePath.c_str(),
+    eos_err("url=\"%s\" msg=\"%s\" errno=%d", filePath.c_str(),
             err->getErrMsg().c_str(), errno);
     return NULL;
   }
 
-  FtsHandle* handle = new FtsHandle(mFilePath.c_str());
+  FtsHandle* handle = new FtsHandle(filePath.c_str());
 
   // Iterate through the files and construct the Fts handler
   while ((ent = mDav.readdir(dir, &err)) != NULL) {
@@ -912,13 +923,13 @@ DavixIo::ftsOpen()
       continue;
     }
 
-    handle->found_files.push_back(mFilePath + fname.c_str());
+    handle->found_files.push_back(filePath + fname.c_str());
   }
 
   // Check if any errors occurred
-  SetErrno(-1, &err, false);
-  if (errno != ENOENT) {
-    eos_err("url=\"%s\" msg=\"%s\" errno=%d ", mFilePath.c_str(),
+  if (err) {
+    SetErrno(-1, &err, false);
+    eos_err("url=\"%s\" msg=\"%s\" errno=%d ", filePath.c_str(),
             err->getErrMsg().c_str(), errno);
     return NULL;
   }
