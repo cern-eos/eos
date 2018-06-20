@@ -244,7 +244,9 @@ XrdCl::Proxy::Read( uint64_t  offset,
 	eos_debug("hit:%d chunks:%d pre-blocks:%d to-fetch:%d", readahead_window_hit, ChunkRMap().size(), XReadAheadBlocksNom, XReadAheadBlocksNom - XReadAheadBlocksIs);
 
       // pre-fetch missing read-ahead blocks, if there is a window !=0
-      size_t blocks_to_fetch = XReadAheadNom?(XReadAheadBlocksNom - XReadAheadBlocksIs):0;
+      size_t blocks_to_fetch = XReadAheadNom?
+	((XReadAheadBlocksNom - XReadAheadBlocksIs)>0?((XReadAheadBlocksNom - XReadAheadBlocksIs)):0)
+	:0;
       for (size_t n_fetch = 0 ; n_fetch < blocks_to_fetch ; n_fetch++)
       {
 	if (EOS_LOGS_DEBUG)
