@@ -923,6 +923,11 @@ DavixIo::ftsOpen()
       continue;
     }
 
+    if (mOpaque.length()) {
+      fname += "?";
+      fname += mOpaque.c_str();
+    }
+
     if (ent->d_type == DT_REG) {
       handle->files.push_back(filePath + fname.c_str());
     } else if (ent->d_type == DT_DIR) {
