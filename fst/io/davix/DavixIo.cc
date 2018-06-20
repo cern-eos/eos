@@ -923,7 +923,14 @@ DavixIo::ftsOpen()
       continue;
     }
 
-    handle->found_files.push_back(filePath + fname.c_str());
+    if (ent->d_type == DT_REG) {
+      handle->files.push_back(filePath + fname.c_str());
+    } else if (ent->d_type == DT_DIR) {
+      handle->directories.push_back(filePath + fname.c_str());
+    } else {
+      eos_warning("url=\"%s\" msg=\"unknown file type\"",
+                  filePath + fname.c_str());
+    }
   }
 
   // Check if any errors occurred
