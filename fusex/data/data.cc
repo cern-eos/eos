@@ -288,6 +288,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 	snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
 	throw std::runtime_error(msg);
       }
+      mFile->journal()->done_flush();
     }
   }
 
@@ -320,6 +321,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 	    snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
 	    throw std::runtime_error(msg);
 	  }
+	  mFile->journal()->done_flush();
 	}
       }
     }

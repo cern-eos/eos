@@ -106,7 +106,12 @@ public:
 
   bool first_flush() 
   {
-    return !nbFlushed?true:false;
+    return (!nbFlushed)?true:false;
+  }
+
+  void done_flush() 
+  {
+    nbFlushed++;
   }
 
   private:
