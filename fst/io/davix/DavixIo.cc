@@ -875,6 +875,77 @@ DavixIo::attrList(std::vector<std::string>& list)
   return -1;
 }
 
+
+//------------------------------------------------------------------------------
+// Traversing filesystem/storage routines
+//------------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+//! Open a cursor to traverse a storage system
+//-------------------------------------------------------------------------
+
+FileIo::FtsHandle*
+DavixIo::ftsOpen()
+{
+  Davix::DavixError* err = 0;
+  struct dirent *ent;
+  DAVIX_DIR* dir;
+
+  // Obtain Davix dir handler
+  dir = mDav.opendir(&mParams, mFilePath, &err);
+  if (!dir) {
+    SetErrno(-1, &err, false);
+    eos_err("url=\"%s\" msg=\"%s\" errno=%d", mFilePath.c_str(),
+            err->getErrMsg().c_str(), errno);
+    return NULL;
+  }
+
+  FtsHandle* handle = new FtsHandle(mFilePath.c_str());
+
+  // Iterate through the files and construct the Fts handler
+  while ((ent = mDav.readdir(dir, &err)) != NULL) {
+    XrdOucString fname = ent->d_name;
+
+    // Skip attribute files
+    if (fname.beginswith(".") && fname.endswith(".xattr")) {
+      continue;
+    }
+
+    handle->found_files.push_back(mFilePath + fname.c_str());
+  }
+
+  // Check if any errors occurred
+  SetErrno(-1, &err, false);
+  if (errno != ENOENT) {
+    eos_err("url=\"%s\" msg=\"%s\" errno=%d ", mFilePath.c_str(),
+            err->getErrMsg().c_str(), errno);
+    return NULL;
+  }
+
+  return dynamic_cast<FileIo::FtsHandle*>(handle);
+}
+
+//-------------------------------------------------------------------------
+//! Return the next path related to a traversal cursor obtained with ftsOpen
+//-------------------------------------------------------------------------
+
+std::string
+DavixIo::ftsRead(FileIo::FtsHandle* fts_handle)
+{
+  return "";
+}
+
+//-------------------------------------------------------------------------
+//! Close a traversal cursor
+//-------------------------------------------------------------------------
+
+int
+DavixIo::ftsClose(FileIo::FtsHandle* fts_handle)
+{
+  return -1;
+}
+
 //------------------------------------------------------------------------------
 //! Statfs function calling quota propfind command
 //------------------------------------------------------------------------------

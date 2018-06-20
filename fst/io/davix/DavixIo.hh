@@ -347,13 +347,17 @@ public:
 
   class FtsHandle : public FileIo::FtsHandle
   {
-  public:
+    friend class DavixIo;
 
+  protected:
+    std::vector<std::string> found_files;
+
+  public:
     FtsHandle(const char* dirp) : FileIo::FtsHandle(dirp)
     {
     }
 
-    virtual ~FtsHandle();
+    virtual ~FtsHandle()  {};
   };
 
   //--------------------------------------------------------------------------
@@ -361,10 +365,7 @@ public:
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
 
-  FileIo::FtsHandle* ftsOpen()
-  {
-    return 0;
-  }
+  FileIo::FtsHandle* ftsOpen();
 
   //--------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
@@ -372,10 +373,7 @@ public:
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
 
-  std::string ftsRead(FileIo::FtsHandle* fts_handle)
-  {
-    return "";
-  }
+  std::string ftsRead(FileIo::FtsHandle* fts_handle);
 
   //--------------------------------------------------------------------------
   //! Close a traversal cursor
@@ -383,10 +381,7 @@ public:
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
 
-  int ftsClose(FileIo::FtsHandle* fts_handle)
-  {
-    return -1;
-  }
+  int ftsClose(FileIo::FtsHandle* fts_handle);
 
   //--------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
