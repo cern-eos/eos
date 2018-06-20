@@ -956,6 +956,37 @@ DavixIo::ftsOpen()
 std::string
 DavixIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
+  FtsHandle* handle = (FtsHandle*) fts_handle;
+
+  if (handle->files.size()) {
+    std::string newFile = handle->files.front();
+    handle->files.pop_front();
+    return newFile;
+  }
+
+  if (handle->directories.size()) {
+    std::string newDir = handle->directories.front();
+    handle->directories.pop_front();
+
+    // Open new dir location
+    DavixIo io(newDir, DavixIo::RetrieveS3Credentials());
+    FtsHandle* dirHandle = (FtsHandle*) io.ftsOpen();
+
+    if (dirHandle) {
+      // Register all files and directories found
+      handle->files.insert(handle->files.end(),
+          dirHandle->files.begin(), dirHandle->files.end());
+
+      handle->directories.insert(handle->directories.end(),
+          dirHandle->directories.begin(), dirHandle->directories.end());
+
+      delete dirHandle;
+      return ftsRead(fts_handle);
+    } else {
+      eos_err("url=\"%s\" msg=\"%unable to open directory\"", newDir);
+    }
+  }
+
   return "";
 }
 
@@ -966,7 +997,10 @@ DavixIo::ftsRead(FileIo::FtsHandle* fts_handle)
 int
 DavixIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
-  return -1;
+  FtsHandle* handle = (FtsHandle*) fts_handle;
+  handle->files.clear();
+  handle->directories.clear();
+  return 0;
 }
 
 //------------------------------------------------------------------------------
