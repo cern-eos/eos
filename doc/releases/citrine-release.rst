@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.26 Citrine``
+===================
+
+2018-06-20
+
+Bug
+---
+
+* [EOS-2662] - ATLAS stuck in stacktrace due to SETV in malloc in table formatter
+* [EOS-2415] - Segmentation fault while building the quota table output
+
 
 ``v4.2.25 Citrine``
 ===================
