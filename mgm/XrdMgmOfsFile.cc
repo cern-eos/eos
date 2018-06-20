@@ -1289,7 +1289,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
 
-    if ((retc == ENETUNREACH) || (retc == EROFS)) {
+    if ((retc == ENETUNREACH) || (retc == EROFS) || (isRepair)) {
       if ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair)) {
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
