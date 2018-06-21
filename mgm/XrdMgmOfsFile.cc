@@ -1000,6 +1000,8 @@ XrdMgmOfsFile::open(const char* inpath,
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;
   unsigned long long ext_ctime_nsec = 0;
+  std::string ext_etag;
+  std::map<std::string, std::string>  ext_xattr_map;
 
   if (openOpaque->Get("eos.ctime")) {
     std::string str_ctime = openOpaque->Get("eos.ctime");
@@ -1024,6 +1026,26 @@ XrdMgmOfsFile::open(const char* inpath,
     } else {
       ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
       ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
+    }
+  }
+
+  if (openOpaque->Get("eos.etag")) {
+    ext_etag = openOpaque->Get("eos.etag");
+  }
+
+  if (openOpaque->Get("eos.xattr")) {
+    int envlen;
+    std::vector<std::string> xattr_keys;
+    eos::common::StringConversion::GetKeyValueMap(openOpaque->Env(envlen),
+						  ext_xattr_map,
+						  "=",
+						  "&",
+						  &xattr_keys);
+
+    for (auto it=xattr_keys.begin(); it != xattr_keys.end(); ++it) {
+      if (it->substr(0,5) != "user.") {
+	ext_xattr_map.erase(*it);
+      }
     }
   }
 
@@ -1065,6 +1087,15 @@ XrdMgmOfsFile::open(const char* inpath,
         ctime.tv_sec = ext_ctime_sec;
         ctime.tv_nsec = ext_ctime_nsec;
         fmd->setCTime(ctime);
+      }
+
+      // if specified set an external temporary ETAG
+      if (ext_etag.length()) {
+	fmd->setAttribute("sys.tmp.etag", ext_etag);
+      }
+ 
+      for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
+	fmd->setAttribute(it->first, it->second);
       }
 
       try {
