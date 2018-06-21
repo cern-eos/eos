@@ -170,7 +170,9 @@ void FileMD::unlinkAllLocations()
 
   while ((it = pLocation.rbegin()) != pLocation.rend()) {
     location_t loc = *it;
-    pUnlinkedLocation.push_back(loc);
+    if (!hasUnlinkedLocation(loc)) {
+      pUnlinkedLocation.push_back(loc);
+    }
     pLocation.pop_back();
     IFileMDChangeListener::Event e(this,
                                    IFileMDChangeListener::LocationUnlinked,
