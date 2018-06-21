@@ -122,7 +122,6 @@ ProcCommand::Attr()
                   partialStdOut += "\n";
                 }
 
-                eos::common::StringConversion::SortLines(partialStdOut);
                 stdOut += partialStdOut;
 
                 if (option == "r") {
