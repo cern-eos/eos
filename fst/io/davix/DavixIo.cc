@@ -969,7 +969,7 @@ DavixIo::ftsRead(FileIo::FtsHandle* fts_handle)
     handle->directories.pop_front();
 
     // Open new dir location
-    DavixIo io(newDir, DavixIo::RetrieveS3Credentials());
+    DavixIo io(newDir);
     FtsHandle* dirHandle = (FtsHandle*) io.ftsOpen();
 
     if (dirHandle) {
