@@ -244,8 +244,10 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         }
       }
 
+      // Construct file deletion data
       XrdOucString idData = "";
-      if (constructFileDeleteData(fid, idData, error)) {
+      XrdOucErrInfo idDataErr;
+      if (constructFileDeleteData(fid, idData, idDataErr)) {
         idlist += idData.c_str();
 
         ndeleted++;
@@ -253,7 +255,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
       } else {
         eos_thread_err("could not process deletion of file fid=%llu. "
                        "Skipping deletion. ec=%d emsg=\"%s\"",
-                       error.getErrInfo(), error.getErrText());
+                       idDataErr.getErrInfo(), idDataErr.getErrText());
         continue;
       }
 
