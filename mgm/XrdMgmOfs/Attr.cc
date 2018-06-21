@@ -232,8 +232,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
 
       dh->setAttribute(key, val.c_str());
-      dh->setMTimeNow();
-      dh->notifyMTimeChange(gOFS->eosDirectoryService);
+      if (Key != "sys.tmp.etag") {
+	dh->setCTimeNow();
+      }
       eosView->updateContainerStore(dh.get());
       gOFS->FuseXCast(dh->getId());
       errno = 0;
@@ -260,7 +261,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
         fmd->setAttribute(key, val.c_str());
-        fmd->setMTimeNow();
+	if (Key != "sys.tmp.etag") {
+	  fmd->setCTimeNow();
+	}
         eosView->updateFileStore(fmd.get());
         gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
         errno = 0;
