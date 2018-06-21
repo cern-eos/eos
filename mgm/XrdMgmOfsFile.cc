@@ -1185,6 +1185,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   eos::mgm::FileSystem* filesystem = 0;
   std::vector<unsigned int> selectedfs;
+  std::vector<unsigned int> excludefs;
   std::vector<std::string> proxys;
   std::vector<std::string> firewalleps;
   // file systems which are unavailable during a read operation
@@ -1238,7 +1239,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
         selectedfs.push_back(loc);
+	excludefs.push_back(loc);
       }
+    }
+
+    for (auto loc  = fmd->getUnlinkedLocations().begin();
+	 loc != fmd->getUnlinkedLocations().end(); ++loc) {
+      excludefs.push_back(*loc);
     }
 
     if (selectedfs.empty()) {
@@ -1304,7 +1311,7 @@ XrdMgmOfsFile::open(const char* inpath,
         // if the scheduled fs need to be accessed through a dataproxy, try to get it
         // if any of the two fails, the scheduling operation fails
         Scheduler::PlacementArguments plctargs;
-        plctargs.alreadyused_filesystems = &selectedfs;
+        plctargs.alreadyused_filesystems = &excludefs;
         plctargs.bookingsize = bookingsize;
         plctargs.dataproxys = &proxys;
         plctargs.firewallentpts = &firewalleps;
