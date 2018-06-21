@@ -298,6 +298,12 @@ namespace XrdCl
       mAttached = proxy?proxy->get_attached():1;
     }
 
+    void inherit_writequeue(XrdCl::Proxy* proxy)
+    {
+      XWriteQueue = proxy->WriteQueue();
+      proxy->WriteQueue().clear();
+    }
+
     // ---------------------------------------------------------------------- //
 
     static int status2errno(const XRootDStatus& status)

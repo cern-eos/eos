@@ -801,6 +801,7 @@ int
 /* -------------------------------------------------------------------------- */
 data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 {
+  eos_debug("");
   if (req && fuse_req_interrupted(req))
   {
     eos_warning("request interrupted");
@@ -1190,7 +1191,21 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
 	return ENETUNREACH;
       }
     }
-    
+
+    if (status.errNo == kXR_NoSpace)  {
+      eos_crit("recover write-open-nospace queue=%d", proxy->WriteQueue().size());
+      proxy->WriteQueue().clear();
+      proxy->ChunkMap().clear();
+      return ENOSPC;
+    }
+
+    if (status.errNo == kXR_overQuota) {
+      eos_crit("recover write-open-noquota queue=%d", proxy->WriteQueue().size());
+      proxy->WriteQueue().clear();
+      proxy->ChunkMap().clear();
+      return EDQUOT;
+    }
+
     eos_warning("recover reopening file for writing");
     
     // issue a new open 
@@ -1205,6 +1220,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
     }
     
     newproxy->inherit_attached(proxy);
+    newproxy->inherit_writequeue(proxy);
 
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
@@ -1294,9 +1310,28 @@ data::datax::recover_write(fuse_req_t req)
   eos_debug("");
   XrdCl::Proxy* proxy = mFile->xrdiorw(req);
 
+  // check if we have a problem with the open
+  XrdCl::XRootDStatus status = proxy->WaitOpen();
+
+  if (status.errNo == kXR_NoSpace) {
+    eos_crit("recover write-open-nospace queue=%d",proxy->WriteQueue().size());
+    proxy->WriteQueue().clear();
+    proxy->ChunkMap().clear();
+    return ENOSPC;
+  }
+
+  if (status.errNo == kXR_overQuota) {
+    eos_crit("recover write-open-noquota queue=%d", proxy->WriteQueue().size());
+    proxy->WriteQueue().clear();
+    proxy->ChunkMap().clear();
+    return EDQUOT;
+  }
+  
+
   // try to open this file for reading
 
-  XrdCl::XRootDStatus status;
+
+
 
   bool recover_from_file_cache = false;
 
@@ -1425,7 +1460,8 @@ data::datax::recover_write(fuse_req_t req)
     XrdCl::Proxy* uploadproxy = new XrdCl::Proxy();
     
     uploadproxy->inherit_attached(proxy);
-
+    uploadproxy->inherit_writequeue(proxy);
+    
 
     // we have to remove the flush otherwise we cannot open this file even ourselfs
     if (req && end_flush(req))
@@ -1844,6 +1880,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     }
 
     if (mFlags & O_SYNC) {
+      eos_debug("O_SYNC");
       // make sure the file gets opened
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
       if (!status.IsOK())
