@@ -439,7 +439,15 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 {
   XrdSysMutexHelper lLock(mLock);
   bool isRW = false;
-  mFlags = flags;
+
+  if (mFlags & O_SYNC) {
+    // preserve the sync flag
+    mFlags = flags;
+    mFlags |= O_SYNC;
+  } else {
+    mFlags = flags;
+  }
+
 
 
   // check for file inlining only for the first attach call
