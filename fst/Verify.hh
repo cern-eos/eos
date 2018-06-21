@@ -57,6 +57,7 @@ public:
   bool commitChecksum;
   bool commitSize;
   bool commitFmd;
+  bool uselPath;
 
   unsigned int verifyRate;
 
@@ -64,7 +65,7 @@ public:
          const char* managerid, const char* inopaque, const char* incontainer,
          unsigned long incid, unsigned long inlid, const char* inpath,
          bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize,
-         bool inCommitFmd, unsigned int inVerifyRate)
+         bool inCommitFmd, bool inUselPath, unsigned int inVerifyRate)
   {
     fId = fid;
     fsId = fsid;
@@ -80,6 +81,7 @@ public:
     commitSize = inCommitSize;
     verifyRate = inVerifyRate;
     commitFmd = inCommitFmd;
+    uselPath = inUselPath;
   }
 
   static Verify*
@@ -98,6 +100,7 @@ public:
     bool commitChecksum = false;
     bool commitSize = false;
     bool commitFmd = false;
+    bool uselPath = false;
     const char* sfsid = 0;
     const char* smanager = 0;
     unsigned long long fid = 0;
@@ -119,6 +122,7 @@ public:
     scid = capOpaque->Get("mgm.cid");
     path = capOpaque->Get("mgm.path");
     layout = capOpaque->Get("mgm.lid");
+    uselPath = capOpaque->Get("mgm.uselpath") != 0;
 
     if (capOpaque->Get("mgm.verify.compute.checksum")) {
       computeChecksum = atoi(capOpaque->Get("mgm.verify.compute.checksum"));
@@ -156,8 +160,8 @@ public:
     fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
     fsid = atoi(sfsid);
     return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen),
-                      container, cid, lid, path, computeChecksum, commitChecksum, commitSize,
-                      commitFmd, verifyRate);
+                      container, cid, lid, path, computeChecksum, commitChecksum,
+                      commitSize, commitFmd, uselPath, verifyRate);
   };
 
   ~Verify() { };
@@ -170,9 +174,9 @@ public:
   {
     eos_static_info("Verify fid=%llu on fs=%u path=%s compute_checksum=%d "
                     "commit_checksum=%d commit_size=%d commit_fmd=%d "
-                    "verify_rate=%d %s", fId, fsId, path.c_str(),
-                    computeChecksum, commitChecksum, commitSize, commitFmd,
-                    verifyRate, show);
+                    "use_logical_path=%d verify_rate=%d %s", fId, fsId,
+                    path.c_str(), computeChecksum, commitChecksum, commitSize,
+                    commitFmd, uselPath, verifyRate, show);
   }
 };
 

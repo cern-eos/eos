@@ -26,9 +26,10 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
+#include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
-#include "fst/io/FileIoPluginCommon.hh"
+#include "fst/io/FileIoPlugin.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
@@ -97,8 +98,16 @@ Storage::Verify()
     eos::common::FileId::Fid2Hex(verifyfile->fId, hexfid);
     XrdOucErrInfo error;
     XrdOucString fstPath = "";
-    eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
-                                            verifyfile->localPrefix.c_str(), fstPath);
+
+    if (verifyfile->uselPath) {
+      fstPath = verifyfile->localPrefix + verifyfile->path;
+      fstPath.replace("//", "/", verifyfile->localPrefix.length() - 1);
+    } else {
+      eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
+                                              verifyfile->localPrefix.c_str(),
+                                              fstPath);
+    }
+
     {
       FmdHelper* fMd = 0;
       fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
@@ -114,10 +123,21 @@ Storage::Verify()
         delete fMd;
       }
     }
-    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
+
     // get current size on disk
     struct stat statinfo;
     int open_rc = -1;
+
+    std::string s3credentials = "";
+    std::string sFstPath = fstPath.c_str();
+    if ((fstPath.beginswith("s3:")) || (fstPath.beginswith("s3s:"))) {
+      s3credentials = gOFS.Storage->
+          GetFileSystemById(verifyfile->fsId)->GetString("s3credentials");
+      sFstPath += "?s3credentials=" + s3credentials;
+    }
+
+    std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(
+                                  sFstPath.c_str()));
 
     if (!io || (open_rc = io->fileOpen(0, 0)) || io->fileStat(&statinfo)) {
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on "
@@ -172,7 +192,7 @@ Storage::Verify()
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
-      cbd.caller = (void*) io;
+      cbd.caller = (void*) io.get();
       eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
 
       if ((checksummer) && verifyfile->computeChecksum &&
