@@ -212,7 +212,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   eos_info("");
 
   bool journal_recovery = false;
-
+  errno = 0;
 
   if (mFile->journal() && mFile->has_xrdiorw(req)) {
     eos_info("flushing journal");
@@ -266,19 +266,18 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 
       if (journal_recovery) {
 	eos_debug("try recovery");
-	if (TryRecovery(req, true))
+	int rc = 0;
+	if ( (rc = TryRecovery(req, true)) )
 	{
-	  eos_err("journal-flushing recovery failed");
-	  errno = EREMOTEIO ;
-	  return -1;
+	  eos_err("journal-flushing recovery failed rc=%d", rc);
+	  return rc;
 	} 
 	else 
 	{
-	  if (journalflush(req))
+	  if ( (rc = journalflush(req)) )
 	  {
-	    eos_err("journal-flushing failed");
-	    errno = EREMOTEIO ;
-	    return -1;
+	    eos_err("journal-flushing failed rc=%d", rc);
+	    return rc;
 	  }
 	}
       } 
@@ -298,20 +297,20 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   {
     if (proxy->stateTS() == XrdCl::Proxy::FAILED)
     {
+      int rc = 0;
       eos_debug("try recovery");
-      if (TryRecovery(req, true))
+
+      if ( (rc = TryRecovery(req, true)) )
       {
-	eos_err("remote open failed - returning EREMOTEIO");
-	errno = EREMOTEIO;
-	return -1;
+	eos_err("remote open failed - returning %d", rc);
+	return rc;
       }
       else
       {
-	if (journalflush(req))
+	if ( (rc = journalflush(req)) )
 	{
 	  eos_err("journal-flushing failed");
-	  errno = EREMOTEIO ;
-	  return -1;
+	  return rc;
 	}
 	else
 	{
@@ -340,10 +339,13 @@ data::datax::journalflush(fuse_req_t req)
   // call this with a mLock locked
   eos_info("");
 
+  XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
+
   // we have to push the journal now
-  if (!mFile->xrdiorw(req)->WaitOpen().IsOK()) {
+  if (!status.IsOK()) {
     eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
-    return -1;
+    errno = XrdCl::Proxy::status2errno (status);
+    return errno;
   }
 
   eos_info("syncing cache");
@@ -351,7 +353,7 @@ data::datax::journalflush(fuse_req_t req)
 
   if ((mFile->journal())->remote_sync(cachesync)) {
     eos_err("async journal-cache-sync failed - ino=%08lx", id());
-    return -1;
+    return EREMOTEIO;
   }
 
   eos_info("retc=0");
@@ -367,10 +369,13 @@ data::datax::journalflush(std::string cid)
   // call this with a mLock locked
   eos_info("");
 
+  XrdCl::XRootDStatus status = mFile->xrdiorw(cid)->WaitOpen();
+
   // we have to push the journal now
-  if (!mFile->xrdiorw(cid)->WaitOpen().IsOK()) {
+  if (!status.IsOK()) {
     eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
-    return -1;
+    errno = XrdCl::Proxy::status2errno (status);
+    return errno;
   }
 
   if (mFile->journal()) {
@@ -379,7 +384,7 @@ data::datax::journalflush(std::string cid)
 
     if ((mFile->journal())->remote_sync(cachesync)) {
       eos_err("async journal-cache-sync failed - ino=%08lx", id());
-      return -1;
+      return EREMOTEIO;
     }
   }
 
@@ -1794,7 +1799,12 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
   } else {
     if (mFile->journal()) {
       if (!mFile->journal()->fits(count)) {
-	flush_nolock(req, true, true);
+	int rc = flush_nolock(req, true, true);
+	if (rc) {
+	  eos_warning("flush failed with errno=%d", rc);
+	  errno = rc;
+	  return -1;
+	}
       }
 
       // now there is space to write for us
