@@ -1913,7 +1913,7 @@ XrdMgmOfsFile::open(const char* inpath,
     eos::IFileMD::ctime_t ctime;
     char buff[64];
 
-    capability += "&mgm.logicalpath=1";
+    capability += "&mgm.uselpath=1";
     fmd->setAttribute("logicalpath", path);
 
     fmd->getCTime(ctime);
