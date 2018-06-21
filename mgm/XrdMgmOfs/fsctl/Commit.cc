@@ -67,6 +67,9 @@
   bool modified = (aismodified == "1");
   bool fusex = (afusex == "1");
   bool isAbort = false;
+  eos::common::Path atomic_path("");
+  bool isVersioning = false;
+  bool isAtomic = false;
 
   int envlen;
   int oc_n = 0;
@@ -162,6 +165,7 @@
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
+
     {
       // Keep the lock order View=>Namespace=>Quota
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
@@ -418,11 +422,16 @@
         mt.tv_sec = mtime;
         mt.tv_nsec = mtimens;
 
+	atomic_path.Init(fmd->getName().c_str());
+	atomic_path.DecodeAtomicPath(isVersioning);
+	isAtomic = (atomic_path.GetName() != fmd->getName());
+      
         if (isUpdate && mtime) {
           // Update the modification time only if the file contents changed and
           // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
           // call utimes anyway
-          fmd->setMTime(mt);
+	  if (!isAtomic)
+	    fmd->setMTime(mt);
         }
 
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
@@ -430,7 +439,7 @@
         try {
 	  // check for a temporary Etag and remove it
 	  std::string tmpEtag = "sys.tmp.etag";
-	  if (fmd->hasAttribute(tmpEtag)) {
+	  if (fmd->hasAttribute(tmpEtag) && !isAtomic) {
 	    fmd->removeAttribute(tmpEtag);
 	  }
 
@@ -466,9 +475,6 @@
     }
     {
       // check if this is an atomic path
-      eos::common::Path atomic_path(fmd->getName().c_str());
-      bool isVersioning = false;
-      atomic_path.DecodeAtomicPath(isVersioning);
       std::string dname;
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
