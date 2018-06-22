@@ -2019,19 +2019,23 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   if (isRecursiveRm(req) && 
       Instance().Config().options.rm_rf_bulk) {
     eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+
     md = Instance().mds.get(req, ino);
-    {
-      XrdSysMutexHelper mLock(md->Locker());
-      if (!md->id() || md->deleted()) {
-	rc = md->deleted() ? ENOENT : md->err();
-      } else {
-	rc = Instance().mds.rmrf(req, md);
-      }    
-    }
-    if (!rc)
-    {
-      // invalide this directory
-      Instance().mds.cleanup(md);
+
+    if (md && md->attr().count("sys.recycle")) {
+      // bulk rm only when a recycle bin is configured
+      {
+	XrdSysMutexHelper mLock(md->Locker());
+	if (!md->id() || md->deleted()) {
+	  rc = md->deleted() ? ENOENT : md->err();
+	} else {
+	  rc = Instance().mds.rmrf(req, md);
+	}    
+      }
+      if (!rc) {
+	// invalide this directory
+	Instance().mds.cleanup(md);
+      }
     }
   }
   
