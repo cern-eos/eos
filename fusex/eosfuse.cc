@@ -3598,6 +3598,8 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   fuse_id id(req);
   data::data_fh* io = (data::data_fh*) fi->fh;
 
+  bool invalidate_inode = false;
+
   if (io) {
     if (io->has_update()) {
       cap::shared_cap pcap = Instance().caps.acquire(req, io->md->pid(),
@@ -3632,12 +3634,16 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         XrdSysMutexHelper mLock(io->md->Locker());
         io->md->set_mtime(tsnow.tv_sec);
         io->md->set_mtime_ns(tsnow.tv_nsec);
-        Instance().mds.update(req, io->md, io->authid());
 
         // actually do the flush
         if (io->ioctx()->flush(req)) {
           rc = EIO;
-        }
+	  invalidate_inode = true;
+	  io->md->set_size(io->opensize());
+        } else {
+	  // if we have a flush error, we don't update the MD record
+	  Instance().mds.update(req, io->md, io->authid());
+	}
 
         std::string cookie = io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
@@ -3663,6 +3669,12 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   }
 
   fuse_reply_err(req, rc);
+
+  if (invalidate_inode)  {
+    eos_static_warning("invalidating ino=%#lx after flush error", ino);
+    kernelcache::inval_inode(ino, true);
+  }
+    
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
