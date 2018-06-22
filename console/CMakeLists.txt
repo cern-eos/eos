@@ -94,7 +94,6 @@ add_library(
   commands/com_rm.cc
   commands/com_rmdir.cc
   commands/com_role.cc
-  commands/com_route.cc
   commands/com_rtlog.cc
   commands/com_silent.cc
   commands/com_space.cc
@@ -113,6 +112,7 @@ add_library(
   commands/com_proto_fs.cc
   commands/com_proto_rm.cc
   commands/com_proto_ns.cc
+  commands/com_proto_route.cc
   commands/com_stagerrm.cc)
 
 add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)

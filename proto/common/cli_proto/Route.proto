@@ -1,0 +1,25 @@
+syntax="proto3";
+package eos.console;
+
+message RouteProto {
+  message LinkProto {
+    message Endpoint {
+      string fqdn   = 1;
+      int64 xrd_port  = 2;
+      int64 http_port = 3;
+   }
+
+   string path = 1;
+   repeated Endpoint endpoints = 2;
+  }
+
+  message UnlinkProto {
+    string path = 1;
+  }
+
+  oneof subcmd {
+    bool list = 1;
+    LinkProto link = 2;
+    UnlinkProto unlink = 3;
+  }
+}

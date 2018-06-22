@@ -8,6 +8,7 @@ import "Find.proto";
 import "Fs.proto";
 import "Rm.proto";
 import "StagerRm.proto";
+import "Route.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -32,5 +33,6 @@ message RequestProto {
     FsProto fs             = 6;
     RmProto rm             = 7;
     StagerRmProto stagerRm = 8;
+    RouteProto route       = 9;
   }
 }

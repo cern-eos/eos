@@ -459,9 +459,8 @@ Storage::Boot(FileSystem* fs)
              (unsigned long) fsid);
   }
 
-  // If we detect an unclean shutdown, we resync with the MGM
-  // if we see the stat.bootcheck resyncflag for the filesystem, we also resync
-  // remove the bootcheck flag
+  // If we see the stat.bootcheck resyncflag for the filesystem, we resync with
+  // the mgm. Remove the bootcheck flag.
   fs->SetLongLong("bootcheck", 0);
 
   if (resyncmgm) {
