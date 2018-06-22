@@ -15,6 +15,47 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.3.0 Citrine``
+===================
+
+2018-06-22
+
+Bug
+----
+
+* [EOS-1132] - eosarchived.py, write to closed (log) file?
+* [EOS-2401] - FST crash in eos::fst::ScanDir::CheckFile (EOSPPS)
+* [EOS-2513] - Crash when dumping scheduling groups for display
+* [EOS-2536] - FST
+* [EOS-2557] - disk stats displaying for wrong disks
+* [EOS-2612] - Probom parsing options in "eos fs ls"
+* [EOS-2621] - Concurrent access on FUSE can damage date information (as shown by ls -l)
+* [EOS-2623] - EOSXD loses kernel-md record for symbolic link during kernel compilation
+* [EOS-2624] - Crash when removing invalid quota node
+* [EOS-2654] - Unable to start slave with invalid quota node
+* [EOS-2655] - 'eos find' returns different output for dirs and files
+* [EOS-2656] - Quota rmnode should check if there is quota node before deleting and not afater
+* [EOS-2659] - IO report enabled via xrd.cf but not collecting until enabled on the shell
+* [EOS-2661] - space config allows fs.configstatus despite error message
+
+New Feature
+-----------
+
+* [EOS-2313] - Add queuing in the central draining
+
+
+Improvement
+-----------
+
+* [EOS-2297] - MGM: "boot time" is wrong, should count from process startup
+* [EOS-2460] - MGM should not return
+* [EOS-2558] - Fodora 28 rpm packages
+* [EOS-2576] - http: x509 cert mapping using legacy format
+* [EOS-2589] - git checkout slow
+* [EOS-2629] - Make VST reporting opt-in instead of opt-out
+* [EOS-2644] - Possibility to configure #files and #dirs on MGM with quarkdb
+
+
 ``v4.2.26 Citrine``
 ===================
 
