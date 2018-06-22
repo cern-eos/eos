@@ -63,16 +63,15 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
 
-  if(pQcl == nullptr && pFlusher == nullptr) {
+  if (pQcl == nullptr && pFlusher == nullptr) {
     QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
-    if(config.find(key_flusher) == config.end()) {
+    if (config.find(key_flusher) == config.end()) {
       throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
                         << " configuration was provided");
     }
 
     std::string qdb_flusher_id = config.at(key_flusher);
-
     pQcl = BackendClient::getInstance(contactDetails);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
@@ -109,7 +108,8 @@ FileMDSvc::initialize()
   }
 
   SafetyCheck();
-  ComputeNumberOfFiles();
+  mNumFiles.store(pQcl->execute(
+                    RequestBuilder::getNumberOfFiles()).get()->integer);
 }
 
 //------------------------------------------------------------------------------
@@ -293,29 +293,6 @@ IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
   return mInodeProvider.getFirstFreeId();
-}
-
-//----------------------------------------------------------------------------
-//! Compute the number of files from the backend
-//----------------------------------------------------------------------------
-void
-FileMDSvc::ComputeNumberOfFiles()
-{
-  std::string bucket_key("");
-  qclient::AsyncHandler ah;
-
-  for (uint64_t i = 0ull; i < RequestBuilder::sNumFileBuckets; ++i) {
-    bucket_key = stringify(i);
-    bucket_key += constants::sFileKeySuffix;
-    qclient::QHash bucket_map(*pQcl, bucket_key);
-    bucket_map.hlen_async(&ah);
-  }
-
-  // Wait for all responses and sum up the results
-  (void) ah.Wait();
-  std::list<long long int> resp = ah.GetResponses();
-  mNumFiles.store(std::accumulate(resp.begin(), resp.end(), 0ull));
-  mNumFiles += pQcl->execute(RequestBuilder::getNumberOfFiles()).get()->integer;
 }
 
 //------------------------------------------------------------------------------

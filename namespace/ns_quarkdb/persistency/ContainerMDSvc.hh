@@ -203,11 +203,6 @@ private:
   //----------------------------------------------------------------------------
   void SafetyCheck();
 
-  //----------------------------------------------------------------------------
-  //! Compute the number of containers from the backend
-  //----------------------------------------------------------------------------
-  void ComputeNumberOfContainers();
-
   ListenerList pListeners;              ///< List of listeners to be notified
   IQuotaStats* pQuotaStats;             ///< Quota view
   IFileMDSvc* pFileSvc;                 ///< File metadata service
