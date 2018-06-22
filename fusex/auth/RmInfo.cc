@@ -45,14 +45,21 @@ RmInfo::RmInfo(const std::string &executablePath, const std::vector<std::string>
 
     if(arg == "--recursive") {
       recursive = true;
+    } else if(arg == "--force") {
+      force = true;
+    } else if(arg == "--verbose") {
+      verbose = true;
     }
 
     if(arg.size() >= 2 && arg[0] == '-' && arg[1] != '-') {
       for(size_t i = 1; i < arg.size(); i++) {
         if(arg[i] == 'r' || arg[i] == 'R') {
           recursive = true;
-          break;
-        }
+        } else if(arg[i] == 'f') {
+	  force = true;
+	} else if(arg[i] == 'v') {
+	  verbose = true;
+	}
       }
     }
   }

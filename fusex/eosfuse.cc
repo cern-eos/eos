@@ -2016,7 +2016,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   metad::shared_md md;
 
-  if (isRecursiveRm(req) && 
+  if (isRecursiveRm(req, true, true) && 
       Instance().Config().options.rm_rf_bulk) {
     eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
 
@@ -2581,6 +2581,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       if (!rc) {
         if (isRecursiveRm(req) &&
+	    Instance().Config().options.rm_rf_protect_levels &&
             Instance().mds.calculateDepth(md) <=
             Instance().Config().options.rm_rf_protect_levels) {
           eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
@@ -4668,7 +4669,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
 
 /* -------------------------------------------------------------------------- */
 bool
-EosFuse::isRecursiveRm(fuse_req_t req)
+EosFuse::isRecursiveRm(fuse_req_t req, bool forced, bool notverbose)
 /* -------------------------------------------------------------------------- */
 {
 #ifndef __APPLE__
@@ -4678,7 +4679,15 @@ EosFuse::isRecursiveRm(fuse_req_t req)
 
   if (snapshot->getProcessInfo().getRmInfo().isRm() &&
       snapshot->getProcessInfo().getRmInfo().isRecursive()) {
-    return true;
+    bool result = true;
+    if (forced) {
+      // check if this is rm -rf style
+      result = snapshot->getProcessInfo().getRmInfo().isForce();
+    }
+    if (notverbose) {
+      result &= (!snapshot->getProcessInfo().getRmInfo().isVerbose());
+    }
+    return result;
   }
 
 #endif

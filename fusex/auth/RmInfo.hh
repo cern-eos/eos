@@ -52,9 +52,19 @@ public:
     return recursive;
   }
 
+  bool isForce() const {
+    return force;
+  }
+
+  bool isVerbose() const {
+    return verbose;
+  }
+
 private:
   bool rm = false;
   bool recursive = false;
+  bool force = false;
+  bool verbose = false;
 };
 
 #endif

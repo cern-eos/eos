@@ -326,8 +326,8 @@ protected:
 
 private:
 
-  static bool isRecursiveRm(fuse_req_t req);
-
+  static bool isRecursiveRm(fuse_req_t req, bool forced=false, bool notverbose=false);
+   
   Track tracker;
   
   SubMount mounter;
