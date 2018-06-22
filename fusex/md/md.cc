@@ -2387,12 +2387,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 {
                   shared_md md;
                   {
-                    XrdSysMutexHelper mmLock(mdmap);
-
-                    if (mdmap.count(ino)) {
-                      md = mdmap[ino];
-                      md->Locker().Lock();
-                    }
+		    if (mdmap.retrieveTS(ino, md))  {
+		      md->Locker().Lock();
+		    }
                   }
 
                   // invalidate children
