@@ -23,6 +23,7 @@
 #include "NsCmd.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
+#include "common/LinuxFds.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -262,6 +263,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     oss << "error: failed to get the process stat information" << std::endl;
   }
 
+  eos::common::LinuxFds::linux_fds_t fds;
+
+  if (!eos::common::LinuxFds::GetFdUsage(fds)) {
+    oss << "error: failed to get the process fd information" << std::endl;
+  }
+
   int64_t latencyf = 0, latencyd = 0, latencyp = 0;
   auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
   auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
@@ -310,6 +317,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
+	<< "uid=all gid=all ns.fds.all=" << fds.all << std::endl
         << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
         std::endl
         << "uid=all gid=all ns.fusex.clients=" <<
@@ -418,6 +426,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
 
     oss << "ALL      threads                          " <<  pstat.threads
         << std::endl
+        << "ALL      fds                              " << fds.all
+	<< std::endl
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->StartTime) << std::endl
         << line << std::endl;
