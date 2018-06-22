@@ -1,0 +1,117 @@
+#!/bin/bash
+
+if [ "$1" = "1" ] ; then 
+hasspare=`eos space ls spare`;
+test -z $hasspare || (echo " you have a spare space already defined - stopping this test" && exit -1)
+
+eos space define spare 4 4 
+for name in `seq -w 1 4`; do 
+  mkdir -p /spare/0$name/
+  rm -rf /spare/0$name/.eos*
+  chown daemon:daemon /spare/0$name/
+  eosfstregister -r localhost:1094 /spare/0$name spare:1
+done
+eos space set spare on 
+
+nbooted=0
+
+while [ $nbooted -ne 4 ] ; do
+    nbooted=`eos fs ls | grep -w spare | grep -w booted | wc -l`
+    echo "... waiting for 4 booted filesystems - currently $nbooted";
+    sleep 1;
+done
+
+eos fs ls -l 
+
+fsarray=(`eos fs ls -m | grep spare | awk '{print $3}' | sed s/id=//g`)
+
+eos mkdir /eos/_recovery_/
+eos attr set default=replica /eos/_recovery_/
+eos attr set sys.forced.space=spare /eos/_recovery_/
+eos attr set sys.forced.nstripes=2 /eos/_recovery_/
+eos chmod 777 /eos/_recovery_/
+eos quota set -p /eos/_recovery_/ -g 99 -i 1M -v 1T
+
+mkdir /recover/
+truncate -s 0 /var/log/eos/fusex/fuse.`hostname -f`.log
+mount -t fuse eosxd -ofsname=`hostname -f`:/eos/_recovery_/ /recover/
+
+
+
+ls -lart /recover
+sleep 1
+rm -r /recover/*
+sleep 1
+
+##########################################################################
+echo "# ------------------------------------------------------------------"
+echo "# creating a random file of size 1 G"
+test -e /var/tmp/recovery.1G || dd if=/dev/urandom of=/var/tmp/recovery.1G bs=1M count=1000
+
+
+echo "# ------------------------------------------------------------------"
+echo "# creating a file with no physical space available "
+eos fs config ${fsarray[0]} configstatus=ro
+eos fs config ${fsarray[1]} configstatus=ro
+eos fs config ${fsarray[2]} configstatus=ro
+eos fs config ${fsarray[3]} configstatus=ro
+# create
+dd if=/dev/zero of=/recover/nospace.1 bs=1M count=128  2>&1 | grep "No space left on device" || (echo "no space left on device (create) error fault" && exit -1)
+# update
+dd if=/dev/zero of=/recover/nospace.1 bs=1M count=128 2>&1 | grep "No space left on device" || (echo "no space left on device (update) error fault" && exit -1)
+# create
+dd if=/dev/zero of=/recover/nospace.2 bs=1M count=128 oflag=sync 2>&1 | grep "No space left on device" || (echo "no space left on device (sync create) error fault" && exit -1)
+# update
+dd if=/dev/zero of=/recover/nospace.2 bs=1M count=128 oflag=sync 2>&1 | grep "No space left on device" || (echo "no space left on device (sync update) error fault" && exit -1)
+
+
+echo "# ------------------------------------------------------------------"
+echo "# recovery case 1 - update a file on an offline filesystem"
+echo "[1] enabling two filesystems for write (${fsarray[0]} ${fsarray[1]})"
+eos fs config ${fsarray[0]} configstatus=rw
+eos fs config ${fsarray[1]} configstatus=rw
+eos fs config ${fsarray[2]} configstatus=ro
+eos fs config ${fsarray[3]} configstatus=ro
+eos fs ls -l spare
+sleep 5
+eos fs ls -l spare
+sleep 5
+echo "[2] uploading half of the file"
+dd if=/var/tmp/recovery.1G of=/recover/recovery.1G bs=1M count=500
+eos file info eos/_recovery_/recovery.1G
+echo "[3] making one filesystem RO, add a new one as RW"
+eos fs config ${fsarray[1]} configstatus=ro
+eos fs config ${fsarray[2]} configstatus=rw
+sleep 5
+echo "[4] append the second half of the 1G file with one filesystem down"
+dd if=/var/tmp/recovery.1G skip=500 of=/recover/recovery.1G bs=1M count=500 conv=notrunc oflag=append
+eos file info eos/_recovery_/recovery.1G
+sleep 5
+
+unlink /recover/recovery.1G
+
+fi
+
+fsarray=(`eos fs ls -m | grep spare | awk '{print $3}' | sed s/id=//g`)
+
+for id in ${fsarray[*]}; do 
+  echo "7377813624" | eos fs dropfiles $id -f 
+  eos fs config $id configstatus=empty
+  eos fs rm $id
+  pid=`echo $id | awk '{printf("%04d\n",$1);}'`
+  rm -rf /var/eos/md/fmd.$pid.LevelDB
+done
+
+test -e /recover && umount -fl /recover/
+test -e /recover/ && rmdir /recover/
+rm -rf /spare/*
+
+
+
+
+
+
+
+
+
+
