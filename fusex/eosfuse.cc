@@ -323,7 +323,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("backtrace")) {
-	root["options"]["backtrace"] = 0;
+	root["options"]["backtrace"] = 1;
       }
 
       if (!root["options"].isMember("md-kernelcache")) {
@@ -1358,9 +1358,15 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 #ifdef __linux__
   backward::SignalHandling::handleSignal(sig, si, ctx);
 #endif
-  eos_static_warning("sighandler received signal %d - emitting signal 2", sig);
+
+  std::string systemline = "fusermount -u ";
+  systemline += EosFuse::Instance().Config().localmountdir;
+  system(systemline.c_str());
+  eos_static_warning("executing %s", systemline.c_str());
+  eos_static_warning("sighandler received signal %d - emitting signal %d again", sig, sig);
   signal(SIGSEGV, SIG_DFL);
-  kill(getpid(), 2);
+  signal(SIGABRT, SIG_DFL);
+  kill(getpid(), sig);
 }
 
 /* -------------------------------------------------------------------------- */
