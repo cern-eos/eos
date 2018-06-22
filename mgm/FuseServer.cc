@@ -3055,7 +3055,7 @@ FuseServer::HandleMD(const std::string& id,
           gOFS->WriteRecycleRecord(fmd);
           gOFS->eosViewRWMutex.UnLockWrite();
           XrdOucErrInfo error;
-          int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false);
+          int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false, true);
           gOFS->eosViewRWMutex.LockWrite();
         } else {
           try {

@@ -388,7 +388,8 @@ public:
            const char* opaque = 0,
            bool simulate = false,
            bool keepversion = false,
-           bool no_recycling = false);
+           bool no_recycling = false,
+	   bool no_quota_enforcement = false);
 
   //----------------------------------------------------------------------------
   //! Low-level namespace find command

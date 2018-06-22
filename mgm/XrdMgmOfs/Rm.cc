@@ -75,7 +75,8 @@ XrdMgmOfs::_rem(const char* path,
                 const char* ininfo,
                 bool simulate,
                 bool keepversion,
-                bool no_recycling)
+                bool no_recycling, 
+		bool no_quota_enforcement)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -86,6 +87,8 @@ XrdMgmOfs::_rem(const char* path,
  * @param ininfo CGI
  * @param simulate indicates 'simulate deletion' e.g. it can be used as a test if a deletion would succeed
  * @param keepversion indicates if the deletion should wipe the version directory
+ * @param no_recycling suppresses the recycle bin
+ * @param no_quota_enforcment disables quota check on the recycle bin
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * Deletion supports the recycle bin if configured on the parent directory of
@@ -334,7 +337,7 @@ XrdMgmOfs::_rem(const char* path,
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
     if (Quota::ExistsResponsible(recycle_space)) {
-      if (!Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
+      if (!no_quota_enforcement && !Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
                         fmd->getSize(), fmd->getNumLocation())) {
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full
