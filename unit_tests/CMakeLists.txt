@@ -43,6 +43,7 @@ set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/FsViewTests.cc
   mgm/AclCmdTests.cc
+  mgm/RouteEndpointTests.cc
   mgm/LockTrackerTests.cc)
 
 set(COMMON_UT_SRCS
