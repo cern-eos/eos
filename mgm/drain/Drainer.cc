@@ -34,7 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Drainer::Drainer():
-  mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5)
+  mThread(0), mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5)
 {}
 
 //------------------------------------------------------------------------------
@@ -52,7 +52,9 @@ void Drainer::Start()
 void
 Drainer::Stop()
 {
-  XrdSysThread::Cancel(mThread);
+  if (mThread) {
+    XrdSysThread::Cancel(mThread);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -62,7 +64,7 @@ Drainer::~Drainer()
 {
   Stop();
 
-  if (!gOFS->Shutdown) {
+  if (mThread && !gOFS->Shutdown) {
     XrdSysThread::Join(mThread, NULL);
   }
 }

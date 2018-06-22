@@ -26,6 +26,7 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
+#include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -196,6 +197,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kStagerRm:
     cmd.reset(new StagerRmCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kRoute:
+    cmd.reset(new RouteCmd(std::move(req), vid));
     break;
 
   default:

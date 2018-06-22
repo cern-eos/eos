@@ -44,13 +44,18 @@ eos::mgm::RmCmd::ProcessRequest()
 
   if (rm.path().empty()) {
     XrdOucString pathOut = "";
-    if (rm.fileid())
+
+    if (rm.fileid()) {
       GetPathFromFid(pathOut, rm.fileid(), "error: ");
-    if (rm.containerid())
+    }
+
+    if (rm.containerid()) {
       GetPathFromCid(pathOut, rm.containerid(), "error: ");
+    }
+
     spath = pathOut.c_str();
-    if (!spath.length())
-    {
+
+    if (!spath.length()) {
       reply.set_std_err(stdErr.c_str());
       reply.set_retc(ENOENT);
       return reply;
@@ -63,8 +68,8 @@ eos::mgm::RmCmd::ProcessRequest()
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
-  if (IsOperationAllowed(spath.c_str()) ==
-      SFS_OK) { // This is the not allowed case now
+  // This is the not allowed case now
+  if (IsOperationForbidden(spath.c_str()) == SFS_OK) {
     reply.set_std_err(stdErr.c_str());
     reply.set_retc(EACCES);
     return reply;

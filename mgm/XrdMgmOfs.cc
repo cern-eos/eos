@@ -174,7 +174,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000), mFusexPort(1100),
+  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
+  mFusexPort(1100),
   mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
@@ -313,9 +314,7 @@ XrdMgmOfs::HasStall(const char* path,
 // Test for redirection rule
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::HasRedirect(const char* path,
-                       const char* rule,
-                       XrdOucString& host,
+XrdMgmOfs::HasRedirect(const char* path, const char* rule, std::string& host,
                        int& port)
 {
   if (!rule) {
@@ -681,8 +680,10 @@ XrdMgmOfs::StartArchiveSubmitter(void* arg)
 void
 XrdMgmOfs::StopArchiveSubmitter()
 {
-  XrdSysThread::Cancel(mSubmitterTid);
-  XrdSysThread::Join(mSubmitterTid, NULL);
+  if (mSubmitterTid) {
+    XrdSysThread::Cancel(mSubmitterTid);
+    XrdSysThread::Join(mSubmitterTid, NULL);
+  }
 }
 
 //------------------------------------------------------------------------------

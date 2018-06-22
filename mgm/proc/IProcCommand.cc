@@ -394,8 +394,11 @@ IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
   }
 }
 
+//------------------------------------------------------------------------------
+// Check if operation forbidden
+//------------------------------------------------------------------------------
 int
-IProcCommand::IsOperationAllowed(const char* inpath)
+IProcCommand::IsOperationForbidden(const char* inpath)
 {
   PROC_BOUNCE_NOT_ALLOWED;
   return SFS_ERROR;

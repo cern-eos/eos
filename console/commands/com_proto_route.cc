@@ -38,10 +38,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  RouteHelper()
-  {
-    mIsAdmin = true;
-  }
+  RouteHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -56,6 +53,17 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg);
+
+private:
+  //----------------------------------------------------------------------------
+  //! Check path validity - it shouldn't contain spaces, '/./' or '/../' or
+  //! backslash characters. Append if necessary and end '/'.
+  //!
+  //! @param path given path
+  //!
+  //! @return true if valid, otherwise false
+  //----------------------------------------------------------------------------
+  bool ValidatePath(std::string& path) const;
 };
 
 //------------------------------------------------------------------------------
@@ -73,7 +81,20 @@ RouteHelper::ParseCommand(const char* arg)
   std::string cmd = (option ? option : "");
 
   if (cmd == "ls") {
-    route->set_list(true);
+    using eos::console::RouteProto_ListProto;
+    RouteProto_ListProto* list = route->mutable_list();
+
+    if (!(option = tokenizer.GetToken())) {
+      list->set_path("");
+    } else {
+      soption = option;
+
+      if (!ValidatePath(soption)) {
+        return false;
+      }
+
+      list->set_path(soption);
+    }
   } else if (cmd == "unlink") {
     using eos::console::RouteProto_UnlinkProto;
     RouteProto_UnlinkProto* unlink = route->mutable_unlink();
@@ -85,14 +106,12 @@ RouteHelper::ParseCommand(const char* arg)
     // Do basic checks that this is a path
     soption = option;
 
-    if (soption.empty() || soption[0] != '/') {
+    if (!ValidatePath(soption)) {
       return false;
     }
 
     unlink->set_path(soption);
   } else if (cmd == "link") {
-    eos::console::RouteProto_LinkProto* link = route->mutable_link();
-
     if (!(option = tokenizer.GetToken())) {
       return false;
     }
@@ -100,10 +119,11 @@ RouteHelper::ParseCommand(const char* arg)
     // Do basic checks that this is a path
     soption = option;
 
-    if (soption.empty() || soption[0] != '/') {
+    if (!ValidatePath(soption)) {
       return false;
     }
 
+    eos::console::RouteProto_LinkProto* link = route->mutable_link();
     link->set_path(soption);
 
     // Parse redirection locations which are "," separated
@@ -124,12 +144,12 @@ RouteHelper::ParseCommand(const char* arg)
       std::vector<std::string> elems;
       eos::common::StringConversion::Tokenize(endpoint, elems, ":");
       ep->set_fqdn(elems[0]);
-      int xrd_port, http_port;
+      uint32_t xrd_port, http_port;
 
       if (elems.size() == 3) {
         try {
-          xrd_port = std::stoi(elems[1]);
-          http_port = std::stoi(elems[2]);
+          xrd_port = std::stoul(elems[1]);
+          http_port = std::stoul(elems[2]);
         } catch (const std::exception& e) {
           return false;
         }
@@ -159,6 +179,60 @@ RouteHelper::ParseCommand(const char* arg)
   return true;
 }
 
+
+//------------------------------------------------------------------------------
+// Check if path is valid
+//------------------------------------------------------------------------------
+bool
+RouteHelper::ValidatePath(std::string& path) const
+{
+  if (path.empty() || path[0] != '/') {
+    std::cerr << "error: path should be non-empty and start with '/'"
+              << std::endl;
+    return false;
+  }
+
+  if (path.back() != '/') {
+    path += '/';
+  }
+
+  std::set<std::string> forbidden {" ", "/../", "/./", "\\"};
+
+  for (const auto& needle : forbidden) {
+    if (path.find(needle) != std::string::npos) {
+      std::cerr << "error: path should no contain any of the following "
+                << "sequences of characters: \" \", \"/../\", \"/./\" or "
+                << "\"\\\"" << std::endl;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Route command entrypoint
+//------------------------------------------------------------------------------
+int com_route(char* arg)
+{
+  if (wants_help(arg)) {
+    com_route_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  RouteHelper route;
+
+  if (!route.ParseCommand(arg)) {
+    com_route_help();
+    global_retc = EINVAL;
+    return EINVAL;
+  }
+
+  global_retc = route.Execute();
+  return global_retc;
+}
+
 //------------------------------------------------------------------------------
 // Print help message
 //------------------------------------------------------------------------------
@@ -168,12 +242,12 @@ void com_route_help()
   oss << "Usage: route [ls|link|unlink]" << std::endl
       << "    namespace routing to redirect clients to external instances"
       << std::endl
-      << "  route ls " << std::endl
-      << "    list all defined routings" << std::endl
+      << "  route ls [<path>]" << std::endl
+      << "    list all routings or the one matching for the given path"
       << std::endl
-      << "  route link <src_path> <dst_host>[:<xrd_port>[:<http_port>]],..."
+      << "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],..."
       << std::endl
-      << "    create routing from src_path to destination host. If the xrd_port"
+      << "    create routing from <path> to destination host. If the xrd_port"
       << std::endl
       << "    is ommited the default 1094 is used, if the http_port is ommited"
       << std::endl
@@ -185,7 +259,7 @@ void com_route_help()
       << std::endl
       << "    e.g route /eos/dummy/ foo.bar:1094:8000" << std::endl
       << std::endl
-      << "  route unlink <src_path" << std::endl
-      << "    remove routing from source path" << std::endl;
+      << "  route unlink <path>" << std::endl
+      << "    remove routing matching path" << std::endl;
   std::cerr << oss.str() << std::endl;
 }

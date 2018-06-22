@@ -234,8 +234,15 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
   } else if (skey.beginswith("route:")) {
     // Set a routing
     skey.erase(0, 6);
+    RouteEndpoint endpoint;
 
-    if (!gOFS->AddPathRoute(skey.c_str(), sval.c_str())) {
+    if (!endpoint.ParseFromString(sval.c_str())) {
+      eos_static_err("failed to parse route config %s => %s", key, val->c_str());
+      oss_err << "error: failed to parse route config "
+              << key << " => " << val->c_str() << std::endl;
+    }
+
+    if (!gOFS->AddPathRoute(skey.c_str(), std::move(endpoint))) {
       oss_err << "error: failed to apply config "
               << key << " => " << val->c_str() << std::endl;
     }
@@ -437,10 +444,10 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     }
   } else  if (skey.beginswith("route:")) {
     skey.erase(0, 6);
-    eos::common::RWMutexWriteLock lock(gOFS->PathRouteMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->mPathRouteMutex);
 
-    if (gOFS->PathRoute.count(skey.c_str())) {
-      gOFS->PathRoute.erase(skey.c_str());
+    if (gOFS->mPathRoute.count(skey.c_str())) {
+      gOFS->mPathRoute.erase(skey.c_str());
     }
   } else if (skey.beginswith("quota:")) {
     // Remove quota definition
@@ -633,7 +640,7 @@ IConfigEngine::ResetConfig()
   }
   Access::Reset();
   gOFS->ResetPathMap();
-  gOFS->ResetPathRoute();
+  gOFS->ClearPathRoutes();
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   {

@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ShouldRoute.cc
-// Author: Andreas-Joachim Peters - CERN
+//! @file RouteEndpoint.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -17,30 +16,50 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-//------------------------------------------------------------------------------
+#include "mgm/RouteEndpoint.hh"
+#include "common/StringConversion.hh"
+#include <sstream>
+
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Test if a client based on the called function and his identity
-// should be re-routed
+// Parse route endpoint specification from string
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
-                       eos::common::Mapping::VirtualIdentity& vid,
-                       const char* path, const char* info,
-                       std::string& host, int& port)
+RouteEndpoint::ParseFromString(const std::string& input)
 {
-  if ((vid.uid == 0) ||
-      (vid.host == "localhost") ||
-      (vid.host == "localhost.localdomain")) {
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(input, tokens, ":");
+
+  if (tokens.size() != 3) {
     return false;
   }
 
-  return gOFS->PathReroute(path, info, vid, host, port);
+  mFqdn = tokens[0];
+
+  try {
+    mXrdPort = std::stoul(tokens[1]);
+    mHttpPort = std::stoul(tokens[2]);
+  } catch (const std::exception& e) {
+    return false;
+  }
+
+  return true;
 }
+
+//------------------------------------------------------------------------------
+// Get string representation of the endpoint
+//------------------------------------------------------------------------------
+std::string
+RouteEndpoint::ToString() const
+{
+  std::ostringstream oss;
+  oss << mFqdn << ":" << mXrdPort << ":" << mHttpPort;
+  return oss.str();
+}
+
+EOSMGMNAMESPACE_END

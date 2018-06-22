@@ -116,7 +116,7 @@ add_library(
   proc/user/Rm.cc
   proc/user/RmCmd.cc
   proc/user/Rmdir.cc
-  proc/user/Route.cc
+  proc/user/RouteCmd.cc
   proc/user/Version.cc
   proc/user/Who.cc
   proc/user/Whoami.cc
@@ -151,6 +151,7 @@ add_library(
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
   Recycle.cc
+  RouteEndpoint.cc
   LRU.cc
   WFE.cc
   Workflow.cc

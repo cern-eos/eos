@@ -107,6 +107,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
+#include "mgm/RouteEndpoint.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -389,7 +390,7 @@ public:
            bool simulate = false,
            bool keepversion = false,
            bool no_recycling = false,
-	   bool no_quota_enforcement = false);
+           bool no_quota_enforcement = false);
 
   //----------------------------------------------------------------------------
   //! Low-level namespace find command
@@ -846,7 +847,7 @@ public:
   // drop stripe by vid
   // ---------------------------------------------------------------------------
   int _dropstripe(const char* path,
-		  eos::common::FileId::fileid_t fid,
+                  eos::common::FileId::fileid_t fid,
                   XrdOucErrInfo& error,
                   eos::common::Mapping::VirtualIdentity& vid,
                   unsigned long fsid,
@@ -1066,34 +1067,40 @@ public:
                    int& stalltime, XrdOucString& stallmsg);
 
   //----------------------------------------------------------------------------
-  // Test if a  client should be redirected
-  //----------------------------------------------------------------------------
-  bool ShouldRedirect(const char* function,
-                      int accessmode,
-                      eos::common::Mapping::VirtualIdentity& vid,
-                      XrdOucString& host,
-                      int& port);
-
-  //----------------------------------------------------------------------------
-  //! @brief Test if a client based on the called function and his identity
-  //! should be re-routed
+  //! @brief Check if a client based on the called function and his
+  //! identity should be redirected. The redirection rules are defined by
+  //! globals in the Access object (see Access.cc)
   //!
   //! @param function name of the function to check
   //! @param __AccessMode__ macro generated parameter defining if this is a
-  //!        reading or writing (namespace modifying) function
+  //!reading or writing (namespace modifying) function
   //! @param host returns the target host of a redirection
   //! @param port returns the target port of a redirection
+  //!
   //! @return true if client should get a redirected otherwise false
   //!
-  //! The routing table is defined using the 'route' CLI
   //----------------------------------------------------------------------------
-  bool ShouldRoute(const char* function,
-                   int accessmode,
+  bool ShouldRedirect(const char* function, int accessmode,
+                      eos::common::Mapping::VirtualIdentity& vid,
+                      std::string& host, int& port);
+
+  //----------------------------------------------------------------------------
+  //! @brief Test if a client based on the called function and his identity
+  //! should be re-routed.
+  //!
+  //! @param function name of the function to check
+  //! @param accessmode macro generated parameter defining if this is a
+  //!        reading or writing (namespace modifying) function
+  //! @param vid virtual idenity
+  //! @param host target host of a redirection
+  //! @param port target port of a redirection
+  //!
+  //! @return true if client should get a redirected otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldRoute(const char* function, int accessmode,
                    eos::common::Mapping::VirtualIdentity& vid,
-                   const char* path,
-                   const char* info,
-                   XrdOucString& host,
-                   int& port);
+                   const char* path, const char* info,
+                   std::string& host, int& port);
 
   //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule
@@ -1126,9 +1133,7 @@ public:
   //! The interface is generic to check for individual paths, but currently we
   //! just implemented global rules for any paths. See Access.cc for details.
   //----------------------------------------------------------------------------
-  bool HasRedirect(const char* path,
-                   const char* rule,
-                   XrdOucString& host,
+  bool HasRedirect(const char* path, const char* rule, std::string& host,
                    int& port);
 
   //----------------------------------------------------------------------------
@@ -1156,38 +1161,45 @@ public:
   void ResetPathMap();  // reset/empty the path map
 
   //----------------------------------------------------------------------------
-  //! @brief Route a path name according to the configured routing table
+  //! @brief Route a path according to the configured routing table. This
+  //! function does the path translation according to the configured routing
+  //! table. It applies the 'longest' matching rule.
   //!
   //! @param inpath path to route
-  //! @param outpath rerouted path
+  //! @param ininfo opaque information
+  //! @param vid user virtual idenity
+  //! @param host redirection host
+  //! @param port redirection port
   //!
-  //! @return true if there is a routing
-  //! This function does the path translation according to the configured routing
-  //! table. It applies the 'longest' matching rule.
+  //! @return true if there is a routing, otherwise false
   //----------------------------------------------------------------------------
-  bool PathReroute(const char* inpath,
-                   const char* ininfo,
+  bool PathReroute(const char* inpath, const char* ininfo,
                    eos::common::Mapping::VirtualIdentity_t& vid,
-                   XrdOucString& outhost,
-                   int& port);  // global namespace routing
+                   std::string& host, int& port);
 
   //----------------------------------------------------------------------------
   //! Add a source/target pair to the path routing table
   //!
-  //! @param source prefix path to route
-  //! @param target target route for substitution of prefix
+  //! @param path prefix path to route
+  //! @param endpoint endpoint for the routing
   //!
-  //! This function allows e.g. toroute paths like /eos to external storages
-  //! like root://... It is used by the Configuration Engin to apply a routing
-  //! from a configuration file.
+  //! @return true if route added, otherwise false
   //----------------------------------------------------------------------------
-  bool AddPathRoute(const char* source,
-                    const char* target); // add a routing to the path map
+  bool AddPathRoute(const std::string& path, RouteEndpoint&& endpoint);
 
   //----------------------------------------------------------------------------
-  //! Reset all the stored entries in the path routing table
+  //! Remove routing for the corresponding path
+  //!
+  //! @param path routing path to be removed
+  //!
+  //! @return true if successfully removed, otherwise false
   //----------------------------------------------------------------------------
-  void ResetPathRoute(); // reset/empty the path route
+  bool RemovePathRoute(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Clear all the stored entries in the path routing table
+  //----------------------------------------------------------------------------
+  void ClearPathRoutes();
 
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair
@@ -1556,11 +1568,8 @@ public:
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
 
   //! Global path routing
-  std::map<std::string, std::string> PathRoute;
-  std::map<std::string, std::string> Routes;
-  std::map<std::string, int> RouteXrdPort;
-  std::map<std::string, int> RouteHttpPort;
-  eos::common::RWMutex PathRouteMutex; ///< mutex protecting the routing map
+  std::map<std::string, std::list<RouteEndpoint>> mPathRoute;
+  eos::common::RWMutex mPathRouteMutex; ///< Mutex protecting the routing map
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier

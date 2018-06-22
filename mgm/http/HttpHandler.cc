@@ -63,20 +63,17 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   }
 
   int meth = ParseMethodString(request->GetMethod());
-
   {
     // call the routing module before doing anything with http
-    XrdOucString host;
     int port;
+    std::string host;
 
-    if (gOFS->ShouldRoute(__FUNCTION__, 0, 
-			  *mVirtualIdentity, 
-			  request->GetUrl().c_str(), 
-			  request->GetQuery().c_str(), 
-			  host, port)) {
+    if (gOFS->ShouldRoute(__FUNCTION__, 0, *mVirtualIdentity,
+                          request->GetUrl().c_str(),
+                          request->GetQuery().c_str(),
+                          host, port)) {
       response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
-					  host.c_str(), 
-					  port, false);
+                                          host.c_str(), port, false);
       mHttpResponse = response;
       return;
     }
@@ -288,29 +285,29 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                         url.c_str());
         // HEAD requests on files can return from the MGM without redirection
         response = HttpServer::HttpHead(buf.st_size, basename);
-        
         response->AddHeader("ETag", etag);
         response->AddHeader("Last-Modified",
                             eos::common::Timing::utctime(buf.st_mtime));
+
         if (request->GetHeaders().count("want-digest")) {
           std::string type = request->GetHeaders()["want-digest"];
-          XrdOucString digest ="";
+          XrdOucString digest = "";
           eos_static_debug("method=HEAD, path=%s, checksum requested=%s",
-                          url.c_str(), type.c_str());
+                           url.c_str(), type.c_str());
           //check if there is a checksum type and checksum
-           
           std::string xstype;
           std::string xs;
+
           if (!gOFS->_getchecksum(url.c_str(),
-                           error,
-                           &xstype,
-                           &xs,
-                           &client,
-                           "")) {
-                 //check if the type match what requested
+                                  error,
+                                  &xstype,
+                                  &xs,
+                                  &client,
+                                  "")) {
+            //check if the type match what requested
             if (xstype == type) {
               eos_static_debug("method=HEAD, path=%s, checksum requested=%s, checksum available=%s",
-                          url.c_str(), type.c_str(), xstype.c_str());
+                               url.c_str(), type.c_str(), xstype.c_str());
               digest += xstype.c_str();
               digest += "=";
               digest += xs.c_str();
@@ -318,7 +315,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
             }
           }
         }
-       return response;
+
+        return response;
       }
     }
   }

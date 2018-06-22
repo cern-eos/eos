@@ -87,11 +87,12 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Redirect Macro
 //------------------------------------------------------------------------------
 #define MAYREDIRECT { if (gOFS->IsRedirect) {                                 \
-    int port=0;                                                               \
-    XrdOucString host="";                                                     \
-    if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host,port))     \
+    int port {0};                                                             \
+    std::string host {""};                                                    \
+    if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host, port))    \
       return gOFS->Redirect(error, host.c_str(), port);                       \
-    if (gOFS->ShouldRoute(__FUNCTION__,__AccessMode__, vid, path, ininfo, host, port)) \
+    if (gOFS->ShouldRoute(__FUNCTION__,__AccessMode__, vid, path, ininfo,     \
+                          host, port))                                        \
       return gOFS->Redirect(error, host.c_str(), port);                       \
     }                                                                         \
   }
@@ -99,73 +100,73 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! ENOENT Redirect Macro
 //------------------------------------------------------------------------------
-#define MAYREDIRECT_ENOENT { if (gOFS->IsRedirect) {    \
-      int port=0;           \
-      XrdOucString host="";         \
-      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) { \
-        return gOFS->Redirect(error, host.c_str(), port) ;  \
-      }               \
-    }               \
+#define MAYREDIRECT_ENOENT { if (gOFS->IsRedirect) {                           \
+      int port {0};                                                            \
+      std::string host {""};                                                   \
+      if (gOFS->HasRedirect(path, "ENOENT:*", host, port)) {                   \
+        return gOFS->Redirect(error, host.c_str(), port) ;                     \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
 //! ENONET Redirect Macro
 //------------------------------------------------------------------------------
-#define MAYREDIRECT_ENONET { if (gOFS->IsRedirect) {    \
-      int port=0;           \
-      XrdOucString host="";         \
-      if (gOFS->HasRedirect(path,"ENONET:*",host,port)) { \
-        return gOFS->Redirect(error, host.c_str(), port) ;  \
-      }               \
-    }               \
+#define MAYREDIRECT_ENONET { if (gOFS->IsRedirect) {                           \
+      int port {0};                                                            \
+      std::string host {""};                                                   \
+      if (gOFS->HasRedirect(path,"ENONET:*",host,port)) {                      \
+        return gOFS->Redirect(error, host.c_str(), port) ;                     \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
 //! ENETUNREACH Redirect Macro
 //------------------------------------------------------------------------------
-#define MAYREDIRECT_ENETUNREACH { if (gOFS->IsRedirect) { \
-      int port=0;           \
-      XrdOucString host="";         \
-      if (gOFS->HasRedirect(path,"ENETUNREACH:*",host,port)) {  \
-        return gOFS->Redirect(error, host.c_str(), port) ;  \
-      }               \
-    }               \
+#define MAYREDIRECT_ENETUNREACH { if (gOFS->IsRedirect) {                      \
+      int port {0};                                                            \
+      std::string host {""};                                                   \
+      if (gOFS->HasRedirect(path,"ENETUNREACH:*",host,port)) {                 \
+        return gOFS->Redirect(error, host.c_str(), port) ;                     \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
 //! ENOENT Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL_ENOENT { if (gOFS->IsStall) {                      \
-      XrdOucString stallmsg="";                                     \
-      int stalltime;                                                \
-      if (gOFS->HasStall(path, "ENOENT:*", stalltime, stallmsg)) {  \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;    \
-      }                                                             \
-    }                                                               \
+#define MAYSTALL_ENOENT { if (gOFS->IsStall) {                                 \
+      XrdOucString stallmsg="";                                                \
+      int stalltime;                                                           \
+      if (gOFS->HasStall(path, "ENOENT:*", stalltime, stallmsg)) {             \
+        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
 //! ENONET Stall Macro
 // -----------------------------------------------------------------------------
-#define MAYSTALL_ENONET { if (gOFS->IsStall) {                    \
-      XrdOucString stallmsg="";                                   \
-      int stalltime;                                              \
-      if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) { \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;  \
-      }                                                           \
-    }                                                             \
+#define MAYSTALL_ENONET { if (gOFS->IsStall) {                                 \
+      XrdOucString stallmsg="";                                                \
+      int stalltime;                                                           \
+      if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) {              \
+        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
 //! ENETUNREACH Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL_ENETUNREACH { if (gOFS->IsStall) {     \
-      XrdOucString stallmsg="";           \
-      int stalltime;              \
-      if (gOFS->HasStall(path,"ENETUNREACH:*", stalltime, stallmsg)) {  \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;  \
-      }                 \
-    }                 \
+#define MAYSTALL_ENETUNREACH { if (gOFS->IsStall) {                            \
+      XrdOucString stallmsg="";                                                \
+      int stalltime;                                                           \
+      if (gOFS->HasStall(path,"ENETUNREACH:*", stalltime, stallmsg)) {         \
+        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
@@ -266,13 +267,13 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Require System Auth (SSS or localhost) Macro
 //------------------------------------------------------------------------------
-#define REQUIRE_SSS_OR_LOCAL_AUTH         \
-  if ((vid.prot!="sss") &&                                              \
-      ((vid.host != "localhost") &&                                     \
-       (vid.host != "localhost.localdomain")) ){                        \
-    eos_err("system access restricted - unauthorized identity used"); \
-    return Emsg(epname, error, EACCES,"give access - system access "    \
-                "restricted - unauthorized identity used");             \
+#define REQUIRE_SSS_OR_LOCAL_AUTH                                              \
+  if ((vid.prot!="sss") &&                                                     \
+      ((vid.host != "localhost") &&                                            \
+       (vid.host != "localhost.localdomain")) ){                               \
+    eos_err("system access restricted - unauthorized identity used");          \
+    return Emsg(epname, error, EACCES,"give access - system access "           \
+                "restricted - unauthorized identity used");                    \
   }
 
 //------------------------------------------------------------------------------

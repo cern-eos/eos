@@ -30,7 +30,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class NsCmd - class hadling ns commands
+//! Class NsCmd - class handling ns commands
 //------------------------------------------------------------------------------
 class NsCmd: public IProcCommand
 {

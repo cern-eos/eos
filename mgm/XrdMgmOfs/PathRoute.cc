@@ -27,74 +27,76 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Reset all the stored entries in the path routing table
+// Clear the routing table
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ResetPathRoute()
+XrdMgmOfs::ClearPathRoutes()
 {
-  eos::common::RWMutexWriteLock lock(PathRouteMutex);
-  PathRoute.clear();
-  Routes.clear();
-  RouteXrdPort.clear();
-  RouteHttpPort.clear();
+  eos::common::RWMutexWriteLock lock(mPathRouteMutex);
+  mPathRoute.clear();
 }
 
 //------------------------------------------------------------------------------
-// Add a source/target pair to the path routing table
+// Add path endpoint pair to the routing table
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::AddPathRoute(const char* source,
-                        const char* target)
+XrdMgmOfs::AddPathRoute(const std::string& path, RouteEndpoint&& endpoint)
 {
-  eos::common::RWMutexWriteLock lock(PathRouteMutex);
+  std::string string_rep = endpoint.ToString();
+  eos::common::RWMutexWriteLock route_wr_lock(mPathRouteMutex);
+  auto it = mPathRoute.find(path);
 
-  if (PathRoute.count(source)) {
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("rejecting to add route %s\n", source);
-    }
-
-    return false;
+  if (it == mPathRoute.end()) {
+    mPathRoute.emplace(path, std::list<RouteEndpoint> {std::move(endpoint)});
   } else {
-    std::string starget = target;
-    std::vector<std::string> items;
-    eos::common::StringConversion::Tokenize(starget, items, ":");
-    PathRoute[source] = target;
-    Routes[source] = items[0];
+    bool found = false;
 
-    if (items.size() > 1) {
-      RouteXrdPort[source] = atoi(items[1].c_str());
-    } else {
-      RouteXrdPort[source] = 1094;
+    for (const auto& ep : it->second) {
+      if (ep == endpoint) {
+        found = true;
+        break;
+      }
     }
 
-    if (items.size() > 2) {
-      RouteHttpPort[source] = atoi(items[2].c_str());
-    } else {
-      RouteHttpPort[source] = 8000;
+    if (found) {
+      return false;
     }
 
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("adding route %s => %s %d %d", source, target,
-                RouteXrdPort[source], RouteHttpPort[source]);
-    }
-
-    ConfEngine->SetConfigValue("route", source, target);
-    return true;
+    it->second.emplace_back(std::move(endpoint));
   }
+
+  eos_debug("added route %s => %s", path.c_str(), string_rep.c_str());
+  return true;
 }
 
 //------------------------------------------------------------------------------
-// Route a path name according to the configured routing table
+// Remove routing for the corresponding path
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::PathReroute(const char* inpath,
-                       const char* ininfo,
-                       eos::common::Mapping::VirtualIdentity_t& vid,
-                       XrdOucString& outhost,
-                       int& outport)
+XrdMgmOfs::RemovePathRoute(const std::string& path)
 {
-  eos::common::RWMutexReadLock lock(PathRouteMutex);
-  std::string surl = inpath;
+  eos::common::RWMutexWriteLock route_wr_lock(mPathRouteMutex);
+  auto it = mPathRoute.find(path);
+
+  if (path.empty() || (it == mPathRoute.end())) {
+    return false;
+  }
+
+  mPathRoute.erase(it);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Route a path according to the configured routing table
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::PathReroute(const char* inpath, const char* ininfo,
+                       eos::common::Mapping::VirtualIdentity_t& vid,
+                       std::string& host, int& port)
+{
+  // Process and extract the path for which we need to do the routing
+  std::string path = (inpath ? inpath : "");
+  std::string surl = path;
 
   if (ininfo) {
     surl += "?";
@@ -102,101 +104,80 @@ XrdMgmOfs::PathReroute(const char* inpath,
   }
 
   XrdCl::URL url(surl);
-  XrdCl::URL::ParamsMap attr = url.GetParams();
+  XrdCl::URL::ParamsMap param = url.GetParams();
 
-  // there can be a routing tag in the CGI, in case we use that one to map
-  if (attr["eos.route"].length()) {
-    inpath = attr["eos.route"].c_str();
-  } else if (attr["mgm.path"].length()) {
-    inpath = attr["mgm.path"].c_str();
-  } else if (attr["mgm.quota.space"].length()) {
-    inpath = attr["mgm.quota.space"].c_str();
+  // If there is a routing tag in the CGI, we use that one to map
+  if (param["eos.route"].length()) {
+    path = param["eos.route"];
+  } else if (param["mgm.path"].length()) {
+    path = param["mgm.path"];
+  } else if (param["mgm.quota.space"].length()) {
+    path = param["mgm.quota.space"];
   }
 
-  XrdOucString sinpath = inpath;
-
-  if (!sinpath.endswith("/")) {
-    sinpath += "/";
-  }
-
-  eos::common::Path cPath(sinpath.c_str());
-
-  if (EOS_LOGS_DEBUG) {
-    eos_debug("routepath=%s ndir=%d dirlevel=%d", inpath, PathRoute.size(),
-              cPath.GetSubPathSize() - 1);
-  }
-
-  if (!PathRoute.size()) {
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("no routes defined");
-    }
-
+  // Make sure path is not empty and is '/' terminated
+  if (path.empty()) {
+    eos_debug("input path is empty");
     return false;
   }
 
-  std::string target = "Rt:";
-
-  if (Routes.count(sinpath.c_str())) {
-    if (vid.prot == "http" || vid.prot == "https") {
-      // http redirection
-      outport = RouteHttpPort[sinpath.c_str()];
-      target += vid.prot.c_str();
-    } else {
-      // xrootd redirection
-      outport = RouteXrdPort[sinpath.c_str()];
-      target += "xrd";
-    }
-
-    outhost = Routes[sinpath.c_str()].c_str();
-    target += ":";
-    target += outhost.c_str();
-
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("re-routing path=%s to target=%s port=%d", sinpath.c_str(),
-                target.c_str(), outport);
-    }
-
-    gOFS->MgmStats.Add(target.c_str(), vid.uid, vid.gid, 1);
-    return true;
+  if (path.back() != '/') {
+    path += '/';
   }
 
-  if (!cPath.GetSubPathSize()) {
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("given path has no subpath");
-    }
+  eos_debug("path=%s map_route_size=%d", inpath, mPathRoute.size());
+  eos::common::RWMutexReadLock lock(mPathRouteMutex);
 
+  if (mPathRoute.empty()) {
+    eos_debug("no routes defined");
     return false;
   }
 
-  for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
-    if (EOS_LOGS_DEBUG) {
-      eos_debug("[route] %s => %s\n", sinpath.c_str(), cPath.GetSubPath(i));
+  auto it = mPathRoute.find(path);
+
+  if (it == mPathRoute.end()) {
+    // Try to find the longest possible match
+    eos::common::Path cPath(path.c_str());
+
+    if (!cPath.GetSubPathSize()) {
+      eos_debug("path=%s has no subpath", path.c_str());
+      return false;
     }
 
-    if (Routes.count(cPath.GetSubPath(i))) {
-      if (vid.prot == "http" || vid.prot == "https") {
-        // http redirection
-        outport = RouteHttpPort[cPath.GetSubPath(i)];
-        target += vid.prot.c_str();
-      } else {
-        // xrootd redirection
-        outport = RouteXrdPort[cPath.GetSubPath(i)];
-        target += "xrd";
+    for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
+      eos_debug("[route] %s => %s\n", path.c_str(), cPath.GetSubPath(i));
+      it = mPathRoute.find(cPath.GetSubPath(i));
+
+      if (it != mPathRoute.end()) {
+        break;
       }
+    }
 
-      outhost = Routes[cPath.GetSubPath(i)].c_str();
-      target += ":";
-      target += outhost.c_str();
-      gOFS->MgmStats.Add(target.c_str(), vid.uid, vid.gid, 1);
-
-      if (EOS_LOGS_DEBUG) {
-        eos_debug("re-routing path=%s to target=%s port=%d", sinpath.c_str(),
-                  target.c_str(), outport);
-      }
-
-      return true;
+    // If no match found then return
+    if (it == mPathRoute.end()) {
+      return false;
     }
   }
 
-  return false;
+  std::ostringstream oss;
+  oss << "Rt:";
+  // @todo (esindril): pick the master
+  auto& endpoint = it->second.front();
+
+  // Http redirection
+  if (vid.prot == "http" || vid.prot == "https") {
+    port = endpoint.GetHttpPort();
+    oss << vid.prot.c_str();
+  } else {
+    // XRootD redirection
+    port = endpoint.GetXrdPort();
+    oss << "xrd";
+  }
+
+  host = endpoint.GetHostname();
+  oss << ":" << host;
+  MgmStats.Add(oss.str().c_str(), vid.uid, vid.gid, 1);
+  eos_debug("re-routing path=%s using match_path=%s to host=%s port=%d",
+            path.c_str(), it->first.c_str(), host.c_str(), port);
+  return true;
 }

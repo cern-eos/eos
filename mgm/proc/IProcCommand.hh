@@ -52,7 +52,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
+  //! @param req client protobuf request
   //! @param vid client virtual identity
+  //! @param async if true then use thread pool to execute the command
   //----------------------------------------------------------------------------
   IProcCommand(eos::console::RequestProto&& req,
                eos::common::Mapping::VirtualIdentity& vid, bool async):
@@ -211,7 +213,14 @@ protected:
   static void ConvertToJsonFormat(eos::console::ReplyProto& reply,
                                   std::ostringstream& oss);
 
-  int IsOperationAllowed(const char* inpath);
+  //----------------------------------------------------------------------------
+  //! Check if operation forbidden
+  //!
+  //! @param inpath path of the request
+  //!
+  //! @return SFS_OK if operation forbidde, SFS_ERRRO if operation allowed
+  //----------------------------------------------------------------------------
+  int IsOperationForbidden(const char* inpath);
 
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
