@@ -21,20 +21,8 @@
  ************************************************************************/
 
 #include "RouteCmd.hh"
-#include "common/LinuxMemConsumption.hh"
-#include "common/LinuxStat.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/ContainerIterators.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Stat.hh"
-#include "mgm/Master.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/IConfigEngine.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -52,7 +40,9 @@ RouteCmd::ProcessRequest()
   if (subcmd == eos::console::RouteProto::kList) {
     ListSubcmd(route.list(), reply);
   } else if (subcmd == eos::console::RouteProto::kLink) {
+    LinkSubcmd(route.link(), reply);
   } else if (subcmd == eos::console::RouteProto::kUnlink) {
+    UnlinkSubcmd(route.unlink(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -148,7 +138,8 @@ RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
 // Remove routing for given path
 //------------------------------------------------------------------------------
 void
-RouteCmd::UnlinkSubcmd(const std::string& path, eos::console::ReplyProto& reply)
+RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
+                       eos::console::ReplyProto& reply)
 {
   if ((mVid.uid != 0) &&
       (eos::common::Mapping::HasUid(3, mVid.uid_list) == false) &&
@@ -158,6 +149,8 @@ RouteCmd::UnlinkSubcmd(const std::string& path, eos::console::ReplyProto& reply)
                       "execute this command");
     return;
   }
+
+  std::string path = unlink.path();
 
   if (gOFS->RemovePathRoute(path)) {
     gOFS->ConfEngine->DeleteConfigValue("route", path.c_str());

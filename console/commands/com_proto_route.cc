@@ -179,7 +179,6 @@ RouteHelper::ParseCommand(const char* arg)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // Check if path is valid
 //------------------------------------------------------------------------------
@@ -242,8 +241,10 @@ void com_route_help()
   oss << "Usage: route [ls|link|unlink]" << std::endl
       << "    namespace routing to redirect clients to external instances"
       << std::endl
+      << std::endl
       << "  route ls [<path>]" << std::endl
       << "    list all routings or the one matching for the given path"
+      << std::endl
       << std::endl
       << "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],..."
       << std::endl

@@ -79,10 +79,11 @@ private:
   //----------------------------------------------------------------------------
   //! Remove routing for given path
   //!
-  //! @param path path for which listing is required
+  //! @param unlink unlink subcmd proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void UnlinkSubcmd(const std::string& path, eos::console::ReplyProto& reply);
+  void UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
+                    eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
