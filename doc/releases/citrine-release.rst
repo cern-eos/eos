@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.3.1 Citrine``
+===================
+
+2018-06-25
+
+Bug
+---
+
+* FUSEX: make the bulk rm the default
+* FUSEX: by default use 'backtace' handler, fusermount -u and emit received signal again.
+* FUSEX: use bulk 'rm' only if the '-rf' flag and not verbose option has been selected
+* FUSEX: avoid possible dead-lock between calculateDepth and invalidation callbacks
+
+
 ``v4.3.0 Citrine``
 ===================
 
