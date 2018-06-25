@@ -58,49 +58,14 @@ void
 RouteCmd::ListSubcmd(const eos::console::RouteProto_ListProto& list,
                      eos::console::ReplyProto& reply)
 {
-  std::ostringstream oss;
-  eos::common::RWMutexReadLock route_rd_lock(gOFS->mPathRouteMutex);
+  std::string out;
 
-  // List all paths
-  if (list.path().empty()) {
-    for (const auto& elem : gOFS->mPathRoute) {
-      oss << elem.first << " => ";
-      bool first = true;
-
-      for (const auto& endp : elem.second) {
-        if (!first) {
-          oss << ",";
-        }
-
-        oss << endp.ToString();
-        first = false;
-      }
-
-      oss << std::endl;
-    }
+  if (!gOFS->mRouting.GetListing(list.path(), out)) {
+    reply.set_retc(ENOENT);
+    reply.set_std_err("error: no matching route");
   } else {
-    auto it = gOFS->mPathRoute.find(list.path());
-
-    if (it == gOFS->mPathRoute.end()) {
-      reply.set_retc(ENOENT);
-      reply.set_std_err("error: no matching route");
-      return;
-    } else {
-      oss << it->first << " => ";
-      bool first = true;
-
-      for (const auto& endp : it->second) {
-        if (!first) {
-          oss << ",";
-        }
-
-        oss << endp.ToString();
-        first = false;
-      }
-    }
+    reply.set_std_out(out);
   }
-
-  reply.set_std_out(oss.str());
 }
 
 //------------------------------------------------------------------------------
@@ -123,7 +88,7 @@ RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
                            ep_proto.http_port());
     std::string str_rep = endpoint.ToString();
 
-    if (gOFS->AddPathRoute(link.path(), std::move(endpoint))) {
+    if (gOFS->mRouting.Add(link.path(), std::move(endpoint))) {
       gOFS->ConfEngine->SetConfigValue("route", link.path().c_str(),
                                        str_rep.c_str());
     } else {
@@ -152,7 +117,7 @@ RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
 
   std::string path = unlink.path();
 
-  if (gOFS->RemovePathRoute(path)) {
+  if (gOFS->mRouting.Remove(path)) {
     gOFS->ConfEngine->DeleteConfigValue("route", path.c_str());
   } else {
     reply.set_retc(EINVAL);

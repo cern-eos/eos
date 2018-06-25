@@ -171,7 +171,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr),
   mCommentLog(nullptr),
   FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
-  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
+  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr), mRouting(),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
@@ -264,7 +264,6 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Merge.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"
-#include "XrdMgmOfs/PathRoute.cc"
 #include "XrdMgmOfs/Remdir.cc"
 #include "XrdMgmOfs/Rename.cc"
 #include "XrdMgmOfs/Rm.cc"

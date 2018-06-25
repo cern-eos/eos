@@ -167,7 +167,7 @@ RouteHelper::ParseCommand(const char* arg)
         ep->set_http_port(sDefaultHttpPort);
       } else if (elems.size() == 1) {
         ep->set_xrd_port(sDefaultXrdPort);
-        ep->set_http_port(sDefaultXrdPort);
+        ep->set_http_port(sDefaultHttpPort);
       } else {
         return false;
       }

@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
-// File: PathRoute.cc
-// Author: Andreas-Joachim Peters - CERN
+//! @file PathRouting.cc
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -17,20 +16,22 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+ * You should have received a copy of the AGNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-//------------------------------------------------------------------------------
+#include "mgm/PathRouting.hh"
+#include "common/Path.hh"
+#include "XrdCl/XrdClURL.hh"
+#include <sstream>
+
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Clear the routing table
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::ClearPathRoutes()
+PathRouting::Clear()
 {
   eos::common::RWMutexWriteLock lock(mPathRouteMutex);
   mPathRoute.clear();
@@ -40,7 +41,7 @@ XrdMgmOfs::ClearPathRoutes()
 // Add path endpoint pair to the routing table
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::AddPathRoute(const std::string& path, RouteEndpoint&& endpoint)
+PathRouting::Add(const std::string& path, RouteEndpoint&& endpoint)
 {
   std::string string_rep = endpoint.ToString();
   eos::common::RWMutexWriteLock route_wr_lock(mPathRouteMutex);
@@ -73,7 +74,7 @@ XrdMgmOfs::AddPathRoute(const std::string& path, RouteEndpoint&& endpoint)
 // Remove routing for the corresponding path
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::RemovePathRoute(const std::string& path)
+PathRouting::Remove(const std::string& path)
 {
   eos::common::RWMutexWriteLock route_wr_lock(mPathRouteMutex);
   auto it = mPathRoute.find(path);
@@ -90,9 +91,9 @@ XrdMgmOfs::RemovePathRoute(const std::string& path)
 // Route a path according to the configured routing table
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::PathReroute(const char* inpath, const char* ininfo,
-                       eos::common::Mapping::VirtualIdentity_t& vid,
-                       std::string& host, int& port)
+PathRouting::Reroute(const char* inpath, const char* ininfo,
+                     eos::common::Mapping::VirtualIdentity_t& vid,
+                     std::string& host, int& port, std::string& stat_info)
 {
   // Process and extract the path for which we need to do the routing
   std::string path = (inpath ? inpath : "");
@@ -169,23 +170,91 @@ XrdMgmOfs::PathReroute(const char* inpath, const char* ininfo,
 
   std::ostringstream oss;
   oss << "Rt:";
-  // @todo (esindril): pick the master
-  auto& endpoint = it->second.front();
+  // Try to find the master endpoint, if none exists then just redirect to the
+  // first endpoint in the list
+  auto& master_ep = it->second.front();
+
+  for (const auto& endpoint : it->second) {
+    if (endpoint.IsMaster()) {
+      master_ep = ep;
+      break;
+    }
+  }
 
   // Http redirection
   if (vid.prot == "http" || vid.prot == "https") {
-    port = endpoint.GetHttpPort();
+    port = master_ep.GetHttpPort();
     oss << vid.prot.c_str();
   } else {
     // XRootD redirection
-    port = endpoint.GetXrdPort();
+    port = master_ep.GetXrdPort();
     oss << "xrd";
   }
 
-  host = endpoint.GetHostname();
+  host = master_ep.GetHostname();
   oss << ":" << host;
-  MgmStats.Add(oss.str().c_str(), vid.uid, vid.gid, 1);
+  stat_info = oss.str();
   eos_debug("re-routing path=%s using match_path=%s to host=%s port=%d",
             path.c_str(), it->first.c_str(), host.c_str(), port);
   return true;
 }
+
+//------------------------------------------------------------------------------
+// Get routes listing
+//------------------------------------------------------------------------------
+bool
+PathRouting::GetListing(const std::string& path, std::string& out) const
+{
+  std::ostringstream oss;
+  eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
+
+  // List all paths
+  if (path.empty()) {
+    for (const auto& elem : mPathRoute) {
+      oss << elem.first << " => ";
+      bool first = true;
+
+      for (const auto& endp : elem.second) {
+        if (!first) {
+          oss << ",";
+        }
+
+        if (endp.IsMaster()) {
+          oss << "*";
+        }
+
+        oss << endp.ToString();
+        first = false;
+      }
+
+      oss << std::endl;
+    }
+  } else {
+    auto it = mPathRoute.find(path);
+
+    if (it == mPathRoute.end()) {
+      return false;
+    } else {
+      oss << it->first << " => ";
+      bool first = true;
+
+      for (const auto& endp : it->second) {
+        if (!first) {
+          oss << ",";
+        }
+
+        if (endp.IsMaster()) {
+          oss << "*";
+        }
+
+        oss << endp.ToString();
+        first = false;
+      }
+    }
+  }
+
+  out = oss.str();
+  return true;
+}
+
+EOSMGMNAMESPACE_END

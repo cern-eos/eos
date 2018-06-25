@@ -242,7 +242,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
               << key << " => " << val->c_str() << std::endl;
     }
 
-    if (!gOFS->AddPathRoute(skey.c_str(), std::move(endpoint))) {
+    if (!gOFS->mRouting.Add(skey.c_str(), std::move(endpoint))) {
       oss_err << "error: failed to apply config "
               << key << " => " << val->c_str() << std::endl;
     }
@@ -444,11 +444,7 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     }
   } else  if (skey.beginswith("route:")) {
     skey.erase(0, 6);
-    eos::common::RWMutexWriteLock lock(gOFS->mPathRouteMutex);
-
-    if (gOFS->mPathRoute.count(skey.c_str())) {
-      gOFS->mPathRoute.erase(skey.c_str());
-    }
+    gOFS->mRouting.Remove(skey.c_str());
   } else if (skey.beginswith("quota:")) {
     // Remove quota definition
     skey.erase(0, 6);
@@ -640,7 +636,7 @@ IConfigEngine::ResetConfig()
   }
   Access::Reset();
   gOFS->ResetPathMap();
-  gOFS->ClearPathRoutes();
+  gOFS->mRouting.Clear();
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   {

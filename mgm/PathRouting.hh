@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file RouteEndpoint.hh
+//! @file PathRouting.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,121 +22,86 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include <string>
-#include <stdint.h>
+#include "mgm/RouteEndpoint.hh"
+#include "common/Mapping.hh"
+#include "common/Logging.hh"
+#include <map>
+#include <list>
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class RouteEndpoint
+//! Class PathRouting
 //------------------------------------------------------------------------------
-class RouteEndpoint
+class PathRouting: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  RouteEndpoint() = default;
-
-  //----------------------------------------------------------------------------
-  //! Constructor with parameters
-  //!
-  //! @param host redirection host
-  //! @param xrd_port xrootd redirection port
-  //! @param http_port http redirection port
-  //----------------------------------------------------------------------------
-  RouteEndpoint(const std::string& fqdn, uint32_t xrd_port, uint32_t http_port):
-    mFqdn(fqdn), mXrdPort(xrd_port), mHttpPort(http_port), mIsMaster(false)
-  {}
+  PathRouting() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~RouteEndpoint() = default;
+  ~PathRouting() = default;
 
   //----------------------------------------------------------------------------
-  //! Parse route endpoint specification from string
+  //! @brief Route a path according to the configured routing table. This
+  //! function does the path translation according to the configured routing
+  //! table. It applies the 'longest' matching rule.
   //!
-  //! @param string route endpoint specification in the form of:
-  //!        <host_fqdn>:<xrd_port>:<http_port>
+  //! @param inpath path to route
+  //! @param ininfo opaque information
+  //! @param vid user virtual idenity
+  //! @param host redirection host
+  //! @param port redirection port
+  //! @param stat_info stat info string to be agregated by MgmStats
+  //!
+  //! @return true if there is a routing, otherwise false
+  //----------------------------------------------------------------------------
+  bool Reroute(const char* inpath, const char* ininfo,
+               eos::common::Mapping::VirtualIdentity_t& vid,
+               std::string& host, int& port, std::string& stat_info);
+
+  //----------------------------------------------------------------------------
+  //! Add a source/target pair to the path routing table
+  //!
+  //! @param path prefix path to route
+  //! @param endpoint endpoint for the routing
+  //!
+  //! @return true if route added, otherwise false
+  //----------------------------------------------------------------------------
+  bool Add(const std::string& path, RouteEndpoint&& endpoint);
+
+  //----------------------------------------------------------------------------
+  //! Remove routing for the corresponding path
+  //!
+  //! @param path routing path to be removed
+  //!
+  //! @return true if successfully removed, otherwise false
+  //----------------------------------------------------------------------------
+  bool Remove(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Clear all the stored entries in the path routing table
+  //----------------------------------------------------------------------------
+  void Clear();
+
+  //----------------------------------------------------------------------------
+  //! Get routes listing
+  //!
+  //! @param path get listing for a particular path, if empty then all routes
+  //!        will be returned
+  //! @param out output string
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool ParseFromString(const std::string& input);
-
-  //----------------------------------------------------------------------------
-  //! Get string representation in the form of:
-  //! <host_fqdn>:<xrd_port>:<http_port>
-  //----------------------------------------------------------------------------
-  std::string ToString() const;
-
-  //----------------------------------------------------------------------------
-  //! Get redirection host
-  //----------------------------------------------------------------------------
-  inline std::string GetHostname() const
-  {
-    return mFqdn;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get Xrd redirection port
-  //----------------------------------------------------------------------------
-  inline int GetXrdPort() const
-  {
-    return mXrdPort;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get http redirection port
-  //----------------------------------------------------------------------------
-  inline int GetHttpPort() const
-  {
-    return mHttpPort;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set is master route
-  //!
-  //! @param is_master true if this is endpoint is a master, otherwise false
-  //----------------------------------------------------------------------------
-  inline void SetMaster(bool is_master)
-  {
-    mIsMaster = is_master;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check if this is a master route
-  //!
-  //! @return true if master route, otherwise false
-  //----------------------------------------------------------------------------
-  inline bool IsMaster() const
-  {
-    return mIsMaster;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Operator ==
-  //----------------------------------------------------------------------------
-  bool operator ==(const RouteEndpoint& rhs) const
-  {
-    return ((mFqdn == rhs.mFqdn) &&
-            (mXrdPort == rhs.mXrdPort) &&
-            (mHttpPort == rhs.mHttpPort));
-  }
-
-  //----------------------------------------------------------------------------
-  //! Operator !=
-  //----------------------------------------------------------------------------
-  bool operator !=(const RouteEndpoint& rhs) const
-  {
-    return !(*this == rhs);
-  }
+  bool GetListing(const std::string& path, std::string& out) const;
 
 private:
-  std::string mFqdn; ///< Redirection host fqdn
-  uint32_t mXrdPort; ///< Redirection xrootd port
-  uint32_t mHttpPort; ///< Redirectoin http port
-  bool mIsMaster; ///< Mark master route
+  std::map<std::string, std::list<RouteEndpoint>> mPathRoute;
+  mutable eos::common::RWMutex mPathRouteMutex;
 };
 
 EOSMGMNAMESPACE_END

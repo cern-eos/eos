@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: RouteEndpointTests.cc
+// File: RoutingTests.cc
 // Author: Elvin-Alin Sindrilaru <esindril at cern dot ch>
 //------------------------------------------------------------------------------
 
@@ -25,10 +25,11 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Mapping.hh"
 
-TEST(RouteEndpoint, Construction)
+TEST(Routing, Construction)
 {
   using namespace eos::mgm;
-  XrdMgmOfs ofs(nullptr);
+  std::string stat_info;
+  eos::mgm::PathRouting route;
   std::vector<std::string> inputs {
     "eos_dummy1.cern.ch:1094:8000",
     "eos_dummy2.cern.ch:2094:9000",
@@ -51,13 +52,13 @@ TEST(RouteEndpoint, Construction)
   for (const auto& input : inputs) {
     RouteEndpoint endpoint;
     ASSERT_TRUE(endpoint.ParseFromString(input));
-    ASSERT_TRUE(ofs.AddPathRoute("/eos/", std::move(endpoint)));
-    ASSERT_FALSE(ofs.AddPathRoute("/eos/", std::move(endpoint)));
+    ASSERT_TRUE(route.Add("/eos/", std::move(endpoint)));
+    ASSERT_FALSE(route.Add("/eos/", std::move(endpoint)));
   }
 
-  ASSERT_TRUE(ofs.RemovePathRoute("/eos/"));
-  ASSERT_FALSE(ofs.RemovePathRoute("/eos/unkown/dir/"));
-  ofs.ClearPathRoutes();
+  ASSERT_TRUE(route.Remove("/eos/"));
+  ASSERT_FALSE(route.Remove("/eos/unkown/dir/"));
+  route.Clear();
   int count = 0;
 
   // Add several routes to test out the routing
@@ -65,36 +66,36 @@ TEST(RouteEndpoint, Construction)
     ++count;
     RouteEndpoint endpoint;
     ASSERT_TRUE(endpoint.ParseFromString(input));
-    ASSERT_TRUE(ofs.AddPathRoute("/eos/dir" + std::to_string(count) + "/",
-                                 std::move(endpoint)));
+    ASSERT_TRUE(route.Add("/eos/dir" + std::to_string(count) + "/",
+                          std::move(endpoint)));
   }
 
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   std::string host;
   int port;
-  ASSERT_FALSE(ofs.PathReroute("", nullptr, vid, host, port));
-  ASSERT_FALSE(ofs.PathReroute("/", nullptr, vid, host, port));
-  ASSERT_FALSE(ofs.PathReroute("/unkown", nullptr, vid, host, port));
-  ASSERT_FALSE(ofs.PathReroute("/eos/", nullptr, vid, host, port));
+  ASSERT_FALSE(route.Reroute("", nullptr, vid, host, port, stat_info));
+  ASSERT_FALSE(route.Reroute("/", nullptr, vid, host, port, stat_info));
+  ASSERT_FALSE(route.Reroute("/unkown", nullptr, vid, host, port, stat_info));
+  ASSERT_FALSE(route.Reroute("/eos/", nullptr, vid, host, port, stat_info));
   // Test http/https redirection
   vid.prot = "http";
-  ASSERT_TRUE(ofs.PathReroute("/eos/dir1/", nullptr, vid, host, port));
-  ASSERT_TRUE(ofs.PathReroute("/eos/dir1", nullptr, vid, host, port));
+  ASSERT_TRUE(route.Reroute("/eos/dir1/", nullptr, vid, host, port, stat_info));
+  ASSERT_TRUE(route.Reroute("/eos/dir1", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy1.cern.ch");
   ASSERT_TRUE(port == 8000);
   vid.prot = "https";
-  ASSERT_TRUE(ofs.PathReroute("/eos/dir1", nullptr, vid, host, port));
+  ASSERT_TRUE(route.Reroute("/eos/dir1", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy1.cern.ch");
   ASSERT_TRUE(port == 8000);
   // Test xrd redirection
   vid.prot = "";
-  ASSERT_TRUE(ofs.PathReroute("/eos/dir2", nullptr, vid, host, port));
+  ASSERT_TRUE(route.Reroute("/eos/dir2", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy2.cern.ch");
   ASSERT_TRUE(port == 2094);
   // Test redirection diven a longer path
-  ASSERT_TRUE(ofs.PathReroute("/eos/dir3/subdir1/subdir2", nullptr, vid, host,
-                              port));
+  ASSERT_TRUE(route.Reroute("/eos/dir3/subdir1/subdir2", nullptr, vid, host,
+                            port, stat_info));
   ASSERT_TRUE(host == "eos_dummy3.cern.ch");
   ASSERT_TRUE(port == 3094);
 }

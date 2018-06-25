@@ -107,7 +107,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
-#include "mgm/RouteEndpoint.hh"
+#include "mgm/PathRouting.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -1160,47 +1160,6 @@ public:
   // ---------------------------------------------------------------------------
   void ResetPathMap();  // reset/empty the path map
 
-  //----------------------------------------------------------------------------
-  //! @brief Route a path according to the configured routing table. This
-  //! function does the path translation according to the configured routing
-  //! table. It applies the 'longest' matching rule.
-  //!
-  //! @param inpath path to route
-  //! @param ininfo opaque information
-  //! @param vid user virtual idenity
-  //! @param host redirection host
-  //! @param port redirection port
-  //!
-  //! @return true if there is a routing, otherwise false
-  //----------------------------------------------------------------------------
-  bool PathReroute(const char* inpath, const char* ininfo,
-                   eos::common::Mapping::VirtualIdentity_t& vid,
-                   std::string& host, int& port);
-
-  //----------------------------------------------------------------------------
-  //! Add a source/target pair to the path routing table
-  //!
-  //! @param path prefix path to route
-  //! @param endpoint endpoint for the routing
-  //!
-  //! @return true if route added, otherwise false
-  //----------------------------------------------------------------------------
-  bool AddPathRoute(const std::string& path, RouteEndpoint&& endpoint);
-
-  //----------------------------------------------------------------------------
-  //! Remove routing for the corresponding path
-  //!
-  //! @param path routing path to be removed
-  //!
-  //! @return true if successfully removed, otherwise false
-  //----------------------------------------------------------------------------
-  bool RemovePathRoute(const std::string& path);
-
-  //----------------------------------------------------------------------------
-  //! Clear all the stored entries in the path routing table
-  //----------------------------------------------------------------------------
-  void ClearPathRoutes();
-
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair
   // ---------------------------------------------------------------------------
@@ -1568,8 +1527,7 @@ public:
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
 
   //! Global path routing
-  std::map<std::string, std::list<RouteEndpoint>> mPathRoute;
-  eos::common::RWMutex mPathRouteMutex; ///< Mutex protecting the routing map
+  PathRouting mRouting; ///< Path routing mechanism
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier

@@ -151,6 +151,7 @@ add_library(
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
   Recycle.cc
+  PathRouting.cc
   RouteEndpoint.cc
   LRU.cc
   WFE.cc

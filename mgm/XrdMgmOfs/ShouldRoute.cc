@@ -42,5 +42,12 @@ XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
     return false;
   }
 
-  return gOFS->PathReroute(path, info, vid, host, port);
+  std::string stat_info;
+
+  if (gOFS->mRouting.Reroute(path, info, vid, host, port, stat_info)) {
+    gOFS->MgmStats.Add(stat_info.c_str(), vid.uid, vid.gid, 1);
+    return true;
+  } else {
+    return false;
+  }
 }
