@@ -112,6 +112,8 @@ ProcCommand::FuseX()
   }
 
   if (schild.length()) {
+    // decode escaped child name
+    schild = eos::common::StringConversion::curl_unescaped(schild.c_str()).c_str();
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     std::string emsg;

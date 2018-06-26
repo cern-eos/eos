@@ -795,7 +795,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
   XrdCl::URL::ParamsMap query;
   query["mgm.cmd"] = "fuseX";
   query["mgm.clock"] = "0";
-  query["mgm.child"] = name;
+  query["mgm.child"] = eos::common::StringConversion::curl_escaped(name);
   char hexinode[32];
   snprintf(hexinode, sizeof(hexinode), "%08lx", (unsigned long) inode);
   query["mgm.inode"] =

@@ -123,9 +123,17 @@ XrdMgmOfs::PathReroute(const char* inpath, const char* ininfo,
 
   if (path.back() != '/') {
     path += '/';
+    
+  XrdOucString sinpath = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
+
+  eos::common::Path cPath(sinpath.c_str());
+
+  if (EOS_LOGS_DEBUG) {
+    eos_debug("routepath=%s ndir=%d dirlevel=%d", sinpath.c_str(), PathRoute.size(),
+              cPath.GetSubPathSize() - 1);
   }
 
-  eos_debug("path=%s map_route_size=%d", inpath, mPathRoute.size());
+  eos_debug("path=%s map_route_size=%d", sinpath.c_str(), mPathRoute.size());
   eos::common::RWMutexReadLock lock(mPathRouteMutex);
 
   if (mPathRoute.empty()) {
