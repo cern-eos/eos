@@ -404,6 +404,23 @@ XrdMgmOfs::FSctl(const int cmd,
       return SFS_DATA;
     }
 
+    // Query to determin if current node is acting as master
+    if (execmd == "is_master") {
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosView->getFile(gOFS->MgmProcMasterPath.c_str());
+
+      if (fmd) {
+        eos_info("found master file");
+        const char* ok = "OK";
+        error.setErrInfo(strlen(ok) + 1, ok);
+        return SFS_DATA;
+      } else {
+        eos_info("no master file found");
+        return Emsg(epname, error, ENOENT, "find master file", "");
+      }
+    }
+
     eos_thread_err("No implementation for %s", execmd.c_str());
   }
 

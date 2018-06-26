@@ -22,9 +22,28 @@
 
 #include "mgm/RouteEndpoint.hh"
 #include "common/StringConversion.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Move assignment operator
+//------------------------------------------------------------------------------
+RouteEndpoint&
+RouteEndpoint::operator =(RouteEndpoint&& other) noexcept
+{
+  if (this != &other) {
+    std::swap(mFqdn, other.mFqdn);
+    mXrdPort = other.mXrdPort;
+    mHttpPort = other.mHttpPort;
+    mIsOnline.store(other.mIsOnline.load());
+    mIsMaster.store(other.mIsMaster.load());
+  }
+
+  return *this;
+}
 
 //------------------------------------------------------------------------------
 // Parse route endpoint specification from string
@@ -60,6 +79,47 @@ RouteEndpoint::ToString() const
   std::ostringstream oss;
   oss << mFqdn << ":" << mXrdPort << ":" << mHttpPort;
   return oss.str();
+}
+
+//------------------------------------------------------------------------------
+// Update master status
+//------------------------------------------------------------------------------
+void
+RouteEndpoint::UpdateStatus()
+{
+  std::ostringstream oss;
+  oss << "root://" << mFqdn << ":" << mXrdPort << "//dummy?xrd.wantprot=sss";
+  XrdCl::URL url(oss.str());
+
+  if (!url.IsValid()) {
+    mIsOnline.store(false);
+    mIsMaster.store(false);
+    return;
+  }
+
+  // Check if node is online
+  XrdCl::FileSystem fs(url);
+  XrdCl::XRootDStatus st = fs.Ping(1);
+
+  if (!st.IsOK()) {
+    mIsOnline.store(false);
+    mIsMaster.store(false);
+    return;
+  }
+
+  mIsOnline.store(true);
+  // Check if node is master
+  XrdCl::Buffer* response {nullptr};
+  XrdCl::Buffer request;
+  request.FromString("/?mgm.pcmd=is_master");
+
+  if (!fs.Query(XrdCl::QueryCode::OpaqueFile, request, response).IsOK()) {
+    mIsMaster.store(false);
+  } else {
+    mIsMaster.store(true);
+  }
+
+  delete response;
 }
 
 EOSMGMNAMESPACE_END

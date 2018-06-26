@@ -22,9 +22,10 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/RouteEndpoint.hh"
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
+#include "common/AssistedThread.hh"
+#include "mgm/RouteEndpoint.hh"
 #include <map>
 #include <list>
 
@@ -36,15 +37,31 @@ EOSMGMNAMESPACE_BEGIN
 class PathRouting: public eos::common::LogId
 {
 public:
+
+  //! Reroute response type
+  enum class Status {
+    REROUTE,   ///! Route was found and available
+    NOROUTING, ///! No route found
+    STALL      ///! Route found but no endpoint available
+  };
+
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param upd_timeout async thread update insterval
   //----------------------------------------------------------------------------
-  PathRouting() = default;
+  PathRouting(std::chrono::seconds upd_timeout = std::chrono::seconds(5)):
+    mTimeout(upd_timeout)
+  {
+    if (mTimeout.count()) {
+      mThread.reset(&PathRouting::UpdateEndpointsStatus, this);
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~PathRouting() = default;
+  ~PathRouting();
 
   //----------------------------------------------------------------------------
   //! @brief Route a path according to the configured routing table. This
@@ -58,11 +75,11 @@ public:
   //! @param port redirection port
   //! @param stat_info stat info string to be agregated by MgmStats
   //!
-  //! @return true if there is a routing, otherwise false
+  //! @return Status enum representing the state of the routing
   //----------------------------------------------------------------------------
-  bool Reroute(const char* inpath, const char* ininfo,
-               eos::common::Mapping::VirtualIdentity_t& vid,
-               std::string& host, int& port, std::string& stat_info);
+  Status Reroute(const char* inpath, const char* ininfo,
+                 eos::common::Mapping::VirtualIdentity_t& vid,
+                 std::string& host, int& port, std::string& stat_info);
 
   //----------------------------------------------------------------------------
   //! Add a source/target pair to the path routing table
@@ -100,8 +117,19 @@ public:
   bool GetListing(const std::string& path, std::string& out) const;
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Method executed by an async thread which is updating the current master
+  //! endpoint for each routing
+  //!
+  //! @param assistant thread executing the method
+  //----------------------------------------------------------------------------
+  void UpdateEndpointsStatus(ThreadAssistant& assistant) noexcept;
+
   std::map<std::string, std::list<RouteEndpoint>> mPathRoute;
   mutable eos::common::RWMutex mPathRouteMutex;
+  AssistedThread mThread; ///< Thread updating the master endpoints
+  std::chrono::seconds mTimeout; ///< Update timeout
 };
 
 EOSMGMNAMESPACE_END

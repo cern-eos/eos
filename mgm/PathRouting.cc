@@ -29,6 +29,14 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+PathRouting::~PathRouting()
+{
+  mThread.join();
+}
+
+//------------------------------------------------------------------------------
 // Clear the routing table
 //------------------------------------------------------------------------------
 void
@@ -49,7 +57,8 @@ PathRouting::Add(const std::string& path, RouteEndpoint&& endpoint)
   auto it = mPathRoute.find(path);
 
   if (it == mPathRoute.end()) {
-    mPathRoute.emplace(path, std::list<RouteEndpoint> {std::move(endpoint)});
+    auto it_emplace = mPathRoute.emplace(path, std::list<RouteEndpoint>());
+    it_emplace.first->second.emplace_back(std::move(endpoint));
   } else {
     bool found = false;
 
@@ -91,7 +100,7 @@ PathRouting::Remove(const std::string& path)
 //------------------------------------------------------------------------------
 // Route a path according to the configured routing table
 //------------------------------------------------------------------------------
-bool
+PathRouting::Status
 PathRouting::Reroute(const char* inpath, const char* ininfo,
                      eos::common::Mapping::VirtualIdentity_t& vid,
                      std::string& host, int& port, std::string& stat_info)
@@ -120,7 +129,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   // Make sure path is not empty and is '/' terminated
   if (path.empty()) {
     eos_debug("input path is empty");
-    return false;
+    return Status::NOROUTING;
   }
 
   if (path.back() != '/') {
@@ -128,19 +137,12 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   }
 
   path = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
-  eos::common::Path cPath(path.c_str());
-
-  if (EOS_LOGS_DEBUG) {
-    eos_debug("routepath=%s ndir=%d dirlevel=%d", path.c_str(), mPathRoute.size(),
-              cPath.GetSubPathSize() - 1);
-  }
-
   eos_debug("path=%s map_route_size=%d", path.c_str(), mPathRoute.size());
-  eos::common::RWMutexReadLock lock(mPathRouteMutex);
+  eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
 
   if (mPathRoute.empty()) {
     eos_debug("no routes defined");
-    return false;
+    return Status::NOROUTING;
   }
 
   auto it = mPathRoute.find(path);
@@ -151,7 +153,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
     if (!cPath.GetSubPathSize()) {
       eos_debug("path=%s has no subpath", path.c_str());
-      return false;
+      return Status::NOROUTING;
     }
 
     for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
@@ -165,39 +167,44 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
     // If no match found then return
     if (it == mPathRoute.end()) {
-      return false;
+      return Status::NOROUTING;
     }
   }
 
   std::ostringstream oss;
   oss << "Rt:";
   // Try to find the master endpoint, if none exists then just redirect to the
-  // first endpoint in the list
-  auto& master_ep = it->second.front();
+  // first endpoint in the list if reachable
+  auto* master_ep = &it->second.front();
 
-  for (const auto& endpoint : it->second) {
-    if (endpoint.IsMaster()) {
-      master_ep = endpoint;
+  for (auto& endpoint : it->second) {
+    if (endpoint.mIsOnline.load() && endpoint.mIsMaster.load()) {
+      master_ep = &endpoint;
       break;
     }
   }
 
+  if (!master_ep->mIsOnline.load()) {
+    eos_warning("no online endpoints for route path=%s", it->first.c_str());
+    return Status::STALL;
+  }
+
   // Http redirection
   if (vid.prot == "http" || vid.prot == "https") {
-    port = master_ep.GetHttpPort();
+    port = master_ep->GetHttpPort();
     oss << vid.prot.c_str();
   } else {
     // XRootD redirection
-    port = master_ep.GetXrdPort();
+    port = master_ep->GetXrdPort();
     oss << "xrd";
   }
 
-  host = master_ep.GetHostname();
+  host = master_ep->GetHostname();
   oss << ":" << host;
   stat_info = oss.str();
   eos_debug("re-routing path=%s using match_path=%s to host=%s port=%d",
             path.c_str(), it->first.c_str(), host.c_str(), port);
-  return true;
+  return Status::REROUTE;
 }
 
 //------------------------------------------------------------------------------
@@ -220,7 +227,7 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
           oss << ",";
         }
 
-        if (endp.IsMaster()) {
+        if (endp.mIsMaster.load()) {
           oss << "*";
         }
 
@@ -244,7 +251,7 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
           oss << ",";
         }
 
-        if (endp.IsMaster()) {
+        if (endp.mIsMaster.load()) {
           oss << "*";
         }
 
@@ -257,5 +264,43 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
   out = oss.str();
   return true;
 }
+
+//------------------------------------------------------------------------------
+// Method executed by an async thread which is updating the current master
+// endpoint for each routing
+//------------------------------------------------------------------------------
+void
+PathRouting::UpdateEndpointsStatus(ThreadAssistant& assistant) noexcept
+{
+  while (!assistant.terminationRequested()) {
+    std::this_thread::sleep_for(mTimeout);
+    eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
+
+    for (auto& route : mPathRoute) {
+      int num_masters = 0;
+
+      for (auto& endpoint : route.second) {
+        endpoint.UpdateStatus();
+
+        if (endpoint.mIsOnline.load() && endpoint.mIsMaster.load()) {
+          ++num_masters;
+        }
+      }
+
+      // There is smth awfully wrong if we have more than two masters ...
+      if (num_masters >= 2) {
+        eos_warning("there is more than one master for route path=%s",
+                    route.first.c_str());
+
+        // Mark them all as offline so that we stall the clients
+        for (auto& endpoint : route.second) {
+          endpoint.mIsOnline.store(false);
+          endpoint.mIsMaster.store(false);
+        }
+      }
+    }
+  }
+}
+
 
 EOSMGMNAMESPACE_END

@@ -51,6 +51,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/PathRouting.hh"
 #include "mgm/Macros.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/VstMessaging.hh"
@@ -171,7 +172,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr),
   mCommentLog(nullptr),
   FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
-  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr), mRouting(),
+  MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
+  mRouting(new eos::mgm::PathRouting()),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),

@@ -223,7 +223,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 //
 //------------------------------------------------------------------------------
 void
-FuseServer::MonitorCaps()
+FuseServer::MonitorCaps() noexcept
 {
   XrdSysTimer sleeper;
   eos_static_info("msg=\"starting fusex monitor caps thread\"");
@@ -363,7 +363,10 @@ FuseServer::MonitorCaps()
     }
 
     cnt++;
-    gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0 , 1);
+
+    if (gOFS) {
+      gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0 , 1);
+    }
   }
 
   return ;
@@ -3055,7 +3058,8 @@ FuseServer::HandleMD(const std::string& id,
           gOFS->WriteRecycleRecord(fmd);
           gOFS->eosViewRWMutex.UnLockWrite();
           XrdOucErrInfo error;
-          int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false, true);
+          int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false,
+                              true);
           gOFS->eosViewRWMutex.LockWrite();
         } else {
           try {

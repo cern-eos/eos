@@ -22,6 +22,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "common/Logging.hh"
 #include <string>
 #include <stdint.h>
 
@@ -30,7 +31,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class RouteEndpoint
 //------------------------------------------------------------------------------
-class RouteEndpoint
+class RouteEndpoint: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
@@ -46,13 +47,27 @@ public:
   //! @param http_port http redirection port
   //----------------------------------------------------------------------------
   RouteEndpoint(const std::string& fqdn, uint32_t xrd_port, uint32_t http_port):
-    mFqdn(fqdn), mXrdPort(xrd_port), mHttpPort(http_port), mIsMaster(false)
+    mIsOnline(false), mIsMaster(false), mFqdn(fqdn), mXrdPort(xrd_port),
+    mHttpPort(http_port)
   {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~RouteEndpoint() = default;
+
+  //----------------------------------------------------------------------------
+  //! Move assignment operator
+  //----------------------------------------------------------------------------
+  RouteEndpoint& operator =(RouteEndpoint&& other) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Move constructor
+  //----------------------------------------------------------------------------
+  RouteEndpoint(RouteEndpoint&& other) noexcept
+  {
+    *this = std::move(other);
+  }
 
   //----------------------------------------------------------------------------
   //! Parse route endpoint specification from string
@@ -95,24 +110,9 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set is master route
-  //!
-  //! @param is_master true if this is endpoint is a master, otherwise false
-  //----------------------------------------------------------------------------
-  inline void SetMaster(bool is_master)
-  {
-    mIsMaster = is_master;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check if this is a master route
-  //!
-  //! @return true if master route, otherwise false
-  //----------------------------------------------------------------------------
-  inline bool IsMaster() const
-  {
-    return mIsMaster;
-  }
+  //! Update status - both the online and master status
+  //------------------------------------------------------------------------------
+  void UpdateStatus();
 
   //----------------------------------------------------------------------------
   //! Operator ==
@@ -132,11 +132,13 @@ public:
     return !(*this == rhs);
   }
 
+  std::atomic<bool> mIsOnline; ///< Mark if node is online
+  std::atomic<bool> mIsMaster; ///< Mark if node is master
+
 private:
   std::string mFqdn; ///< Redirection host fqdn
   uint32_t mXrdPort; ///< Redirection xrootd port
   uint32_t mHttpPort; ///< Redirectoin http port
-  bool mIsMaster; ///< Mark master route
 };
 
 EOSMGMNAMESPACE_END

@@ -23,6 +23,8 @@
 #include "RouteCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IConfigEngine.hh"
+#include "mgm/RouteEndpoint.hh"
+#include "mgm/PathRouting.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -60,7 +62,7 @@ RouteCmd::ListSubcmd(const eos::console::RouteProto_ListProto& list,
 {
   std::string out;
 
-  if (!gOFS->mRouting.GetListing(list.path(), out)) {
+  if (!gOFS->mRouting->GetListing(list.path(), out)) {
     reply.set_retc(ENOENT);
     reply.set_std_err("error: no matching route");
   } else {
@@ -88,7 +90,7 @@ RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
                            ep_proto.http_port());
     std::string str_rep = endpoint.ToString();
 
-    if (gOFS->mRouting.Add(link.path(), std::move(endpoint))) {
+    if (gOFS->mRouting->Add(link.path(), std::move(endpoint))) {
       gOFS->ConfEngine->SetConfigValue("route", link.path().c_str(),
                                        str_rep.c_str());
     } else {
@@ -117,7 +119,7 @@ RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
 
   std::string path = unlink.path();
 
-  if (gOFS->mRouting.Remove(path)) {
+  if (gOFS->mRouting->Remove(path)) {
     gOFS->ConfEngine->DeleteConfigValue("route", path.c_str());
   } else {
     reply.set_retc(EINVAL);

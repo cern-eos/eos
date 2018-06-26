@@ -43,10 +43,15 @@ XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
   }
 
   std::string stat_info;
+  eos::mgm::PathRouting::Status st =
+    gOFS->mRouting->Reroute(path, info, vid, host, port, stat_info);
 
-  if (gOFS->mRouting.Reroute(path, info, vid, host, port, stat_info)) {
+  if (st == PathRouting::Status::REROUTE) {
     gOFS->MgmStats.Add(stat_info.c_str(), vid.uid, vid.gid, 1);
     return true;
+  } else if (st == PathRouting::Status::STALL) {
+    // @todo (esindril): proper implement stalling
+    return false;
   } else {
     return false;
   }

@@ -32,6 +32,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/txengine/TransferEngine.hh"
+#include "mgm/RouteEndpoint.hh"
+#include "mgm/PathRouting.hh"
 #include "mgm/Fsck.hh"
 #include <sstream>
 
@@ -242,7 +244,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
               << key << " => " << val->c_str() << std::endl;
     }
 
-    if (!gOFS->mRouting.Add(skey.c_str(), std::move(endpoint))) {
+    if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
       oss_err << "error: failed to apply config "
               << key << " => " << val->c_str() << std::endl;
     }
@@ -444,7 +446,7 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     }
   } else  if (skey.beginswith("route:")) {
     skey.erase(0, 6);
-    gOFS->mRouting.Remove(skey.c_str());
+    gOFS->mRouting->Remove(skey.c_str());
   } else if (skey.beginswith("quota:")) {
     // Remove quota definition
     skey.erase(0, 6);
@@ -636,7 +638,7 @@ IConfigEngine::ResetConfig()
   }
   Access::Reset();
   gOFS->ResetPathMap();
-  gOFS->mRouting.Clear();
+  gOFS->mRouting->Clear();
   FsView::gFsView.Reset();
   eos::common::GlobalConfig::gConfig.Reset();
   {

@@ -107,7 +107,6 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
-#include "mgm/PathRouting.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -159,6 +158,7 @@ class LRU;
 class Fsck;
 class Master;
 class Messaging;
+class PathRouting;
 }
 }
 
@@ -1527,7 +1527,7 @@ public:
   eos::common::RWMutex PathMapMutex; ///< mutex protecting the path map
 
   //! Global path routing
-  PathRouting mRouting; ///< Path routing mechanism
+  std::unique_ptr<PathRouting> mRouting; ///< Path routing mechanism
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier

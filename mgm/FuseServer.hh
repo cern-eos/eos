@@ -104,21 +104,21 @@ public:
     typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
 
 
-    ssize_t ncaps() 
+    ssize_t ncaps()
     {
-      eos::common::RWMutexReadLock lock(*this);      
+      eos::common::RWMutexReadLock lock(*this);
       return mTimeOrderedCap.size();
     }
 
     void pop()
     {
-      eos::common::RWMutexWriteLock lock(*this);      
+      eos::common::RWMutexWriteLock lock(*this);
       mTimeOrderedCap.pop_front();
     }
 
     bool expire()
     {
-      eos::common::RWMutexWriteLock lock(*this);      
+      eos::common::RWMutexWriteLock lock(*this);
       authid_t id;
 
       if (!mTimeOrderedCap.empty()) {
@@ -131,8 +131,7 @@ public:
         shared_cap cap = mCaps[id];
         uint64_t now = (uint64_t) time(NULL);
 
-	if ((cap->vtime()+10) <= now)
-        {
+        if ((cap->vtime() + 10) <= now) {
           mCaps.erase(id);
           mInodeCaps[cap->id()].erase(id);
 
@@ -170,7 +169,7 @@ public:
     int BroadcastMD(const eos::fusex::md& md,
                     uint64_t md_ino,
                     uint64_t md_pino,
-		    uint64_t clock,
+                    uint64_t clock,
                     struct timespec& p_mtime
                    ); // broad cast changed md around
     std::string Print(std::string option, std::string filter);
@@ -283,7 +282,8 @@ public:
     typedef std::map<std::string, std::string> client_uuid_t;
 
 
-    ssize_t nclients() {
+    ssize_t nclients()
+    {
       eos::common::RWMutexReadLock lock(*this);
       return mMap.size();
     }
@@ -322,17 +322,17 @@ public:
                    const std::string& clientid);
 
     // send MD after update
-    int SendMD( const eos::fusex::md &md,
-		const std::string& uuid,
-		const std::string& clientid,
-		uint64_t md_ino,
-		uint64_t md_pino,
-		uint64_t clock,
-		struct timespec& p_mtime		
-		);
+    int SendMD(const eos::fusex::md& md,
+               const std::string& uuid,
+               const std::string& clientid,
+               uint64_t md_ino,
+               uint64_t md_pino,
+               uint64_t clock,
+               struct timespec& p_mtime
+              );
 
     // broadcast a new cap
-    int SendCAP( FuseServer::Caps::shared_cap cap );
+    int SendCAP(FuseServer::Caps::shared_cap cap);
 
     // drop caps of a given client
     int Dropcaps(const std::string& uuid, std::string& out);
@@ -351,11 +351,17 @@ public:
     int SetQuotaCheckInterval(int interval);
 
     // get heartbeat interval setting
-    int HeartbeatInterval() const { return mHeartBeatInterval; } 
+    int HeartbeatInterval() const
+    {
+      return mHeartBeatInterval;
+    }
 
     // get quota check interval setting
-    int QuotaCheckInterval() const { return mQuotaCheckInterval; } 
-    
+    int QuotaCheckInterval() const
+    {
+      return mQuotaCheckInterval;
+    }
+
   private:
     // lookup client full id to heart beat
     client_map_t mMap;
@@ -502,17 +508,19 @@ public:
 
   void Print(std::string& out, std::string options = "", bool monitoring = false);
 
-  int FillContainerMD(uint64_t id, eos::fusex::md& dir, eos::common::Mapping::VirtualIdentity* vid);
-  bool FillFileMD(uint64_t id, eos::fusex::md& file, eos::common::Mapping::VirtualIdentity* vid);
+  int FillContainerMD(uint64_t id, eos::fusex::md& dir,
+                      eos::common::Mapping::VirtualIdentity* vid);
+  bool FillFileMD(uint64_t id, eos::fusex::md& file,
+                  eos::common::Mapping::VirtualIdentity* vid);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
                         eos::common::Mapping::VirtualIdentity* vid,
                         std::string reuse_uuid = "",
                         bool issue_only_one = false);
 
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
-  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode, 
-		    eos::common::Mapping::VirtualIdentity* vid, 
-		    bool lock=true);
+  bool ValidatePERM(const eos::fusex::md& md, const std::string& mode,
+                    eos::common::Mapping::VirtualIdentity* vid,
+                    bool lock = true);
 
   uint64_t InodeFromCAP(const eos::fusex::md&);
 
@@ -527,7 +535,7 @@ public:
                eos::common::Mapping::VirtualIdentity* vid = 0);
 
   void
-  MonitorCaps();
+  MonitorCaps() noexcept;
 
   bool should_terminate()
   {
