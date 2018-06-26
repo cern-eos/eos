@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.2 Citrine``
+===================
+
+2018-06-26
+
+Bug
+---
+
+* FUSEX: encode 'name' in requests by <inode>:<name>
+* MGM: decode 'name' in requests by <inode>:<name>
+* MGM: decode routing requests from eosxd which have an URL encoded path name
+
+
 ``v4.3.1 Citrine``
 ===================
 
