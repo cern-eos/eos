@@ -90,7 +90,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     int port {0};                                                             \
     std::string host {""};                                                    \
     int stall_timeout {0};                                                    \
-    std::string stall_msg {"no master MGM avaialble"};                        \
+    std::string stall_msg {"No master MGM available"};                        \
     if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host, port)) {  \
       return gOFS->Redirect(error, host.c_str(), port);                       \
     }                                                                         \
