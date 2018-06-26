@@ -22,6 +22,7 @@
 
 #include "mgm/PathRouting.hh"
 #include "common/Path.hh"
+#include "common/StringConversion.hh"
 #include "XrdCl/XrdClURL.hh"
 #include <sstream>
 
@@ -124,17 +125,17 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
   if (path.back() != '/') {
     path += '/';
-    
-  XrdOucString sinpath = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
+  }
 
-  eos::common::Path cPath(sinpath.c_str());
+  path = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
+  eos::common::Path cPath(path.c_str());
 
   if (EOS_LOGS_DEBUG) {
-    eos_debug("routepath=%s ndir=%d dirlevel=%d", sinpath.c_str(), PathRoute.size(),
+    eos_debug("routepath=%s ndir=%d dirlevel=%d", path.c_str(), mPathRoute.size(),
               cPath.GetSubPathSize() - 1);
   }
 
-  eos_debug("path=%s map_route_size=%d", sinpath.c_str(), mPathRoute.size());
+  eos_debug("path=%s map_route_size=%d", path.c_str(), mPathRoute.size());
   eos::common::RWMutexReadLock lock(mPathRouteMutex);
 
   if (mPathRoute.empty()) {
@@ -176,7 +177,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
   for (const auto& endpoint : it->second) {
     if (endpoint.IsMaster()) {
-      master_ep = ep;
+      master_ep = endpoint;
       break;
     }
   }
