@@ -139,10 +139,10 @@ RWMutex::RWMutex(bool prefer_rd):
   ResetTimingStatistics();
 #endif
 
-  if (getenv("EOS_USE_SHARED_MUTEX")) {
-    mMutexImpl = new SharedMutex();
-  } else {
+  if (getenv("EOS_USE_PTHREAD_MUTEX")) {
     mMutexImpl = new PthreadRWMutex(prefer_rd);
+  } else {
+    mMutexImpl = new SharedMutex();
   }
 }
 
