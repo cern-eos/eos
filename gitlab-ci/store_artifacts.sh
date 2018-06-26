@@ -5,6 +5,10 @@ BRANCH=$1
 BUILD_TYPE=$2
 PATH_PREFIX=$3
 
+if [[ "${BUILD_TYPE}" == "tag" ]]; then
+  BUILD_TYPE = "tag/testing"
+fi
+
 STORAGE_PATH_CC7=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
 mkdir -p $STORAGE_PATH_CC7
 cp cc7_artifacts/RPMS/* $STORAGE_PATH_CC7
