@@ -89,13 +89,21 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 #define MAYREDIRECT { if (gOFS->IsRedirect) {                                 \
     int port {0};                                                             \
     std::string host {""};                                                    \
-    if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host, port))    \
-      return gOFS->Redirect(error, host.c_str(), port);                       \
-    if (gOFS->ShouldRoute(__FUNCTION__,__AccessMode__, vid, path, ininfo,     \
-                          host, port))                                        \
+    int stall_timeout {0};                                                    \
+    std::string stall_msg {"no master MGM avaialble"};                        \
+    if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host, port)) {  \
       return gOFS->Redirect(error, host.c_str(), port);                       \
     }                                                                         \
-  }
+    if (gOFS->ShouldRoute(__FUNCTION__,__AccessMode__, vid, path, ininfo,     \
+                          host, port, stall_timeout)) {                       \
+      if (stall_timeout) {                                                    \
+        return gOFS->Stall(error, stall_timeout, stall_msg.c_str());          \
+      } else {                                                                \
+        return gOFS->Redirect(error, host.c_str(), port);                     \
+      }                                                                       \
+    }                                                                         \
+  }                                                                           \
+}
 
 //------------------------------------------------------------------------------
 //! ENOENT Redirect Macro

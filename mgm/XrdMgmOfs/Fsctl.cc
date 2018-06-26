@@ -411,12 +411,10 @@ XrdMgmOfs::FSctl(const int cmd,
       auto fmd = gOFS->eosView->getFile(gOFS->MgmProcMasterPath.c_str());
 
       if (fmd) {
-        eos_info("found master file");
         const char* ok = "OK";
         error.setErrInfo(strlen(ok) + 1, ok);
         return SFS_DATA;
       } else {
-        eos_info("no master file found");
         return Emsg(epname, error, ENOENT, "find master file", "");
       }
     }

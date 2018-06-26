@@ -1094,13 +1094,14 @@ public:
   //! @param vid virtual idenity
   //! @param host target host of a redirection
   //! @param port target port of a redirection
+  //! @param stall_timeout timeout value in case stalling is required
   //!
   //! @return true if client should get a redirected otherwise false
   //----------------------------------------------------------------------------
   bool ShouldRoute(const char* function, int accessmode,
                    eos::common::Mapping::VirtualIdentity& vid,
                    const char* path, const char* info,
-                   std::string& host, int& port);
+                   std::string& host, int& port, int& stall_timeout);
 
   //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule

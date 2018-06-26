@@ -67,11 +67,12 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     // call the routing module before doing anything with http
     int port;
     std::string host;
+    int stall_timeout = 0;
 
     if (gOFS->ShouldRoute(__FUNCTION__, 0, *mVirtualIdentity,
                           request->GetUrl().c_str(),
                           request->GetQuery().c_str(),
-                          host, port)) {
+                          host, port, stall_timeout)) {
       response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
                                           host.c_str(), port, false);
       mHttpResponse = response;

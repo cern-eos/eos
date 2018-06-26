@@ -34,7 +34,7 @@ bool
 XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
                        eos::common::Mapping::VirtualIdentity& vid,
                        const char* path, const char* info,
-                       std::string& host, int& port)
+                       std::string& host, int& port, int& stall_timeout)
 {
   if ((vid.uid == 0) ||
       (vid.host == "localhost") ||
@@ -50,8 +50,8 @@ XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
     gOFS->MgmStats.Add(stat_info.c_str(), vid.uid, vid.gid, 1);
     return true;
   } else if (st == PathRouting::Status::STALL) {
-    // @todo (esindril): proper implement stalling
-    return false;
+    stall_timeout = 5; // seconds
+    return true;
   } else {
     return false;
   }
