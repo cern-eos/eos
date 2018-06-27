@@ -417,6 +417,7 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       configkey += "comment-";
       configkey += dtime;
       configkey += ":";
+      XrdSysMutexHelper lock(mMutex);
       sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
     }
 
@@ -704,9 +705,12 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     configname = key;
   }
 
-  XrdOucString* sdef = new XrdOucString(val);
-  sConfigDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
+  {
+    XrdOucString* sdef = new XrdOucString(val);
+    XrdSysMutexHelper lock(mMutex);
+    sConfigDefinitions.Rep(configname.c_str(), sdef);
+  }
 
   if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
     // Make this value visible between MGM's
@@ -761,9 +765,10 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     }
   }
 
-  mMutex.Lock();
-  sConfigDefinitions.Del(configname.c_str());
-  mMutex.UnLock();
+  {
+    XrdSysMutexHelper lock(mMutex);
+    sConfigDefinitions.Del(configname.c_str());
+  }
 
   if (tochangelog) {
     mChangelog->AddEntry(cl.c_str());

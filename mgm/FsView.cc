@@ -1583,14 +1583,14 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
     if (mNodeView.count(snapshot.mQueue)) {
       mNodeView[snapshot.mQueue]->insert(snapshot.mId);
       eos_debug("inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
-                snapshot.mId, fs);
+                snapshot.mId);
     } else {
       FsNode* node = new FsNode(snapshot.mQueue.c_str());
       mNodeView[snapshot.mQueue] = node;
       node->insert(snapshot.mId);
       node->SetNodeConfigDefault();
       eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
-                snapshot.mId, fs);
+                snapshot.mId);
     }
 
     // Align view by groupname
@@ -1598,14 +1598,14 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
     if (mGroupView.count(snapshot.mGroup)) {
       mGroupView[snapshot.mGroup]->insert(snapshot.mId);
       eos_debug("inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
-                snapshot.mId, fs);
+                snapshot.mId);
     } else {
       FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
       mGroupView[snapshot.mGroup] = group;
       group->insert(snapshot.mId);
       group->mIndex = snapshot.mGroupIndex;
       eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
-                snapshot.mId, fs);
+                snapshot.mId);
     }
 
     if (registerInGeoTreeEngine &&
