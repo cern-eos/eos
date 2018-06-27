@@ -114,8 +114,8 @@ XrdMgmOfsFile::open(const char* inpath,
   bool isPioReconstruct = false;
   // flag indicating FUSE file access
   bool isFuse = false;
-  ssize_t fuse_bookingsize = 5*1024*1024*1024ll; // a FUSE file requires atleast 5GB of additional free space
-
+  ssize_t fuse_bookingsize = 5 * 1024 * 1024 *
+                             1024ll; // a FUSE file requires atleast 5GB of additional free space
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
@@ -1037,14 +1037,14 @@ XrdMgmOfsFile::open(const char* inpath,
     int envlen;
     std::vector<std::string> xattr_keys;
     eos::common::StringConversion::GetKeyValueMap(openOpaque->Env(envlen),
-						  ext_xattr_map,
-						  "=",
-						  "&",
-						  &xattr_keys);
+        ext_xattr_map,
+        "=",
+        "&",
+        &xattr_keys);
 
-    for (auto it=xattr_keys.begin(); it != xattr_keys.end(); ++it) {
-      if (it->substr(0,5) != "user.") {
-	ext_xattr_map.erase(*it);
+    for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
+      if (it->substr(0, 5) != "user.") {
+        ext_xattr_map.erase(*it);
       }
     }
   }
@@ -1091,11 +1091,11 @@ XrdMgmOfsFile::open(const char* inpath,
 
       // if specified set an external temporary ETAG
       if (ext_etag.length()) {
-	fmd->setAttribute("sys.tmp.etag", ext_etag);
+        fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
- 
+
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
-	fmd->setAttribute(it->first, it->second);
+        fmd->setAttribute(it->first, it->second);
       }
 
       try {
@@ -1241,7 +1241,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // if any of the two fails, the scheduling operation fails
     Scheduler::PlacementArguments plctargs;
     plctargs.alreadyused_filesystems = &selectedfs;
-    plctargs.bookingsize = isFuse?fuse_bookingsize:bookingsize;
+    plctargs.bookingsize = isFuse ? fuse_bookingsize : bookingsize;
     plctargs.dataproxys = &proxys;
     plctargs.firewallentpts = &firewalleps;
     plctargs.forced_scheduling_group_index = forcedGroup;
@@ -1270,13 +1270,14 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
         selectedfs.push_back(loc);
-	excludefs.push_back(loc);
+        excludefs.push_back(loc);
       }
     }
 
-    for (auto loc  = fmd->getUnlinkedLocations().begin();
-	 loc != fmd->getUnlinkedLocations().end(); ++loc) {
-      excludefs.push_back(*loc);
+    eos::IFileMD::LocationVector unlinked = fmd->getUnlinkedLocations();
+
+    for (auto loc : unlinked) {
+      excludefs.push_back(loc);
     }
 
     if (selectedfs.empty()) {
@@ -1396,20 +1397,23 @@ XrdMgmOfsFile::open(const char* inpath,
     std::vector<unsigned int> newselectedfs;
     auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
     int sum = std::accumulate(selectedfs.begin(), selectedfs.end(), 0);
+
     if ((sum % 2) == 0) {
       newselectedfs.push_back(*result.second);
-    }
-    else {
+    } else {
       newselectedfs.push_back(*result.first);
     }
-    for (const auto& i: selectedfs) {
-      if (i != newselectedfs.front())
+
+    for (const auto& i : selectedfs) {
+      if (i != newselectedfs.front()) {
         newselectedfs.push_back(i);
+      }
     }
-    
+
     //do the swap
     selectedfs.swap(newselectedfs);
-  } 
+  }
+
   /// ###############
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
