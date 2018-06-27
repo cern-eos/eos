@@ -706,11 +706,8 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
   }
 
   eos_static_debug("%s => %s", key, val);
-  {
-    XrdOucString* sdef = new XrdOucString(val);
-    XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Rep(configname.c_str(), sdef);
-  }
+  XrdOucString* sdef = new XrdOucString(val);
+  sConfigDefinitions.Rep(configname.c_str(), sdef);
 
   if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
     // Make this value visible between MGM's
