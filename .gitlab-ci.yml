@@ -11,7 +11,7 @@ before_script:
   - echo "Exporting BRANCH=${BRANCH}"
 
 
-.system_test_template: &system_test_template_definition
+._template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
@@ -344,6 +344,7 @@ system_test:
   <<: *system_test_template_definition
   tags:
     - shell-with-docker
+  allow_failure: true
   dependencies:
     - clone_docker
   retry: 1
