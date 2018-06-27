@@ -439,7 +439,7 @@
         try {
 	  // check for a temporary Etag and remove it
 	  std::string tmpEtag = "sys.tmp.etag";
-	  if (fmd->hasAttribute(tmpEtag) && !isAtomic) {
+	  if (fmd->hasAttribute(tmpEtag) && !isAtomic && (commitsize || commitchecksum)) {
 	    fmd->removeAttribute(tmpEtag);
 	  }
 
