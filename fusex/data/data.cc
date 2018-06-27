@@ -612,6 +612,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 						       cachehandler::instance().get_config().max_read_ahead_size,
 						       cachehandler::instance().get_config().max_read_ahead_blocks
 						       );
+
+	  mFile->xrdioro(freq)->set_readahead_maximum_position(mSize);
         }
       }
 

@@ -255,14 +255,20 @@ XrdCl::Proxy::Read( uint64_t  offset,
 		    (unsigned long) mReadAheadPosition,
 		    n_fetch,blocks_to_fetch
 		    );
+	if (mReadAheadPosition > get_readahead_maximum_position()) {
+	  eos_debug("----: pre-fetch skipped max-readahead-position=%lu",
+		    get_readahead_maximum_position());
+	}
 	
 	if (!ChunkRMap().count(mReadAheadPosition)) {
 	  ReadCondVar().UnLock();
 	  XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(mReadAheadPosition, XReadAheadNom);
 	  XRootDStatus rstatus = PreReadAsync(mReadAheadPosition, XReadAheadNom,
 					      rahread, timeout);
-	  mReadAheadPosition += XReadAheadNom;
-	  mTotalReadAheadBytes += XReadAheadNom;
+	  if (rstatus.IsOK()) {
+	    mReadAheadPosition += XReadAheadNom;
+	    mTotalReadAheadBytes += XReadAheadNom;
+	  }
 	  ReadCondVar().Lock();
 	}
       }
@@ -1083,10 +1089,17 @@ XrdCl::Proxy::PreReadAsync( uint64_t         offset,
 
   if (!status.IsOK())
     return status;
-
-  return File::Read(static_cast<uint64_t> (offset),
-                    static_cast<uint32_t> (size),
-                    (void*) handler->buffer(), handler.get(), timeout);
+  
+  XRootDStatus rstatus = File::Read(static_cast<uint64_t> (offset),
+				   static_cast<uint32_t> (size),
+				   (void*) handler->buffer(), handler.get(), timeout);
+  if (!rstatus.IsOK()) {
+    // rempove the allocated chunk buffer
+    XrdSysCondVarHelper lLock(ReadCondVar());
+    ChunkRMap().erase(offset);
+    dec_read_chunks_in_flight();
+  }
+  return rstatus;
 }
 
 /* -------------------------------------------------------------------------- */

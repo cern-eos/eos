@@ -160,6 +160,7 @@ namespace XrdCl
       XrdSysMutexHelper lLock(this);
       inflight_size -= buffer->capacity();
       inflight_buffers--;
+
       if ( (queue.size() == max) || (buffer->capacity() < buffersize)) {
 	return;
       } else {
@@ -402,6 +403,10 @@ namespace XrdCl
     } ;
 
 
+    void set_readahead_maximum_position(off_t offset)  { mReadAheadMaximumPosition = offset; }
+
+    off_t get_readahead_maximum_position() const { return mReadAheadMaximumPosition; }
+    
     static READAHEAD_STRATEGY readahead_strategy_from_string(const std::string& strategy)
     {
       if (strategy == "dynamic")
@@ -490,6 +495,7 @@ namespace XrdCl
       mSelfDestruction.store(false, std::memory_order_seq_cst);
       mRChunksInFlight.store(0, std::memory_order_seq_cst);
       mDeleted = false;
+      mReadAheadMaximumPosition = 64*1024ll*1024ll*1024ll*1024ll; 
     }
 
     void Collect()
@@ -1023,6 +1029,7 @@ namespace XrdCl
     off_t mTotalBytes;
     off_t mTotalReadAheadHitBytes;
     off_t mTotalReadAheadBytes;
+    off_t mReadAheadMaximumPosition;
 
     XrdSysMutex mAttachedMutex;
     size_t mAttached;
