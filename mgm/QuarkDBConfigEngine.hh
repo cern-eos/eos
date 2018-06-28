@@ -166,8 +166,8 @@ public:
   //! @param val value of the configuration
   //! @param not_bcast mark if change comes from a broadcast or not
   //----------------------------------------------------------------------------
-  void SetConfigValue(const char* prefix, const char* key,
-                      const char* val, bool not_bcast = true);
+  void SetConfigValue(const char* prefix, const char* key, const char* val,
+                      bool not_bcast = true);
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value

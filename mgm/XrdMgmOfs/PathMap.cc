@@ -29,7 +29,7 @@
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::ResetPathMap ()
+XrdMgmOfs::ResetPathMap()
 /*----------------------------------------------------------------------------*/
 /*
  * Reset all the stored entries in the path remapping table
@@ -40,41 +40,32 @@ XrdMgmOfs::ResetPathMap ()
   PathMap.clear();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add a source/target pair to the path remapping table
+//------------------------------------------------------------------------------
 bool
-XrdMgmOfs::AddPathMap (const char* source,
-                       const char* target)
-/*----------------------------------------------------------------------------*/
-/*
- * Add a source/target pair to the path remapping table
- *
- * @param source prefix path to map
- * @param target target path for substitution of prefix
- *
- * This function allows e.g. to map paths like /store/ to /eos/instance/store/
- * to provide an unprefixed global namespace in a storage federation.
- * It is used by the Configuration Engin to apply a mapping from a configuration
- * file.
- */
-/*----------------------------------------------------------------------------*/
+XrdMgmOfs::AddPathMap(const char* source, const char* target,
+                      bool store_config)
 {
   eos::common::RWMutexWriteLock lock(PathMapMutex);
-  if (PathMap.count(source))
-  {
+
+  if (PathMap.count(source)) {
     return false;
-  }
-  else
-  {
+  } else {
     PathMap[source] = target;
-    ConfEngine->SetConfigValue("map", source, target);
+
+    if (store_config) {
+      ConfEngine->SetConfigValue("map", source, target);
+    }
+
     return true;
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::PathRemap (const char* inpath,
-                      XrdOucString &outpath)
+XrdMgmOfs::PathRemap(const char* inpath,
+                     XrdOucString& outpath)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief translate a path name according to the configured mapping table
@@ -92,57 +83,49 @@ XrdMgmOfs::PathRemap (const char* inpath,
 /*----------------------------------------------------------------------------*/
 {
   eos::common::Path cPath(inpath);
-
   eos::common::RWMutexReadLock lock(PathMapMutex);
-  eos_debug("mappath=%s ndir=%d dirlevel=%d", inpath, PathMap.size(), cPath.GetSubPathSize() - 1);
-
+  eos_debug("mappath=%s ndir=%d dirlevel=%d", inpath, PathMap.size(),
+            cPath.GetSubPathSize() - 1);
   outpath = inpath;
 
   // remove double slashes
-  while (outpath.replace("//", "/"))
-  {
+  while (outpath.replace("//", "/")) {
   }
 
   // append a / to the path
   outpath += "/";
 
-  if (!PathMap.size())
-  {
+  if (!PathMap.size()) {
     outpath.erase(outpath.length() - 1);
     return;
   }
 
-  if (PathMap.count(inpath))
-  {
+  if (PathMap.count(inpath)) {
     outpath.replace(inpath, PathMap[inpath].c_str());
     outpath.erase(outpath.length() - 1);
     return;
   }
 
-  if (PathMap.count(outpath.c_str()))
-  {
+  if (PathMap.count(outpath.c_str())) {
     outpath.replace(outpath.c_str(), PathMap[outpath.c_str()].c_str());
     outpath.erase(outpath.length() - 1);
     return;
   }
 
-  if (!cPath.GetSubPathSize())
-  {
+  if (!cPath.GetSubPathSize()) {
     outpath.erase(outpath.length() - 1);
     return;
   }
 
-  for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--)
-  {
-    if (PathMap.count(cPath.GetSubPath(i)))
-    {
-      outpath.replace(cPath.GetSubPath(i), PathMap[cPath.GetSubPath(i)].c_str(), 0, strlen(cPath.GetSubPath(i)));
+  for (size_t i = cPath.GetSubPathSize() - 1; i > 0; i--) {
+    if (PathMap.count(cPath.GetSubPath(i))) {
+      outpath.replace(cPath.GetSubPath(i), PathMap[cPath.GetSubPath(i)].c_str(), 0,
+                      strlen(cPath.GetSubPath(i)));
       outpath.erase(outpath.length() - 1);
       return;
     }
   }
+
   outpath.erase(outpath.length() - 1);
   return;
 }
-
-

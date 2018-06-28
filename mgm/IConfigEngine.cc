@@ -229,7 +229,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
     // Set a mapping
     skey.erase(0, 4);
 
-    if (!gOFS->AddPathMap(skey.c_str(), sval.c_str())) {
+    if (!gOFS->AddPathMap(skey.c_str(), sval.c_str(), false)) {
       oss_err << "error: failed to apply config "
               << key << " => " << val->c_str() << std::endl;
     }

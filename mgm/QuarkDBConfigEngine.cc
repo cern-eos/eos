@@ -504,9 +504,12 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
     configname = key;
   }
 
-  XrdOucString* sdef = new XrdOucString(val);
-  sConfigDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
+  XrdOucString* sdef = new XrdOucString(val);
+  {
+    XrdSysMutexHelper lock(mMutex);
+    sConfigDefinitions.Rep(configname.c_str(), sdef);
+  }
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {

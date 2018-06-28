@@ -155,11 +155,9 @@ public:
   //! @param key key of the configuration to set
   //! @param val value of the configuration
   //! @param tochangelog if true add entry also to the changelog
-  //! @param lock if true then take the mMutex lock, other skip
   //----------------------------------------------------------------------------
-  void SetConfigValue(const char* prefix, const char* key,
-                      const char* val, bool tochangelog = true,
-                      bool lock = false);
+  void SetConfigValue(const char* prefix, const char* key, const char* val,
+                      bool tochangelog = true);
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value

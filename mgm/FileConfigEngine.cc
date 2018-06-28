@@ -674,7 +674,7 @@ FileConfigEngine::AutoSave()
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
-                                 const char* val, bool tochangelog, bool lock)
+                                 const char* val, bool tochangelog)
 {
   XrdOucString cl = "set config ";
 
@@ -707,13 +707,8 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
 
   eos_static_debug("%s => %s", key, val);
   XrdOucString* sdef = new XrdOucString(val);
-
-  // Take the lock when this function is called from a place where the mMutex
-  // is not locked. It's ugly ...
-  if (lock) {
+  {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Rep(configname.c_str(), sdef);
-  } else {
     sConfigDefinitions.Rep(configname.c_str(), sdef);
   }
 

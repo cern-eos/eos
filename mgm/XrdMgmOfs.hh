@@ -1150,11 +1150,18 @@ public:
   void PathRemap(const char* inpath,
                  XrdOucString& outpath);  // global namespace remapping
 
-  // ---------------------------------------------------------------------------
-  // Add a path mapping rule
-  // ---------------------------------------------------------------------------
-  bool AddPathMap(const char* source,
-                  const char* target);  // add a mapping to the path map
+  //----------------------------------------------------------------------------
+  //! Allows to map paths like e.g. /store/ to /eos/instance/store/ to provide
+  //! an unprefixed global namespace in a storage federation. It is used by
+  //! the Configuration Engine to apply a mapping from a configuration file.
+  //!
+  //! @parma source mapping source
+  //! @param target mapping target
+  //! @param store_config if true also store mapping in the configuration,
+  //!        otherwise don't
+  //----------------------------------------------------------------------------
+  bool AddPathMap(const char* source, const char* target,
+                  bool store_config = true);
 
   // ---------------------------------------------------------------------------
   // Reset path mapping
