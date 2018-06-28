@@ -667,7 +667,7 @@ FileConfigEngine::AutoSave()
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
-                                 const char* val, bool tochangelog)
+                                 const char* val, bool tochangelog, bool lock)
 {
   XrdOucString cl = "set config ";
 
