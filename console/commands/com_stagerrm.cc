@@ -29,7 +29,7 @@
 void com_stagerrm_help();
 
 //------------------------------------------------------------------------------
-//! Class FsHelper
+//! Class StagerRmHelper
 //------------------------------------------------------------------------------
 class StagerRmHelper: public ICmdHelper
 {

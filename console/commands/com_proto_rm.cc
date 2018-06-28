@@ -30,7 +30,7 @@ extern int com_rm(char*);
 void com_rm_help();
 
 //------------------------------------------------------------------------------
-//! Class FsHelper
+//! Class RmHelper
 //------------------------------------------------------------------------------
 class RmHelper: public ICmdHelper
 {

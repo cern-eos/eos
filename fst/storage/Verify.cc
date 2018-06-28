@@ -45,7 +45,7 @@ Storage::Verify()
 {
   std::map<uint64_t, time_t> open_w_out;
 
-  // This thread unlinks stored files
+  // Thread that verifies stored files
   while (1) {
     mVerifyMutex.Lock();
 

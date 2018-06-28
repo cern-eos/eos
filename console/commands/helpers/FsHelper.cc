@@ -235,7 +235,7 @@ FsHelper::ParseCommand(const char* arg)
 
       // Parse key=value
       if (!(option = tokenizer.GetToken())) {
-        std::cerr << "error: configuration must be specified in <key>=<value"
+        std::cerr << "error: configuration must be specified in <key>=<value>"
                   " format" << std::endl;
         return false;
       }
@@ -244,7 +244,7 @@ FsHelper::ParseCommand(const char* arg)
       auto pos = soption.find('=');
 
       if (pos == std::string::npos) {
-        std::cerr << "error: configuration must be specified in <key>=<value"
+        std::cerr << "error: configuration must be specified in <key>=<value>"
                   " format" << std::endl;
         return false;
       }

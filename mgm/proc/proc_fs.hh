@@ -106,7 +106,7 @@ int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
-//! Get type of entity. It can either be a filesyste, an eos group or an eos
+//! Get type of entity. It can either be a filesystem, an eos group or an eos
 //! space.
 //!
 //! @param input string given as input
