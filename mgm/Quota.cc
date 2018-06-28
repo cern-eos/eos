@@ -969,10 +969,14 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   }
 
   if (((GetQuota(kGroupBytesTarget, Quota::gProjectId) -
-        GetQuota(kGroupBytesIs, Quota::gProjectId)) > desired_vol) &&
-      ((GetQuota(kGroupFilesTarget, Quota::gProjectId) -
-        GetQuota(kGroupFilesIs, Quota::gProjectId)) > inodes)) {
+        GetQuota(kGroupBytesIs, Quota::gProjectId)) > desired_vol)) {
     hasprojectquota = true;
+    
+    if ( (GetQuota(kGroupFilesTarget, Quota::gProjectId)) && 
+	 ( (GetQuota(kGroupFilesTarget, Quota::gProjectId) <
+	    (GetQuota(kGroupFilesIs, Quota::gProjectId) + inodes)) ) ) {
+      hasprojectquota = false;
+    }
   }
 
   if (!userquota && !groupquota) {
