@@ -450,7 +450,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("rm-rf-bulk")) {
-      root["options"]["rm-rf-bulk"] = 1;
+      root["options"]["rm-rf-bulk"] = 0;
     }
 
     // xrdcl default options
