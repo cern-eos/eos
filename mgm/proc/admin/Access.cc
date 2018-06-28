@@ -114,8 +114,9 @@ ProcCommand::Access()
     }
 
     if (host.length()) {
+      Access::gBannedHosts.insert(host);
+
       if (Access::StoreAccessConfig()) {
-        Access::gBannedHosts.insert(host);
         stdOut = "success: ban host '";
         stdOut += host.c_str();
         stdOut += "'";
@@ -127,8 +128,9 @@ ProcCommand::Access()
     }
 
     if (domain.length()) {
+      Access::gBannedDomains.insert(domain);
+
       if (Access::StoreAccessConfig()) {
-        Access::gBannedDomains.insert(domain);
         stdOut = "success: ban domain '";
         stdOut += domain.c_str();
         stdOut += "'";
