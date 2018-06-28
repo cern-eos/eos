@@ -793,8 +793,16 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   eos::fst::CheckSum* normalXS, *blockXS;
   scansize = 0;
   scantime = 0;
-  filePath = io->GetPath();
-  fileXSPath = filePath + ".xsmap";
+  fileXSPath = filePath = io->GetPath();
+
+  // TODO: Refactor FileIo to provide path, opaque and fullpath
+  // File path might have opaque info
+  size_t insertPos = filePath.rfind("?");
+  if (insertPos == std::string::npos) {
+    insertPos = filePath.length();
+  }
+  fileXSPath.insert(insertPos, ".xsmap");
+
   normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
   gettimeofday(&opentime, &tz);
   struct stat current_stat;
