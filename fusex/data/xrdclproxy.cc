@@ -205,6 +205,9 @@ XrdCl::Proxy::Read( uint64_t  offset,
 	    // tune the read-ahead size with the read-pattern
 	    if (size > XReadAheadNom)
 	      XReadAheadNom = size;
+
+	    if (XReadAheadNom > XReadAheadMax)
+	      XReadAheadNom = XReadAheadMax;
 	  }
 	}
       }
