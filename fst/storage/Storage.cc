@@ -27,6 +27,7 @@
 #include "fst/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
+#include "fst/InjectionScan.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -165,6 +166,16 @@ Storage::Storage(const char* meta_dir)
                               static_cast<void*>(this),
                               0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
+    mZombie = true;
+  }
+
+  mThreadSet.insert(tid);
+  eos_info("starting injection scan thread");
+
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsInjectionScan,
+                              static_cast<void*>(this),
+                              0, "InjectionScan Thread"))) {
+    eos_crit("cannot start injection scan thread");
     mZombie = true;
   }
 
@@ -311,6 +322,17 @@ Storage::PushVerification(eos::fst::Verify* entry)
   } else {
     eos_err("verify list has already 1 Mio. entries - discarding verify message");
   }
+}
+
+//------------------------------------------------------------------------------
+// Push new injection scan job to the queue.
+//------------------------------------------------------------------------------
+void
+Storage::PushInjectionScan(eos::fst::InjectionScan* entry)
+{
+  XrdSysMutexHelper scope_lock(mInjectionScanMutex);
+  mInjectionScans.push(entry);
+  entry->Show();
 }
 
 //------------------------------------------------------------------------------
@@ -638,6 +660,17 @@ Storage::StartFsVerify(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->Verify();
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Start injection scan thread
+//------------------------------------------------------------------------------
+void*
+Storage::StartFsInjectionScan(void* pp)
+{
+  Storage* storage = (Storage*) pp;
+  storage->InjectionScan();
   return 0;
 }
 

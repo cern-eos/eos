@@ -27,6 +27,7 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
+#include "fst/InjectionScan.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 #include "common/ShellCmd.hh"
@@ -164,6 +165,20 @@ Messaging::Process(XrdMqMessage* newmessage)
       gOFS.Storage->PushVerification(new_verify);
     } else {
       eos_err("Cannot create a verify entry - illegal opaque information");
+    }
+  }
+
+  if (cmd == "injectionscan") {
+    eos_info("injectionscan");
+    XrdOucEnv* capOpaque = &action;
+    int envlen = 0;
+    eos_debug("opaque is %s", capOpaque->Env(envlen));
+    InjectionScan* new_injectionScan = InjectionScan::Create(capOpaque);
+
+    if (new_injectionScan) {
+      gOFS.Storage->PushInjectionScan(new_injectionScan);
+    } else {
+      eos_err("Cannot create an injectScan entry - illegal opaque information");
     }
   }
 

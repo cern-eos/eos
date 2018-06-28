@@ -48,6 +48,7 @@ EOSFSTNAMESPACE_BEGIN
 
 class Verify;
 class Deletion;
+class InjectionScan;
 class FileSystem;
 
 //------------------------------------------------------------------------------
@@ -143,6 +144,13 @@ public:
   //----------------------------------------------------------------------------
   void PushVerification(eos::fst::Verify* entry);
 
+  //----------------------------------------------------------------------------
+  //! Push new injection scan job to the queue.
+  //!
+  //! @param entry injection scan information
+  //----------------------------------------------------------------------------
+  void PushInjectionScan(eos::fst::InjectionScan* entry);
+
 protected:
   eos::common::RWMutex mFsMutex; ///< Mutex protecting access to the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
@@ -178,6 +186,9 @@ private:
   XrdSysMutex mVerifyMutex; ///< Mutex protecting access to the verifications
   //! Queue of verification jobs pending
   std::queue <eos::fst::Verify*> mVerifications;
+  XrdSysMutex mInjectionScanMutex; ///< Mutex protecting list of injection scans
+  //! Queue of injection scan jobs pending
+  std::queue <eos::fst::InjectionScan*> mInjectionScans;
   XrdSysMutex mDeletionsMutex; ///< Mutex protecting the list of deletions
   std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
   Load mFstLoad; ///< Net/IO load monitor
@@ -201,6 +212,7 @@ private:
   static void* StartFsReport(void* pp);
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
+  static void* StartFsInjectionScan(void* pp);
   static void* StartFsPublisher(void* pp);
   static void* StartFsBalancer(void* pp);
   static void* StartFsDrainer(void* pp);
@@ -219,6 +231,7 @@ private:
   void Report();
   void ErrorReport();
   void Verify();
+  void InjectionScan();
   void Publish();
   void Balancer();
   void Drainer();
