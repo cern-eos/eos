@@ -735,7 +735,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["cache"].isMember("read-ahead-bytes-nominal")) {
-      root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024 * 1024;
+      root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024;
     }
 
     if (!root["cache"].isMember("read-ahead-bytes-max")) {
