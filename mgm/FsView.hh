@@ -71,10 +71,9 @@ struct GeoTreeElement {
 
   //! An auxiliary numbering to run the aggregator
   mutable size_t mId;
-  typedef eos::common::FileSystem::fsid_t fsid_t;
 
   //! All the FileSystems attached to this node of the tree
-  std::set<fsid_t> mFsIds;
+  std::set<eos::common::FileSystem::fsid_t> mFsIds;
 
   /// Map geoTreeTag -> son branches
   std::map<std::string , GeoTreeElement*> mSons;

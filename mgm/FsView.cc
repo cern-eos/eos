@@ -1674,7 +1674,8 @@ FsView::StoreFsConfig(FileSystem* fs)
     fs->CreateConfig(key, val);
 
     if (FsView::sConfEngine) {
-      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str(), true,
+                                          true);
     }
   }
 }

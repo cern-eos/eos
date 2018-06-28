@@ -242,11 +242,11 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
       eos_static_err("failed to parse route config %s => %s", key, val->c_str());
       oss_err << "error: failed to parse route config "
               << key << " => " << val->c_str() << std::endl;
-    }
-
-    if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
-      oss_err << "error: failed to apply config "
-              << key << " => " << val->c_str() << std::endl;
+    } else {
+      if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
+        oss_err << "error: failed to apply config "
+                << key << " => " << val->c_str() << std::endl;
+      }
     }
   } else if (skey.beginswith("quota:")) {
     // Set a quota definition
