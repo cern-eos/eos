@@ -430,7 +430,8 @@
           // Update the modification time only if the file contents changed and
           // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
           // call utimes anyway
-	  if (!isAtomic)
+	  // OC clients set the mtime during a commit!
+	  if (!isAtomic || occhunk)
 	    fmd->setMTime(mt);
         }
 
@@ -439,7 +440,7 @@
         try {
 	  // check for a temporary Etag and remove it
 	  std::string tmpEtag = "sys.tmp.etag";
-	  if (fmd->hasAttribute(tmpEtag) && !isAtomic && (commitsize || commitchecksum)) {
+	  if (fmd->hasAttribute(tmpEtag) && (!isAtomic || occhunk) && (commitsize || commitchecksum)) {
 	    fmd->removeAttribute(tmpEtag);
 	  }
 
