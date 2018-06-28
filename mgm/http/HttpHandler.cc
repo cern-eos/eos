@@ -845,6 +845,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         query = "eos.bookingsize=0";
       }
 
+      if (request->GetHeaders().count("x-oc-mtime")) {
+        // there is an X-OC-Mtime header to force the mtime for that file
+        query += "&eos.mtime=";
+        query += request->GetHeaders()["x-oc-mtime"];
+      }
+
       if (isOcChunked) {
         // add the OC opaque information
         query += eos::common::OwnCloud::HeaderToQuery(ocHeader).c_str();
