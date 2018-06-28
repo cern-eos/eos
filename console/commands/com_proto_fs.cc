@@ -190,6 +190,15 @@ void com_fs_help()
       << "    -m     : print full metadata record in env format" << std::endl
       << "    -s     : silent mode (will keep an internal reference)" << std::endl
       << std::endl
+      << "  fs inject <src_fsid> <ext_path> <lcl_path>" << std::endl
+      << "     scan an external endpoint and inject all files " << std::endl
+      << "     into the selected filesystem at the given local path"
+      << std::endl
+      << "     src_fsid  : source filesystem identifier" <<std::endl
+      << "     ext_path  : complete path to an external location" << std::endl
+      << "     lcl_path  : path to a location within the selected" << std:: endl
+      << "                 filesystem" << std::endl
+      << std::endl
       << "  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]"
       << std::endl
       << "    list filesystems using the default output format" << std::endl

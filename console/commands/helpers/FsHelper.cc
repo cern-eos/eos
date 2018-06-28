@@ -452,6 +452,38 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
+  } else if (cmd == "inject") {
+    using eos::console::FsProto_InjectProto;
+    FsProto_InjectProto* inject = fs->mutable_inject();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+
+      // Parse fsid
+      try {
+        uint64_t fsid = std::stoull(soption);
+        inject->set_fsid(fsid);
+      } catch (const std::exception& e) {
+        std::cerr << "error: fsid needs to be numeric" << std::endl;
+        return false;
+      }
+
+      if (!(option = tokenizer.GetToken())) {
+        std::cerr << "error: missing <external_path>" << std::endl;
+        return false;
+      }
+      soption = option;
+      inject->set_externalpath(soption);
+
+      if (!(option = tokenizer.GetToken())) {
+        std::cerr << "error: missing <local_path>" << std::endl;
+        return false;
+      }
+      soption = option;
+      inject->set_localpath(soption);
+    }
   } else if (cmd == "rm") {
     using eos::console::FsProto_RmProto;
     FsProto_RmProto* rm = fs->mutable_rm();

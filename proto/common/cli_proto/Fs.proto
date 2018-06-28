@@ -91,6 +91,12 @@ message FsProto {
    string Matchlist = 3;
   }
 
+  message InjectProto {
+    uint64 Fsid = 1;
+    string ExternalPath = 2;
+    string LocalPath = 3;
+  }
+
   message RmProto {
     oneof id {
       uint64 Fsid = 1;
@@ -119,8 +125,9 @@ message FsProto {
     DumpMdProto dumpmd = 8;
     MvProto mv = 9;
     LsProto ls = 10;
-    RmProto rm = 11;
-    StatusProto status = 12;
-    DropGhostsProto dropghosts = 13;
+    InjectProto inject = 11;
+    RmProto rm = 12;
+    StatusProto status = 13;
+    DropGhostsProto dropghosts = 14;
   }
 }
