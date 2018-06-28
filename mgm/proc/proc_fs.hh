@@ -156,6 +156,23 @@ int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
 
 
 //------------------------------------------------------------------------------
+//! Trigger the process of injecting files found at an external path
+//! into the given filesystem at the presented local path
+//!
+//! @param sfsid filesystem id
+//! @param extSrc external source path
+//! @param lclDst local destination path
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//! @param vid_in virtual identify of the client
+//!
+//! @return 0 if successful, otherwise error code value
+//------------------------------------------------------------------------------
+int proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string &lclDst,
+                   XrdOucString& stdOut, XrdOucString& stdErr,
+                   eos::common::Mapping::VirtualIdentity& vid_in);
+
+//------------------------------------------------------------------------------
 //! Get type of entity. It can either be a filesystem, an eos group or an eos
 //! space.
 //!

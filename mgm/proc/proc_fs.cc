@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/Messaging.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -715,6 +716,61 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
     // ========> ViewMutex WRITEUnLOCK
     FsView::gFsView.ViewMutex.UnLockWrite();
+  }
+
+  return retc;
+}
+
+//------------------------------------------------------------------------------
+// Start the process of injecting external files into the given filesystem
+//------------------------------------------------------------------------------
+int
+proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string& lclDst,
+               XrdOucString& stdOut, XrdOucString& stdErr,
+               eos::common::Mapping::VirtualIdentity& vid_in)
+{
+  int retc = 0;
+
+  eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  eos::mgm::FileSystem* fs = 0;
+
+  if (FsView::gFsView.mIdView.count(fsid)) {
+    fs = FsView::gFsView.mIdView[fsid];
+  } else {
+    stdErr = "error: could not retrieve filesystem identified by <";
+    stdErr += sfsid.c_str();
+    stdErr += ">";
+    retc = EINVAL;
+  }
+
+  XrdOucString receiver = fs->GetQueue().c_str();
+  XrdOucString opaquestring = "";
+
+  opaquestring += "&mgm.fsid=";
+  opaquestring += sfsid.c_str();
+  opaquestring += "&mgm.extpath=";
+  opaquestring += extSrc.c_str();
+  opaquestring += "&mgm.lclpath=";
+  opaquestring += lclDst.c_str();
+
+
+  XrdMqMessage message("injectionScan");
+  XrdOucString msgbody = "mgm.cmd=injectionscan";
+  msgbody += opaquestring;
+  message.SetBody(msgbody.c_str());
+
+  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+    eos_static_err("unable to send verification message to %s",
+                   receiver.c_str());
+    stdErr = "error: could not send message to filesystem node";
+    retc = EIO;
+  }
+
+  if (!retc) {
+    stdOut += "Injection of ";
+    stdOut += extSrc.c_str();
+    stdOut += " started successfully";
   }
 
   return retc;

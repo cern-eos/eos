@@ -83,6 +83,8 @@ private:
 
   int Clone(const eos::console::FsProto::CloneProto& cloneProto);
 
+  int Inject(const eos::console::FsProto::InjectProto& injectProto);
+
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 

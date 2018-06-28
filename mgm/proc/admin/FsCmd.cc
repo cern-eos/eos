@@ -66,6 +66,8 @@ eos::mgm::FsCmd::ProcessRequest() noexcept
     reply.set_retc(DropFiles(fs.dropfiles()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
     reply.set_retc(DumpMd(fs.dumpmd()));
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kInject) {
+    reply.set_retc(Inject(fs.inject()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kLs) {
     mOut = List(fs.ls());
     reply.set_retc(0);
@@ -402,6 +404,51 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
   } else {
     retc = EPERM;
     mErr = "error: you have to take role 'root' to execute this command";
+  }
+
+  return retc;
+}
+
+//------------------------------------------------------------------------------
+// Register subcommand
+//------------------------------------------------------------------------------
+int
+FsCmd::Inject(const eos::console::FsProto::InjectProto& injectProto)
+{
+  std::string sfsid = std::to_string(injectProto.fsid());
+
+  if ((mVid.uid == 0) || (mVid.prot == "sss")) {
+    // Check for valid filesystem id
+    if (FsView::gFsView.mIdView.count(injectProto.fsid())) {
+      std::string extPath = injectProto.externalpath().c_str();
+      std::string lclPath = injectProto.localpath().c_str();
+      XrdOucErrInfo statError;
+      struct stat buf;
+
+      // Check that local path exists and is a directory
+      if (gOFS->_stat(lclPath.c_str(), &buf, statError, mVid, (char*) 0,
+                      (std::string*) 0, false)) {
+        mErr = "error: cannot stat local path " + lclPath + "\n";
+        mErr += statError.getErrText();
+        retc = ENOENT;
+      } else if (S_ISDIR(buf.st_mode)) {
+        XrdOucString outLocal, errLocal;
+        retc = proc_fs_inject(sfsid, extPath, lclPath, outLocal,
+                              errLocal, mVid);
+        mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+        mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+      } else {
+        mErr = "error: provided path " + lclPath + " is not a directory";
+        retc = EINVAL;
+      }
+    } else {
+      retc = EINVAL;
+      mErr = "error: cannot identify the filesystem by <" + sfsid + ">";
+    }
+  } else {
+    retc = EPERM;
+    mErr = "error: you have to take role 'root' or connect via 'sss' "
+           "to execute this command";
   }
 
   return retc;
