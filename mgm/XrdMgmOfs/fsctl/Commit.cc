@@ -422,35 +422,36 @@
         mt.tv_sec = mtime;
         mt.tv_nsec = mtimens;
 
-	atomic_path.Init(fmd->getName().c_str());
-	atomic_path.DecodeAtomicPath(isVersioning);
-	isAtomic = (atomic_path.GetName() != fmd->getName());
-      
+        atomic_path.Init(fmd->getName().c_str());
+        atomic_path.DecodeAtomicPath(isVersioning);
+        isAtomic = (atomic_path.GetName() != fmd->getName());
+
         if (isUpdate && mtime) {
           // Update the modification time only if the file contents changed and
           // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
           // call utimes anyway
-	  // OC clients set the mtime during a commit!
-	  if (!isAtomic || occhunk)
-	    fmd->setMTime(mt);
+          // OC clients set the mtime during a commit!
+          if (!isAtomic || occhunk)
+            fmd->setMTime(mt);
         }
 
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
 
         try {
-	  // check for a temporary Etag and remove it
-	  std::string tmpEtag = "sys.tmp.etag";
-	  if (fmd->hasAttribute(tmpEtag) && (!isAtomic || occhunk) && (commitsize || commitchecksum)) {
-	    fmd->removeAttribute(tmpEtag);
-	  }
+          // check for a temporary Etag and remove it
+          std::string tmpEtag = "sys.tmp.etag";
+          if (fmd->hasAttribute(tmpEtag) && (!isAtomic || occhunk)
+              && (commitsize || commitchecksum)) {
+            fmd->removeAttribute(tmpEtag);
+          }
 
           gOFS->eosView->updateFileStore(fmd.get());
           cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 
           if (isUpdate) {
-	    if (cmd->hasAttribute(tmpEtag)) {
-	      cmd->removeAttribute(tmpEtag);
-	    }
+            if (cmd->hasAttribute(tmpEtag)) {
+              cmd->removeAttribute(tmpEtag);
+            }
             // update parent mtime
             cmd->setMTimeNow();
             gOFS->eosView->updateContainerStore(cmd.get());
