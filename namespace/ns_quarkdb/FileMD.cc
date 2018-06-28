@@ -369,7 +369,7 @@ FileMD::setCTimeNow()
 void
 FileMD::getMTimeNoLock(ctime_t& mtime) const
 {
-  (void) memcpy(&mtime, mFile.mtime().data(), sizeof(time_t));
+  (void) memcpy(&mtime, mFile.mtime().data(), sizeof(ctime_t));
 }
 
 //------------------------------------------------------------------------------
