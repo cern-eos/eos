@@ -1359,7 +1359,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   backward::SignalHandling::handleSignal(sig, si, ctx);
 #endif
 
-  std::string systemline = "fusermount -u ";
+  std::string systemline = "fusermount -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
   system(systemline.c_str());
   eos_static_warning("executing %s", systemline.c_str());
@@ -3643,8 +3643,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         io->md->set_mtime_ns(tsnow.tv_nsec);
 
         // actually do the flush
-        if (io->ioctx()->flush(req)) {
-          rc = EIO;
+        if ( (rc = io->ioctx()->flush(req)) ) {
 	  invalidate_inode = true;
 	  io->md->set_size(io->opensize());
         } else {
