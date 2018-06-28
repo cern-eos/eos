@@ -492,6 +492,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mHostPort = hash->Get("hostport");
     fs.mProxyGroup = hash->Get("proxygroup");
     fs.mS3Credentials = hash->Get("s3credentials");
+    fs.mLogicalPath = hash->Get("logicalpath");
     fs.mFileStickyProxyDepth = -1;
 
     if (hash->Get("filestickyproxydepth").size()) {
@@ -595,6 +596,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mHostPort = "";
     fs.mProxyGroup = "";
     fs.mS3Credentials = "";
+    fs.mLogicalPath = "";
     fs.mFileStickyProxyDepth = -1;
     fs.mPort = "";
     fs.mErrMsg = "";

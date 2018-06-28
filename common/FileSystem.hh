@@ -115,6 +115,7 @@ public:
     std::string mHostPort;
     std::string mProxyGroup;
     std::string mS3Credentials;
+    std::string mLogicalPath;
     int8_t      mFileStickyProxyDepth;
     std::string mPort;
     std::string mGeoTag;
