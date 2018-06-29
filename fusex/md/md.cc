@@ -2337,7 +2337,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               eos_static_crit("evicted from MD server - reason: %s",
                               rsp.evict_().reason().c_str());
               // suicide
-              kill(getpid(), SIGINT);
+              kill(getpid(), SIGABRT);
               pause();
             }
 
