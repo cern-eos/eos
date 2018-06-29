@@ -2024,11 +2024,11 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   if (isRecursiveRm(req, true, true) && 
       Instance().Config().options.rm_rf_bulk) {
-    eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
 
     md = Instance().mds.get(req, ino);
 
     if (md && md->attr().count("sys.recycle")) {
+      eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
       // bulk rm only when a recycle bin is configured
       {
 	XrdSysMutexHelper mLock(md->Locker());
@@ -2041,6 +2041,12 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if (!rc) {
 	// invalide this directory
 	Instance().mds.cleanup(md);
+	metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+	if (pmd) {
+	  pmd->local_children().erase(md->name());
+	  pmd->mutable_children()->erase(md->name());
+	}
+	  
       }
     }
   }
