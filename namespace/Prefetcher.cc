@@ -218,7 +218,7 @@ void Prefetcher::prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(IView *vie
   if(view->inMemory()) return;
 
   Prefetcher prefetcher(view);
-  for(auto it = fsview->getUnlinkedFileList(location); it->valid(); it->next()) {
+  for(auto it = fsview->getUnlinkedFileList(location); it && it->valid(); it->next()) {
     prefetcher.stageFileMD(it->getElement());
   }
 
@@ -233,7 +233,7 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsVi
   if(view->inMemory()) return;
 
   Prefetcher prefetcher(view);
-  for(auto it = fsview->getFileList(location); it->valid(); it->next()) {
+  for(auto it = fsview->getFileList(location); it && it->valid(); it->next()) {
     prefetcher.stageFileMD(it->getElement());
   }
 
@@ -248,7 +248,7 @@ void Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *v
   if(view->inMemory()) return;
 
   Prefetcher prefetcher(view);
-  for(auto it = fsview->getFileList(location); it->valid(); it->next()) {
+  for(auto it = fsview->getFileList(location); it && it->valid(); it->next()) {
     prefetcher.stageFileMDWithParents(it->getElement());
   }
 
