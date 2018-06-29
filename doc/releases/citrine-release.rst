@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.3.3 Citrine``
+===================
+
+2018-06-29
+
+Improvement
+------------
+
+* FUSEX: Fix issues with the read-ahead functionality
+* MGM: Extended the routing functionality to detect online and master nodes with
+  automatic stalling if no node is available for a certain route.
+* MGM: Fix race condition when updating the global configuration map
+
 
 ``v4.3.2 Citrine``
 ===================
