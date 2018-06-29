@@ -308,7 +308,8 @@ DrainFs::PrepareFs()
 uint64_t
 DrainFs::CollectDrainJobs()
 {
-  eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
+  eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+      gOFS->eosFsView, mFsId);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);
@@ -419,16 +420,21 @@ DrainFs::UpdateProgress()
     fs->SetLongLong("stat.drainbytesleft",
                     fs->GetLongLong("stat.statfs.usedbytes"));
     fs->SetLongLong("stat.drainfiles", num_to_drain);
+    // Mark when we actually need to store the FileSystem config modifications
+    // on disk - aviod putting unnecessary pressure by saving it blindly
+    bool store_config = false;
 
     if (is_stalled) {
       if (mStatus != eos::common::FileSystem::kDrainStalling) {
         mStatus = eos::common::FileSystem::kDrainStalling;
         fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
+        store_config = true;
       }
     } else {
       if (mStatus != eos::common::FileSystem::kDraining) {
         mStatus = eos::common::FileSystem::kDraining;
         fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+        store_config = true;
       }
     }
 
@@ -449,7 +455,10 @@ DrainFs::UpdateProgress()
     }
 
     fs->CloseTransaction();
-    FsView::gFsView.StoreFsConfig(fs);
+
+    if (store_config) {
+      FsView::gFsView.StoreFsConfig(fs);
+    }
   }
 
   // If we have only failed jobs check if files still exist
