@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.7
+Version: 1.1.8
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
