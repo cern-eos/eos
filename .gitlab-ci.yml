@@ -276,6 +276,7 @@ docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
+    - runner-9
   script:
     - ""
   variables:
