@@ -1583,7 +1583,31 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
-  eos::mgm::FsView::gFsView.ViewMutex.SetBlocking(true);
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
+  eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
+  eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
+  eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
+  eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
+  eos::common::RWMutex::EstimateLatenciesAndCompensation();
+  fs_mtx->SetBlocking(true);
+  fs_mtx->SetDebugName("FsView");
+  fs_mtx->SetTiming(false);
+  fs_mtx->SetSampling(true, 0.01);
+  quota_mtx->SetDebugName("QuotaView");
+  quota_mtx->SetTiming(false);
+  quota_mtx->SetSampling(true, 0.01);
+  ns_mtx->SetDebugName("eosView");
+  ns_mtx->SetTiming(false);
+  ns_mtx->SetSampling(true, 0.01);
+  std::vector<eos::common::RWMutex*> order;
+  order.push_back(fs_mtx);
+  order.push_back(ns_mtx);
+  order.push_back(fusex_client_mtx);
+  order.push_back(fusex_cap_mtx);
+  order.push_back(quota_mtx);
+  eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
+#endif
 
   if (!MgmMaster.BootNamespace()) {
     return 1;
@@ -1910,30 +1934,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // recorded in the config file. This leads to a corruption of the
   // default.eoscf in which it only holds a few entries.
   FsView::gFsView.SetConfigEngine(ConfEngine);
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-  eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
-  eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
-  eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
-  eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
-  eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
-  eos::common::RWMutex::EstimateLatenciesAndCompensation();
-  fs_mtx->SetDebugName("FsView");
-  fs_mtx->SetTiming(false);
-  fs_mtx->SetSampling(true, 0.01);
-  quota_mtx->SetDebugName("QuotaView");
-  quota_mtx->SetTiming(false);
-  quota_mtx->SetSampling(true, 0.01);
-  ns_mtx->SetDebugName("eosView");
-  ns_mtx->SetTiming(false);
-  ns_mtx->SetSampling(true, 0.01);
-  std::vector<eos::common::RWMutex*> order;
-  order.push_back(fs_mtx);
-  order.push_back(ns_mtx);
-  order.push_back(fusex_client_mtx);
-  order.push_back(fusex_cap_mtx);
-  order.push_back(quota_mtx);
-  eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
-#endif
   eos_info("starting statistics thread");
 
   if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats,
