@@ -464,7 +464,6 @@ void
 FileSystem::CreateConfig(std::string& key, std::string& val)
 {
   key = val = "";
-  fs_snapshot_t fs;
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
   val = mHash->SerializeWithFilter("stat.");

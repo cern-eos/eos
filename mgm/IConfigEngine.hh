@@ -52,12 +52,15 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ICfgEngineChangelog() {};
+  ICfgEngineChangelog()
+  {
+    mMutex.SetBlocking(true);
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ICfgEngineChangelog() {};
+  virtual ~ICfgEngineChangelog() = default;
 
   //----------------------------------------------------------------------------
   //! Add entry
@@ -83,7 +86,7 @@ public:
   //!
   //! @return string representing the changes, can also be an empty string
   //----------------------------------------------------------------------------
-  XrdOucString GetChanges() const;
+  std::string GetChanges() const;
 
   //----------------------------------------------------------------------------
   //! Check if there are any changes
@@ -111,7 +114,8 @@ protected:
   bool ParseTextEntry(const char* entry, std::string& key, std::string& value,
                       std::string& comment);
 
-  XrdOucString mConfigChanges; ///< Latest configuration changes
+  mutable eos::common::RWMutex mMutex; ///< Mutex protecting the config changes
+  std::string mConfigChanges; ///< Latest configuration changes
 };
 
 
@@ -220,7 +224,7 @@ public:
   //!
   //! @param diffs string holding the configuration changes
   //----------------------------------------------------------------------------
-  virtual void  Diffs(XrdOucString& diffs) = 0;
+  virtual void Diffs(std::string& diffs) const = 0;
 
   //----------------------------------------------------------------------------
   //! Do an autosave

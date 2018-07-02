@@ -69,6 +69,7 @@ FileCfgEngineChangelog::AddEntry(const char* info)
     return false;
   }
 
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   mMap.set(key, value, action);
   mConfigChanges += info;
   mConfigChanges += "\n";
@@ -127,13 +128,6 @@ FileConfigEngine::FileConfigEngine(const char* config_dir)
 }
 
 //------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FileConfigEngine::~FileConfigEngine()
-{
-}
-
-//------------------------------------------------------------------------------
 // Set configuration directory
 //------------------------------------------------------------------------------
 void
@@ -148,11 +142,10 @@ FileConfigEngine::SetConfigDir(const char* config_dir)
 // Get configuration changes
 //------------------------------------------------------------------------------
 void
-FileConfigEngine::Diffs(XrdOucString& diffs)
+FileConfigEngine::Diffs(std::string& diffs) const
 {
   diffs = mChangelog->GetChanges();
-
-  while (diffs.replace("&", " ")) {}
+  std::replace(diffs.begin(), diffs.end(), '&', ' ');
 }
 
 //------------------------------------------------------------------------------

@@ -48,9 +48,10 @@ XrdOucHash<XrdOucString> IConfigEngine::sConfigDefinitions;
 //------------------------------------------------------------------------------
 // Get latest changes
 //------------------------------------------------------------------------------
-XrdOucString
+std::string
 ICfgEngineChangelog::GetChanges() const
 {
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return mConfigChanges;
 }
 
@@ -60,7 +61,8 @@ ICfgEngineChangelog::GetChanges() const
 bool
 ICfgEngineChangelog::HasChanges() const
 {
-  return (mConfigChanges.length() != 0);
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  return (!mConfigChanges.empty());
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +71,8 @@ ICfgEngineChangelog::HasChanges() const
 void
 ICfgEngineChangelog::ClearChanges()
 {
-  mConfigChanges = "";
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
+  mConfigChanges.clear();
 }
 
 //------------------------------------------------------------------------------

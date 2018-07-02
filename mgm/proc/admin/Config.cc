@@ -147,7 +147,9 @@ ProcCommand::Config()
 
   if (mSubCmd == "diff") {
     eos_notice("config diff");
-    gOFS->ConfEngine->Diffs(stdOut);
+    std::string diff;
+    gOFS->ConfEngine->Diffs(diff);
+    stdOut = diff.c_str();
   }
 
   if (mSubCmd == "changelog") {

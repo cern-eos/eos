@@ -336,23 +336,20 @@ XrdMqSharedHash::GetUInt(const char* key)
 std::string
 XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
 {
-  XrdOucString key;
-  std::string out = "";
+  std::string key {""};
+  std::ostringstream oss;
   XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
-  for (auto it = mStore.begin(); it != mStore.end(); it++) {
+  for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     key = it->first.c_str();
 
-    if ((!filter_prefix || !strlen(filter_prefix)) ||
-        (!key.beginswith(filter_prefix))) {
-      out += it->first.c_str();
-      out += "=";
-      out += it->second.GetValue();
-      out += " ";
+    if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
+        (key.find(filter_prefix) == 0)) {
+      oss << key << "=" << it->second.GetValue() << " ";
     }
   }
 
-  return out;
+  return oss.str();
 }
 
 //------------------------------------------------------------------------------
@@ -516,7 +513,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
     {
       XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
-      for (auto it = mStore.begin(); it != mStore.end(); it++) {
+      for (auto it = mStore.begin(); it != mStore.end(); ++it) {
         mTransactions.insert(it->first);
       }
     }
@@ -557,7 +554,7 @@ XrdMqSharedHash::AddTransactionsToEnvString(XrdOucString& out, bool clear_after)
   out += "=";
   XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
-  for (auto it = mTransactions.begin(); it != mTransactions.end(); it++) {
+  for (auto it = mTransactions.begin(); it != mTransactions.end(); ++it) {
     if ((mStore.count(it->c_str()))) {
       out += "|";
       out += it->c_str();
@@ -631,7 +628,7 @@ XrdMqSharedHash::Dump(XrdOucString& out)
   char key_print[64];
   XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
-  for (auto it = mStore.begin(); it != mStore.end(); it++) {
+  for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     snprintf(key_print, sizeof(key_print) - 1, "key=%-24s", it->first.c_str());
     out += key_print;
     out += " ";
@@ -700,7 +697,7 @@ XrdMqSharedHash::Clear(bool broadcast)
 {
   XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
 
-  for (auto it = mStore.begin(); it != mStore.end(); it++) {
+  for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     if (mIsTransaction) {
       if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
         mDeletions.insert(it->first);
@@ -720,15 +717,15 @@ bool
 XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string skey = key;
-  mStoreMutex->LockWrite();
+  {
+    XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
 
-  if (mStore.count(skey) == 0) {
-    mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
-  } else {
-    mStore[skey] = XrdMqSharedHashEntry(key, value);
+    if (mStore.count(skey) == 0) {
+      mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
+    } else {
+      mStore[skey] = XrdMqSharedHashEntry(key, value);
+    }
   }
-
-  mStoreMutex->UnLockWrite();
 
   if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
     bool is_transact = false;

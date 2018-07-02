@@ -148,7 +148,7 @@ public:
   //!
   //! @param diffs string holding the configuration changes
   //----------------------------------------------------------------------------
-  void Diffs(XrdOucString& diffs)
+  void Diffs(std::string& diffs) const
   {
     diffs = mChangelog->GetChanges();
   }

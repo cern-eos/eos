@@ -103,7 +103,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileConfigEngine();
+  virtual ~FileConfigEngine() = default;
 
   //----------------------------------------------------------------------------
   //! Load a given configuratino file
@@ -141,7 +141,7 @@ public:
   //!
   //! @param diffs string holding the configuration changes
   //----------------------------------------------------------------------------
-  void Diffs(XrdOucString& diffs);
+  void Diffs(std::string& diffs) const;
 
   //----------------------------------------------------------------------------
   //! Do an autosave
