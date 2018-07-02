@@ -715,18 +715,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           // Trim whitespace at the end
           mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
-
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
         }
 
         if (!strcmp("qdbpassword_file", var)) {
           std::string path;
+
           while ((val = Config.GetWord())) {
             path += val;
           }
 
-          if(!eos::common::PasswordHandler::readPasswordFile(path, mQdbPassword)) {
+          if (!eos::common::PasswordHandler::readPasswordFile(path, mQdbPassword)) {
             Eroute.Emsg("Config", "failed to open path pointed to by qdbpassword_file");
             NoGo = 1;
           }
@@ -1408,7 +1408,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     } else {
       ConfEngine = new QuarkDBConfigEngine(MgmConfigDir.c_str(),
-                                       gOFS->mQdbCluster);
+                                           gOFS->mQdbCluster);
     }
   } else {
     Eroute.Emsg("Config", "Unknown configuration engine type!",
@@ -1583,6 +1583,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
+  eos::mgm::FsView::gFsView.ViewMutex.SetBlocking(true);
 
   if (!MgmMaster.BootNamespace()) {
     return 1;
@@ -1915,7 +1916,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
   eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
-
   eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetDebugName("FsView");
   fs_mtx->SetTiming(false);
@@ -2006,7 +2006,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
   ioaccounting += ManagerId;;
-
   ioaccounting += ".dump";
   eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
