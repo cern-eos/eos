@@ -344,7 +344,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
     key = it->first.c_str();
 
     if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
-        (key.find(filter_prefix) == 0)) {
+        (key.find(filter_prefix) != 0)) {
       oss << key << "=" << it->second.GetValue() << " ";
     }
   }
