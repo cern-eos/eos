@@ -2615,6 +2615,12 @@ XrdFstOfsFile::FilterTagsInPlace(std::string& opaque,
 time_t
 XrdFstOfsFile::GetMtime()
 {
+  if (!isRW) {
+    // this is to report the MGM mtime to http get requests
+    if (mForcedMtime!=1) {
+      return mForcedMtime;
+    }
+  }
   if (fMd) {
     return fMd->mProtoFmd.mtime();
   } else {
@@ -2677,8 +2683,14 @@ XrdFstOfsFile::ProcessOpenOpaque()
   // it should not update the mtime as in the case of FUSE clients which will
   // call utimes.
   if ((val = mOpenOpaque->Get("mgm.mtime"))) {
-    mForcedMtime = 0;
-    mForcedMtime_ms = 0;
+    time_t mtime = (time_t)strtoull(val, 0, 10);
+    if (mtime==0) {
+      mForcedMtime = 0;
+      mForcedMtime_ms = 0;
+    } else {
+      mForcedMtime = mtime;
+      mForcedMtime_ms = 0;
+    }
   }
 
   // mgm.fusex=1 - Suppress the file close broadcast to the fusex network

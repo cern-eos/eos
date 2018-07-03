@@ -2440,6 +2440,18 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if (isFuse) {
     redirectionhost += "&mgm.mtime=0";
+  } else {
+    if (!isRW)  {
+      eos::IFileMD::ctime_t mtime;
+      try {
+	fmd->getMTime(mtime);
+	redirectionhost += "&mgm.mtime=";
+	std::string smtime; 
+	smtime += std::to_string(mtime.tv_sec);
+	redirectionhost += smtime.c_str();
+      } catch (eos::MDException& ex) {
+      }
+    }
   }
 
   // Also trigger synchronous create workflow event if it's defined
