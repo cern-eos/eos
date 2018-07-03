@@ -112,6 +112,8 @@ DrainFs::DoIt()
         }
 
         mJobsFailed.clear();
+        mDrainStart = steady_clock::now();
+        mDrainEnd = mDrainStart + mDrainPeriod;
       }
 
       auto it_job = mJobsPending.begin();
