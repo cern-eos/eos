@@ -56,10 +56,9 @@
 #include "common/Timing.hh"
 #include "common/IRWMutex.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include <stdio.h>
 #include <stdint.h>
+#include <atomic>
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <map>
 #include <vector>
@@ -195,7 +194,7 @@ public:
     double averagewaitwrite;
     double minwaitwrite, maxwaitwrite;
     double minwaitread, maxwaitread;
-    size_t readLockCounterSample, writeLockCounterSample;
+    std::atomic<uint64_t> readLockCounterSample, writeLockCounterSample;
   };
 
   //----------------------------------------------------------------------------
@@ -483,9 +482,9 @@ private:
   int mSamplingModulo;
   std::atomic<bool> mEnableTiming, mEnableSampling;
   //! Specific type of counters
-  size_t mRdCumulatedWait, mWrCumulatedWait;
-  size_t mRdMaxWait, mWrMaxWait, mRdMinWait, mWrMinWait;
-  size_t mRdLockCounterSample, mWrLockCounterSample;
+  std::atomic<uint64_t> mRdMaxWait, mWrMaxWait, mRdMinWait, mWrMinWait;
+  std::atomic<uint64_t> mRdCumulatedWait, mWrCumulatedWait;
+  std::atomic<uint64_t> mRdLockCounterSample, mWrLockCounterSample;
 
   std::map<std::thread::id, int> mThreadsRdLock; ///< Threads holding a read lock
   std::set<std::thread::id> mThreadsWrLock; ///< Threads holding a write lock
@@ -497,10 +496,11 @@ private:
   static bool sEnableGlobalTiming;
   static int sSamplingModulo;
   static size_t timingCompensation, timingLatency, lockUnlockDuration;
-  static size_t mRdCumulatedWait_static, mWrCumulatedWait_static;
-  static size_t mRdMaxWait_static, mWrMaxWait_static;
-  static size_t mRdMinWait_static, mWrMinWait_static;
-  static size_t mRdLockCounterSample_static, mWrLockCounterSample_static;
+  static std::atomic<uint64_t> mRdMaxWait_static, mWrMaxWait_static;
+  static std::atomic<uint64_t> mRdMinWait_static, mWrMinWait_static;
+  static std::atomic<uint64_t> mRdLockCounterSample_static,
+         mWrLockCounterSample_static;
+  static std::atomic<uint64_t> mRdCumulatedWait_static, mWrCumulatedWait_static;
 
   // Actual order checking
   // Pointers referring to a memory location not thread specific so that if the
