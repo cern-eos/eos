@@ -34,6 +34,9 @@ EOSMGMNAMESPACE_BEGIN
 
 using namespace std::chrono;
 
+constexpr std::chrono::seconds DrainFs::sRefreshTimeout;
+constexpr std::chrono::seconds DrainFs::sStallTimeout;
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
