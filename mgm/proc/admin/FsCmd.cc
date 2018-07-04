@@ -134,29 +134,29 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
     std::string node = (bootProto.id_case() ==
                         eos::console::FsProto::BootProto::kNodeQueue ?
                         bootProto.nodequeue() : "");
-    std::string fsids = (bootProto.id_case() ==
+    std::string sfsid = (bootProto.id_case() ==
                          eos::console::FsProto::BootProto::kFsid ?
                          std::to_string(bootProto.fsid()) : "0");
+    std::string fsuuid = (bootProto.id_case() ==
+                          eos::console::FsProto::BootProto::kUuid ?
+                          bootProto.uuid() : "");
     bool forcemgmsync = bootProto.syncmgm();
-    eos::common::FileSystem::fsid_t fsid = std::stoi(fsids);
+    eos::common::FileSystem::fsid_t fsid = std::stoi(sfsid);
 
     if (node == "*") {
       // boot all filesystems
       if (mVid.uid == 0) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        outStream << "success: boot message send to";
+        outStream << "success: boot message sent to";
 
         for (const auto id : FsView::gFsView.mIdView) {
           if ((id.second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
-            if (forcemgmsync) {
-              // Set the resync with MGM flag
-              id.second->SetLongLong("bootcheck", eos::common::FileSystem::kBootResync);
-            } else {
-              // Set the local disk resync flag
-              id.second->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
-            }
-
+            eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
+                    ? eos::common::FileSystem::kBootResync  // MGM resync
+                    : eos::common::FileSystem::kBootForced; // local resync
             auto now = time(nullptr);
+
+            id.second->SetLongLong("bootcheck", bootConfig);
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);
             outStream << " ";
             outStream << id.second->GetString("host").c_str();
@@ -168,78 +168,87 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         retc = EPERM;
         errStream << "error: you have to take role 'root' to execute this command";
       }
-    } else {
-      if (node.length()) {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    } else if (node.length()) {
+      // boot all filesystems on node queue
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-        if (!FsView::gFsView.mNodeView.count(node)) {
-          errStream << "error: cannot boot node - no node with name=";
-          errStream << node.c_str();
-          retc = ENOENT;
-        } else {
-          outStream << "success: boot message send to";
+      if (!FsView::gFsView.mNodeView.count(node)) {
+        errStream << "error: cannot boot node - no node with name=";
+        errStream << node.c_str();
+        retc = ENOENT;
+      } else {
+        outStream << "success: boot message sent to";
 
-          for (auto it = FsView::gFsView.mNodeView[node]->begin();
-               it != FsView::gFsView.mNodeView[node]->end(); ++it) {
-            FileSystem* fs = nullptr;
+        for (auto it = FsView::gFsView.mNodeView[node]->begin();
+             it != FsView::gFsView.mNodeView[node]->end(); ++it) {
+          FileSystem* fs = nullptr;
 
-            if (FsView::gFsView.mIdView.count(*it)) {
-              fs = FsView::gFsView.mIdView[*it];
-            }
-
-            if (fs != nullptr) {
-              if (forcemgmsync) {
-                // set the check flag
-                fs->SetLongLong("bootcheck", eos::common::FileSystem::kBootResync);
-              } else {
-                // set the force flag
-                fs->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
-              }
-
-              auto now = time(nullptr);
-              fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
-              outStream << " ";
-              outStream << fs->GetString("host").c_str();
-              outStream << ":";
-              outStream << fs->GetString("path").c_str();
-            }
+          if (FsView::gFsView.mIdView.count(*it)) {
+            fs = FsView::gFsView.mIdView[*it];
           }
-        }
-      }
 
-      if (fsid) {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+          if (fs != nullptr) {
+            eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
+                    ? eos::common::FileSystem::kBootResync  // MGM resync
+                    : eos::common::FileSystem::kBootForced; // local resync
+            auto now = time(nullptr);
 
-        if (FsView::gFsView.mIdView.count(fsid)) {
-          outStream << "success: boot message send to";
-          FileSystem* fs = FsView::gFsView.mIdView[fsid];
-
-          if (fs) {
-            if (forcemgmsync) {
-              // set the check flag
-              fs->SetLongLong("bootcheck", eos::common::FileSystem::kBootResync);
-              ;
-            } else {
-              // set the force flag
-              fs->SetLongLong("bootcheck", eos::common::FileSystem::kBootForced);
-            }
-
-            fs->SetLongLong("bootsenttime", (unsigned long long) time(nullptr));
+            fs->SetLongLong("bootcheck", bootConfig);
+            fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
             outStream << " ";
             outStream << fs->GetString("host").c_str();
             outStream << ":";
             outStream << fs->GetString("path").c_str();
           }
+        }
+      }
+    } else {
+      // boot filesystem by fsid or uuid
+      FileSystem *fs = nullptr;
+
+      if (fsid) {
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        if (FsView::gFsView.mIdView.count(fsid)) {
+          fs = FsView::gFsView.mIdView[fsid];
         } else {
           errStream << "error: cannot boot filesystem - no filesystem with fsid=";
-          errStream << fsids.c_str();
+          errStream << sfsid.c_str();
           retc = ENOENT;
         }
+      } else if (fsuuid.length()) {
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        if (FsView::gFsView.GetMapping(fsuuid)
+            && FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(fsuuid))) {
+          fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(fsuuid)];
+        } else {
+          errStream << "error: cannot boot filesystem - no filesystem with uuid=";
+          errStream << fsuuid.c_str();
+          retc = ENOENT;
+        }
+      }
+
+      if (fs != nullptr) {
+        eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
+                ? eos::common::FileSystem::kBootResync  // MGM resync
+                : eos::common::FileSystem::kBootForced; // local resync
+
+        fs->SetLongLong("bootcheck", bootConfig);
+        fs->SetLongLong("bootsenttime", (unsigned long long) time(nullptr));
+
+        outStream << "success: boot message sent to ";
+        outStream << fs->GetString("host").c_str();
+        outStream << ":";
+        outStream << fs->GetString("path").c_str();
+      } else if (!retc) {
+        // Should not get here
+        errStream << "error: could not retrieve filesystem";
+        retc = ENOENT;
       }
     }
   } else {
     retc = EPERM;
-    errStream << "error: you have to take role 'root' to execute this command";
+    errStream << "error: you have to take role 'root' or connect via 'sss' "
+                 "to execute this command";
   }
 
   mOut = outStream.str();

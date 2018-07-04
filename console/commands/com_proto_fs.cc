@@ -89,11 +89,10 @@ void com_fs_help()
       << "    <status>     : set filesystem status after insertion e.g off|rw|ro etc."
       << std::endl
       << std::endl
-      << "  fs boot <fsid>|<node-queue>|* [--syncmgm]" << std::endl
-      << "    boot filesystem identified by <fsid> or all filesystems on a node"
-      << std::endl
-      << "    identified by <node-queue> or all filesystems registered"
-      << std::endl
+      << "  fs boot <fsid>|<uuid>|<node-queue>|* [--syncmgm]" << std::endl
+      << "    boot - filesystem identified by <fsid> or <uuid>" << std::endl
+      << "         - all filesystems on a node identified by <node-queue>" << std::endl
+      << "         - all filesystems registered" << std::endl
       << "    --syncmgm    : for MGM resynchronization during the booting"
       << std::endl
       << std::endl
@@ -182,7 +181,7 @@ void com_fs_help()
       << "    -m         : monitoring format" << std::endl
       << "    -b|--brief : display hostnames without domain names" << std::endl
       << "    -l         : display parameters in long format" << std::endl
-      << "    -e         : dispaly filesystems in error state" << std::endl
+      << "    -e         : display filesystems in error state" << std::endl
       << "    --io       : IO output format" << std::endl
       << "    --fsck     : display filesystem check statistics" << std::endl
       << "    -d|--drain : display filesystems in drain or draindead status"
@@ -236,6 +235,6 @@ void com_fs_help()
       << "  fs dumpmd 100 -path -> dump all logical path names on filesystem"
       << " 100" << std::endl
       << "  fs mv 100 default.0 -> move filesystem 100 to scheduling group"
-      << " defalut.0" << std::endl;
+      << " default.0" << std::endl;
   std::cerr << oss.str() << std::endl;
 }

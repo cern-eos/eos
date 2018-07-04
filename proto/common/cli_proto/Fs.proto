@@ -18,7 +18,8 @@ message FsProto {
     bool SyncMgm = 1;
     oneof id {
       uint64 Fsid = 2;
-      string NodeQueue = 3;
+      string Uuid = 3;
+      string NodeQueue = 4;
     }
   }
 

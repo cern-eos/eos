@@ -126,17 +126,26 @@ FsHelper::ParseCommand(const char* arg)
     } else {
       soption = option;
 
+      // Parse * or node-queue identifier
       if (soption == "*") {
         boot->set_nodequeue("*");
       } else if (soption[0] == '/') {
         boot->set_nodequeue(soption);
       } else {
-        try {
-          uint64_t fsid = std::stoull(soption);
-          boot->set_fsid(fsid);
-        } catch (const std::exception& e) {
-          std::cerr << "error: fsid needs to be numeric" << std::endl;
-          return false;
+        // Parse <fsid> or <uuid>
+        bool isUuid =
+            soption.find_first_not_of("0123456789") != std::string::npos;
+
+        if (isUuid) {
+          boot->set_uuid(soption);
+        } else {
+          try {
+            uint64_t fsid = std::stoull(soption);
+            boot->set_fsid(fsid);
+          } catch (const std::exception &e) {
+            std::cerr << "error: fsid needs to be numeric" << std::endl;
+            return false;
+          }
         }
       }
 
@@ -572,7 +581,7 @@ FsHelper::ParseCommand(const char* arg)
       }
 
       if ((status->fsid() == 0) && (status->nodequeue().empty())) {
-        std::cerr << "error: fsid or host/mountponint needs to be specified"
+        std::cerr << "error: fsid or host/mountpoint needs to be specified"
                   << std::endl;
         return false;
       }
