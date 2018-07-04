@@ -57,12 +57,12 @@ XrdMgmOfs::_verifystripe(const char* path,
   errno = 0;
   unsigned long long fid = 0;
   unsigned long long cid = 0;
-  bool uselPath = false;
   int lid = 0;
   eos::IContainerMD::XAttrMap attrmap;
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
   eos_debug("verify");
   eos::common::Path cPath(path);
+  std::string lpath;
   std::string attr_path;
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -102,7 +102,9 @@ XrdMgmOfs::_verifystripe(const char* path,
     fid = fmd->getId();
     lid = fmd->getLayoutId();
     cid = fmd->getContainerId();
-    uselPath = fmd->hasAttribute("logicalpath");
+    if (fmd->hasAttribute("logicalpath")) {
+      lpath = fmd->getAttribute("logicalpath");
+    }
   } catch (eos::MDException& e) {
     fmd.reset();
     errno = e.getErrno();
@@ -145,8 +147,9 @@ XrdMgmOfs::_verifystripe(const char* path,
       opaquestring += attrmap["user.tag"].c_str();
     }
 
-    if (uselPath) {
-      opaquestring += "&mgm.uselpath=1";
+    if (lpath.length()) {
+      opaquestring += "&mgm.lpath=";
+      opaquestring += lpath.c_str();
     }
 
     XrdOucString sizestring = "";

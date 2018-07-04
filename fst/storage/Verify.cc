@@ -99,8 +99,8 @@ Storage::Verify()
     XrdOucErrInfo error;
     XrdOucString fstPath = "";
 
-    if (verifyfile->uselPath) {
-      fstPath = verifyfile->localPrefix + verifyfile->path;
+    if (verifyfile->lPath.length()) {
+      fstPath = verifyfile->localPrefix + verifyfile->lPath;
       fstPath.replace("//", "/", verifyfile->localPrefix.length() - 1);
     } else {
       eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
