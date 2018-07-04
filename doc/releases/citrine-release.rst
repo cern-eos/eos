@@ -15,6 +15,32 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.3.4 Citrine``
+===================
+
+2018-07-04
+
+Bug
+----
+
+* [EOS-2686] - DrainFs::UpdateProgress maxing out CPU on PPS
+* Fix race conditions and crashes while updating the global config map
+* Fix lock order inversion in the namespace prefetcher code leading to deadlocks
+
+New feature
+------------
+
+* FUSEX: Add FIFO support
+
+Improvement
+------------
+
+* Remove artificial sleep when generating TPC drain jobs since the underlying issue
+  is now fixed in XRootD 4.8.4 - it was creating identical tpc keys.
+* Replace the use of XrdSysTimer with std::this_thread::sleep_for
+
+
 ``v4.3.3 Citrine``
 ===================
 
