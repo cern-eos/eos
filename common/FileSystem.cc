@@ -57,18 +57,19 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
   if (mSom) {
     mSom->HashMutex.LockRead();
 
-    if (!(mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    XrdMqSharedHash* hash = nullptr;
+    if (!(hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
       mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(), som);
       mSom->HashMutex.LockRead();
-      mHash = mSom->GetObject(mQueuePath.c_str(), "hash");
+      hash = mSom->GetObject(mQueuePath.c_str(), "hash");
 
-      if (mHash) {
-        mHash->OpenTransaction();
-        mHash->Set("queue", mQueue.c_str());
-        mHash->Set("queuepath", mQueuePath.c_str());
-        mHash->Set("path", mPath.c_str());
+      if (hash) {
+        hash->OpenTransaction();
+        hash->Set("queue", mQueue.c_str());
+        hash->Set("queuepath", mQueuePath.c_str());
+        hash->Set("path", mPath.c_str());
         std::string hostport =
           eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
 
@@ -84,25 +85,25 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
             port = "1094";
           }
 
-          mHash->Set("hostport", hostport.c_str());
-          mHash->Set("host", host.c_str());
-          mHash->Set("port", port.c_str());
-          mHash->Set("configstatus", "down");
-          mHash->Set("drainstatus", "nodrain");
+          hash->Set("hostport", hostport.c_str());
+          hash->Set("host", host.c_str());
+          hash->Set("port", port.c_str());
+          hash->Set("configstatus", "down");
+          hash->Set("drainstatus", "nodrain");
         } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
         }
 
-        mHash->CloseTransaction();
+        hash->CloseTransaction();
       }
 
       mSom->HashMutex.UnLockRead();
     } else {
-      mHash->SetBroadCastQueue(broadcast.c_str());
-      mHash->OpenTransaction();
-      mHash->Set("queue", mQueue.c_str());
-      mHash->Set("queuepath", mQueuePath.c_str());
-      mHash->Set("path", mPath.c_str());
+      hash->SetBroadCastQueue(broadcast.c_str());
+      hash->OpenTransaction();
+      hash->Set("queue", mQueue.c_str());
+      hash->Set("queuepath", mQueuePath.c_str());
+      hash->Set("path", mPath.c_str());
       std::string hostport =
         eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
 
@@ -118,14 +119,14 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
           port = "1094";
         }
 
-        mHash->Set("hostport", hostport.c_str());
-        mHash->Set("host", host.c_str());
-        mHash->Set("port", port.c_str());
+        hash->Set("hostport", hostport.c_str());
+        hash->Set("host", host.c_str());
+        hash->Set("port", port.c_str());
       } else {
         eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
       }
 
-      mHash->CloseTransaction();
+      hash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
     }
 
@@ -136,7 +137,6 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
     mExternQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "externq",
                                      this, mSom, bc2mgm);
   } else {
-    mHash = 0;
     mDrainQueue = 0;
     mBalanceQueue = 0;
     mExternQueue = 0;
@@ -466,7 +466,9 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   key = val = "";
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
-  val = mHash->SerializeWithFilter("stat.");
+
+  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+  val = hash->SerializeWithFilter("stat.");
 }
 
 //------------------------------------------------------------------------------
@@ -479,23 +481,24 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     mSom->HashMutex.LockRead();
   }
 
-  if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-    fs.mId = (fsid_t) mHash->GetUInt("id");
+  XrdMqSharedHash* hash = nullptr;
+  if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    fs.mId = (fsid_t) hash->GetUInt("id");
     fs.mQueue = mQueue;
     fs.mQueuePath = mQueuePath;
-    fs.mGroup = mHash->Get("schedgroup");
-    fs.mUuid = mHash->Get("uuid");
-    fs.mHost = mHash->Get("host");
-    fs.mHostPort = mHash->Get("hostport");
-    fs.mProxyGroup = mHash->Get("proxygroup");
-    fs.mS3Credentials = mHash->Get("s3credentials");
+    fs.mGroup = hash->Get("schedgroup");
+    fs.mUuid = hash->Get("uuid");
+    fs.mHost = hash->Get("host");
+    fs.mHostPort = hash->Get("hostport");
+    fs.mProxyGroup = hash->Get("proxygroup");
+    fs.mS3Credentials = hash->Get("s3credentials");
     fs.mFileStickyProxyDepth = -1;
 
-    if (mHash->Get("filestickyproxydepth").size()) {
-      fs.mFileStickyProxyDepth = mHash->GetLongLong("filestickyproxydepth");
+    if (hash->Get("filestickyproxydepth").size()) {
+      fs.mFileStickyProxyDepth = hash->GetLongLong("filestickyproxydepth");
     }
 
-    fs.mPort = mHash->Get("port");
+    fs.mPort = hash->Get("port");
     std::string::size_type dpos = 0;
 
     if ((dpos = fs.mGroup.find(".")) != std::string::npos) {
@@ -513,11 +516,11 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     }
 
     fs.mPath = mPath;
-    fs.mErrMsg = mHash->Get("stat.errmsg");
+    fs.mErrMsg = hash->Get("stat.errmsg");
     fs.mGeoTag.clear();
 
-    if (mHash->Get("forcegeotag").size()) {
-      fs.mGeoTag = mHash->Get("forcegeotag");
+    if (hash->Get("forcegeotag").size()) {
+      fs.mGeoTag = hash->Get("forcegeotag");
     }
 
     if (fs.mGeoTag == "<none>") {
@@ -525,51 +528,51 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     }
 
     if (fs.mGeoTag.empty()) {
-      fs.mGeoTag = mHash->Get("stat.geotag");
+      fs.mGeoTag = hash->Get("stat.geotag");
     }
 
-    fs.mPublishTimestamp = (size_t)mHash->GetLongLong("stat.publishtimestamp");
-    fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
+    fs.mPublishTimestamp = (size_t)hash->GetLongLong("stat.publishtimestamp");
+    fs.mStatus = GetStatusFromString(hash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(
-                         mHash->Get("configstatus").c_str());
-    fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("drainstatus").c_str());
-    fs.mActiveStatus = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
+                         hash->Get("configstatus").c_str());
+    fs.mDrainStatus = GetDrainStatusFromString(hash->Get("drainstatus").c_str());
+    fs.mActiveStatus = GetActiveStatusFromString(hash->Get("stat.active").c_str());
     //headroom can be configured as KMGTP so the string should be properly converted
-    fs.mHeadRoom = StringConversion::GetSizeFromString(mHash->Get("headroom"));
-    fs.mErrCode = (unsigned int) mHash->GetLongLong("stat.errc");
-    fs.mBootSentTime = (time_t) mHash->GetLongLong("stat.bootsenttime");
-    fs.mBootDoneTime = (time_t) mHash->GetLongLong("stat.bootdonetime");
-    fs.mHeartBeatTime = (time_t) mHash->GetLongLong("stat.heartbeattime");
-    fs.mDiskUtilization = mHash->GetDouble("stat.disk.load");
-    fs.mNetEthRateMiB = mHash->GetDouble("stat.net.ethratemib");
-    fs.mNetInRateMiB = mHash->GetDouble("stat.net.inratemib");
-    fs.mNetOutRateMiB = mHash->GetDouble("stat.net.outratemib");
-    fs.mDiskWriteRateMb = mHash->GetDouble("stat.disk.writeratemb");
-    fs.mDiskReadRateMb = mHash->GetDouble("stat.disk.readratemb");
-    fs.mDiskType = (long) mHash->GetLongLong("stat.statfs.type");
-    fs.mDiskFreeBytes = mHash->GetLongLong("stat.statfs.freebytes");
-    fs.mDiskCapacity = mHash->GetLongLong("stat.statfs.capacity");
-    fs.mDiskBsize = (long) mHash->GetLongLong("stat.statfs.bsize");
-    fs.mDiskBlocks = (long) mHash->GetLongLong("stat.statfs.blocks");
-    fs.mDiskBfree = (long) mHash->GetLongLong("stat.statfs.bfree");
-    fs.mDiskBused = (long) mHash->GetLongLong("stat.statfs.bused");
-    fs.mDiskBavail = (long) mHash->GetLongLong("stat.statfs.bavail");
-    fs.mDiskFiles = (long) mHash->GetLongLong("stat.statfs.files");
-    fs.mDiskFfree = (long) mHash->GetLongLong("stat.statfs.ffree");
-    fs.mDiskFused = (long) mHash->GetLongLong("stat.statfs.fused");
-    fs.mDiskFilled = (double) mHash->GetDouble("stat.statfs.filled");
-    fs.mNominalFilled = (double) mHash->GetDouble("stat.nominal.filled");
-    fs.mFiles = (long) mHash->GetLongLong("stat.usedfiles");
-    fs.mDiskNameLen = (long) mHash->GetLongLong("stat.statfs.namelen");
-    fs.mDiskRopen = (long) mHash->GetLongLong("stat.ropen");
-    fs.mDiskWopen = (long) mHash->GetLongLong("stat.wopen");
+    fs.mHeadRoom = StringConversion::GetSizeFromString(hash->Get("headroom"));
+    fs.mErrCode = (unsigned int) hash->GetLongLong("stat.errc");
+    fs.mBootSentTime = (time_t) hash->GetLongLong("stat.bootsenttime");
+    fs.mBootDoneTime = (time_t) hash->GetLongLong("stat.bootdonetime");
+    fs.mHeartBeatTime = (time_t) hash->GetLongLong("stat.heartbeattime");
+    fs.mDiskUtilization = hash->GetDouble("stat.disk.load");
+    fs.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
+    fs.mNetInRateMiB = hash->GetDouble("stat.net.inratemib");
+    fs.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
+    fs.mDiskWriteRateMb = hash->GetDouble("stat.disk.writeratemb");
+    fs.mDiskReadRateMb = hash->GetDouble("stat.disk.readratemb");
+    fs.mDiskType = (long) hash->GetLongLong("stat.statfs.type");
+    fs.mDiskFreeBytes = hash->GetLongLong("stat.statfs.freebytes");
+    fs.mDiskCapacity = hash->GetLongLong("stat.statfs.capacity");
+    fs.mDiskBsize = (long) hash->GetLongLong("stat.statfs.bsize");
+    fs.mDiskBlocks = (long) hash->GetLongLong("stat.statfs.blocks");
+    fs.mDiskBfree = (long) hash->GetLongLong("stat.statfs.bfree");
+    fs.mDiskBused = (long) hash->GetLongLong("stat.statfs.bused");
+    fs.mDiskBavail = (long) hash->GetLongLong("stat.statfs.bavail");
+    fs.mDiskFiles = (long) hash->GetLongLong("stat.statfs.files");
+    fs.mDiskFfree = (long) hash->GetLongLong("stat.statfs.ffree");
+    fs.mDiskFused = (long) hash->GetLongLong("stat.statfs.fused");
+    fs.mDiskFilled = (double) hash->GetDouble("stat.statfs.filled");
+    fs.mNominalFilled = (double) hash->GetDouble("stat.nominal.filled");
+    fs.mFiles = (long) hash->GetLongLong("stat.usedfiles");
+    fs.mDiskNameLen = (long) hash->GetLongLong("stat.statfs.namelen");
+    fs.mDiskRopen = (long) hash->GetLongLong("stat.ropen");
+    fs.mDiskWopen = (long) hash->GetLongLong("stat.wopen");
     fs.mWeightRead = 1.0;
     fs.mWeightWrite = 1.0;
-    fs.mScanInterval = (time_t) mHash->GetLongLong("scaninterval");
-    fs.mGracePeriod = (time_t) mHash->GetLongLong("graceperiod");
-    fs.mDrainPeriod = (time_t) mHash->GetLongLong("drainperiod");
-    fs.mDrainerOn   = (mHash->Get("stat.drainer") == "on");
-    fs.mBalThresh   = mHash->GetDouble("stat.balance.threshold");
+    fs.mScanInterval = (time_t) hash->GetLongLong("scaninterval");
+    fs.mGracePeriod = (time_t) hash->GetLongLong("graceperiod");
+    fs.mDrainPeriod = (time_t) hash->GetLongLong("drainperiod");
+    fs.mDrainerOn   = (hash->Get("stat.drainer") == "on");
+    fs.mBalThresh   = hash->GetDouble("stat.balance.threshold");
 
     if (dolock) {
       mSom->HashMutex.UnLockRead();
@@ -814,8 +817,9 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 {
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
 
-  if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-    mHash->Print(table_mq_header, table_mq_data, listformat, filter);
+  XrdMqSharedHash* hash = nullptr;
+  if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    hash->Print(table_mq_header, table_mq_data, listformat, filter);
   }
 }
 
