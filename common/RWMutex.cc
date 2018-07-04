@@ -70,7 +70,7 @@ pthread_rwlock_t RWMutex::mOrderChkLock;
 
 // what = mRd or mWr
 #define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what)                         \
-  AtomicInc(what##LockCounter);                                         \
+  (what##LockCounter)++;                                                \
   if(issampled) {                                                       \
     tstamp = Timing::GetNowInNs() - tstamp;                             \
     if(mEnableTiming) {                                                 \

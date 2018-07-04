@@ -177,7 +177,7 @@ public:
   //----------------------------------------------------------------------------
   inline uint64_t GetReadLockCounter()
   {
-    return AtomicGet(mRdLockCounter);
+    return mRdLockCounter.load();
   }
 
   //----------------------------------------------------------------------------
@@ -185,7 +185,7 @@ public:
   //----------------------------------------------------------------------------
   inline uint64_t GetWriteLockCounter()
   {
-    return AtomicGet(mWrLockCounter);
+    return mWrLockCounter.load();
   }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -473,8 +473,8 @@ private:
   pthread_rwlock_t rwlock;
   pthread_rwlockattr_t attr;
   struct timespec wlocktime;
-  uint64_t mRdLockCounter;
-  uint64_t mWrLockCounter;
+  std::atomic<uint64_t> mRdLockCounter;
+  std::atomic<uint64_t> mWrLockCounter;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
