@@ -3043,7 +3043,7 @@ FuseServer::HandleMD(const std::string& id,
         return 0;
       }
 
-      if (S_ISREG(md.mode())) {
+      if (S_ISREG(md.mode()) || S_ISFIFO(md.mode())) {
         gOFS->MgmStats.Add("Eosxd::ext::DELETE", vid->uid, vid->gid, 1);
         eos_static_info("ino=%lx delete-file", (long) md.md_ino());
         eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
