@@ -602,7 +602,7 @@ GeoBalancer::GeoBalance()
   do {
     XrdSysThread::SetCancelOff();
     {
-      XrdSysMutexHelper(gOFS->InitializationMutex);
+      XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
       if (gOFS->Initialized == gOFS->kBooted) {
         go = true;
