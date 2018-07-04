@@ -46,7 +46,6 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdCl/XrdClFileSystem.hh"
@@ -239,8 +238,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     gOFS.Messaging->StopListener();  // stop any communication
   }
 
-  XrdSysTimer sleeper;
-  sleeper.Wait(1000);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
@@ -279,10 +277,9 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
 
   if (!(watchdog = fork())) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(wait);
+    std::this_thread::sleep_for(std::chrono::seconds(wait));
     SyncAll::AllandClose();
-    sleeper.Snooze(15);
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     fprintf(stderr, "@@@@@@ 00:00:00 %s %li seconds\"\n",
             "op=shutdown msg=\"shutdown timedout after ", wait);
     kill(getppid(), 9);
@@ -311,8 +308,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     eos_static_err("op=shutdown msg=\"failed graceful IO shutdown\"");
   }
 
-  XrdSysTimer sleeper;
-  sleeper.Wait(1000);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
@@ -490,25 +486,26 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
-        if(!strcmp("qdbpassword", var)) {
+        if (!strcmp("qdbpassword", var)) {
           while ((val = Config.GetWord())) {
             mQdbContactDetails.password += val;
           }
 
           // Trim whitespace at the end
           common::PasswordHandler::rightTrimWhitespace(mQdbContactDetails.password);
-
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
 
-        if(!strcmp("qdbpassword_file", var)) {
+        if (!strcmp("qdbpassword_file", var)) {
           std::string path;
+
           while ((val = Config.GetWord())) {
             path += val;
           }
 
-          if(!common::PasswordHandler::readPasswordFile(path, mQdbContactDetails.password)) {
+          if (!common::PasswordHandler::readPasswordFile(path,
+              mQdbContactDetails.password)) {
             Eroute.Emsg("Config", "failed to open path pointed to by qdbpassword_file");
             NoGo = 1;
           }
@@ -646,8 +643,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(5);
+  std::this_thread::sleep_for(std::chrono::seconds(5));
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
 
   if (!ObjectNotifier.Start()) {
@@ -707,7 +703,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump.";
   dumperfile += eos::fst::Config::gConfig.FstHostPort;
-
   ObjectManager.StartDumper(dumperfile.c_str());
   XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server
@@ -945,8 +940,7 @@ again:
       if (retry && (status.code >= 100) && (status.code <= 300) && (!timeout)) {
         // implement automatic retry - network errors will be cured at some point
         delete fs;
-        XrdSysTimer sleeper;
-        sleeper.Snooze(1);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         tried++;
         eos_static_info("msg=\"retry query\" query=\"%s\"", opaque.c_str());
 

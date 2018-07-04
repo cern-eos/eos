@@ -103,10 +103,9 @@ FuseServer::dump_message(const google::protobuf::Message& message)
 void
 FuseServer::Clients::MonitorHeartBeat()
 {
-  XrdSysTimer sleeper;
   eos_static_info("msg=\"starting fusex heart beat thread\"");
 
-  while (1) {
+  while (true) {
     client_uuid_t evictmap;
     client_uuid_t evictversionmap;
     {
@@ -164,7 +163,7 @@ FuseServer::Clients::MonitorHeartBeat()
     }
 
     gOFS->zMQ->gFuseServer.Flushs().expireFlush();
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (should_terminate()) {
       break;
@@ -225,7 +224,6 @@ FuseServer::Clients::Dispatch(const std::string identity,
 void
 FuseServer::MonitorCaps() noexcept
 {
-  XrdSysTimer sleeper;
   eos_static_info("msg=\"starting fusex monitor caps thread\"");
   std::map<FuseServer::Caps::authid_t, time_t> outofquota;
   uint64_t noquota = std::numeric_limits<long>::max() / 2;
@@ -356,7 +354,7 @@ FuseServer::MonitorCaps() noexcept
       }
     }
 
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (should_terminate()) {
       break;
@@ -1394,8 +1392,7 @@ FuseServer::Flush::hasFlush(uint64_t id)
       return false;
     }
 
-    XrdSysTimer sleeper;
-    sleeper.Wait(delay);
+    std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     delay *= 2;
     ;
   }

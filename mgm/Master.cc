@@ -493,8 +493,7 @@ Master::Supervisor()
     }
 
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   return nullptr;
@@ -568,8 +567,7 @@ Master::WaitCompactingFinished()
     }
 
     if (isCompacting) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     } else {
       // Block any further compacting
       BlockCompacting();
@@ -619,8 +617,7 @@ Master::Compacting()
 
       // If we are blocked we wait until we are unblocked
       if (isBlocked) {
-        XrdSysTimer sleeper;
-        sleeper.Wait(1000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
       } else {
         // Set to compacting
         if (runcompacting) {
@@ -644,8 +641,7 @@ Master::Compacting()
       }
 
       if (!go) {
-        XrdSysTimer sleeper;
-        sleeper.Wait(1000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     } while (!go);
 
@@ -842,8 +838,7 @@ Master::Compacting()
                            e.getMessage().str().c_str()));
       }
 
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
 
       if (compacted) {
         eos_alert("msg=\"compact done\"");
@@ -899,8 +894,7 @@ Master::Compacting()
 
     // Check only once a minute
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(60000);
+    std::this_thread::sleep_for(std::chrono::seconds(60));
   } while (true);
 
   return nullptr;
@@ -1359,8 +1353,7 @@ Master::Slave2Master()
   if (chlog_file_svc) {
     while (chlog_file_svc->getFollowOffset() <
            (uint64_t)size_local_file_changelog) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(5000);
+      std::this_thread::sleep_for(std::chrono::seconds(5));
       eos_static_info("msg=\"waiting for the namespace to reach the follow "
                       "point\" is-offset=%llu follow-offset=%llu",
                       chlog_file_svc->getFollowOffset(),
@@ -1908,7 +1901,6 @@ Master::BootNamespace()
       contSettings["qdb_password"] = gOFS->mQdbPassword;
       contSettings["qdb_flusher_md"] = instance_id.str() + "_md";
       contSettings["qdb_flusher_quota"] = instance_id.str() + "_quota";
-
       fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
       fileSettings["qdb_password"] = gOFS->mQdbPassword;
       fileSettings["qdb_flusher_md"] = instance_id.str() + "_md";
@@ -2205,8 +2197,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
         MasterLog(eos_info("waiting for 'directories' inode change %llu=>%llu ",
                            fDirNamespaceInode, lDirNamespaceInode));
-        XrdSysTimer sleeper;
-        sleeper.Wait(10000);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
 
@@ -2219,8 +2210,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
         MasterLog(eos_info("waiting for 'files' inode change %llu=>%llu ",
                            fFileNamespaceInode, lFileNamespaceInode));
-        XrdSysTimer sleeper;
-        sleeper.Wait(10000);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
 
@@ -2230,8 +2220,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
           return false;
         }
 
-        XrdSysTimer sleeper;
-        sleeper.Wait(10000);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
 
@@ -2241,8 +2230,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
           return false;
         }
 
-        XrdSysTimer sleeper;
-        sleeper.Wait(10000);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
 
@@ -2401,8 +2389,7 @@ Master::StartSlaveFollower(std::string&& log_file)
 
     // wait that the follower reaches the offset seen now
     while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(200);
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       eos_static_debug("msg=\"waiting for the namespace to reach the follow "
                        "point\" is-offset=%llu follow-offset=%llu",
                        eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);

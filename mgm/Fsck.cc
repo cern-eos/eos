@@ -173,14 +173,13 @@ Fsck::Check(void)
 {
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
-  XrdSysTimer sleeper;
   int bccount = 0;
   ClearLog();
 
   // Wait that the namespace is booted
   while (true) {
     if (!gOFS->IsNsBooted()) {
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     } else {
       break;
     }
@@ -188,7 +187,7 @@ Fsck::Check(void)
 
   while (true) {
     XrdSysThread::SetCancelOff();
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     eos_static_debug("Started consistency checker thread");
     ClearLog();
     Log(false, "started check");
@@ -200,7 +199,7 @@ Fsck::Check(void)
 
       if (!IsMaster) {
         XrdSysThread::SetCancelOn();
-        sleeper.Snooze(60);
+        std::this_thread::sleep_for(std::chrono::seconds(60));
       }
     }
 
@@ -263,13 +262,11 @@ Fsck::Check(void)
 
       for (auto it = FsView::gFsView.mIdView.cbegin();
            it != FsView::gFsView.mIdView.cend(); ++it) {
-
-	// protect against illegal 0 filesystem pointer
-	if (!it->second)
-	{
-	  eos_static_crit("found illegal pointer in filesystem view");
-	  continue;
-	}
+        // protect against illegal 0 filesystem pointer
+        if (!it->second) {
+          eos_static_crit("found illegal pointer in filesystem view");
+          continue;
+        }
 
         eos::common::FileSystem::fsid_t fsid = it->first;
         eos::common::FileSystem::fsactive_t fsactive = it->second->GetActiveStatus();
@@ -284,7 +281,8 @@ Fsck::Check(void)
           try {
             // TODO(gbitzes): This could be improved for QDB namespace. We don't
             // need the FileMD contents, we just need to know if it exists.
-            eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(gOFS->eosView, gOFS->eosFsView, fsid);
+            eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(gOFS->eosView,
+                gOFS->eosFsView, fsid);
             XrdSysMutexHelper lock(eMutex);
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
 
@@ -321,10 +319,10 @@ Fsck::Check(void)
 
         for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
              (it_fid && it_fid->valid()); it_fid->next()) {
-
-          if(!needLockThroughout) {
+          if (!needLockThroughout) {
             nslock.Release();
-            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, it_fid->getElement());
+            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView,
+                it_fid->getElement());
             nslock.Grab(gOFS->eosViewRWMutex);
           }
 
@@ -489,7 +487,7 @@ Fsck::Check(void)
     Log(false, "=> next run in %d minutes", mInterval);
     XrdSysThread::SetCancelOn();
     // Wait for next FSCK round ...
-    sleeper.Snooze(mInterval * 60);
+    std::this_thread::sleep_for(std::chrono::minutes(mInterval));
   }
 
   return 0;
@@ -593,7 +591,6 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                fidit != emapit->second.end();
                fidit++) {
             std::shared_ptr<eos::IFileMD> fmd;
-
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -695,7 +692,6 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                  fidit++) {
               std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((
                                                     eos::IFileMD*)0);
-
               eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -798,7 +794,6 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                fidit != emapit->second.cend(); fidit++) {
             std::shared_ptr<eos::IFileMD> fmd =
               std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
-
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -895,7 +890,6 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
               for (auto fidit = efsmapit->second.cbegin();
                    fidit != efsmapit->second.cend(); ++fidit) {
                 std::shared_ptr<eos::IFileMD> fmd;
-
                 eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -989,7 +983,6 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
            it != efsmapit->second.cend(); ++it) {
         std::string path = "";
         std::shared_ptr<eos::IFileMD> fmd;
-
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -1068,7 +1061,6 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         std::string path = "";
         std::shared_ptr<eos::IFileMD> fmd =
           std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
-
         eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -1126,7 +1118,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         std::shared_ptr<eos::IFileMD> fmd;
         bool haslocation = false;
         std::string spath = "";
-	
+
         // Crosscheck if the location really is not attached
         try {
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);

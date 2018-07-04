@@ -33,7 +33,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include "XrdSys/XrdSysTimer.hh"
 
 #ifdef __APPLE__
 #define EOS_PTRACE_CONTINUE PT_CONTINUE
@@ -129,8 +128,7 @@ ShellCmd::monitor()
     perror("error: failed to attach to forked process");
 
     while (is_active()) {
-      XrdSysTimer snooze;
-      snooze.Wait(250);
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
     cmd_stat.exited = false;
@@ -171,9 +169,8 @@ ShellCmd::monitor()
         break;
       }
 
-      XrdSysTimer snooze;
-      // prevent tight loops
-      snooze.Wait(250);
+      // Prevent tight loops
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
   }
 
@@ -210,8 +207,7 @@ ShellCmd::wait(size_t timeout)
       break;
     }
 
-    XrdSysTimer sleeper;
-    sleeper.Wait(exp_sleep);
+    std::this_thread::sleep_for(std::chrono::milliseconds(exp_sleep));
 
     if (exp_sleep < 512) {
       exp_sleep *= 2;

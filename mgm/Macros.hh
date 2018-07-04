@@ -69,7 +69,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 /// check if we are in master read access mode
 #define IS_ACCESSMODE_R_MASTER (__AccessMode__ == 2)
 
-#define WAIT_BOOT while (1) {if (gOFS->IsNsBooted()) break; XrdSysTimer sleeper; sleeper.Snooze(5);}
+#define WAIT_BOOT while (true) {if (gOFS->IsNsBooted()) break;     \
+    std::this_thread::sleep_for(std::chrono::seconds(5));          \
+  }
 
 
 //------------------------------------------------------------------------------

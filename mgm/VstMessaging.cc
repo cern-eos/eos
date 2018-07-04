@@ -106,8 +106,7 @@ VstMessaging::Listen()
 
     // we give some time for startup
     for (size_t i = 0; i < 30; ++i) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       XrdSysThread::CancelPoint();
     }
   }
@@ -123,8 +122,7 @@ VstMessaging::Listen()
       delete newmessage;
     } else {
       XrdSysThread::SetCancelOn();
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       XrdSysThread::CancelPoint();
       XrdSysThread::SetCancelOff();
     }

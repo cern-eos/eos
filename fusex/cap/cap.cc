@@ -299,7 +299,6 @@ cap::imply(shared_cap cap,
   std::string clientid = cap->clientid();
   std::string cid = capx::capid(ino, clientid);
   XrdSysMutexHelper mLock(capmap);
-
   // TODO: deal with the influence of mode to the cap itself
   capmap[cid] = implied_cap;
   return cid;
@@ -414,21 +413,16 @@ cap::refresh(fuse_req_t req, shared_cap cap)
       // 2 seconds is the maximum allowed roundtrip/out-of-sync time applied by the MGM
       uint64_t ns_lag;
 
-      if ( (ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000)
-      {
-	eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
-	return EL2NSYNC;
-      }
-      else
-      {
-	float backoff = round(10 * random() / (double) RAND_MAX);
-	XrdSysTimer sleeper;
-	eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
-			   ns_lag/1000000000.0,
-			   cap->id(),
-			   backoff);
-
-	sleeper.Wait(backoff*1000);
+      if ((ns_lag = eos::common::Timing::GetCoarseAgeInNs(&ts, 0)) < 2000000000) {
+        eos_static_err("GETCAP finished during the allowed 2s round-trip time - our clock seems to be out of sync with the MGM!");
+        return EL2NSYNC;
+      } else {
+        float backoff = round(10 * random() / (double) RAND_MAX);
+        eos_static_warning("GETCAP exceeded 2s (%.02fs) round-trip time for inode=%16x - backing of for %.02f seconds, then retry!",
+                           ns_lag / 1000000000.0,
+                           cap->id(),
+                           backoff);
+        std::this_thread::sleep_for(std::chrono::seconds((int)backoff));
       }
     }
   } while (1);
@@ -489,19 +483,19 @@ cap::capflush(ThreadAssistant& assistant)
       cinodes capdelinodes;
       capmap.Lock();
 
-      if (!capmap.size())
-      {
-	eos_static_debug("forgetting all md from mdmap");
-	mds->forget_all();
+      if (!capmap.size()) {
+        eos_static_debug("forgetting all md from mdmap");
+        mds->forget_all();
       }
+
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
-	if (forgetlist.has(it->second->id()))
-	{
-	  eos_static_debug("remove %s - deleted", it->second->dump().c_str());
-	  capdelmap[it->first] = it->second;
-	  continue;
-	}
+
+        if (forgetlist.has(it->second->id())) {
+          eos_static_debug("remove %s - deleted", it->second->dump().c_str());
+          capdelmap[it->first] = it->second;
+          continue;
+        }
 
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
@@ -537,14 +531,12 @@ cap::capflush(ThreadAssistant& assistant)
       }
 
       forgetlist.clear();
-
       capmap.UnLock();
 
-      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it)
-      {
-	kernelcache::inval_inode(*it, false);
-	// retrieve the md object and if there is no cap reference remove all child files
-	EosFuse::Instance().cleanup(*it);
+      for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
+        kernelcache::inval_inode(*it, false);
+        // retrieve the md object and if there is no cap reference remove all child files
+        EosFuse::Instance().cleanup(*it);
       }
 
       assistant.wait_for(std::chrono::seconds(1));

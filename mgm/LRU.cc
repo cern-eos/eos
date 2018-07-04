@@ -34,11 +34,9 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
-const char* LRU::gLRUPolicyPrefix =
-  "sys.lru.*"; //< the attribute name defining any LRU policy
+
+//! Attribute name defining any LRU policy
+const char* LRU::gLRUPolicyPrefix = "sys.lru.*";
 
 /*----------------------------------------------------------------------------*/
 
@@ -118,15 +116,11 @@ LRU::LRUr()
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(10);
-  //----------------------------------------------------------------------------
+  std::this_thread::sleep_for(std::chrono::seconds(10));
   // Eternal thread doing LRU scans
-  //----------------------------------------------------------------------------
   time_t snoozetime = 60;
   eos_static_info("msg=\"async LRU thread started\"");
 
@@ -251,8 +245,9 @@ LRU::LRUr()
             }
           }
         }
-	XrdSysThread::SetCancelOn();
-	XrdSysThread::SetCancelOff();
+
+        XrdSysThread::SetCancelOn();
+        XrdSysThread::SetCancelOff();
       }
 
       EXEC_TIMING_END("LRUFind");
@@ -269,12 +264,11 @@ LRU::LRUr()
 
     eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledLRU);
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
     time_t snoozeinterval = 60;
     size_t snoozeloop = snoozetime / 60;
 
     for (size_t i = 0 ; i < snoozeloop; i++) {
-      sleeper.Snooze(snoozeinterval);
+      std::this_thread::sleep_for(std::chrono::seconds(snoozeinterval));
       {
         // check if the setting changes
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -386,6 +380,7 @@ LRU::AgeExpire(const char* dir,
     try {
       cmd = gOFS->eosView->getContainer(dir);
       std::shared_ptr<eos::IFileMD> fmd;
+
       // Loop through all file names
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
         fmd = cmd->findFile(it.key());

@@ -35,13 +35,12 @@
 #include <sstream>
 #include <cstdio>
 #include <sys/resource.h>
-#include "XrdSys/XrdSysAtomics.hh"
 using namespace eos::common;
 
 const unsigned long int NNUM_THREADS = 10;
 pthread_t threads[NNUM_THREADS];
 unsigned long int NUM_THREADS = NNUM_THREADS;
-int writecount;
+std::atomic<int> writecount;
 
 const char* dbfile = "/tmp/testlog.log";
 int total, transacSize;
@@ -165,9 +164,9 @@ TestWriteGlob(void* threadid)
   //unsigned long int thrid= (unsigned long int) pthread_self();
 
   for (int k = 0; k < total; k++) {
-    AtomicInc(writecount);
+    ++writecount;
 
-    if (writecount % transacSize == 0 && writecount > 0) {
+    if (writecount.load() % transacSize == 0 && writecount.load() > 0) {
       globmap->endSetSequence();
       globmap->beginSetSequence();
     }
@@ -310,7 +309,7 @@ main()
     total = n;
     transacSize = transacsize[k];
     overwrite = false;
-    writecount = 0;
+    writecount.store(0);
     RunThreadsGlob();
     elapsed = (int)time(NULL) - (int)seconds;
     elapsed = (elapsed ? elapsed : 1);
@@ -334,7 +333,7 @@ main()
     total = n;
     transacSize = transacsize[k];
     overwrite = true;
-    writecount = 0;
+    writecount.store(0);
     RunThreadsGlob();
     elapsed = (int)time(NULL) - (int)seconds;
     elapsed = (elapsed ? elapsed : 1);

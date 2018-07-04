@@ -1126,7 +1126,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
       entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
         startFromGeoTag.c_str());
   } else if (!clientGeoTag.empty()) {
-    startFromNode = 
+    startFromNode =
       entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
         clientGeoTag.c_str());
   }
@@ -2364,7 +2364,8 @@ void GeoTreeEngine::listenFsChange()
     }
 
     if ((int)elapsedMs < pTimeFrameDurationMs) {
-      XrdSysTimer::Wait(pTimeFrameDurationMs - (int)elapsedMs);
+      std::this_thread::sleep_for
+      (std::chrono::milliseconds(pTimeFrameDurationMs - (int)elapsedMs));
     }
   } while (1);
 }

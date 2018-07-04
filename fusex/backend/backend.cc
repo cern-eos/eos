@@ -296,8 +296,7 @@ backend::fetchResponse(std::string& requestURL,
                          total_exec_time_sec,  timeout);
         } else {
           // retry
-          XrdSysTimer sleeper;
-          sleeper.Snooze(5);
+          std::this_thread::sleep_for(std::chrono::seconds(5));
           file.reset(new XrdCl::File());
           continue;
         }
@@ -442,6 +441,7 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
     return 0;
   } else {
     int retc = EREMOTEIO;
+
     if (status.code == XrdCl::errErrorResponse) {
       return mapErrCode(status.errNo);
     } else {
@@ -628,7 +628,8 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
 
     return 0;
   } else {
-    eos_static_err("query resulted in error for ino=%lx url=%s",  md->id(), url.GetURL().c_str());
+    eos_static_err("query resulted in error for ino=%lx url=%s",  md->id(),
+                   url.GetURL().c_str());
 
     if (locker) {
       locker->Lock();
@@ -996,8 +997,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
       return status;
     }
 
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     fs.reset(new XrdCl::FileSystem(url));
   } while (1);
 }

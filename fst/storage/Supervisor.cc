@@ -64,8 +64,7 @@ Storage::Supervisor()
 
         if (ndown) {
           // we give one more minute to get things going
-          XrdSysTimer sleeper;
-          sleeper.Snooze(10);
+          std::this_thread::sleep_for(std::chrono::seconds(10));
           ndown = 0;
           {
             // check the status a second time
@@ -92,14 +91,12 @@ Storage::Supervisor()
             // shutdown this daemon
             eos_static_alert("found %d/%d filesystems in <down> status - committing suicide !",
                              ndown, nfs);
-            XrdSysTimer sleeper;
-            sleeper.Snooze(10);
+            std::this_thread::sleep_for(std::chrono::seconds(10));
             kill(getpid(), SIGQUIT);
           }
         }
       }
-      XrdSysTimer sleeper;
-      sleeper.Snooze(60);
+      std::this_thread::sleep_for(std::chrono::seconds(60));
     }
   }
 }

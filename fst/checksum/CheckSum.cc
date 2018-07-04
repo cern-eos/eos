@@ -31,7 +31,6 @@
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/CloExec.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -141,8 +140,8 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
       float expecttime = (1.0 * offset / rate) / 1000.0;
 
       if (expecttime > scantime) {
-        XrdSysTimer sleeper;
-        sleeper.Wait((int)(expecttime - scantime));
+        std::this_thread::sleep_for
+        (std::chrono::milliseconds((int)(expecttime - scantime)));
       }
     }
   } while (nread == buffersize);

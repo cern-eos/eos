@@ -26,7 +26,6 @@
 #include <dlfcn.h>
 #include <string>
 #include <cstdio>
-#include "XrdSys/XrdSysTimer.hh"
 #include <XrdOuc/XrdOucString.hh>
 
 EOSCOMMONNAMESPACE_BEGIN

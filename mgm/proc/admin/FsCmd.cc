@@ -312,8 +312,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
       XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
       while (gOFS->Initialized != gOFS->kBooted) {
-        XrdSysTimer timer;
-        timer.Snooze(2);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
       }
     }
     std::string sfsid = std::to_string(dumpmdProto.fsid());
@@ -636,7 +635,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
     for (auto it_fid = gOFS->eosFsView->getFileList(dropfilesProto.fsid());
          (it_fid && it_fid->valid()); it_fid->next()) {
       try {
-	fileids.push_back(it_fid->getElement());
+        fileids.push_back(it_fid->getElement());
       } catch (eos::MDException& e) {
         eos_err("Could not get metadata for file %ul, ignoring it",
                 it_fid->getElement());
@@ -649,7 +648,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 
     if (gOFS->_dropstripe("", fid, errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
-      eos_err("Could not delete file replica %ul on filesystem %u", fid, 
+      eos_err("Could not delete file replica %ul on filesystem %u", fid,
               dropfilesProto.fsid());
     } else {
       filesDeleted++;

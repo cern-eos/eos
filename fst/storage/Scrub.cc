@@ -132,8 +132,7 @@ Storage::Scrub()
 
     if (nsleep > 0) {
       eos_static_debug("Scrubber will pause for %u seconds", nsleep);
-      XrdSysTimer sleeper;
-      sleeper.Snooze(nsleep);
+      std::this_thread::sleep_for(std::chrono::seconds(nsleep));
     }
   }
 }
@@ -203,8 +202,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
           }
 
           if (k != 0) {
-            XrdSysTimer msSleep;
-            msSleep.Wait(100);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
           }
         }
 
@@ -248,8 +246,7 @@ Storage::ScrubFs(const char* path, unsigned long long free,
           }
         }
 
-        XrdSysTimer msSleep;
-        msSleep.Wait(100);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
 
       if (eberrors) {

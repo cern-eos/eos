@@ -33,9 +33,9 @@ void
 Storage::Cleaner()
 {
   eos_static_info("Start Cleaner ...");
-
   // we have to wait that we know our node config queue
-  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Cleaner").c_str();
+  std::string nodeconfigqueue =
+    eos::fst::Config::gConfig.getFstNodeConfigQueue("Cleaner").c_str();
 
   while (1) {
     eos_static_notice("msg=\"cleaning transactions\"");
@@ -67,8 +67,7 @@ Storage::Cleaner()
     }
 
     // go to sleep for a day since we allow a transaction to stay for 1 week
-    XrdSysTimer sleeper;
-    sleeper.Snooze(24 * 3600);
+    std::this_thread::sleep_for(std::chrono::hours(24));
   }
 }
 

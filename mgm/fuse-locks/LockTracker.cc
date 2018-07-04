@@ -22,14 +22,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-/*----------------------------------------------------------------------------*/
 #include "LockTracker.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <fcntl.h>
 #include <unistd.h>
-
-/*----------------------------------------------------------------------------*/
+#include <thread>
 
 EOSMGMNAMESPACE_BEGIN
 USE_EOSMGMNAMESPACE
@@ -303,8 +299,7 @@ LockTracker::setlk(pid_t pid, struct flock* lock, int sleep,
   while (!addLock(pid, lock, owner)) {
     cnt++;
     // TODO wait on condition variable?
-    XrdSysTimer sleeper;
-    sleeper.Wait(1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
     if (cnt > 10) {
       // we give up after 10ms

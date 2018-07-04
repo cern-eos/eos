@@ -38,7 +38,6 @@
 #include <google/dense_hash_map>
 #include <math.h>
 #include "fst/XrdFstOss.hh"
-#include "XrdSys/XrdSysTimer.hh"
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
@@ -340,14 +339,12 @@ Storage::Boot(FileSystem* fs)
       break;
     }
 
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     eos_info("msg=\"waiting to know manager\"");
 
     if (cnt > 20) {
       eos_static_alert("didn't receive manager name, aborting");
-      XrdSysTimer sleeper;
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
       XrdFstOfs::xrdfstofs_shutdown(1);
     }
   } while (1);

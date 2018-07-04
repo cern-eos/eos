@@ -40,7 +40,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
-  XrdSysTimer snooze;
   EXEC_TIMING_BEGIN("Find");
 
   if (nscounter) {
@@ -82,11 +81,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       // Slow down the find command without holding locks
       if (millisleep) {
-        snooze.Wait(millisleep);
+        std::this_thread::sleep_for(std::chrono::milliseconds(millisleep));
       }
 
       // Held only for the current loop
-      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, Path.c_str());
+      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+          Path.c_str());
       eos::common::RWMutexReadLock ns_rd_lock;
 
       if (take_lock) {

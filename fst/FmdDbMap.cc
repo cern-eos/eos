@@ -204,8 +204,7 @@ again:
 
     if ((status.code >= 100) &&
         (status.code <= 300)) {
-      XrdSysTimer sleeper;
-      sleeper.Snooze(1);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
 
       if (!manager) {
@@ -1179,7 +1178,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails &contactDetails,
+FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
                                   eos::common::FileSystem::fsid_t fsid)
 {
   using namespace std::chrono;
@@ -1194,7 +1193,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails &contactDetails,
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
   std::unique_ptr<qclient::QClient> qcl(new
-    qclient::QClient(contactDetails.members, contactDetails.constructOptions()));
+                                        qclient::QClient(contactDetails.members, contactDetails.constructOptions()));
   qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 

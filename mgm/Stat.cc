@@ -1179,8 +1179,7 @@ Stat::Circulate()
 
   // empty the circular buffer and extract some Mq statistic values
   while (1) {
-    XrdSysTimer sleeper;
-    sleeper.Wait(512);
+    std::this_thread::sleep_for(std::chrono::milliseconds(512));
     // --------------------------------------------
     // mq statistics extraction
     l1tmp = XrdMqSharedHash::sSetCounter.load();

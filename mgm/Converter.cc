@@ -33,7 +33,6 @@
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -86,7 +85,6 @@ ConverterJob::DoIt()
   XrdOucErrInfo error;
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
-  XrdSysTimer sleeper;
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> cmd;
   uid_t owner_uid = 0;
@@ -377,12 +375,10 @@ Converter::Convert(void)
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Reset old jobs pending from service restart/crash
   if (gOFS->MgmMaster.IsMaster()) {

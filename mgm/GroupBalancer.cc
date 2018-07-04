@@ -31,7 +31,6 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -457,7 +456,6 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
   // TODO(gbitzes): Add prefetching, make more efficient.
   std::vector<int> validFsIndexes(group->size());
 
@@ -624,7 +622,6 @@ GroupBalancer::GroupBalance()
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
   XrdSysThread::SetCancelOn();
-  XrdSysTimer sleeper;
   bool go = false;
 
   // Wait for the namespace to boot
@@ -638,10 +635,10 @@ GroupBalancer::GroupBalance()
       }
     }
     XrdSysThread::SetCancelOn();
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  sleeper.Snooze(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Loop forever until cancelled
   while (1) {
@@ -713,7 +710,7 @@ wait:
     XrdSysThread::SetCancelOn();
 
     for (size_t i = 0; i < 10; ++i) {
-      sleeper.Snooze(1);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       XrdSysThread::CancelPoint();
     }
   }

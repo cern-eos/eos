@@ -132,8 +132,8 @@ TransferJob::Progress()
     }
 
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000); // don't report more than 1 Hz
+    // Don't report more than 1Hz
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   return 0;
@@ -853,8 +853,7 @@ TransferJob::DoIt()
             goto cleanup;
           }
 
-          XrdSysTimer sleeper;
-          sleeper.Wait(100);
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
           continue;
         }
 
@@ -926,8 +925,7 @@ TransferJob::DoIt()
                 goto cleanup;
               }
 
-              XrdSysTimer sleeper;
-              sleeper.Wait(100);
+              std::this_thread::sleep_for(std::chrono::milliseconds(100));
               continue;
             }
 

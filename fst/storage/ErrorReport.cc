@@ -100,12 +100,11 @@ Storage::ErrorReport()
     }
 
     gOFS.ErrorReportQueueMutex.UnLock();
-    XrdSysTimer sleeper;
 
     if (failure) {
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     } else {
-      sleeper.Snooze(1);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
 }

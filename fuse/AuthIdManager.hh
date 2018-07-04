@@ -170,7 +170,8 @@ public:
   AuthIdManager():
     connectionId(0), mCleanupThread()
   {
-    uidCache = new ShardedCache<CredKey, uint64_t, CredKeyHasher>(16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */ );
+    uidCache = new ShardedCache<CredKey, uint64_t, CredKeyHasher>
+    (16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */);
     resize(proccachenbins);
   }
 
@@ -191,7 +192,8 @@ protected:
     std::string sId;
     time_t mtime;
 
-    bool operator<(const CredKey& src) const {
+    bool operator<(const CredKey& src) const
+    {
       if (uid != src.uid) {
         return uid < src.uid;
       }
@@ -205,11 +207,12 @@ protected:
   };
 
   struct CredKeyHasher {
-    static uint64_t hash(const CredKey& key) {
+    static uint64_t hash(const CredKey& key)
+    {
       uint64_t result = key.uid;
       result += key.mtime;
 
-      for(size_t i = 0; i < key.sId.size(); i++) {
+      for (size_t i = 0; i < key.sId.size(); i++) {
         result += key.sId[i];
       }
 
@@ -217,7 +220,7 @@ protected:
     }
   };
 
-  ShardedCache<CredKey, uint64_t, CredKeyHasher> *uidCache = nullptr;
+  ShardedCache<CredKey, uint64_t, CredKeyHasher>* uidCache = nullptr;
   static uint64_t sConIdCount;
   std::set<pid_t> runningPids;
   pthread_t mCleanupThread;
@@ -502,10 +505,8 @@ protected:
 
   void CleanupLoop()
   {
-    XrdSysTimer sleeper;
-
     while (true) {
-      sleeper.Snooze(300);
+      std::this_thread::sleep_for(std::chrono::seconds(300));
       cleanProcCache();
     }
   }
@@ -703,17 +704,15 @@ protected:
 
       // Cache connection ID based on (uid, sId, credential mtime) to avoid
       // opening too many connections towards the MGM
-
       CredKey credKey;
       credKey.uid = uid;
       credKey.sId = sId;
       credKey.mtime = credinfo.lmtime;
-
       std::shared_ptr<uint64_t> cachedConnection = uidCache->retrieve(credKey);
-      if(cachedConnection) {
+
+      if (cachedConnection) {
         authid = *cachedConnection;
-      }
-      else {
+      } else {
         authid = getNewConId(uid, gid, pid);
         uidCache->store(credKey, new uint64_t(authid));
       }

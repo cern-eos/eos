@@ -672,8 +672,7 @@ ScanDir::ThreadProc(void)
         XrdSysThread::CancelPoint();
       }
 
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
 
@@ -739,8 +738,7 @@ ScanDir::ThreadProc(void)
             XrdSysThread::CancelPoint();
           }
 
-          XrdSysTimer sleeper;
-          sleeper.Wait(1000);
+          std::this_thread::sleep_for(std::chrono::seconds(1));
         }
       } else {
         // Call the ghost entry clean-up function
@@ -748,8 +746,7 @@ ScanDir::ThreadProc(void)
           eos_notice("Directory: %s fsid=%d - cleaning ghost entries", dirPath.c_str(),
                      fsId);
           gFmdDbMapHandler.RemoveGhostEntries(dirPath.c_str(), fsId);
-          XrdSysTimer sleeper;
-          sleeper.Wait(60 * 1000);
+          std::this_thread::sleep_for(std::chrono::seconds(60));
         }
       }
     }
@@ -842,8 +839,8 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
         float expecttime = (1.0 * offset / currentRate) / 1000.0;
 
         if (expecttime > scantime) {
-          XrdSysTimer sleeper;
-          sleeper.Wait(expecttime - scantime);
+          std::this_thread::sleep_for
+          (std::chrono::milliseconds((int)(expecttime - scantime)));
         }
 
         //adjust the rate according to the load information

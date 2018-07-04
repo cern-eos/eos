@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/txqueue/TransferJob.hh"
@@ -124,9 +123,8 @@ Storage::WaitFreeBalanceSlot(unsigned long long& nparalleltx,
 {
   size_t sleep_count = 0;
   unsigned long long nscheduled = 0;
-  XrdSysTimer sleeper;
 
-  while (1) {
+  while (true) {
     nscheduled = GetScheduledBalanceJobs(totalscheduled, totalexecuted);
 
     if (nscheduled < nparalleltx) {
@@ -134,7 +132,7 @@ Storage::WaitFreeBalanceSlot(unsigned long long& nparalleltx,
     }
 
     sleep_count++;
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (sleep_count > 3600) {
       eos_static_warning(
@@ -213,9 +211,8 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
         mFsVect[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
         mFsVect[index]->GetConfigStatus();
-      eos::common::FileSystem::fsactive_t activestatus = 
+      eos::common::FileSystem::fsactive_t activestatus =
         mFsVect[index]->GetActiveStatus();
-      
       // check if the filesystem is full
       bool full = false;
       {
@@ -225,7 +222,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
 
       if ((bootstatus != eos::common::FileSystem::kBooted) ||
           (configstatus <= eos::common::FileSystem::kRO) ||
-           (activestatus != eos::common::FileSystem::kOnline) || 
+          (activestatus != eos::common::FileSystem::kOnline) ||
           (full)) {
         // skip this one in bad state
         eos_static_debug("FileSystem %lu status=%u configstatus=%u, activestatus=%u",
@@ -310,14 +307,13 @@ Storage::Balancer()
   unsigned int cycler = 0;
   time_t last_config_update = 0;
   bool noBalancer = 0;
-  XrdSysTimer sleeper;
-
   // ---------------------------------------------------------------------------
   // wait for our configuration queue to be set
   // ---------------------------------------------------------------------------
-  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer").c_str();
+  std::string nodeconfigqueue =
+    eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer").c_str();
 
-  while (1) {
+  while (true) {
     time_t now = time(NULL);
     // -------------------------------------------------------------------------
     // -- 1 --
@@ -326,7 +322,7 @@ Storage::Balancer()
 
     if (noBalancer) {
       // we can lay back for a minute if we have no balancer in our group
-      sleeper.Snooze(60);
+      std::this_thread::sleep_for(std::chrono::seconds(60));
     }
 
     // -------------------------------------------------------------------------
@@ -337,8 +333,7 @@ Storage::Balancer()
     while (!nparalleltx) {
       GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = time(NULL);
-      XrdSysTimer sleeper;
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
     // -------------------------------------------------------------------------

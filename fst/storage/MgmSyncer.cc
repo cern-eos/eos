@@ -59,14 +59,12 @@ Storage::MgmSyncer()
         break;
       }
 
-      XrdSysTimer sleeper;
-      sleeper.Snooze(5);
+      std::this_thread::sleep_for(std::chrono::seconds(5));
       eos_info("msg=\"waiting to know manager\"");
 
       if (cnt > 20) {
         eos_static_alert("didn't receive manager name, aborting");
-        XrdSysTimer sleeper;
-        sleeper.Snooze(10);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         XrdFstOfs::xrdfstofs_shutdown(1);
       }
     } while (1);
@@ -80,17 +78,14 @@ Storage::MgmSyncer()
       struct Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
       eos_static_info("fid=%llx mtime=%llu", fmd.fid(), fmd.mtime());
-
       // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
-
       time_t delay = fmd.mtime() + 60 - now;
 
-      if ( (delay > 0) && (delay <= 60) ) {
-	// only values less than a minute should be taken into account here
+      if ((delay > 0) && (delay <= 60)) {
+        // only values less than a minute should be taken into account here
         eos_static_debug("msg=\"postpone mgm sync\" delay=%d",
                          delay);
-        XrdSysTimer sleeper;
-        sleeper.Snooze(delay);
+        std::this_thread::sleep_for(std::chrono::seconds(delay));
         gOFS.WrittenFilesQueueMutex.Lock();
         continue;
       }
@@ -133,12 +128,10 @@ Storage::MgmSyncer()
 
     if (failure) {
       // the last synchronization to the MGM failed, we wait longer
-      XrdSysTimer sleeper;
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     } else {
       // the queue was empty
-      XrdSysTimer sleeper;
-      sleeper.Snooze(1);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
 }

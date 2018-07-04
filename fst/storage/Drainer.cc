@@ -101,9 +101,8 @@ Storage::WaitFreeDrainSlot(unsigned long long& nparalleltx,
 {
   size_t sleep_count = 0;
   unsigned long long nscheduled = 0;
-  XrdSysTimer sleeper;
 
-  while (1) {
+  while (true) {
     nscheduled = GetScheduledDrainJobs(totalscheduled, totalexecuted);
 
     if (nscheduled < nparalleltx) {
@@ -111,7 +110,7 @@ Storage::WaitFreeDrainSlot(unsigned long long& nparalleltx,
     }
 
     sleep_count++;
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (sleep_count > 3600) {
       eos_static_warning(
@@ -266,7 +265,6 @@ Storage::Drainer()
   unsigned int cycler = 0;
   bool noDrainer = false;
   time_t last_config_update = 0;
-  XrdSysTimer sleeper;
   nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue().c_str();
 
   while (true) {
@@ -278,7 +276,7 @@ Storage::Drainer()
     // -------------------------------------------------------------------------
     // Sleep of 1 minnute if there is no drainer in our group
     if (noDrainer) {
-      sleeper.Snooze(60);
+      std::this_thread::sleep_for(std::chrono::seconds(60));
     }
 
     // -------------------------------------------------------------------------
@@ -288,8 +286,7 @@ Storage::Drainer()
     while (!nparalleltx) {
       GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = time(NULL);
-      XrdSysTimer sleeper;
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 
     // -------------------------------------------------------------------------

@@ -32,7 +32,8 @@ void
 Storage::Remover()
 {
   static time_t lastAskedForDeletions = 0;
-  std::string nodeconfigqueue = eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
+  std::string nodeconfigqueue =
+    eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
   std::unique_ptr<Deletion> to_del {};
 
   // Thread that unlinks stored files
@@ -73,8 +74,7 @@ Storage::Remover()
       }
     }
 
-    XrdSysTimer msSleep;
-    msSleep.Wait(100);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     time_t now = time(NULL);
 
     // Ask to schedule deletions every 5 minutes
@@ -106,8 +106,7 @@ Storage::Remover()
         if (response == "submitted") {
           eos_static_debug("manager scheduled deletions for us!");
           // We wait 30 seconds to receive our deletions
-          XrdSysTimer Sleeper;
-          Sleeper.Snooze(30);
+          std::this_thread::sleep_for(std::chrono::seconds(30));
         } else {
           eos_static_debug("manager returned no deletion to schedule [ENODATA]");
         }

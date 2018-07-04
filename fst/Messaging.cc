@@ -49,8 +49,7 @@ Messaging::Listen()
       XrdSysThread::SetCancelOn();
     } else {
       XrdSysThread::SetCancelOn();
-      XrdSysTimer sleeper;
-      sleeper.Wait(2000);
+      std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
     XrdSysThread::CancelPoint();

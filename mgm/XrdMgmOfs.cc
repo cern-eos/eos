@@ -75,7 +75,6 @@
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPthread.hh>
-#include <XrdSys/XrdSysTimer.hh>
 #include <XrdSec/XrdSecInterface.hh>
 #include <XrdSfs/XrdSfsAio.hh>
 #include <XrdSfs/XrdSfsFlags.hh>
@@ -694,7 +693,6 @@ void*
 XrdMgmOfs::ArchiveSubmitter()
 {
   ProcCommand pcmd;
-  XrdSysTimer timer;
   std::string job_opaque;
   XrdOucString std_out, std_err;
   int max, running, pending;
@@ -739,7 +737,7 @@ XrdMgmOfs::ArchiveSubmitter()
       }
     }
     XrdSysThread::SetCancelOn();
-    timer.Wait(5000);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
   return 0;

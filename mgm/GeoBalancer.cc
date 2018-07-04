@@ -31,7 +31,6 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -609,12 +608,10 @@ GeoBalancer::GeoBalance()
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // ---------------------------------------------------------------------------
   // loop forever until cancelled
@@ -683,8 +680,7 @@ wait:
     // -------------------------------------------------------------------------
     // Let some time pass or wait for a notification
     // -------------------------------------------------------------------------
-    XrdSysTimer sleeper;
-    sleeper.Wait(10000);
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     XrdSysThread::CancelPoint();
   }
 

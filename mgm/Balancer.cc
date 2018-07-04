@@ -26,8 +26,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "common/StringConversion.hh"
-#include "XrdSys/XrdSysTimer.hh"
-
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -91,8 +89,7 @@ Balancer::Balance(void)
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
   // Loop forever until cancelled
@@ -303,11 +300,10 @@ Balancer::Balance(void)
 
     FsView::gFsView.ViewMutex.UnLockRead();
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
 
     // Wait a while ...
     for (size_t i = 0; i < 10; ++i) {
-      sleeper.Snooze(1);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
       XrdSysThread::CancelPoint();
     }
   }

@@ -470,10 +470,9 @@ LayoutWrapper::Restore()
 
   for (size_t i = 0; i < 3; ++i) {
     if (file->Open(mFlags | SFS_O_CREAT, mMode, params.c_str())) {
-      XrdSysTimer sleeper;
       eos_static_warning("restore failed to open path=%s - snooze 5s ...",
                          u.GetURL().c_str());
-      sleeper.Snooze(5);
+      std::this_thread::sleep_for(std::chrono::seconds(5));
     } else {
       size_t blocksize = 4 * 1024 * 1024;
       int retc = 0 ;
@@ -516,10 +515,9 @@ LayoutWrapper::Restore()
       unsigned long long newInode = strtoull(fxid.c_str(), 0, 16);
 
       if (file->Close()) {
-        XrdSysTimer sleeper;
         eos_static_warning("restore failed to close path=%s - snooze 5s ...",
                            u.GetURL().c_str());
-        sleeper.Snooze(5);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
       } else {
         XrdSysMutexHelper l(gCacheAuthorityMutex);
 
@@ -607,8 +605,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     if (getenv("EOS_FUSE_LAZY_LAG_OPEN") && mFlags) {
       eos_static_warning("lazy-lag configured - delay by %s ms",
                          getenv("EOS_FUSE_LAZY_LAG_OPEN"));
-      XrdSysTimer sleeper;
-      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_OPEN")));
+      std::this_thread::sleep_for
+      (std::chrono::milliseconds(atoi(getenv("EOS_FUSE_LAZY_LAG_OPEN"))));
     }
 
     bool retry = true;
@@ -663,8 +661,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           count_retry++;
 
           if (count_retry < max_retries) {
-            XrdSysTimer sleeper;
-            sleeper.Wait(10);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             eos_static_debug("retrying attempt=%d", count_retry);
             continue;
           } else {
@@ -926,8 +923,8 @@ int LayoutWrapper::Close()
   if (getenv("EOS_FUSE_LAZY_LAG_CLOSE") && mFlags) {
     eos_static_warning("lazy-lag configured - delay by %s ms",
                        getenv("EOS_FUSE_LAZY_LAG_CLOSE"));
-    XrdSysTimer sleeper;
-    sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_CLOSE")));
+    std::this_thread::sleep_for
+    (std::chrono::milliseconds(atoi(getenv("EOS_FUSE_LAZY_LAG_CLOSE"))));
   }
 
   mClose = true;

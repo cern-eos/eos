@@ -142,12 +142,10 @@ WFE::WFEr()
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
   //----------------------------------------------------------------------------
   // Eternal thread doing WFE scans
   //----------------------------------------------------------------------------
@@ -328,11 +326,10 @@ WFE::WFEr()
 
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
     size_t snoozeloop = snoozetime / 1;
 
     for (size_t i = 0; i < snoozeloop; i++) {
-      sleeper.Wait(100);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       {
         // check if the setting changes
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -1820,7 +1817,6 @@ WFE::Job::DoIt(bool issync)
           // optimization for reduced memory IO during write lock
           if (retrieveCntr == 1) {
             collectAttributes();
-
             decltype(fmd->getCUid()) cuid = 99;
             decltype(fmd->getCGid()) cgid = 99;
             {
@@ -1828,10 +1824,9 @@ WFE::Job::DoIt(bool issync)
               cuid = fmd->getCUid();
               cgid = fmd->getCGid();
             }
-            
             notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
-
+            notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+                  cgid));
             notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
             notification->mutable_file()->set_lpath(fullPath);
             notification->mutable_wf()->mutable_instance()->set_name(
@@ -1846,7 +1841,6 @@ WFE::Job::DoIt(bool issync)
           }
         } else if (event == "sync::create" || event == "create") {
           collectAttributes();
-          
           decltype(fmd->getCUid()) cuid = 99;
           decltype(fmd->getCGid()) cgid = 99;
           {
@@ -1854,11 +1848,10 @@ WFE::Job::DoIt(bool issync)
             cuid = fmd->getCUid();
             cgid = fmd->getCGid();
           }
-          
           notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-                  cuid));
+                cuid));
           notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-                  cgid));
+                cgid));
           notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
           notification->mutable_wf()->mutable_instance()->set_name(
             gOFS->MgmOfsInstanceName.c_str());
@@ -1975,9 +1968,7 @@ WFE::Job::DoIt(bool issync)
             eos::common::Mapping::Root(root_vid);
             {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
               fmd->addLocation(TAPE_FS_ID);
-
               // Reset the error message
               fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
               gOFS->eosView->updateFileStore(fmd.get());

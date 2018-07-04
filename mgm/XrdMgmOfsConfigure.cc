@@ -252,8 +252,7 @@ XrdMgmOfs::InitializeFileView()
         while ((eos_chlog_filesvc->getFollowOffset() < (uint64_t) f_buf.st_size) ||
                (eos_chlog_dirsvc->getFollowOffset() < (uint64_t) c_buf.st_size) ||
                (eos_chlog_filesvc->getFollowPending())) {
-          XrdSysTimer sleeper;
-          sleeper.Wait(5000);
+          std::this_thread::sleep_for(std::chrono::seconds(5));
           eos_static_info("msg=\"waiting for the namespace to reach the follow "
                           "point\" is-file-offset=%llu, target-file-offset=%llu, "
                           "is-dir-offset=%llu, target-dir-offset=%llu, files-pending=%llu",
@@ -1962,8 +1961,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(1);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   if (!ObjectNotifier.Start()) {
     eos_crit("error starting the shared object change notifier");
@@ -2064,7 +2062,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  sleeper.Wait(200);
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
   // to be sure not to miss any notification while everything is starting up
   // we don't check if it succeeds because we might fail because we timeout
   // if there is no FST sending update

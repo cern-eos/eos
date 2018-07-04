@@ -32,8 +32,7 @@ Storage::Trim()
 {
   // Trim the DB every 30 days
   while (true) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(30 * 86400);
+    std::this_thread::sleep_for(std::chrono::hours(24 * 30));
     gFmdDbMapHandler.TrimDB();
   }
 }

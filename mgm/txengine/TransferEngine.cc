@@ -461,7 +461,7 @@ TransferEngine::Scheduler()
 {
   eos_static_info("running transfer scheduler");
   size_t loopsleep = 500000;
-  sleep(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
   size_t gwpos = 0;
   double pacifier = 1;
 
@@ -501,8 +501,7 @@ TransferEngine::Scheduler()
               eos_static_info("msg=\"no gw available to run transfer\"");
 
               for (size_t i = 0; i < 60; i++) {
-                XrdSysTimer sleeper;
-                sleeper.Wait(1000);
+                std::this_thread::sleep_for(std::chrono::seconds(1));
                 XrdSysThread::CancelPoint();
               }
 
@@ -649,8 +648,7 @@ TransferEngine::Scheduler()
     XrdSysThread::SetCancelOn();
 
     for (size_t i = 0; i < pacifier * loopsleep / 100000; i++) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(100);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       XrdSysThread::CancelPoint();
     }
   }
@@ -685,8 +683,7 @@ TransferEngine::Watch()
     XrdSysThread::SetCancelOn();
 
     for (size_t i = 0; i < loopsleep / 100000; i++) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(100);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       XrdSysThread::CancelPoint();
     }
   }

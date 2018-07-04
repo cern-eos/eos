@@ -32,7 +32,6 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is
@@ -117,12 +116,10 @@ Recycle::Recycler()
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 
   while (1) {
     //...........................................................................
@@ -130,10 +127,9 @@ Recycle::Recycler()
     //..........................................................................
     eos_static_info("snooze-time=%llu", snoozetime);
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
 
     for (int i = 0; i < snoozetime / 10; i++) {
-      sleeper.Snooze(10);
+      std::this_thread::sleep_for(std::chrono::seconds(10));
       {
         XrdSysMutexHelper lock(mWakeUpMutex);
 

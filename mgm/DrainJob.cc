@@ -234,7 +234,6 @@ DrainJob::Drain(void)
 {
   XrdSysThread::SetCancelOn();
   XrdSysThread::SetCancelDeferred();
-  XrdSysTimer sleeper;
   // the retry is currently hardcoded to 1
   // e.g. the maximum time for a drain operation is 1 x <drainperiod>
   int maxtry = 1;
@@ -294,7 +293,7 @@ retry:
     XrdSysThread::SetCancelOff();
     fs->SetLongLong("stat.timeleft", kLoop - 1 - k);
     XrdSysThread::SetCancelOn();
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
   }
 
@@ -314,8 +313,7 @@ retry:
       }
     }
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   } while (!go);
 
   // check if we should abort
@@ -326,7 +324,8 @@ retry:
   XrdSysThread::SetCancelOff();
   {
     //---------------------------------------------------------------------------
-    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
+    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+        gOFS->eosFsView, mFsId);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
@@ -402,11 +401,8 @@ retry:
     waitreporttime = time(NULL) + 10; // we report every 10 seconds
 
     while ((now = time(NULL)) < waitendtime) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(50);
-      //------------------------------------------------------------------------
-      // check if we should abort
-      //------------------------------------------------------------------------
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      // Check if we should abort
       XrdSysThread::CancelPoint();
 
       if (now > waitreporttime) {
@@ -485,7 +481,8 @@ retry:
       // TODO(gbitzes): It's a shame to prefetch the whole thing just to get its
       // size.. make getNumFilesOnFs not need to load the whole thing, or at
       // least introduce an async version.
-      eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView, gOFS->eosFsView, mFsId);
+      eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+          gOFS->eosFsView, mFsId);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       last_filesleft = filesleft;
       filesleft = gOFS->eosFsView->getNumFilesOnFs(mFsId);
@@ -647,8 +644,7 @@ retry:
       // check if we should abort
       //------------------------------------------------------------------------
       XrdSysThread::CancelPoint();
-      XrdSysTimer sleep;
-      sleep.Wait(100);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     XrdSysThread::SetCancelOff();

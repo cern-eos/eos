@@ -463,8 +463,7 @@ Iostat::Receive(void)
     }
 
     XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Snooze(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
     XrdSysThread::SetCancelOff();
   }
@@ -1487,8 +1486,7 @@ Iostat::Circulate()
     }
 
     sc++;
-    XrdSysTimer sleeper;
-    sleeper.Wait(512);
+    std::this_thread::sleep_for(std::chrono::milliseconds(512));
     Mutex.Lock();
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator
     tit;

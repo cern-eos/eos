@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "common/ZMQ.hh"
-#include "XrdSys/XrdSysTimer.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -71,8 +70,7 @@ ZMQ::Listen()
   while (1) {
     zmq::message_t request;
     (void) socket.recv(&request);
-    XrdSysTimer sleeper;
-    sleeper.Snooze(1);
+    std::this::thread::sleep_for(std::chrono::seconds(1));
     Process(socket, request);
     XrdSysThread::SetCancelOn();
     XrdSysThread::CancelPoint();

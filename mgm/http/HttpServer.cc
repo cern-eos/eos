@@ -68,8 +68,7 @@ HttpServer::Handler(void* cls,
       }
 
       if (!go) {
-        XrdSysTimer sleeper;
-        sleeper.Wait(100);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
   } while (!go);

@@ -120,8 +120,7 @@ XrdFstOfsFile::openofs(const char* path,
                                   opaque)) > 0) {
     eos_static_notice("msg\"xrootd-lock-table busy - snoozing & retry\" "
                       "delay=%d errno=%d", retc, errno);
-    XrdSysTimer sleeper;
-    sleeper.Snooze(retc);
+    std::this_thread::sleep_for(std::chrono::seconds(retc));
   }
 
   return retc;
@@ -1353,7 +1352,8 @@ XrdFstOfsFile::close()
                                   mCapOpaque->Get("mgm.manager"), capOpaqueFile);
 
             if (rc) {
-              if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) || (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
+              if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
+                  (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
                 if (!gOFS.Storage->CloseTransaction(mFsId, mFileId)) {
                   eos_crit("cannot close transaction for fsid=%u fid=%llu", mFsId, mFileId);
                 }
@@ -1364,7 +1364,7 @@ XrdFstOfsFile::close()
                   eos_info("info=\"unlinking fid=%08x path=%s - "
                            "file has been already unlinked from the namespace\"",
                            fMd->mProtoFmd.fid(), mNsPath.c_str());
-		  mFusexIsUnlinked = true;
+                  mFusexIsUnlinked = true;
                 }
 
                 if (error.getErrInfo() == EBADE) {
@@ -1391,7 +1391,8 @@ XrdFstOfsFile::close()
                 deleteOnClose = true;
               } else {
                 eos_crit("commit returned an uncatched error msg=%s [probably timeout]"
-                         " - closing transaction to keep the file save - rc = %d", error.getErrText(), rc);
+                         " - closing transaction to keep the file save - rc = %d", error.getErrText(),
+                         rc);
 
                 if (isRW) {
                   gOFS.Storage->CloseTransaction(mFsId, mFileId);
@@ -1750,10 +1751,12 @@ XrdFstOfsFile::close()
       if (rc == SFS_OK) {
         return rc;
       } else {
-        if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(), errMsgBackFromWfEndpoint)) {
+        if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(),
+                                       errMsgBackFromWfEndpoint)) {
           eos_crit("msg=\"Failed to send archive failed event to manager\" errMsgBackFromWfEndpoint=\"%s\"",
-            errMsgBackFromWfEndpoint.c_str());
+                   errMsgBackFromWfEndpoint.c_str());
         }
+
         return ECANCELED;
       }
     }
@@ -1782,7 +1785,8 @@ XrdFstOfsFile::close()
                           false);
   }
 
-  if (mFusexIsUnlinked && mFusex) {// mask close error for fusex, if the file had been removed already
+  if (mFusexIsUnlinked &&
+      mFusex) {// mask close error for fusex, if the file had been removed already
     rc = 0;
     error.setErrCode(0);
   }
@@ -2617,10 +2621,11 @@ XrdFstOfsFile::GetMtime()
 {
   if (!isRW) {
     // this is to report the MGM mtime to http get requests
-    if (mForcedMtime!=1) {
+    if (mForcedMtime != 1) {
       return mForcedMtime;
     }
   }
+
   if (fMd) {
     return fMd->mProtoFmd.mtime();
   } else {
@@ -2684,7 +2689,8 @@ XrdFstOfsFile::ProcessOpenOpaque()
   // call utimes.
   if ((val = mOpenOpaque->Get("mgm.mtime"))) {
     time_t mtime = (time_t)strtoull(val, 0, 10);
-    if (mtime==0) {
+
+    if (mtime == 0) {
       mForcedMtime = 0;
       mForcedMtime_ms = 0;
     } else {
@@ -3100,8 +3106,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       }
 
       if (!exists) {
-        XrdSysTimer timer;
-        timer.Wait(100);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
 
@@ -3239,53 +3244,50 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerName,
-  const string& ownerGroupName, const string& requestorName,
-  const string& requestorGroupName, const string& instanceName,
-  const string& fullPath, const string &managerName,
-  const std::map<std::string, std::string>& xattrs, string &errMsgBack) {
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
+    const string& ownerName,
+    const string& ownerGroupName, const string& requestorName,
+    const string& requestorGroupName, const string& instanceName,
+    const string& fullPath, const string& managerName,
+    const std::map<std::string, std::string>& xattrs, string& errMsgBack)
+{
   using namespace eos::common;
-
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(requestorName);
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_username(ownerName);
   notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName);
-
   notification->mutable_file()->set_size(fmd.size());
   notification->mutable_file()->mutable_cks()->set_type(
     eos::common::LayoutId::GetChecksumString(fmd.lid()));
-
   notification->mutable_file()->mutable_cks()->set_value(fmd.checksum());
-
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
-
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
+                      fmd.fid());
   std::ostringstream srcStream;
   srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
-    << fxidString;
+            << fxidString;
   notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-
   std::ostringstream reportStream;
   reportStream << "eosQuery://" << managerName
-    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-    << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0";
+               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+               << "&mgm.logid=cta&mgm.event=archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0";
   notification->mutable_transport()->set_report_url(reportStream.str());
-
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << managerName
-    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
-  notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+                    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME <<
+                    "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+  notification->mutable_transport()->set_error_report_url(
+    errorReportStream.str());
 
-  for (const auto& attrPair : xattrs)
-  {
+  for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
-      attrPair.second);
+        attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
 
@@ -3306,47 +3308,50 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
   }
 
   XrdSsiPb::Config config;
-  if(getenv("XRDDEBUG")) {
+
+  if (getenv("XRDDEBUG")) {
     config.set("log", "all");
   } else {
     config.set("log", "info");
   }
+
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is also thread-safe
   static XrdSsiPbServiceType service(endPoint, resource, config);
-
   cta::xrd::Response response;
 
   try {
     auto sentAt = std::chrono::steady_clock::now();
-
     auto future = service.Send(request, response);
     future.get();
-
     auto receivedAt = std::chrono::steady_clock::now();
-    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>(receivedAt - sentAt);
+    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
+                     (receivedAt - sentAt);
     eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count());
   } catch (std::runtime_error& error) {
     eos_static_err("Could not send request to outside service. Reason: %s",
-      error.what());
+                   error.what());
     return ENOTCONN;
   }
 
-  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*> errorEnumMap;
+  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
+  errorEnumMap;
   errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
   errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
   errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
   errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
 
   switch (response.type()) {
-  case cta::xrd::Response::RSP_SUCCESS: return SFS_OK;
+  case cta::xrd::Response::RSP_SUCCESS:
+    return SFS_OK;
 
   case cta::xrd::Response::RSP_ERR_CTA:
   case cta::xrd::Response::RSP_ERR_USER:
   case cta::xrd::Response::RSP_ERR_PROTOBUF:
   case cta::xrd::Response::RSP_INVALID:
     errMsgBack = response.message_txt();
-    eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()], fullPath.c_str(), response.message_txt().c_str());
+    eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()],
+                   fullPath.c_str(), response.message_txt().c_str());
     return EPROTO;
 
   default:
@@ -3358,14 +3363,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerNa
 //------------------------------------------------------------------------------
 // Send archive failed event to the manager
 //------------------------------------------------------------------------------
-int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid, const std::string &errMsg) {
-  const auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fid);
-
+int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid,
+    const std::string& errMsg)
+{
+  const auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
+                            fid);
   std::string encodedErrMsg;
-  if(!common::SymKey::Base64Encode(errMsg.c_str(), errMsg.length(), encodedErrMsg)) {
+
+  if (!common::SymKey::Base64Encode(errMsg.c_str(), errMsg.length(),
+                                    encodedErrMsg)) {
     // "Failed to encode message using base64" in base64 is RmFpbGVkIHRvIGVuY29kZSBtZXNzYWdlIHVzaW5nIGJhc2U2NA==
     encodedErrMsg = "RmFpbGVkIHRvIGVuY29kZSBtZXNzYWdlIHVzaW5nIGJhc2U2NA==";
-  } 
+  }
 
   XrdOucString errorReportOpaque = "";
   errorReportOpaque += "/?";
@@ -3382,10 +3391,11 @@ int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid, const std::str
   errorReportOpaque += "&mgm.errmsg=";
   errorReportOpaque += encodedErrMsg.c_str();
   eos_info("msg=\"sending error message to manager\" path=\"%s\" manager=\"%s\" errorReportOpaque=\"%s\"",
-    mCapOpaque->Get("mgm.path"), mCapOpaque->Get("mgm.manager"), errorReportOpaque.c_str());
-
-  return gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"), mCapOpaque->Get("mgm.manager"),
-    errorReportOpaque, nullptr, 30, mSyncEventOnClose, false);
+           mCapOpaque->Get("mgm.path"), mCapOpaque->Get("mgm.manager"),
+           errorReportOpaque.c_str());
+  return gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                          mCapOpaque->Get("mgm.manager"),
+                          errorReportOpaque, nullptr, 30, mSyncEventOnClose, false);
 }
 
 EOSFSTNAMESPACE_END

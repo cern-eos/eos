@@ -354,8 +354,7 @@ Storage::Publish()
                                              mFsVect[i]->getIOPS());
           success &= mFsVect[i]->SetDouble("stat.disk.bw",
                                            mFsVect[i]->getSeqBandwidth()); // in MB
-
-	  success &= mFsVect[i]->SetLongLong("stat.http.port", gOFS.mHttpdPort);
+          success &= mFsVect[i]->SetLongLong("stat.http.port", gOFS.mHttpdPort);
           {
             // we have to set something which is not empty to update the value
             if (!r_open_hotfiles.length()) {
@@ -426,8 +425,7 @@ Storage::Publish()
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
             hash->Set("stat.geotag", lNodeGeoTag.c_str());
-	    hash->Set("http.port", gOFS.mHttpdPort);
-
+            hash->Set("http.port", gOFS.mHttpdPort);
             hash->Set("debug.state",
                       eos::common::StringConversion::ToLower
                       (g_logging.GetPriorityString
@@ -464,8 +462,7 @@ Storage::Publish()
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
                          lReportIntervalMilliSeconds, lCycleDuration);
     } else {
-      XrdSysTimer sleeper;
-      sleeper.Snooze(lSleepTime / 1000);
+      std::this_thread::sleep_for(std::chrono::seconds(lSleepTime / 1000));
     }
   }
 
