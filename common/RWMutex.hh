@@ -491,7 +491,7 @@ private:
   std::set<std::thread::id> mThreadsWrLock; ///< Threads holding a write lock
   pthread_mutex_t mCollectionMutex; ///< Mutex protecting the sets above
   bool mEnableDeadlockCheck; ///< Check for deadlocks
-  bool mTransientDeadlockCheck; ///< Enabled by the global flag
+  std::atomic<bool> mTransientDeadlockCheck; ///< Enabled by the global flag
 
   static bool staticInitialized;
   static bool sEnableGlobalTiming;
