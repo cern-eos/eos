@@ -23,6 +23,7 @@
 
 #define __STDC_FORMAT_MACROS
 #include <cinttypes>
+#include <fst/FmdDbMap.hh>
 
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
@@ -122,11 +123,32 @@ Storage::InjectionScan()
       sprintf(filesize, "%" PRIu64 "", buf.st_size);
       capOpaqueFile += filesize;
 
-      int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0, capOpaqueFile);
+      XrdOucString response;
+      int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0,
+                                capOpaqueFile, &response);
       if (rc) {
         eos_static_err("unable to inject file name=%s fs=%u at manager %s",
                        lFilePath.c_str(), inScan->fsId,
                        inScan->managerId.c_str());
+      } else {
+        XrdOucEnv responseEnv(response.c_str());
+        char* afid = responseEnv.Get("fid");
+        char* alid = responseEnv.Get("lid");
+        char* auid = responseEnv.Get("uid");
+        char* agid = responseEnv.Get("gid");
+
+        unsigned long long fid = strtoull(afid, 0, 10);
+        unsigned int lid = strtoul(alid, 0, 10);
+        uid_t uid = strtoul(auid, 0, 10);
+        gid_t gid = strtoul(agid, 0, 10);
+
+        // Create local fmd entry from response data
+        FmdHelper *fmd = gFmdDbMapHandler.LocalGetFmd(fid, inScan->fsId,
+                                                      uid, gid, lid, true);
+        if (!fmd) {
+          eos_static_err("unable to create fmd entry name=%s fs=%u",
+                          lFilePath.c_str(), inScan->fsId);
+        }
       }
     }
 
