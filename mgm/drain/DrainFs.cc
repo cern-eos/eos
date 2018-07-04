@@ -38,12 +38,14 @@ using namespace std::chrono;
 // Constructor
 //------------------------------------------------------------------------------
 DrainFs::DrainFs(eos::common::ThreadPool& thread_pool,
-                 eos::common::FileSystem::fsid_t fs_id,
-                 eos::common::FileSystem::fsid_t target_fs_id):
-  mFsId(fs_id), mTargetFsId(target_fs_id),
+                 eos::common::FileSystem::fsid_t src_fsid,
+                 eos::common::FileSystem::fsid_t dst_fsid):
+  mFsId(src_fsid), mTargetFsId(dst_fsid),
   mStatus(eos::common::FileSystem::kNoDrain),
   mDrainStop(false), mForceRetry(false), mMaxRetries(1), mMaxJobs(10),
-  mTotalFiles(0), mDrainPeriod(0), mThreadPool(thread_pool)
+  mDrainPeriod(0), mThreadPool(thread_pool), mTotalFiles(0ull),
+  mLastNumToDrain(0ull), mLastRefreshTime(steady_clock::now()),
+  mLastProgressTime(steady_clock::now())
 {}
 
 //------------------------------------------------------------------------------
@@ -183,19 +185,20 @@ DrainFs::CompleteDrain()
     if (fs) {
       mStatus = eos::common::FileSystem::kDrained;
       fs->OpenTransaction();
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-      fs->SetLongLong("stat.drainbytesleft", 0);
-      fs->SetLongLong("stat.timeleft", 0);
+      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
+      fs->SetLongLong("stat.drainbytesleft", 0, false);
+      fs->SetLongLong("stat.timeleft", 0, false);
 
       if (!gOFS->Shutdown) {
         // If drain done and the system is not shutting down then set the
         // file system to "empty" state
+        fs->SetLongLong("stat.drainprogress", 100, false);
         fs->SetConfigStatus(eos::common::FileSystem::kEmpty);
-        fs->SetLongLong("stat.drainprogress", 100);
+        fs->CloseTransaction();
         FsView::gFsView.StoreFsConfig(fs);
+      } else {
+        fs->CloseTransaction();
       }
-
-      fs->CloseTransaction();
     }
   }
 }
@@ -226,7 +229,7 @@ DrainFs::Stop()
       mStatus = eos::common::FileSystem::kNoDrain;
       fs->OpenTransaction();
       fs->SetConfigStatus(eos::common::FileSystem::kRW);
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
       fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
       return;
@@ -255,11 +258,10 @@ DrainFs::PrepareFs()
       return false;
     }
 
-    fs->OpenTransaction();
-    fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
     mStatus = eos::common::FileSystem::kDrainPrepare;
+    fs->SetDrainStatus(mStatus, false);
+    fs->SetLongLong("stat.drain.failed", 0, false);
     // fs->SetLongLong("stat.drainretry", ntried - 1);
-    fs->CloseTransaction();
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     fs->SnapShotFileSystem(drain_snapshot, false);
@@ -340,59 +342,52 @@ DrainFs::MarkFsDraining()
   }
 
   mStatus = eos::common::FileSystem::kDraining;
-  fs->OpenTransaction();
   fs->SetDrainStatus(eos::common::FileSystem::kDraining);
   fs->SetLongLong("stat.drainbytesleft",
-                  fs->GetLongLong("stat.statfs.usedbytes"));
-  fs->SetLongLong("stat.drainfiles", mTotalFiles);
-  fs->CloseTransaction();
+                  fs->GetLongLong("stat.statfs.usedbytes"), false);
+  fs->SetLongLong("stat.drainfiles", mTotalFiles, false);
+  fs->SetLongLong("stat.drain.failed", 0, false);
   FsView::gFsView.StoreFsConfig(fs);
   return true;
 }
 
 //------------------------------------------------------------------------------
 // Update progress of the drain
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 DrainFs::State
 DrainFs::UpdateProgress()
 {
-  static bool first_run = true;
-  static seconds refresh_timeout(60);
-  static seconds stall_timeout(600);
-  static uint64_t old_num_to_drain = 0;
-  static time_point<steady_clock> last_change = steady_clock::now();
+  bool is_expired = false;
+  auto now = steady_clock::now();
   uint64_t num_to_drain = mJobsPending.size() + mJobsFailed.size() +
                           mJobsRunning.size();
-  bool expired = false;
-  auto now = steady_clock::now();
 
-  if (old_num_to_drain != num_to_drain) {
-    old_num_to_drain = num_to_drain;
-    last_change = now;
+  if (mLastNumToDrain != num_to_drain) {
+    mLastNumToDrain = num_to_drain;
+    mLastProgressTime = now;
   } else {
     std::this_thread::sleep_for(seconds(1));
   }
 
-  auto duration = now - last_change;
+  auto duration = now - mLastProgressTime;
   bool is_stalled = (duration_cast<seconds>(duration).count() >
-                     stall_timeout.count());
-  eos_static_debug("msg=\"timestamp=%llu, last_change=%llu, is_stalled=%i, "
-                   "num_to_drain=%llu, old_num_to_drain=%llu, running=%llu,"
-                   "pending=%llu, failed=%llu\"",
-                   duration_cast<milliseconds>(now.time_since_epoch()).count(),
-                   duration_cast<milliseconds>(last_change.time_since_epoch()).count(),
-                   is_stalled, num_to_drain, old_num_to_drain, mJobsRunning.size(),
-                   mJobsPending.size(), mJobsFailed.size());
+                     sStallTimeout.count());
+  eos_debug("msg=\"fsid=%d, timestamp=%llu, last_progress=%llu, is_stalled=%i, "
+            "num_to_drain=%llu, last_num_to_drain=%llu, running=%llu, "
+            "pending=%llu, failed=%llu\"", mFsId,
+            duration_cast<milliseconds>(now.time_since_epoch()).count(),
+            duration_cast<milliseconds>(mLastProgressTime.time_since_epoch()).count(),
+            is_stalled, num_to_drain, mLastNumToDrain, mJobsRunning.size(),
+            mJobsPending.size(), mJobsFailed.size());
 
   // Check if drain expired
   if (mDrainPeriod.count() && (mDrainEnd < now)) {
     eos_warning("msg=\"drain expired\" fsid=%d", mFsId);
-    expired = true;
+    is_expired = true;
   }
 
   // Update drain display variables
-  if (first_run || is_stalled || expired || (last_change == now)) {
-    first_run = false;
+  if (is_stalled || is_expired || (mLastProgressTime == now)) {
     FileSystem* fs = nullptr;
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
@@ -401,77 +396,64 @@ DrainFs::UpdateProgress()
     }
 
     if (!fs) {
-      eos_static_err("msg=\"removed during drain\" fsid=%d", mFsId);
+      eos_err("msg=\"removed during drain\" fsid=%d", mFsId);
       return State::Failed;
     }
 
-    if (expired) {
+    if (is_expired) {
+      fs->SetLongLong("stat.drainfiles", num_to_drain, false);
       mStatus = eos::common::FileSystem::kDrainExpired;
-      fs->OpenTransaction();
-      fs->SetLongLong("stat.drainfiles", num_to_drain);
       fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
-      fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
       return State::Expired;
     }
-
-    fs->OpenTransaction();
-    fs->SetLongLong("stat.drainbytesleft",
-                    fs->GetLongLong("stat.statfs.usedbytes"));
-    fs->SetLongLong("stat.drainfiles", num_to_drain);
-    // Mark when we actually need to store the FileSystem config modifications
-    // on disk - aviod putting unnecessary pressure by saving it blindly
-    bool store_config = false;
 
     if (is_stalled) {
       if (mStatus != eos::common::FileSystem::kDrainStalling) {
         mStatus = eos::common::FileSystem::kDrainStalling;
         fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
-        store_config = true;
+        FsView::gFsView.StoreFsConfig(fs);
       }
     } else {
       if (mStatus != eos::common::FileSystem::kDraining) {
         mStatus = eos::common::FileSystem::kDraining;
         fs->SetDrainStatus(eos::common::FileSystem::kDraining);
-        store_config = true;
+        FsView::gFsView.StoreFsConfig(fs);
       }
     }
 
-    uint64_t progress = 100u;
+    uint64_t progress = 100ull;
 
     if (mTotalFiles) {
       progress = 100.0 * (mTotalFiles - num_to_drain) / mTotalFiles;
     }
 
-    fs->SetLongLong("stat.drainprogress", progress, false);
+    uint64_t time_left = 99999999999ull;
 
     if (mDrainEnd > steady_clock::now()) {
       auto duration = mDrainEnd - steady_clock::now();
-      fs->SetLongLong("stat.timeleft", duration_cast<seconds>(duration).count(),
-                      false);
-    } else {
-      fs->SetLongLong("stat.timeleft", 99999999999LL, false);
+      time_left = duration_cast<seconds>(duration).count();
     }
 
-    fs->CloseTransaction();
-
-    if (store_config) {
-      FsView::gFsView.StoreFsConfig(fs);
-    }
+    fs->SetLongLong("stat.drain.failed", mJobsFailed.size(), false);
+    fs->SetLongLong("stat.drainfiles", num_to_drain, false);
+    fs->SetLongLong("stat.drainprogress", progress, false);
+    fs->SetLongLong("stat.timeleft", time_left, false);
+    fs->SetLongLong("stat.drainbytesleft",
+                    fs->GetLongLong("stat.statfs.usedbytes"), false);
   }
 
   // If we have only failed jobs check if files still exist
   if ((mJobsRunning.size() == 0) &&
       (mJobsPending.size() == 0) &&
       (mJobsFailed.size())) {
-    static auto last_tstamp = steady_clock::now();
     auto now_tstamp = steady_clock::now();
-    auto dur = now_tstamp - last_tstamp;
+    auto dur = now_tstamp - mLastRefreshTime;
     bool do_refresh = (duration_cast<seconds>(dur).count() >
-                       refresh_timeout.count());
+                       sRefreshTimeout.count());
 
     if (do_refresh) {
-      last_tstamp = now_tstamp;
+      mLastRefreshTime = now_tstamp;
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
       for (auto it = mJobsFailed.begin(); it != mJobsFailed.end();) {
@@ -504,14 +486,12 @@ DrainFs::ResetCounters()
     FileSystem* fs = FsView::gFsView.mIdView[mFsId];
 
     if (fs) {
-      fs->OpenTransaction();
-      fs->SetLongLong("stat.drainbytesleft", 0);
-      fs->SetLongLong("stat.drainfiles", 0);
-      fs->SetLongLong("stat.timeleft", 0);
-      fs->SetLongLong("stat.drainprogress", 0);
-      fs->SetLongLong("stat.drainretry", 0);
+      fs->SetLongLong("stat.drainbytesleft", 0, false);
+      fs->SetLongLong("stat.drainfiles", 0, false);
+      fs->SetLongLong("stat.timeleft", 0, false);
+      fs->SetLongLong("stat.drainprogress", 0, false);
+      fs->SetLongLong("stat.drainretry", 0, false);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-      fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
     }
   }

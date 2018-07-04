@@ -427,9 +427,9 @@ public:
   //! Set the draining status
   //----------------------------------------------------------------------------
   bool
-  SetDrainStatus(fsstatus_t status)
+  SetDrainStatus(fsstatus_t status, bool broadcast = true)
   {
-    return SetString("drainstatus", GetDrainStatusAsString(status));
+    return SetString("drainstatus", GetDrainStatusAsString(status), broadcast);
   }
 
   //----------------------------------------------------------------------------

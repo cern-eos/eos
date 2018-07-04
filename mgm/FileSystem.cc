@@ -29,14 +29,13 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-bool
-FileSystem::StartDrainJob()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Start a drain job on this filesystem
  * @return true if started otherwise false
  */
 /*----------------------------------------------------------------------------*/
+bool
+FileSystem::StartDrainJob()
 {
   if (!ShouldBroadCast()) {
     // this is a filesystem on a ro-slave MGM e.g. it does not drain
@@ -58,14 +57,13 @@ FileSystem::StartDrainJob()
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-FileSystem::StopDrainJob()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Stop a drain job on this filesystem
  * @return true if stopped otherwise false
  */
 /*----------------------------------------------------------------------------*/
+bool
+FileSystem::StopDrainJob()
 {
   eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 

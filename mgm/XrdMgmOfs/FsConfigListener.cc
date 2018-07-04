@@ -132,7 +132,7 @@ XrdMgmOfs::FsConfigListener()
         if (queue == MgmConfigQueue.c_str()) {
           // This is an MGM configuration modification
           if (!gOFS->MgmMaster.IsMaster()) {
-            // only an MGM slave needs to aplly this
+            // only an MGM slave needs to apply this
             gOFS->ObjectManager.HashMutex.LockRead();
             XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
@@ -162,10 +162,8 @@ XrdMgmOfs::FsConfigListener()
                   }
                 } else {
                   eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
-                  gOFS->ConfEngine->SetConfigValue(0,
-                                                   key.c_str(),
-                                                   value.c_str(),
-                                                   false);
+                  gOFS->ConfEngine->SetConfigValue(0, key.c_str(),
+                                                   value.c_str(), false);
                   gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
                 }
               }
@@ -194,11 +192,12 @@ XrdMgmOfs::FsConfigListener()
                       "queue %s which is not registered ", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
+
             if (FsView::gFsView.mIdView.count(fsid)) {
               fs = FsView::gFsView.mIdView[fsid];
 
               if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
-              // check if the change notification is an actual change in the geotag
+                // check if the change notification is an actual change in the geotag
                 FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
                 static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
                 oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
@@ -206,12 +205,13 @@ XrdMgmOfs::FsConfigListener()
 
               if (fs && (oldgeotag != newgeotag)) {
                 eos_warning("Received a geotag change for fsid %lu new geotag is "
-                          "%s, old geotag was %s ", (unsigned long)fsid,
-                          newgeotag.c_str(), oldgeotag.c_str());
+                            "%s, old geotag was %s ", (unsigned long)fsid,
+                            newgeotag.c_str(), oldgeotag.c_str());
                 FsView::gFsView.ViewMutex.UnLockRead();
                 eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
                 eos::common::FileSystem::fs_snapshot snapshot;
                 fs->SnapShotFileSystem(snapshot);
+
                 // Update node view tree structure
                 if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
                   FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
@@ -264,7 +264,7 @@ XrdMgmOfs::FsConfigListener()
                 }
               } else {
                 FsView::gFsView.ViewMutex.UnLockRead();
-                }
+              }
             } else {
               FsView::gFsView.ViewMutex.UnLockRead();
             }
@@ -297,7 +297,6 @@ XrdMgmOfs::FsConfigListener()
           if (gOFS->MgmMaster.IsMaster()) {
             // only an MGM master needs to initiate draining
             eos::common::FileSystem::fsid_t fsid = 0;
-            FileSystem* fs = 0;
             long long errc = 0;
             std::string configstatus = "";
             std::string bootstatus = "";
@@ -321,32 +320,22 @@ XrdMgmOfs::FsConfigListener()
 
             if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) &&
                 (bstatus == eos::common::FileSystem::kOpsError)) {
-              // this is the case we take action and explicitly ask to start a drain job
+              // Case when we take action and explicitly ask to start a drain job
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
               if (FsView::gFsView.mIdView.count(fsid)) {
-                fs = FsView::gFsView.mIdView[fsid];
-              } else {
-                fs = 0;
-              }
-
-              if (fs) {
-                fs->StartDrainJob();
+                FileSystem* fs = FsView::gFsView.mIdView[fsid];
+                fs->SetConfigStatus(eos::common::FileSystem::kDrain);
               }
             }
 
             if (fsid && (!errc)) {
-              // make sure there is no drain job triggered by a previous filesystem errc!=0
+              // Make sure there is no drain job triggered by a previous filesystem errc!=0
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
               if (FsView::gFsView.mIdView.count(fsid)) {
-                fs = FsView::gFsView.mIdView[fsid];
-              } else {
-                fs = 0;
-              }
-
-              if (fs) {
-                fs->StopDrainJob();
+                FileSystem* fs = FsView::gFsView.mIdView[fsid];
+                fs->SetConfigStatus(eos::common::FileSystem::kRW);
               }
             }
           }

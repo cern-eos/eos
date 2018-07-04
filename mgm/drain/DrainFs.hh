@@ -55,12 +55,12 @@ public:
   //! Constructor
   //!
   //! @param thread_pool drain thread pool to use for jobs
-  //! @param fs_id filesystem id
-  //! @param target_fs_id file system where to drain
+  //! @param src_fsid filesystem id to drain
+  //! @param dst_fsid file system where to drain
   //----------------------------------------------------------------------------
   DrainFs(eos::common::ThreadPool& thread_pool,
-          eos::common::FileSystem::fsid_t fs_id,
-          eos::common::FileSystem::fsid_t target_fs_id = 0);
+          eos::common::FileSystem::fsid_t src_fsid,
+          eos::common::FileSystem::fsid_t dst_fsid = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -187,6 +187,8 @@ private:
   //---------------------------------------------------------------------------
   void Stop();
 
+  constexpr static std::chrono::seconds sRefreshTimeout {60};
+  constexpr static std::chrono::seconds sStallTimeout {600};
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::FileSystem::eDrainStatus mStatus;
@@ -194,7 +196,6 @@ private:
   std::atomic<bool> mForceRetry; ///< Flag to retry failed transfers
   std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
-  uint64_t mTotalFiles; ///< Total number of files to drain
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
   std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
@@ -206,6 +207,12 @@ private:
   std::list<std::shared_ptr<DrainTransferJob>> mJobsRunning;
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
+  uint64_t mTotalFiles; ///< Total number of files to drain
+  uint64_t mLastNumToDrain; ///< Last number of drain jobs recorded
+  //! Last timestamp when a refresh of failed transfers was performed
+  std::chrono::time_point<std::chrono::steady_clock> mLastRefreshTime;
+  //! Last timestamp when drain progress was recorded
+  std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
 };
 
 EOSMGMNAMESPACE_END

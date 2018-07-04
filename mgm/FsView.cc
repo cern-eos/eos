@@ -1227,6 +1227,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.drainfiles:format=ol|";
     format += "key=stat.drainbytesleft:format=ol|";
     format += "key=stat.drainretry:format=ol|";
+    format += "key=stat.drain.failed:format=ol|";
     format += "key=graceperiod:format=ol|";
     format += "key=stat.timeleft:format=ol|";
     format += "key=stat.active:format=os|";
@@ -1291,7 +1292,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|";
     format += "key=stat.timeleft:width=11:format=l:tag=timeleft|";
     format += "key=stat.drainretry:width=6:format=l:tag=retry|";
-    format += "key=stat.wopen:width=6:format=l:tag=wopen";
+    format += "key=stat.drain.failed:width=12:format=+l:tag=failed";
   } else if (option == "l") {
     // long format
     format = "header=1:key=host:width=24:format=-S|";
