@@ -481,7 +481,7 @@ private:
   std::string mDebugName;
   int mCounter;
   int mSamplingModulo;
-  bool mEnableTiming, mEnableSampling;
+  std::atomic<bool> mEnableTiming, mEnableSampling;
   //! Specific type of counters
   size_t mRdCumulatedWait, mWrCumulatedWait;
   size_t mRdMaxWait, mWrMaxWait, mRdMinWait, mWrMinWait;
