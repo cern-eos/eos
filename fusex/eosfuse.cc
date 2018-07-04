@@ -87,6 +87,7 @@
 
 const char *k_mdino = "sys.eos.mdino";
 const char *k_nlink = "sys.eos.nlink";
+const char *k_fifo  = "sys.eos.fifo";
 
 EosFuse* EosFuse::sEosFuse = 0;
 
@@ -3255,6 +3256,11 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
         md->set_err(0);
         md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
+
+	if (S_ISFIFO(mode)) {
+	  (*md->mutable_attr())[k_fifo] = "";
+	}
+
         struct timespec ts;
         eos::common::Timing::GetTimeSpec(ts);
         md->set_name(name);

@@ -2585,7 +2585,7 @@ FuseServer::HandleMD(const std::string& id,
       return 0;
     }
 
-    if (S_ISREG(md.mode())) {
+    if (S_ISREG(md.mode()) || S_ISFIFO(md.mode())) {
       eos_static_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
                       (long) md.md_pino(),
                       md.authid().c_str());

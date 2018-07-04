@@ -321,6 +321,7 @@ void
 metad::mdx::convert(struct fuse_entry_param& e)
 {
   const char *k_mdino = "sys.eos.mdino";
+  const char *k_fifo = "sys.eos.fifo";
   auto attrMap = attr();
 
   e.ino = id();
@@ -341,6 +342,12 @@ metad::mdx::convert(struct fuse_entry_param& e)
 
       e.ino = e.attr.st_ino = local_ino;
   }
+
+  if (attrMap.count(k_fifo)) {
+    e.attr.st_mode &= !S_IFREG;
+    e.attr.st_mode |= S_IFIFO;
+  }
+
   e.attr.st_uid = uid();
   e.attr.st_gid = gid();
   e.attr.st_rdev = 0;
