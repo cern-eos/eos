@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <thread>
 
 #ifndef __APPLE__
 #include <xfs/xfs.h>
