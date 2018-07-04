@@ -227,6 +227,7 @@ foreach ( @filesystems ) {
     my $cmd=0;
     if (!($cmd=fork())) {
 	system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+    system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs boot $uuid");
 	exit(0);
     }
 
