@@ -305,7 +305,7 @@ public:
   bool
   OpenTransaction()
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->OpenTransaction();
@@ -321,7 +321,7 @@ public:
   bool
   CloseTransaction()
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->CloseTransaction();
@@ -337,7 +337,7 @@ public:
   bool
   SetId(fsid_t fsid)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Set("id", (long long) fsid);
@@ -353,7 +353,7 @@ public:
   bool
   SetString(const char* key, const char* str, bool broadcast = true)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Set(key, str, broadcast);
@@ -369,7 +369,7 @@ public:
   bool
   SetDouble(const char* key, double f, bool broadcast = true)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Set(key, f, broadcast);
@@ -385,7 +385,7 @@ public:
   bool
   SetLongLong(const char* key, long long l, bool broadcast = true)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    XrdMqRWMutexWriteLock lock(mSom->HashMutex);
 
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Set(key, l, broadcast);
