@@ -159,14 +159,23 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView *view, const std::
   IContainerMDPtr cmd = fut.get();
   Prefetcher prefetcher(view);
 
+  std::vector<std::string> paths;
   for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-    std::string fpath = SSTR(path << "/" << dit.key());
-    prefetcher.stageContainerMD(fpath, true);
+    paths.emplace_back(SSTR(path << "/" << dit.key()));
   }
 
-  for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-    std::string fpath = SSTR(path << "/" << dit.key());
-    prefetcher.stageFileMD(fpath, true);
+  for(size_t i = 0; i < paths.size(); i++) {
+    prefetcher.stageContainerMD(paths[i], true);
+  }
+
+  paths.clear();
+
+  for(auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+    paths.emplace_back(SSTR(path << "/" << dit.key()));
+  }
+
+  for(size_t i = 0; i < paths.size(); i++) {
+    prefetcher.stageFileMD(paths[i], true);
   }
 
   prefetcher.wait();
