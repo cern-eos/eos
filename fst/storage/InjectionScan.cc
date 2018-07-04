@@ -78,7 +78,7 @@ Storage::InjectionScan()
       continue;
     }
 
-    std::string filePath, lFilePath;
+    std::string filePath, lFilePath, fileName;
 
     // Scan the directory found at extPath
     while ((filePath = io->ftsRead(handle)) != "") {
@@ -99,6 +99,10 @@ Storage::InjectionScan()
         continue;
       }
 
+      size_t spos = lFilePath.rfind("/");
+      fileName = (spos == std::string::npos)  ?
+                 lFilePath :  lFilePath.substr(spos + 1);
+
       // Construct command message
       XrdOucErrInfo error;
       XrdOucString capOpaqueFile = "";
@@ -109,6 +113,10 @@ Storage::InjectionScan()
       capOpaqueFile += lFilePath.c_str();
       capOpaqueFile += "&mgm.inject.lclpath=";
       capOpaqueFile += inScan->lclPath;
+      if (!inScan->lclPath.endswith("/")) {
+        capOpaqueFile += "/";
+      }
+      capOpaqueFile += fileName.c_str();
       capOpaqueFile += "&mgm.inject.size=";
       char filesize[256];
       sprintf(filesize, "%" PRIu64 "", buf.st_size);
@@ -117,7 +125,8 @@ Storage::InjectionScan()
       int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0, capOpaqueFile);
       if (rc) {
         eos_static_err("unable to inject file name=%s fs=%u at manager %s",
-                       lFilePath.c_str(), inScan->fsId, "manager_goes_here");
+                       lFilePath.c_str(), inScan->fsId,
+                       inScan->managerId.c_str());
       }
     }
 

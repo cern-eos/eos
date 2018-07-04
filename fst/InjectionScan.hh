@@ -44,14 +44,16 @@ class InjectionScan
 public:
 
   unsigned long fsId;
+  XrdOucString managerId;
   XrdOucString extPath;
   XrdOucString lclPath;
   XrdOucString opaque;
 
-  InjectionScan(unsigned long fsid, const char* extpath, const char* lclpath,
-                const char* inopaque)
+  InjectionScan(unsigned long fsid, const char* managerid, const char* extpath,
+                const char* lclpath, const char* inopaque)
   {
     fsId = fsid;
+    managerId = managerid;
     extPath = extpath;
     lclPath = lclpath;
     opaque = inopaque;
@@ -62,21 +64,24 @@ public:
   {
     // decode the opaque tags
     const char* sfsid = 0;
+    const char* smanager = 0;
     const char* extPath = 0;
     const char* lclPath = 0;
     unsigned long fsid = 0;
 
     sfsid = capOpaque->Get("mgm.fsid");
+    smanager = capOpaque->Get("mgm.manager");
     extPath = capOpaque->Get("mgm.extpath");
     lclPath = capOpaque->Get("mgm.lclpath");
 
-    if (!sfsid  || !extPath || !lclPath) {
+    if (!sfsid  || !extPath || !lclPath || !smanager) {
       return 0;
     }
 
     int envlen = 0;
     fsid = atoi(sfsid);
-    return new InjectionScan(fsid, extPath, lclPath, capOpaque->Env(envlen));
+    return new InjectionScan(fsid, smanager, extPath, lclPath,
+                             capOpaque->Env(envlen));
   };
 
   ~InjectionScan() { };

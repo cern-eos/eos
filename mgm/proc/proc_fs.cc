@@ -747,6 +747,8 @@ proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string& lclDst,
   XrdOucString receiver = fs->GetQueue().c_str();
   XrdOucString opaquestring = "";
 
+  opaquestring += "&mgm.manager=";
+  opaquestring += gOFS->ManagerId.c_str();
   opaquestring += "&mgm.fsid=";
   opaquestring += sfsid.c_str();
   opaquestring += "&mgm.extpath=";
