@@ -27,6 +27,7 @@
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
+#include "mgm/TableFormatter/TableCell.hh"
 #include "common/StringConversion.hh"
 #include "mq/XrdMqRWMutex.hh"
 #include <string>
@@ -35,7 +36,6 @@
 #include <set>
 #include <deque>
 #include <regex.h>
-#include "mgm/TableFormatter/TableCell.hh"
 #include <atomic>
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
@@ -76,7 +76,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~XrdMqSharedHashEntry() {};
+  virtual ~XrdMqSharedHashEntry() = default;
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -178,9 +178,12 @@ class XrdMqSharedHash
 {
   friend class XrdMqSharedObjectManager;
 public:
-  static std::atomic<unsigned long long> sSetCounter; ///< Counter for set operations
-  static std::atomic<unsigned long long> sSetNLCounter; ///< Counter for set no-lock operations
-  static std::atomic<unsigned long long> sGetCounter; ///< Counter for get operations
+  static std::atomic<unsigned long long>
+  sSetCounter; ///< Counter for set operations
+  static std::atomic<unsigned long long>
+  sSetNLCounter; ///< Counter for set no-lock operations
+  static std::atomic<unsigned long long>
+  sGetCounter; ///< Counter for get operations
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -195,7 +198,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~XrdMqSharedHash() {};
+  virtual ~XrdMqSharedHash() = default;
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -524,7 +527,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~XrdMqSharedQueue() {};
+  virtual ~XrdMqSharedQueue() = default;
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -875,7 +878,7 @@ public:
     std::set<std::string>  WatchSubjectsRegex[5];
     std::vector< std::pair<std::set<std::string>, std::set<std::string> > >
     WatchSubjectsXKeys[5];
-    XrdSysMutex WatchMutex; //< protects access to all Watch* c
+    XrdSysMutex WatchMutex; //< protects access to all Watch* objects
 
     std::deque<XrdMqSharedObjectManager::Notification> NotificationSubjects;
     XrdSysSemWait SubjectsSem;
@@ -889,13 +892,11 @@ public:
     bool empty()
     {
       for (int k = 0; k < 4; k++) {
-        if (
-          WatchSubjects[k].size()
-          || WatchKeys[k].size()
-          || WatchSubjectsRegex[k].size()
-          || WatchKeysRegex[k].size()
-          || WatchSubjectsXKeys[k].size()
-        ) {
+        if (WatchSubjects[k].size() ||
+            WatchKeys[k].size() ||
+            WatchSubjectsRegex[k].size() ||
+            WatchKeysRegex[k].size() ||
+            WatchSubjectsXKeys[k].size()) {
           return false;
         }
       }
@@ -958,7 +959,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~XrdMqSharedObjectChangeNotifier() {}
+  ~XrdMqSharedObjectChangeNotifier() = default;
 
   bool SubscribesToSubject(const std::string& susbcriber,
                            const std::string& subject,
@@ -1043,7 +1044,6 @@ private:
     }
   };
 
-  // TODO(esindril): This variable is also defined in the public part
   XrdSysMutex WatchMutex;
   std::map<std::string, WatchItemInfo > WatchKeys2Subscribers[5];
   std::map<std::string, WatchItemInfo > WatchSubjects2Subscribers[5];
