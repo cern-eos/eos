@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
+#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -292,7 +293,7 @@ public:
   fsstatus_t cStatus; ///< cache value of the status
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
   XrdSysMutex cStatusLock; ///< lock protecting the cached statuss
-  fsstatus_t cConfigStatus; ///< cached value of the config status
+  std::atomic<fsstatus_t> cConfigStatus; ///< cached value of the config status
   XrdSysMutex cConfigLock; ///< lock protecting the cached config status
   time_t cConfigTime; ///< unix time stamp of last update of the cached config status
 
