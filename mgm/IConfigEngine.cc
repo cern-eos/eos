@@ -395,6 +395,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
   }
   Access::Reset();
   {
+    eos::common::RWMutexWriteLock wr_view_lock(eos::mgm::FsView::gFsView.ViewMutex);
     XrdSysMutexHelper lock(mMutex);
     // Disable the defaults in FsSpace
     FsSpace::gDisableDefaults = true;

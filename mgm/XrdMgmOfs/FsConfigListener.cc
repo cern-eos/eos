@@ -164,7 +164,15 @@ XrdMgmOfs::FsConfigListener()
                   eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
                   gOFS->ConfEngine->SetConfigValue(0, key.c_str(),
                                                    value.c_str(), false);
-                  gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+
+                  // For file system modification we need to take the
+                  // FsView::ViewMutex for write
+                  if (key.find("fs:") == 0) {
+                    eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
+                    gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+                  } else {
+                    gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+                  }
                 }
               }
             } else {

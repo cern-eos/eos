@@ -2176,19 +2176,22 @@ FsView::FindByQueuePath(std::string& queuepath)
 bool
 FsView::SetGlobalConfig(std::string key, std::string value)
 {
-  // We need to store this in the shared hash between MGMs
-  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            MgmConfigQueueName.c_str());
+  std::string ckey {""};
+  {
+    // We need to store this in the shared hash between MGMs
+    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+                              MgmConfigQueueName.c_str());
 
-  if (hash) {
-    hash->Set(key.c_str(), value.c_str());
+    if (hash) {
+      hash->Set(key.c_str(), value.c_str());
+    }
+
+    // register in the configuration engine
+    std::string ckey = MgmConfigQueueName.c_str();
+    ckey += "#";
+    ckey += key;
   }
-
-  // register in the configuration engine
-  std::string ckey = MgmConfigQueueName.c_str();
-  ckey += "#";
-  ckey += key;
 
   if (FsView::sConfEngine) {
     FsView::sConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
@@ -2858,6 +2861,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 //------------------------------------------------------------------------------
 // Converts a config engine definition for a filesystem into the FsView
 // representation.
+// @note This method needs to be called with the ViewMutex locked for write
 //------------------------------------------------------------------------------
 bool
 FsView::ApplyFsConfig(const char* inkey, std::string& val)
@@ -2885,9 +2889,8 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     return false;
   }
 
-  eos::common::RWMutexWriteLock viewlock(ViewMutex);
+  FileSystem* fs = nullptr;
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
-  FileSystem* fs = 0;
 
   // Apply only the registration fo a new filesystem if it does not exist
   if (!FsView::gFsView.mIdView.count(fsid)) {

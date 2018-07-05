@@ -43,6 +43,7 @@ XrdMgmOfs::ResetPathMap()
 //------------------------------------------------------------------------------
 // Add a source/target pair to the path remapping table
 //------------------------------------------------------------------------------
+// @todo (esindril) drop the stop config and store the config when necessary
 bool
 XrdMgmOfs::AddPathMap(const char* source, const char* target,
                       bool store_config)
