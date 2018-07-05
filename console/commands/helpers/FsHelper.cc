@@ -234,11 +234,20 @@ FsHelper::ParseCommand(const char* arg)
           (soption.find('/') != std::string::npos)) {
         config->set_hostportpath(soption);
       } else {
-        try {
-          uint64_t fsid = std::stoull(soption);
-          config->set_fsid(fsid);
-        } catch (const std::exception& e) {
+        // Parse <fsid> or <uuid>
+        bool isUuid =
+            soption.find_first_not_of("0123456789") != std::string::npos;
+
+        if (isUuid) {
           config->set_uuid(soption);
+        } else {
+          try {
+            uint64_t fsid = std::stoull(soption);
+            config->set_fsid(fsid);
+          } catch (const std::exception &e) {
+            std::cerr << "error: fsid needs to be numeric" << std::endl;
+            return false;
+          }
         }
       }
 

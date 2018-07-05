@@ -275,7 +275,12 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 {
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
-  eos::common::FileSystem::fsid_t fsid = atoi(identifier.c_str());
+  eos::common::FileSystem::fsid_t fsid = 0;
+
+  // Check if identifier is fsid (must be pure numeric)
+  if (identifier.find_first_not_of("0123456789") == std::string::npos) {
+    fsid = atoi(identifier.c_str());
+  }
 
   if (!identifier.length() || !key.length() || !value.length()) {
     stdErr = "error: illegal parameters";
