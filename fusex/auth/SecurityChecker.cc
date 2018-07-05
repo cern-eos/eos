@@ -35,7 +35,7 @@ void SecurityChecker::inject(const std::string& path, uid_t uid, mode_t mode,
 }
 
 SecurityChecker::Info SecurityChecker::lookupInjected(const std::string& path,
-    uid_t uid)
+                                                      uid_t uid)
 {
   std::lock_guard<std::mutex> lock(mtx);
   auto it = injections.find(path);
@@ -66,7 +66,7 @@ bool SecurityChecker::checkPermissions(uid_t uid, mode_t mode,
 }
 
 SecurityChecker::Info SecurityChecker::validate(uid_t uid, mode_t mode,
-    uid_t expectedUid, time_t mtime)
+                                                uid_t expectedUid, time_t mtime)
 {
   if (!checkPermissions(uid, mode, expectedUid)) {
     return Info(CredentialState::kBadPermissions, -1);
@@ -76,7 +76,7 @@ SecurityChecker::Info SecurityChecker::validate(uid_t uid, mode_t mode,
 }
 
 SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
-    uid_t uid)
+                                              uid_t uid)
 {
   if (path.empty()) return {};
 

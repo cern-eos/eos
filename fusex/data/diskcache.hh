@@ -90,6 +90,6 @@ private:
 
   static shared_ptr<dircleaner> sDirCleaner;
 
-} ;
+};
 
 #endif /* FUSE_JOURNALCACHE_HH_ */

@@ -49,9 +49,7 @@ public:
   }
 
   virtual
-  ~bufferll()
-  {
-  }
+  ~bufferll() { }
 
   //------------------------------------------------------------------------
   //! Add data
@@ -160,6 +158,7 @@ public:
   //------------------------------------------------------------------------
   //! low-level pointer to the memory - better know what you do with that
   //------------------------------------------------------------------------
+
   char* ptr()
   {
     return &(operator[](0));
@@ -167,7 +166,7 @@ public:
 
 private:
   eos::common::RWMutex mMutex;
-} ;
+};
 
 class bufferllmanager : public XrdSysMutex
 {
@@ -181,9 +180,7 @@ public:
     inflight_size = 0;
   }
 
-  virtual ~bufferllmanager()
-  {
-  }
+  virtual ~bufferllmanager() { }
 
   typedef std::shared_ptr<bufferll> shared_buffer;
 
@@ -197,11 +194,11 @@ public:
   {
     XrdSysMutexHelper lLock(this);
 
-    size_t cap_size = (size > buffersize)?size : buffersize;
+    size_t cap_size = (size > buffersize) ? size : buffersize;
 
     if (!queue.size()) {
       inflight_size += cap_size;
-      return std::make_shared<bufferll>( cap_size , 0);
+      return std::make_shared<bufferll>(cap_size, 0);
     } else {
       shared_buffer buffer = queue.front();
       queued_size -= buffer->capacity();
@@ -252,6 +249,6 @@ private:
   size_t buffersize;
   size_t queued_size;
   size_t inflight_size;
-} ;
+};
 #endif
 

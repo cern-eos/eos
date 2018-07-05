@@ -28,7 +28,7 @@
 
 CredentialState
 BoundIdentityProvider::tryCredentialFile(const std::string& path,
-    CredInfo& creds, uid_t uid)
+                                         CredInfo& creds, uid_t uid)
 {
   SecurityChecker::Info info = securityChecker.lookup(path, uid);
 
@@ -105,16 +105,18 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
   return CredentialState::kCannotStat;
 }
 
-uint64_t BoundIdentityProvider::getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect) {
+uint64_t BoundIdentityProvider::getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect)
+{
   std::lock_guard<std::mutex> lock(unixConnectionCounterMtx);
-  if(reconnect) {
+  if (reconnect) {
     unixConnectionCounter[std::make_pair(uid, gid)]++;
   }
 
   return unixConnectionCounter[std::make_pair(uid, gid)];
 }
 
-CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result) {
+CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result)
+{
   LoginIdentifier login(uid, gid, pid, getUnixConnectionCounter(uid, gid, reconnect));
   std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
 
@@ -122,7 +124,8 @@ CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid, 
   return CredentialState::kOk;
 }
 
-CredentialState BoundIdentityProvider::retrieve(const Environment &processEnv, uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result) {
+CredentialState BoundIdentityProvider::retrieve(const Environment &processEnv, uid_t uid, gid_t gid, bool reconnect, std::shared_ptr<const BoundIdentity> &result)
+{
   CredInfo credinfo;
   CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
 
@@ -134,7 +137,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment &processEnv, u
   // connection - does such a binding exist already? We don't want to
   // waste too many LoginIdentifiers, so we re-use them when possible.
   std::shared_ptr<const BoundIdentity> boundIdentity = credentialCache.retrieve(
-        credinfo);
+                                                                                credinfo);
 
   if (boundIdentity && !reconnect) {
     // Cache hit
@@ -197,7 +200,7 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
   EnvironmentResponse response = environmentReader.stageRequest(pid);
 
   std::chrono::high_resolution_clock::time_point deadline = response.queuedSince + std::chrono::milliseconds(credConfig.environ_deadlock_timeout);
-  if(response.contents.wait_until(deadline) != std::future_status::ready) {
+  if (response.contents.wait_until(deadline) != std::future_status::ready) {
     eos_static_info("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!", pid, uid);
     return {};
   }

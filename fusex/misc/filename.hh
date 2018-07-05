@@ -28,14 +28,16 @@
 class filename
 {
 public:
+
   static bool endswith_case_sensitive(std::string mainStr, std::string toMatch)
   {
     auto it = toMatch.begin();
     return mainStr.size() >= toMatch.size() &&
-           std::all_of(std::next(mainStr.begin(), mainStr.size() - toMatch.size()),
-    mainStr.end(), [&it](const char& c) {
-      return ::tolower(c) == ::tolower(*(it++))  ;
-    });
+      std::all_of(std::next(mainStr.begin(), mainStr.size() - toMatch.size()),
+                  mainStr.end(), [&it](const char& c)
+                  {
+                    return ::tolower(c) == ::tolower(*(it++));
+                  });
   }
 
   static bool matches_suffix(const std::string& name,

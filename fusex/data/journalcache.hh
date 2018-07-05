@@ -40,31 +40,33 @@
 class journalcache
 {
 
-  struct header_t {
+  struct header_t
+  {
     uint64_t offset;
     uint64_t size;
-  } ;
+  };
 
 public:
 
   struct chunk_t
   {
-    chunk_t() : offset( 0 ), size( 0 ), buff( 0 ) { }
 
-    chunk_t( off_t offset, size_t size, const void *buff) : offset( offset ), size( size ), buff( buff ) { }
+    chunk_t() : offset(0), size(0), buff(0) { }
 
-    off_t  offset;
+    chunk_t(off_t offset, size_t size, const void *buff) : offset(offset), size(size), buff(buff) { }
+
+    off_t offset;
     size_t size;
-    const void*  buff;
+    const void* buff;
 
     bool operator<(const chunk_t& u) const
     {
       return offset < u.offset;
     }
-  } ;
+  };
 
 
-  journalcache( fuse_ino_t _ino );
+  journalcache(fuse_ino_t _ino);
   virtual ~journalcache();
 
   // base class interface
@@ -72,49 +74,64 @@ public:
   int detach(std::string& cookie);
   int unlink();
 
-  ssize_t pread( void *buf, size_t count, off_t offset );
-  ssize_t pwrite( const void *buf, size_t count, off_t offset );
+  ssize_t pread(void *buf, size_t count, off_t offset);
+  ssize_t pwrite(const void *buf, size_t count, off_t offset);
 
-  int truncate( off_t, bool invalidate=false );
+  int truncate(off_t, bool invalidate = false);
   int sync();
 
   size_t size();
-  ssize_t get_truncatesize() { XrdSysMutexHelper lck( mtx ); return truncatesize; }
 
-  int set_attr(const std::string& key, const std::string& value) {return 0;}
-  int attr(const std::string &key, std::string& value) {return 0;}
+  ssize_t get_truncatesize()
+  {
+    XrdSysMutexHelper lck(mtx);
+    return truncatesize;
+  }
 
-  int remote_sync( cachesyncer &syncer );
+  int set_attr(const std::string& key, const std::string& value)
+  {
+    return 0;
+  }
+
+  int attr(const std::string &key, std::string& value)
+  {
+    return 0;
+  }
+
+  int remote_sync(cachesyncer &syncer);
 
   int remote_sync_async(XrdCl::Proxy* proxy);
 
   static int init(const cacheconfig &config);
   static int init_daemonized(const cacheconfig &config);
 
-  bool fits(ssize_t count) { return ( sMaxSize >= (cachesize+count));}
+  bool fits(ssize_t count)
+  {
+    return( sMaxSize >= (cachesize + count));
+  }
 
   int reset();
 
   int rescue(std::string& location);
 
-  std::vector<chunk_t> get_chunks( off_t offset, size_t size );
+  std::vector<chunk_t> get_chunks(off_t offset, size_t size);
 
   int set_cookie(const std::string &cookie)
   {
     return set_attr("user.eos.cache.cookie", cookie);
   }
 
-  bool first_flush() 
+  bool first_flush()
   {
-    return (!nbFlushed)?true:false;
+    return(!nbFlushed) ? true : false;
   }
 
-  void done_flush() 
+  void done_flush()
   {
     nbFlushed++;
   }
 
-  private:
+private:
 
 private:
 
@@ -132,19 +149,19 @@ private:
 
   int read_journal();
 
-  fuse_ino_t                        ino;
-  size_t                            cachesize;
-  ssize_t                            truncatesize;
-  int                               fd;
+  fuse_ino_t ino;
+  size_t cachesize;
+  ssize_t truncatesize;
+  int fd;
   // the value is the offset in the cache file
   interval_tree<uint64_t, uint64_t> journal;
-  size_t                            nbAttached;
-  size_t                            nbFlushed;
-  cachelock                         clck;
-  XrdSysMutex                       mtx;
-  bufferllmanager::shared_buffer    buffer;
-  static std::string                sLocation;
-  static size_t                     sMaxSize;
-} ;
+  size_t nbAttached;
+  size_t nbFlushed;
+  cachelock clck;
+  XrdSysMutex mtx;
+  bufferllmanager::shared_buffer buffer;
+  static std::string sLocation;
+  static size_t sMaxSize;
+};
 
 #endif /* FUSEX_JOURNALCACHE_HH_ */

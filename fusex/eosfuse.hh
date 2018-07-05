@@ -163,7 +163,7 @@ public:
 
   static void setlk(fuse_req_t req, fuse_ino_t ino,
                     struct fuse_file_info* fi,
-                    struct flock* lock, int sleep) ;
+                    struct flock* lock, int sleep);
   metad mds;
   data datas;
   cap caps;
@@ -186,7 +186,8 @@ public:
 
   std::string Prefix(std::string path);
 
-  typedef struct cfg {
+  typedef struct cfg
+  {
     std::string name;
     std::string hostport;
     std::string remotemountdir;
@@ -202,7 +203,8 @@ public:
     std::string clienthost;
     std::string clientuuid;
 
-    typedef struct options {
+    typedef struct options
+    {
       int debug;
       int debuglevel;
       int libfusethreads;
@@ -234,7 +236,8 @@ public:
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 
-    typedef struct recovery {
+    typedef struct recovery
+    {
       int read;
       int write;
       int read_open;
@@ -245,9 +248,10 @@ public:
       size_t write_open_noserver_retrywindow;
     } recovery_t;
 
-    typedef struct inlining {
+    typedef struct inlining
+    {
       uint64_t max_size;
-      std::string default_compressor;      
+      std::string default_compressor;
     } inlining_t;
 
     recovery_t recovery;
@@ -298,11 +302,12 @@ public:
     return s;
   }
 
-  typedef struct opendir_fh {
+  typedef struct opendir_fh
+  {
     metad::shared_md md;
     std::set<std::string> readdir_items;
     XrdSysMutex items_lock;
-  } opendir_t ;
+  } opendir_t;
 
   void getHbStat(eos::fusex::statistics&);
 
@@ -316,7 +321,8 @@ public:
     return caps;
   }
 
-  void cleanup(fuse_ino_t ino) {
+  void cleanup(fuse_ino_t ino)
+  {
     return mds.cleanup(ino);
   }
 
@@ -326,10 +332,10 @@ protected:
 
 private:
 
-  static bool isRecursiveRm(fuse_req_t req, bool forced=false, bool notverbose=false);
-   
+  static bool isRecursiveRm(fuse_req_t req, bool forced = false, bool notverbose = false);
+
   Track tracker;
-  
+
   SubMount mounter;
 
   cfg_t config;
@@ -363,6 +369,6 @@ private:
 
   void DumpStatistic(ThreadAssistant& assistant);
   void StatCirculate(ThreadAssistant& assistant);
-} ;
+};
 
 #endif /* FUSE_EOSFUSE_HH_ */

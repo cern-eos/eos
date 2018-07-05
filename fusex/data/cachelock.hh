@@ -21,7 +21,7 @@ public:
 
   cachelock_error(const cachelock_error& err) : errcode(err.errcode) { }
 
-  cachelock_error& operator= (const cachelock_error& err)
+  cachelock_error& operator=(const cachelock_error& err)
   {
     errcode = err.errcode;
     return *this;
@@ -38,7 +38,6 @@ private:
 
   int errcode;
 };
-
 
 class cachelock
 {
@@ -170,8 +169,8 @@ private:
   }
 
   size_t readers;
-  pthread_cond_t  cvar;
-  pthread_cond_t  rwvar;
+  pthread_cond_t cvar;
+  pthread_cond_t rwvar;
   pthread_mutex_t mtx;
 };
 

@@ -35,7 +35,7 @@
 std::string journalcache::sLocation;
 size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
 
-journalcache::journalcache( fuse_ino_t ino ) : ino( ino ), cachesize( 0 ), truncatesize( -1 ), fd( -1 ), nbAttached( 0 ), nbFlushed( 0 )
+journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0), truncatesize(-1), fd(-1), nbAttached(0), nbFlushed(0)
 {
 }
 
@@ -58,7 +58,7 @@ journalcache::~journalcache()
 int journalcache::location(std::string& path, bool mkpath)
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof (cache_path), "%s/%08lx/%08lx.jc",
+  snprintf(cache_path, sizeof(cache_path), "%s/%08lx/%08lx.jc",
            sLocation.c_str(), ino / 10000, ino);
 
   if (mkpath) {
@@ -93,7 +93,7 @@ int journalcache::read_journal()
 
     do {
       if (entrySize == 0) {
-        header_t* header = reinterpret_cast<header_t*>(buffer + pos);
+        header_t* header = reinterpret_cast<header_t*> (buffer + pos);
         journal.insert(header->offset, header->offset + header->size,
                        totalBytesRead + pos);
         entrySize = header->size;
@@ -186,7 +186,7 @@ ssize_t journalcache::pread(void* buf, size_t count, off_t offset)
     return 0;
   }
 
-  char* buffer = reinterpret_cast<char*>(buf);
+  char* buffer = reinterpret_cast<char*> (buf);
   uint64_t off = offset;
   uint64_t bytesRead = 0;
 
@@ -218,15 +218,15 @@ ssize_t journalcache::pread(void* buf, size_t count, off_t offset)
     return 0;
   }
 
-  if ((truncatesize != -1) && ((ssize_t)(offset + bytesRead) > truncatesize)) {
+  if ((truncatesize != -1) && ((ssize_t) (offset + bytesRead) > truncatesize)) {
     // read over truncation size
-    return (truncatesize - offset);
+    return(truncatesize - offset);
   }
 
   return bytesRead;
 }
 
-void journalcache::process_intersection( interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<chunk_t> &updates )
+void journalcache::process_intersection(interval_tree<uint64_t, const void*> &to_write, interval_tree<uint64_t, uint64_t>::iterator itr, std::vector<chunk_t> &updates)
 {
   auto result = to_write.query(itr->low, itr->high);
 
@@ -240,13 +240,13 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
 
   const interval_tree<uint64_t, const void*>::iterator to_wrt = *result.begin();
   // the intersection
-  uint64_t low  = std::max(to_wrt->low,  itr->low);
+  uint64_t low = std::max(to_wrt->low, itr->low);
   uint64_t high = std::min(to_wrt->high, itr->high);
   // update
   chunk_t update;
   update.offset = offset_for_update(itr->value, low - itr->low);
-  update.size   = high - low;
-  update.buff   = static_cast<const char*>(to_wrt->value) + (low - to_wrt->low);
+  update.size = high - low;
+  update.buff = static_cast<const char*> (to_wrt->value) + (low - to_wrt->low);
   updates.push_back(update);
   // update the 'to write' intervals
   uint64_t wrtlow = to_wrt->low;
@@ -262,13 +262,13 @@ void journalcache::process_intersection( interval_tree<uint64_t, const void*> &t
 
   if (high < wrthigh) {
     // the remaining right-hand-side interval
-    const char* buff = static_cast<const char*>(wrtbuff) + (high - wrtlow);
+    const char* buff = static_cast<const char*> (wrtbuff) + (high - wrtlow);
     to_write.insert(high, wrthigh, buff);
   }
 
   if (low > wrtlow) {
     // the remaining left-hand-side interval
-    to_write.insert(wrtlow,  low,  wrtbuff);
+    to_write.insert(wrtlow, low, wrtbuff);
   }
 }
 
@@ -280,7 +280,7 @@ int journalcache::update_cache(std::vector<chunk_t>& updates)
 
   for (auto& u : updates) {
     rc = ::pwrite(fd, u.buff, u.size,
-                  u.offset);   // TODO is it safe to assume it will write it all
+                  u.offset); // TODO is it safe to assume it will write it all
 
     if (rc <= 0) {
       return errno;
@@ -321,19 +321,19 @@ ssize_t journalcache::pwrite(const void* buf, size_t count, off_t offset)
 
   // TODO this could be replaced with a single pwritev
   for (itr = to_write.begin(); itr != to_write.end(); ++itr) {
-    uint64_t size   = itr->high - itr->low;
+    uint64_t size = itr->high - itr->low;
     header_t header;
     header.offset = itr->low;
     header.size = size;
     iovec iov[2];
     iov[0].iov_base = &header;
-    iov[0].iov_len  = sizeof(header_t);
-    iov[1].iov_base = const_cast<void*>(itr->value);
-    iov[1].iov_len  = size;
+    iov[0].iov_len = sizeof(header_t);
+    iov[1].iov_base = const_cast<void*> (itr->value);
+    iov[1].iov_len = size;
     // @todo: fix this properly for the mac if there is such support
     rc = ::pwrite(fd, iov[0].iov_base, iov[0].iov_len, cachesize);
-    rc +=  ::pwrite(fd, iov[1].iov_base, iov[1].iov_len,
-                    cachesize + iov[0].iov_len);
+    rc += ::pwrite(fd, iov[1].iov_base, iov[1].iov_len,
+                   cachesize + iov[0].iov_len);
 
     // rc = ::pwritev( fd, iov, 2, cachesize ); // TODO is it safe to assume it will write it all
     if (rc <= 0) {
@@ -344,7 +344,7 @@ ssize_t journalcache::pwrite(const void* buf, size_t count, off_t offset)
     cachesize += sizeof(header_t) + size;
   }
 
-  if ((truncatesize != -1) && ((ssize_t)(offset + count) > truncatesize)) {
+  if ((truncatesize != -1) && ((ssize_t) (offset + count) > truncatesize)) {
     // journal written after last truncation size
     truncatesize = offset + count;
   }
@@ -359,9 +359,7 @@ int journalcache::truncate(off_t offset, bool invalidate)
 
   if (offset) {
     truncatesize = offset;
-  }
-  else
-  {
+  } else {
     // distinguish cache invalidation from 0 truncation
     if (invalidate)
       truncatesize = -1;
@@ -387,8 +385,7 @@ size_t journalcache::size()
 
 int journalcache::init(const cacheconfig &config)
 {
-  if ( ::access( config.location.c_str(), W_OK ) )
-  {
+  if (::access(config.location.c_str(), W_OK)) {
     return errno;
   }
 
@@ -404,12 +401,10 @@ int journalcache::init(const cacheconfig &config)
 
 int journalcache::init_daemonized(const cacheconfig &config)
 {
-  if (config.clean_on_startup)
-  {
+  if (config.clean_on_startup) {
     eos_static_info("cleaning cache path=%s", config.journal.c_str());
     dircleaner dc(config.journal.c_str());
-    if (dc.cleanall(".jc"))
-    {
+    if (dc.cleanall(".jc")) {
       eos_static_err("cache cleanup failed");
       return -1;
     }
@@ -445,31 +440,27 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
 
   write_lock lck(clck);
 
-  for ( auto itr = journal.begin(); itr != journal.end(); ++itr )
-  {
-    off_t  cacheoff = itr->value + offshift;
-    size_t size   = itr->high - itr->low;
+  for (auto itr = journal.begin(); itr != journal.end(); ++itr) {
+    off_t cacheoff = itr->value + offshift;
+    size_t size = itr->high - itr->low;
 
     // prepare async buffer
     XrdCl::Proxy::write_handler handler = proxy->WriteAsyncPrepare(size, itr->low, 0);
-    
-    int bytesRead = ::pread( fd, (void*)handler->buffer(), size, cacheoff );
-    
-    if ( bytesRead < 0 )
-    {
+
+    int bytesRead = ::pread(fd, (void*) handler->buffer(), size, cacheoff);
+
+    if (bytesRead < 0) {
       // TODO handle error
       clck.broadcast();
       return -1;
     }
-      
-    if ( bytesRead < (int) size )
-    {
+
+    if (bytesRead < (int) size) {
       // TODO handle error - still we continue
     }
-    
-    XrdCl::XRootDStatus st = proxy->ScheduleWriteAsync( 0, handler );
-    if ( !st.IsOK() )
-    {
+
+    XrdCl::XRootDStatus st = proxy->ScheduleWriteAsync(0, handler);
+    if (!st.IsOK()) {
       eos_static_err("failed to issue async-write");
       clck.broadcast();
       return -1;
@@ -477,11 +468,9 @@ int journalcache::remote_sync_async(XrdCl::Proxy* proxy)
   }
 
   // there might be a truncate call after the writes to be applied                                                               
-  if (truncatesize != -1)
-  {
-    XrdCl::XRootDStatus st = proxy->Truncate( truncatesize );
-    if ( !st.IsOK() )
-    {
+  if (truncatesize != -1) {
+    XrdCl::XRootDStatus st = proxy->Truncate(truncatesize);
+    if (!st.IsOK()) {
       eos_static_err("failed to truncate");
       clck.broadcast();
       return -1;
@@ -503,7 +492,7 @@ int journalcache::reset()
 {
   write_lock lck(clck);
   journal.clear();
-  int retc = ::ftruncate(fd,  0);
+  int retc = ::ftruncate(fd, 0);
   cachesize = 0;
   truncatesize = -1;
   clck.broadcast();
@@ -511,7 +500,7 @@ int journalcache::reset()
 }
 
 std::vector<journalcache::chunk_t> journalcache::get_chunks(off_t offset,
-    size_t size)
+                                                            size_t size)
 {
   read_lock lck(clck);
   auto result = journal.query(offset, offset + size);
@@ -520,7 +509,7 @@ std::vector<journalcache::chunk_t> journalcache::get_chunks(off_t offset,
   for (auto& itr : result) {
     uint64_t off = (off_t) itr->low < (off_t) offset ? offset : itr->low;
     uint64_t count = itr->high < offset + size ? itr->high - off : offset + size -
-                     off;
+            off;
     uint64_t cacheoff = itr->value + sizeof(header_t) + (off - itr->low);
     std::unique_ptr<char[] > buffer(new char[count]);
     ssize_t rc = ::pread(fd, buffer.get(), count, cacheoff);

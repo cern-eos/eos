@@ -24,14 +24,16 @@
 #include <gtest/gtest.h>
 #include "auth/ProcessCache.hh"
 
-class ProcessCacheFixture : public ::testing::Test {
+class ProcessCacheFixture : public ::testing::Test
+{
 public:
 
   ProcessCacheFixture()
   : boundIdentityProvider(processCache.getBoundIdentityProvider()),
-    securityChecker(boundIdentityProvider.getSecurityChecker()),
-    processInfoProvider(processCache.getProcessInfoProvider()),
-    environmentReader(boundIdentityProvider.getEnvironmentReader()) {
+  securityChecker(boundIdentityProvider.getSecurityChecker()),
+  processInfoProvider(processCache.getProcessInfoProvider()),
+  environmentReader(boundIdentityProvider.getEnvironmentReader())
+  {
   }
 
   ProcessCache processCache;
@@ -40,33 +42,37 @@ public:
   ProcessInfoProvider &processInfoProvider;
   EnvironmentReader &environmentReader;
 
-  void configureUnixAuth() {
+  void configureUnixAuth()
+  {
     CredentialConfig config;
     processCache.setCredentialConfig(config);
   }
 
-  void configureKerberosAuth() {
+  void configureKerberosAuth()
+  {
     CredentialConfig config;
     config.use_user_krb5cc = true;
     config.fuse_shared = true;
     processCache.setCredentialConfig(config);
   }
 
-  void injectProcess(pid_t pid, pid_t ppid, pid_t pgrp, pid_t sid, Jiffies startup, unsigned flags) {
+  void injectProcess(pid_t pid, pid_t ppid, pid_t pgrp, pid_t sid, Jiffies startup, unsigned flags)
+  {
     ProcessInfo info;
     info.fillStat(pid, ppid, pgrp, sid, startup, flags);
     processInfoProvider.inject(pid, info);
   }
 
-  Environment createEnv(const std::string &kerberosPath, const std::string &x509Path) {
+  Environment createEnv(const std::string &kerberosPath, const std::string &x509Path)
+  {
     std::string env;
 
-    if(!kerberosPath.empty()) {
+    if (!kerberosPath.empty()) {
       env = "KRB5CCNAME=FILE:" + kerberosPath;
       env.push_back('\0');
     }
 
-    if(!x509Path.empty()) {
+    if (!x509Path.empty()) {
       env += "X509_USER_PROXY=" + x509Path;
       env.push_back('\0');
     }
@@ -79,7 +85,8 @@ public:
 
 };
 
-TEST_F(ProcessCacheFixture, UnixAuthentication) {
+TEST_F(ProcessCacheFixture, UnixAuthentication)
+{
   configureUnixAuth();
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
 
@@ -100,7 +107,8 @@ TEST_F(ProcessCacheFixture, UnixAuthentication) {
   ASSERT_EQ(snapshot5->getXrdLogin(), LoginIdentifier(8, 6, 1235, 0).getStringID());
 }
 
-TEST_F(ProcessCacheFixture, Kerberos) {
+TEST_F(ProcessCacheFixture, Kerberos)
+{
   configureKerberosAuth();
 
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
@@ -113,7 +121,8 @@ TEST_F(ProcessCacheFixture, Kerberos) {
   ASSERT_EQ(snapshot->getXrdCreds(), "xrd.k5ccname=/tmp/my-creds&xrd.secgid=1000&xrd.secuid=1000&xrd.wantprot=krb5,unix");
 }
 
-TEST_F(ProcessCacheFixture, KerberosWithUnixFallback) {
+TEST_F(ProcessCacheFixture, KerberosWithUnixFallback)
+{
   configureKerberosAuth();
 
   injectProcess(1234, 1, 1234, 1234, 9999, 0);

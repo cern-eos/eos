@@ -308,14 +308,12 @@ int main(int argc, char* argv[])
     int fd = open(name, O_CREAT | O_RDWR, S_IRWXU);
 
 
-    if (fd < 0)
-    {
+    if (fd < 0) {
       fprintf(stderr, "[test=%03d] creat failed\n", testno);
       exit(testno);
     }
 
-    for (int i = 0; i < LOOP_10; i+=2)
-    {
+    for (int i = 0; i < LOOP_10; i += 2) {
       ssize_t nwrite = pwrite(fd, &i, 4, (i * 4) + (2 * 1024 * 1024));
 
       if (nwrite != 4) {
@@ -454,7 +452,7 @@ int main(int argc, char* argv[])
     char buffer[1024];
 
     for (size_t i = 0; i < 1024; ++i) {
-      buffer [i] = (char)(i % 256);
+      buffer [i] = (char) (i % 256);
     }
 
     fprintf(stderr, ">>> test %04d\n", testno);
@@ -494,7 +492,7 @@ int main(int argc, char* argv[])
 
           fstat(fd, &buf);
 
-          if ((errno != 2) || (buf.st_size != (off_t)((i + 1) * sizeof(buffer)))) {
+          if ((errno != 2) || (buf.st_size != (off_t) ((i + 1) * sizeof(buffer)))) {
             fprintf(stderr,
                     "[test=%3d] stat after write gives wrong size errno=%d size=%ld i=%lu\n",
                     testno, errno, buf.st_size, i);
@@ -512,8 +510,8 @@ int main(int argc, char* argv[])
             exit(testno);
           }
 
-          for (size_t l = 0; l < sizeof(buffer);  ++l) {
-            if (buffer[l] != ((char)(((size_t) l) % 256))) {
+          for (size_t l = 0; l < sizeof(buffer); ++l) {
+            if (buffer[l] != ((char) (((size_t) l) % 256))) {
               fprintf(stderr,
                       "[test=%3d] wrong contents for read after unlink i=%lu l=%lu b=%x\n", testno, i,
                       l, buffer[l]);
@@ -547,17 +545,16 @@ int main(int argc, char* argv[])
 
     for (size_t i = 0; i < LOOP_14; i++) {
       int fd = creat("lockme", S_IRWXU);
-      
+
       int lock_rc = lockf(fd, F_LOCK, 0);
-      int tlock_rc = lockf(fd, F_TLOCK,0);
+      int tlock_rc = lockf(fd, F_TLOCK, 0);
       int ulock_rc = lockf(fd, F_ULOCK, 0);
       int lockagain_rc = lockf(fd, F_LOCK, 0);
-      close (fd);
+      close(fd);
       unlink("lockme");
-      if (lock_rc | tlock_rc | ulock_rc | lockagain_rc)
-      {
-	fprintf(stderr,"[test=%3d] %d %d %d %d\n", testno, lock_rc, tlock_rc, ulock_rc, lockagain_rc);
-	exit(testno);
+      if (lock_rc | tlock_rc | ulock_rc | lockagain_rc) {
+        fprintf(stderr, "[test=%3d] %d %d %d %d\n", testno, lock_rc, tlock_rc, ulock_rc, lockagain_rc);
+        exit(testno);
       }
     }
 

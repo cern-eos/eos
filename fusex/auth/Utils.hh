@@ -33,8 +33,10 @@
 class FatalException : public std::exception
 {
 public:
-  FatalException(const std::string& m) : msg(m) {}
-  virtual ~FatalException() {}
+
+  FatalException(const std::string& m) : msg(m) { }
+
+  virtual ~FatalException() { }
 
   virtual const char* what() const noexcept
   {

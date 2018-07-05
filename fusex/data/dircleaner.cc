@@ -32,14 +32,13 @@
 dircleaner::dircleaner(const std::string _path,
                        int64_t _maxsize,
                        int64_t _maxfiles,
-		       float _clean_threshold) : path(_path),
-						 max_files(_maxfiles),
-						 max_size(_maxsize),
-						 clean_threshold(_clean_threshold)
+                       float _clean_threshold) : path(_path),
+max_files(_maxfiles),
+max_size(_maxsize),
+clean_threshold(_clean_threshold)
 /* -------------------------------------------------------------------------- */
 {
-  if (max_files | max_size)
-  {
+  if (max_files | max_size) {
     tLeveler.reset(&dircleaner::leveler, this);
   }
 }
@@ -68,21 +67,17 @@ dircleaner::cleanall(std::string matchsuffix)
 {
   std::lock_guard<std::recursive_mutex> mLock(cleaningMutex);
 
-  if (!scanall(matchsuffix))
-  {
+  if (!scanall(matchsuffix)) {
     std::string tout;
     treeinfo.Print(tout);
     eos_static_info("purging %s", tout.c_str());
-    for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it)
-    {
-      if (matchsuffix.length() && (!has_suffix(it->second.path, matchsuffix)))
-      {
-	continue;
+    for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it) {
+      if (matchsuffix.length() && (!has_suffix(it->second.path, matchsuffix))) {
+        continue;
       }
-      if (unlink(it->second.path.c_str()) && errno != ENOENT)
-      {
+      if (unlink(it->second.path.c_str()) && errno != ENOENT) {
 
-	eos_static_err("unlink: path=%s errno=%d", it->second.path.c_str(), errno);
+        eos_static_err("unlink: path=%s errno=%d", it->second.path.c_str(), errno);
       }
     }
   }
@@ -97,7 +92,7 @@ dircleaner::tree_info::Print(std::string& out)
 {
 
   char line[1024];
-  snprintf(line, sizeof (line), "path=%s n-files=%lu tree-size=%lu",
+  snprintf(line, sizeof(line), "path=%s n-files=%lu tree-size=%lu",
            path.c_str(),
            totalfiles,
            totalsize);
@@ -116,8 +111,7 @@ dircleaner::scanall(std::string matchsuffix)
   paths[1] = 0;
 
   FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
-  if (!tree)
-  {
+  if (!tree) {
     return -1; // see errno
   }
   FTSENT *node;
@@ -128,40 +122,28 @@ dircleaner::scanall(std::string matchsuffix)
   treeinfo.treemap.clear();
   externaltreeinfo.reset();
 
-  while ((node = fts_read(tree)))
-  {
+  while ((node = fts_read(tree))) {
     // skip any hidden file, we might want that
-    if (node->fts_level > 0 && node->fts_name[0] == '.')
-    {
+    if (node->fts_level > 0 && node->fts_name[0] == '.') {
       fts_set(tree, node, FTS_SKIP);
-    }
-    else
-    {
-      if (node->fts_info == FTS_F)
-      {
+    } else {
+      if (node->fts_info == FTS_F) {
         std::string filepath = node->fts_accpath;
 
-	if (matchsuffix.length() && !has_suffix(filepath, matchsuffix))
-	{
-	  continue;
-	}
+        if (matchsuffix.length() && !has_suffix(filepath, matchsuffix)) {
+          continue;
+        }
 
         struct stat buf;
-        if (::stat(filepath.c_str(), &buf))
-        {
-          if ( errno == ENOENT)
-          {
+        if (::stat(filepath.c_str(), &buf)) {
+          if (errno == ENOENT) {
             // this can happen when something get's cleaned during scanning
             eos_static_info("stat: path=%s errno=%d", filepath.c_str(), errno);
-          }
-          else
-          {
+          } else {
             eos_static_err("stat: path=%s errno=%d", filepath.c_str(), errno);
             retc = -1;
           }
-        }
-        else
-        {
+        } else {
           treeinfo.totalfiles++;
           treeinfo.totalsize += buf.st_size;
           file_info_t finfo;
@@ -177,8 +159,7 @@ dircleaner::scanall(std::string matchsuffix)
     }
   }
 
-  if (fts_close(tree))
-  {
+  if (fts_close(tree)) {
     eos_static_err("fts_close: errno=%d", errno);
     return -1;
   }
@@ -190,8 +171,7 @@ int
 /* -------------------------------------------------------------------------- */
 dircleaner::trim(bool force)
 {
-  if (!force)
-  {
+  if (!force) {
     // avoid full scans
     tree_info_t& externaltree = get_external_tree();
     bool size_ok = true;
@@ -206,13 +186,11 @@ dircleaner::trim(bool force)
                     max_files, tree_files,
                     force);
 
-    if (max_size && (tree_size > max_size))
-    {
+    if (max_size && (tree_size > max_size)) {
       size_ok = false;
     }
 
-    if (max_files && (tree_files > max_files))
-    {
+    if (max_files && (tree_files > max_files)) {
       files_ok = false;
     }
 
@@ -223,19 +201,16 @@ dircleaner::trim(bool force)
 
   scanall(trim_suffix);
 
-  for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it)
-  {
+  for (auto it = treeinfo.treemap.begin(); it != treeinfo.treemap.end(); ++it) {
     eos_static_debug("is-size %lld max-size %lld", treeinfo.get_size(), max_size);
     bool size_ok = true;
     bool files_ok = true;
 
-    if (max_size && (treeinfo.get_size() > max_size))
-    {
+    if (max_size && (treeinfo.get_size() > max_size)) {
       size_ok = false;
     }
 
-    if (max_files && (treeinfo.get_files() > max_files))
-    {
+    if (max_files && (treeinfo.get_files() > max_files)) {
       files_ok = false;
     }
 
@@ -244,13 +219,10 @@ dircleaner::trim(bool force)
       return 0;
 
     eos_static_info("erasing %s %ld => %ld", it->second.path.c_str(), treeinfo.get_size(), it->second.size);
-    if (::unlink(it->second.path.c_str()))
-    {
+    if (::unlink(it->second.path.c_str())) {
       eos_static_err("failed to unlink file %s errno=%d", it->second.path.c_str(), errno);
-    }
-    else
-    {
-      treeinfo.change(-it->second.size,-1);
+    } else {
+      treeinfo.change(-it->second.size, -1);
     }
   }
   return 0;
@@ -263,11 +235,10 @@ void
 dircleaner::leveler(ThreadAssistant &assistant)
 /* -------------------------------------------------------------------------- */
 {
-  size_t n=0;
-  while (1)
-  {
+  size_t n = 0;
+  while (1) {
     assistant.wait_for(std::chrono::seconds(15));
-    if(assistant.terminationRequested()) return;
+    if (assistant.terminationRequested()) return;
 
     // check the partition status
     struct statvfs svfs;
@@ -278,10 +249,10 @@ dircleaner::leveler(ThreadAssistant &assistant)
       double freep = 100.0 * free_partition_bytes / total_partition_bytes;
       double filled = 100.0 - freep;
       eos_static_info("diskspace on partition path %s free-bytes=%lu total-bytes=%lu filled=%.02f %%", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
-      if ( filled > clean_threshold) {
-	// we force a complete cleanup of the cache if disk space runs low
-	eos_static_warning("diskspace on partition path %s less than 5% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
-	cleanall(trim_suffix);
+      if (filled > clean_threshold) {
+        // we force a complete cleanup of the cache if disk space runs low
+        eos_static_warning("diskspace on partition path %s less than 5% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache", path.c_str(), free_partition_bytes, total_partition_bytes, filled);
+        cleanall(trim_suffix);
       }
     } else {
       eos_static_err("statvfs on path=%s failed with retc=%d errno=%d", path.c_str(), rsfs, errno);

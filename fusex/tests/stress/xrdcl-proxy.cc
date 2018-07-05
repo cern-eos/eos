@@ -29,12 +29,12 @@ TEST(XrdClProxy, Write)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -63,7 +63,7 @@ TEST(XrdClProxy, Write)
 
   status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
-  
+
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
@@ -82,12 +82,12 @@ TEST(XrdClProxy, ReadSync)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -96,9 +96,9 @@ TEST(XrdClProxy, ReadSync)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4*1024*1024);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -115,7 +115,7 @@ TEST(XrdClProxy, ReadSync)
   fprintf(stderr, "\n[05] read \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file.Read(4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
@@ -154,12 +154,12 @@ TEST(XrdClProxy, ReadAsync)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -168,9 +168,9 @@ TEST(XrdClProxy, ReadAsync)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4*1024*1024);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -187,11 +187,11 @@ TEST(XrdClProxy, ReadAsync)
   fprintf(stderr, "\n[05] read \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     XrdCl::Proxy::read_handler handler = file.ReadAsyncPrepare(4 * i * 200 * 1024,
-                                         4 * 200 * 1024);
+                                                               4 * 200 * 1024);
     status = file.PreReadAsync(4 * i * 200 * 1024, 4 * 200 * 1024, handler,
                                (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -234,12 +234,12 @@ TEST(XrdClProxy, ReadAheadStatic)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -248,7 +248,7 @@ TEST(XrdClProxy, ReadAheadStatic)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
@@ -269,7 +269,7 @@ TEST(XrdClProxy, ReadAheadStatic)
   fprintf(stderr, "\n[05] read-ahead static 4k 1.6k 4M \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -291,7 +291,7 @@ TEST(XrdClProxy, ReadAheadStatic)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99694824);
+  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99694824);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -311,12 +311,12 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -325,7 +325,7 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
@@ -346,7 +346,7 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
   fprintf(stderr, "\n[05] read-ahead static 4k 8M 16M \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -368,8 +368,8 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int)(1000000 * file.get_readahead_efficiency()));
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99694824);
+          (int) (1000000 * file.get_readahead_efficiency()));
+  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99694824);
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
@@ -388,12 +388,12 @@ TEST(XrdClProxy, ReadAheadSparse)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -402,7 +402,7 @@ TEST(XrdClProxy, ReadAheadSparse)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
@@ -423,7 +423,7 @@ TEST(XrdClProxy, ReadAheadSparse)
   fprintf(stderr, "\n[05] read-ahead static 4k 2M 4M \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; i += 2) {
+  for (size_t i = 0; i < 330; i += 2) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -439,7 +439,7 @@ TEST(XrdClProxy, ReadAheadSparse)
   ASSERT_EQ(total_bytes, 134348800);
   fprintf(stderr, "\n[06] comparing \n");
 
-  for (size_t k = 0; k < 330 ; k += 2)
+  for (size_t k = 0; k < 330; k += 2)
     for (size_t l = 0; l < 200 * 1024; l++) {
       size_t i = (k * 200 * 1024) + l;
 
@@ -451,9 +451,9 @@ TEST(XrdClProxy, ReadAheadSparse)
     }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int)(1000000 * file.get_readahead_efficiency()));
+          (int) (1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99121952);
+  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99121952);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -473,12 +473,12 @@ TEST(XrdClProxy, ReadAheadDisable)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -487,9 +487,9 @@ TEST(XrdClProxy, ReadAheadDisable)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -508,7 +508,7 @@ TEST(XrdClProxy, ReadAheadDisable)
   fprintf(stderr, "\n[05] read-ahead static 4k 2M 4M \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; i += (i + 1)) {
+  for (size_t i = 0; i < 330; i += (i + 1)) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -522,7 +522,7 @@ TEST(XrdClProxy, ReadAheadDisable)
 
   fprintf(stderr, "\n[06] comparing \n");
 
-  for (size_t k = 0; k < 330 ; k += (k + 1))
+  for (size_t k = 0; k < 330; k += (k + 1))
     for (size_t l = 0; l < 200 * 1024; l++) {
       size_t i = (k * 200 * 1024) + l;
       {
@@ -533,9 +533,9 @@ TEST(XrdClProxy, ReadAheadDisable)
     }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int)(1000000 * file.get_readahead_efficiency()));
+          (int) (1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 29777778);
+  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 29777778);
   file.Collect();
   status = file.Close((uint16_t) 100);
   ASSERT_TRUE(status.IsOK());
@@ -555,12 +555,12 @@ TEST(XrdClProxy, ReadAheadBackward)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -569,9 +569,9 @@ TEST(XrdClProxy, ReadAheadBackward)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -590,7 +590,7 @@ TEST(XrdClProxy, ReadAheadBackward)
   fprintf(stderr, "\n[05] read-ahead static 4k 1.6M 4M \n");
   ssize_t total_bytes = 0;
 
-  for (int i = 329; i >= 0 ; i--) {
+  for (int i = 329; i >= 0; i--) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -632,12 +632,12 @@ TEST(XrdClProxy, ReadAheadDynamic)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -646,9 +646,9 @@ TEST(XrdClProxy, ReadAheadDynamic)
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "\n[03] write-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
-    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare( 4 * 1024 * 1024);
+    XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024);
     status = file.WriteAsync(4 * i * 1024 * 1024, 4 * 1024 * 1024,
                              &buffer[i * 1024 * 1024], handler, (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -667,7 +667,7 @@ TEST(XrdClProxy, ReadAheadDynamic)
   fprintf(stderr, "\n[05] read-ahead dynamic 4k 1M 8M \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     XrdSysTimer sleeper;
     //sleeper.Wait(1000);
     uint32_t bytesRead = 0;
@@ -689,9 +689,9 @@ TEST(XrdClProxy, ReadAheadDynamic)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int)(1000000 * file.get_readahead_efficiency()));
+          (int) (1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99475096);
+  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99475096);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -711,21 +711,21 @@ TEST(XrdClProxy, ScheduleWrite)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                   300);
+          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                         300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                          4 * i * 1024 * 1024, 300);
+                                                                 4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }
@@ -741,7 +741,7 @@ TEST(XrdClProxy, ScheduleWrite)
   fprintf(stderr, "\n[05] read \n");
   ssize_t total_bytes = 0;
 
-  for (size_t i = 0; i < 330 ; ++i) {
+  for (size_t i = 0; i < 330; ++i) {
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     status = file.Read(4 * i * 200 * 1024, 4 * 200 * 1024, &buffer[i * 200 * 1024],
@@ -781,21 +781,21 @@ TEST(XrdClProxy, ScheduleClose)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                   300);
+          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                         300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                          4 * i * 1024 * 1024, 300);
+                                                                 4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }
@@ -805,7 +805,6 @@ TEST(XrdClProxy, ScheduleClose)
   status = file.WaitClose();
   ASSERT_TRUE(status.IsOK());
 }
-
 
 TEST(XrdClProxy, ScheduleCloseAfterCollect)
 {
@@ -821,21 +820,21 @@ TEST(XrdClProxy, ScheduleCloseAfterCollect)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-                                        XrdCl::OpenFlags::Delete;
+          XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-                             XrdCl::Access::UX;
+          XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                   300);
+          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                         300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
 
-  for (size_t i = 0; i < 64 ; ++i) {
+  for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                          4 * i * 1024 * 1024, 300);
+                                                                 4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }

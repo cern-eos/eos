@@ -32,9 +32,11 @@
 // the user part of an xrootd URL: root://user@host/path
 // We're only limited to 8 chars..
 // Each object is immutable after construction, no need for locking.
+
 class LoginIdentifier
 {
 public:
+
   LoginIdentifier()
   {
     connId = 0;
@@ -54,7 +56,8 @@ public:
     return connId;
   }
 
-  bool operator==(const LoginIdentifier &other) const {
+  bool operator==(const LoginIdentifier &other) const
+  {
     return stringId == other.stringId;
   }
 

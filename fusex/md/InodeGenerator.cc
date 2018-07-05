@@ -27,11 +27,12 @@
 
 std::string InodeGenerator::kInodeKey = "nextinode";
 
-void InodeGenerator::init(kv* st) {
+void InodeGenerator::init(kv* st)
+{
   store = st;
 
   mNextInode = 1;
-  if(store->get(kInodeKey, mNextInode)) {
+  if (store->get(kInodeKey, mNextInode)) {
     // otherwise store it for the first time
     inc();
   }
@@ -39,19 +40,18 @@ void InodeGenerator::init(kv* st) {
   eos_static_info("next-inode=%08lx", mNextInode);
 }
 
-uint64_t InodeGenerator::inc() {
+uint64_t InodeGenerator::inc()
+{
   std::lock_guard<std::mutex> lock(mtx);
-  
+
   if (0) {
     //sync - works for eosxd shared REDIS backend
     if (!store->inc(kInodeKey, mNextInode)) {
       return mNextInode;
-    }
-    else {
+    } else {
       throw std::runtime_error("REDIS backend failure - nextinode");
     }
-  }
-  else {
+  } else {
     //async - works for eosxd exclusive REDIS backend
     uint64_t s_inode = mNextInode + 1;
     store->put(kInodeKey, s_inode);

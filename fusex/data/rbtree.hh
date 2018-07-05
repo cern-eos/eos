@@ -32,7 +32,7 @@ class rb_invariant_error : public std::exception
 {
 public:
 
-  rb_invariant_error() {}
+  rb_invariant_error() { }
 
   virtual const char* what() const throw()
   {
@@ -41,7 +41,8 @@ public:
 
 };
 
-enum colour_t {
+enum colour_t
+{
   RED = true,
   BLACK = false
 };
@@ -53,8 +54,9 @@ class node_t
   friend class RBTreeTest;
 
 public:
+
   node_t(const K& key, const V& value) : key(key), value(value), colour(RED),
-    parent(nullptr) { }
+  parent(nullptr) { }
 
   const K key;
   V value;
@@ -157,11 +159,14 @@ protected:
   // this class is just used in rb_erase_case# methods as
   // they need to accept a leaf (null) node as an argument
   // that can return its parent and is BLACK
-  struct leaf_node_t {
+
+  struct leaf_node_t
+  {
+
     leaf_node_t(N* parent) : colour(BLACK), parent(parent) { }
 
     leaf_node_t(const leaf_node_t& leaf) : colour(leaf.colour),
-      parent(leaf.parent) { }
+    parent(leaf.parent) { }
 
     leaf_node_t& operator=(const leaf_node_t& leaf)
     {
@@ -370,14 +375,12 @@ protected:
       // 'successor' unique pointer holds now the node
       if (successor.get() == n) {
         erase_node(successor);
-      }
-      // otherwise the successor was the right child of node,
-      // hence node should be now the right child of 'node'
-      // unique pointer
+      }// otherwise the successor was the right child of node,
+        // hence node should be now the right child of 'node'
+        // unique pointer
       else if (node->right.get() == n) {
         erase_node(node->right);
-      }
-      // there are no other cases so anything else is wrong
+      }// there are no other cases so anything else is wrong
       else {
         throw std::logic_error("Bad rbtree swap.");
       }
@@ -469,7 +472,7 @@ protected:
     return node->left && node->right;
   }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   static void replace(std::unique_ptr<N>& ptr, N* node)
   {
@@ -541,7 +544,7 @@ protected:
     }
   }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   N* get_grandparent(N* node)
   {
@@ -579,7 +582,7 @@ protected:
   void rb_insert_case2(N* node)
   {
     if (node->parent->colour == BLACK) {
-      return;  // the invariant is OK
+      return; // the invariant is OK
     } else {
       rb_insert_case3(node);
     }
@@ -630,7 +633,7 @@ protected:
     }
   }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   template<typename NODE>
   static bool is_left(NODE node)
@@ -802,7 +805,7 @@ protected:
   }
 
   std::unique_ptr<N> tree_root;
-  size_t             tree_size;
+  size_t tree_size;
 };
 
 template<typename K, typename V, typename N>

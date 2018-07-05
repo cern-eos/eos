@@ -41,6 +41,7 @@
 //------------------------------------------------------------------------------
 // Implementation of the key value store interface based on redis
 //------------------------------------------------------------------------------
+
 class RocksKV : public kv
 {
 public:
@@ -57,22 +58,26 @@ public:
 
   int erase(const std::string &key) override;
 
-  int get(uint64_t key, std::string &value, const std::string &name_space="i") override;
-  int put(uint64_t key, const std::string &value, const std::string &name_space="i") override;
+  int get(uint64_t key, std::string &value, const std::string &name_space = "i") override;
+  int put(uint64_t key, const std::string &value, const std::string &name_space = "i") override;
 
-  int get(uint64_t key, uint64_t &value, const std::string &name_space="i") override;
-  int put(uint64_t key, uint64_t value, const std::string &name_space="i") override;
+  int get(uint64_t key, uint64_t &value, const std::string &name_space = "i") override;
+  int put(uint64_t key, uint64_t value, const std::string &name_space = "i") override;
 
-  int erase(uint64_t key, const std::string &name_space="i") override;
+  int erase(uint64_t key, const std::string &name_space = "i") override;
 
-  std::string prefix(const std::string& key) { return mPrefix+key; }
+  std::string prefix(const std::string& key)
+  {
+    return mPrefix + key;
+  }
   using TransactionPtr = std::unique_ptr<rocksdb::Transaction>;
 private:
   std::unique_ptr<rocksdb::TransactionDB> transactionDB;
   rocksdb::DB *db; // owned by transactionDB
   std::string mPrefix;
 
-  TransactionPtr startTransaction() {
+  TransactionPtr startTransaction()
+  {
     rocksdb::WriteOptions opts;
     return TransactionPtr(transactionDB->BeginTransaction(opts));
   }

@@ -44,6 +44,7 @@
 #define SA_OK 64   // set xattr
 #define U_OK 128   // can update
 #define SU_OK 256  // set utimes
+
 class cap
 {
 public:
@@ -54,9 +55,7 @@ public:
   {
   public:
 
-    virtual ~quotax()
-    {
-    }
+    virtual ~quotax() { }
 
     XrdSysMutex& Locker()
     {
@@ -71,16 +70,14 @@ public:
 
   private:
     XrdSysMutex mLock;
-  } ;
+  };
 
   class capx : public eos::fusex::cap
   //----------------------------------------------------------------------------
   {
   public:
 
-    virtual ~capx()
-    {
-    }
+    virtual ~capx() { }
 
     capx& operator=(eos::fusex::cap other)
     {
@@ -100,9 +97,7 @@ public:
 
     std::string dump(bool dense = false);
 
-    capx() : lastusage(0)
-    {
-    }
+    capx() : lastusage(0) { }
 
     capx(fuse_req_t req, fuse_ino_t ino)
     {
@@ -129,7 +124,7 @@ public:
   private:
     XrdSysMutex mLock;
     time_t lastusage;
-  } ;
+  };
 
   typedef std::shared_ptr<capx> shared_cap;
   typedef std::shared_ptr<quotax> shared_quota;
@@ -144,50 +139,48 @@ public:
     // map from quota inode to quota information
   public:
 
-    qmap()
-    {
-    }
+    qmap() { }
 
-    virtual ~qmap()
-    {
-    }
+    virtual ~qmap() { }
 
     shared_quota get(shared_cap cap);
-  } ;
+  };
 
-  class cmap : public std::map<std::string, shared_cap> , public XrdSysMutex
+  class cmap : public std::map<std::string, shared_cap>, public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
 
-    cmap()
-    {
-    }
+    cmap() { }
 
-    virtual ~cmap()
-    {
-    }
-  } ;
+    virtual ~cmap() { }
+  };
 
   //----------------------------------------------------------------------------
+
   class forgotten
   {
     // used to remove caps which point forgotten directory inodes
   public:
 
-    forgotten() {}
-    virtual ~forgotten() {}
+    forgotten() { }
 
-    void add(fuse_ino_t ino) {
+    virtual ~forgotten() { }
+
+    void add(fuse_ino_t ino)
+    {
       XrdSysMutexHelper mLock(mLocker);
       mUnlinkedInodes.insert(ino);
     }
-    bool has(fuse_ino_t ino) {
+
+    bool has(fuse_ino_t ino)
+    {
       XrdSysMutexHelper mLock(mLocker);
       return mUnlinkedInodes.count(ino);
     }
 
-    void clear() {
+    void clear()
+    {
       XrdSysMutexHelper mLock(mLocker);
       mUnlinkedInodes.clear();
     }
@@ -209,13 +202,13 @@ public:
 
   shared_cap get(fuse_ino_t ino,
                  std::string clientid
-                );
+                 );
 
   shared_cap acquire(fuse_req_t req,
                      fuse_ino_t ino,
                      mode_t mode,
                      bool lock = false
-                    );
+                     );
 
   void book_inode(shared_cap cap)
   {
@@ -309,7 +302,7 @@ public:
 
   size_t size()
   {
-    XrdSysMutexHelper mLock( capmap );
+    XrdSysMutexHelper mLock(capmap);
     return capmap.size();
   }
 
@@ -329,5 +322,5 @@ private:
   extension_map_t extensionmap; // map containing all authids
   // with their lifetime increment to be sent by the heartbeat
 
-} ;
+};
 #endif /* FUSE_CAP_HH_ */

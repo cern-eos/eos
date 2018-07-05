@@ -41,7 +41,8 @@
 // This is because a single execve() will typically issue many requests to
 // fuse - we only want to pay the wait penalty once.
 
-struct EnvironmentResponse {
+struct EnvironmentResponse
+{
   std::shared_future<Environment> contents;
   std::chrono::high_resolution_clock::time_point queuedSince;
 };
@@ -55,25 +56,27 @@ public:
   EnvironmentResponse stageRequest(pid_t pid);
 
   // *all* responses will be faked if there's at least one injection active
-  void inject(pid_t pid, const Environment &env, const std::chrono::milliseconds &artificialDelay = std::chrono::milliseconds(0) );
+  void inject(pid_t pid, const Environment &env, const std::chrono::milliseconds &artificialDelay = std::chrono::milliseconds(0));
   void removeInjection(pid_t pid);
 private:
   void fillFromInjection(pid_t pid, Environment& env);
 
-  struct SimulatedResponse {
+  struct SimulatedResponse
+  {
     Environment env;
     std::chrono::milliseconds artificialDelay;
   };
 
-  struct QueuedRequest {
+  struct QueuedRequest
+  {
     pid_t pid;
     std::promise<Environment> promise;
   };
 
   void worker();
 
-  std::atomic<bool> shutdown {false};
-  std::atomic<size_t> threadsAlive {0};
+  std::atomic<bool> shutdown{false};
+  std::atomic<size_t> threadsAlive{0};
   std::vector<std::thread> threads;
 
   std::mutex mtx;

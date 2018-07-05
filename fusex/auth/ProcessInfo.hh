@@ -35,13 +35,16 @@ typedef int64_t Jiffies;
 // Holds information about a specific process.
 // Stat information (pid, ppid, sid, starttime) must be present for such an
 // object to be considered non-empty.
+
 class ProcessInfo
 {
 public:
+
   ProcessInfo() : empty(true), pid(0), ppid(0), pgrp(0), sid(0), startTime(-1),
-    flags(0) {}
+  flags(0) { }
 
   // Fill stat information as obtained from /proc/<pid>/stat
+
   void fillStat(pid_t pid, pid_t ppid, pid_t pgrp, pid_t sid, Jiffies startTime,
                 unsigned int flags)
   {
@@ -73,6 +76,7 @@ public:
   // only if it can be guaranteed they both refer to the same process.
   // (ie same pid, same start time)
   // Return value: false if they're not the same process, true otherwise.
+
   bool updateIfSameProcess(const ProcessInfo& src)
   {
     if (empty || src.empty) {
@@ -89,6 +93,7 @@ public:
   }
 
   // Fill cmdline information as obtained from /proc/<pid>/cmdline
+
   void fillCmdline(const std::vector<std::string>& contents)
   {
     cmd = contents;
@@ -164,7 +169,7 @@ private:
   bool empty;
   RmInfo rmInfo;
 
-// TODO(gbitzes): Make these private once ProcessInfoProvider is implemented
+  // TODO(gbitzes): Make these private once ProcessInfoProvider is implemented
 public:
   // from /proc/<pid>/stat
   pid_t pid;
@@ -181,6 +186,7 @@ public:
 };
 
 // Parses the contents of /proc/<pid>/stat, converting it to a ProcessInfo
+
 class ProcessInfoProvider
 {
 public:
@@ -197,7 +203,7 @@ public:
 private:
   std::mutex mtx;
   std::map<pid_t, ProcessInfo> injections;
-  std::atomic<bool> useInjectedData {false};
+  std::atomic<bool> useInjectedData{false};
   static bool parseStat(const std::string& stat, ProcessInfo& ret);
   static void parseCmdline(const std::string& cmdline, ProcessInfo& ret);
   static bool parseExec(pid_t pid, ProcessInfo& ret);

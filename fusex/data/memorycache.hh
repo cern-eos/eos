@@ -61,7 +61,7 @@ private:
   XrdSysMutex xattrmtx;
   std::map<std::string, std::string> xattr;
   fuse_ino_t ino;
-} ;
+};
 
 
 

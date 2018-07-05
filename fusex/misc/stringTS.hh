@@ -27,21 +27,28 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <mutex>
+
 /*----------------------------------------------------------------------------*/
 
-class stringTS {
+class stringTS
+{
 public:
 
-  stringTS() {}
-  stringTS(const std::string& s) { set(s); }
-  virtual ~stringTS(){}
+  stringTS() { }
+
+  stringTS(const std::string& s)
+  {
+    set(s);
+  }
+
+  virtual ~stringTS() { }
 
   std::string get()
   {
     std::lock_guard<std::mutex> lock(mMutex);
     return mString;
   }
-  
+
   void set(const std::string& s)
   {
     std::lock_guard<std::mutex> lock(mMutex);

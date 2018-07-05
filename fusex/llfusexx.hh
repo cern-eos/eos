@@ -47,8 +47,7 @@
 #endif
 #endif
 
-extern "C"
-{
+extern "C" {
 #ifdef _FUSE3
 #include <fuse3/fuse_lowlevel.h>
 #else
@@ -66,8 +65,7 @@ extern "C"
 #endif
 
 
-namespace llfusexx
-{
+namespace llfusexx {
 //----------------------------------------------------------------------------
 //! Interface to the low-level FUSE API
 //----------------------------------------------------------------------------

@@ -39,24 +39,30 @@
 // never be misidentified as rm..
 //------------------------------------------------------------------------------
 
-class RmInfo {
+class RmInfo
+{
 public:
-  RmInfo() {}
+
+  RmInfo() { }
   RmInfo(const std::string &executablePath, const std::vector<std::string> &cmdline);
 
-  bool isRm() const {
+  bool isRm() const
+  {
     return rm;
   }
 
-  bool isRecursive() const {
+  bool isRecursive() const
+  {
     return recursive;
   }
 
-  bool isForce() const {
+  bool isForce() const
+  {
     return force;
   }
 
-  bool isVerbose() const {
+  bool isVerbose() const
+  {
     return verbose;
   }
 

@@ -42,7 +42,8 @@ cap::cap()
 /* -------------------------------------------------------------------------- */
 cap::~cap()
 /* -------------------------------------------------------------------------- */
-{}
+{
+}
 
 /* -------------------------------------------------------------------------- */
 void
@@ -66,7 +67,7 @@ cap::capx::dump(bool dense)
     snprintf(sout, sizeof(sout),
              "i=%08lx m=%x c=%s",
              id(), mode(), clientid().c_str()
-            );
+             );
   } else {
     snprintf(sout, sizeof(sout),
              "id=%lx mode=%x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu q-node=%16lx ino=%lu vol=%lu",
@@ -76,7 +77,7 @@ cap::capx::dump(bool dense)
              _quota().quota_inode(),
              _quota().inode_quota(),
              _quota().volume_quota()
-            );
+             );
   }
 
   return sout;
@@ -108,7 +109,7 @@ cap::capx::capid(fuse_req_t req, fuse_ino_t ino)
            login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
-          );
+           );
   return sid;
 }
 
@@ -123,7 +124,7 @@ cap::capx::capid(fuse_ino_t ino, std::string clientid)
            "%lx:%s",
            ino,
            clientid.c_str()
-          );
+           );
   return sid;
 }
 
@@ -142,7 +143,7 @@ cap::capx::getclientid(fuse_req_t req)
            login.c_str(),
            EosFuse::Instance().Config().clienthost.c_str(),
            EosFuse::Instance().Config().name.c_str()
-          );
+           );
   return sid;
 }
 
@@ -311,7 +312,7 @@ cap::acquire(fuse_req_t req,
              fuse_ino_t ino,
              mode_t mode,
              bool lock
-            )
+             )
 /* -------------------------------------------------------------------------- */
 {
   std::string cid = cap::capx::capid(req, ino);
@@ -376,7 +377,8 @@ cap::refresh(fuse_req_t req, shared_cap cap)
       // decode the cap
       for (auto it = contv.begin(); it != contv.end(); ++it) {
         switch (it->type()) {
-        case eos::fusex::container::CAP: {
+        case eos::fusex::container::CAP:
+        {
           uint64_t id = mds->vmaps().forward(it->cap_().id());
 
           //XrdSysMutexHelper mLock(cap->Locker());
@@ -422,7 +424,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
                            ns_lag / 1000000000.0,
                            cap->id(),
                            backoff);
-        std::this_thread::sleep_for(std::chrono::seconds((int)backoff));
+        std::this_thread::sleep_for(std::chrono::seconds((int) backoff));
       }
     }
   } while (1);
@@ -515,7 +517,7 @@ cap::capflush(ThreadAssistant& assistant)
               // for an extension of CAP_EXTENSION_TIME
               XrdSysMutexHelper eLock(extensionLock);
               extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
-              it->second->set_vtime(vtime  + CAP_EXTENSION_TIME);
+              it->second->set_vtime(vtime + CAP_EXTENSION_TIME);
               eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
                               it->second->authid().c_str(),
                               vtime,

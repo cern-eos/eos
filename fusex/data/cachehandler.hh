@@ -34,8 +34,9 @@ class cachehandler
 {
 public:
 
-  cachehandler() {}
-  virtual ~cachehandler() {}
+  cachehandler() { }
+
+  virtual ~cachehandler() { }
 
   // static member functions
 
@@ -55,20 +56,23 @@ public:
 
   bool inmemory()
   {
-    return (config.type == cache_t::MEMORY);
+    return(config.type == cache_t::MEMORY);
   }
 
   bool journaled()
   {
-    return (config.journal.length());
+    return(config.journal.length());
   }
 
-  cacheconfig& get_config() {return config;}
+  cacheconfig& get_config()
+  {
+    return config;
+  }
 
 private:
   std::map<fuse_ino_t, shared_io> contents;
   std::mutex mtx;
   cacheconfig config;
-} ;
+};
 
 #endif

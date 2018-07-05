@@ -28,6 +28,7 @@
 //----------------------------------------------------------------------------
 //! A synchronized queue
 //----------------------------------------------------------------------------
+
 template <typename Item>
 class SyncQueue
 {
@@ -35,6 +36,7 @@ public:
   //------------------------------------------------------------------------
   //! Constructor
   //------------------------------------------------------------------------
+
   SyncQueue()
   {
     if (sem_init(&sem, 0, 0)) {
@@ -45,6 +47,7 @@ public:
   //------------------------------------------------------------------------
   //! Destructor
   //------------------------------------------------------------------------
+
   ~SyncQueue()
   {
     sem_destroy(&sem);
@@ -59,6 +62,7 @@ public:
   //------------------------------------------------------------------------
   //! Put the item in the queue
   //------------------------------------------------------------------------
+
   void Put(Item* item)
   {
     XrdSysMutexHelper scopedLock(mutex);
@@ -72,11 +76,12 @@ public:
   //------------------------------------------------------------------------
   //! Get the item from the front of the queue
   //------------------------------------------------------------------------
+
   bool Get(Item*& i, time_t timeout = 5 * 60)
   {
     timespec ts;
     ts.tv_nsec = 0;
-    ts.tv_sec  = ::time(0) + timeout;
+    ts.tv_sec = ::time(0) + timeout;
 
     if (sem_timedwait(&sem, &ts)) {
       if (errno == ETIMEDOUT) {
@@ -100,9 +105,9 @@ public:
 
 private:
 
-  std::queue<Item*>   items;
+  std::queue<Item*> items;
   mutable XrdSysMutex mutex;
-  sem_t               sem;
+  sem_t sem;
 };
 
 

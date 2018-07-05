@@ -53,6 +53,7 @@ static void Populate(interval_tree<int, std::string>& tree)
 class IntervalTreeTest
 {
 public:
+
   static bool TestInvariant(const interval_tree<int, std::string>& tree)
   {
     return TestInvariant(tree.tree_root);

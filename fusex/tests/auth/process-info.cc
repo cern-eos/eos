@@ -94,11 +94,12 @@ TEST(ProcessInfoProvider, ParseCmdline)
   ASSERT_EQ(pinfo.getParentId(), 23713);
   ASSERT_EQ(pinfo.getSid(), 23713);
   ASSERT_EQ(pinfo.getStartTime(), 28202761);
-  std::vector<std::string> tmp { "vim", "eos.spec.in" };
+  std::vector<std::string> tmp{ "vim", "eos.spec.in"};
   ASSERT_EQ(pinfo.getCmd(), tmp);
 }
 
 #ifndef __APPLE__
+
 TEST(ProcessInfoProvider, GetMyProcessInfo)
 {
   ProcessInfoProvider processInfoProvider;

@@ -64,11 +64,13 @@ public:
 
   bool isStillValid(const BoundIdentity &identity);
 
-  SecurityChecker &getSecurityChecker() {
+  SecurityChecker &getSecurityChecker()
+  {
     return securityChecker;
   }
 
-  EnvironmentReader &getEnvironmentReader() {
+  EnvironmentReader &getEnvironmentReader()
+  {
     return environmentReader;
   }
 
@@ -88,7 +90,7 @@ private:
   std::mutex unixConnectionCounterMtx;
   std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;
 
-  std::atomic<uint64_t> connectionCounter {1};
+  std::atomic<uint64_t> connectionCounter{1};
 };
 
 #endif

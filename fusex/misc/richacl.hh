@@ -22,7 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-struct {
+struct
+{
   int raclBit;
   char eosChr;
 } raclEosPerms[] = {
@@ -34,7 +35,7 @@ struct {
   {RICHACE_DELETE, 'd'},
   {RICHACE_WRITE_OWNER, 'c'}
 };
-const unsigned int raclEosPermsLen = sizeof (raclEosPerms) / sizeof (raclEosPerms[0]);
+const unsigned int raclEosPermsLen = sizeof(raclEosPerms) / sizeof(raclEosPerms[0]);
 
 int
 static racl2eos(struct richacl *acl, char *buf, int bufsz)
@@ -43,7 +44,7 @@ static racl2eos(struct richacl *acl, char *buf, int bufsz)
   bool add_comma = false;
   int rc = 0;
 
-  if (bufsz < 1) return (EINVAL);
+  if (bufsz < 1) return(EINVAL);
   buf[0] = '\0'; /* in case there are no eos-compatible ACLs */
 
 
@@ -72,7 +73,7 @@ static racl2eos(struct richacl *acl, char *buf, int bufsz)
     } else continue; /* silently ignored */
 
     char id[1024];
-    snprintf(id, sizeof (id), "%s:%s", ug, who.c_str());
+    snprintf(id, sizeof(id), "%s:%s", ug, who.c_str());
     std::string id_s = id;
 
     auto a = ace_mask.find(id_s);
@@ -146,7 +147,7 @@ eos2racl(const char *eosacl, int mode)
 
   struct richacl *acl = richacl_from_mode(mode);
   numace += acl->a_count;
-  int newSz = sizeof (struct richacl) +numace * sizeof (struct richace);
+  int newSz = sizeof(struct richacl) +numace * sizeof(struct richace);
   acl = (struct richacl *) realloc(acl, newSz);
 
   eos_static_debug("eos2racl curr='%s' next='%s'", curr, lasts);
@@ -157,7 +158,7 @@ eos2racl(const char *eosacl, int mode)
 
   do { /* one entry, e.g. u:username:rx,egroup:groupname:rw */
     struct richace *ace = &acl->a_entries[acl->a_count];
-    memset(ace, 0, sizeof (*ace)); /* makes the ace an "allowed" type entry in passing */
+    memset(ace, 0, sizeof(*ace)); /* makes the ace an "allowed" type entry in passing */
 
     char *l2;
     char *uge = strtok_r(curr, ":", &l2);
@@ -244,12 +245,12 @@ eos2racl(const char *eosacl, int mode)
     if (deny != 0) {
       numace++;
 
-      newSz = sizeof (struct richacl) +numace * sizeof (struct richace);
+      newSz = sizeof(struct richacl) +numace * sizeof(struct richace);
       struct richacl *acl2 = (struct richacl *) realloc(acl, newSz);
       if (acl != acl2) eos_static_debug("eos2racl realloc returned %#p previous %#p", acl2, acl);
       acl = acl2;
       ace = &acl->a_entries[acl->a_count]; /* bump to new entry, and correct ace in case realloc relocated! */
-      memset(ace, 0, sizeof (*ace)); /* richacl_copy acts on RICHACE_UNMAPPED_WHO in e_flags! */
+      memset(ace, 0, sizeof(*ace)); /* richacl_copy acts on RICHACE_UNMAPPED_WHO in e_flags! */
       richace_copy(ace, ace - 1); /* richace_copy(target, source), copy previous entry */
       ace->e_type |= RICHACE_ACCESS_DENIED_ACE_TYPE;
       ace->e_mask = deny;

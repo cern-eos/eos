@@ -39,9 +39,7 @@ class cache
 {
 public:
 
-  virtual ~cache()
-  {
-  }
+  virtual ~cache() { }
 
   // base class interface
   virtual int attach(fuse_req_t req, std::string& cookie, int flags) = 0;
@@ -88,7 +86,7 @@ public:
   {
     return 0;
   }
-} ;
+};
 
 
 #endif /* FUSE_CACHE_HH_ */

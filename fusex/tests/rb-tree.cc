@@ -30,6 +30,7 @@
 class RBTreeTest
 {
 public:
+
   static void Populate(rbtree<int, std::string>& tree)
   {
     srand(time(NULL));
@@ -48,13 +49,13 @@ public:
   }
 
   static std::pair<bool, int> TestRBInvariant(const rbtree<int, std::string>&
-      tree)
+                                              tree)
   {
     return TestRBInvariant(tree.tree_root);
   }
 
   static std::pair<bool, int> TestRBInvariant(const
-      std::unique_ptr< node_t<int, std::string> >& root)
+                                              std::unique_ptr< node_t<int, std::string> >& root)
   {
     // base case
     if (!root) {
@@ -66,7 +67,7 @@ public:
     if (root->colour == RED) {
       // RED node cannot have RED children
       if ((root->left && root->left->colour == RED) || (root->right &&
-          root->right->colour == RED)) {
+                                                        root->right->colour == RED)) {
         return std::make_pair(false, -1);
       }
     } else {
@@ -147,7 +148,7 @@ public:
         return false;
       }
 
-    auto left_max  = GetMax(root->left);
+    auto left_max = GetMax(root->left);
 
     // check if the left sub-tree exists
     if (left_max.first)
@@ -191,7 +192,7 @@ TEST(RBTree, TestIterator)
   int i = 1;
   rbtree<int, std::string>::iterator itr;
 
-  for (itr = tree.begin() ; itr != tree.end(); ++itr) {
+  for (itr = tree.begin(); itr != tree.end(); ++itr) {
     ASSERT_EQ(itr->key, i);
     ++i;
   }

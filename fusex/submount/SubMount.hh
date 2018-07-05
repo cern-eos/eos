@@ -34,9 +34,11 @@
 class SubMount
 {
 public:
-  SubMount() { } 
-  
+
+  SubMount() { }
+
   void terminate();
+
   ~SubMount() { }
 
 

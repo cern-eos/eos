@@ -42,7 +42,8 @@ class dircleaner
 {
 public:
 
-  typedef struct fileinfo {
+  typedef struct fileinfo
+  {
     std::string path;
     time_t mtime;
     size_t size;
@@ -50,7 +51,8 @@ public:
 
   typedef std::multimap<time_t, file_info_t> tree_map_t;
 
-  typedef struct tree_info {
+  typedef struct tree_info
+  {
 
     tree_info()
     {
@@ -66,19 +68,21 @@ public:
     XrdSysMutex Locker;
 
     // thread safe change size, files
+
     void change(int64_t size, int64_t files)
     {
       eos_static_info("size=%ld files=%ld", size, files);
       XrdSysMutexHelper mLock(Locker);
       totalsize += size;
       totalfiles += files;
-      if (totalsize<0)
-	totalsize=0;
-      if (totalfiles<0)
-	totalfiles=0;
+      if (totalsize < 0)
+        totalsize = 0;
+      if (totalfiles < 0)
+        totalfiles = 0;
     }
 
     // safe reset function
+
     void reset()
     {
       XrdSysMutexHelper mLock(Locker);
@@ -86,6 +90,7 @@ public:
       totalfiles = 0;
     }
     // thread safe get size
+
     int64_t get_size()
     {
       XrdSysMutexHelper mLock(Locker);
@@ -93,6 +98,7 @@ public:
     }
 
     // thread safe get files
+
     int64_t get_files()
     {
       XrdSysMutexHelper mLock(Locker);
@@ -101,7 +107,7 @@ public:
 
   } tree_info_t;
 
-  dircleaner(const std::string _path = "/tmp/", int64_t _maxsize = 0 ,
+  dircleaner(const std::string _path = "/tmp/", int64_t _maxsize = 0,
              int64_t _maxfiles = 0, float _clean_threshold = 85.0);
   virtual ~dircleaner();
 
@@ -117,8 +123,8 @@ public:
     trim_suffix = sfx;
   }
 
-  int cleanall( std::string matchsuffix = "" );
-  int scanall( std::string matchsuffix = "");
+  int cleanall(std::string matchsuffix = "");
+  int scanall(std::string matchsuffix = "");
   int trim(bool force);
   void leveler(ThreadAssistant &assistant);
 
@@ -136,5 +142,5 @@ private:
   AssistedThread tLeveler;
   std::string trim_suffix;
 
-} ;
+};
 #endif

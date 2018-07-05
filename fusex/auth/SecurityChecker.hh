@@ -48,7 +48,8 @@
 // if we didn't.
 //------------------------------------------------------------------------------
 
-enum class CredentialState {
+enum class CredentialState
+{
   kCannotStat = 0,
   kBadPermissions = 1,
   kOk = 2
@@ -57,14 +58,18 @@ enum class CredentialState {
 class SecurityChecker
 {
 public:
-  SecurityChecker() {}
 
-  struct Info {
+  SecurityChecker() { }
+
+  struct Info
+  {
     CredentialState state;
     time_t mtime;
 
-    Info() : state(CredentialState::kCannotStat), mtime(-1) {}
-    Info(CredentialState st, time_t mt) : state(st), mtime(mt) {}
+    Info() : state(CredentialState::kCannotStat), mtime(-1) { }
+
+    Info(CredentialState st, time_t mt) : state(st), mtime(mt) { }
+
     bool operator==(const Info& other) const
     {
       return state == other.state && mtime == other.mtime;
@@ -79,15 +84,17 @@ private:
   Info validate(uid_t uid, mode_t mode, uid_t expectedUid, time_t mtime);
 
   std::mutex mtx;
-  std::atomic<bool> useInjectedData {false};
+  std::atomic<bool> useInjectedData{false};
 
-  struct InjectedData {
+  struct InjectedData
+  {
     uid_t uid;
     mode_t mode;
     time_t mtime;
 
-    InjectedData() {}
-    InjectedData(uid_t u, mode_t md, time_t mt) : uid(u), mode(md), mtime(mt) {}
+    InjectedData() { }
+
+    InjectedData(uid_t u, mode_t md, time_t mt) : uid(u), mode(md), mtime(mt) { }
   };
 
   std::map<std::string, InjectedData> injections;

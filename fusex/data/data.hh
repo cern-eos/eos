@@ -60,20 +60,20 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-	      mPrefetchHandler(0),
-	      mSimulateWriteErrorInFlush(false),
-	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
-
-    { inline_buffer = nullptr;}
+    mPrefetchHandler(0),
+    mSimulateWriteErrorInFlush(false),
+    mSimulateWriteErrorInFlusher(false),
+    mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
+    {
+      inline_buffer = nullptr;
+    }
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-				 mAttached(0), mMd(md), mPrefetchHandler(0), 
-				 mSimulateWriteErrorInFlush(false),
-				 mSimulateWriteErrorInFlusher(false),
-				 mFlags(0),  mXoff(false), 
-				 mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
-    {}
+    mAttached(0), mMd(md), mPrefetchHandler(0),
+    mSimulateWriteErrorInFlush(false),
+    mSimulateWriteErrorInFlusher(false),
+    mFlags(0), mXoff(false),
+    mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false) { }
 
     virtual ~datax() = default;
 
@@ -100,12 +100,12 @@ public:
     }
 
     int flush(fuse_req_t req);
-    int flush_nolock(fuse_req_t req, bool wait_open=true, bool wait_writes=false);
+    int flush_nolock(fuse_req_t req, bool wait_open = true, bool wait_writes = false);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
     int journalflush_async(std::string cid);
     int attach(fuse_req_t req, std::string& cookie, int flags);
-    bool inline_file(ssize_t size=-1);
+    bool inline_file(ssize_t size = -1);
     int detach(fuse_req_t req, std::string& cookie, int flags);
     int store_cookie(std::string& cookie);
     int unlink(fuse_req_t req);
@@ -154,12 +154,12 @@ public:
     bool detach()
     {
       XrdSysMutexHelper lLock(mLock);
-      return (--mAttached);
+      return(--mAttached);
     }
 
     bool detach_nolock()
     {
-      return (--mAttached);
+      return(--mAttached);
     }
 
     bool attached()
@@ -170,15 +170,15 @@ public:
 
     bool attached_nolock()
     {
-      return (mAttached) ? true : false;
+      return(mAttached) ? true : false;
     }
 
     bool attached_once_nolock()
     {
-      return (mAttached==1) ? true : false;
+      return(mAttached == 1) ? true : false;
     }
 
-    bool unlinked() 
+    bool unlinked()
     {
       // caller has to have this object locked
       return mIsUnlinked;
@@ -200,7 +200,7 @@ public:
     {
       return mIsInlined;
     }
-    
+
     static std::string kInlineAttribute;
     static std::string kInlineMaxSize;
     static std::string kInlineCompressor;
@@ -224,7 +224,7 @@ public:
     bool mSimulateWriteErrorInFlusher;
     int mFlags;
 
-    bool mXoff; 
+    bool mXoff;
     bool mIsInlined;
     uint64_t mInlineMaxSize;
     std::string mInlineCompressor;
@@ -235,7 +235,8 @@ public:
 
   typedef std::shared_ptr<datax> shared_data;
 
-  typedef struct _data_fh {
+  typedef struct _data_fh
+  {
     shared_data data;
     cap::shared_cap cap_;
     metad::shared_md md;
@@ -255,9 +256,7 @@ public:
       _opensize = md->size();
     }
 
-    ~_data_fh()
-    {
-    }
+    ~_data_fh() { }
 
     static struct _data_fh* Instance(shared_data io, metad::shared_md md, bool rw)
     {
@@ -318,18 +317,14 @@ public:
 
   //----------------------------------------------------------------------------
 
-  class dmap : public std::map<fuse_ino_t, shared_data> , public XrdSysMutex
+  class dmap : public std::map<fuse_ino_t, shared_data>, public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
 
-    dmap()
-    {
-    }
+    dmap() { }
 
-    virtual ~dmap()
-    {
-    }
+    virtual ~dmap() { }
 
     void run()
     {
@@ -341,7 +336,7 @@ public:
 
   private:
     AssistedThread tIOFlush;
-  } ;
+  };
 
   data();
 
@@ -367,7 +362,8 @@ public:
 
   void invalidate_cache(fuse_ino_t ino);
 
-  size_t size() {
+  size_t size()
+  {
     XrdSysMutexHelper mLock(datamap);
     return datamap.size();
   }
@@ -375,6 +371,6 @@ public:
 
 private:
   dmap datamap;
-} ;
+};
 
 #endif /* FUSE_DATA_HH_ */

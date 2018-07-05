@@ -19,7 +19,7 @@ public:
 
   FuseException(int rc) : code(rc) { }
 
-  FuseException(const FuseException& ex): code(ex.code) { }
+  FuseException(const FuseException& ex) : code(ex.code) { }
 
   FuseException& operator=(const FuseException& ex)
   {

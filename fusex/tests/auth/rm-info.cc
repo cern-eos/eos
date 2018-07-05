@@ -25,26 +25,30 @@
 #include <gtest/gtest.h>
 #include "auth/RmInfo.hh"
 
-TEST(RmInfo, BasicSanity1) {
-  RmInfo parser("/usr/bin/rm", {"rm", "/eos/some-file" });
+TEST(RmInfo, BasicSanity1)
+{
+  RmInfo parser("/usr/bin/rm",{"rm", "/eos/some-file"});
   ASSERT_TRUE(parser.isRm());
   ASSERT_FALSE(parser.isRecursive());
 }
 
-TEST(RmInfo, BasicSanity2) {
-  RmInfo parser("/bin/rm", {"rm", "-r", "/eos/some-folder"});
+TEST(RmInfo, BasicSanity2)
+{
+  RmInfo parser("/bin/rm",{"rm", "-r", "/eos/some-folder"});
   ASSERT_TRUE(parser.isRm());
   ASSERT_TRUE(parser.isRecursive());
 }
 
-TEST(RmInfo, BasicSanity3) {
-  RmInfo parser("/usr/bin/git", {"git", "-r", "aaaa"});
+TEST(RmInfo, BasicSanity3)
+{
+  RmInfo parser("/usr/bin/git",{"git", "-r", "aaaa"});
   ASSERT_FALSE(parser.isRm());
   ASSERT_FALSE(parser.isRecursive());
 }
 
-TEST(RmInfo, BasicSanity4) {
-  RmInfo parser("/usr/bin/rm", {"rm", "-rf", "."});
+TEST(RmInfo, BasicSanity4)
+{
+  RmInfo parser("/usr/bin/rm",{"rm", "-rf", "."});
   ASSERT_TRUE(parser.isRm());
   ASSERT_TRUE(parser.isRecursive());
 }

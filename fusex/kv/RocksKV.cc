@@ -40,7 +40,7 @@ safe_strtoll(const std::string &str, uint64_t &ret)
 {
   char *endptr = NULL;
   ret = strtoull(str.c_str(), &endptr, 10);
-  if(endptr != str.c_str() + str.size() || ret == ULONG_LONG_MAX) {
+  if (endptr != str.c_str() + str.size() || ret == ULONG_LONG_MAX) {
     return false;
   }
   return true;
@@ -81,7 +81,7 @@ RocksKV::connect(const std::string &prefix, const std::string &path)
   rocksdb::TransactionDB *mydb;
 
   rocksdb::Status st = rocksdb::TransactionDB::Open(options, txopts, path, &mydb);
-  if(!st.ok()) {
+  if (!st.ok()) {
     eos_static_crit("Could not open RocksKV store, error: %s", st.ToString().c_str());
     return -1;
   }
@@ -93,7 +93,8 @@ RocksKV::connect(const std::string &prefix, const std::string &path)
   return 0;
 }
 
-static int badStatus(const rocksdb::Status &st) {
+static int badStatus(const rocksdb::Status &st)
+{
   eos_static_crit("Unexpected rocksdb status: %s", st.ToString().c_str());
   return -1;
 }
@@ -106,10 +107,9 @@ RocksKV::get(const std::string &key, std::string &value)
 {
   rocksdb::Status st = db->Get(rocksdb::ReadOptions(), prefix(key), &value);
 
-  if(st.IsNotFound()) {
+  if (st.IsNotFound()) {
     return 1;
-  }
-  else if(!st.ok()) {
+  } else if (!st.ok()) {
     return badStatus(st);
   }
 
@@ -124,9 +124,9 @@ RocksKV::get(const std::string &key, uint64_t &value)
 {
   std::string tmp;
   int ret = this->get(key, tmp);
-  if(ret != 0) return ret;
+  if (ret != 0) return ret;
 
-  if(!safe_strtoll(tmp.c_str(), value)) {
+  if (!safe_strtoll(tmp.c_str(), value)) {
     eos_static_crit("Expected to find an integer on key %s, instead found %s", key.c_str(), tmp.c_str());
     return -1;
   }
@@ -141,7 +141,7 @@ RocksKV::put(const std::string &key, const std::string &value)
 /* -------------------------------------------------------------------------- */
 {
   rocksdb::Status st = db->Put(rocksdb::WriteOptions(), prefix(key), value);
-  if(!st.ok()) {
+  if (!st.ok()) {
     return badStatus(st);
   }
 
@@ -169,29 +169,28 @@ RocksKV::inc(const std::string &key, uint64_t &value)
   uint64_t initialValue = 0;
   rocksdb::Status st = tx->GetForUpdate(rocksdb::ReadOptions(), prefix(key), &tmp);
 
-  if(!st.ok() && !st.IsNotFound()) {
+  if (!st.ok() && !st.IsNotFound()) {
     return badStatus(st);
   }
 
-  if(!safe_strtoll(tmp, initialValue)) {
+  if (!safe_strtoll(tmp, initialValue)) {
     eos_static_crit("Attemted to increase a non-numeric value on key %s: %s", key.c_str(), tmp.c_str());
     return -1;
   }
 
   st = tx->Put(prefix(key), std::to_string(initialValue + value));
-  if(!st.ok()) {
+  if (!st.ok()) {
     return badStatus(st);
   }
 
   st = tx->Commit();
-  if(!st.ok()) {
+  if (!st.ok()) {
     return badStatus(st);
   }
 
   value += initialValue;
   return 0;
 }
-
 
 /* -------------------------------------------------------------------------- */
 int
@@ -200,7 +199,7 @@ RocksKV::erase(const std::string &key)
 /* -------------------------------------------------------------------------- */
 {
   rocksdb::Status st = db->Delete(rocksdb::WriteOptions(), prefix(key));
-  if(!st.ok()) {
+  if (!st.ok()) {
     // deleting a non-existent key is not an error!
     return badStatus(st);
   }

@@ -64,9 +64,10 @@ public:
 
     // local operations
 
-    enum md_op {
+    enum md_op
+    {
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
-    } ;
+    };
 
     mdx() : mSync(1)
     {
@@ -90,9 +91,7 @@ public:
       return *this;
     }
 
-    virtual ~mdx()
-    {
-    }
+    virtual ~mdx() { }
 
     XrdSysMutex& Locker()
     {
@@ -190,7 +189,7 @@ public:
 
     bool deleted() const
     {
-      return (op == RM) ;
+      return(op == RM);
     }
 
     void set_lock_remote()
@@ -260,7 +259,6 @@ public:
       return todelete;
     }
 
-
     size_t sizeTS()
     {
       XrdSysMutexHelper lLock(mLock);
@@ -272,11 +270,13 @@ public:
       return _local_children;
     }
 
-    const uint64_t inlinesize() {
+    const uint64_t inlinesize()
+    {
       return inline_size;
     }
 
-    void set_inlinesize(uint64_t inlinesize) {
+    void set_inlinesize(uint64_t inlinesize)
+    {
       inline_size = inlinesize;
     }
 
@@ -293,7 +293,7 @@ public:
     std::vector<struct flock> locktable;
     std::map<std::string, uint64_t> todelete;
     std::map<std::string, uint64_t> _local_children;
-  } ;
+  };
 
   typedef std::shared_ptr<mdx> shared_md;
 
@@ -304,13 +304,9 @@ public:
   {
   public:
 
-    vmap()
-    {
-    }
+    vmap() { }
 
-    virtual ~vmap()
-    {
-    }
+    virtual ~vmap() { }
 
     void insert(fuse_ino_t a, fuse_ino_t b);
 
@@ -323,7 +319,8 @@ public:
     fuse_ino_t forward(fuse_ino_t lookup);
     fuse_ino_t backward(fuse_ino_t lookup);
 
-    size_t size() {
+    size_t size()
+    {
       XrdSysMutexHelper mLock(mMutex);
       return fwd_map.size();
     }
@@ -335,20 +332,16 @@ public:
     bwd_map; // backward map points from local remote inode
 
     XrdSysMutex mMutex;
-  } ;
+  };
 
-  class pmap : public std::map<fuse_ino_t, shared_md> , public XrdSysMutex
+  class pmap : public std::map<fuse_ino_t, shared_md>, public XrdSysMutex
   //----------------------------------------------------------------------------
   {
   public:
 
-    pmap()
-    {
-    }
+    pmap() { }
 
-    virtual ~pmap()
-    {
-    }
+    virtual ~pmap() { }
 
     bool retrieveOrCreateTS(fuse_ino_t ino, shared_md& ret)
     {
@@ -367,6 +360,7 @@ public:
     }
 
     // TS stands for "thread-safe"
+
     bool retrieveTS(fuse_ino_t ino, shared_md& ret)
     {
       XrdSysMutexHelper mLock(this);
@@ -386,6 +380,7 @@ public:
     }
 
     // TS stands for "thread-safe"
+
     void insertTS(fuse_ino_t ino, shared_md& md)
     {
       XrdSysMutexHelper mLock(this);
@@ -393,16 +388,18 @@ public:
     }
 
     // TS stands for "thread-safe"
+
     void eraseTS(fuse_ino_t ino)
     {
       XrdSysMutexHelper mLock(this);
       this->erase(ino);
     }
 
-    void retrieveWithParentTS(fuse_ino_t ino, shared_md &md, shared_md &pmd) {
+    void retrieveWithParentTS(fuse_ino_t ino, shared_md &md, shared_md &pmd)
+    {
       // Atomically retrieve md objects for an inode, and its parent.
 
-      while(true) {
+      while (true) {
         // In this particular case, we need to first lock mdmap, and then
         // md.. The following algorithm is meant to avoid deadlocks with code
         // which locks md first, and then mdmap.
@@ -411,12 +408,12 @@ public:
         pmd.reset();
 
         XrdSysMutexHelper mLock(this);
-        if(!retrieve(ino, md)) {
+        if (!retrieve(ino, md)) {
           return; // ino not there, nothing to do
         }
 
         // md has been found. Can we lock it?
-        if(md->Locker().CondLock()) {
+        if (md->Locker().CondLock()) {
           // Success!
           retrieve(md->pid(), pmd);
           md->Locker().UnLock();
@@ -428,7 +425,7 @@ public:
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
     }
-  } ;
+  };
 
   //----------------------------------------------------------------------------
   metad();
@@ -445,27 +442,27 @@ public:
                    const char* name);
 
   shared_md lookup_ll(fuse_req_t req,
-		      fuse_ino_t parent,
-		      const char* name);
+                      fuse_ino_t parent,
+                      const char* name);
 
   int forget(fuse_req_t req,
              fuse_ino_t ino,
              int nlookup);
 
   void wait_deleted(fuse_req_t req,
-		    fuse_ino_t ino);
+                    fuse_ino_t ino);
 
   shared_md getlocal(fuse_req_t req,
-		     fuse_ino_t ino);
+                     fuse_ino_t ino);
 
   shared_md get(fuse_req_t req,
                 fuse_ino_t ino,
                 const std::string authid = "",
                 bool listing = false,
-                shared_md pmd = 0 ,
+                shared_md pmd = 0,
                 const char* name = 0,
                 bool readdir = false
-               );
+                );
 
   uint64_t insert(fuse_req_t req,
                   shared_md md,
@@ -511,14 +508,14 @@ public:
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
 
-  int connect(std::string zmqtarget, std::string zmqidentity="", std::string zmqname="", std::string zmqclienthost="", std::string zmqclientuuid="");
+  int connect(std::string zmqtarget, std::string zmqidentity = "", std::string zmqname = "", std::string zmqclienthost = "", std::string zmqclientuuid = "");
 
   int calculateDepth(shared_md md);
 
   std::string calculateLocalPath(shared_md md);
 
   void cleanup(shared_md md);
-  void cleanup(fuse_ino_t ino, bool force=false);
+  void cleanup(fuse_ino_t ino, bool force = false);
 
   void forget_all();
 
@@ -531,9 +528,7 @@ public:
       reset();
     }
 
-    virtual ~mdstat()
-    {
-    }
+    virtual ~mdstat() { }
 
     void reset()
     {
@@ -628,7 +623,7 @@ public:
     std::atomic<ssize_t> _inodes_backlog;
     std::atomic<ssize_t> _inodes_ever;
     std::atomic<ssize_t> _inodes_deleted_ever;
-  } ;
+  };
 
   mdstat& stats()
   {
@@ -700,17 +695,16 @@ public:
   class flushentry
   {
   public:
+
     flushentry(const uint64_t id, const std::string& aid, mdx::md_op o,
-               fuse_req_t req = 0): _id(id), _authid(aid), _op(o)
+               fuse_req_t req = 0) : _id(id), _authid(aid), _op(o)
     {
       if (req) {
         _fuse_id = fuse_id(req);
       }
     };
 
-    ~flushentry()
-    {
-    }
+    ~flushentry() { }
 
     std::string authid() const
     {
@@ -753,7 +747,7 @@ public:
     std::string _authid;
     mdx::md_op _op;
     fuse_id _fuse_id;
-  } ;
+  };
 
   typedef std::deque<flushentry> flushentry_set_t;
 
@@ -771,27 +765,30 @@ public:
 private:
 
   // Lock _two_ md objects in the given order.
-  class MdLocker {
-  public:
-    MdLocker(shared_md &m1, shared_md &m2, bool ordr)
-    : md1(m1), md2(m2), order(ordr) {
 
-      if(order) {
+  class MdLocker
+  {
+  public:
+
+    MdLocker(shared_md &m1, shared_md &m2, bool ordr)
+    : md1(m1), md2(m2), order(ordr)
+    {
+
+      if (order) {
         md1->Locker().Lock();
         md2->Locker().Lock();
-      }
-      else {
+      } else {
         md2->Locker().Lock();
         md1->Locker().Lock();
       }
     }
 
-    ~MdLocker() {
-      if(order) {
+    ~MdLocker()
+    {
+      if (order) {
         md2->Locker().UnLock();
         md1->Locker().UnLock();
-      }
-      else {
+      } else {
         md1->Locker().UnLock();
         md2->Locker().UnLock();
       }
@@ -814,7 +811,7 @@ private:
 
   XrdSysCondVar mdflush;
 
-  std::map<uint64_t, size_t> mdqueue;  // inode, counter of mds to flush
+  std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
   std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
 
   size_t mdqueue_max_backlog;
@@ -831,6 +828,6 @@ private:
   std::atomic<int> want_zmq_connect;
 
   backend* mdbackend;
-} ;
+};
 
 #endif /* FUSE_MD_HH_ */

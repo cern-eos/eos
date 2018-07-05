@@ -28,8 +28,7 @@
 #include "data/cache.hh"
 #include "data/journalcache.hh"
 
-namespace XrdCl
-{
+namespace XrdCl {
 class Proxy;
 }
 
@@ -132,7 +131,6 @@ public:
     return _xrdiorw.count("default");
   }
 
-
   XrdCl::Proxy* xrdioro(std::string& id)
   {
     return _xrdioro[id];
@@ -173,7 +171,7 @@ private:
   std::map<std::string, XrdCl::Proxy*> _xrdiorw;
   fuse_ino_t ino;
   bool caching;
-} ;
+};
 
 typedef shared_ptr<io> shared_io;
 

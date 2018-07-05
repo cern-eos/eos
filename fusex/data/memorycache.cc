@@ -36,7 +36,7 @@
 
 /* -------------------------------------------------------------------------- */
 memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
-  /* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 {
   return;
 }
@@ -80,7 +80,7 @@ ssize_t
 /* -------------------------------------------------------------------------- */
 memorycache::pread(void* buf, size_t count, off_t offset)
 {
-  return (ssize_t) buffer.readData(buf, offset, count);
+  return(ssize_t) buffer.readData(buf, offset, count);
 }
 
 ssize_t
@@ -88,7 +88,7 @@ ssize_t
 memorycache::pwrite(const void* buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
-  return (ssize_t) buffer.writeData(buf, offset, count);
+  return(ssize_t) buffer.writeData(buf, offset, count);
 }
 
 /* -------------------------------------------------------------------------- */

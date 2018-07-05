@@ -28,9 +28,12 @@
 #include <mutex>
 #include "kv/kv.hh"
 
-class InodeGenerator {
+class InodeGenerator
+{
 public:
+
   InodeGenerator() { }
+
   virtual ~InodeGenerator() { }
 
   void init(kv *store); // no ownership

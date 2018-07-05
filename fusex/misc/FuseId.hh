@@ -29,7 +29,9 @@
 #include "llfusexx.hh"
 
 //----------------------------------------------------------------------------
-struct fuse_id {
+
+struct fuse_id
+{
   uid_t uid;
   gid_t gid;
   pid_t pid;
@@ -52,7 +54,7 @@ struct fuse_id {
     gid = o.gid;
     pid = o.pid;
   }
-} ;
+};
 
 
 #endif

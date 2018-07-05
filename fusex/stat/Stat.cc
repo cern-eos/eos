@@ -123,7 +123,7 @@ Stat::GetTotalNExt3600(const char* tag)
     }
   }
 
-  return (double) n;
+  return(double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -233,7 +233,7 @@ Stat::GetTotalNExt300(const char* tag)
     }
   }
 
-  return (double) n;
+  return(double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -344,7 +344,7 @@ Stat::GetTotalNExt60(const char* tag)
     }
   }
 
-  return (double) n;
+  return(double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -455,7 +455,7 @@ Stat::GetTotalNExt5(const char* tag)
     }
   }
 
-  return (double) n;
+  return(double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -546,13 +546,13 @@ Stat::GetExec(const char* tag, double& deviation)
       sum += *it;
     }
 
-    avg = sum / (cnt?cnt:999999999);
+    avg = sum / (cnt ? cnt : 999999999);
 
     for (it = StatExec[tag].begin(); it != StatExec[tag].end(); it++) {
       deviation += pow((*it - avg), 2);
     }
 
-    deviation = sqrt(deviation / (cnt?cnt:99999999) );
+    deviation = sqrt(deviation / (cnt ? cnt : 99999999));
     return avg;
   }
 
@@ -668,7 +668,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
   if (!monitoring) {
     sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL", "Execution Time", avg,
-            sig, cumulative , ops);
+            sig, cumulative, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
     sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
@@ -714,7 +714,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
     total = avg * GetTotal(tag) / 1000.0;
 
-    sprintf(atotal,"%04.02f", total);
+    sprintf(atotal, "%04.02f", total);
 
     if (!monitoring) {
       sprintf(outline, "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n", tag,
@@ -899,8 +899,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "uid=%d", it->first);
         } else {
           std::string username = umap.count(it->first) ? umap[it->first] :
-                                 eos::common::StringConversion::GetSizeString(username,
-                                     (unsigned long long)it->first);
+                  eos::common::StringConversion::GetSizeString(username,
+                                                               (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "uid=%s", username.c_str());
@@ -998,8 +998,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "uid=%d", it->first);
         } else {
           std::string username = umap.count(it->first) ? umap[it->first] :
-                                 eos::common::StringConversion::GetSizeString(username,
-                                     (unsigned long long)it->first);
+                  eos::common::StringConversion::GetSizeString(username,
+                                                               (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "uid=%s", username.c_str());
@@ -1066,8 +1066,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "gid=%d", it->first);
         } else {
           std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                                  eos::common::StringConversion::GetSizeString(groupname,
-                                      (unsigned long long)it->first);
+                  eos::common::StringConversion::GetSizeString(groupname,
+                                                               (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
@@ -1163,8 +1163,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "gid=%d", it->first);
         } else {
           std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                                  eos::common::StringConversion::GetSizeString(groupname,
-                                      (unsigned long long)it->first);
+                  eos::common::StringConversion::GetSizeString(groupname,
+                                                               (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
@@ -1187,18 +1187,17 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   }
 
   Mutex.UnLock();
-  }
+}
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Circulate (ThreadAssistant &assistant)
+Stat::Circulate(ThreadAssistant &assistant)
 {
   // empty the circular buffer and extract some Mq statistic values
 
-  while (true)
-  {
+  while (true) {
     assistant.wait_for(std::chrono::milliseconds(512));
-    if(assistant.terminationRequested()) break;
+    if (assistant.terminationRequested()) break;
 
     // --------------------------------------------
     Mutex.Lock();

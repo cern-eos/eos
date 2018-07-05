@@ -23,27 +23,33 @@
 
 #include "ProcessCache.hh"
 
-thread_local bool execveAlarm { false };
+thread_local bool execveAlarm
+{
+  false
+};
 
-ExecveAlert::ExecveAlert(bool val) {
+ExecveAlert::ExecveAlert(bool val)
+{
   execveAlarm = val;
 }
 
-ExecveAlert::~ExecveAlert() {
+ExecveAlert::~ExecveAlert()
+{
   execveAlarm = false;
 }
 
-CredentialState ProcessCache::useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot) {
+CredentialState ProcessCache::useCredentialsOfAnotherPID(const ProcessInfo &processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect, ProcessSnapshot &snapshot)
+{
   std::shared_ptr<const BoundIdentity> boundIdentity;
   CredentialState state = boundIdentityProvider.retrieve(pid, uid, gid, reconnect,
-                          boundIdentity);
+                                                         boundIdentity);
 
   if (state != CredentialState::kOk) {
     return state;
   }
 
   ProcessCacheEntry* entry = new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid);
+                                                   *boundIdentity.get(), uid, gid);
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
   snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
   return state;
@@ -56,14 +62,14 @@ ProcessCache::useDefaultPaths(const ProcessInfo& processInfo, uid_t uid,
 {
   std::shared_ptr<const BoundIdentity> boundIdentity;
   CredentialState state = boundIdentityProvider.useDefaultPaths(uid, gid,
-                          reconnect, boundIdentity);
+                                                                reconnect, boundIdentity);
 
   if (state != CredentialState::kOk) {
     return state;
   }
 
   ProcessCacheEntry* entry = new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid);
+                                                   *boundIdentity.get(), uid, gid);
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
   snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
   return state;
@@ -118,7 +124,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
   if (checkParentFirst && processInfo.getParentId() != 1) {
     CredentialState state = useCredentialsOfAnotherPID(processInfo,
-                            processInfo.getParentId(), uid, gid, reconnect, result);
+                                                       processInfo.getParentId(), uid, gid, reconnect, result);
 
     if (state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials of its parent "
@@ -135,18 +141,18 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   //
   // execve alarm is here just to further reduce the number of times we
   // pay the deadlock timeout penalty.
-  if(!execveAlarm) {
+  if (!execveAlarm) {
     CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getPid(), uid, gid, reconnect, result);
-    if(state == CredentialState::kOk) {
+    if (state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials found in its own environment variables", processInfo.getPid());
       return result;
     }
   }
 
   // Check parent, if we didn't already, and it isn't pid 1
-  if(!checkParentFirst && processInfo.getParentId() != 1) {
+  if (!checkParentFirst && processInfo.getParentId() != 1) {
     CredentialState state = useCredentialsOfAnotherPID(processInfo, processInfo.getParentId(), uid, gid, reconnect, result);
-    if(state == CredentialState::kOk) {
+    if (state == CredentialState::kOk) {
       eos_static_debug("Associating pid = %d to credentials of its parent, as no credentials were found in its own environment", processInfo.getPid());
       return result;
     }
@@ -154,7 +160,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
   // Fallback to default paths?
   CredentialState state = useDefaultPaths(processInfo, uid, gid, reconnect, result);
-  if(state == CredentialState::kOk) {
+  if (state == CredentialState::kOk) {
     eos_static_debug("Associating pid = %d to default credentials, as no credentials were found through environment variables", processInfo.getPid());
     return result;
   }

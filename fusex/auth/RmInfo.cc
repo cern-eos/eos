@@ -28,38 +28,39 @@
 #include "RmInfo.hh"
 #include "common/Logging.hh"
 
-RmInfo::RmInfo(const std::string &executablePath, const std::vector<std::string> &cmdline) {
+RmInfo::RmInfo(const std::string &executablePath, const std::vector<std::string> &cmdline)
+{
   if (EOS_LOGS_DEBUG)
     eos_static_debug("path: %s", executablePath.c_str());
 
-  if(executablePath != "/bin/rm" &&
-     executablePath != "/usr/bin/rm" &&
-     executablePath != "/usr/local/bin/rm" ) {
+  if (executablePath != "/bin/rm" &&
+      executablePath != "/usr/bin/rm" &&
+      executablePath != "/usr/local/bin/rm") {
     return;
   }
 
   rm = true;
 
-  for(auto it = cmdline.begin(); it != cmdline.end(); it++) {
+  for (auto it = cmdline.begin(); it != cmdline.end(); it++) {
     const std::string& arg = *it;
 
-    if(arg == "--recursive") {
+    if (arg == "--recursive") {
       recursive = true;
-    } else if(arg == "--force") {
+    } else if (arg == "--force") {
       force = true;
-    } else if(arg == "--verbose") {
+    } else if (arg == "--verbose") {
       verbose = true;
     }
 
-    if(arg.size() >= 2 && arg[0] == '-' && arg[1] != '-') {
-      for(size_t i = 1; i < arg.size(); i++) {
-        if(arg[i] == 'r' || arg[i] == 'R') {
+    if (arg.size() >= 2 && arg[0] == '-' && arg[1] != '-') {
+      for (size_t i = 1; i < arg.size(); i++) {
+        if (arg[i] == 'r' || arg[i] == 'R') {
           recursive = true;
-        } else if(arg[i] == 'f') {
-	  force = true;
-	} else if(arg[i] == 'v') {
-	  verbose = true;
-	}
+        } else if (arg[i] == 'f') {
+          force = true;
+        } else if (arg[i] == 'v') {
+          verbose = true;
+        }
       }
     }
   }

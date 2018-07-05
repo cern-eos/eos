@@ -12,37 +12,38 @@
 
 #include <memory>
 
-extern "C"
-{
+extern "C" {
 #include <fuse/fuse_lowlevel.h>
 }
 
-struct fuse_in_header {
-  uint32_t   len;
-  uint32_t   opcode;
-  uint32_t   unique;
-  uint32_t   nodeid;
-  uint32_t   uid;
-  uint32_t   gid;
-  uint32_t   pid;
-  uint32_t   padding;
+struct fuse_in_header
+{
+  uint32_t len;
+  uint32_t opcode;
+  uint32_t unique;
+  uint32_t nodeid;
+  uint32_t uid;
+  uint32_t gid;
+  uint32_t pid;
+  uint32_t padding;
 };
-
-
 
 class EosFuseSessionLoop
 {
-  struct FuseTask {
+
+  struct FuseTask
+  {
+
     FuseTask(fuse_session* se, size_t bufsize, fuse_chan* chan) : se(se), chan(chan)
     {
       memset(&buf, 0, sizeof(fuse_buf));
-      buf.mem  = new char[bufsize];
+      buf.mem = new char[bufsize];
       buf.size = bufsize;
     }
 
     ~FuseTask()
     {
-      delete[](char*)buf.mem;
+      delete[](char*) buf.mem;
     }
 
     void Run()
@@ -51,15 +52,14 @@ class EosFuseSessionLoop
     }
 
     fuse_session* se;
-    fuse_buf      buf;
-    fuse_chan*    chan;
+    fuse_buf buf;
+    fuse_chan* chan;
   };
 
 public:
 
   EosFuseSessionLoop(int metaMin, int metaMax, int ioMin, int ioMax) :
-    metaPool(metaMin, metaMax), ioPool(ioMin, ioMax) { }
-
+  metaPool(metaMin, metaMax), ioPool(ioMin, ioMax) { }
 
   virtual ~EosFuseSessionLoop()
   {
@@ -98,15 +98,16 @@ public:
 
 private:
 
-  enum fuse_opcode {
-    FUSE_READ  = 15,
+  enum fuse_opcode
+  {
+    FUSE_READ = 15,
     FUSE_WRITE = 16,
   };
 
   bool IsIO(fuse_buf& fbuf)
   {
     if (!(fbuf.flags & FUSE_BUF_IS_FD)) {
-      fuse_in_header* in = reinterpret_cast<fuse_in_header*>(fbuf.mem);
+      fuse_in_header* in = reinterpret_cast<fuse_in_header*> (fbuf.mem);
 
       if (in->opcode == FUSE_READ || in->opcode == FUSE_WRITE) {
         return true;

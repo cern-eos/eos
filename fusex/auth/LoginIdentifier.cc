@@ -32,9 +32,10 @@
 #include <arpa/inet.h>
 
 // Logic extracted from the old AuthIdManager::mapUser.
+
 LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
                                  uint64_t connId_)
-  : connId(connId_)
+: connId(connId_)
 {
   if (uid == 0) {
     uid = gid = 99;
@@ -53,7 +54,7 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
   }
 
 
-  uint64_t bituser = 0; 
+  uint64_t bituser = 0;
   if (map_only_user) {
     bituser = (uid & 0xfffffffff);
     bituser <<= 6;
@@ -82,6 +83,7 @@ LoginIdentifier::LoginIdentifier(uint64_t connId_) : connId(connId_)
 
 // Extracted from the old AuthIdManager::mapUser function
 // TODO(gbitzes): Truncating the output from base64 encode seems.. bad? review
+
 std::string LoginIdentifier::encode(char prefix, uint64_t bituser)
 {
   XrdOucString sb64;

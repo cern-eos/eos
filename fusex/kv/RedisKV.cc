@@ -35,7 +35,7 @@
 RedisKV::RedisKV()
 /* -------------------------------------------------------------------------- */
 {
-  mContext=0;
+  mContext = 0;
   mEventBase = 0;
   mAsyncContext = 0;
 }
@@ -105,7 +105,7 @@ RedisKV::get(const std::string &key, std::string &value)
   }
 
   redisReply* reply = (redisReply*) redisCommand(mContext, "GET %s",
-                      prefix(key).c_str());
+                                                 prefix(key).c_str());
 
   if (reply->type == REDIS_REPLY_ERROR) {
     rc = -1;
@@ -136,10 +136,9 @@ RedisKV::inc(const std::string &key, uint64_t &value)
     return rc;
   }
 
-  redisReply* reply = (redisReply*) redisCommand( mContext, "INCR %s",
+  redisReply* reply = (redisReply*) redisCommand(mContext, "INCR %s",
                                                  prefix(key).c_str());
-  if (reply->type == REDIS_REPLY_ERROR)
-  {
+  if (reply->type == REDIS_REPLY_ERROR) {
     rc = -1;
   }
 
@@ -324,7 +323,6 @@ RedisKV::put(uint64_t key, uint64_t value, const std::string &name_space)
   eos_static_info("key=%s", sbuf.c_str());
   return put(sbuf, value);
 }
-
 
 int
 /* -------------------------------------------------------------------------- */

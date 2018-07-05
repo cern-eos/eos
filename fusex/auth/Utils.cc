@@ -63,7 +63,7 @@ bool checkCredSecurity(const struct stat& filestat, uid_t uid)
   if (filestat.st_uid == uid
       && (filestat.st_mode & 0077) == 0 // no access to other users/groups
       && (filestat.st_mode & 0400) != 0 // read allowed for the user
-     ) {
+      ) {
     return true;
   }
 
