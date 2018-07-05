@@ -47,7 +47,8 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool,
   mStatus(eos::common::FileSystem::kNoDrain),
   mDrainStop(false), mForceRetry(false), mMaxRetries(1), mMaxJobs(10),
   mDrainPeriod(0), mThreadPool(thread_pool), mTotalFiles(0ull),
-  mLastNumToDrain(0ull), mLastRefreshTime(steady_clock::now()),
+  mLastNumToDrain(0ull), mLastNumFailed(0ull),
+  mLastRefreshTime(steady_clock::now()),
   mLastProgressTime(steady_clock::now())
 {}
 
@@ -365,8 +366,10 @@ DrainFs::UpdateProgress()
   uint64_t num_to_drain = mJobsPending.size() + mJobsFailed.size() +
                           mJobsRunning.size();
 
-  if (mLastNumToDrain != num_to_drain) {
+  if ((mLastNumToDrain != num_to_drain) ||
+      (mLastNumFailed != mJobsFailed.size())) {
     mLastNumToDrain = num_to_drain;
+    mLastNumFailed = mJobsFailed.size();
     mLastProgressTime = now;
   } else {
     std::this_thread::sleep_for(seconds(1));
@@ -444,6 +447,11 @@ DrainFs::UpdateProgress()
     fs->SetLongLong("stat.timeleft", time_left, false);
     fs->SetLongLong("stat.drainbytesleft",
                     fs->GetLongLong("stat.statfs.usedbytes"), false);
+  }
+
+  // Sleep for a longer period since nothing moved in the last 10 min
+  if (is_stalled) {
+    std::this_thread::sleep_for(std::chrono::seconds(30));
   }
 
   // If we have only failed jobs check if files still exist

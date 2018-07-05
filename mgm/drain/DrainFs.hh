@@ -209,6 +209,7 @@ private:
   std::future<State> mFuture;
   uint64_t mTotalFiles; ///< Total number of files to drain
   uint64_t mLastNumToDrain; ///< Last number of drain jobs recorded
+  uint64_t mLastNumFailed; ///< Last number of failed drain jobs
   //! Last timestamp when a refresh of failed transfers was performed
   std::chrono::time_point<std::chrono::steady_clock> mLastRefreshTime;
   //! Last timestamp when drain progress was recorded
