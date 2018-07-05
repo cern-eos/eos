@@ -258,7 +258,6 @@ eos_dockerimage_commit:
   stage: build:docker_image
   tags:
     - docker-image-build
-    - no-runner-9
   script:
     - ""
   variables:
@@ -277,7 +276,6 @@ docker_image_tag:
   stage: build:docker_image
   tags:
     - docker-image-build
-    - no-runner-9
   script:
     - ""
   variables:
