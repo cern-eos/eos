@@ -27,6 +27,7 @@
 // THIS IS EXPERIMENTAL AND DOES NOT REALLY WORK
 // FOR FUTURE WORK
 //#define EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#define HAVE_ATOMICS 1
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"

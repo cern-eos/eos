@@ -21,6 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#define HAVE_ATOMICS 1
+
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
