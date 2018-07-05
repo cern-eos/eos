@@ -444,7 +444,7 @@ protected:
 
 private:
   std::string mSubject; ///< Hash subject
-  bool mIsTransaction; ///< True if ongoing transaction
+  std::atomic<bool> mIsTransaction; ///< True if ongoing transaction
   std::string mBroadcastQueue; ///< Name of the broadcast queue
   std::set<std::string> mDeletions; ///< Set of deletions
   std::set<std::string> mTransactions; ///< Set of transactions
