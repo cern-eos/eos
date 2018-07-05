@@ -85,7 +85,7 @@
   memset(binchecksum, 0, sizeof(binchecksum));
   unsigned long dropfsid = 0;
 
-  epname = "commit";
+  static const char* epname = "commit";
 
   if (adropfsid.length())
   {
