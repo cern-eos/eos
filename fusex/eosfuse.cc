@@ -3895,7 +3895,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             } else {
 #ifdef RICHACL_FOUND
               if (key == s_racl) {
-                if (map.count("user.acl") == 0 || map["user.acl"].length() == 0) rc = ENOATTR;
+                if (map.count("sys.eval.useracl") == 0 || map.count("user.acl") == 0 || map["user.acl"].length() == 0) rc = ENOATTR;
                 else {
                   const char *eosacl = map["user.acl"].c_str();
                   eos_static_debug("eosacl '%s'", eosacl);
@@ -4120,9 +4120,16 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
           char eosAcl[512];
           racl2eos(a, eosAcl, sizeof(eosAcl));
           eos_static_debug("acl eosacl '%s'", eosAcl);
-          auto map = md->mutable_attr();
-          (*map)["user.acl"] = std::string(eosAcl);
-          Instance().mds.update(req, md, pcap->authid());
+
+	  auto map = md->mutable_attr();
+
+	  if (!map->count("sys.eval.useracl")) {
+	    // in case user acls are disabled
+	    rc = EPERM;
+	  } else {
+	    (*map)["user.acl"] = std::string(eosAcl);
+	    Instance().mds.update(req, md, pcap->authid());
+	  }
         }
 #endif /*RICHACL_FOUND*/
         else {
