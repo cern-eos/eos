@@ -205,7 +205,7 @@ XrdMqSharedHash::operator=(XrdMqSharedHash&& other)
     mType = other.mType;
     std::swap(mSOM, other.mSOM);
     mSubject = other.mSubject;
-    mIsTransaction = other.mIsTransaction;
+    mIsTransaction = other.mIsTransaction.load();
     mBroadcastQueue = other.mBroadcastQueue;
     std::swap(mStore, other.mStore);
     std::swap(mDeletions, other.mDeletions);
