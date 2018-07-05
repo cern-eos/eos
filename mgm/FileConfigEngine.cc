@@ -296,14 +296,22 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 }
 
 //------------------------------------------------------------------------------
-// Store the current configuration to a given file or QuarkDB. This method must
-// be executed by one thread at a time.
+// Store the current configuration to a given file or QuarkDB.
 //------------------------------------------------------------------------------
 bool
 FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 {
-  static XrdSysMutex sMutex;
-  XrdSysMutexHelper scope_lock(sMutex);
+  std::lock_guard<std::mutex> lock(sMutex);
+  return SaveConfigNoLock(env, err);
+}
+
+//------------------------------------------------------------------------------
+// Store the current configuration to a given file or QuarkDB. This method must
+// be executed by one thread at a time.
+//------------------------------------------------------------------------------
+bool
+FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
+{
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
   bool autosave = (bool)env.Get("mgm.config.autosave");
@@ -633,6 +641,7 @@ FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 bool
 FileConfigEngine::AutoSave()
 {
+  std::lock_guard<std::mutex> lock(sMutex);
   if (gOFS->MgmMaster.IsMaster() && mAutosave && mConfigFile.length()) {
     int aspos = 0;
 
@@ -651,7 +660,7 @@ FileConfigEngine::AutoSave()
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
-    if (!SaveConfig(env, err)) {
+    if (!SaveConfigNoLock(env, err)) {
       eos_static_err("%s\n", err.c_str());
       return false;
     }

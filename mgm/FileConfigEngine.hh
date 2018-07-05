@@ -27,6 +27,7 @@
 #include "mgm/IConfigEngine.hh"
 #include "common/DbMap.hh"
 #include <sys/stat.h>
+#include <mutex>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -188,6 +189,7 @@ private:
   //! Tags used when building the config file names stored on disk
   static const std::string sAutosaveTag;
   static const std::string sBackupTag;
+  std::mutex sMutex;
 
   //----------------------------------------------------------------------------
   //! Filter configuration
@@ -205,6 +207,17 @@ private:
   //!         string
   //----------------------------------------------------------------------------
   std::string GetLatestAutosave() const;
+
+  //----------------------------------------------------------------------------
+  //! Save configuration to specified destination, without taking any locks.
+  //!
+  //! @param env environment holding info about the destination where the
+  //!        current configuration will be saved
+  //! @param err string holding any errors
+  //!
+  //! @return true if saved successfully, otherwise false
+  //----------------------------------------------------------------------------
+  bool SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err);
 };
 
 EOSMGMNAMESPACE_END
