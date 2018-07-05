@@ -23,7 +23,6 @@
 
 #include <fcntl.h>
 #include <algorithm>
-#include "XrdSys/XrdSysAtomics.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
