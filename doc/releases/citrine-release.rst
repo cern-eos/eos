@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.27 Citrine``
+===================
+
+2018-07-05
+
+Bug
+---
+
+* don't pre-set checksum values for chunked uploads
+
 ``v4.2.26 Citrine``
 ===================
 
