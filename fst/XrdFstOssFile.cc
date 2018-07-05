@@ -329,7 +329,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
 
   // Indicate we are in preread state and see if we have exceeded the limit
   if (XrdFstSS->mPrDepth
-      && (AtomicInc(XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
+      && ((XrdFstSS->mPrActive--) < XrdFstSS->mPrQSize)
       && (n > 2)) {
     int faBytes = 0;
 
@@ -391,7 +391,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
 #if defined(__linux__)  && defined(HAVE_ATOMICS)
 
   if (XrdFstSS->mPrDepth) {
-    AtomicDec(XrdFstSS->mPrActive);
+    XrdFstSS->mPrActive--;
   }
 
 #endif

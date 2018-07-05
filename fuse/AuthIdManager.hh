@@ -35,7 +35,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 #include <unistd.h>
@@ -221,7 +220,7 @@ protected:
   };
 
   ShardedCache<CredKey, uint64_t, CredKeyHasher>* uidCache = nullptr;
-  static uint64_t sConIdCount;
+  static std::atomic<uint64_t> sConIdCount;
   std::set<pid_t> runningPids;
   pthread_t mCleanupThread;
 
@@ -399,7 +398,7 @@ protected:
       return 0;
     }
 
-    return AtomicInc(sConIdCount) + 1;
+    return (sConIdCount++) + 1;
   }
 
   inline void releaseConId(uint64_t conid)

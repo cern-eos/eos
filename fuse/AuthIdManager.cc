@@ -68,7 +68,7 @@ std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t co
     // Emergency mapping of too high user ids to nob
     if (uid > 0xfffff)
     {
-      
+
       eos_static_info("msg=\"unable to map uid+gid - out of range - will only map user and server will assign groupo");
       map_only_user = true;
     }
@@ -126,4 +126,4 @@ std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t co
   return sid.c_str ();
 }
 
-uint64_t AuthIdManager::sConIdCount=0;
+std::atomic<uint64_t> AuthIdManager::sConIdCount {0};
