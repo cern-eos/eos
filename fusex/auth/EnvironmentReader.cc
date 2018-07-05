@@ -23,7 +23,8 @@
 
 #include "EnvironmentReader.hh"
 
-void EnvironmentReader::inject(pid_t pid, const Environment &env, const std::chrono::milliseconds &artificialDelay)
+void EnvironmentReader::inject(pid_t pid, const Environment& env,
+                               const std::chrono::milliseconds& artificialDelay)
 {
   SimulatedResponse simulated;
   simulated.env = env;
@@ -93,7 +94,7 @@ void EnvironmentReader::worker()
       lock.unlock();
       // Start timing how long it takes to get a response
       std::chrono::high_resolution_clock::time_point startTime =
-              std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::now();
       Environment env;
 
       // Provide simulated or real response?
@@ -107,13 +108,17 @@ void EnvironmentReader::worker()
       }
 
       // Measure how long it took, issue warning if too high
-      std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+      std::chrono::high_resolution_clock::time_point endTime =
+        std::chrono::high_resolution_clock::now();
+      std::chrono::milliseconds duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
-      std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
       if (duration.count() > 5) {
-        eos_static_warning("Reading /proc/%d/environ took %dms", request.pid, duration.count());
+        eos_static_warning("Reading /proc/%d/environ took %dms", request.pid,
+                           duration.count());
       } else {
-        eos_static_debug("Reading /proc/%d/environ took %dms", request.pid, duration.count());
+        eos_static_debug("Reading /proc/%d/environ took %dms", request.pid,
+                         duration.count());
       }
 
       // It's done, give back result

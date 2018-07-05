@@ -16,8 +16,7 @@ extern "C" {
 #include <fuse/fuse_lowlevel.h>
 }
 
-struct fuse_in_header
-{
+struct fuse_in_header {
   uint32_t len;
   uint32_t opcode;
   uint32_t unique;
@@ -31,8 +30,7 @@ struct fuse_in_header
 class EosFuseSessionLoop
 {
 
-  struct FuseTask
-  {
+  struct FuseTask {
 
     FuseTask(fuse_session* se, size_t bufsize, fuse_chan* chan) : se(se), chan(chan)
     {
@@ -59,7 +57,7 @@ class EosFuseSessionLoop
 public:
 
   EosFuseSessionLoop(int metaMin, int metaMax, int ioMin, int ioMax) :
-  metaPool(metaMin, metaMax), ioPool(ioMin, ioMax) { }
+    metaPool(metaMin, metaMax), ioPool(ioMin, ioMax) { }
 
   virtual ~EosFuseSessionLoop()
   {
@@ -98,8 +96,7 @@ public:
 
 private:
 
-  enum fuse_opcode
-  {
+  enum fuse_opcode {
     FUSE_READ = 15,
     FUSE_WRITE = 16,
   };
@@ -107,7 +104,7 @@ private:
   bool IsIO(fuse_buf& fbuf)
   {
     if (!(fbuf.flags & FUSE_BUF_IS_FD)) {
-      fuse_in_header* in = reinterpret_cast<fuse_in_header*> (fbuf.mem);
+      fuse_in_header* in = reinterpret_cast<fuse_in_header*>(fbuf.mem);
 
       if (in->opcode == FUSE_READ || in->opcode == FUSE_WRITE) {
         return true;

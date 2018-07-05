@@ -57,7 +57,8 @@ RedisKV::~RedisKV()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::connect(const std::string &prefix, const std::string &connectionstring, int port)
+RedisKV::connect(const std::string& prefix, const std::string& connectionstring,
+                 int port)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("kv connect");
@@ -84,17 +85,16 @@ RedisKV::connect(const std::string &prefix, const std::string &connectionstring,
   mEventBase = event_base_new();
   eos_static_info("attach event loop");
   redisLibeventAttach(mAsyncContext, mEventBase);
-
   mPrefix = prefix + ":";
-  eos_static_info("redis@%s:%d connected - prefix=%s", connectionstring.c_str(), port, mPrefix.c_str());
-
+  eos_static_info("redis@%s:%d connected - prefix=%s", connectionstring.c_str(),
+                  port, mPrefix.c_str());
   return 0;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::get(const std::string &key, std::string &value)
+RedisKV::get(const std::string& key, std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%s context=%d", key.c_str(), mContext);
@@ -105,7 +105,7 @@ RedisKV::get(const std::string &key, std::string &value)
   }
 
   redisReply* reply = (redisReply*) redisCommand(mContext, "GET %s",
-                                                 prefix(key).c_str());
+                      prefix(key).c_str());
 
   if (reply->type == REDIS_REPLY_ERROR) {
     rc = -1;
@@ -126,7 +126,7 @@ RedisKV::get(const std::string &key, std::string &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::inc(const std::string &key, uint64_t &value)
+RedisKV::inc(const std::string& key, uint64_t& value)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%s context=%d", key.c_str(), mContext);
@@ -137,7 +137,8 @@ RedisKV::inc(const std::string &key, uint64_t &value)
   }
 
   redisReply* reply = (redisReply*) redisCommand(mContext, "INCR %s",
-                                                 prefix(key).c_str());
+                      prefix(key).c_str());
+
   if (reply->type == REDIS_REPLY_ERROR) {
     rc = -1;
   }
@@ -159,7 +160,7 @@ RedisKV::inc(const std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::put(const std::string &key, const std::string &value)
+RedisKV::put(const std::string& key, const std::string& value)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%s context=%d", key.c_str(), mContext);
@@ -181,7 +182,7 @@ RedisKV::put(const std::string &key, const std::string &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::erase(const std::string &key)
+RedisKV::erase(const std::string& key)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%s context=%d", key.c_str(), mContext);
@@ -191,7 +192,6 @@ RedisKV::erase(const std::string &key)
   }
 
   eos_static_info("key=%s", key.c_str());
-
   XrdSysMutexHelper locker(this);
   redisAsyncCommand(mAsyncContext, 0, 0, "DEL %s",
                     prefix(key).c_str());
@@ -203,7 +203,7 @@ RedisKV::erase(const std::string &key)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::get(uint64_t key, std::string &value, const std::string &name_space)
+RedisKV::get(uint64_t key, std::string& value, const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
@@ -219,13 +219,14 @@ RedisKV::get(uint64_t key, std::string &value, const std::string &name_space)
   if (name_space.length()) {
     sbuf = name_space + ":" + sbuf;
   }
+
   return get(sbuf, value);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::get(uint64_t key, uint64_t &value, const std::string &name_space)
+RedisKV::get(uint64_t key, uint64_t& value, const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
@@ -241,13 +242,14 @@ RedisKV::get(uint64_t key, uint64_t &value, const std::string &name_space)
   if (name_space.length()) {
     sbuf = name_space + ":" + sbuf;
   }
+
   return get(sbuf, value);
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::get(const std::string &key, uint64_t &value)
+RedisKV::get(const std::string& key, uint64_t& value)
 /* -------------------------------------------------------------------------- */
 {
   if (!mContext) {
@@ -267,7 +269,7 @@ RedisKV::get(const std::string &key, uint64_t &value)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::put(const std::string &key, uint64_t value)
+RedisKV::put(const std::string& key, uint64_t value)
 /* -------------------------------------------------------------------------- */
 {
   if (!mContext) {
@@ -282,7 +284,8 @@ RedisKV::put(const std::string &key, uint64_t value)
 
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::put(uint64_t key, const std::string &value, const std::string &name_space)
+RedisKV::put(uint64_t key, const std::string& value,
+             const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
@@ -298,13 +301,14 @@ RedisKV::put(uint64_t key, const std::string &value, const std::string &name_spa
   if (name_space.length()) {
     sbuf = name_space + ":" + sbuf;
   }
+
   eos_static_info("key=%s", sbuf.c_str());
   return put(sbuf, value);
 }
 
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::put(uint64_t key, uint64_t value, const std::string &name_space)
+RedisKV::put(uint64_t key, uint64_t value, const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
@@ -320,13 +324,14 @@ RedisKV::put(uint64_t key, uint64_t value, const std::string &name_space)
   if (name_space.length()) {
     sbuf = name_space + ":" + sbuf;
   }
+
   eos_static_info("key=%s", sbuf.c_str());
   return put(sbuf, value);
 }
 
 int
 /* -------------------------------------------------------------------------- */
-RedisKV::erase(uint64_t key, const std::string &name_space)
+RedisKV::erase(uint64_t key, const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("key=%lld", (unsigned long long) key);
@@ -342,6 +347,7 @@ RedisKV::erase(uint64_t key, const std::string &name_space)
   if (name_space.length()) {
     sbuf = name_space + ":" + sbuf;
   }
+
   eos_static_info("key=%s", sbuf.c_str());
   return erase(sbuf);
 }

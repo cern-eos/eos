@@ -60,20 +60,22 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-    mPrefetchHandler(0),
-    mSimulateWriteErrorInFlush(false),
-    mSimulateWriteErrorInFlusher(false),
-    mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false)
+      mPrefetchHandler(0),
+      mSimulateWriteErrorInFlush(false),
+      mSimulateWriteErrorInFlusher(false),
+      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
+      mInlineCompressor("none"), mIsUnlinked(false)
     {
       inline_buffer = nullptr;
     }
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-    mAttached(0), mMd(md), mPrefetchHandler(0),
-    mSimulateWriteErrorInFlush(false),
-    mSimulateWriteErrorInFlusher(false),
-    mFlags(0), mXoff(false),
-    mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"), mIsUnlinked(false) { }
+      mAttached(0), mMd(md), mPrefetchHandler(0),
+      mSimulateWriteErrorInFlush(false),
+      mSimulateWriteErrorInFlusher(false),
+      mFlags(0), mXoff(false),
+      mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"),
+      mIsUnlinked(false) { }
 
     virtual ~datax() = default;
 
@@ -100,7 +102,8 @@ public:
     }
 
     int flush(fuse_req_t req);
-    int flush_nolock(fuse_req_t req, bool wait_open = true, bool wait_writes = false);
+    int flush_nolock(fuse_req_t req, bool wait_open = true,
+                     bool wait_writes = false);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
     int journalflush_async(std::string cid);
@@ -135,8 +138,8 @@ public:
     int TryRecovery(fuse_req_t req, bool is_write);
 
     int recover_ropen(fuse_req_t req);
-    int try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url);
-    int try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url);
+    int try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy, std::string open_url);
+    int try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy, std::string open_url);
     int recover_read(fuse_req_t req);
     int recover_write(fuse_req_t req);
 
@@ -154,12 +157,12 @@ public:
     bool detach()
     {
       XrdSysMutexHelper lLock(mLock);
-      return(--mAttached);
+      return (--mAttached);
     }
 
     bool detach_nolock()
     {
-      return(--mAttached);
+      return (--mAttached);
     }
 
     bool attached()
@@ -170,12 +173,12 @@ public:
 
     bool attached_nolock()
     {
-      return(mAttached) ? true : false;
+      return (mAttached) ? true : false;
     }
 
     bool attached_once_nolock()
     {
-      return(mAttached == 1) ? true : false;
+      return (mAttached == 1) ? true : false;
     }
 
     bool unlinked()
@@ -235,8 +238,7 @@ public:
 
   typedef std::shared_ptr<datax> shared_data;
 
-  typedef struct _data_fh
-  {
+  typedef struct _data_fh {
     shared_data data;
     cap::shared_cap cap_;
     metad::shared_md md;

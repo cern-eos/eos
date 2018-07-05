@@ -30,8 +30,8 @@ std::string InodeGenerator::kInodeKey = "nextinode";
 void InodeGenerator::init(kv* st)
 {
   store = st;
-
   mNextInode = 1;
+
   if (store->get(kInodeKey, mNextInode)) {
     // otherwise store it for the first time
     inc();

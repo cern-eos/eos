@@ -116,7 +116,7 @@ cachehandler::logconfig()
     } else {
       eos_static_warning("data-cache-size      := %s",
                          eos::common::StringConversion::GetReadableSizeString(s,
-                                                                              config.total_file_cache_size, "B"));
+                             config.total_file_cache_size, "B"));
     }
 
     if (config.per_file_cache_max_size == 0) {
@@ -124,7 +124,7 @@ cachehandler::logconfig()
     } else {
       eos_static_warning("cache-file-max-size  := %s",
                          eos::common::StringConversion::GetReadableSizeString(s,
-                                                                              config.per_file_cache_max_size, "B"));
+                             config.per_file_cache_max_size, "B"));
     }
 
     if (config.journal.length()) {
@@ -136,7 +136,7 @@ cachehandler::logconfig()
       } else {
         eos_static_warning("journal-cache-size   := %s",
                            eos::common::StringConversion::GetReadableSizeString(s,
-                                                                                config.total_file_journal_size, "B"));
+                               config.total_file_journal_size, "B"));
       }
 
       if (config.per_file_journal_max_size == 0) {
@@ -144,7 +144,7 @@ cachehandler::logconfig()
       } else {
         eos_static_warning("file-journal-max-size:= %s",
                            eos::common::StringConversion::GetReadableSizeString(s,
-                                                                                config.per_file_journal_max_size, "B"));
+                               config.per_file_journal_max_size, "B"));
       }
     } else {
       eos_static_warning("journal-location     := disabled");

@@ -42,8 +42,9 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-  use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false), fuse_shared(false),
-  environ_deadlock_timeout(100), forknoexec_heuristic(true) { }
+    use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false),
+    fuse_shared(false),
+    environ_deadlock_timeout(100), forknoexec_heuristic(true) { }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -67,11 +68,9 @@ public:
 
 // Information extracted from environment variables.
 
-struct CredInfo
-{
+struct CredInfo {
 
-  enum CredType
-  {
+  enum CredType {
     krb5, krk5, x509, nobody
   };
 
@@ -100,8 +99,8 @@ class TrustedCredentials
 public:
 
   TrustedCredentials() :
-  initialized(false), invalidated(false), type(CredInfo::nobody),
-  uid(-2), gid(-2), mtime(0) { }
+    initialized(false), invalidated(false), type(CredInfo::nobody),
+    uid(-2), gid(-2), mtime(0) { }
 
   void setKrb5(const std::string& filename, uid_t uid, gid_t gid, time_t mtime)
   {
@@ -144,11 +143,12 @@ public:
     this->mtime = mtime;
   }
 
-  void toXrdParams(XrdCl::URL::ParamsMap &paramsMap) const
+  void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
     for (size_t i = 0; i < contents.size(); i++) {
       if (contents[i] == '&' || contents[i] == '=') {
-        eos_static_err("rejecting credential for using forbidden characters in the path: %s", contents.c_str());
+        eos_static_err("rejecting credential for using forbidden characters in the path: %s",
+                       contents.c_str());
         paramsMap["xrd.wantprot"] = "unix";
         return;
       }
@@ -242,10 +242,10 @@ public:
 
   BoundIdentity(const LoginIdentifier& login_,
                 const std::shared_ptr<TrustedCredentials>& creds_)
-  : login(login_), creds(creds_) { }
+    : login(login_), creds(creds_) { }
 
-  BoundIdentity(const std::shared_ptr<const BoundIdentity> &identity)
-  : login(identity->getLogin()), creds(identity->getCreds()) { }
+  BoundIdentity(const std::shared_ptr<const BoundIdentity>& identity)
+    : login(identity->getLogin()), creds(identity->getCreds()) { }
 
   LoginIdentifier& getLogin()
   {

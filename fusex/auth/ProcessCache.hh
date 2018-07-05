@@ -35,7 +35,7 @@ public:
 
   ProcessCacheEntry(const ProcessInfo& pinfo, const BoundIdentity& boundid,
                     uid_t userid, gid_t groupid)
-  : processInfo(pinfo), boundIdentity(boundid) { }
+    : processInfo(pinfo), boundIdentity(boundid) { }
 
   const ProcessInfo& getProcessInfo() const
   {
@@ -96,7 +96,7 @@ class ProcessCache
 public:
 
   ProcessCache() : cache(16 /* 2^16 shards */,
-                         1000 * 60 * 10 /* 10 minutes inactivity TTL */) { }
+                           1000 * 60 * 10 /* 10 minutes inactivity TTL */) { }
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
 
   void setCredentialConfig(const CredentialConfig& conf)
@@ -105,13 +105,13 @@ public:
     credConfig = conf;
   }
 
-  ProcessInfoProvider &getProcessInfoProvider()
+  ProcessInfoProvider& getProcessInfoProvider()
   {
     // Only used for testing
     return processInfoProvider;
   }
 
-  BoundIdentityProvider &getBoundIdentityProvider()
+  BoundIdentityProvider& getBoundIdentityProvider()
   {
     // Only used for testing
     return boundIdentityProvider;
@@ -129,8 +129,7 @@ private:
 
   CredentialConfig credConfig;
 
-  struct ProcessCacheKey
-  {
+  struct ProcessCacheKey {
     pid_t pid;
     uid_t uid;
     gid_t gid;
@@ -151,8 +150,7 @@ private:
     }
   };
 
-  struct KeyHasher
-  {
+  struct KeyHasher {
 
     static uint64_t hash(const ProcessCacheKey& key)
     {

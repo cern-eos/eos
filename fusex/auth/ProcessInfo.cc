@@ -142,8 +142,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
     // start of a token, use scanf if we're interested in it
     if (!inParenth && (procstat[i] == ' ' || i == 0)) {
       switch (tokenCount) {
-      case 0:
-      {
+      case 0: {
         if (!sscanf(procstat.c_str() + i, "%u", &pid)) {
           return false;
         }
@@ -151,8 +150,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
         break;
       }
 
-      case 3:
-      {
+      case 3: {
         if (!sscanf(procstat.c_str() + i, "%u", &ppid)) {
           return false;
         }
@@ -160,8 +158,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
         break;
       }
 
-      case 4:
-      {
+      case 4: {
         if (!sscanf(procstat.c_str() + i, "%u", &pgrp)) {
           return false;
         }
@@ -169,8 +166,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
         break;
       }
 
-      case 5:
-      {
+      case 5: {
         if (!sscanf(procstat.c_str() + i, "%u", &sid)) {
           return false;
         }
@@ -178,8 +174,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
         break;
       }
 
-      case 8:
-      {
+      case 8: {
         if (!sscanf(procstat.c_str() + i, "%u", &flags)) {
           return false;
         }
@@ -187,8 +182,7 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
         break;
       }
 
-      case 21:
-      {
+      case 21: {
         if (!sscanf(procstat.c_str() + i, "%" PRId64, &startTime)) {
           return false;
         }
@@ -283,6 +277,7 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   }
 
   std::string cmdline;
+
   if (!readFile(SSTR("/proc/" << pid << "/cmdline"), cmdline)) {
     // This is a valid case, if for example, the calling PID is actually
     // a kernel thread.
@@ -295,12 +290,13 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   return true;
 }
 
-bool ProcessInfoProvider::parseExec(pid_t pid, ProcessInfo &ret)
+bool ProcessInfoProvider::parseExec(pid_t pid, ProcessInfo& ret)
 {
   const size_t BUFF_SIZE = 8096;
   char buffer[BUFF_SIZE];
+  ssize_t len = readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer,
+                         BUFF_SIZE - 2);
 
-  ssize_t len = readlink(SSTR("/proc/" << pid << "/exe").c_str(), buffer, BUFF_SIZE - 2);
   if (len == -1) {
     return false;
   }

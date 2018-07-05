@@ -29,12 +29,12 @@ TEST(XrdClProxy, Write)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -63,7 +63,6 @@ TEST(XrdClProxy, Write)
 
   status = file.CollectWrites();
   ASSERT_TRUE(status.IsOK());
-
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
@@ -82,12 +81,12 @@ TEST(XrdClProxy, ReadSync)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -154,12 +153,12 @@ TEST(XrdClProxy, ReadAsync)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -191,7 +190,7 @@ TEST(XrdClProxy, ReadAsync)
     uint32_t bytesRead = 0;
     fprintf(stderr, ".");
     XrdCl::Proxy::read_handler handler = file.ReadAsyncPrepare(4 * i * 200 * 1024,
-                                                               4 * 200 * 1024);
+                                         4 * 200 * 1024);
     status = file.PreReadAsync(4 * i * 200 * 1024, 4 * 200 * 1024, handler,
                                (uint16_t) 300);
     ASSERT_TRUE(status.IsOK());
@@ -234,12 +233,12 @@ TEST(XrdClProxy, ReadAheadStatic)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -291,7 +290,7 @@ TEST(XrdClProxy, ReadAheadStatic)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99694824);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99694824);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -311,12 +310,12 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -368,8 +367,8 @@ TEST(XrdClProxy, ReadAheadStaticLarge)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int) (1000000 * file.get_readahead_efficiency()));
-  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99694824);
+          (int)(1000000 * file.get_readahead_efficiency()));
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99694824);
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
 }
@@ -388,12 +387,12 @@ TEST(XrdClProxy, ReadAheadSparse)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -451,9 +450,9 @@ TEST(XrdClProxy, ReadAheadSparse)
     }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int) (1000000 * file.get_readahead_efficiency()));
+          (int)(1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99121952);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99121952);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -473,12 +472,12 @@ TEST(XrdClProxy, ReadAheadDisable)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -533,9 +532,9 @@ TEST(XrdClProxy, ReadAheadDisable)
     }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int) (1000000 * file.get_readahead_efficiency()));
+          (int)(1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 29777778);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 29777778);
   file.Collect();
   status = file.Close((uint16_t) 100);
   ASSERT_TRUE(status.IsOK());
@@ -555,12 +554,12 @@ TEST(XrdClProxy, ReadAheadBackward)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -632,12 +631,12 @@ TEST(XrdClProxy, ReadAheadDynamic)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
+    file.Open("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode, 300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] waitopen)\n");
   status = file.WaitOpen();
@@ -689,9 +688,9 @@ TEST(XrdClProxy, ReadAheadDynamic)
   }
 
   fprintf(stderr, "\n[07] ra-efficiency=%f %d\n", file.get_readahead_efficiency(),
-          (int) (1000000 * file.get_readahead_efficiency()));
+          (int)(1000000 * file.get_readahead_efficiency()));
   fprintf(stderr, "\n[07] ra-efficiency=%f\n", file.get_readahead_efficiency());
-  ASSERT_EQ((int) (1000000 * file.get_readahead_efficiency()), 99475096);
+  ASSERT_EQ((int)(1000000 * file.get_readahead_efficiency()), 99475096);
   file.Collect();
   status = file.Close((uint16_t) 0);
   ASSERT_TRUE(status.IsOK());
@@ -711,13 +710,13 @@ TEST(XrdClProxy, ScheduleWrite)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                         300);
+    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                   300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
@@ -725,7 +724,7 @@ TEST(XrdClProxy, ScheduleWrite)
   for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                                                 4 * i * 1024 * 1024, 300);
+                                          4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }
@@ -781,13 +780,13 @@ TEST(XrdClProxy, ScheduleClose)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                         300);
+    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                   300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
@@ -795,7 +794,7 @@ TEST(XrdClProxy, ScheduleClose)
   for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                                                 4 * i * 1024 * 1024, 300);
+                                          4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }
@@ -820,13 +819,13 @@ TEST(XrdClProxy, ScheduleCloseAfterCollect)
 
   XrdCl::Proxy file;
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
-          XrdCl::OpenFlags::Delete;
+                                        XrdCl::OpenFlags::Delete;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
+                             XrdCl::Access::UX;
   fprintf(stderr, "[01] open)\n");
   XrdCl::XRootDStatus status =
-          file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
-                         300);
+    file.OpenAsync("root://localhost:21234//tmp/xrdclproxytest", targetFlags, mode,
+                   300);
   ASSERT_TRUE(status.IsOK());
   fprintf(stderr, "[02] no waitopen)\n");
   fprintf(stderr, "\n[03] write-schedule-async \n");
@@ -834,7 +833,7 @@ TEST(XrdClProxy, ScheduleCloseAfterCollect)
   for (size_t i = 0; i < 64; ++i) {
     fprintf(stderr, ".");
     XrdCl::Proxy::write_handler handler = file.WriteAsyncPrepare(4 * 1024 * 1024,
-                                                                 4 * i * 1024 * 1024, 300);
+                                          4 * i * 1024 * 1024, 300);
     status = file.ScheduleWriteAsync(&buffer[i * 1024 * 1024], handler);
     ASSERT_TRUE(status.IsOK());
   }

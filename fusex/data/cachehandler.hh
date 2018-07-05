@@ -56,12 +56,12 @@ public:
 
   bool inmemory()
   {
-    return(config.type == cache_t::MEMORY);
+    return (config.type == cache_t::MEMORY);
   }
 
   bool journaled()
   {
-    return(config.journal.length());
+    return (config.journal.length());
   }
 
   cacheconfig& get_config()

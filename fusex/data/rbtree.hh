@@ -41,8 +41,7 @@ public:
 
 };
 
-enum colour_t
-{
+enum colour_t {
   RED = true,
   BLACK = false
 };
@@ -56,7 +55,7 @@ class node_t
 public:
 
   node_t(const K& key, const V& value) : key(key), value(value), colour(RED),
-  parent(nullptr) { }
+    parent(nullptr) { }
 
   const K key;
   V value;
@@ -160,13 +159,12 @@ protected:
   // they need to accept a leaf (null) node as an argument
   // that can return its parent and is BLACK
 
-  struct leaf_node_t
-  {
+  struct leaf_node_t {
 
     leaf_node_t(N* parent) : colour(BLACK), parent(parent) { }
 
     leaf_node_t(const leaf_node_t& leaf) : colour(leaf.colour),
-    parent(leaf.parent) { }
+      parent(leaf.parent) { }
 
     leaf_node_t& operator=(const leaf_node_t& leaf)
     {
@@ -376,8 +374,8 @@ protected:
       if (successor.get() == n) {
         erase_node(successor);
       }// otherwise the successor was the right child of node,
-        // hence node should be now the right child of 'node'
-        // unique pointer
+      // hence node should be now the right child of 'node'
+      // unique pointer
       else if (node->right.get() == n) {
         erase_node(node->right);
       }// there are no other cases so anything else is wrong

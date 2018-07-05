@@ -66,7 +66,7 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   id.gid = gid;
   id.pid = pid;
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
-                                                    false);
+                             false);
   std::string username = "nobody";
 
   if (snapshot) {
@@ -82,7 +82,7 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
                     id.gid,
                     rc,
                     username.c_str()
-                    );
+                   );
   return rc;
 }
 
@@ -90,7 +90,7 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
 {
   fuse_id id(req);
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
-                                                    false);
+                             false);
   std::string login;
 
   if (snapshot) {
@@ -103,7 +103,7 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
                     id.uid,
                     id.gid,
                     login.c_str()
-                    );
+                   );
   return login;
 }
 
@@ -111,14 +111,14 @@ std::string fusexrdlogin::environment(fuse_req_t req)
 {
   fuse_id id(req);
   ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
-                                                    false);
-
+                             false);
   std::string envtoset;
-
   XrdCl::URL::ParamsMap paramsMap;
+
   if (snapshot) {
     snapshot->getBoundIdentity().getCreds()->toXrdParams(paramsMap);
   }
+
   if (paramsMap["xrd.k5ccname"] != "") {
     envtoset += "env KRB5CCNAME=";
     envtoset += paramsMap["xrd.k5ccname"];
@@ -128,6 +128,7 @@ std::string fusexrdlogin::environment(fuse_req_t req)
       envtoset += paramsMap["xrd.gsiusrpxy"];
     }
   }
+
   return envtoset;
 }
 

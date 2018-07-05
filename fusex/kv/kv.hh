@@ -50,25 +50,29 @@ public:
 
   virtual ~kv() { }
 
-  virtual int get(const std::string &key, std::string &value) = 0;
-  virtual int get(const std::string &key, uint64_t &value) = 0;
-  virtual int put(const std::string &key, const std::string &value) = 0;
-  virtual int put(const std::string &key, uint64_t value) = 0;
-  virtual int inc(const std::string &key, uint64_t &value) = 0;
+  virtual int get(const std::string& key, std::string& value) = 0;
+  virtual int get(const std::string& key, uint64_t& value) = 0;
+  virtual int put(const std::string& key, const std::string& value) = 0;
+  virtual int put(const std::string& key, uint64_t value) = 0;
+  virtual int inc(const std::string& key, uint64_t& value) = 0;
 
-  virtual int erase(const std::string &key) = 0;
+  virtual int erase(const std::string& key) = 0;
 
-  virtual int get(uint64_t key, std::string &value, const std::string &name_space = "i") = 0;
-  virtual int put(uint64_t key, const std::string &value, const std::string &name_space = "i") = 0;
+  virtual int get(uint64_t key, std::string& value,
+                  const std::string& name_space = "i") = 0;
+  virtual int put(uint64_t key, const std::string& value,
+                  const std::string& name_space = "i") = 0;
 
-  virtual int get(uint64_t key, uint64_t &value, const std::string &name_space = "i") = 0;
-  virtual int put(uint64_t key, uint64_t value, const std::string &name_space = "i") = 0;
+  virtual int get(uint64_t key, uint64_t& value,
+                  const std::string& name_space = "i") = 0;
+  virtual int put(uint64_t key, uint64_t value,
+                  const std::string& name_space = "i") = 0;
 
-  virtual int erase(uint64_t key, const std::string &name_space = "i") = 0;
+  virtual int erase(uint64_t key, const std::string& name_space = "i") = 0;
 
 protected:
 
-  std::string buildKey(uint64_t key, const std::string &name_space)
+  std::string buildKey(uint64_t key, const std::string& name_space)
   {
     char buffer[128];
     longstring::unsigned_to_decimal(key, buffer);

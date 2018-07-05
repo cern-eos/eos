@@ -51,38 +51,90 @@
 static int XtoErrno(int xerr)
 {
   switch (xerr) {
-  case kXR_ArgInvalid: return EINVAL;
-  case kXR_ArgMissing: return EINVAL;
-  case kXR_ArgTooLong: return ENAMETOOLONG;
-  case kXR_FileLocked: return EDEADLK;
-  case kXR_FileNotOpen: return EBADF;
-  case kXR_FSError: return EIO;
-  case kXR_InvalidRequest:return EEXIST;
-  case kXR_IOError: return EIO;
-  case kXR_NoMemory: return ENOMEM;
-  case kXR_NoSpace: return ENOSPC;
-  case kXR_NotAuthorized: return EACCES;
-  case kXR_NotFound: return ENOENT;
-  case kXR_ServerError: return ENOMSG;
-  case kXR_Unsupported: return ENOSYS;
-  case kXR_noserver: return EHOSTUNREACH;
-  case kXR_NotFile: return ENOTBLK;
-  case kXR_isDirectory: return EISDIR;
-  case kXR_Cancelled: return ECANCELED;
-  case kXR_ChkLenErr: return EDOM;
-  case kXR_ChkSumErr: return EDOM;
-  case kXR_inProgress: return EINPROGRESS;
-  case kXR_overQuota: return EDQUOT;
-  case kXR_SigVerErr: return EILSEQ;
-  case kXR_DecryptErr: return ERANGE;
-  case kXR_Overloaded: return EUSERS;
-  default: return ENOMSG;
+  case kXR_ArgInvalid:
+    return EINVAL;
+
+  case kXR_ArgMissing:
+    return EINVAL;
+
+  case kXR_ArgTooLong:
+    return ENAMETOOLONG;
+
+  case kXR_FileLocked:
+    return EDEADLK;
+
+  case kXR_FileNotOpen:
+    return EBADF;
+
+  case kXR_FSError:
+    return EIO;
+
+  case kXR_InvalidRequest:
+    return EEXIST;
+
+  case kXR_IOError:
+    return EIO;
+
+  case kXR_NoMemory:
+    return ENOMEM;
+
+  case kXR_NoSpace:
+    return ENOSPC;
+
+  case kXR_NotAuthorized:
+    return EACCES;
+
+  case kXR_NotFound:
+    return ENOENT;
+
+  case kXR_ServerError:
+    return ENOMSG;
+
+  case kXR_Unsupported:
+    return ENOSYS;
+
+  case kXR_noserver:
+    return EHOSTUNREACH;
+
+  case kXR_NotFile:
+    return ENOTBLK;
+
+  case kXR_isDirectory:
+    return EISDIR;
+
+  case kXR_Cancelled:
+    return ECANCELED;
+
+  case kXR_ChkLenErr:
+    return EDOM;
+
+  case kXR_ChkSumErr:
+    return EDOM;
+
+  case kXR_inProgress:
+    return EINPROGRESS;
+
+  case kXR_overQuota:
+    return EDQUOT;
+
+  case kXR_SigVerErr:
+    return EILSEQ;
+
+  case kXR_DecryptErr:
+    return ERANGE;
+
+  case kXR_Overloaded:
+    return EUSERS;
+
+  default:
+    return ENOMSG;
   }
 }
 
 #endif
 
-namespace XrdCl {
+namespace XrdCl
+{
 // ---------------------------------------------------------------------- //
 typedef std::shared_ptr<std::vector<char>> shared_buffer;
 // ---------------------------------------------------------------------- //
@@ -94,7 +146,8 @@ class BufferManager : public XrdSysMutex
 {
 public:
 
-  BufferManager(size_t _max = 128, size_t _default_size = 128 * 1024, size_t _max_inflight_size = 1 * 1024 * 1024 * 1024)
+  BufferManager(size_t _max = 128, size_t _default_size = 128 * 1024,
+                size_t _max_inflight_size = 1 * 1024 * 1024 * 1024)
   {
     max = _max;
     buffersize = _default_size;
@@ -119,25 +172,32 @@ public:
       size_t cnt = 0;
       {
         XrdSysMutexHelper lLock(this);
+
         if ((inflight_size < max_inflight_size) &&
-            (inflight_buffers < 16384)) // avoid to trigger XRootD SID exhaustion
+            (inflight_buffers < 16384)) { // avoid to trigger XRootD SID exhaustion
           break;
+        }
       }
       // we wait that the situation relaxes
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
       if (!(cnt % 1000)) {
-        if (inflight_size >= max_inflight_size)
-          eos_static_warning("inflight-buffer exceeds maximum number of %lu bytes [%ld/%ld]", inflight_size, max_inflight_size);
-        if (inflight_buffers >= 16384)
-          eos_static_warning("inflight-buffer exceeds maximum number of buffers in flight [%ld/%ld]", inflight_buffers, 16384);
+        if (inflight_size >= max_inflight_size) {
+          eos_static_warning("inflight-buffer exceeds maximum number of %lu bytes [%ld/%ld]",
+                             inflight_size, max_inflight_size);
+        }
+
+        if (inflight_buffers >= 16384) {
+          eos_static_warning("inflight-buffer exceeds maximum number of buffers in flight [%ld/%ld]",
+                             inflight_buffers, 16384);
+        }
       }
+
       cnt++;
     } while (1);
 
     XrdSysMutexHelper lLock(this);
-
     size_t cap_size = size;
-
     inflight_buffers++;
 
     if (!queue.size() || (size < buffersize)) {
@@ -208,7 +268,7 @@ public:
   static BufferManager sRaBufferManager; // async read buffer manager
 
   // ---------------------------------------------------------------------- //
-  XRootDStatus OpenAsync(const std::string &url,
+  XRootDStatus OpenAsync(const std::string& url,
                          OpenFlags::Flags flags,
                          Access::Mode mode,
                          uint16_t timeout);
@@ -249,18 +309,18 @@ public:
   bool OutstandingWrites();
 
   // ---------------------------------------------------------------------- //
-  bool HadFailures(std::string &message);
+  bool HadFailures(std::string& message);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus Write(uint64_t offset,
                      uint32_t size,
-                     const void *buffer,
-                     ResponseHandler *handler,
+                     const void* buffer,
+                     ResponseHandler* handler,
                      uint16_t timeout = 0);
 
   XRootDStatus Write(uint64_t offset,
                      uint32_t size,
-                     const void *buffer,
+                     const void* buffer,
                      uint16_t timeout = 0)
   {
     return File::Write(offset, size, buffer, timeout);
@@ -269,8 +329,8 @@ public:
   // ---------------------------------------------------------------------- //
   XRootDStatus Read(uint64_t offset,
                     uint32_t size,
-                    void *buffer,
-                    uint32_t &bytesRead,
+                    void* buffer,
+                    uint32_t& bytesRead,
                     uint16_t timeout = 0);
 
   // ---------------------------------------------------------------------- //
@@ -310,8 +370,9 @@ public:
 
   static int status2errno(const XRootDStatus& status)
   {
-    if (!status.errNo)
+    if (!status.errNo) {
       return 0;
+    }
 
     if (status.errNo < kXR_ArgInvalid) {
       return status.errNo;
@@ -324,8 +385,7 @@ public:
     }
   }
 
-  enum OPEN_STATE
-  {
+  enum OPEN_STATE {
     CLOSED = 0,
     OPENING = 1,
     OPENED = 2,
@@ -367,6 +427,7 @@ public:
     // lock XOpenAsyncCond from outside
     open_state = newstate;
     eos::common::Timing::GetTimeSpec(open_state_time);
+
     if (xs) {
       XOpenState = *xs;
     }
@@ -382,7 +443,8 @@ public:
 
   double state_age()
   {
-    return((double) eos::common::Timing::GetAgeInNs(&open_state_time, 0) / 1000000000.0);
+    return ((double) eos::common::Timing::GetAgeInNs(&open_state_time,
+            0) / 1000000000.0);
   }
 
   void set_readstate(XRootDStatus* xs)
@@ -395,8 +457,7 @@ public:
     XWriteState = *xs;
   }
 
-  enum READAHEAD_STRATEGY
-  {
+  enum READAHEAD_STRATEGY {
     NONE = 0,
     STATIC = 1,
     DYNAMIC = 2
@@ -412,12 +473,17 @@ public:
     return mReadAheadMaximumPosition;
   }
 
-  static READAHEAD_STRATEGY readahead_strategy_from_string(const std::string& strategy)
+  static READAHEAD_STRATEGY readahead_strategy_from_string(
+    const std::string& strategy)
   {
-    if (strategy == "dynamic")
+    if (strategy == "dynamic") {
       return DYNAMIC;
-    if (strategy == "static")
+    }
+
+    if (strategy == "static") {
       return STATIC;
+    }
+
     return NONE;
   }
 
@@ -437,13 +503,14 @@ public:
   float get_readahead_efficiency()
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
-    return(mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalBytes) : 0.0;
+    return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalBytes) : 0.0;
   }
 
   float get_readahead_volume_efficiency()
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
-    return(mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes) : 0.0;
+    return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes)
+           : 0.0;
   }
 
   void set_id(uint64_t ino, fuse_req_t req)
@@ -468,15 +535,15 @@ public:
   // ---------------------------------------------------------------------- //
 
   Proxy() : XOpenAsyncHandler(this),
-  XCloseAsyncHandler(this),
-  XOpenAsyncCond(0),
-  XWriteAsyncCond(0),
-  XReadAsyncCond(0),
-  XWriteQueueDirectSubmission(0),
-  XWriteQueueScheduledSubmission(0),
-  XCloseAfterWrite(false),
-  XCloseAfterWriteTimeout(0),
-  mReq(0), mIno(0), mDeleted(false)
+    XCloseAsyncHandler(this),
+    XOpenAsyncCond(0),
+    XWriteAsyncCond(0),
+    XReadAsyncCond(0),
+    XWriteQueueDirectSubmission(0),
+    XWriteQueueScheduledSubmission(0),
+    XCloseAfterWrite(false),
+    XCloseAfterWriteTimeout(0),
+    mReq(0), mIno(0), mDeleted(false)
   {
     XrdSysCondVarHelper lLock(XOpenAsyncCond);
     set_state(CLOSED);
@@ -507,16 +574,19 @@ public:
   {
     WaitWrite();
     XrdSysCondVarHelper lLock(ReadCondVar());
+
     for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
       XrdSysCondVarHelper llLock(it->second->ReadCondVar());
-      while (!it->second->done())
+
+      while (!it->second->done()) {
         it->second->ReadCondVar().WaitMS(25);
+      }
     }
   }
 
   bool HasReadsInFlight()
   {
-    return(read_chunks_in_flight()) ? true : false;
+    return (read_chunks_in_flight()) ? true : false;
   }
 
   bool HasWritesInFlight()
@@ -528,18 +598,22 @@ public:
   bool HasTooManyWritesInFlight()
   {
     XrdSysCondVarHelper lLock(WriteCondVar());
-    return(ChunkMap().size() > 1024);
+    return (ChunkMap().size() > 1024);
   }
 
   void DropReadAhead()
   {
     WaitWrite();
     XrdSysCondVarHelper lLock(ReadCondVar());
+
     for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
       XrdSysCondVarHelper llLock(it->second->ReadCondVar());
-      while (!it->second->done())
+
+      while (!it->second->done()) {
         it->second->ReadCondVar().WaitMS(25);
+      }
     }
+
     ChunkRMap().clear();
   }
 
@@ -549,7 +623,8 @@ public:
   virtual ~Proxy()
   {
     Collect();
-    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(), get_readahead_volume_efficiency());
+    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(),
+               get_readahead_volume_efficiency());
   }
 
   // ---------------------------------------------------------------------- //
@@ -562,7 +637,7 @@ public:
     OpenAsyncHandler() { }
 
     OpenAsyncHandler(Proxy* file) :
-    mProxy(file) { }
+      mProxy(file) { }
 
     virtual ~OpenAsyncHandler() { }
 
@@ -589,7 +664,7 @@ public:
     CloseAsyncHandler() { }
 
     CloseAsyncHandler(Proxy* file) :
-    mProxy(file) { }
+      mProxy(file) { }
 
     virtual ~CloseAsyncHandler() { }
 
@@ -623,7 +698,8 @@ public:
       mTimeout = other->timeout();
     }
 
-    WriteAsyncHandler(Proxy* file, uint32_t size, off_t off = 0, uint16_t timeout = 0) : mProxy(file), woffset(off), mTimeout(timeout)
+    WriteAsyncHandler(Proxy* file, uint32_t size, off_t off = 0,
+                      uint16_t timeout = 0) : mProxy(file), woffset(off), mTimeout(timeout)
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
@@ -700,7 +776,8 @@ public:
       mEOF = false;
     }
 
-    ReadAsyncHandler(Proxy* file, off_t off, uint32_t size) : mProxy(file), mAsyncCond(0)
+    ReadAsyncHandler(Proxy* file, off_t off, uint32_t size) : mProxy(file),
+      mAsyncCond(0)
     {
       mBuffer = sRaBufferManager.get_buffer(size);
       mBuffer->resize(size);
@@ -708,12 +785,14 @@ public:
       mDone = false;
       mEOF = false;
       mProxy = file;
-      eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size, this);
+      eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size,
+                       this);
     }
 
     virtual ~ReadAsyncHandler()
     {
-      eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset, mBuffer->size(), this);
+      eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset,
+                       mBuffer->size(), this);
       sRaBufferManager.put_buffer(mBuffer);
     }
 
@@ -746,12 +825,15 @@ public:
                  off_t& match_offset, uint32_t& match_size)
     {
       if ((off >= roffset) &&
-          (off < ((off_t) (roffset + mBuffer->size())))) {
+          (off < ((off_t)(roffset + mBuffer->size())))) {
         match_offset = off;
-        if ((off + size) <= (off_t) (roffset + mBuffer->size()))
+
+        if ((off + size) <= (off_t)(roffset + mBuffer->size())) {
           match_size = size;
-        else
+        } else {
           match_size = (roffset + mBuffer->size() - off);
+        }
+
         return true;
       }
 
@@ -762,6 +844,7 @@ public:
     {
       off_t match_offset;
       uint32_t match_size;
+
       if (matches((off_t) off, size, match_offset, match_size)) {
         return true;
       } else {
@@ -819,28 +902,28 @@ public:
   typedef std::vector<read_handler> chunk_rvector;
 
   // ---------------------------------------------------------------------- //
-  write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset = 0, uint16_t timeout = 0);
+  write_handler WriteAsyncPrepare(uint32_t size, uint64_t offset = 0,
+                                  uint16_t timeout = 0);
 
 
   // ---------------------------------------------------------------------- //
   XRootDStatus WriteAsync(uint64_t offset,
                           uint32_t size,
-                          const void *buffer,
+                          const void* buffer,
                           write_handler handler,
                           uint16_t timeout);
 
   // ---------------------------------------------------------------------- //
   XRootDStatus ScheduleWriteAsync(
-                                  const void *buffer,
-                                  write_handler handler
-                                  );
+    const void* buffer,
+    write_handler handler
+  );
 
 
   // ---------------------------------------------------------------------- //
 
   XrdSysCondVar& OpenCondVar()
   {
-
     return XOpenAsyncCond;
   }
 
@@ -848,7 +931,6 @@ public:
 
   XrdSysCondVar& WriteCondVar()
   {
-
     return XWriteAsyncCond;
   }
 
@@ -856,7 +938,6 @@ public:
 
   XrdSysCondVar& ReadCondVar()
   {
-
     return XReadAsyncCond;
   }
 
@@ -878,9 +959,9 @@ public:
   // ---------------------------------------------------------------------- //
   XRootDStatus ReadAsync(read_handler handler,
                          uint32_t size,
-                         void *buffer,
-                         uint32_t &bytesRead
-                         );
+                         void* buffer,
+                         uint32_t& bytesRead
+                        );
 
   std::deque<write_handler>& WriteQueue()
   {
@@ -899,7 +980,9 @@ public:
 
   float get_scheduled_submission_fraction()
   {
-    return(XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission) ? 100.0 * XWriteQueueScheduledSubmission / (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission) : 0;
+    return (XWriteQueueScheduledSubmission + XWriteQueueDirectSubmission) ? 100.0 *
+           XWriteQueueScheduledSubmission / (XWriteQueueScheduledSubmission +
+               XWriteQueueDirectSubmission) : 0;
   }
 
   const bool close_after_write()
@@ -914,7 +997,6 @@ public:
 
   chunk_map& ChunkMap()
   {
-
     return XWriteAsyncChunks;
   }
 
@@ -998,10 +1080,14 @@ public:
 
   static ssize_t chunk_timeout(ssize_t to = 0)
   {
-    if (to) sChunkTimeout = to;
+    if (to) {
+      sChunkTimeout = to;
+    }
+
     return sChunkTimeout;
   }
-  static ssize_t sChunkTimeout; // time after we move an inflight chunk out of a proxy object into the static map
+  static ssize_t
+  sChunkTimeout; // time after we move an inflight chunk out of a proxy object into the static map
 
 private:
   OPEN_STATE open_state;
@@ -1032,7 +1118,7 @@ private:
 
   READAHEAD_STRATEGY XReadAheadStrategy;
   size_t XReadAheadMin; // minimum ra block size when re-enabling
-  size_t XReadAheadNom; // nominal ra block size when 
+  size_t XReadAheadNom; // nominal ra block size when
   size_t XReadAheadMax; // maximum pow2 scaled window
   size_t XReadAheadBlocksMin; // minimum number of prefetch blocks
   size_t XReadAheadBlocksNom; // nominal number of prefetch blocks

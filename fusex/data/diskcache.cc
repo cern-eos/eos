@@ -60,6 +60,7 @@ diskcache::init(const cacheconfig& config)
   if (config.clean_threshold) {
     diskcache::sCleanThreshold = config.clean_threshold;
   }
+
   return 0;
 }
 
@@ -74,16 +75,16 @@ diskcache::init_daemonized(const cacheconfig& config)
   }
 
   sDirCleaner = std::make_shared<dircleaner>(config.location,
-                                             config.total_file_cache_size,
-                                             config.total_file_cache_inodes
-                                             );
+                config.total_file_cache_size,
+                config.total_file_cache_inodes
+                                            );
   sDirCleaner->set_trim_suffix(".dc");
 
   if (config.clean_on_startup) {
     eos_static_info("cleaning cache path=%s", config.location.c_str());
     sDirCleaner = std::make_shared<dircleaner>(config.location,
-                                               config.total_file_cache_size,
-                                               config.total_file_cache_inodes);
+                  config.total_file_cache_size,
+                  config.total_file_cache_inodes);
 
     if (sDirCleaner->cleanall(".dc")) {
       eos_static_err("cache cleanup failed");
@@ -97,7 +98,7 @@ diskcache::init_daemonized(const cacheconfig& config)
 
 /* -------------------------------------------------------------------------- */
 diskcache::diskcache(fuse_ino_t _ino) : ino(_ino), nattached(0), fd(-1)
-/* -------------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------- */
 {
   memset(&attachstat, 0, sizeof(attachstat));
   memset(&detachstat, 0, sizeof(detachstat));
@@ -167,6 +168,7 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
     if (fstat(fd, &attachstat)) {
       return errno;
     }
+
     // compare if the cookies are identical, otherwise we truncate to 0
     if (ccookie != acookie) {
       eos_static_debug("diskcache::attach truncating for cookie: %s <=> %s\n",
@@ -203,9 +205,10 @@ diskcache::detach(std::string& cookie)
     if (fstat(fd, &detachstat)) {
       return errno;
     }
-    sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size, 0);
-    int rc = close(fd);
 
+    sDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
+                                            0);
+    int rc = close(fd);
     fd = -1;
 
     if (rc) {
@@ -255,7 +258,7 @@ diskcache::pread(void* buf, size_t count, off_t offset)
     return 0;
   }
 
-  if ((off_t) (offset + count) > sMaxSize) {
+  if ((off_t)(offset + count) > sMaxSize) {
     count = sMaxSize - offset;
   }
 
@@ -273,7 +276,7 @@ diskcache::pwrite(const void* buf, size_t count, off_t offset)
     return 0;
   }
 
-  if ((off_t) (offset + count) > sMaxSize) {
+  if ((off_t)(offset + count) > sMaxSize) {
     count = sMaxSize - offset;
   }
 

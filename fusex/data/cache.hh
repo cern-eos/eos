@@ -46,8 +46,8 @@ public:
   virtual int detach(std::string& cookie) = 0;
   virtual int unlink() = 0;
 
-  virtual ssize_t pread(void *buf, size_t count, off_t offset) = 0;
-  virtual ssize_t pwrite(const void *buf, size_t count, off_t offset) = 0;
+  virtual ssize_t pread(void* buf, size_t count, off_t offset) = 0;
+  virtual ssize_t pwrite(const void* buf, size_t count, off_t offset) = 0;
 
   virtual int truncate(off_t) = 0;
   virtual int sync() = 0;
@@ -60,9 +60,9 @@ public:
   }
 
   virtual int set_attr(const std::string& key, const std::string& value) = 0;
-  virtual int attr(const std::string &key, std::string& value) = 0;
+  virtual int attr(const std::string& key, std::string& value) = 0;
 
-  virtual int set_cookie(const std::string &cookie)
+  virtual int set_cookie(const std::string& cookie)
   {
     return set_attr("user.eos.cache.cookie", cookie);
   }

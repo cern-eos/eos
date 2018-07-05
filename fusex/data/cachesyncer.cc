@@ -22,7 +22,8 @@ public:
   {
   }
 
-  virtual void HandleResponse(XrdCl::XRootDStatus *status, XrdCl::AnyObject *response)
+  virtual void HandleResponse(XrdCl::XRootDStatus* status,
+                              XrdCl::AnyObject* response)
   {
     Report(status);
   }
@@ -32,12 +33,13 @@ public:
     sem.Wait();
   }
 
-  void Report(XrdCl::XRootDStatus *status)
+  void Report(XrdCl::XRootDStatus* status)
   {
     XrdSysMutexHelper scope(mtx);
     result &= status->IsOK();
     delete status;
     --count;
+
     if (count == 0) {
       scope.UnLock();
       sem.Post();
@@ -58,18 +60,18 @@ private:
 };
 
 int cachesyncer::sync(int fd, interval_tree<uint64_t,
-                      uint64_t> &journal,
+                      uint64_t>& journal,
                       size_t offshift,
                       off_t truncatesize)
 {
-  if (!journal.size() && (truncatesize == -1))
+  if (!journal.size() && (truncatesize == -1)) {
     return 0;
+  }
 
   CollectiveHandler handler(journal.size() + ((truncatesize != -1) ? 1 : 0));
-
   std::map<size_t, bufferll> bufferm;
-
   size_t i = 0;
+
   for (auto itr = journal.begin(); itr != journal.end(); ++itr) {
     off_t cacheoff = itr->value + offshift;
     size_t size = itr->high - itr->low;
@@ -84,11 +86,14 @@ int cachesyncer::sync(int fd, interval_tree<uint64_t,
     if (bytesRead < (int) size) {
       // TODO handle error
     }
+
     // do async write
     XrdCl::XRootDStatus st = file.Write(itr->low, size, bufferm[i].ptr(), &handler);
+
     if (!st.IsOK()) {
       handler.Report(new XrdCl::XRootDStatus(st));
     }
+
     i++;
   }
 
@@ -99,6 +104,5 @@ int cachesyncer::sync(int fd, interval_tree<uint64_t,
   }
 
   handler.Wait();
-
   return handler.WasSuccessful() ? 0 : -1;
 }

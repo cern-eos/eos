@@ -47,8 +47,8 @@ public:
 public:
 
   interval_node_t(I low, I high, const V& value) :
-  low(low), high(high), value(value), key(this->low), max(high), colour(RED),
-  parent(nullptr) { }
+    low(low), high(high), value(value), key(this->low), max(high), colour(RED),
+    parent(nullptr) { }
 
   const I low;
   const I high;
@@ -82,8 +82,7 @@ public:
 
   typedef typename rbtree<I, V, N>::iterator iterator;
 
-  struct less
-  {
+  struct less {
 
     bool operator()(const iterator& x, const iterator& y) const
     {
@@ -203,8 +202,8 @@ private:
       if (successor.get() == n) {
         erase_node(successor);
       }// otherwise the successor was the right child of node,
-        // hence node should be now the right child of 'node'
-        // unoique pointer
+      // hence node should be now the right child of 'node'
+      // unoique pointer
       else if (node->right.get() == n) {
         erase_node(node->right);
       }// there are no other cases so anything else is wrong

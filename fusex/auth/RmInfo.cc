@@ -28,10 +28,12 @@
 #include "RmInfo.hh"
 #include "common/Logging.hh"
 
-RmInfo::RmInfo(const std::string &executablePath, const std::vector<std::string> &cmdline)
+RmInfo::RmInfo(const std::string& executablePath,
+               const std::vector<std::string>& cmdline)
 {
-  if (EOS_LOGS_DEBUG)
+  if (EOS_LOGS_DEBUG) {
     eos_static_debug("path: %s", executablePath.c_str());
+  }
 
   if (executablePath != "/bin/rm" &&
       executablePath != "/usr/bin/rm" &&

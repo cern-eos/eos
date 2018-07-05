@@ -37,8 +37,7 @@ public:
   {
     eos_static_debug("begin: ino=%08llx", inode);
     int rc = fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Channel(),
-                                              inode, isfile ? 0 : -1, 0);
-
+             inode, isfile ? 0 : -1, 0);
     eos_static_debug("end: ino=%08llx rc=%d", inode, rc);
   }
 
@@ -46,8 +45,9 @@ public:
   {
     eos_static_debug("begin: ino=%08llx name=%s", parent_inode, name.c_str());
     int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Channel(),
-                                              parent_inode, name.c_str(), name.length());
-    eos_static_debug("end: ino=%08llx name=%s rc=%d", parent_inode, name.c_str(), rc);
+             parent_inode, name.c_str(), name.length());
+    eos_static_debug("end: ino=%08llx name=%s rc=%d", parent_inode, name.c_str(),
+                     rc);
   }
 };
 #endif /* FUSE_KERNCALCACHE_HH_ */

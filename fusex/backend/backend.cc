@@ -168,7 +168,7 @@ backend::getMD(fuse_req_t req,
                const std::string& path,
                std::vector<eos::fusex::container>& contv,
                std::string authid
-               )
+              )
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
@@ -185,7 +185,7 @@ backend::getMD(fuse_req_t req,
                std::vector<eos::fusex::container>& contv,
                bool listing,
                std::string authid
-               )
+              )
 {
   std::string requestURL = getURL(req, inode, name, listing ? "LS" : "GET",
                                   authid);
@@ -201,7 +201,7 @@ backend::getMD(fuse_req_t req,
                std::vector<eos::fusex::container>& contv,
                bool listing,
                std::string authid
-               )
+              )
 /* -------------------------------------------------------------------------- */
 {
   std::string requestURL = getURL(req, inode, myclock, listing ? "LS" : "GET",
@@ -214,7 +214,7 @@ int
 backend::getCAP(fuse_req_t req,
                 uint64_t inode,
                 std::vector<eos::fusex::container>& contv
-                )
+               )
 /* -------------------------------------------------------------------------- */
 {
   uint64_t myclock = (uint64_t) time(NULL);
@@ -227,7 +227,7 @@ int
 /* -------------------------------------------------------------------------- */
 backend::fetchResponse(std::string& requestURL,
                        std::vector<eos::fusex::container>& contv
-                       )
+                      )
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("request='%s'", requestURL.c_str());
@@ -243,7 +243,7 @@ backend::fetchResponse(std::string& requestURL,
     status = file->Open(requestURL.c_str(),
                         XrdCl::OpenFlags::Flags::Read);
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-                                                                       0) / 1000000000.0;
+                           0) / 1000000000.0;
     total_exec_time_sec += exec_time_sec;
     std::string lasturl;
     file->GetProperty("LastURL", lasturl);
@@ -283,10 +283,10 @@ backend::fetchResponse(std::string& requestURL,
       }
 
       if (
-          (status.code == XrdCl::errConnectionError) ||
-          (status.code == XrdCl::errSocketTimeout) ||
-          (status.code == XrdCl::errOperationExpired)
-          ) {
+        (status.code == XrdCl::errConnectionError) ||
+        (status.code == XrdCl::errSocketTimeout) ||
+        (status.code == XrdCl::errOperationExpired)
+      ) {
         // if there is a timeout, we might retry according to the backend timeout setting
         if (timeout &&
             (total_exec_time_sec >
@@ -797,7 +797,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
   char hexinode[32];
   snprintf(hexinode, sizeof(hexinode), "%08lx", (unsigned long) inode);
   query["mgm.inode"] =
-          hexinode;
+    hexinode;
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
   query["eos.app"] = "fuse";
@@ -826,12 +826,12 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op,
   std::string sclock;
   query["mgm.cmd"] = "fuseX";
   query["mgm.clock"] =
-          eos::common::StringConversion::GetSizeString(sclock,
-                                                       (unsigned long long) clock);
+    eos::common::StringConversion::GetSizeString(sclock,
+        (unsigned long long) clock);
   char hexinode[32];
   snprintf(hexinode, sizeof(hexinode), "%08lx", (unsigned long) inode);
   query["mgm.inode"] =
-          hexinode;
+    hexinode;
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
   query["eos.app"] = "fuse";
@@ -852,7 +852,7 @@ int
 /* -------------------------------------------------------------------------- */
 backend::statvfs(fuse_req_t req,
                  struct statvfs* stbuf
-                 )
+                )
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);
@@ -971,15 +971,15 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
 
     // we want to report all errors which are not timeout related
     if (
-        (status.code != XrdCl::errConnectionError) &&
-        (status.code != XrdCl::errSocketTimeout) &&
-        (status.code != XrdCl::errOperationExpired)
-        ) {
+      (status.code != XrdCl::errConnectionError) &&
+      (status.code != XrdCl::errSocketTimeout) &&
+      (status.code != XrdCl::errOperationExpired)
+    ) {
       return status;
     }
 
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-                                                                       0) / 1000000000.0;
+                           0) / 1000000000.0;
     total_exec_time_sec += exec_time_sec;
     eos_static_err("query-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
                    exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),

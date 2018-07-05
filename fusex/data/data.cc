@@ -44,7 +44,8 @@ std::string data::datax::kInlineCompressor = "sys.file.inline.compressor";
 data::data()
 /* -------------------------------------------------------------------------- */
 {
-  XrdCl::Proxy::sRaBufferManager.configure(16, cachehandler::instance().get_config().default_read_ahead_size);
+  XrdCl::Proxy::sRaBufferManager.configure(16,
+      cachehandler::instance().get_config().default_read_ahead_size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -104,10 +105,12 @@ data::has(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(datamap);
-  if (datamap.count(ino))
+
+  if (datamap.count(ino)) {
     return true;
-  else
+  } else {
     return false;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -170,6 +173,7 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(datamap);
+
   if (datamap.count(ino)) {
     XrdSysMutexHelper helper(datamap[ino]->Locker());
     // wait for open in flight to be done
@@ -194,7 +198,8 @@ data::datax::flush(fuse_req_t req)
 {
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
-  return flush_nolock(req, EosFuse::Instance().Config().options.flush_wait_open ? true : false, false);
+  return flush_nolock(req,
+                      EosFuse::Instance().Config().options.flush_wait_open ? true : false, false);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -204,13 +209,11 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
 /* -------------------------------------------------------------------------- */
 {
   eos_info("");
-
   bool journal_recovery = false;
   errno = 0;
 
   if (mFile->journal() && mFile->has_xrdiorw(req)) {
     eos_info("flushing journal");
-
     ssize_t truncate_size = mFile->journal()->get_truncatesize();
 
     if (wait_open) {
@@ -222,10 +225,10 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
         || (wait_writes && mFile->journal()->size())) {
       // if there is a truncate to be done, we have to wait for the writes and truncate
       // if we are asked to wait for writes (when pwrite sees a journal full) we free the journal
-
       for (auto it = mFile->get_xrdiorw().begin();
            it != mFile->get_xrdiorw().end(); ++it) {
         XrdCl::XRootDStatus status = it->second->WaitOpen();
+
         if (!status.IsOK()) {
           journal_recovery = true;
           eos_err("file not open");
@@ -240,15 +243,16 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       }
 
       ssize_t truncate_size = mFile->journal()->get_truncatesize();
+
       if (!journal_recovery && (truncate_size != -1)) {
         // the journal might have a truncation size indicated, so we need to run a sync truncate in the end
         XrdCl::XRootDStatus status = mFile->xrdiorw(req)->Truncate(truncate_size);
+
         if (!status.IsOK()) {
           journal_recovery = true;
           eos_err("truncation failed");
         }
       }
-
 
       if (simulate_write_error_in_flush()) {
         // force a 'fake' repair now for testing purposes
@@ -258,6 +262,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       if (journal_recovery) {
         eos_debug("try recovery");
         int rc = 0;
+
         if ((rc = TryRecovery(req, true))) {
           eos_err("journal-flushing recovery failed rc=%d", rc);
           return rc;
@@ -268,18 +273,22 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
           }
         }
       }
+
       // truncate the journal
       if (mFile->journal()->reset()) {
         char msg[1024];
         snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
         throw std::runtime_error(msg);
       }
+
       mFile->journal()->done_flush();
     }
   }
 
   // check if the open failed
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+                          req) : mFile->xrdiorw(req);
+
   if (proxy) {
     if (proxy->stateTS() == XrdCl::Proxy::FAILED) {
       int rc = 0;
@@ -299,6 +308,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
             snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
             throw std::runtime_error(msg);
           }
+
           mFile->journal()->done_flush();
         }
       }
@@ -317,7 +327,6 @@ data::datax::journalflush(fuse_req_t req)
 {
   // call this with a mLock locked
   eos_info("");
-
   XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
 
   // we have to push the journal now
@@ -347,7 +356,6 @@ data::datax::journalflush(std::string cid)
 {
   // call this with a mLock locked
   eos_info("");
-
   XrdCl::XRootDStatus status = mFile->xrdiorw(cid)->WaitOpen();
 
   // we have to push the journal now
@@ -431,11 +439,9 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     mFlags = flags;
   }
 
-
-
   // check for file inlining only for the first attach call
-  if ((!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size || mMd->inlinesize())) {
-
+  if ((!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size ||
+                           mMd->inlinesize())) {
     if (mMd->inlinesize()) {
       mInlineMaxSize = mMd->inlinesize();
     } else {
@@ -444,25 +450,29 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
     auto attrMap = mMd->attr();
 
-    if (attrMap.count(kInlineMaxSize))
+    if (attrMap.count(kInlineMaxSize)) {
       mInlineMaxSize = strtoull(attrMap[kInlineMaxSize].c_str(), 0, 10);
+    }
 
-    if (attrMap.count(kInlineCompressor))
+    if (attrMap.count(kInlineCompressor)) {
       mInlineCompressor = attrMap[kInlineCompressor];
-    else
+    } else {
       mInlineCompressor = EosFuse::Instance().Config().inliner.default_compressor;
+    }
 
-    eos_debug("inline-size=%llu inline-compressor=%s", mInlineMaxSize, mInlineCompressor.c_str());
+    eos_debug("inline-size=%llu inline-compressor=%s", mInlineMaxSize,
+              mInlineCompressor.c_str());
     // reserve buffer for inlining
     inline_buffer = std::make_shared<bufferll>(mInlineMaxSize,
-                                               mInlineMaxSize);
-
+                    mInlineMaxSize);
     mIsInlined = true;
-    if (attrMap.count(kInlineAttribute)) {
-      std::string base64_string(attrMap[kInlineAttribute].c_str(), attrMap[kInlineAttribute].size());
-      std::string raw_string;
 
+    if (attrMap.count(kInlineAttribute)) {
+      std::string base64_string(attrMap[kInlineAttribute].c_str(),
+                                attrMap[kInlineAttribute].size());
+      std::string raw_string;
       bool decoding = false;
+
       if (base64_string.substr(0, 8) == "zbase64:") {
         SymKey::ZDeBase64(base64_string, raw_string);
         decoding = true;
@@ -499,11 +509,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   eos_info("cookie=%s flags=%o isrw=%d md-size=%d %s", cookie.c_str(), flags,
            isRW, mMd->size(),
            isRW ? mRemoteUrlRW.c_str() : mRemoteUrlRO.c_str());
-
-
   // store the currently known size here
   mSize = mMd->size();
-
 
   // set write error simulation flags
   if (mMd->name().find("#err_sim_flush#") != std::string::npos) {
@@ -515,13 +522,14 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   if ((flags & O_SYNC) ||
-      ((time(NULL) - mMd->bc_time()) < EosFuse::Instance().Config().options.nocache_graceperiod)) {
+      ((time(NULL) - mMd->bc_time()) <
+       EosFuse::Instance().Config().options.nocache_graceperiod)) {
     mFile->disable_caches();
   }
 
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
   int jcache = mFile->journal() ? mFile->journal()->attach(freq, cookie,
-                                                           isRW) : 0;
+               isRW) : 0;
 
   if (bcache < 0) {
     char msg[1024];
@@ -551,13 +559,14 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
       XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
       XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-              XrdCl::Access::UX;
+                                 XrdCl::Access::UX;
       mFile->xrdiorw(freq)->OpenAsync(mRemoteUrlRW.c_str(), targetFlags, mode, 0);
     } else {
       if (mFile->xrdiorw(freq)->IsWaitWrite()) {
         // re-open the file in the state machine
         mFile->xrdiorw(freq)->set_state_TS(XrdCl::Proxy::OPENED);
       }
+
       mFile->xrdiorw(freq)->attach();
     }
   } else {
@@ -580,13 +589,13 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
                       cachehandler::instance().get_config().max_read_ahead_size);
 
           mFile->xrdioro(freq)->set_readahead_strategy(
-                                                       XrdCl::Proxy::readahead_strategy_from_string(cachehandler::instance().get_config().read_ahead_strategy),
-                                                       4096,
-                                                       cachehandler::instance().get_config().default_read_ahead_size,
-                                                       cachehandler::instance().get_config().max_read_ahead_size,
-                                                       cachehandler::instance().get_config().max_read_ahead_blocks
-                                                       );
-
+            XrdCl::Proxy::readahead_strategy_from_string(
+              cachehandler::instance().get_config().read_ahead_strategy),
+            4096,
+            cachehandler::instance().get_config().default_read_ahead_size,
+            cachehandler::instance().get_config().max_read_ahead_size,
+            cachehandler::instance().get_config().max_read_ahead_blocks
+          );
           mFile->xrdioro(freq)->set_readahead_maximum_position(mSize);
         }
       }
@@ -610,8 +619,10 @@ bool
 data::datax::inline_file(ssize_t size)
 {
   XrdSysMutexHelper lLock(mLock);
-  if (size == -1)
+
+  if (size == -1) {
     size = mMd->size();
+  }
 
   if (inlined() && inline_buffer) {
     if ((size_t) size <= mInlineMaxSize) {
@@ -624,17 +635,19 @@ data::datax::inline_file(ssize_t size)
       } else {
         SymKey::Base64(raw_string, base64_string);
       }
+
       (*(mMd->mutable_attr()))[kInlineAttribute] = base64_string;
       (*(mMd->mutable_attr()))[kInlineMaxSize] = std::to_string(mInlineMaxSize);
       (*(mMd->mutable_attr()))[kInlineCompressor] = mInlineCompressor;
       return true;
     } else {
-      // remove the extended attribute 
+      // remove the extended attribute
       (mMd->mutable_attr())->erase(kInlineAttribute);
       mIsInlined = false;
       return false;
     }
   }
+
   return false;
 }
 
@@ -645,7 +658,6 @@ data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
   size_t file_size = mMd->size();
-
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
@@ -666,16 +678,17 @@ data::datax::prefetch(fuse_req_t req, bool lock)
   }
 
   if (!mPrefetchHandler && mFile->file() && !mFile->file()->size() && file_size) {
-    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+                            req) : mFile->xrdiorw(req);
 
     if (proxy) {
       XrdCl::XRootDStatus status;
-
-      size_t prefetch_size = std::min((size_t) file_size, (size_t) mFile->file()->prefetch_size());
-
+      size_t prefetch_size = std::min((size_t) file_size,
+                                      (size_t) mFile->file()->prefetch_size());
       // send an async read request
       mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size);
       status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
+
       if (!status.IsOK()) {
         eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
         mPrefetchHandler = 0;
@@ -683,7 +696,6 @@ data::datax::prefetch(fuse_req_t req, bool lock)
         // instruct the read-ahead handler where to start
         proxy->set_readahead_position(prefetch_size);
       }
-
     }
   }
 
@@ -709,14 +721,19 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
   size_t file_size = mMd->size();
 
   if (mPrefetchHandler && mFile->file()) {
-    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
+    XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+                            req) : mFile->xrdiorw(req);
 
     if (mPrefetchHandler && proxy) {
       XrdCl::XRootDStatus status = proxy->WaitRead(mPrefetchHandler);
+
       if (status.IsOK()) {
-        eos_info("pre-read done with size=%lu md-size=%lu", mPrefetchHandler->vbuffer().size(), file_size);
+        eos_info("pre-read done with size=%lu md-size=%lu",
+                 mPrefetchHandler->vbuffer().size(), file_size);
+
         if ((mPrefetchHandler->vbuffer().size() == file_size) && mFile->file()) {
-          ssize_t nwrite = mFile->file()->pwrite(mPrefetchHandler->buffer(), mPrefetchHandler->vbuffer().size(), 0);
+          ssize_t nwrite = mFile->file()->pwrite(mPrefetchHandler->buffer(),
+                                                 mPrefetchHandler->vbuffer().size(), 0);
           eos_debug("nwb=%lu to local cache", nwrite);
         }
       } else {
@@ -758,13 +775,12 @@ data::datax::FlagDeleted()
   for (auto fit = mFile->get_xrdiorw().begin();
        fit != mFile->get_xrdiorw().end(); ++fit) {
     fit->second->setDeleted();
-
   }
+
   for (auto fit = mFile->get_xrdioro().begin();
        fit != mFile->get_xrdioro().end(); ++fit) {
     fit->second->setDeleted();
   }
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -773,6 +789,7 @@ int
 data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 {
   eos_debug("");
+
   if (req && fuse_req_interrupted(req)) {
     eos_warning("request interrupted");
     return EINTR;
@@ -780,24 +797,23 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 
   if (mReadErrorStack.size() > 128) {
     std::string stack_dump;
+
     // we give up recovery if to many recoveries took place
     for (auto it = mReadErrorStack.begin(); it != mReadErrorStack.end(); ++it) {
       stack_dump += "\n";
       stack_dump += *it;
     }
+
     eos_err("giving up recovery - error-stack:%s", stack_dump.c_str());
     return EREMOTEIO;
   }
 
-
   if (iswrite) {
     // recover write failures
-    if (!EosFuse::Instance().Config().recovery.write) // might be disabled
-    {
+    if (!EosFuse::Instance().Config().recovery.write) { // might be disabled
       eos_warning("write recovery disabled");
       return EREMOTEIO;
     }
-
 
     if (!mFile->has_xrdiorw(req)) {
       eos_crit("no proxy object");
@@ -817,8 +833,9 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     }
   } else {
     // recover read failures
-    if (!EosFuse::Instance().Config().recovery.read) // might be disabled
+    if (!EosFuse::Instance().Config().recovery.read) { // might be disabled
       return EREMOTEIO;
+    }
 
     // no way to recover
     if (!mFile->has_xrdioro(req)) {
@@ -841,6 +858,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       break;
     }
   }
+
   return EREMOTEIO;
 }
 
@@ -851,46 +869,45 @@ data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::Proxy* proxy = mFile->xrdioro(req);
-
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
 
   while (1) {
-    eos_warning("recover read-open [%d]", EosFuse::Instance().Config().recovery.read_open);
+    eos_warning("recover read-open [%d]",
+                EosFuse::Instance().Config().recovery.read_open);
 
-    if (!EosFuse::Instance().Config().recovery.read_open) // might be disabled
+    if (!EosFuse::Instance().Config().recovery.read_open) { // might be disabled
       break;
+    }
 
     XrdCl::XRootDStatus status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
-      eos_crit("recover read-open-noserver [%d]", EosFuse::Instance().Config().recovery.read_open_noserver);
+      eos_crit("recover read-open-noserver [%d]",
+               EosFuse::Instance().Config().recovery.read_open_noserver);
+
       // there is no server to read that file
-      if (!EosFuse::Instance().Config().recovery.read_open_noserver) // might be disabled
-      {
+      if (!EosFuse::Instance().Config().recovery.read_open_noserver) { // might be disabled
         return ENETUNREACH;
       }
     }
 
     eos_warning("recover reopening file for read");
-
     XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
     XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
-
     // retrieve the 'tried' information to apply this for the file-reopening to exclude already known 'bad' locations
     std::string slasturl;
     proxy->GetProperty("LastURL", slasturl);
-
     XrdCl::URL lasturl(slasturl);
     XrdCl::URL newurl(mRemoteUrlRO);
-
     XrdCl::URL::ParamsMap last_cgi = lasturl.GetParams();
     XrdCl::URL::ParamsMap new_cgi = newurl.GetParams();
-
     std::string last_host = lasturl.GetHostName();
 
     if ((lasturl.GetHostName() != newurl.GetHostName()) ||
         (lasturl.GetPort() != newurl.GetPort())) {
-      eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(), new_cgi["tried"].c_str());
+      eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(),
+                  new_cgi["tried"].c_str());
       new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
       new_cgi["eos.repairread"] = "1";
       newurl.SetParams(new_cgi);
@@ -902,7 +919,7 @@ data::datax::recover_ropen(fuse_req_t req)
       mRemoteUrlRO = newurl.GetURL();
     }
 
-    // issue a new open 
+    // issue a new open
     XrdCl::Proxy* newproxy = new XrdCl::Proxy();
     newproxy->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     // wait this time for completion
@@ -913,33 +930,32 @@ data::datax::recover_ropen(fuse_req_t req)
     }
 
     newproxy->inherit_attached(proxy);
-
     // replace the proxy object
     mFile->set_xrdioro(req, newproxy);
-
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !
-    {
+    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
 
     // that failed again ...
     status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-                                                                          0) / 1000000000.0;
-
+                              0) / 1000000000.0;
       eos_warning("recover no server retry window [ %.02f/%.02f ]",
                   retry_time_sec,
                   EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow
-                  );
+                 );
 
-      // check how long we are supposed to retry 
-      if (retry_time_sec < EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
+      // check how long we are supposed to retry
+      if (retry_time_sec <
+          EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
         eos_warning("recover no server retry in 5 seconds");
+
         for (auto i = 0; i < 50; ++i) {
           // sleep for 5s and then try again
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -949,75 +965,79 @@ data::datax::recover_ropen(fuse_req_t req)
             return EINTR;
           }
         }
+
         // empty the tried= CGI tag
         new_cgi.erase("tried");
         newurl.SetParams(new_cgi);
         mRemoteUrlRO = newurl.GetURL();
         continue;
       }
+
       break;
     }
+
     break;
   }
+
   return EREMOTEIO;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url)
+data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
+                       std::string open_url)
 {
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
-
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
-
   proxy->OpenAsync(open_url, targetFlags, mode, 0);
+
   // wait this time for completion
   if ((req && fuse_req_interrupted(req)) || (proxy->WaitOpen(req) == EINTR)) {
     eos_warning("request interrupted");
     return EINTR;
   }
 
-  if (proxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !  
-  {
+  if (proxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
     return 0;
   }
 
   while (1) {
-    eos_warning("recover read-open [%d]", EosFuse::Instance().Config().recovery.read_open);
+    eos_warning("recover read-open [%d]",
+                EosFuse::Instance().Config().recovery.read_open);
 
-    if (!EosFuse::Instance().Config().recovery.read_open) // might be disabled
+    if (!EosFuse::Instance().Config().recovery.read_open) { // might be disabled
       break;
+    }
 
     XrdCl::XRootDStatus status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
-      eos_crit("recover read-open-noserver [%d]", EosFuse::Instance().Config().recovery.read_open_noserver);
+      eos_crit("recover read-open-noserver [%d]",
+               EosFuse::Instance().Config().recovery.read_open_noserver);
+
       // there is no server to read that file
-      if (!EosFuse::Instance().Config().recovery.read_open_noserver) // might be disabled
-      {
+      if (!EosFuse::Instance().Config().recovery.read_open_noserver) { // might be disabled
         return ENETUNREACH;
       }
     }
 
     eos_warning("recover reopening file for read");
-
     // retrieve the 'tried' information to apply this for the file-reopening to exclude already knowns 'bad' locations
     std::string slasturl;
     proxy->GetProperty("LastURL", slasturl);
-
     XrdCl::URL lasturl(slasturl);
     XrdCl::URL newurl(open_url);
-
     XrdCl::URL::ParamsMap last_cgi = lasturl.GetParams();
     XrdCl::URL::ParamsMap new_cgi = newurl.GetParams();
-
     std::string last_host = lasturl.GetHostName();
 
     if ((lasturl.GetHostName() != newurl.GetHostName()) ||
         (lasturl.GetPort() != newurl.GetPort())) {
-      eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(), new_cgi["tried"].c_str());
+      eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(),
+                  new_cgi["tried"].c_str());
       new_cgi["tried"] = last_host.c_str() + std::string(",") + last_cgi["tried"];
       newurl.SetParams(new_cgi);
       open_url = newurl.GetURL();
@@ -1027,7 +1047,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
       open_url = newurl.GetURL();
     }
 
-    // issue a new open 
+    // issue a new open
     XrdCl::Proxy* newproxy = new XrdCl::Proxy();
     newproxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
@@ -1038,33 +1058,32 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
     }
 
     newproxy->inherit_attached(proxy);
-
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
-
     // replace the proxy object
     proxy = newproxy;
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !
-    {
+    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
 
     // that failed again ...
     status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-                                                                          0) / 1000000000.0;
-
+                              0) / 1000000000.0;
       eos_warning("recover no server retry window [ %.02f/%.02f ]",
                   retry_time_sec,
                   EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow
-                  );
+                 );
 
-      // check how long we are supposed to retry 
-      if (retry_time_sec < EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
+      // check how long we are supposed to retry
+      if (retry_time_sec <
+          EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
         eos_warning("recover no server retry in 5 seconds");
+
         for (auto i = 0; i < 50; ++i) {
           // sleep for 5s and then try again
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1074,35 +1093,38 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
             return EINTR;
           }
         }
+
         // empty the tried= CGI tag
         new_cgi.erase("tried");
         newurl.SetParams(new_cgi);
         open_url = newurl.GetURL();
         continue;
       }
+
       break;
     }
+
     break;
   }
+
   return EREMOTEIO;
 }
 
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_url)
+data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
+                       std::string open_url)
 {
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
-
-
   // try to open this file for writing
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update;
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
-          XrdCl::Access::UX;
-
+                             XrdCl::Access::UX;
   // try to open
-  XrdCl::XRootDStatus status = proxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
+  XrdCl::XRootDStatus status = proxy->OpenAsync(open_url.c_str(), targetFlags,
+                               mode, 0);
 
   if (proxy->WaitOpen(req) == EINTR) {
     eos_warning("request interrupted");
@@ -1110,24 +1132,27 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
   }
 
   // if that worked we are already fine, otherwise we enter a timebased logic for retries
-  if (proxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !  
-  {
+  if (proxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
     eos_warning("re-opening for write succeeded");
     return 0;
   }
 
   while (1) {
-    eos_warning("recover write-open [%d]", EosFuse::Instance().Config().recovery.read_open);
+    eos_warning("recover write-open [%d]",
+                EosFuse::Instance().Config().recovery.read_open);
 
-    if (!EosFuse::Instance().Config().recovery.read_open) // might be disabled
+    if (!EosFuse::Instance().Config().recovery.read_open) { // might be disabled
       break;
+    }
 
     XrdCl::XRootDStatus status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
-      eos_crit("recover write-open-noserver [%d]", EosFuse::Instance().Config().recovery.write_open_noserver);
+      eos_crit("recover write-open-noserver [%d]",
+               EosFuse::Instance().Config().recovery.write_open_noserver);
+
       // there is no server to read that file
-      if (!EosFuse::Instance().Config().recovery.write_open_noserver) // might be disabled
-      {
+      if (!EosFuse::Instance().Config().recovery.write_open_noserver) { // might be disabled
         return ENETUNREACH;
       }
     }
@@ -1147,8 +1172,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
     }
 
     eos_warning("recover reopening file for writing");
-
-    // issue a new open 
+    // issue a new open
     XrdCl::Proxy* newproxy = new XrdCl::Proxy();
     newproxy->OpenAsync(open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
@@ -1160,33 +1184,32 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
 
     newproxy->inherit_attached(proxy);
     newproxy->inherit_writequeue(proxy);
-
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
-
     // replace the proxy object
     proxy = newproxy;
 
-    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) // that worked !
-    {
+    if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
       return 0;
     }
 
     // that failed again ...
     status = proxy->opening_state();
+
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-                                                                          0) / 1000000000.0;
-
+                              0) / 1000000000.0;
       eos_warning("recover no server retry window [ %.02f/%.02f ]",
                   retry_time_sec,
                   EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow
-                  );
+                 );
 
-      // check how long we are supposed to retry 
-      if (retry_time_sec < EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
+      // check how long we are supposed to retry
+      if (retry_time_sec <
+          EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow) {
         eos_warning("recover no server retry in 5 seconds");
+
         for (auto i = 0; i < 50; ++i) {
           // sleep for 5s and then try again
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1196,12 +1219,16 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy* &proxy, std::string open_ur
             return EINTR;
           }
         }
+
         continue;
       }
+
       break;
     }
+
     break;
   }
+
   return EREMOTEIO;
 }
 
@@ -1212,9 +1239,9 @@ data::datax::recover_read(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::Proxy* proxy = mFile->xrdioro(req);
-
   // recover a pread error
   XrdCl::XRootDStatus status = proxy->read_state();
+
   if (req && fuse_req_interrupted(req)) {
     eos_warning("request interrupted");
     return EINTR;
@@ -1240,7 +1267,6 @@ data::datax::recover_write(fuse_req_t req)
 {
   eos_debug("");
   XrdCl::Proxy* proxy = mFile->xrdiorw(req);
-
   // check if we have a problem with the open
   XrdCl::XRootDStatus status = proxy->WaitOpen();
 
@@ -1258,20 +1284,15 @@ data::datax::recover_write(fuse_req_t req)
     return EDQUOT;
   }
 
-
   // try to open this file for reading
-
-
-
-
   bool recover_from_file_cache = false;
 
   // check if the file has been created here and is still complete in the local caches
   if ((mFlags & O_CREAT) &&
       (((mSize <= mFile->file()->prefetch_size()) &&
         (mSize == (ssize_t) mFile->file()->size())) ||
-       (mFile->journal() && mFile->journal()->first_flush()))) // if the journal was not flushed yet and it is a creation, we have still all the data in the journal
-  {
+       (mFile->journal() &&
+        mFile->journal()->first_flush()))) { // if the journal was not flushed yet and it is a creation, we have still all the data in the journal
     eos_debug("recover from file cache");
     // this file can be recovered from the file start cache
     recover_from_file_cache = true;
@@ -1300,11 +1321,8 @@ data::datax::recover_write(fuse_req_t req)
     mFile->file()->recovery_location(stagefile);
     off_t off = 0;
     uint32_t size = 1 * 1024 * 1024;
-
     bufferllmanager::shared_buffer buffer = sBufferManager.get_buffer(size);
-
     void* buf = (void*) buffer->ptr();
-
     // open local stagefile
     int fd = ::open(stagefile.c_str(), O_CREAT | O_RDWR, S_IRWXU);
     ::unlink(stagefile.c_str());
@@ -1320,8 +1338,8 @@ data::datax::recover_write(fuse_req_t req)
     }
 
     if (recover_from_file_cache) {
-      eos_debug("recovering from local start cache into stage file %s", stagefile.c_str());
-
+      eos_debug("recovering from local start cache into stage file %s",
+                stagefile.c_str());
       // make sure the buffer size fits
       buffer->resize(mFile->file()->size());
       buffer->reserve(mFile->file()->size());
@@ -1335,35 +1353,43 @@ data::datax::recover_write(fuse_req_t req)
         if (req && end_flush(req)) {
           eos_warning("failed to signal end-flush");
         }
+
         return EIO;
       }
     } else {
       eos_debug("recovering from remote file into stage file %s", stagefile.c_str());
       // download all into local stagefile
       uint32_t bytesRead = 0;
+
       do {
         status = newproxy->Read(off, size, buf, bytesRead);
-
         eos_debug("off=%lu bytesread=%u", off, bytesRead);
+
         if (!status.IsOK()) {
           sBufferManager.put_buffer(buffer);
           eos_warning("failed to read remote file for recovery");
           ::close(fd);
+
           if (req && end_flush(req)) {
             eos_warning("failed to signal end-flush");
           }
+
           return EREMOTEIO;
         } else {
           off += bytesRead;
         }
+
         ssize_t wr = ::write(fd, buf, bytesRead);
+
         if (wr != bytesRead) {
           sBufferManager.put_buffer(buffer);
           eos_crit("failed to write to local stage file %s", stagefile.c_str());
           ::close(fd);
+
           if (req && end_flush(req)) {
             eos_warning("failed to signal end-flush");
           }
+
           return EREMOTEIO;
         }
       } while (bytesRead > 0);
@@ -1371,10 +1397,8 @@ data::datax::recover_write(fuse_req_t req)
 
     // upload into identical inode using the drop & replace option (repair flag)
     XrdCl::Proxy* uploadproxy = new XrdCl::Proxy();
-
     uploadproxy->inherit_attached(proxy);
     uploadproxy->inherit_writequeue(proxy);
-
 
     // we have to remove the flush otherwise we cannot open this file even ourselfs
     if (req && end_flush(req)) {
@@ -1383,11 +1407,11 @@ data::datax::recover_write(fuse_req_t req)
 
     // add the repair flag to drop existing locations and select new ones
     mRemoteUrlRW += "&eos.repair=1";
-
-    eos_warning("re-opening with repair flag for recovery %s", mRemoteUrlRW.c_str());
-
+    eos_warning("re-opening with repair flag for recovery %s",
+                mRemoteUrlRW.c_str());
     int rc = try_wopen(req, uploadproxy, mRemoteUrlRW);
-    mRemoteUrlRW.erase(mRemoteUrlRW.length() - std::string("&eos.repair=1").length());
+    mRemoteUrlRW.erase(mRemoteUrlRW.length() -
+                       std::string("&eos.repair=1").length());
 
     // put back the flush indicator
     if (req && begin_flush(req)) {
@@ -1398,9 +1422,11 @@ data::datax::recover_write(fuse_req_t req)
       sBufferManager.put_buffer(buffer);
       ::close(fd);
       delete uploadproxy;
+
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
       }
+
       return rc;
     }
 
@@ -1409,26 +1435,29 @@ data::datax::recover_write(fuse_req_t req)
 
     do {
       nr = ::pread(fd, buf, size, upload_offset);
+
       if (nr < 0) {
         sBufferManager.put_buffer(buffer);
         eos_crit("failed to read from local stagefile");
         ::close(fd);
+
         if (req && end_flush(req)) {
           eos_warning("failed to signal end-flush");
         }
+
         return EREMOTEIO;
       }
 
       if (nr) {
         // send asynchronous upstream writes
-        XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr, upload_offset, 0);
+        XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr,
+                                              upload_offset, 0);
         uploadproxy->ScheduleWriteAsync(buf, handler);
         upload_offset += nr;
       }
     } while (nr > 0);
 
     ::close(fd);
-
     // collect the writes to verify everything is alright now
     uploadproxy->WaitWrite(req);
 
@@ -1437,16 +1466,16 @@ data::datax::recover_write(fuse_req_t req)
       eos_crit("got failure when collecting outstanding writes from the upload proxy");
       ::close(fd);
       delete uploadproxy;
+
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
       }
+
       return EREMOTEIO;
     }
 
     sBufferManager.put_buffer(buffer);
-
     eos_notice("finished write recovery successfully");
-
     // replace the proxy object
     mFile->set_xrdiorw(req, uploadproxy);
 
@@ -1454,6 +1483,7 @@ data::datax::recover_write(fuse_req_t req)
     if (req && end_flush(req)) {
       eos_warning("failed to signal end-flush");
     }
+
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
   } else {
@@ -1470,7 +1500,7 @@ data::datax::begin_flush(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   return EosFuse::Instance().mds.begin_flush(req, mMd,
-                                             std::string("repair")); // flag an ongoing flush centrally
+         std::string("repair")); // flag an ongoing flush centrally
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1479,7 +1509,7 @@ data::datax::end_flush(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
   return EosFuse::Instance().mds.end_flush(req, mMd,
-                                           std::string("repair")); // unflag an ongoing flush centrally
+         std::string("repair")); // unflag an ongoing flush centrally
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1535,10 +1565,8 @@ data::datax::unlink(fuse_req_t req)
   cachehandler::instance().rm(mIno);
   int bcache = mFile->file() ? mFile->file()->unlink() : 0;
   int jcache = mFile->journal() ? mFile->journal()->unlink() : 0;
-
   mIsUnlinked = true;
   FlagDeleted();
-
   return bcache | jcache;
 }
 // IO bridge interface
@@ -1561,7 +1589,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
         offset = 0;
         count = 0;
       } else {
-        if ((ssize_t) (offset + count) > jts) {
+        if ((ssize_t)(offset + count) > jts) {
           count = jts - offset;
         }
       }
@@ -1572,6 +1600,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
       (count + offset) < mInlineMaxSize) {
     // possibly return data from an inlined buffer
     ssize_t avail_bytes = 0;
+
     if (((size_t) offset < mMd->size())) {
       if ((offset + count) > mMd->size()) {
         avail_bytes = mMd->size() - offset;
@@ -1581,6 +1610,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
     } else {
       avail_bytes = 0;
     }
+
     memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
     return avail_bytes;
   }
@@ -1627,7 +1657,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
   if (mFile->journal()) {
     // read from journal cache
     jr = mFile->journal() ? mFile->journal()->pread((char*) buf + br, count - br,
-                                                    offset + br) : 0;
+         offset + br) : 0;
   }
 
   if (jr < 0) {
@@ -1637,12 +1667,12 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
 
   if ((br + jr) == (ssize_t) count) {
     mLock.UnLock();
-    return(br + jr);
+    return (br + jr);
   }
 
   // read the missing part remote
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
-                                                                 req) : mFile->xrdiorw(req);
+                          req) : mFile->xrdiorw(req);
 
   if (proxy) {
     if (!mFile->is_caching()) {
@@ -1683,7 +1713,8 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
           }
         }
       }
-      return(br + jr + bytesRead);
+
+      return (br + jr + bytesRead);
     } else {
       mLock.UnLock();
       errno = EREMOTEIO;
@@ -1728,6 +1759,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     if (mFile->journal()) {
       if (!mFile->journal()->fits(count)) {
         int rc = flush_nolock(req, true, true);
+
         if (rc) {
           eos_warning("flush failed with errno=%d", rc);
           errno = rc;
@@ -1747,15 +1779,17 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
     // send an asynchronous upstream write, which does not wait for the file open to be done
     XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+      mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
     XrdCl::XRootDStatus status =
-            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
-
+      mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
     // test if we switch to xoff mode, where we only write into the journal
     size_t cnt = 0;
+
     while (mFile->xrdiorw(req)->HasTooManyWritesInFlight()) {
-      if (!cnt % 1000)
+      if (!cnt % 1000) {
         eos_warning("doing XOFF");
+      }
+
       mXoff = true;
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
       cnt++;
@@ -1773,6 +1807,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       eos_debug("O_SYNC");
       // make sure the file gets opened
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->WaitOpen();
+
       if (!status.IsOK()) {
         if (TryRecovery(req, true)) {
           errno = XrdCl::Proxy::status2errno(status);
@@ -1781,26 +1816,28 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
         } else {
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
-                  mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
           XrdCl::XRootDStatus status =
-                  mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
         }
       }
 
       // make sure all writes were successfull
       status = mFile->xrdiorw(req)->WaitWrite();
+
       if (!status.IsOK()) {
         if (TryRecovery(req, true)) {
           errno = XrdCl::Proxy::status2errno(status);
           eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
           return -1;
         } else {
-          // re-send the write again                                                                                                                                          
+          // re-send the write again
           XrdCl::Proxy::write_handler handler =
-                  mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
           XrdCl::XRootDStatus status =
-                  mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
           status = mFile->xrdiorw(req)->WaitWrite();
+
           if (!status.IsOK()) {
             errno = XrdCl::Proxy::status2errno(status);
             eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
@@ -1811,7 +1848,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     }
   }
 
-  if ((off_t) (offset + count) > mSize) {
+  if ((off_t)(offset + count) > mSize) {
     mSize = count + offset;
   }
 
@@ -1837,7 +1874,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
         offset = 0;
         count = 0;
       } else {
-        if ((ssize_t) (offset + count) > jts) {
+        if ((ssize_t)(offset + count) > jts) {
           count = jts - offset;
         }
       }
@@ -1845,12 +1882,12 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
   }
 
   buffer = sBufferManager.get_buffer(count);
-
   buf = buffer->ptr();
 
   if (inline_buffer && inlined()) {
     // possibly return data from an inlined buffer
     ssize_t avail_bytes = 0;
+
     if (((size_t) offset < mMd->size())) {
       if ((offset + count) > mMd->size()) {
         avail_bytes = mMd->size() - offset;
@@ -1863,11 +1900,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
     if (mMd->size() <= (unsigned long long) inline_buffer->getSize()) {
       memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
-      eos_debug("inline-read byte=%lld inline-buffer-size=%lld", avail_bytes, inline_buffer->getSize());
+      eos_debug("inline-read byte=%lld inline-buffer-size=%lld", avail_bytes,
+                inline_buffer->getSize());
       return avail_bytes;
     }
   }
-
 
   ssize_t br = 0;
 
@@ -1902,22 +1939,23 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
   if (mFile->journal()) {
     jr = mFile->journal() ? mFile->journal()->pread(buf + br, count - br,
-                                                    offset + br) : 0;
+         offset + br) : 0;
 
     if (jr < 0) {
       return jr;
     }
 
     if ((br + jr) == (ssize_t) count) {
-      return(br + jr);
+      return (br + jr);
     }
   }
 
   // read the missing part remote
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req);
-
+  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
+                          req) : mFile->xrdiorw(req);
   XrdCl::XRootDStatus status;
-  eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req), offset, count, br, jr);
+  eos_debug("ro=%d offset=%llu count=%lu br=%lu jr=%lu", mFile->has_xrdioro(req),
+            offset, count, br, jr);
 
   if (proxy) {
     if (proxy->IsOpening()) {
@@ -1933,16 +1971,19 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           return -1;
         } else {
           // get the new proxy object, the recovery might exchange the file object
-          proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req); // recovery might change the proxy object
+          proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
+                    req); // recovery might change the proxy object
         }
       }
     }
 
     if (mFile->has_xrdiorw(req)) {
       XrdCl::Proxy* wproxy = mFile->xrdiorw(req);
+
       if (wproxy->OutstandingWrites()) {
         status = wproxy->WaitWrite();
       }
+
       if (!status.IsOK()) {
         errno = XrdCl::Proxy::status2errno(status);
         eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
@@ -1954,7 +1995,8 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     int recovery = 0;
 
     do {
-      proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(req); // recovery might change the proxy object
+      proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
+                req); // recovery might change the proxy object
       status = proxy->Read(offset + br + jr,
                            count - br - jr,
                            (char*) buf + br + jr,
@@ -1992,10 +2034,10 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           }
         }
       }
-      return(br + jr + bytesRead);
+
+      return (br + jr + bytesRead);
     } else {
       errno = XrdCl::Proxy::status2errno(status);
-
       eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
       return -1;
     }
@@ -2025,7 +2067,6 @@ data::datax::truncate(fuse_req_t req, off_t offset)
 {
   XrdSysMutexHelper lLock(mLock);
   eos_info("offset=%llu size=%llu", offset, mSize);
-
   int dt = 0;
 
   if (inline_buffer) {
@@ -2063,10 +2104,8 @@ data::datax::truncate(fuse_req_t req, off_t offset)
       }
 
       mFile->xrdiorw(req)->WaitWrite();
-
       // the journal keeps track of truncation, otherwise or for O_SYNC we do it here
       XrdCl::XRootDStatus status = mFile->xrdiorw(req)->Truncate(offset);
-
       errno = XrdCl::Proxy::status2errno(status);
 
       if (!status.IsOK()) {
@@ -2078,8 +2117,9 @@ data::datax::truncate(fuse_req_t req, off_t offset)
     }
   }
 
-  if (!(dt | jt))
+  if (!(dt | jt)) {
     mSize = offset;
+  }
 
   return dt | jt;
 }
@@ -2112,11 +2152,13 @@ data::datax::sync()
     }
 
     XrdCl::XRootDStatus status = it->second->WaitWrite();
+
     if (!status.IsOK()) {
       errno = XrdCl::Proxy::status2errno(status);
       journal_recovery = true;
     } else {
       status = it->second->Sync();
+
       if (!status.IsOK()) {
         errno = XrdCl::Proxy::status2errno(status);
         journal_recovery = true;
@@ -2159,7 +2201,6 @@ data::datax::cache_invalidate()
   // truncate the block cache
   int dt = mFile->file() ? mFile->file()->truncate(0) : 0;
   int jt = mFile->journal() ? mFile->journal()->truncate(0, true) : 0;
-
   inline_buffer = nullptr;
 
   for (auto fit = mFile->get_xrdioro().begin();
@@ -2280,18 +2321,22 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                   if (!fit->second->OutstandingWrites()) {
                     if ((fit->second->state_age() > 1.0)) {
                       std::string msg;
+
                       // check if we need to run a recovery action
-                      if ((fit->second->HadFailures(msg) || ((*it)->simulate_write_error_in_flusher())) && !(*it)->TryRecovery(0, true)) {
+                      if ((fit->second->HadFailures(msg) ||
+                           ((*it)->simulate_write_error_in_flusher())) && !(*it)->TryRecovery(0, true)) {
                         if ((*it)->journalflush(fit->first)) {
                           eos_static_err("ino:%16lx recovery failed", (*it)->id());
                         }
                       }
 
-                      eos_static_info("changing to close async state - age = %f ino:%16lx", fit->second->state_age(), (*it)->id());
+                      eos_static_info("changing to close async state - age = %f ino:%16lx",
+                                      fit->second->state_age(), (*it)->id());
                       fit->second->CloseAsync();
                       break;
                     } else {
-                      eos_static_info("waiting for right age before async close - age = %f", fit->second->state_age());
+                      eos_static_info("waiting for right age before async close - age = %f",
+                                      fit->second->state_age());
                       break;
                     }
                   }
@@ -2303,6 +2348,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 {
                   std::string msg;
+
                   if ((!(*it)->unlinked()) && fit->second->HadFailures(msg)) {
                     // ---------------------------------------------------------
                     // we really have to avoid this to happen, but
@@ -2312,9 +2358,9 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     std::string file_rescue_location;
                     std::string journal_rescue_location;
                     int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
-                                                                                   file_rescue_location) : 0;
+                               file_rescue_location) : 0;
                     int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
-                                                                                         journal_rescue_location) : 0;
+                               journal_rescue_location) : 0;
 
                     if (!dt || !jt) {
                       eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",

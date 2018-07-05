@@ -123,7 +123,7 @@ Stat::GetTotalNExt3600(const char* tag)
     }
   }
 
-  return(double) n;
+  return (double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -233,7 +233,7 @@ Stat::GetTotalNExt300(const char* tag)
     }
   }
 
-  return(double) n;
+  return (double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -344,7 +344,7 @@ Stat::GetTotalNExt60(const char* tag)
     }
   }
 
-  return(double) n;
+  return (double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -455,7 +455,7 @@ Stat::GetTotalNExt5(const char* tag)
     }
   }
 
-  return(double) n;
+  return (double) n;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -579,6 +579,7 @@ Stat::GetTotalExec(double& deviation, size_t& ops)
       cnt++;
       sum += *it;
     }
+
     ops += GetTotal(ittag->first.c_str());
   }
 
@@ -652,6 +653,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   double sig = 0;
   size_t ops = 0;
   double cumulative = 0;
+
   for (it = tags.begin(); it != tags.end(); ++it) {
     const char* tag = it->c_str();
     double avg = 0;
@@ -662,17 +664,17 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     cumulative += total;
   }
 
-
-
   avg = GetTotalExec(sig, ops);
 
   if (!monitoring) {
-    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL", "Execution Time", avg,
+    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
+            "Execution Time", avg,
             sig, cumulative, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
     sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
-            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)", "cumul(s)");
+            "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)",
+            "cumul(s)");
     out += outline;
     out += "\n";
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
@@ -713,11 +715,11 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     }
 
     total = avg * GetTotal(tag) / 1000.0;
-
     sprintf(atotal, "%04.02f", total);
 
     if (!monitoring) {
-      sprintf(outline, "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n", tag,
+      sprintf(outline, "ALL     %-32s %12llu %8s %8s %8s %8s %8s +- %-10s = %-10s\n",
+              tag,
               GetTotal(tag), a5, a60, a300, a3600, aexec, aexecsig, atotal);
     } else {
       sprintf(outline,
@@ -899,8 +901,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "uid=%d", it->first);
         } else {
           std::string username = umap.count(it->first) ? umap[it->first] :
-                  eos::common::StringConversion::GetSizeString(username,
-                                                               (unsigned long long) it->first);
+                                 eos::common::StringConversion::GetSizeString(username,
+                                     (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "uid=%s", username.c_str());
@@ -998,8 +1000,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "uid=%d", it->first);
         } else {
           std::string username = umap.count(it->first) ? umap[it->first] :
-                  eos::common::StringConversion::GetSizeString(username,
-                                                               (unsigned long long) it->first);
+                                 eos::common::StringConversion::GetSizeString(username,
+                                     (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "uid=%s", username.c_str());
@@ -1066,8 +1068,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "gid=%d", it->first);
         } else {
           std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                  eos::common::StringConversion::GetSizeString(groupname,
-                                                               (unsigned long long) it->first);
+                                  eos::common::StringConversion::GetSizeString(groupname,
+                                      (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
@@ -1163,8 +1165,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
           snprintf(identifier, 1023, "gid=%d", it->first);
         } else {
           std::string groupname = gmap.count(it->first) ? gmap[it->first] :
-                  eos::common::StringConversion::GetSizeString(groupname,
-                                                               (unsigned long long) it->first);
+                                  eos::common::StringConversion::GetSizeString(groupname,
+                                      (unsigned long long) it->first);
 
           if (monitoring) {
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
@@ -1191,13 +1193,15 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Circulate(ThreadAssistant &assistant)
+Stat::Circulate(ThreadAssistant& assistant)
 {
   // empty the circular buffer and extract some Mq statistic values
-
   while (true) {
     assistant.wait_for(std::chrono::milliseconds(512));
-    if (assistant.terminationRequested()) break;
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
 
     // --------------------------------------------
     Mutex.Lock();

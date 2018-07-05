@@ -25,13 +25,11 @@
 #ifndef FUSE_CACHECONFIG_HH_
 #define FUSE_CACHECONFIG_HH_
 
-enum cache_t
-{
+enum cache_t {
   INVALID, MEMORY, DISK
 };
 
-struct cacheconfig
-{
+struct cacheconfig {
   cache_t type;
   std::string location;
   uint64_t total_file_cache_size; // total size of the file cache

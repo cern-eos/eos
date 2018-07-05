@@ -35,8 +35,7 @@ class Track
 {
 public:
 
-  typedef struct _meta
-  {
+  typedef struct _meta {
 
     _meta()
     {

@@ -43,13 +43,14 @@ public:
   backend();
   virtual ~backend();
 
-  int init(std::string& hostport, std::string& remotemountdir, double& timeout, double& put_timeout);
+  int init(std::string& hostport, std::string& remotemountdir, double& timeout,
+           double& put_timeout);
 
   int getMD(fuse_req_t req,
             const std::string& path,
             std::vector<eos::fusex::container>& cont,
             std::string authid = ""
-            );
+           );
 
   int getMD(fuse_req_t req,
             uint64_t inode,
@@ -57,7 +58,7 @@ public:
             std::vector<eos::fusex::container>& cont,
             bool listing,
             std::string authid = ""
-            );
+           );
 
   int getMD(fuse_req_t req,
             uint64_t inode,
@@ -65,7 +66,7 @@ public:
             std::vector<eos::fusex::container>& cont,
             bool listing,
             std::string authid = ""
-            );
+           );
 
   int doLock(fuse_req_t req,
              eos::fusex::md& md,
@@ -74,7 +75,7 @@ public:
 
   int fetchResponse(std::string& url,
                     std::vector<eos::fusex::container>& cont
-                    );
+                   );
 
   int rmRf(fuse_req_t req, eos::fusex::md* md);
 
@@ -86,7 +87,7 @@ public:
   int getCAP(fuse_req_t req,
              uint64_t inode,
              std::vector<eos::fusex::container>& cont
-             );
+            );
 
   void set_clientuuid(std::string& s)
   {
@@ -111,7 +112,7 @@ private:
 
   int mapErrCode(int retc);
 
-  XrdCl::XRootDStatus Query(XrdCl::URL &url,
+  XrdCl::XRootDStatus Query(XrdCl::URL& url,
                             XrdCl::QueryCode::Code query_code, XrdCl::Buffer& arg,
                             XrdCl::Buffer*& repsonse,
                             uint16_t timeout = 0);

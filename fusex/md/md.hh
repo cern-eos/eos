@@ -64,8 +64,7 @@ public:
 
     // local operations
 
-    enum md_op
-    {
+    enum md_op {
       ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
     };
 
@@ -189,7 +188,7 @@ public:
 
     bool deleted() const
     {
-      return(op == RM);
+      return (op == RM);
     }
 
     void set_lock_remote()
@@ -356,6 +355,7 @@ public:
       if (ino) {
         (*this)[ino] = ret;
       }
+
       return true;
     }
 
@@ -395,19 +395,17 @@ public:
       this->erase(ino);
     }
 
-    void retrieveWithParentTS(fuse_ino_t ino, shared_md &md, shared_md &pmd)
+    void retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
     {
       // Atomically retrieve md objects for an inode, and its parent.
-
       while (true) {
         // In this particular case, we need to first lock mdmap, and then
         // md.. The following algorithm is meant to avoid deadlocks with code
         // which locks md first, and then mdmap.
-
         md.reset();
         pmd.reset();
-
         XrdSysMutexHelper mLock(this);
+
         if (!retrieve(ino, md)) {
           return; // ino not there, nothing to do
         }
@@ -462,7 +460,7 @@ public:
                 shared_md pmd = 0,
                 const char* name = 0,
                 bool readdir = false
-                );
+               );
 
   uint64_t insert(fuse_req_t req,
                   shared_md md,
@@ -508,7 +506,9 @@ public:
   void mdcommunicate(ThreadAssistant&
                      assistant); // thread interacting with the MGM for meta data
 
-  int connect(std::string zmqtarget, std::string zmqidentity = "", std::string zmqname = "", std::string zmqclienthost = "", std::string zmqclientuuid = "");
+  int connect(std::string zmqtarget, std::string zmqidentity = "",
+              std::string zmqname = "", std::string zmqclienthost = "",
+              std::string zmqclientuuid = "");
 
   int calculateDepth(shared_md md);
 
@@ -770,10 +770,9 @@ private:
   {
   public:
 
-    MdLocker(shared_md &m1, shared_md &m2, bool ordr)
-    : md1(m1), md2(m2), order(ordr)
+    MdLocker(shared_md& m1, shared_md& m2, bool ordr)
+      : md1(m1), md2(m2), order(ordr)
     {
-
       if (order) {
         md1->Locker().Lock();
         md2->Locker().Lock();

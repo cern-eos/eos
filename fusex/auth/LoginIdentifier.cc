@@ -35,13 +35,14 @@
 
 LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
                                  uint64_t connId_)
-: connId(connId_)
+  : connId(connId_)
 {
   if (uid == 0) {
     uid = gid = 99;
   }
 
   bool map_only_user = false;
+
   // Emergency mapping of too high user ids to nobody
   if (uid > 0xfffff) {
     eos_static_info("msg=\"unable to map uid+gid - out of range - mapping only user");
@@ -53,8 +54,8 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
     map_only_user = true;
   }
 
-
   uint64_t bituser = 0;
+
   if (map_only_user) {
     bituser = (uid & 0xfffffffff);
     bituser <<= 6;
@@ -70,10 +71,11 @@ LoginIdentifier::LoginIdentifier(uid_t uid, gid_t gid, pid_t pid,
     bituser |= (connId & 0x3f);
   }
 
-  if (map_only_user)
+  if (map_only_user) {
     stringId = encode('~', bituser);
-  else
+  } else {
     stringId = encode('*', bituser);
+  }
 }
 
 LoginIdentifier::LoginIdentifier(uint64_t connId_) : connId(connId_)

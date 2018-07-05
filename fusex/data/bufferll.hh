@@ -193,7 +193,6 @@ public:
   shared_buffer get_buffer(size_t size)
   {
     XrdSysMutexHelper lLock(this);
-
     size_t cap_size = (size > buffersize) ? size : buffersize;
 
     if (!queue.size()) {
@@ -205,7 +204,6 @@ public:
       buffer->resize(cap_size);
       buffer->reserve(cap_size);
       inflight_size += buffer->capacity();
-
       queue.pop();
       return buffer;
     }
@@ -214,10 +212,12 @@ public:
   void put_buffer(shared_buffer buffer)
   {
     XrdSysMutexHelper lLock(this);
-    if (inflight_size >= buffer->capacity())
+
+    if (inflight_size >= buffer->capacity()) {
       inflight_size -= buffer->capacity();
-    else
+    } else {
       inflight_size = 0;
+    }
 
     if (queue.size() == max) {
       return;

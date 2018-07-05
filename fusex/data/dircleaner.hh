@@ -42,8 +42,7 @@ class dircleaner
 {
 public:
 
-  typedef struct fileinfo
-  {
+  typedef struct fileinfo {
     std::string path;
     time_t mtime;
     size_t size;
@@ -51,8 +50,7 @@ public:
 
   typedef std::multimap<time_t, file_info_t> tree_map_t;
 
-  typedef struct tree_info
-  {
+  typedef struct tree_info {
 
     tree_info()
     {
@@ -75,10 +73,14 @@ public:
       XrdSysMutexHelper mLock(Locker);
       totalsize += size;
       totalfiles += files;
-      if (totalsize < 0)
+
+      if (totalsize < 0) {
         totalsize = 0;
-      if (totalfiles < 0)
+      }
+
+      if (totalfiles < 0) {
         totalfiles = 0;
+      }
     }
 
     // safe reset function
@@ -126,7 +128,7 @@ public:
   int cleanall(std::string matchsuffix = "");
   int scanall(std::string matchsuffix = "");
   int trim(bool force);
-  void leveler(ThreadAssistant &assistant);
+  void leveler(ThreadAssistant& assistant);
 
 private:
   std::recursive_mutex cleaningMutex;

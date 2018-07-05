@@ -27,28 +27,28 @@
 
 TEST(RmInfo, BasicSanity1)
 {
-  RmInfo parser("/usr/bin/rm",{"rm", "/eos/some-file"});
+  RmInfo parser("/usr/bin/rm", {"rm", "/eos/some-file"});
   ASSERT_TRUE(parser.isRm());
   ASSERT_FALSE(parser.isRecursive());
 }
 
 TEST(RmInfo, BasicSanity2)
 {
-  RmInfo parser("/bin/rm",{"rm", "-r", "/eos/some-folder"});
+  RmInfo parser("/bin/rm", {"rm", "-r", "/eos/some-folder"});
   ASSERT_TRUE(parser.isRm());
   ASSERT_TRUE(parser.isRecursive());
 }
 
 TEST(RmInfo, BasicSanity3)
 {
-  RmInfo parser("/usr/bin/git",{"git", "-r", "aaaa"});
+  RmInfo parser("/usr/bin/git", {"git", "-r", "aaaa"});
   ASSERT_FALSE(parser.isRm());
   ASSERT_FALSE(parser.isRecursive());
 }
 
 TEST(RmInfo, BasicSanity4)
 {
-  RmInfo parser("/usr/bin/rm",{"rm", "-rf", "."});
+  RmInfo parser("/usr/bin/rm", {"rm", "-rf", "."});
   ASSERT_TRUE(parser.isRm());
   ASSERT_TRUE(parser.isRecursive());
 }

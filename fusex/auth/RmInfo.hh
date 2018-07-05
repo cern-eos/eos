@@ -44,7 +44,8 @@ class RmInfo
 public:
 
   RmInfo() { }
-  RmInfo(const std::string &executablePath, const std::vector<std::string> &cmdline);
+  RmInfo(const std::string& executablePath,
+         const std::vector<std::string>& cmdline);
 
   bool isRm() const
   {

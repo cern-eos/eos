@@ -36,13 +36,13 @@ public:
 
   virtual ~InodeGenerator() { }
 
-  void init(kv *store); // no ownership
+  void init(kv* store); // no ownership
   uint64_t inc();
 
 private:
   static std::string kInodeKey;
   uint64_t mNextInode = 0;
-  kv *store = nullptr; // no ownership!
+  kv* store = nullptr; // no ownership!
 
   std::mutex mtx;
 };

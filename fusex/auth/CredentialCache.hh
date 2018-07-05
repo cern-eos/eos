@@ -27,8 +27,7 @@
 #include "CredentialFinder.hh"
 #include "common/ShardedCache.hh"
 
-struct CredInfoHasher
-{
+struct CredInfoHasher {
 
   static uint64_t hash(const CredInfo& key)
   {
@@ -49,7 +48,7 @@ class CredentialCache
 public:
 
   CredentialCache() : cache(16 /* 2^16 shards */,
-                            1000 * 60 * 60 * 12 /* 12 hours */) { }
+                              1000 * 60 * 60 * 12 /* 12 hours */) { }
 
   std::shared_ptr<const BoundIdentity> retrieve(const CredInfo& credInfo)
   {

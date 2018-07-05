@@ -41,7 +41,7 @@ class ProcessInfo
 public:
 
   ProcessInfo() : empty(true), pid(0), ppid(0), pgrp(0), sid(0), startTime(-1),
-  flags(0) { }
+    flags(0) { }
 
   // Fill stat information as obtained from /proc/<pid>/stat
 

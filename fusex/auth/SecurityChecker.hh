@@ -48,8 +48,7 @@
 // if we didn't.
 //------------------------------------------------------------------------------
 
-enum class CredentialState
-{
+enum class CredentialState {
   kCannotStat = 0,
   kBadPermissions = 1,
   kOk = 2
@@ -61,8 +60,7 @@ public:
 
   SecurityChecker() { }
 
-  struct Info
-  {
+  struct Info {
     CredentialState state;
     time_t mtime;
 
@@ -86,8 +84,7 @@ private:
   std::mutex mtx;
   std::atomic<bool> useInjectedData{false};
 
-  struct InjectedData
-  {
+  struct InjectedData {
     uid_t uid;
     mode_t mode;
     time_t mtime;

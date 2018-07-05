@@ -62,28 +62,32 @@ public:
     environmentReader.launchWorkers(3);
   }
 
-  bool isStillValid(const BoundIdentity &identity);
+  bool isStillValid(const BoundIdentity& identity);
 
-  SecurityChecker &getSecurityChecker()
+  SecurityChecker& getSecurityChecker()
   {
     return securityChecker;
   }
 
-  EnvironmentReader &getEnvironmentReader()
+  EnvironmentReader& getEnvironmentReader()
   {
     return environmentReader;
   }
 
-  CredentialState unixAuthentication(uid_t uid, gid_t gid, pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity> &result);
+  CredentialState unixAuthentication(uid_t uid, gid_t gid, pid_t pid,
+                                     bool reconnect, std::shared_ptr<const BoundIdentity>& result);
 private:
   SecurityChecker securityChecker;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
 
-  CredentialState tryCredentialFile(const std::string &path, CredInfo &creds, uid_t uid);
-  CredentialState fillKrb5FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
-  CredentialState fillX509FromEnv(const Environment &env, CredInfo &creds, uid_t uid);
+  CredentialState tryCredentialFile(const std::string& path, CredInfo& creds,
+                                    uid_t uid);
+  CredentialState fillKrb5FromEnv(const Environment& env, CredInfo& creds,
+                                  uid_t uid);
+  CredentialState fillX509FromEnv(const Environment& env, CredInfo& creds,
+                                  uid_t uid);
 
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
 

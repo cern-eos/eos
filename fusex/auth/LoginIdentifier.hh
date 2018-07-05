@@ -56,7 +56,7 @@ public:
     return connId;
   }
 
-  bool operator==(const LoginIdentifier &other) const
+  bool operator==(const LoginIdentifier& other) const
   {
     return stringId == other.stringId;
   }

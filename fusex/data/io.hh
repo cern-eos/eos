@@ -28,7 +28,8 @@
 #include "data/cache.hh"
 #include "data/journalcache.hh"
 
-namespace XrdCl {
+namespace XrdCl
+{
 class Proxy;
 }
 

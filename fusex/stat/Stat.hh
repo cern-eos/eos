@@ -108,7 +108,7 @@ public:
       sum += avg3600[i];
     }
 
-    return(sum / 3599);
+    return (sum / 3599);
   }
 
   double
@@ -120,7 +120,7 @@ public:
       sum += avg300[i];
     }
 
-    return(sum / 299);
+    return (sum / 299);
   }
 
   double
@@ -132,7 +132,7 @@ public:
       sum += avg60[i];
     }
 
-    return(sum / 59);
+    return (sum / 59);
   }
 
   double
@@ -144,7 +144,7 @@ public:
       sum += avg5[i];
     }
 
-    return(sum / 4);
+    return (sum / 4);
   }
 };
 
@@ -284,7 +284,7 @@ public:
       sum += n3600[i];
     }
 
-    return(double) sum;
+    return (double) sum;
   }
 
   double
@@ -298,7 +298,7 @@ public:
       sum += sum3600[i];
     }
 
-    return(sum / n);
+    return (sum / n);
   }
 
   double
@@ -334,7 +334,7 @@ public:
       sum += n300[i];
     }
 
-    return(double) sum;
+    return (double) sum;
   }
 
   double
@@ -348,7 +348,7 @@ public:
       sum += sum300[i];
     }
 
-    return(sum / n);
+    return (sum / n);
   }
 
   double
@@ -384,7 +384,7 @@ public:
       sum += n60[i];
     }
 
-    return(double) sum;
+    return (double) sum;
   }
 
   double
@@ -398,7 +398,7 @@ public:
       sum += sum60[i];
     }
 
-    return(sum / n);
+    return (sum / n);
   }
 
   double
@@ -434,7 +434,7 @@ public:
       sum += n5[i];
     }
 
-    return(double) sum;
+    return (double) sum;
   }
 
   double
@@ -448,7 +448,7 @@ public:
       sum += sum5[i];
     }
 
-    return(sum / n);
+    return (sum / n);
   }
 
   double
@@ -567,7 +567,7 @@ public:
   void PrintOutTotal(XrdOucString& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
 
-  void Circulate(ThreadAssistant &assistant);
+  void Circulate(ThreadAssistant& assistant);
 
   Stat() { }
 };

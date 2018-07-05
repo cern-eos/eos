@@ -41,7 +41,7 @@
 
 /* -------------------------------------------------------------------------- */
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
-z_ctx(0), z_socket(0)
+  z_ctx(0), z_socket(0)
 {
   // make a mapping for inode 1, it is re-loaded afterwards in init '/'
   {
@@ -123,7 +123,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   z_ctx = new zmq::context_t(1);
   z_socket = new zmq::socket_t(*z_ctx, ZMQ_DEALER);
   z_socket->setsockopt(ZMQ_IDENTITY, zmq_identity.c_str(), zmq_identity.length()
-                       );
+                      );
 
   while (1) {
     try {
@@ -313,8 +313,8 @@ metad::forget_all()
 void
 metad::mdx::convert(struct fuse_entry_param& e)
 {
-  const char *k_mdino = "sys.eos.mdino";
-  const char *k_fifo = "sys.eos.fifo";
+  const char* k_mdino = "sys.eos.mdino";
+  const char* k_fifo = "sys.eos.fifo";
   auto attrMap = attr();
   e.ino = id();
   e.attr.st_dev = 0;
@@ -729,7 +729,7 @@ metad::get(fuse_req_t req,
        */
       eos_static_info("ino=%016lx type=%d", md->md_ino(), md->type());
       rc = mdbackend->getMD(req, md->md_ino(), listing ? ((md->type() != md->MDLS)
-                                                          ? 0 : md->clock()) : md->clock(),
+                            ? 0 : md->clock()) : md->clock(),
                             contv, listing, authid);
     } else {
       if (md->id()) {
@@ -786,8 +786,7 @@ metad::get(fuse_req_t req,
       // nothing to do
       break;
 
-    case 2:
-    {
+    case 2: {
       // we make sure, that the meta data record is attached to the local parent
       if (pmd->id()) {
         if (!pmd->local_children().count(md->name()) && !md->deleted()) {
@@ -1283,13 +1282,13 @@ metad::dump_md(shared_md md, bool lock)
   }
 
   google::protobuf::util::MessageToJsonString(*((eos::fusex::md*)(&(*md))),
-                                              &jsonstring, options);
+      &jsonstring, options);
   char capcnt[16];
   snprintf(capcnt, sizeof(capcnt), "%d", md->cap_count());
   jsonstring += "\nlocal-children: {\n";
 
   for (auto it = md->local_children().begin(); it != md->local_children().end();
-       ) {
+      ) {
     char buff[32];
     jsonstring += "\"";
     jsonstring += it->first;
@@ -2297,7 +2296,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
       eos_static_debug("");
       zmq::pollitem_t items[] = {
-        {static_cast<void*> (*z_socket), 0, ZMQ_POLLIN, 0}
+        {static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}
       };
 
       for (int i = 0; i < 100 * interval; ++i) {
@@ -2325,9 +2324,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           }
 
           do {
-            int size = zmq_msg_recv(&message, static_cast<void*> (*z_socket), 0);
+            int size = zmq_msg_recv(&message, static_cast<void*>(*z_socket), 0);
             size = size;
-            zmq_getsockopt(static_cast<void*> (*z_socket), ZMQ_RCVMORE, &more, &more_size);
+            zmq_getsockopt(static_cast<void*>(*z_socket), ZMQ_RCVMORE, &more, &more_size);
           } while (more);
 
           std::string s((const char*) zmq_msg_data(&message), zmq_msg_size(&message));
@@ -2717,5 +2716,5 @@ metad::vmap::backward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
   auto it = bwd_map.find(lookup);
-  return(it == bwd_map.end()) ? 0 : it->second;
+  return (it == bwd_map.end()) ? 0 : it->second;
 }

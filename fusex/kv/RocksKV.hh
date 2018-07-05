@@ -48,23 +48,27 @@ public:
   RocksKV();
   virtual ~RocksKV();
 
-  int connect(const std::string &prefix, const std::string &path);
+  int connect(const std::string& prefix, const std::string& path);
 
-  int get(const std::string &key, std::string &value) override;
-  int get(const std::string &key, uint64_t &value) override;
-  int put(const std::string &key, const std::string &value) override;
-  int put(const std::string &key, uint64_t value) override;
-  int inc(const std::string &key, uint64_t &value) override;
+  int get(const std::string& key, std::string& value) override;
+  int get(const std::string& key, uint64_t& value) override;
+  int put(const std::string& key, const std::string& value) override;
+  int put(const std::string& key, uint64_t value) override;
+  int inc(const std::string& key, uint64_t& value) override;
 
-  int erase(const std::string &key) override;
+  int erase(const std::string& key) override;
 
-  int get(uint64_t key, std::string &value, const std::string &name_space = "i") override;
-  int put(uint64_t key, const std::string &value, const std::string &name_space = "i") override;
+  int get(uint64_t key, std::string& value,
+          const std::string& name_space = "i") override;
+  int put(uint64_t key, const std::string& value,
+          const std::string& name_space = "i") override;
 
-  int get(uint64_t key, uint64_t &value, const std::string &name_space = "i") override;
-  int put(uint64_t key, uint64_t value, const std::string &name_space = "i") override;
+  int get(uint64_t key, uint64_t& value,
+          const std::string& name_space = "i") override;
+  int put(uint64_t key, uint64_t value,
+          const std::string& name_space = "i") override;
 
-  int erase(uint64_t key, const std::string &name_space = "i") override;
+  int erase(uint64_t key, const std::string& name_space = "i") override;
 
   std::string prefix(const std::string& key)
   {
@@ -73,7 +77,7 @@ public:
   using TransactionPtr = std::unique_ptr<rocksdb::Transaction>;
 private:
   std::unique_ptr<rocksdb::TransactionDB> transactionDB;
-  rocksdb::DB *db; // owned by transactionDB
+  rocksdb::DB* db; // owned by transactionDB
   std::string mPrefix;
 
   TransactionPtr startTransaction()
