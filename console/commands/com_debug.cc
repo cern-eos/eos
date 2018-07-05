@@ -92,9 +92,11 @@ com_debug(char* arg1)
   fprintf(stdout,
           "                                                  set the <node-queue> into debug level <level>. <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n");
   fprintf(stdout,
-          "     <unitlist> : a comma seperated list of strings of software units which should be filtered out in the message log ! The default filter list is 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,\n");
+          "     <unitlist> : a comma separated list of strings of software units which should be filtered out in the message log!\n");
   fprintf(stdout,
-          "                                                                            placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures'.\n\n");
+          "                  The default filter list is: 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,\n");
+  fprintf(stdout,
+          "                  placeNewReplicas,placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,updateAtomicPenalties,updateFastStructures'.\n\n");
   fprintf(stdout,
           "The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
   fprintf(stdout, "Examples:\n");
@@ -105,7 +107,7 @@ com_debug(char* arg1)
   fprintf(stdout,
           "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
   fprintf(stdout,
-          "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages comming from unit 'MgmOfsMessage'.\n\n");
+          "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'.\n\n");
   global_retc = EINVAL;
   return (0);
 }
