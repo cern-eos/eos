@@ -616,6 +616,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
         if (dh->hasAttribute(key)) {
           dh->removeAttribute(key);
           eosView->updateContainerStore(dh.get());
+	  gOFS->FuseXCast(dh->getId());
         } else {
           errno = ENODATA;
         }
@@ -644,6 +645,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           if (fmd->hasAttribute(key)) {
             fmd->removeAttribute(key);
             eosView->updateFileStore(fmd.get());
+	    gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
             errno = 0;
           } else {
             errno = ENODATA;
