@@ -1034,6 +1034,9 @@ com_file(char* arg1)
         }
       }
 
+      if (consistencyerror) {
+	global_retc = EFAULT;
+      }
       delete newresult;
     } else {
       fprintf(stderr, "error: couldn't get meta data information\n");
@@ -1066,13 +1069,13 @@ com_file_usage:
   fprintf(stdout,
           "                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
   fprintf(stdout,
-          "       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
+          "       - %%size                                                       :  return with error code EFAULT if there is a mismatch between the size meta data information\n");
   fprintf(stdout,
-          "       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
+          "       - %%checksum                                                   :  return with error code EFAULT if there is a mismatch between the checksum meta data information\n");
   fprintf(stdout,
-          "       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
+          "       - %%nrep                                                       :  return with error code EFAULT if there is a mismatch between the layout number of replicas and the existing replicas\n");
   fprintf(stdout,
-          "       - %%checksumattr                                               :  return with an error code if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
+          "       - %%checksumattr                                               :  return with error code EFAULT if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
   fprintf(stdout,
           "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   fprintf(stdout,
