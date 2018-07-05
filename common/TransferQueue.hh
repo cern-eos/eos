@@ -85,7 +85,6 @@ private:
   //! Reference to the underlying shared queue maintained by the shared object manager
   //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
   // ---------------------------------------------------------------------------
-  XrdMqSharedQueue* mHashQueue;
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
 
@@ -149,12 +148,12 @@ public:
   size_t
   Size ()
   {
-    if (mSom)
-    {
+    if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-      if (mHashQueue) {
-	return mHashQueue->GetSize();
+
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      if (hashQueue) {
+        return hashQueue->GetSize();
       }
     }
     return 0;
@@ -167,13 +166,12 @@ public:
   bool
   Clear ()
   {
-    if (mSom)
-    {
+    if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-      if (mHashQueue) {
-	mHashQueue->Clear();
-	return true;
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      if (hashQueue) {
+        hashQueue->Clear();
+        return true;
       }
     }
     return false;
@@ -186,13 +184,12 @@ public:
   bool
   OpenTransaction ()
   {
-    if (mSom)
-    {
+    if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
 
-      if (mHashQueue) {
-	return mHashQueue->OpenTransaction();
+      if (hashQueue) {
+        return hashQueue->OpenTransaction();
       }
     }
     return false;
@@ -205,13 +202,12 @@ public:
   bool
   CloseTransaction ()
   {
-    if (mSom)
-    {
+    if (mSom) {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
 
-      if (mHashQueue) {
-	return mHashQueue->CloseTransaction();
+      if (hashQueue) {
+        return hashQueue->CloseTransaction();
       }
     }
     return false;

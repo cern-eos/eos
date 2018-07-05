@@ -68,37 +68,25 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
 
 
   mSom = som;
-  if (mSom)
-  {
+  if (mSom) {
     mSom->HashMutex.LockRead();
-    if (!(mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue")))
-    {
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+    if(!hashQueue) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), som))
-      {
-	mSom->HashMutex.LockRead();
-	mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-	mSom->HashMutex.UnLockRead();
-      }
-      else
-      {
-	mHashQueue = 0;
+      if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), som)) {
+        mSom->HashMutex.LockRead();
+        hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+        mSom->HashMutex.UnLockRead();
       }
     }
-    else
-    {
+    else {
       // remove all scheduled objects
-      if (!mSlave)
-      {
-	mHashQueue->Clear();
+      if (!mSlave) {
+        hashQueue->Clear();
       }
       mSom->HashMutex.UnLockRead();
     }
-  }
-  else
-  {
-    mHashQueue = 0;
   }
   constructorLock.UnLock();
 }
@@ -132,12 +120,11 @@ TransferQueue::Add (eos::common::TransferJob* job)
   if (mSom)
   {
     mSom->HashMutex.LockRead();
-    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str())))
-    {
-      retc = mHashQueue->PushBack("", job->GetSealed());
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+    if(hashQueue) {
+      retc = hashQueue->PushBack("", job->GetSealed());
     }
-    else
-    {
+    else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
     }
     mSom->HashMutex.UnLockRead();
@@ -161,17 +148,18 @@ TransferQueue::Get ()
   {
     mSom->HashMutex.LockRead();
 
-    if ((mHashQueue = mSom->GetQueue(mFullQueue.c_str()))) {
-      std::string value = mHashQueue->PopFront();
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+    if(hashQueue) {
+      std::string value = hashQueue->PopFront();
 
       if (value.empty()) {
-	mSom->HashMutex.UnLockRead();
-	return 0;
+        mSom->HashMutex.UnLockRead();
+        return 0;
       } else {
-	TransferJob* job = TransferJob::Create(value.c_str());
-	mSom->HashMutex.UnLockRead();
-	IncGetJobCount();
-	return job;
+        TransferJob* job = TransferJob::Create(value.c_str());
+        mSom->HashMutex.UnLockRead();
+        IncGetJobCount();
+        return job;
       }
     } else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
