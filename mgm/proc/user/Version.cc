@@ -25,6 +25,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Features.hh"
 #include "mgm/Stat.hh"
+#include "XrdVersion.hh"
+
+XrdVERSIONINFOREF( XrdgetProtocol );
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -36,12 +39,22 @@ ProcCommand::Version()
   XrdOucString option = pOpaque->Get("mgm.option");
 
   if (option.find("m") != STR_NPOS) {
+    // Get XrdVersion information from existing installation
+    std::string XrdVersion = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
+    // Parse XrdVersion [ has format: component vNumber ]
+    size_t pos = XrdVersion.find(" ");
+    if (pos != std::string::npos) {
+      XrdVersion = XrdVersion.substr(pos + 1);
+    }
+
     stdOut += "eos.instance.name=";
     stdOut +=  gOFS->MgmOfsInstanceName;
     stdOut += " eos.instance.version=";
     stdOut += VERSION;
     stdOut += " eos.instance.release=";
     stdOut += RELEASE;
+    stdOut += " xrootd.version=";
+    stdOut += XrdVersion.c_str();
     stdOut += " ";
 
     for (auto it = Features::sMap.begin(); it != Features::sMap.end(); it++) {
