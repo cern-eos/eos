@@ -28,6 +28,9 @@
 #include "fst/FmdDbMap.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
+#include "XrdVersion.hh"
+
+XrdVERSIONINFOREF( XrdgetProtocol );
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -419,6 +422,14 @@ Storage::Publish()
               v += "-";
               v += RELEASE;
               hash->Set("stat.sys.eos.version", v.c_str());
+            }
+            {
+              XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
+              int pos = v.find(" ");
+              if (pos != STR_NPOS) {
+                v.erasefromstart(pos + 1);
+              }
+              hash->Set("stat.sys.xrootd.version", v.c_str());
             }
             hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
