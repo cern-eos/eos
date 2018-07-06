@@ -60,7 +60,7 @@ Storage::InjectionScan()
     }
     
     mInjectionScanMutex.UnLock();
-    eos_static_debug("Starting injectionScan fsid=%u extPath=%s lclPath=%s",
+    eos_static_debug("starting injectionScan fsid=%u extPath=%s lclPath=%s",
                      inScan->fsId, inScan->extPath.c_str(),
                      inScan->lclPath.c_str());
 
@@ -83,7 +83,7 @@ Storage::InjectionScan()
 
     // Scan the directory found at extPath
     while ((filePath = io->ftsRead(handle)) != "") {
-      eos_static_info("[InjectionScan] processing file %s", filePath.c_str());
+      eos_static_info("InjectionScan -- processing file %s", filePath.c_str());
       lFilePath = filePath;
 
       // Remove opaque from file path
@@ -123,6 +123,7 @@ Storage::InjectionScan()
       sprintf(filesize, "%" PRIu64 "", buf.st_size);
       capOpaqueFile += filesize;
 
+      // Send command and process Mgm file metadata response
       XrdOucString response;
       int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0,
                                 capOpaqueFile, &response);
@@ -130,24 +131,47 @@ Storage::InjectionScan()
         eos_static_err("unable to inject file name=%s fs=%u at manager %s",
                        lFilePath.c_str(), inScan->fsId,
                        inScan->managerId.c_str());
+      } else if (!response.length()) {
+        eos_static_err("file injected in namespace. Mgm file metadata expected "
+                       "but response is empty name=%s fs=%u at manager %s",
+                       lFilePath.c_str(), inScan->fsId,
+                       inScan->managerId.c_str());
       } else {
-        XrdOucEnv responseEnv(response.c_str());
-        char* afid = responseEnv.Get("fid");
-        char* alid = responseEnv.Get("lid");
-        char* auid = responseEnv.Get("uid");
-        char* agid = responseEnv.Get("gid");
+        XrdOucEnv fMdEnv(response.c_str());
+        int envlen;
+        struct Fmd fMd;
+        FmdHelper::Reset(fMd);
 
-        unsigned long long fid = strtoull(afid, 0, 10);
-        unsigned int lid = strtoul(alid, 0, 10);
-        uid_t uid = strtoul(auid, 0, 10);
-        gid_t gid = strtoul(agid, 0, 10);
+        // Reconstruct Mgm fmd entry
+        if (gFmdDbMapHandler.EnvMgmToFmd(fMdEnv, fMd)) {
+          // Create local fmd entry
+          FmdHelper* localFmd =
+              gFmdDbMapHandler.LocalGetFmd(fMd.fid(), inScan->fsId,
+                                fMd.uid(), fMd.gid(), fMd.lid(), true, false);
+          fMd.set_layouterror(FmdHelper::LayoutError(fMd, inScan->fsId));
 
-        // Create local fmd entry from response data
-        FmdHelper *fmd = gFmdDbMapHandler.LocalGetFmd(fid, inScan->fsId,
-                                                      uid, gid, lid, true);
-        if (!fmd) {
-          eos_static_err("unable to create fmd entry name=%s fs=%u",
-                          lFilePath.c_str(), inScan->fsId);
+          if (localFmd) {
+            // Update from Mgm
+            if (!gFmdDbMapHandler.UpdateFromMgm(
+                              inScan->fsId, fMd.fid(), fMd.cid(), fMd.lid(),
+                              fMd.mgmsize(), fMd.mgmchecksum(), fMd.uid(),
+                              fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
+                              fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(),
+                              fMd.locations())) {
+              eos_static_err("unable to update local fmd entry from Mgm "
+                             "name=%s metadata=%s", lFilePath.c_str(),
+                             fMdEnv.Env(envlen));
+            }
+
+            delete localFmd;
+          } else {
+            eos_static_err("unable to create local fmd entry name=%s fs=%u",
+                           lFilePath.c_str(), inScan->fsId);
+          }
+        } else {
+          eos_static_err("unable to parse Mgm file metadata. "
+                         "No local fmd entry created name=%s metadata=%s",
+                         lFilePath.c_str(), fMdEnv.Env(envlen));
         }
       }
     }

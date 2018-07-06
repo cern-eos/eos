@@ -143,20 +143,15 @@
       ns_quota->addFile(fmd.get());
     }
 
-    // Construct response with necessary fmd data
-    try {
-      char buff[1024];
-      snprintf(buff, sizeof(buff),
-               "&fid=%lu&lid=%u&uid=%u&gid=%u",
-               fmd->getId(), fmd->getLayoutId(),
-               fmd->getCUid(), fmd->getCGid());
-      response = buff;
-    } catch (eos::MDException& e) {
-      std::string errmsg = e.getMessage().str();
-      gOFS->MgmStats.Add("InjectFailedResponse", 0, 0, 1);
-      eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                     e.getErrno(), errmsg.c_str());
-      return Emsg(epname, error, errno, "create response", errmsg.c_str());
+    // construct response with file metadata
+    std::string fmdEnv = "";
+    fmd->getEnv(fmdEnv, true);
+    response = fmdEnv.c_str();
+
+    // empty values will be ignored in XrdOucEnv creation
+    if ((response.find("checksum=&")) != STR_NPOS ||
+        response.endswith("checksum=")) {
+      response.replace("checksum=", "checksum=none");
     }
   } else {
     int envlen = 0;
