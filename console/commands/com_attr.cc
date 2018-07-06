@@ -384,7 +384,7 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.forced.placementpolicy=<policy>[:geotag] : enforces to use replica/stripe placement policy <policy> [<policy>={scattered|hybrid:<geotag>|gathered:<geotag>}]\n");
   fprintf(stdout,
-          "         sys.forced.noplacementpolicy=1               : disables user defined replica/stripe placement policy\n");
+          "         sys.forced.nouserplacementpolicy=1    : disables user defined replica/stripe placement policy\n");
   fprintf(stdout,
           "         sys.forced.nouserlayout=1             : disables the user settings with user.forced.<xxx>\n");
   fprintf(stdout,
@@ -525,7 +525,7 @@ com_attr_usage:
   fprintf(stdout,
           "         user.forced.placementpolicy=<policy>[:geotag] : s.a.\n");
   fprintf(stdout,
-          "         user.forced.noplacementpolicy=1               : s.a.\n");
+          "         user.forced.nouserplacementpolicy=1            : s.a.\n");
   fprintf(stdout, "         user.forced.nouserlayout=1             : s.a.\n");
   fprintf(stdout, "         user.forced.nofsselection=1            : s.a.\n");
   fprintf(stdout, "         user.forced.atomic=1                   : s.a.\n");

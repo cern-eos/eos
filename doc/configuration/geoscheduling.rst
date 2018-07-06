@@ -304,14 +304,14 @@ The following variables deal with the default *placement policy* in a directory.
 
 .. epigraph::
   
-   =============================== ======================================================================
+   ================================= ======================================================================
    parameter                                     definition
-   =============================== ======================================================================
-   sys.forced.placementpolicy      enforces to use a given placement policy for all file placements in the directory
-   sys.forced.noplacementpolicy    disables user defined placement policy for the directory
-   user.forced.placementpolicy     s.a.
-   user.forced.noplacementpolicy   s.a.
-   =============================== ======================================================================
+   ================================= ======================================================================
+   sys.forced.placementpolicy        enforces to use a given placement policy for all file placements in the directory
+   sys.forced.nouserplacementpolicy  disables user defined placement policy for the directory
+   user.forced.placementpolicy       s.a.
+   user.forced.nouserplacementpolicy s.a.
+   ================================= ======================================================================
    
 For more detailed information about these attributes, please refer to the help of the command
 

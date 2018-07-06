@@ -44,7 +44,7 @@ attr
     sys.forced.nstripes=<n>               : enforces to use <n> stripes[<n>= 1..16]
     sys.forced.blocksize=<w>              : enforces to use a blocksize of <w> - <w> can be 4k,64k,128k,256k or 1M
     sys.forced.placementpolicy=<policy>[:geotag] : enforces to use replica/stripe placement policy <policy> [<policy>={scattered|hybrid:<geotag>|gathered:<geotag>}]
-    sys.forced.noplacementpolicy=1               : disables user defined replica/stripe placement policy
+    sys.forced.nouserplacementpolicy=1           : disables user defined replica/stripe placement policy
     sys.forced.nouserlayout=1             : disables the user settings with user.forced.<xxx>
     sys.forced.nofsselection=1            : disables user defined filesystem selection with environment variables for reads
     sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica
@@ -111,7 +111,7 @@ attr
     user.forced.nstripes=<n>               : s.a.
     user.forced.blocksize=<w>              : s.a.
     user.forced.placementpolicy=<policy>[:geotag] : s.a.
-    user.forced.noplacementpolicy=1               : s.a.
+    user.forced.nouserplacementpolicy=1           : s.a.
     user.forced.nouserlayout=1             : s.a.
     user.forced.nofsselection=1            : s.a.
     user.forced.atomic=1                   : s.a.
