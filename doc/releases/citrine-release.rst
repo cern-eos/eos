@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.2.28 Citrine``
+===================
+
+2018-07-09
+
+Bug
+---
+
+* Fix balancing broken since 4.2.23 due to wrong evaluation of the active status of a node
+  on the FST side.
+* Fix node active status reporting which might flip between online and offline due to
+  wrong evaluation of the heartbeat value. The FsNode object has the heartbeat reported
+  as "heartbeat" and not as "stat.heartbeattime" - this is reported only for file systems.
+
+
 ``v4.2.27 Citrine``
 ===================
 
