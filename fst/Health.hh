@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 #include <mutex>
 #include <map>
+#include <atomic>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -132,7 +133,7 @@ public:
 
 private:
   ///< Trigger update thread without waiting for the whole interval to elapse
-  bool mSkip;
+  std::atomic<bool> mSkip;
   pthread_t mTid; ///< Monitoring thread id
   unsigned int mIntervalMin; ///< Minutes interval when monitoring thread runs
   DiskHealth mDiskHealth; ///< Objecting collecting disk health information
