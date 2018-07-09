@@ -1,0 +1,40 @@
+.. highlight:: rst
+
+.. index::
+   single: S3
+
+S3 access
+=======================
+
+**S3** access is very similar to **HTTP** access. The **MGM** runs on port 8000
+and the **FSTs** on port 8001.
+
+Configuration
+-------------
+
+Within the S3 protocol, users are identified by an access key and secret key pair.
+Buckets are associated to users and they constitute the place
+where users write or read from.
+
+Within EOS, users and buckets are registered as attributes of the
+``/eos/**instance**/proc`` path.
+
+To register users:
+++++++++++++++++++
+
+.. code-block:: bash
+
+   attr set sys.s3.id.s3user=<secretkey> /eos/test/proc
+
+*s3user* - the access key in S3 terminology
+
+To register buckets:
+++++++++++++++++++++
+
+.. code-block:: bash
+
+   attr set sys.s3.bucket.s3user=testbucket /eos/test/proc
+   attr set sys.s3.path.testbucket=/eos/test/s3dir /eos/test/proc
+
+This will map the bucket called *testbucket* to the */eos/test/s3dir/* path.
+It also specifies that this bucket belongs to user *s3user*.
