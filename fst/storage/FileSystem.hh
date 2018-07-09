@@ -64,7 +64,7 @@ private:
   eos::fst::ScanDir* scanDir; // the class scanning checksum on a filesystem
   unsigned long last_blocks_free;
   time_t last_status_broadcast;
-  eos::common::FileSystem::fsstatus_t
+  std::atomic<eos::common::FileSystem::fsstatus_t>
   mLocalBootStatus; // the internal boot state not stored in the shared hash
 
   TransferQueue* mTxDrainQueue;
@@ -151,7 +151,7 @@ public:
       return;
     }
 
-    eos_static_debug("before=%d after=%d", mLocalBootStatus, status);
+    eos_static_debug("before=%d after=%d", mLocalBootStatus.load(), status);
 
     if ((mLocalBootStatus == kBooted) &&
         (status == kOpsError)) {
