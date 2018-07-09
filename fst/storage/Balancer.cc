@@ -33,8 +33,7 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
                                  unsigned long long& ratetx,
-                                 std::string nodeconfigqueue
-                                )
+                                 std::string nodeconfigqueue)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief get the parallel transfer and transfer rate settings
@@ -211,22 +210,20 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
         mFsVect[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
         mFsVect[index]->GetConfigStatus();
-      eos::common::FileSystem::fsactive_t activestatus =
-        mFsVect[index]->GetActiveStatus();
-      // check if the filesystem is full
+      bool is_active = IsNodeActive();
+      // Check if the filesystem is full
       bool full = false;
       {
         XrdSysMutexHelper lock(mFsFullMapMutex);
         full = mFsFullWarnMap[id];
       }
 
-      if ((bootstatus != eos::common::FileSystem::kBooted) ||
-          (configstatus <= eos::common::FileSystem::kRO) ||
-          (activestatus != eos::common::FileSystem::kOnline) ||
-          (full)) {
-        // skip this one in bad state
-        eos_static_debug("FileSystem %lu status=%u configstatus=%u, activestatus=%u",
-                         id, bootstatus, configstatus, activestatus);
+      if ((is_active == false) || (full) ||
+          (bootstatus != eos::common::FileSystem::kBooted) ||
+          (configstatus <= eos::common::FileSystem::kRO)) {
+        eos_static_debug("balance skip fsid=%lu, status=%u, configstatus=%u, "
+                         "activestatus=%u", id, bootstatus, configstatus,
+                         is_active);
         continue;
       }
 

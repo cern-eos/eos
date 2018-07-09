@@ -367,6 +367,11 @@ private:
   //! @return true if scheduled otherwise false
   //----------------------------------------------------------------------------
   bool GetDrainJob(unsigned int index);
+
+  //----------------------------------------------------------------------------
+  //! Check if node is active i.e. the stat.active
+  //----------------------------------------------------------------------------
+  bool IsNodeActive() const;
 };
 
 EOSFSTNAMESPACE_END
