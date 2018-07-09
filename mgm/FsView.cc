@@ -2242,7 +2242,7 @@ FsView::HeartBeatCheck()
       eos::common::RWMutexReadLock lock(ViewMutex);
 
       // iterator over all filesystems
-      for (auto it = mIdView.begin(); it != mIdView.end(); it++) {
+      for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
         if (!it->second) {
           continue;
         }
@@ -2286,15 +2286,13 @@ FsView::HeartBeatCheck()
         }
 
         eos::common::FileSystem::host_snapshot_t snapshot;
-        auto shbt = it->second->GetMember("stat.heartbeattime");
+        auto shbt = it->second->GetMember("heartbeat");
         snapshot.mHeartBeatTime = (time_t) strtoll(shbt.c_str(), NULL, 10);
 
         if (!it->second->HasHeartBeat(snapshot)) {
           // mark as offline
           if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
             it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-          } else {
-            it->second->SetActiveStatus(eos::common::FileSystem::kUnknownStatus);
           }
         } else {
           std::string queue = it->second->mName;
@@ -2307,8 +2305,6 @@ FsView::HeartBeatCheck()
           } else {
             if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
               it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-            } else {
-              it->second->SetActiveStatus(eos::common::FileSystem::kUnknownStatus);
             }
           }
         }
