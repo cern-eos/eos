@@ -57,6 +57,39 @@
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
 
+    // attempt to create full path if necessary
+    XrdSfsFileExistence file_exists;
+    eos::common::Path cPath(lpath);
+
+    int rc = gOFS->_exists(cPath.GetParentPath(), file_exists, error, vid);
+
+    if (!rc) {
+      // parent path must either do not exist or be a directory
+      if ((file_exists != XrdSfsFileExistNo) &&
+          (file_exists != XrdSfsFileExistIsDirectory)) {
+        gOFS->MgmStats.Add("InjectFailedParentPathNotDir", 0, 0, 1);
+        return Emsg(epname, error, ENOTDIR,
+                    "inject file - parent path is not a directory",
+                     cPath.GetParentPath());
+        }
+
+      // create parent path if it does not exist
+      if (file_exists == XrdSfsFileExistNo) {
+        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        rc = gOFS->_mkdir(cPath.GetParentPath(), mode, error, vid);
+
+        if (rc) {
+          gOFS->MgmStats.Add("InjectFailedMkdir", 0, 0, 1);
+          return Emsg(epname, error, errno, "create parent path",
+                      cPath.GetParentPath());
+        }
+      }
+    } else {
+      gOFS->MgmStats.Add("InjectFailedParentPathCheck", 0, 0, 1);
+      return Emsg(epname, error, errno, "check if path exists",
+                  cPath.GetParentPath());
+    }
+
     try {
       // create new file entry
       fmd = gOFS->eosView->createFile(lpath, vid.uid, vid.gid);
@@ -67,7 +100,7 @@
     } catch(eos::MDException& e) {
       std::string errmsg = e.getMessage().str();
       gOFS->MgmStats.Add("InjectFailedFmdCreate", 0, 0, 1);
-      eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+      eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), errmsg.c_str());
       return Emsg(epname, error, errno, "create fmd", errmsg.c_str());
     }

@@ -79,7 +79,7 @@ Storage::InjectionScan()
       continue;
     }
 
-    std::string filePath, lFilePath, fileName;
+    std::string filePath, lFilePath, pathSuffix;
 
     // Scan the directory found at extPath
     while ((filePath = io->ftsRead(handle)) != "") {
@@ -100,9 +100,15 @@ Storage::InjectionScan()
         continue;
       }
 
-      size_t spos = lFilePath.rfind("/");
-      fileName = (spos == std::string::npos)  ?
-                 lFilePath :  lFilePath.substr(spos + 1);
+      // Construct the path suffix from the file path
+      size_t pos = inScan->extPath.length();
+      if (inScan->extPath.rfind("?") != std::string::npos) {
+        pos = inScan->extPath.rfind("?");
+      }
+      pathSuffix = lFilePath.substr(pos);
+      if (pathSuffix[0] == '/') {
+        pathSuffix.erase(0, 1);
+      }
 
       // Construct command message
       XrdOucErrInfo error;
@@ -117,7 +123,7 @@ Storage::InjectionScan()
       if (!inScan->lclPath.endswith("/")) {
         capOpaqueFile += "/";
       }
-      capOpaqueFile += fileName.c_str();
+      capOpaqueFile += pathSuffix.c_str();
       capOpaqueFile += "&mgm.inject.size=";
       char filesize[256];
       sprintf(filesize, "%" PRIu64 "", buf.st_size);
