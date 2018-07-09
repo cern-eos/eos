@@ -663,7 +663,6 @@ public:
   };
 
   XrdMqRWMutex HashMutex;
-  XrdMqRWMutex ListMutex;
 
   //----------------------------------------------------------------------------
   //! Switch to globally en-/disable broadcasting of changes into  shared queues
