@@ -1034,4 +1034,22 @@ Storage::CheckLabel(std::string path,
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Check if node is active i.e. the stat.active
+//------------------------------------------------------------------------------
+bool
+Storage::IsNodeActive() const
+{
+  std::string cfg_node = Config::gConfig.getFstNodeConfigQueue().c_str();
+  XrdMqRWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
+  XrdMqSharedHash* hash = gOFS.ObjectManager.GetHash(cfg_node.c_str());
+  std::string status = hash->Get("stat.active");
+
+  if (status == "online") {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 EOSFSTNAMESPACE_END
