@@ -493,7 +493,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if ((!rc) && isCreation && mBookingSize) {
     // check if the file system is full
-    XrdSysMutexHelper(gOFS.Storage->mFsFullMapMutex);
+    XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
 
     if (gOFS.Storage->mFsFullMap[mFsId]) {
       if (layOut->IsEntryServer() && (!isReplication)) {
@@ -2009,7 +2009,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
       // Check if the file system is full
       bool isfull = false;
       {
-        XrdSysMutexHelper(gOFS.Storage->mFsFullMapMutex);
+        XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
         isfull = gOFS.Storage->mFsFullMap[mFsId];
       }
 

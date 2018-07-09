@@ -216,7 +216,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
       // check if the filesystem is full
       bool full = false;
       {
-        XrdSysMutexHelper(mFsFullMapMutex);
+        XrdSysMutexHelper lock(mFsFullMapMutex);
         full = mFsFullWarnMap[id];
       }
 
