@@ -1356,17 +1356,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   g_logging.SetLogPriority(LOG_INFO);
   g_logging.SetUnit(unit.c_str());
   std::string filter =
-    "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,placeNewReplicas,"
-    "accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,"
-    "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
+    "Process,AddQuota,Update,UpdateHint,UpdateQuotaStatus,SetConfigValue,"
+    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,"
+    "placeNewReplicas,placeNewReplicasOneGroup,accessReplicas,"
+    "accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,"
     "updateAtomicPenalties,updateFastStructures,work";
   g_logging.SetFilter(filter.c_str());
-  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
+  Eroute.Say("=====> setting message filter: Process,AddQuota,Update,UpdateHint,"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-             "RegisterNode,SharedHash,placeNewReplicas,accessReplicas,"
-             "placeNewReplicasOneGroup,accessReplicasOneGroup,"
-             "accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,"
+             "RegisterNode,SharedHash,listenFsChange,placeNewReplicas,"
+             "placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,"
+             "accessHeadReplicaMultipleGroup,updateTreeInfo,"
              "updateAtomicPenalties,updateFastStructures,work");
   // Automatically append the host name to the config dir
   MgmConfigDir += HostName;

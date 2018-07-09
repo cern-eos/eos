@@ -94,9 +94,9 @@ com_debug(char* arg1)
   fprintf(stdout,
           "     <unitlist> : a comma separated list of strings of software units which should be filtered out in the message log!\n");
   fprintf(stdout,
-          "                  The default filter list is: 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,\n");
+          "                  The default filter list is: 'Process,AddQuota,Update,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,\n");
   fprintf(stdout,
-          "                  placeNewReplicas,placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,updateAtomicPenalties,updateFastStructures'.\n\n");
+          "                  placeNewReplicas,placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,updateAtomicPenalties,updateFastStructures,work'.\n\n");
   fprintf(stdout,
           "The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
   fprintf(stdout, "Examples:\n");
