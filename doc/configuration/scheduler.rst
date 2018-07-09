@@ -3,7 +3,7 @@
 .. index::
    single: Scheduler
 
-Converter
+Scheduler
 =========
 
 The scheduler distinguishes two algorithms, one for placement, one for access. 
