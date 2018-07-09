@@ -192,17 +192,15 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 
     if (it_pending != mPending.end()) {
       (void) mPending.erase(it_pending);
-      fs->OpenTransaction();
-      fs->SetDrainStatus(FileSystem::kNoDrain);
-      fs->CloseTransaction();
-      return true;
     }
 
-    err = "error: no drain started for the givne fs";
-    return false;
+    fs->OpenTransaction();
+    fs->SetDrainStatus(FileSystem::kNoDrain);
+    fs->CloseTransaction();
+  } else {
+    (*it)->SignalStop();
   }
 
-  (*it)->SignalStop();
   return true;
 }
 
