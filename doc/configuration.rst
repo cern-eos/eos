@@ -35,6 +35,7 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/quarkdb
    configuration/quota
    configuration/recyclebin
+   configuration/s3
    configuration/scheduler
    configuration/transfer
    configuration/tty
