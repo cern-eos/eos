@@ -406,7 +406,8 @@ XrdMgmOfs::FSctl(const int cmd,
 
     // Query to determin if current node is acting as master
     if (execmd == "is_master") {
-      REQUIRE_SSS_OR_LOCAL_AUTH;
+      // @todo (esindril): maybe enable sss at some point
+      // REQUIRE_SSS_OR_LOCAL_AUTH;
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosView->getFile(gOFS->MgmProcMasterPath.c_str());
 
