@@ -56,8 +56,8 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
 
   if (mSom) {
     mSom->HashMutex.LockRead();
-
     XrdMqSharedHash* hash = nullptr;
+
     if (!(hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
@@ -466,7 +466,6 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   key = val = "";
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
-
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
   val = hash->SerializeWithFilter("stat.");
 }
@@ -482,6 +481,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   }
 
   XrdMqSharedHash* hash = nullptr;
+
   if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
     fs.mId = (fsid_t) hash->GetUInt("id");
     fs.mQueue = mQueue;
@@ -816,8 +816,8 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
-
   XrdMqSharedHash* hash = nullptr;
+
   if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
     hash->Print(table_mq_header, table_mq_data, listformat, filter);
   }
@@ -856,7 +856,7 @@ FileSystem::GetActiveStatus(bool cached)
     }
 
     return kOnline;
-  } else {
+  } else if (active == "offline") {
     cActive = kOffline;
 
     if (cached) {
@@ -864,6 +864,14 @@ FileSystem::GetActiveStatus(bool cached)
     }
 
     return kOffline;
+  } else {
+    cActive = kUndefined;
+
+    if (cached) {
+      cActiveLock.UnLock();
+    }
+
+    return kUndefined;
   }
 }
 

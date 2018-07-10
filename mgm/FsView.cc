@@ -2255,8 +2255,6 @@ FsView::HeartBeatCheck()
           // mark as offline
           if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
             it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-          } else {
-            it->second->SetActiveStatus(eos::common::FileSystem::kUnknownStatus);
           }
         } else {
           std::string queue = it->second->GetString("queue");
@@ -2272,8 +2270,6 @@ FsView::HeartBeatCheck()
           } else {
             if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
               it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-            } else {
-              it->second->SetActiveStatus(eos::common::FileSystem::kUnknownStatus);
             }
           }
         }

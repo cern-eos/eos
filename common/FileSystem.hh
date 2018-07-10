@@ -235,7 +235,7 @@ public:
   //! Values describing if a filesystem is online or offline
   //! (combination of multiple conditions)
   enum eActiveStatus {
-    kUnknownStatus = -1,
+    kUndefined = -1,
     kOffline = 0,
     kOnline = 1
   };
@@ -417,10 +417,8 @@ public:
   {
     if (active == kOnline) {
       return SetString("stat.active", "online", false);
-    } else if (active == kOffline) {
-      return SetString("stat.active", "offline", false);
     } else {
-      return SetString("stat.active", "unknown", false);
+      return SetString("stat.active", "offline", false);
     }
   }
 
