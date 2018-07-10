@@ -722,10 +722,10 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 }
 
 //------------------------------------------------------------------------------
-// Start the process of injecting external files into the given filesystem
+// Start the process of importing external files into the given filesystem
 //------------------------------------------------------------------------------
 int
-proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string& lclDst,
+proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
                XrdOucString& stdOut, XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in)
 {
@@ -757,8 +757,8 @@ proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string& lclDst,
   opaquestring += lclDst.c_str();
 
 
-  XrdMqMessage message("injectionScan");
-  XrdOucString msgbody = "mgm.cmd=injectionscan";
+  XrdMqMessage message("importScan");
+  XrdOucString msgbody = "mgm.cmd=importscan";
   msgbody += opaquestring;
   message.SetBody(msgbody.c_str());
 
@@ -770,7 +770,7 @@ proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string& lclDst,
   }
 
   if (!retc) {
-    stdOut += "Injection of ";
+    stdOut += "Importing of ";
     stdOut += extSrc.c_str();
     stdOut += " started successfully";
   }

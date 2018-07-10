@@ -27,7 +27,7 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
-#include "fst/InjectionScan.hh"
+#include "fst/ImportScan.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 #include "common/ShellCmd.hh"
@@ -168,17 +168,17 @@ Messaging::Process(XrdMqMessage* newmessage)
     }
   }
 
-  if (cmd == "injectionscan") {
-    eos_info("injectionscan");
+  if (cmd == "importscan") {
+    eos_info("importscan");
     XrdOucEnv* capOpaque = &action;
     int envlen = 0;
     eos_debug("opaque is %s", capOpaque->Env(envlen));
-    InjectionScan* new_injectionScan = InjectionScan::Create(capOpaque);
+    ImportScan* new_importScan = ImportScan::Create(capOpaque);
 
-    if (new_injectionScan) {
-      gOFS.Storage->PushInjectionScan(new_injectionScan);
+    if (new_importScan) {
+      gOFS.Storage->PushImportScan(new_importScan);
     } else {
-      eos_err("Cannot create an injectScan entry - illegal opaque information");
+      eos_err("Cannot create an importScan entry - illegal opaque information");
     }
   }
 

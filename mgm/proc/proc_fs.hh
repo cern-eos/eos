@@ -156,7 +156,7 @@ int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
 
 
 //------------------------------------------------------------------------------
-//! Trigger the process of injecting files found at an external path
+//! Trigger the process of importing files found at an external path
 //! into the given filesystem at the presented local path
 //!
 //! @param sfsid filesystem id
@@ -168,7 +168,7 @@ int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_inject(std::string& sfsid, std::string& extSrc, std::string &lclDst,
+int proc_fs_import(std::string& sfsid, std::string& extSrc, std::string &lclDst,
                    XrdOucString& stdOut, XrdOucString& stdErr,
                    eos::common::Mapping::VirtualIdentity& vid_in);
 

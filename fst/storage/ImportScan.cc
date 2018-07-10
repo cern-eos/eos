@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: InjectionScan.cc
+// File: ImportScan.cc
 // Author: Mihai Patrascoiu - CERN
 // ----------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/InjectionScan.hh"
+#include "fst/ImportScan.hh"
 #include "fst/io/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -37,45 +37,45 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Storage::InjectionScan()
+Storage::ImportScan()
 {
 
-  // Thread that performs injection scans
+  // Thread that performs import scans
   while (1) {
-    mInjectionScanMutex.Lock();
+    mImportScanMutex.Lock();
 
-    if (mInjectionScans.empty()) {
-      mInjectionScanMutex.UnLock();
+    if (mImportScans.empty()) {
+      mImportScanMutex.UnLock();
       sleep(1);
       continue;
     }
 
-    eos::fst::InjectionScan* inScan = mInjectionScans.front();
-    mInjectionScans.pop();
+    eos::fst::ImportScan* scan = mImportScans.front();
+    mImportScans.pop();
 
-    if (!inScan) {
-      eos_static_debug("retrieved empty object from InjectionScan queue");
-      mInjectionScanMutex.UnLock();
+    if (!scan) {
+      eos_static_debug("retrieved empty object from ImportScan queue");
+      mImportScanMutex.UnLock();
       continue;
     }
     
-    mInjectionScanMutex.UnLock();
-    eos_static_debug("starting injectionScan fsid=%u extPath=%s lclPath=%s",
-                     inScan->fsId, inScan->extPath.c_str(),
-                     inScan->lclPath.c_str());
+    mImportScanMutex.UnLock();
+    eos_static_debug("starting importScan fsid=%u extPath=%s lclPath=%s",
+                     scan->fsId, scan->extPath.c_str(),
+                     scan->lclPath.c_str());
 
     // Construct helper objects
     std::unique_ptr<FileIo> io(
-        FileIoPlugin::GetIoObject(inScan->extPath.c_str()));
+        FileIoPlugin::GetIoObject(scan->extPath.c_str()));
     if (!io) {
       eos_static_err("unable to retrieve IO object for %s",
-                     inScan->extPath.c_str());
+                     scan->extPath.c_str());
       continue;
     }
 
     FileIo::FtsHandle* handle = io->ftsOpen();
     if (!handle) {
-      eos_static_err("fts_open failed for %s", inScan->extPath.c_str());
+      eos_static_err("fts_open failed for %s", scan->extPath.c_str());
       continue;
     }
 
@@ -83,7 +83,7 @@ Storage::InjectionScan()
 
     // Scan the directory found at extPath
     while ((filePath = io->ftsRead(handle)) != "") {
-      eos_static_info("InjectionScan -- processing file %s", filePath.c_str());
+      eos_static_info("ImportScan -- processing file %s", filePath.c_str());
       lFilePath = filePath;
 
       // Remove opaque from file path
@@ -92,7 +92,7 @@ Storage::InjectionScan()
         lFilePath.erase(qpos);
       }
 
-      // Gather the data needed for file injection
+      // Gather the data needed for file import
       struct stat buf;
       std::unique_ptr<FileIo> fIo(FileIoPlugin::GetIoObject(filePath));
       if (fIo->fileStat(&buf)) {
@@ -101,11 +101,11 @@ Storage::InjectionScan()
       }
 
       // Construct the path suffix from the file path
-      size_t pos = inScan->extPath.length();
-      if (inScan->extPath.rfind("?") != std::string::npos) {
-        pos = inScan->extPath.rfind("?");
+      int pos = scan->extPath.length();
+      if (scan->extPath.rfind("?") != std::string::npos) {
+        pos = scan->extPath.rfind("?");
       }
-      pathSuffix = lFilePath.substr(pos);
+      pathSuffix = lFilePath.substr((size_t) pos);
       if (pathSuffix[0] == '/') {
         pathSuffix.erase(0, 1);
       }
@@ -113,18 +113,18 @@ Storage::InjectionScan()
       // Construct command message
       XrdOucErrInfo error;
       XrdOucString capOpaqueFile = "";
-      capOpaqueFile += "/?mgm.pcmd=inject";
-      capOpaqueFile += "&mgm.inject.fsid=";
-      capOpaqueFile += (int) inScan->fsId;
-      capOpaqueFile += "&mgm.inject.extpath=";
+      capOpaqueFile += "/?mgm.pcmd=import";
+      capOpaqueFile += "&mgm.import.fsid=";
+      capOpaqueFile += (int) scan->fsId;
+      capOpaqueFile += "&mgm.import.extpath=";
       capOpaqueFile += lFilePath.c_str();
-      capOpaqueFile += "&mgm.inject.lclpath=";
-      capOpaqueFile += inScan->lclPath;
-      if (!inScan->lclPath.endswith("/")) {
+      capOpaqueFile += "&mgm.import.lclpath=";
+      capOpaqueFile += scan->lclPath;
+      if (!scan->lclPath.endswith("/")) {
         capOpaqueFile += "/";
       }
       capOpaqueFile += pathSuffix.c_str();
-      capOpaqueFile += "&mgm.inject.size=";
+      capOpaqueFile += "&mgm.import.size=";
       char filesize[256];
       sprintf(filesize, "%" PRIu64 "", buf.st_size);
       capOpaqueFile += filesize;
@@ -134,14 +134,14 @@ Storage::InjectionScan()
       int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0,
                                 capOpaqueFile, &response);
       if (rc) {
-        eos_static_err("unable to inject file name=%s fs=%u at manager %s",
-                       lFilePath.c_str(), inScan->fsId,
-                       inScan->managerId.c_str());
+        eos_static_err("unable to import file name=%s fs=%u at manager %s",
+                       lFilePath.c_str(), scan->fsId,
+                       scan->managerId.c_str());
       } else if (!response.length()) {
-        eos_static_err("file injected in namespace. Mgm file metadata expected "
+        eos_static_err("file imported in namespace. Mgm file metadata expected "
                        "but response is empty name=%s fs=%u at manager %s",
-                       lFilePath.c_str(), inScan->fsId,
-                       inScan->managerId.c_str());
+                       lFilePath.c_str(), scan->fsId,
+                       scan->managerId.c_str());
       } else {
         XrdOucEnv fMdEnv(response.c_str());
         int envlen;
@@ -152,14 +152,14 @@ Storage::InjectionScan()
         if (gFmdDbMapHandler.EnvMgmToFmd(fMdEnv, fMd)) {
           // Create local fmd entry
           FmdHelper* localFmd =
-              gFmdDbMapHandler.LocalGetFmd(fMd.fid(), inScan->fsId,
+              gFmdDbMapHandler.LocalGetFmd(fMd.fid(), scan->fsId,
                                 fMd.uid(), fMd.gid(), fMd.lid(), true, false);
-          fMd.set_layouterror(FmdHelper::LayoutError(fMd, inScan->fsId));
+          fMd.set_layouterror(FmdHelper::LayoutError(fMd, scan->fsId));
 
           if (localFmd) {
             // Update from Mgm
             if (!gFmdDbMapHandler.UpdateFromMgm(
-                              inScan->fsId, fMd.fid(), fMd.cid(), fMd.lid(),
+                              scan->fsId, fMd.fid(), fMd.cid(), fMd.lid(),
                               fMd.mgmsize(), fMd.mgmchecksum(), fMd.uid(),
                               fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
                               fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(),
@@ -172,7 +172,7 @@ Storage::InjectionScan()
             delete localFmd;
           } else {
             eos_static_err("unable to create local fmd entry name=%s fs=%u",
-                           lFilePath.c_str(), inScan->fsId);
+                           lFilePath.c_str(), scan->fsId);
           }
         } else {
           eos_static_err("unable to parse Mgm file metadata. "
@@ -183,7 +183,7 @@ Storage::InjectionScan()
     }
 
     if (io->ftsClose(handle)) {
-      eos_static_err("fts_close failed for %s", inScan->extPath.c_str());
+      eos_static_err("fts_close failed for %s", scan->extPath.c_str());
     }
 
     delete handle;

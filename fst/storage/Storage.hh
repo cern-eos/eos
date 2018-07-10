@@ -48,7 +48,7 @@ EOSFSTNAMESPACE_BEGIN
 
 class Verify;
 class Deletion;
-class InjectionScan;
+class ImportScan;
 class FileSystem;
 
 //------------------------------------------------------------------------------
@@ -145,11 +145,11 @@ public:
   void PushVerification(eos::fst::Verify* entry);
 
   //----------------------------------------------------------------------------
-  //! Push new injection scan job to the queue.
+  //! Push new import scan job to the queue.
   //!
-  //! @param entry injection scan information
+  //! @param entry import scan information
   //----------------------------------------------------------------------------
-  void PushInjectionScan(eos::fst::InjectionScan* entry);
+  void PushImportScan(eos::fst::ImportScan* entry);
 
 protected:
   eos::common::RWMutex mFsMutex; ///< Mutex protecting access to the fs map
@@ -186,9 +186,9 @@ private:
   XrdSysMutex mVerifyMutex; ///< Mutex protecting access to the verifications
   //! Queue of verification jobs pending
   std::queue <eos::fst::Verify*> mVerifications;
-  XrdSysMutex mInjectionScanMutex; ///< Mutex protecting list of injection scans
-  //! Queue of injection scan jobs pending
-  std::queue <eos::fst::InjectionScan*> mInjectionScans;
+  XrdSysMutex mImportScanMutex; ///< Mutex protecting list of import scans
+  //! Queue of import scan jobs pending
+  std::queue <eos::fst::ImportScan*> mImportScans;
   XrdSysMutex mDeletionsMutex; ///< Mutex protecting the list of deletions
   std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
   Load mFstLoad; ///< Net/IO load monitor
@@ -212,7 +212,7 @@ private:
   static void* StartFsReport(void* pp);
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
-  static void* StartFsInjectionScan(void* pp);
+  static void* StartFsImportScan(void* pp);
   static void* StartFsPublisher(void* pp);
   static void* StartFsBalancer(void* pp);
   static void* StartFsDrainer(void* pp);
@@ -231,7 +231,7 @@ private:
   void Report();
   void ErrorReport();
   void Verify();
-  void InjectionScan();
+  void ImportScan();
   void Publish();
   void Balancer();
   void Drainer();

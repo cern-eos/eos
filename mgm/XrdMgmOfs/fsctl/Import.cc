@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Inject.cc
+// File: Import.cc
 // Author: Mihai Patrascoiu - CERN
 // ----------------------------------------------------------------------
 
@@ -33,14 +33,14 @@
   MAYSTALL;
   MAYREDIRECT;
 
-  EXEC_TIMING_BEGIN("Inject");
+  EXEC_TIMING_BEGIN("Import");
 
   XrdOucString response;
 
-  char* afsid = env.Get("mgm.inject.fsid");
-  char* asize = env.Get("mgm.inject.size");
-  char* extpath = env.Get("mgm.inject.extpath");
-  char* lpath = env.Get("mgm.inject.lclpath");
+  char* afsid = env.Get("mgm.import.fsid");
+  char* asize = env.Get("mgm.import.size");
+  char* extpath = env.Get("mgm.import.extpath");
+  char* lpath = env.Get("mgm.import.lclpath");
   char* alogid = env.Get("mgm.logid");
 
   if (alogid) {
@@ -48,7 +48,7 @@
   }
 
   if (afsid && extpath && lpath && asize) {
-    eos_thread_info("injection for extpath=%s lclpath=%s "
+    eos_thread_info("import for extpath=%s lclpath=%s "
                     "[fsid=%s, size=%s]", extpath, lpath, afsid, asize);
 
     unsigned long size = strtoull(asize, 0, 10);
@@ -67,9 +67,9 @@
       // parent path must either do not exist or be a directory
       if ((file_exists != XrdSfsFileExistNo) &&
           (file_exists != XrdSfsFileExistIsDirectory)) {
-        gOFS->MgmStats.Add("InjectFailedParentPathNotDir", 0, 0, 1);
+        gOFS->MgmStats.Add("ImportFailedParentPathNotDir", 0, 0, 1);
         return Emsg(epname, error, ENOTDIR,
-                    "inject file - parent path is not a directory",
+                    "import file - parent path is not a directory",
                      cPath.GetParentPath());
         }
 
@@ -79,13 +79,13 @@
         rc = gOFS->_mkdir(cPath.GetParentPath(), mode, error, vid);
 
         if (rc) {
-          gOFS->MgmStats.Add("InjectFailedMkdir", 0, 0, 1);
+          gOFS->MgmStats.Add("ImportFailedMkdir", 0, 0, 1);
           return Emsg(epname, error, errno, "create parent path",
                       cPath.GetParentPath());
         }
       }
     } else {
-      gOFS->MgmStats.Add("InjectFailedParentPathCheck", 0, 0, 1);
+      gOFS->MgmStats.Add("ImportFailedParentPathCheck", 0, 0, 1);
       return Emsg(epname, error, errno, "check if path exists",
                   cPath.GetParentPath());
     }
@@ -99,7 +99,7 @@
       cmd = gOFS->eosDirectoryService->getContainerMD(cid);
     } catch(eos::MDException& e) {
       std::string errmsg = e.getMessage().str();
-      gOFS->MgmStats.Add("InjectFailedFmdCreate", 0, 0, 1);
+      gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
       eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), errmsg.c_str());
       return Emsg(epname, error, errno, "create fmd", errmsg.c_str());
@@ -112,7 +112,7 @@
       filesystem = FsView::gFsView.mIdView[fsid];
     } else {
       eos_thread_err("msg=\"could not find filesystem fsid=%d\"", fsid);
-      gOFS->MgmStats.Add("InjectFailedFsRetrieve", 0, 0, 1);
+      gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
       return Emsg(epname, error, EIO, "retrieve filesystem", "");
     }
 
@@ -146,7 +146,7 @@
     } else {
       eos_thread_err("could not determine filesystem prefix "
                      "in extpath=%s", extpath);
-      gOFS->MgmStats.Add("InjectionFailedFsPrefix", 0, 0, 1);
+      gOFS->MgmStats.Add("ImportFailedFsPrefix", 0, 0, 1);
       return Emsg(epname, error, errno, "match fs prefix", "");
   	}
 
@@ -164,7 +164,7 @@
       gOFS->eosView->updateContainerStore(cmd.get());
     } catch(eos::MDException& e) {
       std::string errmsg = e.getMessage().str();
-      gOFS->MgmStats.Add("InjectFailedFmdUpdate", 0, 0, 1);
+      gOFS->MgmStats.Add("ImportFailedFmdUpdate", 0, 0, 1);
       eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                      e.getErrno(), errmsg.c_str());
       return Emsg(epname, error, errno, "update fmd", errmsg.c_str());
@@ -188,16 +188,16 @@
     }
   } else {
     int envlen = 0;
-    eos_thread_err("inject message does not contain all meta information: %s",
+    eos_thread_err("import message does not contain all meta information: %s",
                    env.Env(envlen));
-    gOFS->MgmStats.Add("InjectFailedParameters", 0, 0, 1);
+    gOFS->MgmStats.Add("ImportFailedParameters", 0, 0, 1);
     XrdOucString filename = (extpath) ? extpath : "unknown";
     return Emsg(epname, error, EINVAL,
-                "inject file - fsid, path, size not complete", filename.c_str());
+                "import file - fsid, path, size not complete", filename.c_str());
   }
 
-  gOFS->MgmStats.Add("Inject", 0, 0, 1);
+  gOFS->MgmStats.Add("Import", 0, 0, 1);
   error.setErrInfo(response.length() + 1, response.c_str());
-  EXEC_TIMING_END("Inject");
+  EXEC_TIMING_END("Import");
   return SFS_DATA;
 }

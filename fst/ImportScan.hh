@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: InjectionScan.hh
+// File: ImportScan.hh
 // Author: Mihai Patrascoiu - CERN
 // ----------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_INJECTIONSCAN_HH__
-#define __EOSFST_INJECTIONSCAN_HH__
+#ifndef __EOSFST_IMPORTSCAN_HH__
+#define __EOSFST_IMPORTSCAN_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
@@ -39,7 +39,7 @@ class XrdOucEnv;
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-class InjectionScan
+class ImportScan
 {
 public:
 
@@ -49,8 +49,8 @@ public:
   XrdOucString lclPath;
   XrdOucString opaque;
 
-  InjectionScan(unsigned long fsid, const char* managerid, const char* extpath,
-                const char* lclpath, const char* inopaque)
+  ImportScan(unsigned long fsid, const char* managerid, const char* extpath,
+             const char* lclpath, const char* inopaque)
   {
     fsId = fsid;
     managerId = managerid;
@@ -59,7 +59,7 @@ public:
     opaque = inopaque;
   }
 
-  static InjectionScan*
+  static ImportScan*
   Create(XrdOucEnv* capOpaque)
   {
     // decode the opaque tags
@@ -80,19 +80,19 @@ public:
 
     int envlen = 0;
     fsid = atoi(sfsid);
-    return new InjectionScan(fsid, smanager, extPath, lclPath,
+    return new ImportScan(fsid, smanager, extPath, lclPath,
                              capOpaque->Env(envlen));
   };
 
-  ~InjectionScan() { };
+  ~ImportScan() { };
 
   //----------------------------------------------------------------------------
-  //! Display information about current injection scan job
+  //! Display information about current import scan job
   //----------------------------------------------------------------------------
   void
   Show(const char* show = "")
   {
-    eos_static_info("InjectionScan fs=%u external_path=%s local_path=%s %s",
+    eos_static_info("ImportScan fs=%u external_path=%s local_path=%s %s",
                     fsId, extPath.c_str(), lclPath.c_str(), show);
   }
 };

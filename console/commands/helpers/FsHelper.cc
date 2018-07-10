@@ -452,9 +452,9 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
-  } else if (cmd == "inject") {
-    using eos::console::FsProto_InjectProto;
-    FsProto_InjectProto* inject = fs->mutable_inject();
+  } else if (cmd == "import") {
+    using eos::console::FsProto_ImportProto;
+    FsProto_ImportProto* import = fs->mutable_import();
 
     if (!(option = tokenizer.GetToken())) {
       return false;
@@ -464,7 +464,7 @@ FsHelper::ParseCommand(const char* arg)
       // Parse fsid
       try {
         uint64_t fsid = std::stoull(soption);
-        inject->set_fsid(fsid);
+        import->set_fsid(fsid);
       } catch (const std::exception& e) {
         std::cerr << "error: fsid needs to be numeric" << std::endl;
         return false;
@@ -475,14 +475,14 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
       soption = option;
-      inject->set_externalpath(soption);
+      import->set_externalpath(soption);
 
       if (!(option = tokenizer.GetToken())) {
         std::cerr << "error: missing <local_path>" << std::endl;
         return false;
       }
       soption = option;
-      inject->set_localpath(soption);
+      import->set_localpath(soption);
     }
   } else if (cmd == "rm") {
     using eos::console::FsProto_RmProto;

@@ -27,7 +27,7 @@
 #include "fst/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
-#include "fst/InjectionScan.hh"
+#include "fst/ImportScan.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -170,12 +170,12 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-  eos_info("starting injection scan thread");
+  eos_info("starting import scan thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsInjectionScan,
-                              static_cast<void*>(this),
-                              0, "InjectionScan Thread"))) {
-    eos_crit("cannot start injection scan thread");
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsImportScan,
+                              static_cast<void *>(this),
+                              0, "ImportScan Thread"))) {
+    eos_crit("cannot start import scan thread");
     mZombie = true;
   }
 
@@ -325,13 +325,13 @@ Storage::PushVerification(eos::fst::Verify* entry)
 }
 
 //------------------------------------------------------------------------------
-// Push new injection scan job to the queue.
+// Push new import scan job to the queue.
 //------------------------------------------------------------------------------
 void
-Storage::PushInjectionScan(eos::fst::InjectionScan* entry)
+Storage::PushImportScan(eos::fst::ImportScan* entry)
 {
-  XrdSysMutexHelper scope_lock(mInjectionScanMutex);
-  mInjectionScans.push(entry);
+  XrdSysMutexHelper scope_lock(mImportScanMutex);
+  mImportScans.push(entry);
   entry->Show();
 }
 
@@ -664,13 +664,13 @@ Storage::StartFsVerify(void* pp)
 }
 
 //------------------------------------------------------------------------------
-// Start injection scan thread
+// Start import scan thread
 //------------------------------------------------------------------------------
 void*
-Storage::StartFsInjectionScan(void* pp)
+Storage::StartFsImportScan(void* pp)
 {
   Storage* storage = (Storage*) pp;
-  storage->InjectionScan();
+  storage->ImportScan();
   return 0;
 }
 
