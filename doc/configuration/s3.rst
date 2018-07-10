@@ -32,7 +32,7 @@ Buckets are associated to users and they constitute the place
 where users write or read from.
 
 Within EOS, users and buckets are registered as attributes of the
-``/eos/instance/proc`` path.
+``/eos/<instance>/proc`` path.
 
 To register users:
 ++++++++++++++++++
@@ -43,7 +43,7 @@ To register users:
 
 *<s3user>* - the access key in S3 terminology
 
-Note: make sure that the <s3user> also exists as a unix user on the system
+Note: make sure that the <s3user> also exists as a Unix user on the system
 
 To register buckets:
 ++++++++++++++++++++
@@ -58,7 +58,7 @@ Multiple buckets can be separated using the | separator.
 Example
 ++++++++
 
-.. code block:: bash
+.. code-block:: bash
 
    attr set sys.s3.id.s3user=<secretkey> /eos/test/proc
    attr set sys.s3.bucket.s3user=testbucket /eos/test/proc
