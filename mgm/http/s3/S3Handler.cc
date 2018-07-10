@@ -151,7 +151,7 @@ bool
 S3Handler::VerifySignature()
 {
   if (!mS3Store->GetKeys().count(GetId())) {
-    eos_static_err("msg=\"no such account\" id=%s", GetId().c_str());
+    eos_static_err("msg=\"no such S3 identity\" id=%s", GetId().c_str());
     return false;
   }
 

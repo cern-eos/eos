@@ -577,6 +577,10 @@ eos::common::HttpResponse*
 S3Handler::RestErrorResponse (int responseCode, std::string errorCode,
   std::string errorMessage, std::string resource, std::string requestId)
 {
+  eos_static_info("Sending error code=%d error=%s msg=\"%s\" resource=%s",
+                 responseCode, errorCode.c_str(), errorMessage.c_str(),
+                 resource.c_str());
+
   eos::common::HttpResponse *response = new eos::common::S3Response();
   response->SetResponseCode(responseCode);
 

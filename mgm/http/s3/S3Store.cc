@@ -55,7 +55,7 @@ S3Store::Refresh()
     srtime = mStoreReloadTime;
   }
 
-  // max. enter once per minute this code branch
+  // Attempt refresh only once per minute
   if ((now - srtime) > 60) {
     eos::common::RWMutexWriteLock sLock(mStoreMutex);
     mStoreReloadTime = now;
@@ -127,12 +127,17 @@ S3Store::Refresh()
           // store the modification time of the loaded s3 definitions
           mStoreModificationTime = buf.st_ctime;
         }
+      } else {
+        eos_static_info("skipping S3 configuration reload. "
+                        "Reason: no change detected since last refresh");
       }
     } else {
-      eos_static_err("unable to stat %s", mS3DefContainer.c_str());
+      eos_static_err("unable to stat S3 configuration container %s",
+                     mS3DefContainer.c_str());
     }
   } else {
-    eos_static_info("skipping reload");
+    eos_static_info("skipping S3 configuration reload. "
+                    "Reason: refresh performed recently");
   }
 }
 
