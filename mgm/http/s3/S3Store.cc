@@ -68,7 +68,7 @@ S3Store::Refresh()
     if (gOFS->_stat(mS3DefContainer.c_str(), &buf, error, vid, (const char*) 0)
         == SFS_OK) {
       // check last modification time
-      if (buf.st_mtime != mStoreModificationTime) {
+      if (buf.st_ctime != mStoreModificationTime) {
         // clear all
         mS3ContainerSet.clear();
         mS3Keys.clear();
@@ -125,7 +125,7 @@ S3Store::Refresh()
           }
 
           // store the modification time of the loaded s3 definitions
-          mStoreModificationTime = buf.st_mtime;
+          mStoreModificationTime = buf.st_ctime;
         }
       }
     } else {
