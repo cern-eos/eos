@@ -620,7 +620,7 @@ private:
   bool AutoReplyQueueDerive;
 
 public:
-  static bool sDebug; ///< Set debug mode
+  static std::atomic<bool> sDebug; ///< Set debug mode
   static bool sBroadcast; ///< Set broadcasting mode
 
   //----------------------------------------------------------------------------

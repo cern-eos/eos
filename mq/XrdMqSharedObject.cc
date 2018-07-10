@@ -31,7 +31,7 @@
 #include <fcntl.h>
 #include <algorithm>
 
-bool XrdMqSharedObjectManager::sDebug = 0;
+std::atomic<bool> XrdMqSharedObjectManager::sDebug { false };
 bool XrdMqSharedObjectManager::sBroadcast = true;
 
 // Static counters
