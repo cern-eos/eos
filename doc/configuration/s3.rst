@@ -9,6 +9,21 @@ S3 access
 **S3** access is very similar to **HTTP** access. The **MGM** runs on port 8000
 and the **FSTs** on port 8001.
 
+The workflow is the same as with other protocols.
+The initial point of contact is the MGM which will generate a redirection link
+to communicate with the FST.
+
+
+User Mapping
+-------------
+
+When accessing EOS via S3, a signature verification is done.
+If the verification succeeds, from this point forward, the S3 access key
+will be considered the user identity and the system will try to match it
+with an existing Unix user. Because of this, it is very important
+that the users declared for S3 access also exist as Unix users on the system.
+
+
 Configuration
 -------------
 
@@ -17,24 +32,37 @@ Buckets are associated to users and they constitute the place
 where users write or read from.
 
 Within EOS, users and buckets are registered as attributes of the
-``/eos/**instance**/proc`` path.
+``/eos/instance/proc`` path.
 
 To register users:
 ++++++++++++++++++
 
 .. code-block:: bash
 
-   attr set sys.s3.id.s3user=<secretkey> /eos/test/proc
+   attr set sys.s3.id.<s3user>=<secretkey> /eos/<instance>/proc
 
-*s3user* - the access key in S3 terminology
+*<s3user>* - the access key in S3 terminology
+
+Note: make sure that the <s3user> also exists as a unix user on the system
 
 To register buckets:
 ++++++++++++++++++++
 
 .. code-block:: bash
 
-   attr set sys.s3.bucket.s3user=testbucket /eos/test/proc
-   attr set sys.s3.path.testbucket=/eos/test/s3dir /eos/test/proc
+   attr set sys.s3.bucket.<s3user>=<bucket> /eos/<instance>/proc
+   attr set sys.s3.path.<bucket>=<eospath> /eos/<instance>/proc
 
-This will map the bucket called *testbucket* to the */eos/test/s3dir/* path.
-It also specifies that this bucket belongs to user *s3user*.
+Multiple buckets can be separated using the | separator.
+
+Example
+++++++++
+
+.. code block:: bash
+
+   attr set sys.s3.id.s3user=<secretkey> /eos/test/proc
+   attr set sys.s3.bucket.s3user=testbucket /eos/test/proc
+   attr set sys.s3.path.testbucket=/eos/test/buckets3 /eos/test/proc
+
+This will declare *s3user* and assign *testbucket* to him.
+Internally, *testbucket* is mapped to the following path: /eos/test/buckets3.
