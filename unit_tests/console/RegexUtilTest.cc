@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file RegexUtilTest.hh
+//! @file RegexUtilTest.cc
 //! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
 //------------------------------------------------------------------------------
 

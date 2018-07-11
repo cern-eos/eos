@@ -40,6 +40,7 @@ set(MQ_UT_SRCS
   mq/XrdMqMessageTests.cc)
 
 set(CONSOLE_UT_SRCS
+  console/AclCmdTest.cc
   console/RegexUtilTest.cc)
 
 set(MGM_UT_SRCS

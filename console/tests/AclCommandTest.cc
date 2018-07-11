@@ -46,52 +46,6 @@ void AclCommandTest::TestSyntax()
   TestSyntaxCommand("-Rgg --recursive rule path", false);
 }
 
-void AclCommandTest::TestCheckId()
-{
-  AclCommand test(const_cast<char*>(""));
-  CPPUNIT_ASSERT(test.CheckCorrectId("u:user") == true);
-  CPPUNIT_ASSERT(test.CheckCorrectId("g:group") == true);
-  CPPUNIT_ASSERT(test.CheckCorrectId("egroup:gssroup") == true);
-  CPPUNIT_ASSERT(test.CheckCorrectId("gr:gro@up") == false);
-  CPPUNIT_ASSERT(test.CheckCorrectId("ug:group") == false);
-  CPPUNIT_ASSERT(test.CheckCorrectId(":a$4uggroup") == false);
-  CPPUNIT_ASSERT(test.CheckCorrectId("egro:gro") == false);
-}
-
-void AclCommandTest::TestGetRuleInt()
-{
-  AclCommand test(const_cast<char*>(""));
-  CPPUNIT_ASSERT(test.GetRuleInt("wr!u+d-!u", true) == true);
-  CPPUNIT_ASSERT(test.m_add_rule == 67);
-  CPPUNIT_ASSERT(test.m_rm_rule == 128);
-  CPPUNIT_ASSERT(test.GetRuleInt("+++++++d!urwxxxxxx!u", true) == true);
-  CPPUNIT_ASSERT(test.m_add_rule == 199);
-  CPPUNIT_ASSERT(test.m_rm_rule == 0);
-  CPPUNIT_ASSERT(test.GetRuleInt("+rw+d-!u", false) == true);
-  CPPUNIT_ASSERT(test.m_add_rule == 67);
-  CPPUNIT_ASSERT(test.m_rm_rule == 128);
-  CPPUNIT_ASSERT(test.GetRuleInt("+rw!u+d-!u$%@", false) == false);
-  CPPUNIT_ASSERT(test.GetRuleInt("rw!u+d-!u", false) == false);
-}
-
-void AclCommandTest::TestAclRuleFromString()
-{
-  // Method AclRuleFromString is called to parse acl data which MGM Node
-  // sends. So string in incorrect format is not possible, hence there is
-  // no checking for that.
-  Rule temp;
-  AclCommand test(const_cast<char*>(""));
-  temp = test.AclRuleFromString("u:user1:rwx!u");
-  CPPUNIT_ASSERT(temp.first == "u:user1");
-  CPPUNIT_ASSERT(temp.second == 135);
-  temp = test.AclRuleFromString("g:group1:wx!u");
-  CPPUNIT_ASSERT(temp.first == "g:group1");
-  CPPUNIT_ASSERT(temp.second == 134);
-  temp = test.AclRuleFromString("egroup:group1:rx!u");
-  CPPUNIT_ASSERT(temp.first == "egroup:group1");
-  CPPUNIT_ASSERT(temp.second == 133);
-}
-
 void AclCommandTest::TestFunctionality()
 {
   ReqRes temp;

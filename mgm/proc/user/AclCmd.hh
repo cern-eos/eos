@@ -72,6 +72,50 @@ public:
   static void
   GenerateRuleMap(const std::string& acl_string, RuleMap& rmap);
 
+  //----------------------------------------------------------------------------
+  //! Check if id has the correct format i.e u:user_id or g:group_id
+  //!
+  //! @param id string containing id
+  //!
+  //! @return bool true if correct, otherwise false
+  //----------------------------------------------------------------------------
+  bool CheckCorrectId(const std::string& id) const;
+
+  //----------------------------------------------------------------------------
+  //! Get ACL rule from string by creating a pair of identifier for the ACL and
+  //! the bitmask representation.
+  //!
+  //! @param in ACL string
+  //!
+  //! @return std::pair containing ACL identifier (ie. u:user1 or g:group1)
+  //! and the bitmask representation
+  //----------------------------------------------------------------------------
+  static Rule GetRuleFromString(const std::string& in);
+
+  //----------------------------------------------------------------------------
+  //! Convert acl modification command into bitmask rule format
+  //!
+  //! @param input string containing the modifications of the acls
+  //! @param set if true "set" mode is active, otherwise flase
+  //!
+  //! @return bool true if conversion successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool GetRuleBitmask(const std::string& input, bool set = false);
+
+  //----------------------------------------------------------------------------
+  //! Return mAddRule result after GetRuleBitmask call.
+  //----------------------------------------------------------------------------
+  unsigned short GetAddRule() {
+    return mAddRule;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return mRmRule result after GetRuleBitmask call.
+  //----------------------------------------------------------------------------
+  unsigned short GetRmRule() {
+    return mRmRule;
+  }
+
 private:
   //! Enumerator defining which bit represents which acl flag.
   enum ACLPos {
@@ -115,17 +159,6 @@ private:
   int ModifyAcls(const eos::console::AclProto& acl);
 
   //----------------------------------------------------------------------------
-  //! Get ACL rule from string by creating a pair of identifier for the ACL and
-  //! the bitmask representation.
-  //!
-  //! @param in ACL string
-  //!
-  //! @return std::pair containing ACL identifier (ie. u:user1 or g:group1)
-  //! and the bitmask representation
-  //----------------------------------------------------------------------------
-  static Rule GetRuleFromString(const std::string& in);
-
-  //----------------------------------------------------------------------------
   //! Generate acl string representation from a rule map
   //!
   //! @param rmap map of rules to be used for conversion
@@ -133,16 +166,6 @@ private:
   //! @return true if conversion successful, otherwise false
   //----------------------------------------------------------------------------
   static std::string GenerateAclString(const RuleMap& rmap);
-
-  //----------------------------------------------------------------------------
-  //! Convert acl modification command into bitmask rule format
-  //!
-  //! @param input string containing the modifications of the acls
-  //! @param set if true "set" mode is active, otherwise flase
-  //!
-  //! @return bool true if conversion successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool GetRuleBitmask(const std::string& input, bool set = false);
 
   //----------------------------------------------------------------------------
   //! Parse command line (modification) rule given by the client. This specifies
@@ -153,15 +176,6 @@ private:
   //! @return bool true if rule is correct, otherwise false
   //----------------------------------------------------------------------------
   bool ParseRule(const std::string& input);
-
-  //----------------------------------------------------------------------------
-  //! Check if id has the correct format i.e u:user_id or g:group_id
-  //!
-  //! @param id string containing id
-  //!
-  //! @return bool true if correct, otherwise false
-  //----------------------------------------------------------------------------
-  bool CheckCorrectId(const std::string& id) const;
 
   //----------------------------------------------------------------------------
   //! Apply client modification rule(s) to the acls of the current entry
