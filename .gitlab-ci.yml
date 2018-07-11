@@ -226,7 +226,7 @@ build_ubuntu_bionic:
     paths:
     - bionic/
   tags:
-    - docker-<
+    - docker-ubuntu
 
 
 macosx_dmg:
