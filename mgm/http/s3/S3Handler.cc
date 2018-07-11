@@ -113,7 +113,11 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
   // Refresh the data store
   mS3Store->Refresh();
 
-  if (VerifySignature()) {
+  if (!mS3Store->GetKeys().count(GetId())) {
+    response = RestErrorResponse(response->FORBIDDEN, "InvalidAccessKeyId",
+                                 "No corresponding S3 account was found",
+                                  GetId(), "");
+  } else if (VerifySignature()) {
     request->AddEosApp();
     int meth = ParseMethodString(request->GetMethod());
 
@@ -150,11 +154,6 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
 bool
 S3Handler::VerifySignature()
 {
-  if (!mS3Store->GetKeys().count(GetId())) {
-    eos_static_err("msg=\"no such S3 identity\" id=%s", GetId().c_str());
-    return false;
-  }
-
   std::string secure_key = mS3Store->GetKeys()[GetId()];
   std::string string2sign = GetHttpMethod();
   string2sign += "\n";
