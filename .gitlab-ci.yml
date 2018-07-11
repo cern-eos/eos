@@ -258,7 +258,6 @@ eos_dockerimage_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
-    - runner-9
   script:
     - ""
   variables:
@@ -273,11 +272,10 @@ eos_dockerimage_commit:
     - beryl_aquamarine
     - tags
 
-eos_ubuntu_dockerimage_commit:
+ubuntu_dockerimage_commit:
   stage: build:dockerimage
   tags:
-    - docker-ubuntu-image-build
-    - runner-9
+    - docker-image-build
   script:
     - ""
   variables:
@@ -287,16 +285,12 @@ eos_ubuntu_dockerimage_commit:
     - build_cc7
     - clone_docker
   only:
-    - branches
-  except:
-    - beryl_aquamarine
-    - tags
+    - dev
 
 docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
-    - runner-9
   script:
     - ""
   variables:
@@ -311,8 +305,7 @@ docker_image_tag:
 # docker_image_tag:
 #   stage: build:dockerimage
 #   tags:
-#     - docker-ubuntu-image-build
-#     - runner-9
+#     - docker-image-build
 #   script:
 #     - ""
 #   variables:
