@@ -1170,32 +1170,38 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   if (!MgmOfsBrokerUrl.endswith("//eos/")) {
-    Eroute.Say("Config error: the broker url has to be of the form <root://<hostname>[:<port>]//");
+    Eroute.Say("Config error: the broker url has to be of the form "
+               "<root://<hostname>[:<port>]//");
     return 1;
   }
 
   if (MgmOfsVstBrokerUrl.length() && (!MgmOfsVstBrokerUrl.endswith("//eos/"))) {
-    Eroute.Say("Config error: the vst broker url has to be of the form <root://<hostname>[:<port>]//");
+    Eroute.Say("Config error: the vst broker url has to be of the form "
+               "<root://<hostname>[:<port>]//");
     return 1;
   }
 
   if (!MgmConfigDir.length()) {
-    Eroute.Say("Config error: configuration directory is not defined : mgm.configdir=</var/eos/config/>");
+    Eroute.Say("Config error: configuration directory is not defined : "
+               "mgm.configdir=</var/eos/config/>");
     return 1;
   }
 
   if (!MgmMetaLogDir.length()) {
-    Eroute.Say("Config error: meta data log directory is not defined : mgm.metalog=</var/eos/md/>");
+    Eroute.Say("Config error: meta data log directory is not defined : "
+               "mgm.metalog=</var/eos/md/>");
     return 1;
   }
 
   if (!MgmTxDir.length()) {
-    Eroute.Say("Config error: transfer directory is not defined : mgm.txdir=</var/eos/tx/>");
+    Eroute.Say("Config error: transfer directory is not defined : "
+               "mgm.txdir=</var/eos/tx/>");
     return 1;
   }
 
   if (!MgmAuthDir.length()) {
-    Eroute.Say("Config error: auth directory is not defined: mgm.authdir=</var/eos/auth/>");
+    Eroute.Say("Config error: auth directory is not defined: "
+               "mgm.authdir=</var/eos/auth/>");
     return 1;
   }
 
@@ -1227,10 +1233,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Setup the circular in-memory logging buffer
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   // Configure log-file fan out
-  std::vector<std::string> lFanOutTags {"Balancer", "Converter", "DrainJob",
-                                        "ZMQ", "MetadataFlusher", "Http", "Master", "Recycle", "LRU",
-                                        "WFE", "WFE::Job", "GroupBalancer", "GeoBalancer", "GeoTreeEngine",
-                                        "#"};
+  std::vector<std::string> lFanOutTags {
+    "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
+    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+    "GeoBalancer", "GeoTreeEngine", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
