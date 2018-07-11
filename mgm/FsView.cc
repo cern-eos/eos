@@ -2190,7 +2190,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
     }
 
     // register in the configuration engine
-    std::string ckey = MgmConfigQueueName.c_str();
+    ckey = MgmConfigQueueName.c_str();
     ckey += "#";
     ckey += key;
   }
