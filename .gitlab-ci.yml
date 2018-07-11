@@ -1,6 +1,6 @@
 stages:
-  - build:pkgs
-  - build:docker_image
+  - build:rpm
+  - build:dockerimage
   - test
   - publish
   - clean
@@ -10,13 +10,13 @@ before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
 
-
 .system_test_template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - if [ "$CI_JOB_NAME" == "qdb_system_test" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
+    - docker pull gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - if [ "$CI_JOB_NAME" == "system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test eos vid enable krb5
     - docker exec -i eos-mgm-test eos-instance-test-ci
@@ -34,7 +34,7 @@ before_script:
 
 
 .fedora_template: &fedora_template_definition
-  stage: build:pkgs
+  stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
@@ -64,7 +64,7 @@ before_script:
 
 
 .ubuntu_template: &ubuntu_template_definition
-  stage: build:pkgs
+  stage: build:rpm
   script:
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
@@ -89,7 +89,7 @@ before_script:
 
 
 clone_docker:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y git
@@ -103,7 +103,7 @@ clone_docker:
 
 
 build_slc6:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
@@ -138,7 +138,7 @@ build_slc6:
 
 
 build_cc7:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release rpm-sign
@@ -226,11 +226,11 @@ build_ubuntu_bionic:
     paths:
     - bionic/
   tags:
-    - docker-ubuntu
+    - docker-<
 
 
 macosx_dmg:
-  stage: build:pkgs
+  stage: build:rpm
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -255,9 +255,10 @@ macosx_dmg:
 
 
 eos_dockerimage_commit:
-  stage: build:docker_image
+  stage: build:dockerimage
   tags:
     - docker-image-build
+    - runner-9
   script:
     - ""
   variables:
@@ -270,12 +271,32 @@ eos_dockerimage_commit:
     - branches
   except:
     - beryl_aquamarine
+    - tags
 
+eos_ubuntu_dockerimage_commit:
+  stage: build:dockerimage
+  tags:
+    - docker-ubuntu-image-build
+    - runner-9
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
+  dependencies:
+    - build_cc7
+    - clone_docker
+  only:
+    - branches
+  except:
+    - beryl_aquamarine
+    - tags
 
 docker_image_tag:
-  stage: build:docker_image
+  stage: build:dockerimage
   tags:
     - docker-image-build
+    - runner-9
   script:
     - ""
   variables:
@@ -287,9 +308,25 @@ docker_image_tag:
   only:
     - tags
 
+# docker_image_tag:
+#   stage: build:dockerimage
+#   tags:
+#     - docker-ubuntu-image-build
+#     - runner-9
+#   script:
+#     - ""
+#   variables:
+#     TO: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
+#     DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
+#   dependencies:
+#     - build_cc7
+#     - clone_docker
+#   only:
+#     - tags
+
 
 prod_docker_image_tag:
-  stage: build:docker_image
+  stage: build:dockerimage
   tags:
     - docker-image-build
   script:
@@ -343,15 +380,17 @@ system_test:
   <<: *system_test_template_definition
   tags:
     - shell-with-docker
+  allow_failure: true
   dependencies:
     - clone_docker
   retry: 1
 
-qdb_system_test:
+system_test_with_quarkdb:
   stage: test
   <<: *system_test_template_definition
   tags:
     - xrootd-shell
+  allow_failure: true
   dependencies:
     - clone_docker
   retry: 1
@@ -362,7 +401,8 @@ stress_test:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - docker pull gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --gitlab --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -500,7 +540,7 @@ clean_debian_artifacts:
 
 
 periodic_coverity:
-  stage: build:pkgs
+  stage: build:rpm
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -521,7 +561,7 @@ periodic_coverity:
 
 
 cppcheck_sonar:
-  stage: build:pkgs
+  stage: build:rpm
   script:
     - cppcheck -v --enable=all --inline-suppr --xml --xml-version=2 -i common/fmt -i fst/layout/gf-complete -i fst/layout/jerasure -i common/sqlite -i namespace/ns_quarkdb/qclient common/ fst/ mgm/ console/ fuse/ fusex/ namespace/ mq/ 2> cppcheck-report.xml
     - sonar-scanner -Dsonar.host.url=http://sonar.cern.ch -Dsonar.cxx.cppcheck.reportPath=cppcheck-report.xml  -Dsonar.projectKey=eos:eos -Dsonar.projectName=eos -Dsonar.projectVersion="`./genversion.sh`" -Dsonar.sources=common/,fst/,mgm/,console/,fuse/,namespace/,mq/
@@ -538,7 +578,7 @@ cppcheck_sonar:
 #-------------------------------------------------------------------------------
 
 eos_nginx_slc6:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
@@ -561,7 +601,7 @@ eos_nginx_slc6:
 
 
 eos_nginx_cc7:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
@@ -582,7 +622,7 @@ eos_nginx_cc7:
 
 
 eos_apmon_slc6:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
@@ -610,7 +650,7 @@ eos_apmon_slc6:
 
 
 eos_apmon_cc7:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
@@ -631,7 +671,7 @@ eos_apmon_cc7:
 
 
 eos_microhttpd_slc6:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ make rpm-build which git tar sudo createrepo
@@ -651,7 +691,7 @@ eos_microhttpd_slc6:
 
 
 eos_microhttpd_cc7:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo
@@ -670,7 +710,7 @@ eos_microhttpd_cc7:
 
 
 eos_docs:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y make python-sphinx sssd-client sudo which git
@@ -685,7 +725,7 @@ eos_docs:
 
 
 eos_repopackage:
-  stage: build:pkgs
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y rpm-build sssd-client sudo createrepo
