@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file RegexUtilTest.hh
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+// File: ConsoleMainExecutable.cc
+// Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,25 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __REGEXUTILTEST__HH__
-#define __REGEXUTILTEST__HH__
+#include "ConsoleMain.hh"
 
-#include <cppunit/extensions/HelperMacros.h>
-#include<string>
-#include "../RegexUtil.hh"
-
-class RegexUtilTest : public CppUnit::TestCase
+int
+main(int argc, char* argv[])
 {
-  CPPUNIT_TEST_SUITE(RegexUtilTest);
-  CPPUNIT_TEST(TestUtility);
-  CPPUNIT_TEST_SUITE_END();
-
-public:
-  //  CPPUNIT required methods
-  void setUp() {};
-  void tearDown() {};
-
-  void TestUtility();
-};
-
-#endif //__REGEXUTILTEST__HH__
+  return Run(argc, argv);
+}

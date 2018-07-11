@@ -87,6 +87,8 @@ char* stripwhite(char* string);
 COMMAND* find_command(const char* command);
 int execute_line(char* line);
 
+int Run(int argc, char* argv[]);
+
 //------------------------------------------------------------------------------
 //! Check if input matches pattern and extact the file id if possible
 //!

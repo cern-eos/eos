@@ -39,6 +39,9 @@ include_directories(
 set(MQ_UT_SRCS
   mq/XrdMqMessageTests.cc)
 
+set(CONSOLE_UT_SRCS
+  console/RegexUtilTest.cc)
+
 set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/FsViewTests.cc
@@ -59,7 +62,7 @@ set(FST_UT_SRCS
   fst/XrdFstOfsFileTest.cc
   fst/HealthTest.cc)
 
-set(UT_SRCS ${MQ_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
+set(UT_SRCS ${MQ_UT_SRCS} ${CONSOLE_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
 add_executable(eos-unit-tests ${UT_SRCS})
 
 set(UT_FST_SRCS ${FST_UT_SRCS})
@@ -90,8 +93,11 @@ set_target_properties(
 target_link_libraries(
   eos-unit-tests
   gtest_main
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
   gmock
   XrdEosMgm-Shared
+  EosFstIo-Static
+  ${READLINE_LIBRARY}
   ${XROOTD_SERVER_LIBRARY})
 
 target_link_libraries(

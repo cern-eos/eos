@@ -686,7 +686,7 @@ usage()
 // Main executable
 //------------------------------------------------------------------------------
 int
-main(int argc, char* argv[])
+Run(int argc, char* argv[])
 {
   bool checked_mgm = false;
   char* line, *s;
