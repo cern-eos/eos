@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/backward-cpp/backward.hpp"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -256,6 +257,17 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+  if(file->getName().empty()) {
+    using namespace backward;
+    StackTrace st;
+    st.load_here(32);
+    Printer p;
+    p.object = true;
+    p.address = true;
+    p.print(st, std::cerr);
+    throw_mdexception(EINVAL, "Attempted to add file with empty filename! ID: " << file->getId());
+  }
 
   file->setContainerId(mCont.id());
   (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
