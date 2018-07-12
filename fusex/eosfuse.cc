@@ -61,17 +61,22 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 
 #include <sys/resource.h>
 #include <sys/types.h>
-#ifdef __APPLE__
-#define O_DIRECT 0
-#define EKEYEXPIRED 127
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
 #include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
+#endif
+#ifdef __APPLE__
+#define O_DIRECT 0
+#define EKEYEXPIRED 127
+#else
 #include <sys/resource.h>
 #endif
 
 #include <json/json.h>
-
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"

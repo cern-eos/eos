@@ -31,23 +31,23 @@
 #include <sstream>
 #include <memory>
 #include <algorithm>
-
 #include <dirent.h>
 #include <stdint.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <sys/types.h>
-#ifdef __APPLE__
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
 #include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
 #endif
 
 #include "common/Timing.hh"
-
 #include <XrdCl/XrdClDefaultEnv.hh>
 
 #define _FILE_OFFSET_BITS 64

@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOS_FUSE_FUSEFSTEST_HH__
+#define __EOS_FUSE_FUSEFSTEST_HH__
+
 #include <cppunit/extensions/HelperMacros.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -28,14 +31,15 @@
 #include <utime.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <attr/xattr.h>
 #include <dirent.h>
 #include <string.h>
 #include <algorithm>
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
+#include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
+#endif
 #include "TestEnv.hh"
-
-#ifndef __EOS_FUSE_FUSEFSTEST_HH__
-#define __EOS_FUSE_FUSEFSTEST_HH__
 
 //------------------------------------------------------------------------------
 //! FuseFsTest class

@@ -27,13 +27,20 @@
 #include "common/Path.hh"
 #include <unistd.h>
 #include <sys/types.h>
+#include <errno.h>
 #ifdef __APPLE__
 #define EKEYEXPIRED 127
-#include <sys/xattr.h>
 #include "XrdSys/XrdSysPlatform.hh"
+#endif
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
+#include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
 #endif
+
 std::string diskcache::sLocation;
 bufferllmanager diskcache::sBufferManager;
 off_t diskcache::sMaxSize = 2 * 1024 * 1024ll;
