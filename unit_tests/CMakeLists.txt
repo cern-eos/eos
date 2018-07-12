@@ -91,6 +91,8 @@ set_target_properties(
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+add_dependencies(eos-unit-tests EosConsoleCommands-Objects)
+
 target_link_libraries(
   eos-unit-tests
   gtest_main
