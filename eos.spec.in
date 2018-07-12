@@ -81,6 +81,7 @@ BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
 BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
+BuildRequires: glibc-headers
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: eos-rocksdb = 5.7.3-1%{dist}
