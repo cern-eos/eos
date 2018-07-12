@@ -56,7 +56,7 @@ before_script:
 .fedora_template: &fedora_template_definition
   stage: build:rpm
   script:
-    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar dnf-plugins-core ccache rpm-sign
+    - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
     - mkdir build; cd build
     - cmake3 .. -DPACKAGEONLY=1; make srpm; cd ..
@@ -106,7 +106,6 @@ before_script:
     paths:
     - ccache/
   allow_failure: true
-
 
 
 clone_docker:
@@ -191,15 +190,6 @@ build_cc7:
     - cc7_artifacts/
   tags:
     - docker-cc7
-
-
-build_fedora27:
-  image: fedora:27
-  <<: *fedora_template_definition
-  variables:
-    EOS_ARCH: fc-27
-  tags:
-    - docker-fc25
 
 
 build_fedora28:
