@@ -24,6 +24,9 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "MgmExecute.hh"
 #include <memory>
+#include <sstream>
+
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
 #ifndef BUILD_TESTS
 //------------------------------------------------------------------------------
@@ -75,6 +78,19 @@ int MgmExecute::process(const std::string& response)
 //------------------------------------------------------------------------------
 int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
 {
+  if(mSimulationMode) {
+    if(mSimulatedData.front().expectedCommand != command) {
+      mSimulationErrors += SSTR("Expected command '" <<
+        mSimulatedData.front().expectedCommand << "', received '" << command << "'");
+      return EIO;
+    }
+
+    // Command is OK
+    mOutcome = mSimulatedData.front().outcome;
+    mSimulatedData.pop();
+    return mOutcome.errc;
+  }
+
   std::string reply;
   XrdOucString command_xrd = XrdOucString(command);
   // Discard XrdOucEnv response as this is used by the old type of commands and

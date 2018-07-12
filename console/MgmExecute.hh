@@ -23,11 +23,7 @@
 
 #pragma once
 #include "console/ConsoleMain.hh"
-
-#ifdef BUILD_TESTS
-class AclCommandTest;
-#include "console/tests/MgmExecuteTest.hh"
-#else
+#include <queue>
 
 //------------------------------------------------------------------------------
 //! Class MgmExecute
@@ -36,6 +32,18 @@ class AclCommandTest;
 class MgmExecute
 {
 public:
+  //----------------------------------------------------------------------------
+  //! ExecutionOutcome struct: Stores output from a single execution
+  //----------------------------------------------------------------------------
+  struct ExecutionOutcome {
+    ExecutionOutcome() : result(""), error(""), errc(0) {}
+    ExecutionOutcome(const std::string &res, const std::string &err = "", int c = 0)
+    : result(res), error(err), errc(c) {}
+
+    std::string result;  ///< String holding the result
+    std::string error;   ///< String holding the error message
+    int errc;            ///< Command return code
+  };
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -81,17 +89,27 @@ public:
     return mOutcome.errc;
   }
 
-private:
   //----------------------------------------------------------------------------
-  //! Stores output from a single execution
+  //! Inject simulated data. After calling this function, ALL responses from
+  //! this class will be simulated, and there's no turning back.
   //----------------------------------------------------------------------------
-  struct ExecutionOutcome {
-    ExecutionOutcome() : result(""), error(""), errc(0) {}
-    std::string result;  ///< String holding the result
-    std::string error;   ///< String holding the error message
-    int errc;            ///< Command return code
-  };
+  void InjectSimulated(const std::string &command, const ExecutionOutcome &outcome)
+  {
+    mSimulationMode = true;
+    mSimulatedData.emplace(FakeEntry{command, outcome});
+  }
 
+  //----------------------------------------------------------------------------
+  //! Check whether simulation was successful, ie we received the exact
+  //! commands in the specified order.
+  //----------------------------------------------------------------------------
+  bool CheckSimulationSuccessful(std::string &message)
+  {
+    message = mSimulationErrors;
+    return mSimulatedData.empty() && mSimulationErrors.empty();
+  }
+
+private:
   //----------------------------------------------------------------------------
   //! Command to process the server response
   //!
@@ -102,6 +120,20 @@ private:
   int process(const std::string& reply);
 
   ExecutionOutcome mOutcome; ///< Stores outcome of last operation
-};
 
-#endif //BUILD_TESTS
+  //----------------------------------------------------------------------------
+  //! FakeEntry struct: Stores information about a fake request / response pair
+  //----------------------------------------------------------------------------
+  struct FakeEntry {
+    std::string expectedCommand;
+    ExecutionOutcome outcome;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Simulation mode: Expect calls in the following order, and provide the
+  //! given fake responses
+  //----------------------------------------------------------------------------
+  bool mSimulationMode = false;
+  std::queue<FakeEntry> mSimulatedData;
+  std::string mSimulationErrors;
+};

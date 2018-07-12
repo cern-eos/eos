@@ -23,8 +23,86 @@
 
 #include "gtest/gtest.h"
 #include "mgm/proc/user/AclCmd.hh"
+#include "console/MgmExecute.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+TEST(MgmExecute, SimpleSimulation)
+{
+  // Note: This only tests the faking capabilities of MgmExecute.
+  MgmExecute exec;
+  std::string message;
+
+  exec.InjectSimulated("mgm.cmd=ayy&mgm.subcmd=lmao", {"12345"} );
+  ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy&mgm.subcmd=lmao", true), 0);
+  ASSERT_EQ(exec.GetResult(), "12345");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 0);
+  ASSERT_TRUE(exec.CheckSimulationSuccessful(message));
+}
+
+TEST(MgmExecute, ComplexSimulation)
+{
+  // Note: This only tests the faking capabilities of MgmExecute.
+  MgmExecute exec;
+  std::string message;
+
+  exec.InjectSimulated("mgm.cmd=ayy1&mgm.subcmd=lmao1", {"12345", "some error"} );
+  exec.InjectSimulated("mgm.cmd=ayy2&mgm.subcmd=lmao2", {"23456"} );
+  exec.InjectSimulated("mgm.cmd=ayy2&mgm.subcmd=lmao2", {"999", "error 2"} );
+  exec.InjectSimulated("mgm.cmd=ayy3&mgm.subcmd=lmao3", {"888", "error 3", 987} );
+  exec.InjectSimulated("mgm.cmd=ayy1&mgm.subcmd=lmao1", {"234567"} );
+  ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy1&mgm.subcmd=lmao1", true), 0);
+  ASSERT_EQ(exec.GetResult(), "12345");
+  ASSERT_EQ(exec.GetError(), "some error");
+  ASSERT_EQ(exec.GetErrc(), 0);
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy2&mgm.subcmd=lmao2", true), 0);
+  ASSERT_EQ(exec.GetResult(), "23456");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 0);
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy2&mgm.subcmd=lmao2", true), 0);
+  ASSERT_EQ(exec.GetResult(), "999");
+  ASSERT_EQ(exec.GetError(), "error 2");
+  ASSERT_EQ(exec.GetErrc(), 0);
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy3&mgm.subcmd=lmao3", true), 987);
+  ASSERT_EQ(exec.GetResult(), "888");
+  ASSERT_EQ(exec.GetError(), "error 3");
+  ASSERT_EQ(exec.GetErrc(), 987);
+
+  ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy1&mgm.subcmd=lmao1", true), 0);
+  ASSERT_EQ(exec.GetResult(), "234567");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 0);
+
+  ASSERT_TRUE(exec.CheckSimulationSuccessful(message));
+}
+
+TEST(MgmExecute, FailedSimulation)
+{
+  // Note: This only tests the faking capabilities of MgmExecute.
+  MgmExecute exec;
+  std::string message;
+
+  exec.InjectSimulated("mgm.cmd=ayy1&mgm.subcmd=lmao1", {"12345", "some error"} );
+  exec.InjectSimulated("mgm.cmd=ayy2&mgm.subcmd=lmao2", {"23456"} );
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy1&mgm.subcmd=lmao1", true), 0);
+  ASSERT_EQ(exec.GetResult(), "12345");
+  ASSERT_EQ(exec.GetError(), "some error");
+  ASSERT_EQ(exec.GetErrc(), 0);
+
+  ASSERT_EQ(exec.ExecuteCommand("mgm.cmd=ayy3&mgm.subcmd=lmao3", true), EIO);
+  std::cout << message << std::endl;
+  ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
+}
 
 TEST(AclCmd, CheckId)
 {
