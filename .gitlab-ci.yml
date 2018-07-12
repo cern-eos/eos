@@ -15,6 +15,27 @@ before_script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - if [ "$CI_JOB_NAME" == "system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
+    - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
+    - docker exec -i eos-mgm-test eos vid enable krb5
+    - docker exec -i eos-mgm-test eos-instance-test-ci
+    - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
+    - docker exec -i eos-client-test mkdir /eos1/
+    - docker exec -di eos-client-test mount -t fuse eosxd /eos1/
+    - docker exec -i eos-client-test mkdir /eos2/
+    - docker exec -di eos-client-test mount -t fuse eosxd /eos2/
+    - docker exec -i -u eos-user eos-client-test bash -c '(cd /eos1/dockertest/ && fusex-benchmark)'
+    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" all; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
+    - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
+    - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+
+.ubuntu_system_test_template: &ubuntu_system_test_template_definition
+  script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
+    - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - docker pull gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - if [ "$CI_JOB_NAME" == "system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
@@ -31,7 +52,6 @@ before_script:
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
-
 
 .fedora_template: &fedora_template_definition
   stage: build:rpm
@@ -86,6 +106,7 @@ before_script:
     paths:
     - ccache/
   allow_failure: true
+
 
 
 clone_docker:
@@ -376,6 +397,16 @@ system_test:
     - clone_docker
   retry: 1
 
+ubuntu_system_test:
+  stage: test
+  <<: *ubuntu_system_test_template_definition
+  tags:
+    - shell-with-docker
+  allow_failure: true
+  dependencies:
+    - clone_docker
+  retry: 1
+
 system_test_with_quarkdb:
   stage: test
   <<: *system_test_template_definition
@@ -392,8 +423,7 @@ stress_test:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - docker pull gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} 
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --gitlab --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
     - sudo ./eos-docker/scripts/shutdown_services.sh
