@@ -23,15 +23,17 @@
 
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/local/FsIo.hh"
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
+#include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
+#endif
 #ifndef __APPLE__
 #include <xfs/xfs.h>
-#include <attr/xattr.h>
-#else
-#include <sys/xattr.h>
 #endif
-
 #undef __USE_FILE_OFFSET64
 #include <fts.h>
+
 
 EOSFSTNAMESPACE_BEGIN
 

@@ -37,12 +37,10 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <thread>
-
-#ifndef __APPLE__
-#include <xfs/xfs.h>
-#include <attr/xattr.h>
-#else
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
 #include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
 #endif
 
 EOSFSTNAMESPACE_BEGIN

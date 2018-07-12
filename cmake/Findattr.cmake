@@ -12,7 +12,7 @@ if(ATTR_INCLUDE_DIRS AND ATTR_LIBRARIES)
 else()
   find_path(
     ATTR_INCLUDE_DIR
-    NAMES attr/xattr.h
+    NAMES attr/xattr.h sys/xattr.h
     HINTS ${ATTR_ROOT_DIR}
     PATH_SUFFIXES include)
 

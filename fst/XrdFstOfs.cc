@@ -63,9 +63,13 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sstream>
-#include <sys/xattr.h>
 #include <thread>
 #include "qclient/Members.hh"
+#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
+#include <sys/xattr.h>
+#else
+#include <attr/xattr.h>
+#endif
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
