@@ -31,7 +31,7 @@
 //------------------------------------------------------------------------------
 int MgmExecute::process(const std::string& response)
 {
-  mErrc = 0;
+  mOutcome.errc = 0;
   std::vector<std::pair<std::string, ssize_t>> tags {
     std::make_pair("mgm.proc.stdout=", -1),
     std::make_pair("&mgm.proc.stderr=", -1),
@@ -45,28 +45,28 @@ int MgmExecute::process(const std::string& response)
   if (tags[0].second == -1) {
     // This is a "FUSE" format response that only contains the stdout without
     // error message or return code
-    mResult = response;
-    return mErrc;
+    mOutcome.result = response;
+    return mOutcome.errc;
   }
 
   // Parse stdout
-  mResult = response.substr(tags[0].first.length(),
+  mOutcome.result = response.substr(tags[0].first.length(),
                             tags[1].second - tags[1].first.length() + 1);
-  rstdout = mResult.c_str();
+  rstdout = mOutcome.result.c_str();
   // Parse stderr
-  mError = response.substr(tags[1].second + tags[1].first.length(),
+  mOutcome.error = response.substr(tags[1].second + tags[1].first.length(),
                            tags[2].second - (tags[1].second + tags[1].first.length()));
-  rstderr = mError.c_str();
+  rstderr = mOutcome.error.c_str();
 
   // Parse return code
   try {
-    mErrc = std::stoi(response.substr(tags[2].second + tags[2].first.length()));
+    mOutcome.errc = std::stoi(response.substr(tags[2].second + tags[2].first.length()));
   } catch (...) {
     rstderr = "error: failed to parse response from server";
     return EINVAL;
   }
 
-  return mErrc;
+  return mOutcome.errc;
 }
 
 //------------------------------------------------------------------------------

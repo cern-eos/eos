@@ -40,7 +40,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MgmExecute(): mResult(""), mError(""), mErrc(0) {}
+  MgmExecute() {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -62,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   inline std::string& GetResult()
   {
-    return mResult;
+    return mOutcome.result;
   }
 
   //----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ public:
   //----------------------------------------------------------------------------
   inline std::string& GetError()
   {
-    return mError;
+    return mOutcome.error;
   }
 
   //----------------------------------------------------------------------------
@@ -78,10 +78,20 @@ public:
   //----------------------------------------------------------------------------
   inline int GetErrc()
   {
-    return mErrc;
+    return mOutcome.errc;
   }
 
 private:
+  //----------------------------------------------------------------------------
+  //! Stores output from a single execution
+  //----------------------------------------------------------------------------
+  struct ExecutionOutcome {
+    ExecutionOutcome() : result(""), error(""), errc(0) {}
+    std::string result;  ///< String holding the result
+    std::string error;   ///< String holding the error message
+    int errc;            ///< Command return code
+  };
+
   //----------------------------------------------------------------------------
   //! Command to process the server response
   //!
@@ -91,9 +101,7 @@ private:
   //----------------------------------------------------------------------------
   int process(const std::string& reply);
 
-  std::string mResult; ///< String holding the result
-  std::string mError; ///< String holding the error message
-  int mErrc; ///< Command return code
+  ExecutionOutcome mOutcome; ///< Stores outcome of last operation
 };
 
 #endif //BUILD_TESTS
