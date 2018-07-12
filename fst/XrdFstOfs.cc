@@ -63,7 +63,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sstream>
-#include <attr/xattr.h>
+#include <sys/xattr.h>
 #include <thread>
 #include "qclient/Members.hh"
 
