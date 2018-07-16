@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/backward-cpp/backward.hpp"
+#include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"
 #include "common/SharedMutex.hh"
@@ -374,6 +375,7 @@ RWMutex::LockWrite()
 #endif
   }
 
+  mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mWr);
 }
 
@@ -412,6 +414,20 @@ RWMutex::UnLockWrite()
   }
 
 #endif
+
+  uint64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
+  if(blockedFor >= 30000) {
+    std::ostringstream ss;
+    ss << "WARNING - mutex held for " << blockedFor << " milliseconds by this thread: " << std::endl;
+    using namespace backward;
+    StackTrace st;
+    st.load_here(32);
+    Printer p;
+    p.object = true;
+    p.address = true;
+    p.print(st, ss);
+    eos_static_crit(ss.str().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------

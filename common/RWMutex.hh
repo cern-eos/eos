@@ -467,6 +467,8 @@ public:
 #endif
 
 private:
+  std::atomic<uint64_t> mLastWriteLock;
+
   bool mBlocking;
   IRWMutex* mMutexImpl;
   pthread_rwlock_t rwlock;
