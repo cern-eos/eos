@@ -620,7 +620,8 @@ public:
   ~RWMutexReadLock();
 
 private:
-  RWMutex* mRdMutex;
+  std::chrono::steady_clock::time_point mAcquiredAt;
+  RWMutex* mRdMutex = nullptr;
 };
 
 //------------------------------------------------------------------------------

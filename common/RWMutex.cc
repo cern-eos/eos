@@ -418,7 +418,7 @@ RWMutex::UnLockWrite()
   uint64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
   if(blockedFor >= 30000) {
     std::ostringstream ss;
-    ss << "WARNING - mutex held for " << blockedFor << " milliseconds by this thread: " << std::endl;
+    ss << "WARNING - write lock held for " << blockedFor << " milliseconds by this thread: " << std::endl;
     using namespace backward;
     StackTrace st;
     st.load_here(32);
@@ -1323,10 +1323,9 @@ RWMutexWriteLock::~RWMutexWriteLock()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex):
-  mRdMutex(&mutex)
+RWMutexReadLock::RWMutexReadLock(RWMutex& mutex)
 {
-  mRdMutex->LockRead();
+  Grab(mutex);
 }
 
 //----------------------------------------------------------------------------
@@ -1341,6 +1340,7 @@ RWMutexReadLock::Grab(RWMutex& mutex)
 
   mRdMutex = &mutex;
   mRdMutex->LockRead();
+  mAcquiredAt = std::chrono::steady_clock::now();
 }
 
 void
@@ -1349,6 +1349,20 @@ RWMutexReadLock::Release()
   if (mRdMutex) {
     mRdMutex->UnLockRead();
     mRdMutex = nullptr;
+
+    std::chrono::milliseconds blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - mAcquiredAt);
+    if(blockedFor.count() > 30000) {
+      std::ostringstream ss;
+      ss << "WARNING - read lock held for " << blockedFor.count() << " milliseconds by this thread: " << std::endl;
+      using namespace backward;
+      StackTrace st;
+      st.load_here(32);
+      Printer p;
+      p.object = true;
+      p.address = true;
+      p.print(st, ss);
+      eos_static_crit(ss.str().c_str());
+    }
   }
 }
 
