@@ -107,8 +107,10 @@ XrdMgmOfs::_access(const char *path,
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath());
 
-  if (lock)
-    gOFS->eosViewRWMutex.LockRead();
+  eos::common::RWMutexReadLock viewReadLock;
+  if (lock) {
+    viewReadLock.Grab(gOFS->eosViewRWMutex);
+  }
 
   // check for existing file
   try {
@@ -158,8 +160,6 @@ XrdMgmOfs::_access(const char *path,
     if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
       eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
       errno = EPERM;
-      if (lock)
-	gOFS->eosViewRWMutex.UnLockRead();
       return Emsg(epname, error, EPERM, "access", path);
     }
 
@@ -225,8 +225,6 @@ XrdMgmOfs::_access(const char *path,
   if (!dh) {
     eos_debug("msg=\"access\" errno=ENOENT");
     errno = ENOENT;
-    if (lock)
-      gOFS->eosViewRWMutex.UnLockRead();
     return Emsg(epname, error, ENOENT, "access", path);
   }
 
@@ -241,29 +239,17 @@ XrdMgmOfs::_access(const char *path,
   }
 
   if (dh && (mode & F_OK)) {
-    if (lock)
-      gOFS->eosViewRWMutex.UnLockRead();
-
     return SFS_OK;
   }
 
   if (dh && permok) {
-    if (lock)
-      gOFS->eosViewRWMutex.UnLockRead();
-
     return SFS_OK;
   }
 
   if (dh && (!permok)) {
-    if (lock)
-      gOFS->eosViewRWMutex.UnLockRead();
-
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access", path);
   }
-
-  if (lock)
-    gOFS->eosViewRWMutex.UnLockRead();
 
   errno = EOPNOTSUPP;
   return Emsg(epname, error, EOPNOTSUPP, "access", path);

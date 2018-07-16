@@ -344,12 +344,12 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
       }
 
       // get the file md object
-      gOFS->eosViewRWMutex.LockRead();
+      eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd;
 
       try {
         fmd = gOFS->eosView->getFile(fullname);
-        gOFS->eosViewRWMutex.UnLockRead();
+        viewReadLock.Release();
         //-------------------------------------------
         result += "<Contents>";
         result += "<Key>";
@@ -389,7 +389,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
         result += "</Owner>";
         result += "</Contents>";
       } catch (eos::MDException& e) {
-        gOFS->eosViewRWMutex.UnLockRead();
+        viewReadLock.Release();
         //-------------------------------------------
       }
 

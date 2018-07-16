@@ -333,7 +333,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
     if (errno) {
       return Emsg(epname, error, errno, "drop all stripes", path);
     }
-    
+
     try {
       fmd = gOFS->eosView->getFile(path);
 
@@ -346,12 +346,12 @@ XrdMgmOfs::_dropallstripes(const char* path,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
       // return error if we don't have the file metadata
-      return e.getErrno(); 
+      return e.getErrno();
     }
   }
 
   try {
-    // only write lock at this point  
+    // only write lock at this point
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
     for (auto location : fmd->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
@@ -494,7 +494,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid, targetfsid,
             dropsource);
   // ---------------------------------------------------------------------------
-  gOFS->eosViewRWMutex.LockRead();
+  eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
 
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -535,12 +535,11 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
   if (errno) {
     // -------------------------------------------------------------------------
-    gOFS->eosViewRWMutex.UnLockRead();
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
   // ---------------------------------------------------------------------------
-  gOFS->eosViewRWMutex.UnLockRead();
+  viewReadLock.Release();
   int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
                               targetfsid, dropsource, expressflag);
   EXEC_TIMING_END("ReplicateStripe");

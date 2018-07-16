@@ -382,14 +382,14 @@ ProcCommand::Find()
                 printpartition || selectrepdiff || selectonehour ||
                 selectoldertime || selectyoungertime || purge_atomic) {
               //-------------------------------------------
-              gOFS->eosViewRWMutex.LockRead();
+              eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
               std::shared_ptr<eos::IFileMD> fmd;
 
               try {
                 bool selected = true;
                 unsigned long long filesize = 0;
                 fmd = gOFS->eosView->getFile(fspath.c_str());
-                gOFS->eosViewRWMutex.UnLockRead();
+                viewReadLock.Release();
                 //-------------------------------------------
 
                 if (selectonehour) {
@@ -740,7 +740,7 @@ ProcCommand::Find()
               } catch (eos::MDException& e) {
                 eos_debug("caught exception %d %s\n", e.getErrno(),
                           e.getMessage().str().c_str());
-                gOFS->eosViewRWMutex.UnLockRead();
+                viewReadLock.Release();
                 //-------------------------------------------
               }
             } else {
@@ -757,7 +757,7 @@ ProcCommand::Find()
           } else {
             // get location
             //-------------------------------------------
-            gOFS->eosViewRWMutex.LockRead();
+            eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
             std::shared_ptr<eos::IFileMD> fmd;
 
             try {
@@ -768,7 +768,7 @@ ProcCommand::Find()
             }
 
             if (fmd) {
-              gOFS->eosViewRWMutex.UnLockRead();
+              viewReadLock.Release();
               //-------------------------------------------
 
               for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
@@ -805,7 +805,7 @@ ProcCommand::Find()
                 }
               }
             } else {
-              gOFS->eosViewRWMutex.UnLockRead();
+              viewReadLock.Release();
               //-------------------------------------------
             }
           }

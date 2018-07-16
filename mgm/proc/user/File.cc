@@ -86,7 +86,7 @@ ProcCommand::File()
       unsigned long fsid = (sfsid.length()) ? strtoul(sfsid.c_str(), 0, 10) : 0;
       unsigned long fid = (spathid.length()) ? strtoul(spathid.c_str(), 0, 10) : 0;
 
-      
+
       if (gOFS->_dropstripe(spath.c_str(), fid, *mError, *pVid, fsid, forceRemove)) {
         stdErr += "error: unable to drop stripe";
         retc = errno;
@@ -269,6 +269,7 @@ ProcCommand::File()
 
       // only root can do that
       if (pVid->uid == 0) {
+        eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -288,7 +289,6 @@ ProcCommand::File()
           // -------------------------------------------------------------------
           // reference by fid+fsid
           // -------------------------------------------------------------------
-          gOFS->eosViewRWMutex.LockRead();
 
           try {
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -306,7 +306,6 @@ ProcCommand::File()
           // -------------------------------------------------------------------
           // reference by path
           // -------------------------------------------------------------------
-          gOFS->eosViewRWMutex.LockRead();
 
           try {
             fmd = gOFS->eosView->getFile(spath.c_str());
@@ -340,7 +339,7 @@ ProcCommand::File()
             isRAIN = true;
           }
 
-          gOFS->eosViewRWMutex.UnLockRead();
+          viewReadLock.Release();
           retc = 0;
           bool acceptfound = false;
 
@@ -400,8 +399,6 @@ ProcCommand::File()
               retc = errno;
             }
           }
-        } else {
-          gOFS->eosViewRWMutex.UnLockRead();
         }
 
         //-------------------------------------------
@@ -1262,7 +1259,7 @@ ProcCommand::File()
           icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
         }
 
-        gOFS->eosViewRWMutex.LockRead();
+        eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
 
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -1309,7 +1306,7 @@ ProcCommand::File()
 
         if (fmd) {
           unsigned long long fid = fmd->getId();
-          gOFS->eosViewRWMutex.UnLockRead();
+          viewReadLock.Release();
           //-------------------------------------------
 
           // Check if that is a replica layout at all
@@ -1693,7 +1690,7 @@ ProcCommand::File()
             }
           }
         } else {
-          gOFS->eosViewRWMutex.UnLockRead();
+          viewReadLock.Release();
         }
       } else {
         retc = EPERM;

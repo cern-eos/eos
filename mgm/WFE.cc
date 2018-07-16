@@ -857,7 +857,7 @@ WFE::Job::DoIt(bool issync)
           std::shared_ptr<eos::IContainerMD> cmd ;
           // do meta replacement
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-          gOFS->eosViewRWMutex.LockRead();
+          eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -871,7 +871,7 @@ WFE::Job::DoIt(bool issync)
           if (fmd.get() && cmd.get()) {
             std::shared_ptr<eos::IFileMD> cfmd  = fmd;
             std::shared_ptr<eos::IContainerMD> ccmd = cmd;
-            gOFS->eosViewRWMutex.UnLockRead();
+            viewReadLock.Release();
             std::string cv;
             eos::IFileMD::ctime_t ctime;
             eos::IFileMD::ctime_t mtime;
@@ -1603,7 +1603,7 @@ WFE::Job::DoIt(bool issync)
           } else {
             storetime = 0;
             retc = EINVAL;
-            gOFS->eosViewRWMutex.UnLockRead();
+            viewReadLock.Release();
             eos_static_err("msg=\"failed to run bash workflow - file gone\" job=\"%s\"",
                            mDescription.c_str());
             Move(mActions[0].mQueue, "g", storetime);

@@ -343,8 +343,9 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
+  eos::common::RWMutexReadLock viewReadLock;
   if (take_lock) {
-    gOFS->eosViewRWMutex.LockRead();
+    viewReadLock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -386,9 +387,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  if (take_lock) {
-    gOFS->eosViewRWMutex.UnLockRead();
-  }
+  viewReadLock.Release();
 
   // we always decode attributes here, even if they are stored as base64:
   XrdOucString val64 = value;

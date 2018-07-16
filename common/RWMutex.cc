@@ -1313,9 +1313,7 @@ RWMutexWriteLock::Release()
 //------------------------------------------------------------------------------
 RWMutexWriteLock::~RWMutexWriteLock()
 {
-  if (mWrMutex) {
-    mWrMutex->UnLockWrite();
-  }
+  Release();
 }
 
 //------------------------------------------------------------------------------
@@ -1359,9 +1357,7 @@ RWMutexReadLock::Release()
 //------------------------------------------------------------------------------
 RWMutexReadLock::~RWMutexReadLock()
 {
-  if (mRdMutex) {
-    mRdMutex->UnLockRead();
-  }
+  Release();
 }
 
 EOSCOMMONNAMESPACE_END
