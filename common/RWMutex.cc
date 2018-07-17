@@ -450,6 +450,11 @@ RWMutex::TimedWrLock(uint64_t timeout_ns)
   }
 
 #endif
+
+  if(retc == 0) {
+    mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
+
   return (retc == 0);
 }
 
