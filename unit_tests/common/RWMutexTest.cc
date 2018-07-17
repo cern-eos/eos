@@ -23,6 +23,15 @@
 
 #include "gtest/gtest.h"
 #include "common/RWMutex.hh"
+#include "common/StacktraceHere.hh"
+
+//------------------------------------------------------------------------------
+// Check stacktrace generation
+//------------------------------------------------------------------------------
+TEST(StacktraceHere, BasicSanity)
+{
+  std::cout << eos::common::getStacktrace() << std::endl;
+}
 
 //------------------------------------------------------------------------------
 // Double write lock

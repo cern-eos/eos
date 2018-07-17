@@ -49,6 +49,7 @@
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/QuarkDBConfigEngine.hh"
+#include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
 #include "common/ZMQ.hh"
@@ -2003,6 +2004,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if ((MgmMaster.IsMaster()) && (!Recycler->Start())) {
     eos_warning("msg=\"cannot start recycle thread\"");
   }
+
+  // Print a test-stacktrace to ensure we have debugging symbols.
+  std::ostringstream ss;
+  ss << "Printing a test stacktrace to check for debugging symbols." << std::endl;
+  ss << eos::common::getStacktrace() << std::endl;
+  eos_static_info(ss.str().c_str());
 
   // add all stat entries with 0
   InitStats();

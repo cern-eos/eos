@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/backward-cpp/backward.hpp"
+#include "common/StacktraceHere.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"
@@ -419,13 +419,7 @@ RWMutex::UnLockWrite()
   if(blockedFor >= 30000) {
     std::ostringstream ss;
     ss << "WARNING - write lock held for " << blockedFor << " milliseconds by this thread: " << std::endl;
-    using namespace backward;
-    StackTrace st;
-    st.load_here(32);
-    Printer p;
-    p.object = true;
-    p.address = true;
-    p.print(st, ss);
+    ss << eos::common::getStacktrace();
     eos_static_crit(ss.str().c_str());
   }
 }
@@ -543,13 +537,7 @@ RWMutex::EnterCheckDeadlock(bool rd_lock)
       // For non-preferred rd lock - since is a re-entrant read lock, if there
       // is any write lock pending then this will deadlock
       if (!mPreferRd && mThreadsWrLock.size()) {
-        using namespace backward;
-        StackTrace st;
-        st.load_here(32);
-        Printer p;
-        p.object = true;
-        p.address = true;
-        p.print(st, std::cerr);
+        std::cerr << eos::common::getStacktrace();
         pthread_mutex_unlock(&mCollectionMutex);
         throw std::runtime_error("double read lock during write lock");
       }
@@ -559,13 +547,7 @@ RWMutex::EnterCheckDeadlock(bool rd_lock)
   } else {
     if (mThreadsWrLock.find(tid) != mThreadsWrLock.end()) {
       // This is a case of double write lock
-      using namespace backward;
-      StackTrace st;
-      st.load_here(32);
-      Printer p;
-      p.object = true;
-      p.address = true;
-      p.print(st, std::cerr);
+      std::cerr << eos::common::getStacktrace();
       pthread_mutex_unlock(&mCollectionMutex);
       throw std::runtime_error("double write lock");
     }
@@ -1354,13 +1336,7 @@ RWMutexReadLock::Release()
     if(blockedFor.count() > 30000) {
       std::ostringstream ss;
       ss << "WARNING - read lock held for " << blockedFor.count() << " milliseconds by this thread: " << std::endl;
-      using namespace backward;
-      StackTrace st;
-      st.load_here(32);
-      Printer p;
-      p.object = true;
-      p.address = true;
-      p.print(st, ss);
+      ss << eos::common::getStacktrace();
       eos_static_crit(ss.str().c_str());
     }
   }

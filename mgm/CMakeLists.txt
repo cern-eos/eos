@@ -180,7 +180,7 @@ add_dependencies(XrdEosMgm-Objects EosProtobuf)
 add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DBACKWARD_HAS_DW=1 -DDAEMONGID=${DAEMONGID})
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(
   XrdEosMgm-Objects
@@ -212,6 +212,7 @@ target_link_libraries(
   # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
   EosNsQuarkdb-Shared
   eosCapability-Static
+  bfd
   ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
