@@ -34,10 +34,6 @@ if (NOT CMAKE_BUILD_TYPE)
      RelWithDebInfo MinSizeRel.")
 endif ()
 
-if (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
-  add_definitions(-g3)
-endif ()
-
 find_program(CCACHE_PROGRAM ccache)
 if (CCACHE_PROGRAM)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
