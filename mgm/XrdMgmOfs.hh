@@ -898,7 +898,7 @@ public:
   // ---------------------------------------------------------------------------
   // replicate stripe providing file meta data by vid
   // ---------------------------------------------------------------------------
-  int _replicatestripe(eos::IFileMD* fmd,
+  int _replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
                        const char* path,
                        XrdOucErrInfo& error,
                        eos::common::Mapping::VirtualIdentity& vid,

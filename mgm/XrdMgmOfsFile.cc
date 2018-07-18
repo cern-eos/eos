@@ -1911,12 +1911,14 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // Create file using logical path
   if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     eos::IFileMD::ctime_t ctime;
     char buff[64];
 
     capability += "&mgm.lpath=";
     capability += path;
     eos::common::FileFsPath::StorePhysicalPath(filesystem->GetId(), fmd, path);
+    gOFS->eosView->updateFileStore(fmd.get());
 
     fmd->getCTime(ctime);
     sprintf(buff, "%ld", ctime.tv_sec);

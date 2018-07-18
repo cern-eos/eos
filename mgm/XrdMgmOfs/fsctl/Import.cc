@@ -56,6 +56,7 @@
     eos::IContainerMD::id_t cid;
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
+    eos::mgm::FileSystem* filesystem = 0;
 
     // attempt to create full path if necessary
     XrdSfsFileExistence file_exists;
@@ -90,50 +91,18 @@
                   cPath.GetParentPath());
     }
 
-    try {
-      // create new file entry
-      fmd = gOFS->eosView->createFile(lpath, vid.uid, vid.gid);
+    {
+      // obtain filesystem handler
+      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
-      // retrieve container entry
-      cid = fmd->getContainerId();
-      cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-    } catch(eos::MDException& e) {
-      std::string errmsg = e.getMessage().str();
-      gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
-      eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
-                     e.getErrno(), errmsg.c_str());
-      return Emsg(epname, error, errno, "create fmd", errmsg.c_str());
+      if (FsView::gFsView.mIdView.count(fsid)) {
+        filesystem = FsView::gFsView.mIdView[fsid];
+      } else {
+        eos_thread_err("msg=\"could not find filesystem fsid=%d\"", fsid);
+        gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
+        return Emsg(epname, error, EIO, "retrieve filesystem", "");
+      }
     }
-
-    // obtain filesystem handler
-    eos::mgm::FileSystem* filesystem = 0;
-
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      filesystem = FsView::gFsView.mIdView[fsid];
-    } else {
-      eos_thread_err("msg=\"could not find filesystem fsid=%d\"", fsid);
-      gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
-      return Emsg(epname, error, EIO, "retrieve filesystem", "");
-    }
-
-    // retrieve additional information for the new entry
-    XrdOucString space;
-    eos::IContainerMD::XAttrMap attrmap;
-    unsigned long layoutId = 0;
-    unsigned long forcedFsId = 0;
-    long forcedGroup = -1;
-
-    // create policy environment
-    std::string schedgroup = filesystem->GetString("schedgroup");
-    XrdOucString policyOpaque = "eos.space=";
-    policyOpaque += schedgroup.c_str();
-    XrdOucEnv policyEnv(policyOpaque.c_str());
-
-    gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error,
-                   vid, 0, attrmap, false);
-    // select space and layout according to policies
-    Policy::GetLayoutAndSpace(lpath, attrmap, vid, layoutId, space,
-                              policyEnv, forcedFsId, forcedGroup);
 
     // create logical path suffix
     XrdOucString lpathSuffix = extpath;
@@ -148,32 +117,68 @@
                      "in extpath=%s", extpath);
       gOFS->MgmStats.Add("ImportFailedFsPrefix", 0, 0, 1);
       return Emsg(epname, error, errno, "match fs prefix", "");
-  	}
-
-    try {
-      // set file entry parameters
-      fmd->setFlags(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-      fmd->setSize(size);
-      fmd->addLocation(fsid);
-      fmd->setLayoutId(layoutId);
-      eos::common::FileFsPath::StorePhysicalPath(fsid, fmd, lpathSuffix.c_str());
-      gOFS->eosView->updateFileStore(fmd.get());
-
-      cmd->setMTimeNow();
-      cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-      gOFS->eosView->updateContainerStore(cmd.get());
-    } catch(eos::MDException& e) {
-      std::string errmsg = e.getMessage().str();
-      gOFS->MgmStats.Add("ImportFailedFmdUpdate", 0, 0, 1);
-      eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                     e.getErrno(), errmsg.c_str());
-      return Emsg(epname, error, errno, "update fmd", errmsg.c_str());
     }
 
-    // add file entry to quota
-    eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
-    if (ns_quota) {
-      ns_quota->addFile(fmd.get());
+    // policy environment setup
+    XrdOucString space;
+    eos::IContainerMD::XAttrMap attrmap;
+    unsigned long layoutId = 0;
+    unsigned long forcedFsId = 0;
+    long forcedGroup = -1;
+
+    {
+      // create policy environment
+      eos::common::RWMutexReadLock ns_read_lock(gOFS->eosViewRWMutex);
+      std::string schedgroup = filesystem->GetString("schedgroup");
+      XrdOucString policyOpaque = "eos.space=";
+      policyOpaque += schedgroup.c_str();
+      XrdOucEnv policyEnv(policyOpaque.c_str());
+
+      gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error,
+                     vid, 0, attrmap, false);
+      // select space and layout according to policies
+      Policy::GetLayoutAndSpace(lpath, attrmap, vid, layoutId, space,
+                                policyEnv, forcedFsId, forcedGroup);
+    }
+
+    {
+      // create, update and save new file entry
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+      try {
+        // create new file entry
+        fmd = gOFS->eosView->createFile(lpath, vid.uid, vid.gid);
+
+        // retrieve container entry
+        cid = fmd->getContainerId();
+        cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+
+        // set file entry parameters
+        fmd->setFlags(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        fmd->setSize(size);
+        fmd->addLocation(fsid);
+        fmd->setLayoutId(layoutId);
+        eos::common::FileFsPath::StorePhysicalPath(fsid, fmd,
+                                                   lpathSuffix.c_str());
+        gOFS->eosView->updateFileStore(fmd.get());
+
+        cmd->setMTimeNow();
+        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        gOFS->eosView->updateContainerStore(cmd.get());
+
+        // add file entry to quota
+        eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+        if (ns_quota) {
+          ns_quota->addFile(fmd.get());
+        }
+      } catch(eos::MDException& e) {
+        std::string errmsg = e.getMessage().str();
+        gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
+        eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                       e.getErrno(), errmsg.c_str());
+        return Emsg(epname, error, errno, "create and update fmd",
+                    errmsg.c_str());
+      }
     }
 
     // construct response with file metadata

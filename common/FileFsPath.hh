@@ -86,8 +86,8 @@ public:
     std::string attributeString;
     bool useLogicalPath = false;
 
-    if (fmd->hasAttribute("logicalpath")) {
-      attributeString = fmd->getAttribute("logicalpath").c_str();
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
 
       // Check if filesystem id appears in attribute string
       std::string fsIdentifier = std::to_string(fsid);
@@ -140,6 +140,8 @@ public:
   //----------------------------------------------------------------------------
   //! Store a file's physical path for a given filesystem as extended attributes
   //! within the file's metadata.
+  //! This function changes the file's metadata and should be called
+  //! in a thread-safe context.
   //----------------------------------------------------------------------------
   static void StorePhysicalPath(unsigned long fsid,
                                 const std::shared_ptr<eos::IFileMD> &fmd,
@@ -147,12 +149,12 @@ public:
   {
     std::string attributeString = "";
 
-    if (fmd->hasAttribute("logicalpath")) {
-      attributeString = fmd->getAttribute("logicalpath");
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      attributeString = fmd->getAttribute("sys.eos.lpath");
     }
 
     appendPair(fsid, physicalPath, attributeString);
-    fmd->setAttribute("logicalpath", attributeString);
+    fmd->setAttribute("sys.eos.lpath", attributeString);
   }
 
 private:

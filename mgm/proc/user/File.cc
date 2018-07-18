@@ -1423,7 +1423,7 @@ ProcCommand::File()
                       // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
                       // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                       // Add replication here
-                      if (gOFS->_replicatestripe(fmd.get(), spath.c_str(),
+                      if (gOFS->_replicatestripe(fmd, spath.c_str(),
                                                  *mError, *pVid, sourcefsid,
                                                  selectedfs[i], false, expressflag)) {
                         stdErr += "error: unable to replicate stripe ";

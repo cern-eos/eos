@@ -102,7 +102,7 @@ XrdMgmOfs::_verifystripe(const char* path,
     fid = fmd->getId();
     lid = fmd->getLayoutId();
     cid = fmd->getContainerId();
-    if (fmd->hasAttribute("logicalpath")) {
+    if (fmd->hasAttribute("sys.eos.lpath")) {
       eos::common::FileFsPath::GetPhysicalPath(fsid, fmd, lpath);
     }
   } catch (eos::MDException& e) {
@@ -557,7 +557,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
   // ---------------------------------------------------------------------------
   viewReadLock.Release();
-  int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
+  int retc = _replicatestripe(fmd, path, error, vid, sourcefsid,
                               targetfsid, dropsource, expressflag);
   EXEC_TIMING_END("ReplicateStripe");
   return retc;
@@ -565,7 +565,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
+XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
                             const char* path,
                             XrdOucErrInfo& error,
                             eos::common::Mapping::VirtualIdentity& vid,
@@ -700,7 +700,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   source_capability += "&mgm.sourcehostport=";
   source_capability += source_snapshot.mHostPort.c_str();
   // check logical path attribute
-  if (fmd->hasAttribute("logicalpath")) {
+  if (fmd->hasAttribute("sys.eos.lpath")) {
     XrdOucString lpath;
     std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
     eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmdPtr, lpath);
@@ -759,6 +759,10 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                        size);
   // check if target filesystem uses logical path setting
   if (target_snapshot.mLogicalPath == "1") {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::FileFsPath::StorePhysicalPath(target_snapshot.mId, fmd, path);
+    gOFS->eosView->updateFileStore(fmd.get());
+
     target_capability += "&mgm.lpath=";
     target_capability += path;
   }
