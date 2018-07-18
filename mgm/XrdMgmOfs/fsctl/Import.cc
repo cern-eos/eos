@@ -119,6 +119,25 @@
       return Emsg(epname, error, errno, "match fs prefix", "");
     }
 
+    {
+      // create new file entry
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+      try {
+        fmd = gOFS->eosView->createFile(lpath, vid.uid, vid.gid);
+
+        // retrieve container entry
+        cid = fmd->getContainerId();
+        cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+      } catch(eos::MDException& e) {
+        std::string errmsg = e.getMessage().str();
+        gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
+        eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                       e.getErrno(), errmsg.c_str());
+        return Emsg(epname, error, errno, "create fmd", errmsg.c_str());
+      }
+    }
+
     // policy environment setup
     XrdOucString space;
     eos::IContainerMD::XAttrMap attrmap;
@@ -142,17 +161,10 @@
     }
 
     {
-      // create, update and save new file entry
+      // update the new file entry
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
       try {
-        // create new file entry
-        fmd = gOFS->eosView->createFile(lpath, vid.uid, vid.gid);
-
-        // retrieve container entry
-        cid = fmd->getContainerId();
-        cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-
         // set file entry parameters
         fmd->setFlags(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         fmd->setSize(size);
@@ -173,11 +185,10 @@
         }
       } catch(eos::MDException& e) {
         std::string errmsg = e.getMessage().str();
-        gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
+        gOFS->MgmStats.Add("ImportFailedFmdUpdate", 0, 0, 1);
         eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                        e.getErrno(), errmsg.c_str());
-        return Emsg(epname, error, errno, "create and update fmd",
-                    errmsg.c_str());
+        return Emsg(epname, error, errno, "update fmd", errmsg.c_str());
       }
     }
 

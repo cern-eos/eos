@@ -102,7 +102,7 @@ Storage::ImportScan()
 
       // Construct the path suffix from the file path
       int pos = scan->extPath.length();
-      if (scan->extPath.rfind("?") != std::string::npos) {
+      if (scan->extPath.rfind("?") != STR_NPOS) {
         pos = scan->extPath.rfind("?");
       }
       pathSuffix = lFilePath.substr((size_t) pos);
