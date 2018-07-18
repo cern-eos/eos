@@ -615,7 +615,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
 
       // Set the eos creation time attribute
-      if (mCapOpaque->Get("mgm.uselpath") && mCapOpaque->Get("mgm.ctime")) {
+      if (mCapOpaque->Get("mgm.lpath") && mCapOpaque->Get("mgm.ctime")) {
         if (io->attrSet("user.eos.ctime", mCapOpaque->Get("mgm.ctime"))) {
           eos_err("unable to set extended attribute <eos.ctime> errno=%d", errno);
         }
@@ -2992,8 +2992,9 @@ XrdFstOfsFile::ProcessMixedOpaque()
   mFsId = atoi(sfsid);
 
   // Generate fst path
-  if (mCapOpaque->Get("mgm.uselpath")) {
-    mFstPath = mLocalPrefix + mNsPath;
+  if (mCapOpaque->Get("mgm.lpath")) {
+    mFstPath = mLocalPrefix;
+    mFstPath += mCapOpaque->Get("mgm.lpath");
     mFstPath.replace("//", "/", mLocalPrefix.length() - 1);
   } else {
     FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),

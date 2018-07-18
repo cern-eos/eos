@@ -31,7 +31,7 @@
 
 
 /*----------------------------------------------------------------------------*/
-//! Macros defining the comman namespace
+//! Macros defining the common namespace
 /*----------------------------------------------------------------------------*/
 
 #ifndef __EOSCOMMON_NAMESPACE_HH__

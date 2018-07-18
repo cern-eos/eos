@@ -63,7 +63,7 @@ Storage::Remover()
         OpaqueString += "&mgm.localprefix=";
         OpaqueString += to_del->localPrefix;
         if (to_del->fileVector[j].logicalPath.length()) {
-          OpaqueString += "&mgm.logicalpath=";
+          OpaqueString += "&mgm.lpath=";
           OpaqueString += to_del->fileVector[j].logicalPath;
           OpaqueString += "&mgm.ctime=";
           OpaqueString += to_del->fileVector[j].cTime;
