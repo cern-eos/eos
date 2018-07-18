@@ -210,6 +210,18 @@ createFiles(const std::string& path, eos::IView* view,
   }
 }
 
+TEST_F(HierarchicalViewF, ZeroSizedFilenames)
+{
+  eos::IContainerMDPtr cont1 = view()->createContainer("/test/dir1", true);
+  eos::IContainerMDPtr cont2 = view()->createContainer("/dir2", true);
+  eos::IFileMDPtr file1 = view()->createFile("/file1", true);
+
+  file1->setName("");
+  ASSERT_THROW(cont1->addFile(file1.get()), eos::MDException);
+
+  cont2->setName("");
+  ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException);
+}
 
 TEST_F(HierarchicalViewF, QuotaTest)
 {

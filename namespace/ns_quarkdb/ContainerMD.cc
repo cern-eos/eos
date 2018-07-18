@@ -29,6 +29,8 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "common/Assert.hh"
+#include "common/StacktraceHere.hh"
+#include "common/Logging.hh"
 #include <sys/stat.h>
 #include <algorithm>
 
@@ -187,6 +189,12 @@ void
 ContainerMD::addContainer(IContainerMD* container)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+  if(container->getName().empty()) {
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EINVAL, "Attempted to add container with empty name! ID: " << container->getId() << ", target container ID: " << mCont.id());
+  }
+
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                     container->getId()));
@@ -259,14 +267,8 @@ ContainerMD::addFile(IFileMD* file)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
   if(file->getName().empty()) {
-    using namespace backward;
-    StackTrace st;
-    st.load_here(32);
-    Printer p;
-    p.object = true;
-    p.address = true;
-    p.print(st, std::cerr);
-    throw_mdexception(EINVAL, "Attempted to add file with empty filename! ID: " << file->getId());
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EINVAL, "Attempted to add file with empty filename! ID: " << file->getId() << ", target container ID: " << mCont.id());
   }
 
   file->setContainerId(mCont.id());
