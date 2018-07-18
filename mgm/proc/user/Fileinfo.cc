@@ -29,8 +29,9 @@
 #include "mgm/Stat.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/TableFormatter/TableCell.hh"
-#include "common/LayoutId.hh"
 #include "common/Path.hh"
+#include "common/LayoutId.hh"
+#include "common/FileFsPath.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
@@ -462,7 +463,7 @@ ProcCommand::FileInfo(const char* path)
           std::vector<unsigned int>::const_iterator sfs;
           size_t fsIndex;
           Scheduler::AccessArguments acsargs;
-          int i = 0;
+          int count = 0;
           int schedretc = -1;
           TableHeader table_mq_header;
           TableData table_mq_data;
@@ -479,8 +480,7 @@ ProcCommand::FileInfo(const char* path)
             char fsline[4096];
             XrdOucString location = "";
             location += (int) * lociter;
-            XrdOucString si = "";
-            si += (int) i;
+            XrdOucString scount = count;
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             eos::common::FileSystem* filesystem = 0;
 
@@ -494,8 +494,8 @@ ProcCommand::FileInfo(const char* path)
               XrdOucString fullpath;
 
               if ((option.find("-fullpath")) != STR_NPOS) {
-                eos::common::FileId::FidPrefix2FullPath(
-                  hexfidstring.c_str(), filesystem->GetPath().c_str(), fullpath);
+                eos::common::FileFsPath::GetFullPhysicalPath(filesystem->GetId(),
+                    fmd_copy, filesystem->GetPath().c_str(), fullpath);
               }
 
               if (!Monitoring) {
@@ -531,7 +531,7 @@ ProcCommand::FileInfo(const char* path)
                   for (auto& row : table_mq_data) {
                     if (!row.empty()) {
                       table_mq_data_temp.emplace_back();
-                      table_mq_data_temp.back().push_back(TableCell(i, "l"));
+                      table_mq_data_temp.back().push_back(TableCell(count, "l"));
                       table_mq_data_temp.back().push_back(TableCell(*lociter, "l"));
 
                       for (auto& cell : row) {
@@ -595,7 +595,7 @@ ProcCommand::FileInfo(const char* path)
                     stdOut += "sticky to ";
                     size_t k;
 
-                    for (k = 0; k < loc_vect.size() && selectedfs[k] != loc_vect[i]; k++);
+                    for (k = 0; k < loc_vect.size() && selectedfs[k] != loc_vect[count]; k++);
 
                     stdOut += proxys[k].c_str();
                   }
@@ -613,13 +613,13 @@ ProcCommand::FileInfo(const char* path)
               }
             } else {
               if (!Monitoring) {
-                sprintf(fsline, "%3s   %5s ", si.c_str(), location.c_str());
+                sprintf(fsline, "%3s   %5s ", scount.c_str(), location.c_str());
                 stdOut += fsline;
                 stdOut += "NA\n";
               }
             }
 
-            i++;
+            count++;
           }
 
           stdOut += table_mq.GenerateTable(HEADER).c_str();

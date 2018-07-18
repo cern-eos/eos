@@ -62,7 +62,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
   eos_debug("verify");
   eos::common::Path cPath(path);
-  std::string lpath;
+  XrdOucString lpath;
   std::string attr_path;
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -103,7 +103,7 @@ XrdMgmOfs::_verifystripe(const char* path,
     lid = fmd->getLayoutId();
     cid = fmd->getContainerId();
     if (fmd->hasAttribute("logicalpath")) {
-      lpath = fmd->getAttribute("logicalpath");
+      eos::common::FileFsPath::GetPhysicalPath(fsid, fmd, lpath);
     }
   } catch (eos::MDException& e) {
     fmd.reset();

@@ -23,6 +23,7 @@
 
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
+#include "common/FileFsPath.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
@@ -1915,7 +1916,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
     capability += "&mgm.lpath=";
     capability += path;
-    fmd->setAttribute("logicalpath", path);
+    eos::common::FileFsPath::StorePhysicalPath(filesystem->GetId(), fmd, path);
 
     fmd->getCTime(ctime);
     sprintf(buff, "%ld", ctime.tv_sec);

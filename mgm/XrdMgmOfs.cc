@@ -24,6 +24,7 @@
 #include "common/Constants.hh"
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
+#include "common/FileFsPath.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
