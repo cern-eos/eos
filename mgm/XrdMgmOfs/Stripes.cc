@@ -652,7 +652,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   eos::common::FileSystem::fs_snapshot target_snapshot;
   sourcefilesystem->SnapShotFileSystem(source_snapshot);
   targetfilesystem->SnapShotFileSystem(target_snapshot);
-  // build a transfer capability
+
+  // build the source capability contents
   XrdOucString source_capability = "";
   XrdOucString sizestring;
   source_capability += "mgm.access=read";
@@ -698,6 +699,17 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   source_capability += (int) source_snapshot.mId;
   source_capability += "&mgm.sourcehostport=";
   source_capability += source_snapshot.mHostPort.c_str();
+  // check logical path attribute
+  if (fmd->hasAttribute("logicalpath")) {
+    XrdOucString lpath;
+    std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
+    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmdPtr, lpath);
+
+    source_capability += "&mgm.lpath=";
+    source_capability += lpath.c_str();
+  }
+
+  // build the target capability contents
   XrdOucString target_capability = "";
   target_capability += "mgm.access=write";
   target_capability += "&mgm.lid=";
@@ -722,12 +734,6 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   target_capability += "&mgm.sec=";
   target_capability += eos::common::SecEntity::ToKey(0,
                        "eos/replication").c_str();
-
-  if (dropsource) {
-    target_capability += "&mgm.drainfsid=";
-    target_capability += (int) source_snapshot.mId;
-  }
-
   target_capability += "&mgm.source.lid=";
   target_capability += eos::common::StringConversion::GetSizeString(sizestring,
                        (unsigned long long) lid);
@@ -737,7 +743,11 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   target_capability += "&mgm.source.rgid=";
   target_capability += eos::common::StringConversion::GetSizeString(sizestring,
                        (unsigned long long) gid);
-  // build the target_capability contents
+  // this is a move of a replica
+  if (dropsource) {
+    target_capability += "&mgm.drainfsid=";
+    target_capability += (int) source_snapshot.mId;
+  }
   target_capability += "&mgm.localprefix=";
   target_capability += target_snapshot.mPath.c_str();
   target_capability += "&mgm.fsid=";
@@ -747,7 +757,13 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   target_capability += "&mgm.bookingsize=";
   target_capability += eos::common::StringConversion::GetSizeString(sizestring,
                        size);
-  // issue a source_capability
+  // check if target filesystem uses logical path setting
+  if (target_snapshot.mLogicalPath == "1") {
+    target_capability += "&mgm.lpath=";
+    target_capability += path;
+  }
+
+  // issue transfer capability environments
   XrdOucEnv insource_capability(source_capability.c_str());
   XrdOucEnv intarget_capability(target_capability.c_str());
   XrdOucEnv* source_capabilityenv = 0;
