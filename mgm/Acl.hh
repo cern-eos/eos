@@ -131,6 +131,13 @@ public:
   //----------------------------------------------------------------------------
   virtual ~Acl() = default;
 
+
+  //----------------------------------------------------------------------------
+  // Set Acls by interpreting the attribute map
+  //----------------------------------------------------------------------------
+  void SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
+    eos::common::Mapping::VirtualIdentity& vid);
+
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
   //!

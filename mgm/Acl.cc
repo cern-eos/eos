@@ -52,14 +52,8 @@ Acl::Acl(eos::IContainerMD::XAttrMap& attrmap,
          eos::common::Mapping::VirtualIdentity& vid)
 {
   // define the acl rules from the attributes
-  Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-      attrmap.count("sys.eval.useracl"));
+  SetFromAttrMap(attrmap, vid);
 }
-
-
-
-
 
 //------------------------------------------------------------------------------
 // Constructor by path
@@ -70,6 +64,16 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 {
   gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
   // Set the acl rules from the attributes
+  SetFromAttrMap(attrmap, vid);
+}
+
+//------------------------------------------------------------------------------
+// Set Acls by interpreting the attribute map
+//------------------------------------------------------------------------------
+void
+Acl::SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
+  eos::common::Mapping::VirtualIdentity& vid)
+{
   Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
       attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
       vid, attrmap.count("sys.eval.useracl"));
@@ -196,7 +200,7 @@ Acl::Set(std::string sysacl, std::string useracl,
           (!it->compare(0, grouptag.length(), grouptag)) ||
           (!it->compare(0, ztag.length(), ztag)) ||
           (egroupmatch) ||
-	  (!it->compare(0,keytag.length(), keytag)) || 
+	  (!it->compare(0,keytag.length(), keytag)) ||
           (!it->compare(0, usr_name_tag.length(), usr_name_tag)) ||
           (!it->compare(0, grp_name_tag.length(), grp_name_tag))) {
         std::vector<std::string> entry;
