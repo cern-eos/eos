@@ -30,7 +30,7 @@
 #include "namespace/ns_quarkdb/qclient/include/qclient/QSet.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/AsyncHandler.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -104,7 +104,7 @@ public:
   //! @param configdir
   //! @param quarkDBcluster
   //----------------------------------------------------------------------------
-  QuarkDBConfigEngine(const char* configdir, const string& quarkDBcluster);
+  QuarkDBConfigEngine(const char* configdir, const QdbContactDetails &contactDetails);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -216,7 +216,7 @@ public:
   }
 
 private:
-
+  QdbContactDetails mQdbContactDetails;
   qclient::QClient* mQcl;
   std::string conf_set_key = "EOSConfig:list";
   std::string conf_hash_key_prefix = "EOSConfig";

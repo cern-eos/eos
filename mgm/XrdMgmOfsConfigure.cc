@@ -59,6 +59,7 @@
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -706,6 +707,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
 
           Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
+          mQdbContactDetails.members.parse(mQdbCluster);
         }
 
         if (!strcmp("qdbpassword", var)) {
@@ -717,6 +719,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          mQdbContactDetails.password = mQdbPassword;
         }
 
         if (!strcmp("qdbpassword_file", var)) {
@@ -1414,7 +1417,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     } else {
       ConfEngine = new QuarkDBConfigEngine(MgmConfigDir.c_str(),
-                                           gOFS->mQdbCluster);
+        gOFS->mQdbContactDetails);
     }
   } else {
     Eroute.Emsg("Config", "Unknown configuration engine type!",

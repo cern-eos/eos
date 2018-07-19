@@ -119,10 +119,11 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 // Constructor
 //------------------------------------------------------------------------------
 QuarkDBConfigEngine::QuarkDBConfigEngine(const char* configdir,
-    const string& qdbcluster)
+    const QdbContactDetails& contactDetails)
 {
+  mQdbContactDetails = contactDetails;
   SetConfigDir(configdir);
-  mQcl = BackendClient::getInstance(qdbcluster, "config");
+  mQcl = BackendClient::getInstance(mQdbContactDetails, "config");
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl));
 }
 

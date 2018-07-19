@@ -108,6 +108,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>
@@ -1562,6 +1563,7 @@ public:
   int mFstGwPort; ///< FST gateway redirect port, default 1094
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
   std::string mQdbPassword; ///< Quarkdb cluster password
+  eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
 
