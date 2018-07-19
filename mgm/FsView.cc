@@ -851,6 +851,11 @@ FsSpace::FsSpace(const char* name)
 
   if (!gDisableDefaults) {
     // Set default balancing variables
+    // Disable autorepair by default
+    if (GetConfigMember("autorepair").empty()) {
+      SetConfigMember("autorepair", "off", true, "/eos/*/mgm");
+    }
+
     // Disable balancing by default
     if (GetConfigMember("balancer").empty()) {
       SetConfigMember("balancer", "off", true, "/eos/*/mgm");
