@@ -68,24 +68,6 @@ public:
   //----------------------------------------------------------------------------
   static qclient::QClient* getInstance(const QdbContactDetails &contactDetails,
                                        const std::string &tag = "default");
-
-  //----------------------------------------------------------------------------
-  //! Get client for a particular quarkdb instance specified as a list of
-  //! cluster members.
-  //!
-  //! @param qdb_cluster space separated list of host:port entries makeing up
-  //!        the cluster
-  //! @param tag string used to differentiate between different use-cases
-  //!        when using the qclient.
-  //!
-  //! @note Each unique conbiantino of qdb_members and tag will return always
-  //!       the same qclient object
-  //!
-  //! @return qclient object
-  //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const std::string& qdb_cluster,
-                                       const std::string &tag = "default");
-
 private:
   static std::atomic<qclient::QClient*> sQdbClient;
   static std::string sQdbHost; ///< quarkdb instance host

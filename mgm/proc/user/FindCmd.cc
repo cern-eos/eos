@@ -832,7 +832,7 @@ eos::mgm::FindCmd::ProcessRequest()
     }
   } else {
     findResultProvider.reset(new FindResultProvider(
-                               eos::BackendClient::getInstance(gOFS->mQdbCluster, "find"),
+                               eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "find"),
                                findRequest.path()
                              ));
   }

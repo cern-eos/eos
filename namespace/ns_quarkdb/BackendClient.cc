@@ -84,23 +84,6 @@ BackendClient::getInstance(const QdbContactDetails& contactDetails,
 }
 
 //------------------------------------------------------------------------------
-// Get client for a particular quarkdb instance specified as a list of cluster
-// members. The cluster specification is a list of space separated host:port.
-//------------------------------------------------------------------------------
-qclient::QClient*
-BackendClient::getInstance(const std::string& qdb_cluster,
-                           const std::string& tag)
-{
-  QdbContactDetails contactDetails;
-
-  if (!contactDetails.members.parse(qdb_cluster)) {
-    return nullptr;
-  }
-
-  return getInstance(contactDetails, tag);
-}
-
-//------------------------------------------------------------------------------
 // Initialization and finalization
 //------------------------------------------------------------------------------
 namespace

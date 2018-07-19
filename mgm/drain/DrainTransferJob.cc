@@ -157,7 +157,7 @@ DrainTransferJob::GetFileInfo() const
       throw e;
     }
   } else {
-    qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbCluster,
+    qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
                             "drain");
     auto tmp = eos::MetadataFetcher::getFileFromId(*qcl,
                FileIdentifier(mFileId)).get();
