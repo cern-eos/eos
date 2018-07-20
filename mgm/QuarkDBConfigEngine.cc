@@ -291,10 +291,8 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   // We store in quarkdb the list of available EOSConfigs as a set
   qclient::QSet q_set(*mQcl, conf_set_key);
 
-  // Add the hash key to the set if it's not there
-  if (!q_set.sismember(hash_key)) {
-    q_set.sadd(hash_key);
-  }
+  // Add the hash key to the set
+  q_set.sadd(hash_key);
 
   cl += " successfully";
   cl += " [";
@@ -732,10 +730,8 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       // We store in quarkdb the list of available EOSConfigs as Set
       qclient::QSet q_set(*mQcl, conf_set_key);
 
-      // Add the hash key to the set if it's not there
-      if (!q_set.sismember(hash_key)) {
-        q_set.sadd(hash_key);
-      }
+      // Add the hash key to the set
+      q_set.sadd(hash_key);
 
       cl += " successfully";
       mChangelog->AddEntry(cl.c_str());

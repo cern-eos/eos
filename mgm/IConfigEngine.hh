@@ -125,9 +125,6 @@ protected:
 class IConfigEngine : public eos::common::LogId
 {
 public:
-  //! Configuration definitions currently in memory
-  static XrdOucHash<XrdOucString> sConfigDefinitions;
-
   //----------------------------------------------------------------------------
   //! XrdOucHash callback function to apply a configuration value
   //!
@@ -350,6 +347,9 @@ protected:
   bool mBroadcast;
   XrdOucString mConfigFile; ///< Currently loaded configuration
   XrdOucString mConfigDir; ///< Path where configuration files are stored
+
+  //! Configuration definitions currently in memory
+  static XrdOucHash<XrdOucString> sConfigDefinitions;
 
 private:
   //----------------------------------------------------------------------------
