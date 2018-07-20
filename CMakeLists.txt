@@ -44,6 +44,13 @@ project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #-------------------------------------------------------------------------------
+# Make gtest / gmock available for all downstream CMakeLists.txt that need it
+#-------------------------------------------------------------------------------
+set(GTEST "${CMAKE_SOURCE_DIR}/unit_tests/googletest/")
+set(GTEST_BINARY_DIR "${CMAKE_BINARY_DIR}/unit_tests/googletest/")
+add_subdirectory("${GTEST}" "${GTEST_BINARY_DIR}")
+
+#-------------------------------------------------------------------------------
 # Activate include-what-you-use
 #-------------------------------------------------------------------------------
 option(ENABLE_IWYU "Enable include-what-you-use tool" OFF)

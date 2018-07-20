@@ -17,3 +17,6 @@
 [submodule "common/xrootd-ssi-protobuf-interface"]
 	path = common/xrootd-ssi-protobuf-interface
 	url = https://:@gitlab.cern.ch:8443/eos/xrootd-ssi-protobuf-interface.git
+[submodule "unit_tests/googletest"]
+	path = unit_tests/googletest
+	url = https://github.com/google/googletest

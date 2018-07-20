@@ -37,13 +37,10 @@ include_directories(
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIR}
   ${LIBEVENT_INCLUDE_DIRS}
-  "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include"
 )
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   gtest_main
-  ${GTEST_LIBRARY}
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
@@ -83,9 +80,6 @@ target_link_libraries(
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
 )
 
-target_compile_definitions(eos-fusex-tests
-  PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
-
 set_target_properties(
   eos-fusex-tests
   PROPERTIES
@@ -103,9 +97,6 @@ target_link_libraries(
   eos-fusex-stress-tests
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
 )
-
-target_compile_definitions(eos-fusex-stress-tests
-  PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
 
 set_target_properties(
   eos-fusex-stress-tests

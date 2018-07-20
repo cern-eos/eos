@@ -44,8 +44,6 @@ add_executable(
   VariousTests.cc
 )
 
-target_compile_definitions(eos-ns-quarkdb-tests PUBLIC -DGTEST_USE_OWN_TR1_TUPLE=0)
-
 target_link_libraries(
   eos-ns-quarkdb-tests
   gtest
