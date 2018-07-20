@@ -54,7 +54,7 @@ DrainTransferJob::DoIt()
 {
   using eos::common::LayoutId;
   gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
-  eos_debug("msg=\"running drain job fsid_src=%i, fsid_dst=%i, fid=%llu\"",
+  eos_debug("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fid=%08llx",
             mFsIdSource, mFsIdTarget, mFileId);
   mStatus = Status::Running;
   FileDrainInfo fdrain;
@@ -185,7 +185,7 @@ DrainTransferJob::GetFileInfo() const
         fdrain.mProto.add_locations(loc);
       }
     } catch (eos::MDException& e) {
-      oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
+      oss << "fid=" << eos::common::FileId::Fid2Hex(mFileId)
           << " errno=" << e.getErrno()
           << " msg=\"" << e.getMessage().str() << "\"";
       eos_err("%s", oss.str().c_str());
@@ -275,14 +275,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     }
 
     if (!found) {
-      ReportError(SSTR("msg=\"no more replicas available\" " << "fxid="
+      ReportError(SSTR("msg=\"no more replicas available\" " << "fid="
                        << eos::common::FileId::Fid2Hex(fdrain.mProto.id())));
       return url_src;
     }
   } else {
     // For RAIN layouts we trigger a reconstruction only once
     if (mRainReconstruct) {
-      ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
+      ReportError(SSTR("msg=\"fid=" << eos::common::FileId::Fid2Hex(
                          fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
       return url_src;
@@ -503,7 +503,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   }
 
   if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
-    eos_err("msg=\"fid=%llu failed to retrieve info for existing replicas\"",
+    eos_err("msg=\"fid=%08llx failed to retrieve info for existing replicas\"",
             mFileId);
     return false;
   }
@@ -526,7 +526,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                NULL);
 
   if (!res || new_repl.empty())  {
-    eos_err("msg=\"fid=%llu could not place new replica\"", mFileId);
+    eos_err("msg=\"fid=%08llx could not place new replica\"", mFileId);
     return false;
   }
 

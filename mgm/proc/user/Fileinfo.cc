@@ -175,14 +175,12 @@ ProcCommand::FileInfo(const char* path)
       viewReadLock.Release();
       //-------------------------------------------
       XrdOucString sizestring;
-      XrdOucString hexfidstring;
-      XrdOucString hexpidstring;
       bool Monitoring = false;
       bool Envformat = false;
       bool outputFilter = false;
       std::ostringstream out;
-      FileId::Fid2Hex(fmd_copy->getId(), hexfidstring);
-      FileId::Fid2Hex(fmd_copy->getContainerId(), hexpidstring);
+      const std::string hex_fid = FileId::Fid2Hex(fmd_copy->getId());
+      const std::string hex_pid = FileId::Fid2Hex(fmd_copy->getContainerId());
 
       if ((option.find("-m")) != STR_NPOS) {
         Monitoring = true;
@@ -207,7 +205,7 @@ ProcCommand::FileInfo(const char* path)
           }
 
           if ((option.find("-fxid")) != STR_NPOS) {
-            out << "fxid:   " << hexfidstring << std::endl;
+            out << "fxid:   " << hex_fid << std::endl;
           }
 
           if ((option.find("-fid")) != STR_NPOS) {
@@ -265,10 +263,10 @@ ProcCommand::FileInfo(const char* path)
                 << std::endl;
             out << "  CUid: " << fmd_copy->getCUid()
                 << " CGid: " << fmd_copy->getCGid()
-                << "  Fxid: " << hexfidstring
+                << "  Fxid: " << hex_fid
                 << " Fid: " << fmd_copy->getId()
                 << "    Pid: " << fmd_copy->getContainerId()
-                << "   Pxid: " << hexpidstring
+                << "   Pxid: " << hex_pid
                 << std::endl;
             out << "XStype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << "    XS: " << xs_spaces
@@ -298,11 +296,11 @@ ProcCommand::FileInfo(const char* path)
                 << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
                 << " uid=" << fmd_copy->getCUid()
                 << " gid=" << fmd_copy->getCGid()
-                << " fxid=" << hexfidstring
+                << " fxid=" << hex_fid
                 << " fid=" << fmd_copy->getId()
                 << " ino=" << FileId::FidToInode(fmd_copy->getId())
                 << " pid=" << fmd_copy->getContainerId()
-                << " pxid=" << hexpidstring
+                << " pxid=" << hex_pid
                 << " xstype=" << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << " xs=" << xs
                 << " etag=" << etag
@@ -332,7 +330,7 @@ ProcCommand::FileInfo(const char* path)
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
             // Ignore filesystem id 0
             if (!(*lociter)) {
-              eos_err("fsid 0 found fid=%lld", fmd_copy->getId());
+              eos_err("fsid 0 found fid=%08llx", fmd_copy->getId());
               continue;
             }
 
@@ -351,7 +349,7 @@ ProcCommand::FileInfo(const char* path)
               XrdOucString fullpath;
 
               if (showFullpath) {
-                FileId::FidPrefix2FullPath(hexfidstring.c_str(),
+                FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                            filesystem->GetPath().c_str(),
                                            fullpath);
               }
@@ -570,13 +568,11 @@ ProcCommand::DirInfo(const char* path)
       viewReadLock.Release();
       //-------------------------------------------
       XrdOucString sizestring;
-      XrdOucString hexfidstring;
-      XrdOucString hexpidstring;
       bool Monitoring = false;
       bool outputFilter = false;
       std::ostringstream out;
-      FileId::Fid2Hex(dmd_copy->getId(), hexfidstring);
-      FileId::Fid2Hex(dmd_copy->getParentId(), hexpidstring);
+      const std::string hex_fid = FileId::Fid2Hex(dmd_copy->getId());
+      const std::string hex_pid = FileId::Fid2Hex(dmd_copy->getParentId());
 
       if ((option.find("-m")) != STR_NPOS) {
         Monitoring = true;
@@ -590,7 +586,7 @@ ProcCommand::DirInfo(const char* path)
         }
 
         if ((option.find("-fxid")) != STR_NPOS) {
-          out << "fxid:   " << hexfidstring << std::endl;
+          out << "fxid:   " << hex_fid << std::endl;
         }
 
         if ((option.find("-fid")) != STR_NPOS) {
@@ -649,10 +645,10 @@ ProcCommand::DirInfo(const char* path)
               << std::endl;
           out << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
-              << "  Fxid: " << hexfidstring
+              << "  Fxid: " << hex_fid
               << " Fid: " << dmd_copy->getId()
               << "    Pid: " << dmd_copy->getParentId()
-              << "   Pxid: " << hexpidstring
+              << "   Pxid: " << hex_pid
               << std::endl
               << "  ETAG: " << etag
               << std::endl;
@@ -668,11 +664,11 @@ ProcCommand::DirInfo(const char* path)
               << " mode=" << StringConversion::IntToOctal((int) dmd_copy->getMode(), 4)
               << " uid=" << dmd_copy->getCUid()
               << " gid=" << dmd_copy->getCGid()
-              << " fxid=" << hexfidstring
+              << " fxid=" << hex_fid
               << " fid=" << dmd_copy->getId()
               << " ino=" << dmd_copy->getId()
               << " pid=" << dmd_copy->getParentId()
-              << " pxid=" << hexpidstring
+              << " pxid=" << hex_pid
               << " etag=" << etag
               << " ";
           eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
@@ -698,11 +694,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
-  eos_static_debug("fid=%llu", fid);
+  eos_static_debug("fid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
-  XrdOucString hexstring;
-  eos::common::FileId::Fid2Hex(fid, hexstring);
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
 
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
@@ -723,7 +718,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     fmd_copy->getMTime(mtime);
     unsigned long long nlink = (fmd_copy->isLink()) ? 1 :
                                fmd_copy->getNumLocation();
-    json["fxid"] = hexstring.c_str();
+    json["fxid"] = hex_fid.c_str();
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
     json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
@@ -777,7 +772,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
         if (filesystem->SnapShotFileSystem(fs, true)) {
           XrdOucString fstpath;
-          eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), fs.mPath.c_str(),
+          eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(), fs.mPath.c_str(),
                                                   fstpath);
           jsonfsinfo["fsid"] = fs.mId;
           jsonfsinfo["geotag"] = filesystem->GetString("stat.geotag");
@@ -833,7 +828,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
-  eos_static_debug("fid=%llu", fid);
+  eos_static_debug("fid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
 

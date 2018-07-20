@@ -46,17 +46,13 @@ XrdMgmOfs::Commit(const char* path,
                   const XrdSecEntity* client)
 {
   static const char* epname = "Commit";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Commit");
-
   // Checksum string
   char binchecksum[SHA_DIGEST_LENGTH];
-
   // Process CGI parameters
   CommitHelper::cgi_t cgi;
   CommitHelper::grab_cgi(env, cgi);
@@ -70,11 +66,9 @@ XrdMgmOfs::Commit(const char* path,
   CommitHelper::param_t params;
   params["oc_n"] = 0;
   params["oc_max"] = 0;
-
   // Selected options
   CommitHelper::option_t option;
   CommitHelper::set_options(option, cgi);
-
   // Check 'path' parameter
   CommitHelper::path_t paths;
   paths["atomic"] = std::string("");
@@ -98,8 +92,7 @@ XrdMgmOfs::Commit(const char* path,
   }
 
   // Check all commit required parameters are defined
-  if (CommitHelper::check_commit_params(cgi))
-  {
+  if (CommitHelper::check_commit_params(cgi)) {
     // Convert the main CGI parameters into numbers
     unsigned long long size = std::stoull(cgi["size"]);
     unsigned long long fid = strtoull(cgi["fid"].c_str(), 0, 16);
@@ -107,9 +100,7 @@ XrdMgmOfs::Commit(const char* path,
     unsigned long mtime = std::stoul(cgi["mtime"]);
     unsigned long mtimens = std::stoul(cgi["mtimensec"]);
     std::string emsg;
-
     CommitHelper::log_info(vid, ThreadLogId, cgi, option, params);
-
     int rc = CommitHelper::check_filesystem(vid, ThreadLogId, fsid, cgi,
                                             option, params, emsg);
 
@@ -120,7 +111,6 @@ XrdMgmOfs::Commit(const char* path,
     // Create a checksum buffer object
     eos::Buffer checksumbuffer;
     checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
-
     // Attempt file meta data retrieval
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IContainerMD::id_t cid = 0;
@@ -156,9 +146,8 @@ XrdMgmOfs::Commit(const char* path,
 
       // Check if fsid and fid are ok
       if (fmd->getId() != fid) {
-        eos_thread_notice("commit for fid=%llu != fmd_fid=%llu",
+        eos_thread_notice("commit for fid=%08llx != fmd_fid=%08llx",
                           fid, fmd->getId());
-
         gOFS->MgmStats.Add("CommitFailedFid", 0, 0, 1);
         return Emsg(epname, error, EINVAL,
                     "commit filesize change - file id is wrong [EINVAL]",
@@ -167,9 +156,8 @@ XrdMgmOfs::Commit(const char* path,
 
       // Check if file is already unlinked from the visible namespace
       if (!(cid = fmd->getContainerId())) {
-        eos_thread_debug("commit for fid=%llu but file is disconnected "
+        eos_thread_debug("commit for fid=%08llx but file is disconnected "
                          "from any container", fmd->getId());
-
         gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
         return Emsg(epname, error, EIDRM,
                     "commit filesize change - file is already removed [EIDRM]", "");
@@ -182,10 +170,9 @@ XrdMgmOfs::Commit(const char* path,
 
         // Check if we have this replica in the unlink list
         if (option["fusex"] && fmd->hasUnlinkedLocation((unsigned int) fsid)) {
-          eos_thread_err("suppressing possible recovery replica for fid=%llu "
+          eos_thread_err("suppressing possible recovery replica for fid=%08llx "
                          "on unlinked fsid=%llu - rejecting replica",
                          fmd->getId(), fsid);
-
           // This happens when a FUSEX recovery has been triggered.
           // To avoid to reattach replicas, we clean them up here
           return Emsg(epname, error, EBADE,
@@ -217,7 +204,7 @@ XrdMgmOfs::Commit(const char* path,
       if (option["verifysize"]) {
         // Check if a file size change was detected
         if (fmd->getSize() != size) {
-          eos_thread_err("commit for fid=%llu gave a file size change after "
+          eos_thread_err("commit for fid=%08llx gave a file size change after "
                          "verification on fsid=%llu", fmd->getId(), fsid);
         }
       }
@@ -235,10 +222,8 @@ XrdMgmOfs::Commit(const char* path,
 
       // Advance oc upload parameters if concerned
       CommitHelper::handle_occhunk(vid, ThreadLogId, fmd, option, params);
-
       // Set checksum if concerned
       CommitHelper::handle_checksum(vid, ThreadLogId, fmd, option, checksumbuffer);
-
       fmdname = fmd->getName();
       paths["atomic"].Init(fmdname.c_str());
       paths["atomic"].DecodeAtomicPath(option["versioning"]);
@@ -265,11 +250,9 @@ XrdMgmOfs::Commit(const char* path,
 
       gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
-
     {
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
-
       // Path of a previous version existing before an atomic/versioning upload
       std::string delete_path = "";
       eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d",
@@ -285,13 +268,12 @@ XrdMgmOfs::Commit(const char* path,
           (!option["occhunk"] || option["ocdone"])) {
         eos_thread_info("commit: de-atomize file %s => %s",
                         fmdname.c_str(), paths["atomic"].GetName());
-
         unsigned long long vfid =
-            CommitHelper::get_version_fid(vid, ThreadLogId, fid, paths, option);
+          CommitHelper::get_version_fid(vid, ThreadLogId, fid, paths, option);
 
         // Check for versioning request
         if (option["versioning"]) {
-          eos_static_info("checked %s%s vfid=%llu",
+          eos_static_info("checked %s%s vfid=%08llx",
                           paths["versiondir"].GetParentPath(),
                           paths["atomic"].GetPath(),
                           vfid);
@@ -300,7 +282,6 @@ XrdMgmOfs::Commit(const char* path,
           // a new one and do the final rename in a transaction
           if (vfid) {
             XrdOucString versionedname = "";
-
             gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true);
             paths["version"].Init(versionedname.c_str());
           }
@@ -329,15 +310,15 @@ XrdMgmOfs::Commit(const char* path,
                     "atomic upload - discarding atomic upload [EREMCHG]", "");
       }
     }
-  } else
-  {
+  } else {
     int envlen = 0;
     eos_thread_err("commit message does not contain all meta information: %s",
                    env.Env(envlen));
     gOFS->MgmStats.Add("CommitFailedParameters", 0, 0, 1);
-
     const char* errtarget = "unknown";
-    const char* errmsg = "commit filesize change - size, fid, fsid, mtime, path not complete";
+    const char* errmsg =
+      "commit filesize change - size, fid, fsid, mtime, path not complete";
+
     if (cgi.count("path")) {
       errmsg = "commit filesize change - size, fid, fsid, mtime not complete";
       errtarget = cgi["path"].c_str();

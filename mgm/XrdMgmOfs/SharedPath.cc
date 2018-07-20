@@ -84,9 +84,8 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
   signit += "eos.share.expires=";
   signit += sexpires;
   signit += "&eos.share.fxid=";
-  XrdOucString hexstring = "";
-  eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
-  signit += hexstring.c_str();
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(buf.st_ino);
+  signit += hex_fid.c_str();
   signit += "&eos.share.signature=";
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
@@ -99,7 +98,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
   ouc_sign += path;
   ouc_sign += sexpires;
   ouc_sign += gOFS->MgmOfsInstanceName;
-  ouc_sign += hexstring;
+  ouc_sign += hex_fid.c_str();
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
@@ -159,10 +158,9 @@ XrdMgmOfs::VerifySharePath(const char* path,
     return false;
   }
 
-  XrdOucString hexstring = "";
-  eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(buf.st_ino);
 
-  if (fxid != hexstring) {
+  if (std::string(fxid.c_str()) != hex_fid) {
     eos_warning("msg=\"shared file has changed file id - share URL not valid anymore\"");
     return false;
   }
@@ -190,7 +188,7 @@ XrdMgmOfs::VerifySharePath(const char* path,
   ouc_sign += path;
   ouc_sign += expires;
   ouc_sign += gOFS->MgmOfsInstanceName;
-  ouc_sign += hexstring;
+  ouc_sign += hex_fid.c_str();
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,

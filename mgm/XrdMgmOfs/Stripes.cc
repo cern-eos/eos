@@ -129,9 +129,8 @@ XrdMgmOfs::_verifystripe(const char* path,
     opaquestring += "&mgm.localprefix=";
     opaquestring += verifyfilesystem->GetPath().c_str();
     opaquestring += "&mgm.fid=";
-    XrdOucString hexfid;
-    eos::common::FileId::Fid2Hex(fid, hexfid);
-    opaquestring += hexfid;
+    const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
+    opaquestring += hex_fid.c_str();
     opaquestring += "&mgm.manager=";
     opaquestring += gOFS->ManagerId.c_str();
     opaquestring += "&mgm.access=verify";
@@ -669,9 +668,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   source_capability += "&mgm.manager=";
   source_capability += gOFS->ManagerId.c_str();
   source_capability += "&mgm.fid=";
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(fid, hexfid);
-  source_capability += hexfid;
+  const std::string hex_fid =  eos::common::FileId::Fid2Hex(fid);
+  source_capability += hex_fid.c_str();
   source_capability += "&mgm.sec=";
   source_capability += eos::common::SecEntity::ToKey(0,
                        "eos/replication").c_str();
@@ -709,7 +707,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   target_capability += "&mgm.manager=";
   target_capability += gOFS->ManagerId.c_str();
   target_capability += "&mgm.fid=";
-  target_capability += hexfid;
+  target_capability += hex_fid.c_str();
   target_capability += "&mgm.sec=";
   target_capability += eos::common::SecEntity::ToKey(0,
                        "eos/replication").c_str();
@@ -766,11 +764,11 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
     source_cap += "&source.url=root://";
     source_cap += source_snapshot.mHostPort.c_str();
     source_cap += "//replicate:";
-    source_cap += hexfid;
+    source_cap += hex_fid.c_str();
     target_cap += "&target.url=root://";
     target_cap += target_snapshot.mHostPort.c_str();
     target_cap += "//replicate:";
-    target_cap += hexfid;
+    target_cap += hex_fid.c_str();
     fullcapability += source_cap;
     fullcapability += target_cap;
     eos::common::TransferJob* txjob = new eos::common::TransferJob(
@@ -781,8 +779,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
       errno = ENOMEM;
     } else {
       bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
-      eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s fid=%llu cap=%s\n",
-               sub, hexfid.c_str(), fid, fullcapability.c_str());
+      eos_info("info=\"submitted transfer job\" subretc=%d fid=%s cap=%s\n",
+               sub, hex_fid.c_str(), fullcapability.c_str());
 
       if (!sub) {
         errno = ENXIO;

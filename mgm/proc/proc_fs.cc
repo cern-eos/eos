@@ -212,7 +212,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
               }
 
               char sfid[40];
-              snprintf(sfid, 40, "fid=%llu", (unsigned long long) fmd->getId());
+              snprintf(sfid, 40, "fid=%08llx", (unsigned long long)fmd->getId());
               stdOut += sfid;
             }
 

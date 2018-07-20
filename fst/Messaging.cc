@@ -168,18 +168,23 @@ Messaging::Process(XrdMqMessage* newmessage)
   }
 
   if (cmd == "resync") {
-    eos::common::FileSystem::fsid_t fsid = (action.Get("mgm.fsid") ? strtoul(
-        action.Get("mgm.fsid"), 0, 10) : 0);
-    eos::common::FileId::fileid_t fid = (action.Get("mgm.fid") ? strtoull(
-                                           action.Get("mgm.fid"), 0, 10) : 0);
+    eos::common::FileId::fileid_t fid {0ull};
+    eos::common::FileSystem::fsid_t fsid =
+      (action.Get("mgm.fsid") ? strtoul(action.Get("mgm.fsid"), 0, 10) : 0);
 
-    if ((!fsid)) {
-      eos_err("dropping resync fsid=%lu fid=%llu", (unsigned long) fsid,
-              (unsigned long long) fid);
+    if (action.Get("mgm.fxid")) {
+      fid = strtoull(action.Get("mgm.fxid"), 0, 16);  // transition
+    } else if (action.Get("mgm.fid")) {
+      fid = strtoull(action.Get("mgm.fid"), 0, 10);   // eventually should be HEX
+    }
+
+    if (!fsid) {
+      eos_err("msg=\"dropping resync\" fsid=%lu fid=%08llx",
+              (unsigned long) fsid, fid);
     } else {
       if (!fid) {
-        eos_warning("deleting fmd for fsid=%lu fid=%llu", (unsigned long) fsid,
-                    (unsigned long long) fid);
+        eos_warning("msg=\"deleting fmd\" fsid=%lu fid=%08llx",
+                    (unsigned long) fsid, fid);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {
         FmdHelper* fMd = 0;

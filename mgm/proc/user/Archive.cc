@@ -671,7 +671,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
+        eos_static_err("fid=%08llx errno=%d msg=\"%s\"\n",
                        id, e.getErrno(), e.getMessage().str().c_str());
       }
     }

@@ -50,16 +50,15 @@ Report::Report(XrdOucEnv& report)
   host = report.Get("host") ? report.Get("host") : "none";
   server_name = host;
   server_domain = host;
-
   auto dpos = host.find('.');
-  if (dpos != std::string::npos)
-  {
+
+  if (dpos != std::string::npos) {
     server_name.erase(dpos);
     server_domain.erase(0, dpos + 1);
   }
 
   lid = strtoul(report.Get("lid") ? report.Get("lid") : "0", 0, 10);
-  fid = strtoull(report.Get("fid") ? report.Get("fid") : "0", 0, 10);
+  fid = strtoull(report.Get("fid") ? report.Get("fid") : "0", 0, 16);
   fsid = strtoul(report.Get("fsid") ? report.Get("fsid") : "0", 0, 10);
   rb = strtoull(report.Get("rb") ? report.Get("rb") : "0", 0, 10);
   rb_min = strtoull(report.Get("rb_min") ? report.Get("rb_min") : "0", 0, 10);
@@ -107,10 +106,9 @@ Report::Report(XrdOucEnv& report)
   sec_name = report.Get("sec.name") ? report.Get("sec.name") : "";
   sec_host = report.Get("sec.host") ? report.Get("sec.host") : "";
   sec_domain = report.Get("sec.host") ? report.Get("sec.host") : "";
-
   dpos = sec_host.find('.');
-  if (dpos != std::string::npos)
-  {
+
+  if (dpos != std::string::npos) {
     sec_host.erase(dpos);
     sec_domain.erase(0, dpos + 1);
   }
@@ -120,8 +118,7 @@ Report::Report(XrdOucEnv& report)
   sec_info = report.Get("sec.info") ? report.Get("sec.info") : "";
   sec_app = report.Get("sec.app") ? report.Get("sec.app") : "";
 
-  if (sec_app.find('?') != std::string::npos)
-  {
+  if (sec_app.find('?') != std::string::npos) {
     sec_app.erase(sec_app.find('?'));
   }
 

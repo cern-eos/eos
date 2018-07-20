@@ -128,7 +128,7 @@ FileSystem::GetStatfs()
 
   std::unique_ptr<eos::common::Statfs> statFs;
 
-  if(mFileIO) {
+  if (mFileIO) {
     statFs = mFileIO->GetStatfs();
   }
 
@@ -264,10 +264,11 @@ FileSystem::SyncTransactions(const char* manager)
 
         // try to sync this file from the MGM
         if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {
-          eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(),
+          eos_static_info("msg=\"resync ok\" fsid=%lu fid=%08llx",
+                          (unsigned long) GetId(),
                           fid);
         } else {
-          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx",
+          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%08llx",
                          (unsigned long) GetId(), fid);
           ok = false;
           continue;
@@ -312,11 +313,9 @@ FileSystem::OpenTransaction(unsigned long long fid)
 {
   XrdOucString tagfile = GetTransactionDirectory();
   tagfile += "/";
-  XrdOucString hexstring = "";
-  eos::common::FileId::Fid2Hex(fid, hexstring);
-  tagfile += hexstring;
-  int fd = open(tagfile.c_str(),
-                O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP);
+  tagfile += eos::common::FileId::Fid2Hex(fid).c_str();
+  int fd = open(tagfile.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR |
+                S_IROTH | S_IRGRP);
 
   if (fd >= 0) {
     close(fd);
@@ -332,9 +331,7 @@ FileSystem::CloseTransaction(unsigned long long fid)
 {
   XrdOucString tagfile = GetTransactionDirectory();
   tagfile += "/";
-  XrdOucString hexstring = "";
-  eos::common::FileId::Fid2Hex(fid, hexstring);
-  tagfile += hexstring;
+  tagfile += eos::common::FileId::Fid2Hex(fid).c_str();
 
   if (unlink(tagfile.c_str())) {
     return false;

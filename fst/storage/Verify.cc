@@ -62,13 +62,13 @@ Storage::Verify()
       mVerifications.pop();
       mRunningVerify = verifyfile;
 
-      if(gOFS.openedForWriting.isOpen(verifyfile->fsId, verifyfile->fId)) {
+      if (gOFS.openedForWriting.isOpen(verifyfile->fsId, verifyfile->fId)) {
         time_t now = time(NULL);
 
         if (open_w_out[verifyfile->fId] < now) {
           eos_static_warning("file is currently opened for writing id=%x on "
-                              "fs=%u - skipping verification", verifyfile->fId,
-                              verifyfile->fsId);
+                             "fs=%u - skipping verification", verifyfile->fId,
+                             verifyfile->fsId);
           // Spit this message out only once pre minute
           open_w_out[verifyfile->fId] = now + 60;
         }
@@ -88,11 +88,10 @@ Storage::Verify()
     eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId,
                      verifyfile->fsId);
     // verify the file
-    XrdOucString hexfid = "";
-    eos::common::FileId::Fid2Hex(verifyfile->fId, hexfid);
+    const std::string hex_fid = eos::common::FileId::Fid2Hex(verifyfile->fId);
     XrdOucErrInfo error;
     XrdOucString fstPath = "";
-    eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
+    eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                             verifyfile->localPrefix.c_str(), fstPath);
     {
       FmdHelper* fMd = 0;
@@ -138,7 +137,7 @@ Storage::Verify()
       if ((fMd->mProtoFmd.size() != (unsigned long long) statinfo.st_size)  ||
           (fMd->mProtoFmd.disksize() != (unsigned long long) statinfo.st_size)) {
         eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size,
+                       verifyfile->path.c_str(), hex_fid.c_str(), statinfo.st_size,
                        fMd->mProtoFmd.size());
         fMd->mProtoFmd.set_disksize(statinfo.st_size);
         localUpdate = true;
@@ -146,14 +145,14 @@ Storage::Verify()
 
       if (fMd->mProtoFmd.lid() != verifyfile->lId) {
         eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u",
-                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->lId,
+                       verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->lId,
                        fMd->mProtoFmd.lid());
         localUpdate = true;
       }
 
       if (fMd->mProtoFmd.cid() != verifyfile->cId) {
         eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hexfid.c_str(), verifyfile->cId,
+                       verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->cId,
                        fMd->mProtoFmd.cid());
         localUpdate = true;
       }
@@ -164,7 +163,6 @@ Storage::Verify()
       fMd->mProtoFmd.set_cid(verifyfile->cId);
       std::unique_ptr<CheckSum> checksummer =
         ChecksumPlugins::GetChecksumObjectPtr(fMd->mProtoFmd.lid());
-
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
@@ -204,7 +202,7 @@ Storage::Verify()
 
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s",
-                           verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum(),
+                           verifyfile->path.c_str(), hex_fid.c_str(), checksummer->GetHexChecksum(),
                            fMd->mProtoFmd.checksum().c_str());
             fMd->mProtoFmd.set_checksum(computedchecksum);
             fMd->mProtoFmd.set_diskchecksum(computedchecksum);
@@ -223,7 +221,7 @@ Storage::Verify()
             localUpdate = true;
           } else {
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s",
-                            verifyfile->path.c_str(), hexfid.c_str(),
+                            verifyfile->path.c_str(), hex_fid.c_str(),
                             checksummer->GetHexChecksum());
 
             // Reset error flags if needed
@@ -269,7 +267,7 @@ Storage::Verify()
           sprintf(filesize, "%" PRIu64 "", fMd->mProtoFmd.size());
           capOpaqueFile += filesize;
           capOpaqueFile += "&mgm.fid=";
-          capOpaqueFile += hexfid;
+          capOpaqueFile += hex_fid.c_str();
           capOpaqueFile += "&mgm.path=";
           capOpaqueFile += verifyfile->path.c_str();
 
@@ -305,7 +303,7 @@ Storage::Verify()
 
             if (rc) {
               eos_static_err("unable to verify file id=%s fs=%u at manager %s",
-                             hexfid.c_str(), verifyfile->fsId, verifyfile->managerId.c_str());
+                             hex_fid.c_str(), verifyfile->fsId, verifyfile->managerId.c_str());
             }
           }
         }

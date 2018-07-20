@@ -293,10 +293,12 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
-  XrdOucString fmdquery = "/?mgm.pcmd=rewrite&mgm.fxid=";
-  XrdOucString shexfid;
-  eos::common::FileId::Fid2Hex(fid, shexfid);
-  fmdquery += shexfid;
+  XrdOucString fmdquery = "/?mgm.pcmd=rewrite&mgm.fid=";
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
+  fmdquery += hex_fid.c_str();
+  // @todo(esindril) Legacy, remove once fsctl/Rewrite.cc no longer expects 'fxid'
+  fmdquery += "&mgm.fxid=";
+  fmdquery += hex_fid.c_str(); // legacy
   XrdOucString address = "root://";
   std::string current_mgr;
 
@@ -330,11 +332,11 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   if (status.IsOK()) {
     rc = 0;
     eos_static_debug("scheduled a repair at %s for fid=%s ",
-                     current_mgr.c_str(), shexfid.c_str());
+                     current_mgr.c_str(), hex_fid.c_str());
   } else {
     rc = ECOMM;
     eos_static_err("Unable to schedule repair at server %s for fid=%s",
-                   current_mgr.c_str(), shexfid.c_str());
+                   current_mgr.c_str(), hex_fid.c_str());
   }
 
   if (rc) {
@@ -903,7 +905,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
           int checksumtype = LayoutId::GetChecksumFromEnv(env);
           LayoutId::layoutid_t layoutid =
             LayoutId::GetId(LayoutId::kPlain, checksumtype);
-
           std::unique_ptr<CheckSum> checksum =
             eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, false);
 
@@ -1340,17 +1341,16 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
 
         if (f.layouterror()) {
           int rc = 0;
-          XrdOucString hexfid;
-          XrdOucString fstPath;
           struct stat buf;
-          eos::common::FileId::Fid2Hex(fid, hexfid);
-          eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), path, fstPath);
+          XrdOucString fstPath;
+          const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
+          eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(), path, fstPath);
 
           if ((rc = stat(fstPath.c_str(), &buf))) {
             if ((errno == ENOENT) || (errno == ENOTDIR)) {
               if ((f.layouterror() & LayoutId::kOrphan) ||
                   (f.layouterror() & LayoutId::kUnregistered)) {
-                eos_static_info("msg=\"push back for deletion fid=%lu\"", fid);
+                eos_static_info("msg=\"push back for deletion fid=%08llx\"", fid);
                 to_delete.push_back(fid);
               }
             }

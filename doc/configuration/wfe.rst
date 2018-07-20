@@ -110,7 +110,7 @@ As an example we want to send an email to a mailing list, whenever a file is dep
    # place a new file
    eos cp /etc/passwd /eos/dev/mail/passwd
 
-   # eos-project.cern.ch will receive an Email with a subject like: eosdev ( eosdev1.cern.ch ) event=closew fxid=000004f7 )
+   # eos-project.cern.ch will receive an Email with a subject like: eosdev ( eosdev1.cern.ch ) event=closew fid=000004f7 )
    # and the text in the body : a file has been written!
 
 

@@ -135,13 +135,12 @@ XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path,
 {
   // If we committed the replica and an error happened remote, we have
   // to unlink it again
-  XrdOucString hexstring = "";
-  eos::common::FileId::Fid2Hex(fileid, hexstring);
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fileid);
   XrdOucErrInfo error;
   XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
   XrdOucString OpaqueString = "";
   OpaqueString += "&mgm.fid=";
-  OpaqueString += hexstring;
+  OpaqueString += hex_fid.c_str();
   OpaqueString += "&mgm.fsid=anyway";
   OpaqueString += "&mgm.dropall=1";
   XrdOucEnv Opaque(OpaqueString.c_str());
@@ -152,11 +151,11 @@ XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path,
 
   if (rcode && (error.getErrInfo() != EIDRM)) {
     eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                hexstring.c_str(), fileid, manager.c_str());
+                hex_fid.c_str(), fileid, manager.c_str());
   }
 
-  eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid= drop-allrc=%d",
-           manager.c_str(), (unsigned long long) fileid, rcode);
+  eos_info("info=\"removing on manager\" manager=%s fid=%08llx drop-allrc=%d",
+           manager.c_str(), fileid, rcode);
   return rcode;
 }
 
@@ -428,11 +427,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (!gOFS.Simulate_FMD_open_error) {
       // Get the layout object
       if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
-        eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) mFsId, mFileId);
+        eos_info("msg=\"resync ok\" fsid=%lu fid=%08llx", (unsigned long) mFsId,
+                 mFileId);
         fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid, mLid,
                                            isRW);
       } else {
-        eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) mFsId,
+        eos_err("msg=\"resync failed\" fsid=%lu fid=%08llx", (unsigned long) mFsId,
                 mFileId);
       }
     }
@@ -632,7 +632,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (isRW) {
     if (!gOFS.Storage->OpenTransaction(mFsId, mFileId)) {
-      eos_crit("cannot open transaction for fsid=%u fid=%llu", mFsId, mFileId);
+      eos_crit("cannot open transaction for fsid=%u fid=%08llx", mFsId, mFileId);
     }
   }
 
@@ -707,7 +707,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
 
     snprintf(report, sizeof(report) - 1,
              "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
-             "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
+             "host=%s&lid=%lu&fid=%08llx&fsid=%lu&"
              "ots=%lu&otms=%lu&"
              "cts=%lu&ctms=%lu&"
              "nrc=%lu&nwc=%lu&"
@@ -777,14 +777,14 @@ XrdFstOfsFile::modified()
 
   // Check if the file could have been changed in the meanwhile ...
   if (fileExists && isReplication && (!isRW)) {
-    if(gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-        eos_err("file is now open for writing - discarding replication "
-                "[wopen=%d]", gOFS.openedForWriting.getUseCount(mFsId, mFileId));
-        gOFS.Emsg("closeofs", error, EIO,
-                  "guarantee correctness - "
-                  "file has been opened for writing during replication",
-                  mNsPath.c_str());
-        rc = SFS_ERROR;
+    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
+      eos_err("file is now open for writing - discarding replication "
+              "[wopen=%d]", gOFS.openedForWriting.getUseCount(mFsId, mFileId));
+      gOFS.Emsg("closeofs", error, EIO,
+                "guarantee correctness - "
+                "file has been opened for writing during replication",
+                mNsPath.c_str());
+      rc = SFS_ERROR;
     }
 
     if ((statinfo.st_mtime != updateStat.st_mtime)) {
@@ -1041,15 +1041,14 @@ XrdFstOfsFile::close()
   // a close via the destructor
   if (opened && (!closed) && fMd) {
     // Check if the file close comes from a client disconnect e.g. the destructor
-    XrdOucString hexstring = "";
-    eos::common::FileId::Fid2Hex(fMd->mProtoFmd.fid(), hexstring);
+    const std::string hex_fid = eos::common::FileId::Fid2Hex(fMd->mProtoFmd.fid());
     XrdOucErrInfo error;
     XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
     XrdOucString OpaqueString = "";
     OpaqueString += "&mgm.fsid=";
     OpaqueString += (int) fMd->mProtoFmd.fsid();
     OpaqueString += "&mgm.fid=";
-    OpaqueString += hexstring;
+    OpaqueString += hex_fid.c_str();
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
     eos_info("viaDelete=%d", viaDelete);
@@ -1060,12 +1059,12 @@ XrdFstOfsFile::close()
       // or the specified checksum does not match the computed one
       if (viaDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                 "  fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
+                 "  fsid=%u fid=%08llx on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       if (writeDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
+                 " fsid=%u fid=%08llx on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       // Delete the file - set the file to be deleted
@@ -1082,7 +1081,7 @@ XrdFstOfsFile::close()
 
       if (rc) {
         eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                    hexstring.c_str(), fMd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+                    hex_fid.c_str(), fMd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
       }
     } else {
       // Check if this was a newly created file
@@ -1165,7 +1164,7 @@ XrdFstOfsFile::close()
 
         if (rc) {
           eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hexstring.c_str(), fMd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+                      hex_fid.c_str(), fMd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
         }
       }
 
@@ -1316,34 +1315,34 @@ XrdFstOfsFile::close()
               if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
                   (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
                 if (!gOFS.Storage->CloseTransaction(mFsId, mFileId)) {
-                  eos_crit("cannot close transaction for fsid=%u fid=%llu", mFsId, mFileId);
+                  eos_crit("cannot close transaction for fsid=%u fid=%08llx", mFsId, mFileId);
                 }
 
                 if (error.getErrInfo() == EIDRM) {
                   // This file has been deleted in the meanwhile ... we can
                   // unlink that immediately
-                  eos_info("info=\"unlinking fid=%08x path=%s - "
+                  eos_info("info=\"unlinking fid=%08llx path=%s - "
                            "file has been already unlinked from the namespace\"",
                            fMd->mProtoFmd.fid(), mNsPath.c_str());
                   mFusexIsUnlinked = true;
                 }
 
                 if (error.getErrInfo() == EBADE) {
-                  eos_err("info=\"unlinking fid=%08x path=%s - "
+                  eos_err("info=\"unlinking fid=%08llx path=%s - "
                           "file size of replica does not match reference\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   consistencyerror = true;
                 }
 
                 if (error.getErrInfo() == EBADR) {
-                  eos_err("info=\"unlinking fid=%08x path=%s - "
+                  eos_err("info=\"unlinking fid=%08llx path=%s - "
                           "checksum of replica does not match reference\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   consistencyerror = true;
                 }
 
                 if (error.getErrInfo() == EREMCHG) {
-                  eos_err("info=\"unlinking fid=%08x path=%s - "
+                  eos_err("info=\"unlinking fid=%08llx path=%s - "
                           "overlapping atomic upload - discarding this one\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   atomicoverlap = true;
@@ -1428,7 +1427,8 @@ XrdFstOfsFile::close()
 
       if (isRW) {
         if ((mIsInjection || isCreation || IsChunkedUpload()) && (!rc) &&
-            (gOFS.openedForWriting.getUseCount(fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid() > 1))) {
+            (gOFS.openedForWriting.getUseCount(fMd->mProtoFmd.fsid(),
+                                               fMd->mProtoFmd.fid() > 1))) {
           // indicate that this file was closed properly and disable further delete on close
           gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] = true;
         }
@@ -1438,7 +1438,8 @@ XrdFstOfsFile::close()
         gOFS.openedForReading.down(fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
-      if(!gOFS.openedForWriting.isOpen(fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid())) {
+      if (!gOFS.openedForWriting.isOpen(fMd->mProtoFmd.fsid(),
+                                        fMd->mProtoFmd.fid())) {
         // When the last writer is gone we can remove the prohibiting entry
         gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
         gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].resize(0);
@@ -1510,16 +1511,15 @@ XrdFstOfsFile::close()
       if (committed) {
         // If we committed the replica and an error happened remote, we have
         // to unlink it again
-        XrdOucString hexstring = "";
-        eos::common::FileId::Fid2Hex(mFileId, hexstring);
-        XrdOucErrInfo
-        error; // TBD Should be renamed so it does not shadow XrdSfsFile::error
+        const std::string hex_fid = eos::common::FileId::Fid2Hex(mFileId);
+        // !!!! TBD Should be renamed so it does not shadow XrdSfsFile::error
+        XrdOucErrInfo error;
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
         OpaqueString += (int) mFsId;
         OpaqueString += "&mgm.fid=";
-        OpaqueString += hexstring;
+        OpaqueString += hex_fid.c_str();
 
         // If deleteOnClose at the gateway then we drop all replicas
         if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
@@ -1534,10 +1534,10 @@ XrdFstOfsFile::close()
 
         if (rcode && (rcode != EIDRM)) {
           eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-                      hexstring.c_str(), mFileId, mCapOpaque->Get("mgm.manager"));
+                      hex_fid.c_str(), mFileId, mCapOpaque->Get("mgm.manager"));
         }
 
-        eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d "
+        eos_info("info=\"removing on manager\" manager=%s fid=%08llx fsid=%d "
                  "fn=%s fstpath=%s rc=%d", mCapOpaque->Get("mgm.manager"),
                  mFileId, (int) mFsId,
                  mCapOpaque->Get("mgm.path"), mFstPath.c_str(), rcode);
@@ -3227,23 +3227,28 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 //------------------------------------------------------------------------------
 // Translate a cta ResponseType to std::string
 //------------------------------------------------------------------------------
-static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt) {
-  switch(rt) {
-    case cta::xrd::Response::RSP_ERR_CTA: {
-      return "RSP_ERR_CTA";
-    }
-    case cta::xrd::Response::RSP_ERR_USER: {
-      return "RSP_ERR_USER";
-    }
-    case cta::xrd::Response::RSP_ERR_PROTOBUF: {
-      return "RSP_ERR_PROTOBUF";
-    }
-    case cta::xrd::Response::RSP_INVALID: {
-      return "RSP_INVALID";
-    }
-    default: {
-      return "";
-    }
+static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
+{
+  switch (rt) {
+  case cta::xrd::Response::RSP_ERR_CTA: {
+    return "RSP_ERR_CTA";
+  }
+
+  case cta::xrd::Response::RSP_ERR_USER: {
+    return "RSP_ERR_USER";
+  }
+
+  case cta::xrd::Response::RSP_ERR_PROTOBUF: {
+    return "RSP_ERR_PROTOBUF";
+  }
+
+  case cta::xrd::Response::RSP_INVALID: {
+    return "RSP_INVALID";
+  }
+
+  default: {
+    return "";
+  }
   }
 
   return "";
@@ -3359,7 +3364,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   case cta::xrd::Response::RSP_ERR_PROTOBUF:
   case cta::xrd::Response::RSP_INVALID:
     errMsgBack = response.message_txt();
-    eos_static_err("%s for file %s. Reason: %s", ctaResponseCodeToString(response.type()).c_str(),
+    eos_static_err("%s for file %s. Reason: %s",
+                   ctaResponseCodeToString(response.type()).c_str(),
                    fullPath.c_str(), response.message_txt().c_str());
     return EPROTO;
 

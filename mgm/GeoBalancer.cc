@@ -266,7 +266,7 @@ GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD* fmd)
   for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
     // ignore filesystem id 0
     if (!(*lociter)) {
-      eos_static_err("fsid 0 found fid=%lld", fmd->getId());
+      eos_static_err("msg=\"fsid 0 found\" fid=%08llx", fmd->getId());
       continue;
     }
 
@@ -320,8 +320,8 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       }
 
       if (fileIsInDifferentLocations(fmd.get())) {
-        eos_static_debug("filename=%s fid=%d is already in more than "
-                         "one location", fmd->getName().c_str(), fileid);
+        eos_static_debug("msg=\"filename=%s fid=%08llx is already in more than "
+                         "one location\"", fmd->getName().c_str(), fileid);
         return std::string("");
       }
 
@@ -329,7 +329,7 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
         *size = fmd->getSize();
       }
     } catch (eos::MDException& e) {
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
                        e.getMessage().str().c_str());
       return std::string("");
     }
@@ -341,15 +341,11 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       return std::string("");
     }
 
-    eos_static_debug("found file for transfering file=%s",
+    eos_static_debug("msg=\"found file for transfering\" file=%s",
                      fileURI.c_str());
   }
-  snprintf(fileName,
-           1024,
-           "%s/%016llx:%s#%08lx",
-           gOFS->MgmProcConversionPath.c_str(),
-           fileid,
-           mSpaceName.c_str(),
+  snprintf(fileName, 1024, "%s/%016llx:%s#%08lx",
+           gOFS->MgmProcConversionPath.c_str(), fileid, mSpaceName.c_str(),
            (unsigned long) layoutid);
   return std::string(fileName);
 }

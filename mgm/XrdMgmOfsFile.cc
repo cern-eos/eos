@@ -644,9 +644,10 @@ XrdMgmOfsFile::open(const char* inpath,
              acl.IsMutable());
 
     if (acl.HasAcl()) {
-      if ( (vid.uid != 0) && (!vid.sudoer) && (isRW ? acl.CanNotWrite() : acl.CanNotRead()) ) {
+      if ((vid.uid != 0) && (!vid.sudoer) &&
+          (isRW ? acl.CanNotWrite() : acl.CanNotRead())) {
         eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
-               vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
+                  vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
@@ -654,13 +655,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if (isRW) {
         // write case
-        if ( !(acl.CanWrite() || acl.CanWriteOnce()) ) {
+        if (!(acl.CanWrite() || acl.CanWriteOnce())) {
           // we have to check the standard permissions
           stdpermcheck = true;
         }
       } else {
         // read case
-        if ( !acl.CanRead() ) {
+        if (!acl.CanRead()) {
           // we have to check the standard permissions
           stdpermcheck = true;
         }
@@ -677,9 +678,14 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     int taccess = -1;
+
     if ((!isSharedFile || isRW) && stdpermcheck
-        && (!(taccess = dmd->access(vid.uid, vid.gid, (isRW) ? W_OK | X_OK : R_OK | X_OK))) ) {
-      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d", fmd?fmd->getCUid():0, dmd->getCUid(), vid.uid, isSharedFile, isRW, stdpermcheck, taccess);
+        && (!(taccess = dmd->access(vid.uid, vid.gid,
+                                    (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
+      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+                stdpermcheck, taccess);
+
       if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
         errno = EPERM;
@@ -917,7 +923,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
       if (acl.HasAcl()) {
         eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
-                    acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(), fmd->getCGid());
+                  acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
+                  fmd->getCGid());
 
         if (acl.CanNotUpdate()) {
           // the ACL has !u set - we don't allow to do file updates
@@ -1181,9 +1188,8 @@ XrdMgmOfsFile::open(const char* inpath,
   capability += "&mgm.manager=";
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(fileId, hexfid);
-  capability += hexfid;
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fileId);
+  capability += hex_fid.c_str();
   XrdOucString sizestring;
   capability += "&mgm.cid=";
   capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
@@ -1478,7 +1484,8 @@ XrdMgmOfsFile::open(const char* inpath,
       workflow.SetFile(path, fmd->getId());
       std::string errorMsg;
 
-      if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo, errorMsg)) > 0) {
+      if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo,
+                                        errorMsg)) > 0) {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
         return gOFS->Stall(error, stalltime, ""
                            "File is currently unavailable - triggered workflow!");
@@ -2386,7 +2393,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // add the MGM hex id for this file
   redirectionhost += "&mgm.id=";
-  redirectionhost += hexfid;
+  redirectionhost += hex_fid.c_str();
 
   if (isFuse) {
     redirectionhost += "&mgm.mtime=0";

@@ -151,7 +151,7 @@ static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD>& fmd)
   for (auto lociter : fmd->getLocations()) {
     // ignore filesystem id 0
     if (!lociter) {
-      eos_static_err("fsid 0 found fid=%lld", fmd->getId());
+      eos_static_err("fsid 0 found fid=%08llx", fmd->getId());
       continue;
     }
 
@@ -574,8 +574,8 @@ public:
   PermissionFilter(const eos::common::Mapping::VirtualIdentity& v) : vid(v) {}
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-    const eos::IContainerMD::XAttrMap &attrs) override {
-
+                                     const eos::IContainerMD::XAttrMap& attrs) override
+  {
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
     return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid);
@@ -596,14 +596,13 @@ public:
   // QDB: Initialize NamespaceExplorer
   //----------------------------------------------------------------------------
   FindResultProvider(qclient::QClient* qc, const std::string& target,
-    const eos::common::Mapping::VirtualIdentity &v)
+                     const eos::common::Mapping::VirtualIdentity& v)
     : qcl(qc), path(target), vid(v)
   {
     ExplorationOptions options;
     options.populateLinkedAttributes = true;
     options.expansionDecider.reset(new PermissionFilter(vid));
     options.view = gOFS->eosView;
-
     explorer.reset(new NamespaceExplorer(path, options, *qcl));
   }
 
@@ -759,7 +758,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   if (!OpenTemporaryOutputFiles()) {
     reply.set_retc(EIO);
     reply.set_std_err(SSTR(
-      "error: cannot write find result files on MGM" << std::endl));
+                        "error: cannot write find result files on MGM" << std::endl));
     return reply;
   }
 
@@ -810,7 +809,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   XrdSfsFileExistence file_exists;
 
   if ((gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr))) {
-    ofstderrStream << "error: failed to run exists on '" << spath << "'" << std::endl;
+    ofstderrStream << "error: failed to run exists on '" << spath << "'" <<
+                   std::endl;
     reply.set_retc(errno);
     return reply;
   } else {
@@ -865,8 +865,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
     while (findResultProvider->next(findResult)) {
       if (findResult.isdir) {
-
-        if(findResult.expansionFilteredOut) {
+        if (findResult.expansionFilteredOut) {
           ofstderrStream << "error: no permissions to read directory ";
           ofstderrStream << findResult.path << std::endl;
         }

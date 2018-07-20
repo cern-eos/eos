@@ -51,15 +51,14 @@ Storage::Remover()
       for (unsigned int j = 0; j < to_del->fIdVector.size(); ++j) {
         eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->fIdVector[j],
                          to_del->fsId);
-        XrdOucString hexstring = "";
-        eos::common::FileId::Fid2Hex(to_del->fIdVector[j], hexstring);
+        const std::string hex_fid = eos::common::FileId::Fid2Hex(to_del->fIdVector[j]);
         XrdOucErrInfo error;
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
         OpaqueString += (int) to_del->fsId;
         OpaqueString += "&mgm.fid=";
-        OpaqueString += hexstring;
+        OpaqueString += hex_fid.c_str();
         OpaqueString += "&mgm.localprefix=";
         OpaqueString += to_del->localPrefix;
         XrdOucEnv Opaque(OpaqueString.c_str());
@@ -68,7 +67,7 @@ Storage::Remover()
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true) != SFS_OK)) {
           eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",
-                             hexstring.c_str(), to_del->fsId, to_del->localPrefix.c_str());
+                             hex_fid.c_str(), to_del->fsId, to_del->localPrefix.c_str());
         }
 
         // Update the manager
@@ -76,7 +75,7 @@ Storage::Remover()
 
         if (rc) {
           eos_static_err("unable to drop file id %s fsid %u at manager %s",
-                         hexstring.c_str(), to_del->fsId, to_del->managerId.c_str());
+                         hex_fid.c_str(), to_del->fsId, to_del->managerId.c_str());
         }
       }
     }

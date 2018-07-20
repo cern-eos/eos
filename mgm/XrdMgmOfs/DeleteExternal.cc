@@ -29,8 +29,8 @@
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
-                           unsigned long long fid)
+XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
+                          unsigned long long fid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send an explicit deletion message to a fsid/fid pair
@@ -48,24 +48,20 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
   // ---------------------------------------------------------------------------
   // send an explicit deletion message to any fsid/fid pair
   // ---------------------------------------------------------------------------
-
-
   XrdMqMessage message("deletion");
-
   eos::mgm::FileSystem* fs = 0;
   XrdOucString receiver = "";
   XrdOucString msgbody = "mgm.cmd=drop";
   XrdOucString capability = "";
   XrdOucString idlist = "";
-
   // get the filesystem from the FS view
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.mIdView.count(fsid))
-    {
+
+    if (FsView::gFsView.mIdView.count(fsid)) {
       fs = FsView::gFsView.mIdView[fsid];
-      if (fs)
-      {
+
+      if (fs) {
         capability += "&mgm.access=delete";
         capability += "&mgm.manager=";
         capability += gOFS->ManagerId.c_str();
@@ -74,44 +70,35 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
         capability += "&mgm.localprefix=";
         capability += fs->GetPath().c_str();
         capability += "&mgm.fids=";
-        XrdOucString hexfid = "";
-        eos::common::FileId::Fid2Hex(fid, hexfid);
-        capability += hexfid;
+        capability += eos::common::FileId::Fid2Hex(fid).c_str();
         receiver = fs->GetQueue().c_str();
       }
     }
   }
-
   bool ok = false;
 
-  if (fs)
-  {
+  if (fs) {
     XrdOucEnv incapability(capability.c_str());
     XrdOucEnv* capabilityenv = 0;
     eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-
     int caprc = 0;
+
     if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
-                                          mCapabilityValidity)))
-    {
+                                          mCapabilityValidity))) {
       eos_static_err("unable to create capability - errno=%u", caprc);
-    }
-    else
-    {
+    } else {
       int caplen = 0;
       msgbody += capabilityenv->Env(caplen);
       message.SetBody(msgbody.c_str());
-      if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str()))
-      {
-        eos_static_err("unable to send deletion message to %s", receiver.c_str());
-      }
-      else
-      {
 
+      if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+        eos_static_err("unable to send deletion message to %s", receiver.c_str());
+      } else {
         ok = true;
       }
     }
   }
+
   return ok;
 }
 

@@ -1714,7 +1714,7 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   char report[16384];
   snprintf(report, sizeof(report) - 1,
            "log=%s&"
-           "host=%s&fid=%llu&fsid=%u&"
+           "host=%s&fid=%08llx&fsid=%u&"
            "dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&"
            "da_ts=%lu&da_tns=%lu&"

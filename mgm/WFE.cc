@@ -368,10 +368,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
   workflowdir += "/";
   workflowdir += mActions[action].mWorkflow;
   workflowdir += "/";
-  std::string entry;
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(mFid, hexfid);
-  entry = hexfid.c_str();
+  std::string entry = eos::common::FileId::Fid2Hex(mFid);
   eos_static_info("workflowdir=\"%s\" retry=%d when=%u job-time=%s",
                   workflowdir.c_str(),
                   retry, when, mActions[action].mWhen.c_str());
@@ -489,7 +486,7 @@ WFE::Job::Load(std::string path2entry)
 
   if (s1 && s2) {
     mFid = eos::common::FileId::Hex2Fid(id.c_str());
-    eos_static_info("workflow=\"%s\" fid=%lx", workflow.c_str(), mFid);
+    eos_static_info("workflow=\"%s\" fid=%08llx", workflow.c_str(), mFid);
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path2entry);
       eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
@@ -578,10 +575,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
   workflowdir += "/";
   workflowdir += mActions[0].mWorkflow;
   workflowdir += "/";
-  std::string entry;
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(mFid, hexfid);
-  entry = hexfid.c_str();
+  std::string entry = eos::common::FileId::Fid2Hex(mFid);
   eos_static_info("workflowdir=\"%s\" entry=%s", workflowdir.c_str(),
                   entry.c_str());
   XrdOucErrInfo lError;
@@ -665,10 +659,7 @@ WFE::Job::Delete(std::string queue, std::string fromDay)
   workflowdir += "/";
   workflowdir += mActions[0].mWorkflow;
   workflowdir += "/";
-  std::string entry;
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(mFid, hexfid);
-  entry = hexfid.c_str();
+  std::string entry = eos::common::FileId::Fid2Hex(mFid);
   eos_static_info("workflowdir=\"%s\"", workflowdir.c_str());
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
@@ -697,7 +688,7 @@ WFE::Job::Delete(std::string queue, std::string fromDay)
 
 /*----------------------------------------------------------------------------*/
 int
-WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
+WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief execute a workflow
@@ -754,10 +745,8 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
         topic += " ";
         topic += " event=";
         topic += mActions[0].mEvent;
-        topic += " fxid=";
-        XrdOucString hexid;
-        eos::common::FileId::Fid2Hex(mFid, hexid);
-        topic += hexid.c_str();
+        topic += " fid=";
+        topic += eos::common::FileId::Fid2Hex(mFid).c_str();
         std::string do_mail = "echo ";
         do_mail += "\"";
         do_mail += freetext;
@@ -1083,12 +1072,10 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
               }
             }
 
-            XrdOucString hexfid;
-            eos::common::FileId::Fid2Hex(mFid, hexfid);
+            const std::string hex_fid = eos::common::FileId::Fid2Hex(mFid);
             cnt = 0;
 
-            while (execargs.replace("<eos::wfe::fxid>",
-                                    hexfid)) {
+            while (execargs.replace("<eos::wfe::fxid>", hex_fid.c_str())) {
               if (++cnt > 16) {
                 break;
               }
@@ -1099,7 +1086,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
             turl += "/";
             turl += fullpath;
             turl += "?eos.lfn=fxid:";
-            turl += hexfid.c_str();
+            turl += hex_fid.c_str();
             cnt = 0;
 
             while (execargs.replace("<eos::wfe::turl>",
@@ -1590,7 +1577,9 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
  * @return SFS_OK if success
  */
 /*----------------------------------------------------------------------------*/
-int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const ininfo) {
+int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
+                                      const char* const ininfo)
+{
   const auto event = mActions[0].mEvent;
   std::string fullPath;
 
@@ -1601,7 +1590,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
     fullPath = gOFS->eosView->getUri(fmd.get());
   } catch (eos::MDException& e) {
     eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
-      e.getMessage().str().c_str());
+                   e.getMessage().str().c_str());
     MoveWithResults(ENOENT);
     return ENOENT;
   }
@@ -1609,14 +1598,14 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
   {
     auto eventUpperCase = event;
     std::transform(eventUpperCase.begin(), eventUpperCase.end(),
-      eventUpperCase.begin(),
-      [](unsigned char c) {
-        return std::toupper(c);
-      }
-    );
+                   eventUpperCase.begin(),
+    [](unsigned char c) {
+      return std::toupper(c);
+    }
+                  );
     eos_static_info("%s %s %s %s", mActions[0].mWorkflow.c_str(),
-      eventUpperCase.c_str(),
-      fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
+                    eventUpperCase.c_str(),
+                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
   }
 
   if (event == "sync::prepare" || event == "prepare") {
@@ -1643,25 +1632,25 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
 }
 
 int
-WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string& errorMsg) {
+WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
+                                        std::string& errorMsg)
+{
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
-
-
   EXEC_TIMING_BEGIN("Proto::Prepare");
   gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
 
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
-    false) == 0) {
+                  false) == 0) {
     onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 :
-      buf.st_nlink) > 0;
+              buf.st_nlink) > 0;
     onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
   } else {
     eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
-      errInfo.getErrText());
+                   errInfo.getErrText());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -1682,7 +1671,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
     } catch (...) {
       lock.Release();
       eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
-        fullPath.c_str(), RETRIEVES_ATTR_NAME);
+                     fullPath.c_str(), RETRIEVES_ATTR_NAME);
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1702,7 +1691,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
     } catch (eos::MDException& ex) {
       lock.Release();
       eos_static_err("Could not write attributes %s and %s for file %s. Not doing the retrieve.",
-        RETRIEVES_ATTR_NAME, RETRIEVES_ERROR_ATTR_NAME, fullPath.c_str());
+                     RETRIEVES_ATTR_NAME, RETRIEVES_ERROR_ATTR_NAME, fullPath.c_str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1710,30 +1699,33 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
 
   if (onDisk) {
     eos_static_info("File %s is already on disk, nothing to prepare.",
-      fullPath.c_str());
+                    fullPath.c_str());
     MoveWithResults(SFS_OK);
     return SFS_OK;
   } else if (!onTape) {
     eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
-      fullPath.c_str());
+                   fullPath.c_str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else if (retrieveCntr != 0ul) {
     eos_static_info("File %s is already being retrieved by %u clients.",
-      fullPath.c_str(), retrieveCntr + 1);
+                    fullPath.c_str(), retrieveCntr + 1);
     MoveWithResults(SFS_OK);
     return SFS_OK;
   } else {
     cta::xrd::Request request;
     auto notification = request.mutable_notification();
-    notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-    for (const auto& attribute : CollectAttributes(fullPath))
-    {
+    notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+          mVid.uid));
+    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+          mVid.gid));
+
+    for (const auto& attribute : CollectAttributes(fullPath)) {
       google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-        attribute.second);
+          attribute.second);
       notification->mutable_file()->mutable_xattr()->insert(attr);
     }
+
     notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
     notification->mutable_file()->set_lpath(fullPath);
     notification->mutable_wf()->mutable_instance()->set_name(
@@ -1741,19 +1733,19 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
     notification->mutable_file()->set_fid(mFid);
     notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
     notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-      cgid));
+          cgid));
     auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
     std::ostringstream destStream;
     destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-      << fxidString;
+               << fxidString;
     destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" <<
-      RETRIEVE_WRITTEN_WORKFLOW_NAME;
+               RETRIEVE_WRITTEN_WORKFLOW_NAME;
     notification->mutable_transport()->set_dst_url(destStream.str());
     std::ostringstream errorReportStream;
     errorReportStream << "eosQuery://" << gOFS->HostName
-      << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-      << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME <<
-      "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+                      << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                      << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME <<
+                      "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
     notification->mutable_transport()->set_error_report_url(
       errorReportStream.str());
     auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
@@ -1761,7 +1753,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
     if (sendResult != 0) {
       // Create human readable timestamp with the error message
       auto time = std::chrono::system_clock::to_time_t(
-        std::chrono::system_clock::now());
+                    std::chrono::system_clock::now());
       std::string ctime = std::ctime(&time);
 
       if (errorMsg.empty()) {
@@ -1787,10 +1779,11 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
 }
 
 int
-WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::string &errorMsg) {
+WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
+    std::string& errorMsg)
+{
   EXEC_TIMING_BEGIN("Proto::Prepare::Abort");
   gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
-
   auto retrieveCntr = 0;
   {
     eos::common::RWMutexWriteLock lock;
@@ -1804,7 +1797,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
     } catch (...) {
       lock.Release();
       eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
-        fullPath.c_str(), RETRIEVES_ATTR_NAME);
+                     fullPath.c_str(), RETRIEVES_ATTR_NAME);
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1817,7 +1810,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
     } catch (eos::MDException& ex) {
       lock.Release();
       eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
-        RETRIEVES_ATTR_NAME, fullPath.c_str());
+                     RETRIEVES_ATTR_NAME, fullPath.c_str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1827,14 +1820,17 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
   if (retrieveCntr == 1) {
     cta::xrd::Request request;
     auto notification = request.mutable_notification();
-    notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-    for (const auto& attribute : CollectAttributes(fullPath))
-    {
+    notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+          mVid.uid));
+    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+          mVid.gid));
+
+    for (const auto& attribute : CollectAttributes(fullPath)) {
       google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-        attribute.second);
+          attribute.second);
       notification->mutable_file()->mutable_xattr()->insert(attr);
     }
+
     uid_t cuid = 99;
     gid_t cgid = 99;
     {
@@ -1845,7 +1841,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
     }
     notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
     notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-      cgid));
+          cgid));
     notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
     notification->mutable_file()->set_lpath(fullPath);
     notification->mutable_wf()->mutable_instance()->set_name(
@@ -1862,21 +1858,24 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
 }
 
 int
-WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string &errorMsg)
+WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
+                                       std::string& errorMsg)
 {
   EXEC_TIMING_BEGIN("Proto::Create");
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
-
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-  for (const auto& attribute : CollectAttributes(fullPath))
-  {
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+        mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+        mVid.gid));
+
+  for (const auto& attribute : CollectAttributes(fullPath)) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-      attribute.second);
+        attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
+
   uid_t cuid = 99;
   gid_t cgid = 99;
   {
@@ -1886,9 +1885,9 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string 
     cgid = fmd->getCGid();
   }
   notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-    cuid));
+        cuid));
   notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-    cgid));
+        cgid));
   notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
@@ -1900,29 +1899,32 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string 
 }
 
 int
-WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string &errorMsg)
+WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
+                                       std::string& errorMsg)
 {
   EXEC_TIMING_BEGIN("Proto::Delete");
   gOFS->MgmStats.Add("Proto::Delete", 0, 0, 1);
-
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-  for (const auto& attribute : CollectAttributes(fullPath))
-  {
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+        mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+        mVid.gid));
+
+  for (const auto& attribute : CollectAttributes(fullPath)) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-      attribute.second);
+        attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
+
   notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
-
   const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
-  if(SFS_OK != sendRc) {
+
+  if (SFS_OK != sendRc) {
     eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
                    fullPath.c_str(), errorMsg.c_str(), sendRc);
   }
@@ -1932,12 +1934,15 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string 
 }
 
 int
-WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath)
+WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
+                                      const std::string& fullPath)
 {
   EXEC_TIMING_BEGIN("Proto::Close");
   gOFS->MgmStats.Add("Proto::Close", 0, 0, 1);
 
-  if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) resetRetreiveCounterAndErrorMsg(fullPath);
+  if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
+    resetRetreiveCounterAndErrorMsg(fullPath);
+  }
 
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::Close");
@@ -1945,7 +1950,8 @@ WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::strin
 }
 
 void
-WFE::Job::resetRetreiveCounterAndErrorMsg(const std::string &fullPath) {
+WFE::Job::resetRetreiveCounterAndErrorMsg(const std::string& fullPath)
+{
   std::string errorMsg;
 
   try {
@@ -1954,31 +1960,32 @@ WFE::Job::resetRetreiveCounterAndErrorMsg(const std::string &fullPath) {
     fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
     fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
     gOFS->eosView->updateFileStore(fmd.get());
-
     return;
-  } catch (std::exception &se) {
+  } catch (std::exception& se) {
     errorMsg = se.what();
   } catch (...) {
     errorMsg = "Caught an unknown exception";
   }
 
   // Reaching this point means an exception was thrown and caught
-  eos_static_err("Could not reset retrieves counter and error attribute for file %s: %s", fullPath.c_str(), errorMsg.c_str());
+  eos_static_err("Could not reset retrieves counter and error attribute for file %s: %s",
+                 fullPath.c_str(), errorMsg.c_str());
 }
 
 int
-WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::string &fullPath,
-  const char * const ininfo)
+WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
+    const std::string& fullPath,
+    const char* const ininfo)
 {
   EXEC_TIMING_BEGIN("Proto::Archive");
   gOFS->MgmStats.Add("Proto::Archive", 0, 0, 1);
-
   std::string xattrCtaArchiveFileId;
   bool hasXattrCtaArchiveFileId = false;
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+
     if (hasXattrCtaArchiveFileId) {
       xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
     }
@@ -1989,22 +1996,21 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
   }
-
   XrdOucEnv opaque(ininfo);
-  const char * const opaqueCtaArchiveFileId = opaque.Get("cta_archive_file_id");
+  const char* const opaqueCtaArchiveFileId = opaque.Get("cta_archive_file_id");
 
-  if(event == "archived") {
+  if (event == "archived") {
     eos_static_err("The archived message for file %s is asynchronous when it should be synchronous."
                    " Ignoring request", fullPath.c_str());
   } else if (onlyTapeCopy) {
     eos_static_info("File %s already has a tape copy. Ignoring request.",
-      fullPath.c_str());
-  } else if(!hasXattrCtaArchiveFileId) {
+                    fullPath.c_str());
+  } else if (!hasXattrCtaArchiveFileId) {
     eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
-      fullPath.c_str());
-  } else if(xattrCtaArchiveFileId.empty()) {
+                   fullPath.c_str());
+  } else if (xattrCtaArchiveFileId.empty()) {
     eos_static_err("The CTA_ArchiveFileId attribute of file %s is an empty string. Ignoring request.",
-      fullPath.c_str());
+                   fullPath.c_str());
   } else if (nullptr == opaqueCtaArchiveFileId) {
     eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
                    " Ignoring request.", fullPath.c_str());
@@ -2012,7 +2018,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
     eos_static_err("The CTA_ArchiveFileId attribute of file %s does not match cta_archive_file_id in the"
                    " opaque data of the archived message. xattrCtaArchiveFileId=%s opaqueCtaArchiveFileId=%s."
                    " Ignoring request.",
-      fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
+                   fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
   } else {
     eos::common::Mapping::VirtualIdentity root_vid;
     eos::common::Mapping::Root(root_vid);
@@ -2025,13 +2031,14 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
       gOFS->eosView->updateFileStore(fmd.get());
     }
 
-    if(GetFileArchivedGCEnabled("default")) {
+    if (GetFileArchivedGCEnabled("default")) {
       bool dropAllStripes = true;
       IContainerMD::XAttrMap parentDirAttributes;
       XrdOucErrInfo errInfo;
-      if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
-        errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
-        for (const auto &attrPair : parentDirAttributes) {
+
+      if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
+                         errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
+        for (const auto& attrPair : parentDirAttributes) {
           if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
               attrPair.second == "0") {
             dropAllStripes = false;
@@ -2043,7 +2050,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
       if (dropAllStripes &&
           gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
         eos_static_err("Could not delete all file replicas of %s. Reason: %s",
-          fullPath.c_str(), errInfo.getErrText());
+                       fullPath.c_str(), errInfo.getErrText());
         MoveToRetry(fullPath);
         return EAGAIN;
       }
@@ -2056,18 +2063,27 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
 }
 
 bool
-WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
-  const bool defaultValue = false; // The default value of filearchivedgc is 'false'
+WFE::Job::GetFileArchivedGCEnabled(const std::string& space)
+{
+  const bool defaultValue =
+    false; // The default value of filearchivedgc is 'false'
   std::string valueStr;
 
   try {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
-    if (FsView::gFsView.mSpaceView.end() == spaceItor) return defaultValue;
-    if (nullptr == spaceItor->second) return defaultValue;
-    const auto &space = *(spaceItor->second);
+
+    if (FsView::gFsView.mSpaceView.end() == spaceItor) {
+      return defaultValue;
+    }
+
+    if (nullptr == spaceItor->second) {
+      return defaultValue;
+    }
+
+    const auto& space = *(spaceItor->second);
     valueStr = space.GetConfigMember("filearchivedgc");
-  } catch(...) {
+  } catch (...) {
     return defaultValue;
   }
 
@@ -2079,7 +2095,7 @@ WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
 }
 
 int
-WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
+WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string& fullPath)
 {
   EXEC_TIMING_BEGIN("Proto::Retrieve::Failed");
   gOFS->MgmStats.Add("Proto::Retrieve::Failed", 0, 0, 1);
@@ -2092,7 +2108,7 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& ex) {
     eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
-      fullPath.c_str());
+                   fullPath.c_str());
     MoveWithResults(SFS_ERROR);
     return SFS_ERROR;
   }
@@ -2103,7 +2119,7 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
 }
 
 int
-WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
+WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
 {
   EXEC_TIMING_BEGIN("Proto::Archive::Failed");
   gOFS->MgmStats.Add("Proto::Archive::Failed", 0, 0, 1);
@@ -2115,7 +2131,7 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& ex) {
     eos_static_err("Could not set archive error attribute for file %s.",
-      fullPath.c_str());
+                   fullPath.c_str());
     MoveWithResults(SFS_ERROR);
     return SFS_ERROR;
   }
@@ -2128,23 +2144,28 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
 //------------------------------------------------------------------------------
 // Translate a cta ResponseType to std::string
 //------------------------------------------------------------------------------
-static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt) {
-  switch(rt) {
-    case cta::xrd::Response::RSP_ERR_CTA: {
-      return "RSP_ERR_CTA";
-    }
-    case cta::xrd::Response::RSP_ERR_USER: {
-      return "RSP_ERR_USER";
-    }
-    case cta::xrd::Response::RSP_ERR_PROTOBUF: {
-      return "RSP_ERR_PROTOBUF";
-    }
-    case cta::xrd::Response::RSP_INVALID: {
-      return "RSP_INVALID";
-    }
-    default: {
-      return "";
-    }
+static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
+{
+  switch (rt) {
+  case cta::xrd::Response::RSP_ERR_CTA: {
+    return "RSP_ERR_CTA";
+  }
+
+  case cta::xrd::Response::RSP_ERR_USER: {
+    return "RSP_ERR_USER";
+  }
+
+  case cta::xrd::Response::RSP_ERR_PROTOBUF: {
+    return "RSP_ERR_PROTOBUF";
+  }
+
+  case cta::xrd::Response::RSP_INVALID: {
+    return "RSP_INVALID";
+  }
+
+  default: {
+    return "";
+  }
   }
 
   return "";
@@ -2154,10 +2175,9 @@ int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, std::string& errorMsg, bool retry)
 {
-  const std::string &event = jobPtr->mActions[0].mEvent;
-
-  std::string exec_tag = "Proto::Send::"; exec_tag += event;
-
+  const std::string& event = jobPtr->mActions[0].mEvent;
+  std::string exec_tag = "Proto::Send::";
+  exec_tag += event;
   EXEC_TIMING_BEGIN(exec_tag.c_str());
   gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
 
@@ -2165,7 +2185,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
                    "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint or "
                    "mgmofs.protowfresource in the MGM config file.\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str());
+                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                   event.c_str());
     jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
@@ -2189,16 +2210,19 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     const auto sentAt = std::chrono::steady_clock::now();
     service.Send(request, response);
     const auto receivedAt = std::chrono::steady_clock::now();
-    const auto timeSpentMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
+    const auto timeSpentMilliseconds =
+      std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
     eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
                     "msg=\"Sent SSI protocol buffer request\"",
-                    gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                    gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                    event.c_str(),
                     timeSpentMilliseconds.count());
   } catch (std::runtime_error& error) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-      "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
-      gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
-      error.what());
+                   "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
+                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                   event.c_str(),
+                   error.what());
     errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
@@ -2221,7 +2245,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                           nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
         eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
                        "msg=\"Could not set attribute\" attrName=\"%s\" attrValue=\"%s\" reason=\"%s\"",
-                       gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                       gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                       event.c_str(),
                        attrPair.first.c_str(), attrPair.second.c_str(), errInfo.getErrText());
       }
     }
@@ -2252,14 +2277,17 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     retval = EBADMSG;
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
                    "msg=\"Invalid or unknown response\" response=\"%s\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                   event.c_str(),
                    response.DebugString().c_str());
   }
 
   eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
-                 gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
-                 ctaResponseCodeToString(response.type()).c_str(), response.message_txt().c_str());
+                 gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                 event.c_str(),
+                 ctaResponseCodeToString(response.type()).c_str(),
+                 response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
   return retval;

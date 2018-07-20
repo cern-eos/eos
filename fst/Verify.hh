@@ -168,7 +168,7 @@ public:
   void
   Show(const char* show = "")
   {
-    eos_static_info("Verify fid=%llu on fs=%u path=%s compute_checksum=%d "
+    eos_static_info("Verify fid=%08llx on fs=%u path=%s compute_checksum=%d "
                     "commit_checksum=%d commit_size=%d commit_fmd=%d "
                     "verify_rate=%d %s", fId, fsId, path.c_str(),
                     computeChecksum, commitChecksum, commitSize, commitFmd,

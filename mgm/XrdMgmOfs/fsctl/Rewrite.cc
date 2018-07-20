@@ -46,27 +46,29 @@ XrdMgmOfs::Rewrite(const char* path,
                    const XrdSecEntity* client)
 {
   static const char* epname = "Rewrite";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Rewrite");
-
   bool IsEnabledAutoRepair = false;
-
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
     // Check if 'autorepair' is enabled
     if ((FsView::gFsView.mSpaceView.count("default")) &&
-        (FsView::gFsView.mSpaceView["default"]->GetConfigMember("autorepair") == "on")) {
+        (FsView::gFsView.mSpaceView["default"]->GetConfigMember("autorepair") ==
+         "on")) {
       IsEnabledAutoRepair = true;
     }
   }
+  // @todo(esindril): Transition
+  char* hexfid = env.Get("mgm.fid"); // try to use new parameter
 
-  char* hexfid = env.Get("mgm.fxid");
+  if (!hexfid) {
+    // Legacy, drop once fst/FmdDbMap.cc no longer uses mgm.fxid
+    hexfid = env.Get("mgm.fxid");
+  }
 
   if (!IsEnabledAutoRepair) {
     eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
@@ -74,7 +76,6 @@ XrdMgmOfs::Rewrite(const char* path,
   } else {
     eos::common::Mapping::VirtualIdentity rvid;
     eos::common::Mapping::Root(rvid);
-
     // Convert fxid to path
     errno = 0;
     const char* spath = 0;
@@ -89,7 +90,7 @@ XrdMgmOfs::Rewrite(const char* path,
         fullpath = gOFS->eosView->getUri(fmd.get());
         spath = fullpath.c_str();
       } catch (eos::MDException& e) {
-        eos_thread_err("msg=\"unable to reference fid=%lu in namespace", fid);
+        eos_thread_err("msg=\"no reference for file in namespace\" fid=%08llx", fid);
         return Emsg(epname, error, EIO, "rewrite [EIO]", spath);
       }
     }
@@ -100,7 +101,6 @@ XrdMgmOfs::Rewrite(const char* path,
       info += "&mgm.path=";
       info += spath;
       info += "&mgm.option=rewrite&mgm.format=fuse";
-
       ProcCommand procCommand;
       procCommand.open("/proc/user", info.c_str(), rvid, &error);
       procCommand.close();

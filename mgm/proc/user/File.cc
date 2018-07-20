@@ -624,10 +624,8 @@ ProcCommand::File()
 
       XrdSfsFSctl args;
       XrdOucString opaque = "mgm.pcmd=event&mgm.fid=";
-      XrdOucString hexfid;
       XrdOucString lSec;
-      eos::common::FileId::Fid2Hex(fid, hexfid);
-      opaque += hexfid;
+      opaque += eos::common::FileId::Fid2Hex(fid).c_str();
       opaque += "&mgm.logid=";
       opaque += logId;
       opaque += "&mgm.event=";
@@ -645,8 +643,7 @@ ProcCommand::File()
       lClient.tident = (char*) pVid->tident.c_str();
       lClient.host = (char*) pVid->host.c_str();
       lSec = "&mgm.sec=";
-      lSec += eos::common::SecEntity::ToKey(&lClient,
-                                            "eos").c_str();
+      lSec += eos::common::SecEntity::ToKey(&lClient, "eos").c_str();
       opaque += lSec;
       args.Arg1 = spath.c_str();
       args.Arg1Len = spath.length();
@@ -1291,7 +1288,7 @@ ProcCommand::File()
             for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
               // ignore filesystem id 0
               if (!(*lociter)) {
-                eos_err("fsid 0 found fid=%lld", fmd->getId());
+                eos_err("fsid 0 found fid=%08llx", fmd->getId());
                 continue;
               }
 
@@ -1475,7 +1472,7 @@ ProcCommand::File()
                 for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
                   // ignore filesystem id 0
                   if (!(*lociter)) {
-                    eos_err("fsid 0 found fid=%lld", fmd->getId());
+                    eos_err("fsid 0 found fid=%08llx", fmd->getId());
                     continue;
                   }
 
@@ -1747,7 +1744,7 @@ ProcCommand::File()
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
             // ignore filesystem id 0
             if (!(*lociter)) {
-              eos_err("fsid 0 found fid=%lld", fmd->getId());
+              eos_err("fsid 0 found fid=%08llx", fmd->getId());
               continue;
             }
 
@@ -1767,12 +1764,11 @@ ProcCommand::File()
               stdOut += "=";
               stdOut += hostport.c_str();
               stdOut += "&";
-              XrdOucString hexstring = "";
-              eos::common::FileId::Fid2Hex(fmd->getId(), hexstring);
+              const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
               stdOut += "mgm.fid";
               stdOut += i;
               stdOut += "=";
-              stdOut += hexstring;
+              stdOut += hex_fid.c_str();
               stdOut += "&";
               stdOut += "mgm.fsid";
               stdOut += i;
@@ -1787,7 +1783,7 @@ ProcCommand::File()
               stdOut += "mgm.fstpath";
               stdOut += i;
               stdOut += "=";
-              eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(),
+              eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                                       filesystem->GetPath().c_str(),
                                                       fullpath);
               stdOut += fullpath;

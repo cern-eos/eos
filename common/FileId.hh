@@ -48,16 +48,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Convert a fid into a hexadecimal string
-  //----------------------------------------------------------------------------
-  static void Fid2Hex(unsigned long long fid, XrdOucString& hexstring)
-  {
-    char hexbuffer[128];
-    sprintf(hexbuffer, "%08llx", fid);
-    hexstring = hexbuffer;
-  }
-
-  //----------------------------------------------------------------------------
   //! Convert a hex decimal string into a fid
   //----------------------------------------------------------------------------
   static unsigned long long Hex2Fid(const char* hexstring)
@@ -80,7 +70,7 @@ public:
 
   static unsigned long long InodeToFid(unsigned long long ino)
   {
-    if(NewIsFileInode(ino)) {
+    if (NewIsFileInode(ino)) {
       return NewInodeToFid(ino);
     }
 

@@ -55,11 +55,9 @@ static std::string hotFilesToString(
   std::ostringstream ss;
 
   for (size_t i = 0; i < entries.size(); i++) {
-    XrdOucString hexfid;
-    eos::common::FileId::Fid2Hex(entries[i].fid, hexfid);
     ss << entries[i].uses;
     ss << ":";
-    ss << hexfid.c_str();
+    ss << eos::common::FileId::Fid2Hex(entries[i].fid);
     ss << " ";
   }
 

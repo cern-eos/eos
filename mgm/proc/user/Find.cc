@@ -458,7 +458,7 @@ ProcCommand::Find()
                     for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
                       // ignore filesystem id 0
                       if (!(*lociter)) {
-                        eos_err("fsid 0 found fid=%lld", fmd->getId());
+                        eos_err("fsid 0 found fid=%08llx", fmd->getId());
                         continue;
                       }
 
@@ -538,7 +538,7 @@ ProcCommand::Find()
 
                         if (printfid) {
                           if (!printcounter) {
-                            fprintf(fstdout, " fid=%llu", (unsigned long long) fmd->getId());
+                            fprintf(fstdout, " fid=%08llx", (unsigned long long) fmd->getId());
                           }
                         }
 
