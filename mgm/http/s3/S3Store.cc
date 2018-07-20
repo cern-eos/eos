@@ -232,20 +232,14 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
     }
   }
 
-  std::string result = XML_V1_UTF8;
-  result += "<ListBucketResult xmlns=\"http://doc.s3.amazonaws.com/2006-03-01\">";
-  result += "<Name>";
-  result += bucket;
-  result += "</Name>";
   XrdOucEnv parameter(query.c_str());
-  XrdOucString stdErr;
+  XrdOucString lPrefix, lBucket;
   XrdMgmOfsDirectory bucketdir;
   uint64_t cnt = 0;
   uint64_t max_keys = 1000;
   std::string marker = "";
   std::string prefix = "";
-  // indicates that the given marker has been found in the list and output starts
-  bool marker_found = true;
+  bool marker_reached = true; //!< indicates start of output
   const char* val = 0;
 
   if ((val = parameter.Get("max-keys"))) {
@@ -265,17 +259,29 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
   }
 
   if (marker.length()) {
-    marker_found = false;
+    marker_reached = false;
   }
 
-  std::string lPrefix = prefix;
+  // handle ending slash in bucket and prefix paths
+  lBucket = mS3ContainerPath[bucket].c_str();
+  if (!lBucket.endswith("/")) {
+    lBucket += "/";
+  }
 
-  if (prefix == "") {
-    //    lPrefix = "/";
+  lPrefix = prefix.c_str();
+  if (lPrefix.length() && !lPrefix.endswith("/")) {
+    lPrefix += "/";
   }
 
   eos_static_info("msg=\"listing\" bucket=%s prefix=%s", bucket.c_str(),
                   lPrefix.c_str());
+
+  // Construct listing response
+  std::string result = XML_V1_UTF8;
+  result += "<ListBucketResult xmlns=\"http://doc.s3.amazonaws.com/2006-03-01\">";
+  result += "<Name>";
+  result += bucket;
+  result += "</Name>";
 
   if (!prefix.length()) {
     result += "<Prefix/>";
@@ -303,136 +309,158 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
   bool truncated = false;
   size_t truncate_pos = result.length() + 13;
   result += "<IsTruncated>false</IsTruncated>";
-  XrdOucString sPrefix = lPrefix.c_str();
 
-  if (!sPrefix.endswith("/") && sPrefix.length()) {
-    lPrefix += "/";
-  }
-
-  int listrc = bucketdir.open((mS3ContainerPath[bucket] + lPrefix).c_str(),
-                              vid, (const char*) 0);
+  // list directory
+  std::string directory = lBucket.c_str();
+  directory += lPrefix.c_str();
+  int listrc = bucketdir.open(directory.c_str(), vid, (const char*) 0);
 
   if (!listrc) {
-    const char* dname1 = 0;
+    const char* name = 0;
 
-    while ((dname1 = bucketdir.nextEntry())) {
-      // loop over the directory contents
-      std::string sdname = dname1;
+    // loop over the directory contents
+    while ((name = bucketdir.nextEntry())) {
+      std::string entry = "";
+      std::string sname = name;
 
-      if ((sdname == ".") || (sdname == "..")) {
+      if ((sname == ".") || (sname == "..")) {
         continue;
       }
 
-      if (cnt > max_keys) {
+      // don't return more than max-keys
+      if (cnt++ > max_keys) {
         truncated = true;
-        // don't return more than max-keys
         break;
       }
 
-      std::string objectname = lPrefix;
-      std::string fullname;
-      objectname += sdname;
-      fullname = mS3ContainerPath[bucket];
+      // construct object name
+      std::string objectname = lPrefix.c_str();
+      objectname += sname;
+      std::string fullname = lBucket.c_str();
       fullname += objectname;
 
-      if (!marker_found) {
+      // check if output should begin
+      if (!marker_reached) {
         if (marker == objectname) {
-          marker_found = true;
+          marker_reached = true;
         }
 
         continue;
       }
 
-      // get the file md object
-      eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
-      std::shared_ptr<eos::IFileMD> fmd;
+      {
+        // attempt file metadata retrieval
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        std::shared_ptr<eos::IContainerMD> cmd;
+        std::shared_ptr<eos::IFileMD> fmd;
+        int errc = 0;
 
-      try {
-        fmd = gOFS->eosView->getFile(fullname);
-        viewReadLock.Release();
-        //-------------------------------------------
-        result += "<Contents>";
-        result += "<Key>";
-        result += objectname.c_str();
-        result += "</Key>";
-        result += "<LastModified>";
-        eos::IFileMD::ctime_t mtime;
-        fmd->getMTime(mtime);
-        result += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
-        result += "</LastModified>";
-        result += "<ETag>";
+        try {
+          fmd = gOFS->eosView->getFile(fullname);
 
-        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId());
-             i++) {
-          char hb[3];
-          sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPtr()[i]));
-          result += hb;
+          entry = "<Contents>";
+          entry += "<Key>";
+          entry += objectname.c_str();
+          entry += "</Key>";
+          entry += "<LastModified>";
+          eos::IFileMD::ctime_t mtime;
+          fmd->getMTime(mtime);
+          entry += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
+          entry += "</LastModified>";
+          entry += "<ETag>\"";
+
+          for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId());
+               i++) {
+            char hb[3];
+            sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPtr()[i]));
+            entry += hb;
+          }
+
+          entry += "\"</ETag>";
+          entry += "<Size>";
+          std::string sconv;
+          entry += StringConversion::GetSizeString(sconv, (unsigned long long)
+                    fmd->getSize());
+          entry += "</Size>";
+          entry += "<StorageClass>STANDARD</StorageClass>";
+          entry += "<Owner>";
+          entry += "<ID>";
+          entry += Mapping::UidToUserName(fmd->getCUid(), errc);
+          entry += "</ID>";
+          entry += "<DisplayName>";
+          entry += Mapping::UidToUserName(fmd->getCUid(), errc);
+          entry += ":";
+          entry += Mapping::GidToGroupName(fmd->getCGid(), errc);
+          entry += "</DisplayName>";
+          entry += "</Owner>";
+          entry += "</Contents>";
+        } catch (eos::MDException& e) {
+          fmd.reset();
+
+          if (e.getErrno() != ENOENT) {
+            errno = e.getErrno();
+            eos_static_err("msg=\"could not open file\" ec=%d emsg=\"%s\" filepath=%s\n",
+                           e.getErrno(), e.getMessage().str().c_str(),
+                           fullname.c_str());
+            return S3Handler::RestErrorResponse(eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                                                "Internal Error", "Unable to open path",
+                                                fullname.c_str(), "");
+          }
         }
 
-        result += "</ETag>";
-        result += "<Size>";
-        std::string sconv;
-        result += StringConversion::GetSizeString(sconv, (unsigned long long)
-                  fmd->getSize());
-        result += "</Size>";
-        result += "<StorageClass>STANDARD</StorageClass>";
-        result += "<Owner>";
-        result += "<ID>";
-        int errc = 0;
-        result += Mapping::UidToUserName(fmd->getCUid(), errc);
-        result += "</ID>";
-        result += "<DisplayName>";
-        result += Mapping::UidToUserName(fmd->getCUid(), errc);
-        result += ":";
-        result += Mapping::GidToGroupName(fmd->getCGid(), errc);
-        result += "</DisplayName>";
-        result += "</Owner>";
-        result += "</Contents>";
-      } catch (eos::MDException& e) {
-        viewReadLock.Release();
-        //-------------------------------------------
+        // should be a container
+        if (!fmd) {
+          // attempt container metadata retrieval
+          try {
+            cmd = gOFS->eosView->getContainer(fullname);
+            entry = "<Contents>";
+            entry += "<Key>";
+            entry += objectname.c_str();
+            entry += "/";
+            entry += "</Key>";
+            entry += "<LastModified>";
+            eos::IContainerMD::ctime_t mtime;
+            cmd->getMTime(mtime);
+            entry += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
+            entry += "</LastModified>";
+            entry += "<ETag>";
+            entry += "</ETag>";
+            entry += "<Size>0</Size>";
+            entry += "<StorageClass>STANDARD</StorageClass>";
+            entry += "<Owner>";
+            entry += "<ID>";
+            entry += Mapping::UidToUserName(cmd->getCUid(), errc);
+            entry += "</ID>";
+            entry += "<DisplayName>";
+            entry += Mapping::UidToUserName(cmd->getCUid(), errc);
+            entry += ":";
+            entry += Mapping::GidToGroupName(cmd->getCGid(), errc);
+            entry += "</DisplayName>";
+            entry += "</Owner>";
+            entry += "</Contents>";
+          } catch (eos::MDException& e) {
+            cmd.reset();
+            errno = e.getErrno();
+
+            eos_static_err("msg=\"could not open directory\" ec=%d emsg=\"%s\" dirpath=%s\n",
+                           e.getErrno(), e.getMessage().str().c_str(),
+                           fullname.c_str());
+            return S3Handler::RestErrorResponse(eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                                                "Internal Error", "Unable to open path",
+                                                fullname.c_str(), "");
+          }
+        }
       }
 
-      if (!fmd) {
-        // TODO: add the real container info here ...
-        // this must be a container
-        result += "<Contents>";
-        result += "<Key>";
-        result += objectname.c_str();
-        result += "/";
-        result += "</Key>";
-        result += "<LastModified>";
-        result += Timing::UnixTimstamp_to_ISO8601(time(NULL));
-        result += "</LastModified>";
-        result += "<ETag>";
-        result += "</ETag>";
-        result += "<Size>0</Size>";
-        result += "<StorageClass>STANDARD</StorageClass>";
-        result += "<Owner>";
-        result += "<ID>";
-        result += "0";
-        result += "</ID>";
-        result += "<DisplayName>";
-        result += "fake";
-        result += ":";
-        result += "fake";
-        result += "</DisplayName>";
-        result += "</Owner>";
-        result += "</Contents>";
-      }
-
-      cnt++;
-
-      if (truncated) {
-        break;
-      }
+      // append this entry to the final result
+      result += entry;
     }
   }
 
   bucketdir.close();
 
   if (truncated) {
-    result.replace(truncate_pos, 19, "true</IsTruncated> ");
+    result.replace(truncate_pos, 18, "true</IsTruncated>");
   }
 
   result += "</ListBucketResult>";
