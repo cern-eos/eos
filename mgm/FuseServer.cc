@@ -180,7 +180,7 @@ bool
 FuseServer::Clients::Dispatch(const std::string identity,
                               eos::fusex::heartbeat& hb)
 {
-  gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 1);
   bool rc = true;
   eos::common::RWMutexWriteLock lLock(*this);
 
@@ -363,7 +363,7 @@ FuseServer::MonitorCaps() noexcept
     cnt++;
 
     if (gOFS) {
-      gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0 , 1);
+      gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 1);
     }
   }
 
@@ -620,7 +620,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
                                 const std::string& clientid
                                )
 {
-  gOFS->MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 1);
   // prepare release cap message
   eos::fusex::response rsp;
   rsp.set_type(rsp.LEASE);
@@ -657,7 +657,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
 /*----------------------------------------------------------------------------*/
 
 {
-  gOFS->MgmStats.Add("Eosxd::int::SendMD", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::SendMD", 0, 0, 1);
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.MD);
@@ -697,7 +697,7 @@ int
 FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
 /*----------------------------------------------------------------------------*/
 {
-  gOFS->MgmStats.Add("Eosxd::int::SendCAP", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 1);
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CAP);
@@ -739,7 +739,7 @@ void
 FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                         eos::common::Mapping::VirtualIdentity* vid)
 {
-  gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0, 1);
   eos::common::RWMutexWriteLock lLock(*this);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
@@ -848,7 +848,7 @@ FuseServer::Clients::BroadcastConfig(const std::string& identity,
                                      eos::fusex::config& cfg)
 /*----------------------------------------------------------------------------*/
 {
-  gOFS->MgmStats.Add("Eosxd::int::BcConfig", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::BcConfig", 0, 0, 1);
   // prepare new heartbeat interval message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CONFIG);
@@ -867,7 +867,7 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
     eos::fusex::heartbeat& hb)
 /*----------------------------------------------------------------------------*/
 {
-  gOFS->MgmStats.Add("Eosxd::int::BcDropAll", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::BcDropAll", 0, 0, 1);
   // prepare drop all caps message
   eos::fusex::response rsp;
   rsp.set_type(rsp.DROPCAPS);
@@ -885,7 +885,7 @@ int
 FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 /*----------------------------------------------------------------------------*/
 {
-  gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
   // broad-cast release for a given inode
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx ",
@@ -918,7 +918,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 int
 FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
-  gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -978,7 +978,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               uint64_t clock,
                               struct timespec& p_mtime)
 {
-  gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0 , 1);
+  gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0, 1);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -1480,7 +1480,7 @@ int
 FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir,
                             eos::common::Mapping::VirtualIdentity* vid)
 {
-  gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid->uid, vid->gid , 1);
+  gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid->uid, vid->gid, 1);
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::ctime_t ctime;
   eos::IContainerMD::ctime_t mtime;
@@ -1572,7 +1572,7 @@ bool
 FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file,
                        eos::common::Mapping::VirtualIdentity* vid)
 {
-  gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid->uid, vid->gid , 1);
+  gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid->uid, vid->gid, 1);
   // fills file meta data by inode number
   std::shared_ptr<eos::IFileMD> fmd, gmd;
   eos::IFileMD::ctime_t ctime;
@@ -1679,7 +1679,7 @@ FuseServer::FillContainerCAP(uint64_t id,
                              std::string reuse_uuid,
                              bool issue_only_one)
 {
-  gOFS->MgmStats.Add("Eosxd::int::FillContainerCAP", vid->uid, vid->gid , 1);
+  gOFS->MgmStats.Add("Eosxd::int::FillContainerCAP", vid->uid, vid->gid, 1);
 
   if (issue_only_one) {
     if (EOS_LOGS_DEBUG) {
@@ -1711,6 +1711,14 @@ FuseServer::FillContainerCAP(uint64_t id,
 
   dir.mutable_capability()->set_vtime_ns(ts.tv_nsec);
 
+  std::string sysmask = (*(dir.mutable_attr()))["sys.mask"];
+
+  long mask = 0777;
+
+  if (sysmask.length()) {
+    mask &= strtol(sysmask.c_str(), 0, 8);
+  }
+
   mode_t mode = S_IFDIR;
 
   // define the permissions
@@ -1724,6 +1732,7 @@ FuseServer::FillContainerCAP(uint64_t id,
     }
 
     if (vid->uid == (uid_t) dir.uid()) {
+      // we don't apply a mask if we are the owner
       if (dir.mode() & S_IRUSR) {
         mode |= R_OK | M_OK | SU_OK;
       }
@@ -1732,34 +1741,36 @@ FuseServer::FillContainerCAP(uint64_t id,
         mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
 
-      if (dir.mode() & S_IXUSR) {
+      if (dir.mode() & mask & S_IXUSR) {
         mode |= X_OK;
       }
     }
 
     if (vid->gid == (gid_t) dir.gid()) {
-      if (dir.mode() & S_IRGRP) {
+      // we apply a mask if we are in the same group
+      if (dir.mode() & mask & S_IRGRP) {
         mode |= R_OK;
       }
 
-      if (dir.mode() & S_IWGRP) {
+      if (dir.mode() & mask & S_IWGRP) {
         mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
 
-      if (dir.mode() & S_IXGRP) {
+      if (dir.mode() & mask & S_IXGRP) {
         mode |= X_OK;
       }
     }
 
-    if (dir.mode() & S_IROTH) {
+    // we apply a mask if we are matching other permissions
+    if (dir.mode() & mask & S_IROTH) {
       mode |= R_OK;
     }
 
-    if (dir.mode() & S_IWOTH) {
+    if (dir.mode() & mask & S_IWOTH) {
       mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
     }
 
-    if (dir.mode() & S_IXOTH) {
+    if (dir.mode() & mask & S_IXOTH) {
       mode |= X_OK;
     }
 
@@ -1774,10 +1785,11 @@ FuseServer::FillContainerCAP(uint64_t id,
               useracl,
               *vid,
               evaluseracl);
+
       if (EOS_LOGS_DEBUG)
-	  eos_static_debug("cap id=%lld evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
-	      id, evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(), acl.CanUpdate(), acl.CanNotDelete());
-	
+        eos_static_debug("cap id=%lld evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
+                         id, evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(),
+                         acl.CanUpdate(), acl.CanNotDelete());
 
       if (acl.IsMutable()) {
         if (acl.CanRead()) {
@@ -2005,7 +2017,7 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
                          eos::common::Mapping::VirtualIdentity* vid,
                          bool take_lock)
 {
-  gOFS->MgmStats.Add("Eosxd::int::ValidatePERM", vid->uid, vid->gid , 1);
+  gOFS->MgmStats.Add("Eosxd::int::ValidatePERM", vid->uid, vid->gid, 1);
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
   //   permissions on the fly again
@@ -2484,14 +2496,14 @@ FuseServer::HandleMD(const std::string& id,
             eos_static_err("imply failed for new inode %lx", md_ino);
           }
 
-  	  // parent attribute inheritance
-	  eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+          // parent attribute inheritance
+          eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
 
-	  for (const auto& elem : xattrs) {
-	    cmd->setAttribute(elem.first, elem.second);
-	  }
+          for (const auto& elem : xattrs) {
+            cmd->setAttribute(elem.first, elem.second);
+          }
 
-	  sgid_mode = S_ISGID;
+          sgid_mode = S_ISGID;
         }
 
         cmd->setName(md.name());
@@ -2877,7 +2889,8 @@ FuseServer::HandleMD(const std::string& id,
 
     if (S_ISLNK(md.mode()) || S_ISFIFO(md.mode())) {
       uint64_t clock = 0;
-      eos_static_info("ino=%#lx set-link/fifo %s", (long) md.md_ino(), md.name().c_str());
+      eos_static_info("ino=%#lx set-link/fifo %s", (long) md.md_ino(),
+                      md.name().c_str());
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd;
       std::shared_ptr<eos::IContainerMD> pcmd;
@@ -2902,7 +2915,11 @@ FuseServer::HandleMD(const std::string& id,
         }
 
         fmd->setName(md.name());
-        if (S_ISLNK(md.mode())) fmd->setLink(md.target());
+
+        if (S_ISLNK(md.mode())) {
+          fmd->setLink(md.target());
+        }
+
         fmd->setLayoutId(0);
         md_ino = eos::common::FileId::FidToInode(fmd->getId());
 
