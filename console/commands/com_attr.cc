@@ -481,7 +481,7 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.eval.useracl                      : enables the evaluation of user acls if key is defined\n");
   fprintf(stdout,
-          "         sys.mask                              : masks all chmod requests with the given mask for directories - if defined the ACL bit fobidding 'chmod' requests is deactivated and the mask applied\n");
+          "         sys.mask                              : masks all unix access permissions with a given mask .e.g sys.mask=775 disables writing to others\n");
   fprintf(stdout,
           "         sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list\n");
   fprintf(stdout,

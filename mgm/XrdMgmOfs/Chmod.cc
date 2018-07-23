@@ -149,8 +149,8 @@ XrdMgmOfs::_chmod(const char* path,
             (!vid.uid) || // the root user
             (vid.uid == 3) || // the admin user
             (vid.gid == 4) || // the admin group
-            (acl.CanChmod()) ||
-            (attrmap.count("sys.mask"))) { // a pre-defined mask to apply to the desired modbits
+            (acl.CanChmod())
+           ) { // a pre-defined mask to apply to the desired modbits
           // the chmod ACL entry
           // change the permission mask, but make sure it is set to a directory
           long mask = 07777777;
@@ -161,11 +161,6 @@ XrdMgmOfs::_chmod(const char* path,
 
           if ((Mode & S_ISUID)) {
             Mode ^= S_ISUID;
-          }
-
-          if (attrmap.count("sys.mask")) {
-            mask &= strtol(attrmap["sys.mask"].c_str(), 0, 8);
-            mask |= 0777000;
           }
 
           eosView->updateContainerStore(pcmd.get());
