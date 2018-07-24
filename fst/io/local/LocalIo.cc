@@ -24,18 +24,8 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/local/FsIo.hh"
-#ifdef __APPLE__
-#include <sys/xattr.h>
-#else
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2,27)
-#include <sys/xattr.h>
-#else
-#include <attr.xattr.h>
-#endif
-#include <attr/xattr.h>
-#endif
-#endif
+#include "common/XattrCompat.hh"
+
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif

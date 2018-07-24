@@ -61,21 +61,8 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 
 #include <sys/resource.h>
 #include <sys/types.h>
-#ifndef ENOATTR
-#define ENOATTR ENODATA
-#endif
-#ifdef __APPLE__
-#include <sys/xattr.h>
-#else
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2,27)
-#include <sys/xattr.h>
-#else
-#include <attr.xattr.h>
-#endif
-#include <attr/xattr.h>
-#endif
-#endif
+#include "common/XattrCompat.hh"
+
 #ifdef __APPLE__
 #define O_DIRECT 0
 #define EKEYEXPIRED 127

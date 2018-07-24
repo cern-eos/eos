@@ -28,21 +28,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
-#ifndef ENOATTR
-#define ENOATTR ENODATA
-#endif
-#ifdef __APPLE__
-#include <sys/xattr.h>
-#else
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2,27)
-#include <sys/xattr.h>
-#else
-#include <attr.xattr.h>
-#endif
-#include <attr/xattr.h>
-#endif
-#endif
+#include "common/XattrCompat.hh"
 
 /* -------------------------------------------------------------------------- */
 memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)

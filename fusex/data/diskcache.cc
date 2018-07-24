@@ -32,21 +32,7 @@
 #define EKEYEXPIRED 127
 #include "XrdSys/XrdSysPlatform.hh"
 #endif
-#ifndef ENOATTR
-#define ENOATTR ENODATA
-#endif
-#ifdef __APPLE__
-#include <sys/xattr.h>
-#else
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2,27)
-#include <sys/xattr.h>
-#else
-#include <attr.xattr.h>
-#endif
-#include <attr/xattr.h>
-#endif
-#endif
+#include "common/XattrCompat.hh"
 
 std::string diskcache::sLocation;
 bufferllmanager diskcache::sBufferManager;

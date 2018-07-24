@@ -37,18 +37,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <thread>
-#ifdef __APPLE__
-#include <sys/xattr.h>
-#else
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2,27)
-#include <sys/xattr.h>
-#else
-#include <attr.xattr.h>
-#endif
-#include <attr/xattr.h>
-#endif
-#endif
+#include "common/XattrCompat.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
