@@ -59,6 +59,11 @@ public:
   //----------------------------------------------------------------------------
   static char convertRequested(mode_t requested);
 
+  //----------------------------------------------------------------------------
+  //! Parse octal mask
+  //----------------------------------------------------------------------------
+  static bool parseOctalMask(const std::string &str, mode_t &out);
+
 };
 
 EOSNSNAMESPACE_END

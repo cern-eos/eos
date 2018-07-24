@@ -126,4 +126,16 @@ char PermissionHandler::convertRequested(mode_t requested) {
   return convFlags;
 }
 
+//------------------------------------------------------------------------------
+//! Parse octal mask
+//------------------------------------------------------------------------------
+bool PermissionHandler::parseOctalMask(const std::string &str, mode_t &out) {
+  char *endptr = NULL;
+  out = strtoll(str.c_str(), &endptr, 8);
+  if(endptr != str.c_str() + str.size() || out == LLONG_MIN || out == LONG_LONG_MAX) {
+    return false;
+  }
+  return true;
+}
+
 EOSNSNAMESPACE_END

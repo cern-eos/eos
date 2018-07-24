@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/PermissionHandler.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
 
@@ -387,4 +388,30 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(explorer2.fetch(item));
   ASSERT_FALSE(explorer2.fetch(item));
   ASSERT_FALSE(explorer2.fetch(item));
+}
+
+TEST(OctalParsing, BasicSanity) {
+  mode_t mode;
+  ASSERT_TRUE(PermissionHandler::parseOctalMask("0700", mode));
+  ASSERT_EQ(mode, 0700);
+
+  ASSERT_TRUE(PermissionHandler::parseOctalMask("700", mode));
+  ASSERT_EQ(mode, 0700);
+
+  ASSERT_TRUE(PermissionHandler::parseOctalMask("744", mode));
+  ASSERT_EQ(mode, 0744);
+
+  ASSERT_TRUE(PermissionHandler::parseOctalMask("777", mode));
+  ASSERT_EQ(mode, 0777);
+
+  ASSERT_TRUE(PermissionHandler::parseOctalMask("000", mode));
+  ASSERT_EQ(mode, 0000);
+
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("chicken", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("700turtles", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("chicken777", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("999", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("0789", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("0709", mode));
+  ASSERT_FALSE(PermissionHandler::parseOctalMask("0x123", mode));
 }
