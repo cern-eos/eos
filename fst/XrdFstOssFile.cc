@@ -322,7 +322,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
 {
   ssize_t rdsz;
   ssize_t totBytes = 0;
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if defined(__linux__)
   long long begOff, endOff, begLst = -1, endLst = -1;
   int nPR = n;
 
@@ -387,7 +387,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
   }
 
 // All done, return bytes read.
-#if defined(__linux__)  && defined(HAVE_ATOMICS)
+#if defined(__linux__)
 
   if (XrdFstSS->mPrDepth) {
     XrdFstSS->mPrActive--;

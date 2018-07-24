@@ -174,7 +174,7 @@ set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(EosFstIo-Objects PUBLIC
-  -DHAVE_ATOMICS=1 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED
   $<TARGET_OBJECTS:EosFstIo-Objects>)
@@ -286,8 +286,6 @@ add_library(EosFstOss MODULE
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
-
-target_compile_definitions(EosFstOss PUBLIC -DHAVE_ATOMICS=1)
 
 target_link_libraries(EosFstOss PRIVATE
   eosCommon
