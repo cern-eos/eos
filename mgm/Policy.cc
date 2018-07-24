@@ -231,19 +231,18 @@ Policy::GetPlctPolicy(const char* path,
 
   if ((vid.uid == 0) && (val = env.Get("eos.placementpolicy.noforce"))) {
     // root can request not to apply any forced settings
+  } else if (attrmap.count("sys.forced.placementpolicy")) {
+    // we force to use a certain placement policy even if the user wants something else
+    policyString = attrmap["sys.forced.placementpolicy"].c_str();
+    eos_static_debug("sys.forced.placementpolicy in %s", path);
   } else {
-    if (attrmap.count("sys.forced.placementpolicy")) {
-      // we force to use a certain placament policy even if the user wants something else
-      policyString = attrmap["sys.forced.placementpolicy"].c_str();
-      eos_static_debug("sys.forced.placementpolicy in %s", path);
-    }
-
+    // check there are no user placement restrictions
     if (((!attrmap.count("sys.forced.nouserplacementpolicy")) ||
          (attrmap["sys.forced.nouserplacementpolicy"] != "1")) &&
         ((!attrmap.count("user.forced.nouserplacementpolicy")) ||
          (attrmap["user.forced.nouserplacementpolicy"] != "1"))) {
       if (attrmap.count("user.forced.placementpolicy")) {
-        // we force to use a certain placament policy even if the user wants something else
+        // we use the user defined placement policy
         policyString = attrmap["user.forced.placementpolicy"].c_str();
         eos_static_debug("user.forced.placementpolicy in %s", path);
       }
