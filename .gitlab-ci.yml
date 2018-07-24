@@ -391,6 +391,7 @@ ubuntu_system_test:
   stage: test
   <<: *ubuntu_system_test_template_definition
   tags:
+    - ubuntu
     - shell-with-docker
   allow_failure: true
   dependencies:
