@@ -95,8 +95,6 @@ add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 target_link_libraries(eosCommon PUBLIC
   XrdMqClient
   fmt
-  dl
-  bfd
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -108,12 +106,8 @@ target_link_libraries(eosCommon PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${BACKWARD_LIBRARIES})
 
-# !!!!!
-# TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
-# use std::atomic and the <atomic> header.
-# !!!!!
 target_compile_definitions(eosCommon PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
@@ -123,7 +117,10 @@ set_target_properties(eosCommon PROPERTIES
   MACOSX_RPATH TRUE)
 
 if(Linux)
-  target_link_libraries(eosCommon PUBLIC ${GLIBC_RT_LIBRARY})
+  target_link_libraries(eosCommon PUBLIC
+    bfd
+    ${GLIBC_DL_LIBRARY}
+    ${GLIBC_RT_LIBRARY})
 endif()
 
 install(TARGETS eosCommon
@@ -137,12 +134,8 @@ target_include_directories(eosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
   $<INSTALL_INTERFACE:include>)
 
-# !!!!!
-# TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
-# use std::atomic and the <atomic> header.
-# !!!!!
 target_compile_definitions(eosCommon-Static PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -150,10 +143,7 @@ set_target_properties(eosCommon-Static PROPERTIES
 target_link_libraries(eosCommon-Static PRIVATE
   XrdMqClient-Static
   fmt
-  dl
-  bfd
   ${Z_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -164,6 +154,13 @@ target_link_libraries(eosCommon-Static PRIVATE
   ${PROTOBUF_LIBRARY}
   ${BACKWARD_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if(Linux)
+  target_link_libraries(eosCommon-Static PUBLIC
+    bfd
+    ${GLIBC_DL_LIBRARY}
+    ${GLIBC_RT_LIBRARY})
+endif()
 
 #-------------------------------------------------------------------------------
 # eosCommonServer and eosCommon-Static libraries
