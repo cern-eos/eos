@@ -10,6 +10,7 @@ before_script:
   - source gitlab-ci/export_branch.sh
   - echo "Exporting BRANCH=${BRANCH}"
 
+
 .system_test_template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -30,6 +31,7 @@ before_script:
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
+
 
 .ubuntu_system_test_template: &ubuntu_system_test_template_definition
   script:
@@ -52,6 +54,7 @@ before_script:
     - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
     - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
     - sudo ./eos-docker/scripts/shutdown_services.sh
+
 
 .fedora_template: &fedora_template_definition
   stage: build:rpm

@@ -35,6 +35,7 @@ static long long int sAsyncBatch = 1023;
 static qclient::QClient* sQcl;
 static qclient::AsyncHandler sAh;
 static size_t sThreads = 1;
+static uint64_t sFidOffset = 0;
 
 EOSNSNAMESPACE_BEGIN
 
@@ -122,7 +123,8 @@ ConvertFileMD::serializeToStr(std::string& buffer)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConvertContainerMD::ConvertContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
+ConvertContainerMD::ConvertContainerMD(IContainerMD::id_t id,
+                                       IFileMDSvc* file_svc,
                                        IContainerMDSvc* cont_svc)
   : eos::ContainerMD(id, file_svc, cont_svc)
 {
@@ -485,7 +487,8 @@ ConvertContainerMDSvc::commitToBackend()
     qclient::Options opts;
     opts.transparentRedirects = true;
     opts.retryStrategy = qclient::RetryStrategy::NoRetries();
-    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort), std::move(opts));
+    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort),
+                             std::move(opts));
     int max_elem = (i == (nthreads - 1) ? last_chunk : chunk);
 
     for (int n = 0; n < max_elem; ++n) {
@@ -505,8 +508,10 @@ ConvertContainerMDSvc::commitToBackend()
       try {
         std::string buffer;
         conv_cont->serializeToStr(buffer);
-
-        ah.Register(&qclient, RequestBuilder::writeContainerProto(container->getIdentifier(), container->getLocalityHint(), buffer));
+        ah.Register(&qclient,
+                    RequestBuilder::writeContainerProto(container->getIdentifier(),
+                        container->getLocalityHint(),
+                        buffer));
 
         // Commit subcontainers and files only if not empty otherwise the hmset
         // command will fail
@@ -528,7 +533,7 @@ ConvertContainerMDSvc::commitToBackend()
           std::cout << "Processed " << count << "/" << total << " directories "
                     << std::endl;
         }
-      } catch (std::runtime_error& qdb_err) {
+      } catch (const std::runtime_error& qdb_err) {
         MDException e(ENOENT);
         e.getMessage() << "Container #" << container->getId()
                        << " failed to contact backend";
@@ -611,7 +616,8 @@ ConvertFileMDSvc::initialize()
     qclient::Options opts;
     opts.transparentRedirects = true;
     opts.retryStrategy = qclient::RetryStrategy::NoRetries();
-    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort), std::move(opts));
+    qclient::QClient qclient(qclient::Members(sBkndHost, sBkndPort),
+                             std::move(opts));
     int max_elem = ((i == (nthreads - 1) ? last_chunk : chunk));
 
     for (int n = 0; n < max_elem; ++n) {
@@ -633,6 +639,12 @@ ConvertFileMDSvc::initialize()
 
       if (file) {
         file->deserialize(*(it->second.buffer));
+
+        // Update parent cid if container id offset is defined
+        if (sFidOffset) {
+          file->setContainerId(file->getContainerId() + sFidOffset);
+        }
+
         delete it->second.buffer;
         it.value().buffer = nullptr;
       } else {
@@ -726,7 +738,9 @@ const
     // @todo (esindril): Could use compression when storing the entries
     file->updateInternal();
     file->serializeToStr(buffer);
-    ah.Register(&qclient, RequestBuilder::writeFileProto(file->getIdentifier(), file->getLocalityHint(), buffer));
+    ah.Register(&qclient, RequestBuilder::writeFileProto(file->getIdentifier(),
+                file->getLocalityHint(),
+                buffer));
   } catch (std::runtime_error& qdb_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << file->getId() << " failed to contact backend";
@@ -831,7 +845,6 @@ ConvertQuotaView::commitToBackend()
   qclient::Options opts;
   opts.transparentRedirects = true;
   opts.retryStrategy = qclient::RetryStrategy::NoRetries();
-
   qclient::QClient qcl(sBkndHost, sBkndPort, std::move(opts));
   std::string uid_key, gid_key;
   std::uint64_t count = 0u;
@@ -1069,11 +1082,12 @@ usage()
 {
   std::cerr << "Usage:                                            " << std::endl
             << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <bknd_host> "
-            << "<bknd_port>" << std::endl
+            << "<bknd_port> [<fid_offset>]" << std::endl
             << "    file_chlog - file changelog                   " << std::endl
             << "    dir_chlog  - directory changelog              " << std::endl
             << "    bknd_host  - Backend host destination         " << std::endl
-            << "    bknd_port  - Backend port destination         "
+            << "    bknd_port  - Backend port destination         " << std::endl
+            << "    fid_offset - File id offset - for unique ids  " << std::endl
             << std::endl;
 }
 //------------------------------------------------------------------------------
@@ -1092,9 +1106,19 @@ main(int argc, char* argv[])
   std::cerr << "Using " << sThreads << " parallel threads for conversion" <<
             std::endl;
 
-  if (argc != 5) {
+  if ((argc != 5) && (argc != 6)) {
     usage();
     return 1;
+  }
+
+  // The 6th argument is the cointainer id offet
+  if (argc == 6) {
+    try {
+      sFidOffset = std::stoull(argv[5]);
+    } catch (const std::exception& e) {
+      std::cerr << "ERROR: failed to conver cid offset!" << std::endl;
+      return 1;
+    }
   }
 
   // Disable CRC32 computation for entries since we know they should be fine
@@ -1122,7 +1146,8 @@ main(int argc, char* argv[])
     std::string dir_chlog(argv[2]);
     sBkndHost = argv[3];
     sBkndPort = std::stoull(argv[4]);
-    sQcl = eos::BackendClient::getInstance(eos::QdbContactDetails(qclient::Members(sBkndHost, sBkndPort), ""));
+    sQcl = eos::BackendClient::getInstance
+           (eos::QdbContactDetails(qclient::Members(sBkndHost, sBkndPort), ""));
     // Check file and directory changelog files
     struct stat info = {0};
     std::list<std::string> lst_files {file_chlog, dir_chlog};
@@ -1167,6 +1192,16 @@ main(int argc, char* argv[])
     conv_file_svc->setViews(quota_view.get(), fs_view.get());
     std::time_t cont_start = std::time(nullptr);
     cont_svc->initialize();
+
+    // Make sure that if a file id offset is defined this is bigger than
+    // the first free container id
+    if (sFidOffset) {
+      if (sFidOffset <= cont_svc->getFirstFreeId()) {
+        throw std::runtime_error("File offset is smaller than the "
+                                 "biggest container id - aborting!");
+      }
+    }
+
     std::chrono::seconds cont_duration {std::time(nullptr) - cont_start};
 
     if (cont_duration.count()) {
@@ -1224,6 +1259,13 @@ main(int argc, char* argv[])
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
     meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
     meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
+
+    // If a file offset was defined then this instance should use the unified
+    // id numbering scheme
+    if (sFidOffset) {
+      meta_map.hset(eos::constants::sUseSharedInodes, "yes");
+    }
+
     // QuarkDB bulkload finalization (triggers manual compaction in rocksdb)
     std::time_t finalizeStart = std::time(nullptr);
     sQcl->exec("quarkdb_bulkload_finalize").get();
@@ -1232,7 +1274,7 @@ main(int argc, char* argv[])
               " seconds" << std::endl;
     std::chrono::seconds full_duration {std::time(nullptr) - start};
     std::cout << "Conversion duration: " << full_duration.count() << std::endl;
-  } catch (std::runtime_error& e) {
+  } catch (const std::runtime_error& e) {
     std::cerr << "Exception thrown: " << e.what() << std::endl;
     return 1;
   }

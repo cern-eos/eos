@@ -180,7 +180,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConvertContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ConvertContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
+                     IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -240,6 +241,14 @@ public:
   //----------------------------------------------------------------------------
   void commitFiles(qclient::AsyncHandler& ah,
                    qclient::QClient& qclient);
+
+  //----------------------------------------------------------------------------
+  //! Update the id of the current container
+  //----------------------------------------------------------------------------
+  void setId(IContainerMD::id_t id)
+  {
+    pId = id;
+  }
 
 private:
   //----------------------------------------------------------------------------
