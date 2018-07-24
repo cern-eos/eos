@@ -1131,19 +1131,27 @@ int
 execute_line(char* line)
 {
   std::string exec_line = line;
-  size_t cbpos = exec_line.find("--comment \"");
-  size_t cepos;
+
+  // Commands issued from the EOS shell do not encase arguments in quotes
+  // whereas commands issued from the terminal do
+  size_t cbpos = exec_line.find("\"--comment\" \"");
+  int size = 12;
+  if (cbpos == std::string::npos) {
+    cbpos = exec_line.find("--comment \"");
+    size = 10;
+  }
 
   if (cbpos != std::string::npos) {
-    cepos = exec_line.find('"', cbpos + 12);
+    size_t cepos = exec_line.find('"', cbpos + size + 2);
 
     if (cepos == std::string::npos) {
       fprintf(stderr,
               "error: syntax for comment is '<command> <args> --comment \"...\"'\n");
       return 0;
     } else {
-      global_comment = exec_line.substr(cbpos + 10, cepos + 1 - (cbpos + 10)).c_str();
-      exec_line.erase(cbpos, cepos + 1);
+      global_comment =
+          exec_line.substr(cbpos + size, cepos + 1 - (cbpos + size)).c_str();
+      exec_line.erase(cbpos, cepos - cbpos + 1);
       line = (char*) exec_line.c_str();
     }
   }
