@@ -23,17 +23,23 @@
 
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/local/FsIo.hh"
-#if ( defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2,27) ) || defined(__APPLE__)
+#ifdef __APPLE__
 #include <sys/xattr.h>
 #else
+#if defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2,27)
+#include <sys/xattr.h>
+#else
+#include <attr.xattr.h>
+#endif
 #include <attr/xattr.h>
+#endif
 #endif
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif
 #undef __USE_FILE_OFFSET64
 #include <fts.h>
-
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -68,7 +74,7 @@ FsIo::~FsIo()
 //------------------------------------------------------------------------------
 int
 FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
-               uint16_t timeout)
+	       uint16_t timeout)
 {
   mFd = ::open(mFilePath.c_str(), flags, mode);
 
@@ -85,7 +91,7 @@ FsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-               uint16_t timeout)
+	       uint16_t timeout)
 {
   return ::pread(mFd, buffer, length, offset);
 }
@@ -95,7 +101,7 @@ FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                XrdSfsXferSize length, uint16_t timeout)
+		XrdSfsXferSize length, uint16_t timeout)
 {
   return ::pwrite(mFd, buffer, length, offset);
 }
@@ -105,7 +111,7 @@ FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                    XrdSfsXferSize length, bool readahead, uint16_t timeout)
+		    XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -115,7 +121,7 @@ FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 FsIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
-                     XrdSfsXferSize length, uint16_t timeout)
+		     XrdSfsXferSize length, uint16_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
@@ -161,7 +167,7 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 int
 FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
-                      XrdSfsFileOffset toOffset)
+		      XrdSfsFileOffset toOffset)
 {
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
 #ifdef __APPLE__
@@ -284,15 +290,15 @@ FsIo::ftsRead(FileIo::FtsHandle* fts_handle)
   if (handle) {
     while ((node = fts_read((FTS*) handle->tree))) {
       if (node->fts_level > 0 && node->fts_name[0] == '.') {
-        fts_set((FTS*) handle->tree, node, FTS_SKIP);
+	fts_set((FTS*) handle->tree, node, FTS_SKIP);
       } else {
-        if (node->fts_info == FTS_F) {
-          XrdOucString filePath = node->fts_accpath;
+	if (node->fts_info == FTS_F) {
+	  XrdOucString filePath = node->fts_accpath;
 
-          if (!filePath.matches("*.xsmap")) {
-            return filePath.c_str();
-          }
-        }
+	  if (!filePath.matches("*.xsmap")) {
+	    return filePath.c_str();
+	  }
+	}
       }
     }
   }
@@ -432,7 +438,7 @@ int FsIo::attrList(std::vector<std::string>& list)
   std::vector<char> buffer(size);
 #ifdef __APPLE__
   size = listxattr(mFilePath.c_str(), buffer.data(), buffer.size(),
-                   XATTR_NOFOLLOW);
+		   XATTR_NOFOLLOW);
 #else
   size = llistxattr(mFilePath.c_str(), buffer.data(), buffer.size());
 #endif
