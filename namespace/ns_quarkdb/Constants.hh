@@ -50,6 +50,7 @@ static const std::string sLastUsedCid{"last_used_cid"};
 //! they were unlinked but not removed yet
 static const std::string sOrphanFiles{"orphan_files"};
 
+static const std::string sUseSharedInodes {"use-shared-inodes"};
 
 //! Suffix for container metadata in Redis
 static const std::string sContKeySuffix{":c_bucket"};

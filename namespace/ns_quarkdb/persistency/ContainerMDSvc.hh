@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
+#include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "qclient/QHash.hh"
@@ -159,6 +160,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Set inode provider
+  //----------------------------------------------------------------------------
+  void
+  setInodeProvider(UnifiedInodeProvider* provider)
+  {
+    mUnifiedInodeProvider = provider;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //----------------------------------------------------------------------------
   void
@@ -210,8 +220,8 @@ private:
   MetadataFlusher* pFlusher;            ///< Metadata flusher object
   qclient::QHash mMetaMap
   ;             ///< Map holding metainfo about the namespace
-  NextInodeProvider mInodeProvider;     ///< Provide next free inode
   MetadataProvider* mMetadataProvider;  ///< Provider namespace metadata
+  UnifiedInodeProvider *mUnifiedInodeProvider; ///< Provide next free inode
   std::atomic<uint64_t> mNumConts;      ///< Total number of containers
   std::string
   mCacheNum;                ///< Temporary workaround to store cache size

@@ -54,23 +54,24 @@ add_library(
   BackendClient.cc       BackendClient.hh
   LRU.hh
 
-  persistency/ContainerMDSvc.cc      persistency/ContainerMDSvc.hh
-  persistency/FileMDSvc.cc           persistency/FileMDSvc.hh
-  persistency/MetadataFetcher.cc     persistency/MetadataFetcher.hh
-  persistency/MetadataProvider.cc    persistency/MetadataProvider.hh
-  persistency/NextInodeProvider.cc   persistency/NextInodeProvider.hh
-  persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
-  persistency/Serialization.cc       persistency/Serialization.hh
-  explorer/NamespaceExplorer.cc      explorer/NamespaceExplorer.hh
-  flusher/MetadataFlusher.cc         flusher/MetadataFlusher.hh
-  views/HierarchicalView.cc          views/HierarchicalView.hh
-                                     views/PathLookupState.hh
-  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
-  accounting/FileSystemHandler.cc    accounting/FileSystemHandler.hh
-  accounting/FileSystemView.cc       accounting/FileSystemView.hh
-  accounting/QuotaStats.cc           accounting/QuotaStats.hh
-                                     accounting/SetChangeList.hh
-  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
+  persistency/ContainerMDSvc.cc          persistency/ContainerMDSvc.hh
+  persistency/FileMDSvc.cc               persistency/FileMDSvc.hh
+  persistency/MetadataFetcher.cc         persistency/MetadataFetcher.hh
+  persistency/MetadataProvider.cc        persistency/MetadataProvider.hh
+  persistency/NextInodeProvider.cc       persistency/NextInodeProvider.hh
+  persistency/RequestBuilder.cc          persistency/RequestBuilder.hh
+  persistency/Serialization.cc           persistency/Serialization.hh
+  persistency/UnifiedInodeProvider.cc    persistency/UnifiedInodeProvider.hh
+  explorer/NamespaceExplorer.cc          explorer/NamespaceExplorer.hh
+  flusher/MetadataFlusher.cc             flusher/MetadataFlusher.hh
+  views/HierarchicalView.cc              views/HierarchicalView.hh
+                                         views/PathLookupState.hh
+  accounting/ContainerAccounting.cc      accounting/ContainerAccounting.hh
+  accounting/FileSystemHandler.cc        accounting/FileSystemHandler.hh
+  accounting/FileSystemView.cc           accounting/FileSystemView.hh
+  accounting/QuotaStats.cc               accounting/QuotaStats.hh
+                                         accounting/SetChangeList.hh
+  accounting/SyncTimeAccounting.cc       accounting/SyncTimeAccounting.hh
 )
 
 set_target_properties(

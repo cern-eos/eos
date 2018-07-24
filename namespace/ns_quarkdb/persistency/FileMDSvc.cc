@@ -75,11 +75,13 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     pQcl = BackendClient::getInstance(contactDetails);
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
-    mInodeProvider.configure(mMetaMap, constants::sLastUsedFid);
+    mUnifiedInodeProvider.configure(mMetaMap);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
     mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
     static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());
+    static_cast<ContainerMDSvc*>(pContSvc)->setInodeProvider
+    (&mUnifiedInodeProvider);
   }
 
   if (config.find(constants::sMaxNumCacheFiles) != config.end()) {
@@ -177,7 +179,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 std::shared_ptr<IFileMD>
 FileMDSvc::createFile()
 {
-  uint64_t free_id = mInodeProvider.reserve();
+  uint64_t free_id = mUnifiedInodeProvider.reserveFileId();
   std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
   mMetadataProvider->insertFileMD(file->getIdentifier(), file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
@@ -292,7 +294,7 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 IFileMD::id_t
 FileMDSvc::getFirstFreeId()
 {
-  return mInodeProvider.getFirstFreeId();
+  return mUnifiedInodeProvider.getFirstFreeFileId();
 }
 
 //------------------------------------------------------------------------------

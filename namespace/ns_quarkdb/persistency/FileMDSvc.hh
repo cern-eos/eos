@@ -26,6 +26,7 @@
 
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
+#include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "qclient/QHash.hh"
 #include "qclient/QSet.hh"
@@ -180,10 +181,10 @@ private:
   MetadataFlusher* pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
-  NextInodeProvider mInodeProvider; ///< Provides next free inode
   std::atomic<uint64_t> mNumFiles; ///< Total number of fileso
   std::unique_ptr<MetadataProvider>
   mMetadataProvider; ///< Provides metadata from backend
+  UnifiedInodeProvider mUnifiedInodeProvider; ///< Provides next free inode
 };
 
 EOSNSNAMESPACE_END

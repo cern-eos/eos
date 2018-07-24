@@ -74,7 +74,6 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
-    mInodeProvider.configure(mMetaMap, constants::sLastUsedCid);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
   }
 
@@ -103,6 +102,13 @@ ContainerMDSvc::initialize()
   if (mMetadataProvider == nullptr) {
     MDException e(EINVAL);
     e.getMessage()  << __FUNCTION__  << " No metadata provider set for "
+                    << "the container metadata service";
+    throw e;
+  }
+
+  if(mUnifiedInodeProvider == nullptr) {
+    MDException e(EINVAL);
+    e.getMessage()  << __FUNCTION__  << " No inode provider set for "
                     << "the container metadata service";
     throw e;
   }
@@ -199,7 +205,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::createContainer()
 {
-  uint64_t free_id = mInodeProvider.reserve();
+  uint64_t free_id = mUnifiedInodeProvider->reserveContainerId();
   std::shared_ptr<IContainerMD> cont
   (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
@@ -344,7 +350,7 @@ ContainerMDSvc::notifyListeners(IContainerMD* obj,
 IContainerMD::id_t
 ContainerMDSvc::getFirstFreeId()
 {
-  return mInodeProvider.getFirstFreeId();
+  return mUnifiedInodeProvider->getFirstFreeContainerId();
 }
 
 //------------------------------------------------------------------------------
