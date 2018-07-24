@@ -26,6 +26,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/PermissionHandler.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "common/Assert.hh"
@@ -342,73 +343,6 @@ ContainerMD::getNumContainers()
   return mSubcontainers->size();
 }
 
-//------------------------------------------------------------------------------
-// Access checking helpers
-//------------------------------------------------------------------------------
-#define CANREAD 0x01
-#define CANWRITE 0x02
-#define CANENTER 0x04
-
-static char
-convertModetUser(mode_t mode)
-{
-  char perms = 0;
-
-  if ((mode & S_IRUSR) != 0u) {
-    perms |= CANREAD;
-  }
-
-  if ((mode & S_IWUSR) != 0u) {
-    perms |= CANWRITE;
-  }
-
-  if ((mode & S_IXUSR) != 0u) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
-static char
-convertModetGroup(mode_t mode)
-{
-  char perms = 0;
-
-  if ((mode & S_IRGRP) != 0u) {
-    perms |= CANREAD;
-  }
-
-  if ((mode & S_IWGRP) != 0u) {
-    perms |= CANWRITE;
-  }
-
-  if ((mode & S_IXGRP) != 0u) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
-static char
-convertModetOther(mode_t mode)
-{
-  char perms = 0;
-
-  if ((mode & S_IROTH) != 0u) {
-    perms |= CANREAD;
-  }
-
-  if ((mode & S_IWOTH) != 0u) {
-    perms |= CANWRITE;
-  }
-
-  if ((mode & S_IXOTH) != 0u) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
 static bool
 checkPerms(char actual, char requested)
 {
@@ -440,35 +374,25 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
   }
 
   // Convert the flags
-  char convFlags = 0;
-
-  if ((flags & R_OK) != 0) {
-    convFlags |= CANREAD;
-  }
-
-  if ((flags & W_OK) != 0) {
-    convFlags |= CANWRITE;
-  }
-
-  if ((flags & X_OK) != 0) {
-    convFlags |= CANENTER;
-  }
+  char convFlags = PermissionHandler::convertRequested(flags);
 
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
+  const auto& attrmap = mCont.xattrs();
+
   // Check the perms
   if (uid == mCont.uid()) {
-    char user = convertModetUser(mCont.mode());
-    return checkPerms(user, convFlags);
+    char user = PermissionHandler::convertModetUser(mCont.mode());
+    return PermissionHandler::checkPerms(user, convFlags);
   }
 
   if (gid == mCont.gid()) {
-    char group = convertModetGroup(mCont.mode());
-    return checkPerms(group, convFlags);
+    char group = PermissionHandler::convertModetGroup(mCont.mode());
+    return PermissionHandler::checkPerms(group, convFlags);
   }
 
-  char other = convertModetOther(mCont.mode());
-  return checkPerms(other, convFlags);
+  char other = PermissionHandler::convertModetOther(mCont.mode());
+  return PermissionHandler::checkPerms(other, convFlags);
 }
 
 //------------------------------------------------------------------------------

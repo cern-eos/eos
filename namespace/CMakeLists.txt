@@ -37,8 +37,8 @@ add_library(
   MDException.cc
   MDException.hh
 
-  Prefetcher.cc
-  Prefetcher.hh
+  PermissionHandler.cc                PermissionHandler.hh
+  Prefetcher.cc                       Prefetcher.hh
 
   # Namespace interface
   interface/IView.hh

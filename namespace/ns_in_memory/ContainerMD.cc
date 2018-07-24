@@ -25,6 +25,7 @@
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/PermissionHandler.hh"
 #include <sys/stat.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -323,81 +324,6 @@ ContainerMD::deserialize(Buffer& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Access checking helpers
-//------------------------------------------------------------------------------
-#define CANREAD  0x01
-#define CANWRITE 0x02
-#define CANENTER 0x04
-
-static char convertModetUser(mode_t mode)
-{
-  char perms = 0;
-
-  if (mode & S_IRUSR) {
-    perms |= CANREAD;
-  }
-
-  if (mode & S_IWUSR) {
-    perms |= CANWRITE;
-  }
-
-  if (mode & S_IXUSR) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
-static char convertModetGroup(mode_t mode)
-{
-  char perms = 0;
-
-  if (mode & S_IRGRP) {
-    perms |= CANREAD;
-  }
-
-  if (mode & S_IWGRP) {
-    perms |= CANWRITE;
-  }
-
-  if (mode & S_IXGRP) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
-static char convertModetOther(mode_t mode)
-{
-  char perms = 0;
-
-  if (mode & S_IROTH) {
-    perms |= CANREAD;
-  }
-
-  if (mode & S_IWOTH) {
-    perms |= CANWRITE;
-  }
-
-  if (mode & S_IXOTH) {
-    perms |= CANENTER;
-  }
-
-  return perms;
-}
-
-static bool checkPerms(char actual, char requested)
-{
-  for (int i = 0; i < 3; ++i)
-    if (requested & (1 << i))
-      if (!(actual & (1 << i))) {
-        return false;
-      }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Check the access permissions
 //------------------------------------------------------------------------------
 bool
@@ -414,33 +340,21 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
   }
 
   // Convert the flags
-  char convFlags = 0;
-
-  if (flags & R_OK) {
-    convFlags |= CANREAD;
-  }
-
-  if (flags & W_OK) {
-    convFlags |= CANWRITE;
-  }
-
-  if (flags & X_OK) {
-    convFlags |= CANENTER;
-  }
+  char convFlags = PermissionHandler::convertRequested(flags);
 
   // Check the perms
   if (uid == pCUid) {
-    char user = convertModetUser(pMode);
-    return checkPerms(user, convFlags);
+    char user = PermissionHandler::convertModetUser(pMode);
+    return PermissionHandler::checkPerms(user, convFlags);
   }
 
   if (gid == pCGid) {
-    char group = convertModetGroup(pMode);
-    return checkPerms(group, convFlags);
+    char group = PermissionHandler::convertModetGroup(pMode);
+    return PermissionHandler::checkPerms(group, convFlags);
   }
 
-  char other = convertModetOther(pMode);
-  return checkPerms(other, convFlags);
+  char other = PermissionHandler::convertModetOther(pMode);
+  return PermissionHandler::checkPerms(other, convFlags);
 }
 
 //------------------------------------------------------------------------------
