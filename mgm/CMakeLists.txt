@@ -173,11 +173,12 @@ add_library(
   ${FUSEX_SRCS} proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh)
 
 #-------------------------------------------------------------------------------
-# Add dependecy to EosAuthProto-Objects so we guarantee that the protocol
+# Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosMgm
 #-------------------------------------------------------------------------------
 add_dependencies(XrdEosMgm-Objects EosProtobuf)
 add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
+add_dependencies(XrdEosMgm-Objects XrdSsiPbEosCta-Objects)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})

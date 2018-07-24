@@ -21,6 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+include_directories(${PROTOBUF3_INCLUDE_DIRS})
 set(PROTOBUF3_INCLUDE_PATH ${EOS_CTA_PB_DIR})
 
 PROTOBUF_GENERATE_CPP(CTA_ADMIN_SRCS CTA_ADMIN_HDRS ${PROTOBUF3_INCLUDE_PATH}/cta_admin.proto)
@@ -38,7 +39,6 @@ set_source_files_properties(
   ${EOS_CTA_PB_SRCS} ${EOS_CTA_PB_HDRS}
   PROPERTIES GENERATED 1)
 
-include_directories(${PROTOBUF3_INCLUDE_DIRS})
 add_library (XrdSsiPbEosCta-Objects OBJECT
   ${EOS_CTA_PB_SRCS})
 set_target_properties(XrdSsiPbEosCta-Objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)

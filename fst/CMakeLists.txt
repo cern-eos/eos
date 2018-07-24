@@ -338,11 +338,17 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
+#-------------------------------------------------------------------------------
+# Add dependency to protobuf objects so we guarantee that the protocol
+# buffer files are generated when we try to build XrdEosFst
+#-------------------------------------------------------------------------------
+add_dependencies(XrdEosFst-Objects XrdSsiPbEosCta-Objects)
+
 set_target_properties(
   XrdEosFst-Objects
   PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE
-)
+  POSITION_INDEPENDENT_CODE TRUE)
+
 target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
