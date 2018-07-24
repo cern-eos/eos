@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/backward-cpp/backward.hpp"
 #ifndef __APPLE__
+#include "common/backward-cpp/backward.hpp"
 #include "common/ShellCmd.hh"
 #endif
 #ifdef ROCKSDB_FOUND

@@ -25,6 +25,7 @@
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"
 #include "common/SharedMutex.hh"
+#include <sstream>
 #include <exception>
 
 EOSCOMMONNAMESPACE_BEGIN

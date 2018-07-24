@@ -26,12 +26,19 @@
 
 #define BACKWARD_HAS_BFD 1
 
+#ifndef __APPLE__
 #include "common/backward-cpp/backward.hpp"
+#endif
 #include "common/Namespace.hh"
 #include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
+#ifdef __APPLE__
+inline std::string getStacktrace() {
+  return "No stacktrack available on this platform";
+}
+#else
 inline std::string getStacktrace() {
   std::ostringstream ss;
 
@@ -43,6 +50,7 @@ inline std::string getStacktrace() {
   p.print(st, ss);
   return ss.str();
 }
+#endif
 
 EOSCOMMONNAMESPACE_END
 

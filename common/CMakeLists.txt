@@ -21,6 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if (Linux)
 add_subdirectory(backward-cpp)
 
 # @note We need this here since backward-cpp overwrites the global flags for
@@ -29,6 +30,7 @@ add_subdirectory(backward-cpp)
 # main CMakeLists.txt file.
 set(CMAKE_CXX_STANDARD 14)
 set(CPP_VERSION -std=c++14)
+endif()
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
