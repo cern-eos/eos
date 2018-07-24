@@ -35,7 +35,7 @@
 #ifndef ENOATTR
 #define ENOATTR ENODATA
 #endif
-#if ( defined __GLIBC_PREREQ && __GLIBC_PREREQ(2,27) ) || defined  __APPLE__
+#if ( defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2,27) ) || defined(__APPLE__)
 #include <sys/xattr.h>
 #else
 #include <attr/xattr.h>
