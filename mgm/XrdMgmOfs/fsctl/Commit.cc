@@ -76,7 +76,7 @@
   int oc_max = 0;
   XrdOucString oc_uuid = "";
   bool occhunk = eos::common::OwnCloud::GetChunkInfo(env.Env(envlen), oc_n,
-  oc_max, oc_uuid);
+      oc_max, oc_uuid);
 
   // Indicate when the last chunk of a chunked OC upload has been committed
   bool ocdone = false;
@@ -165,7 +165,6 @@
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
-
     {
       // Keep the lock order View=>Namespace=>Quota
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
@@ -206,7 +205,7 @@
         // check if this file is already unlinked from the visible namespace
         if (!(cid = fmd->getContainerId())) {
           eos_thread_debug("commit for fid=%lu but file is disconnected from any container",
-			   fmd->getId());
+                           fmd->getId());
           gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
           return Emsg(epname, error, EIDRM,
                       "commit filesize change - file is already removed [EIDRM]", "");
@@ -421,7 +420,6 @@
         eos::IFileMD::ctime_t mt;
         mt.tv_sec = mtime;
         mt.tv_nsec = mtimens;
-
         atomic_path.Init(fmd->getName().c_str());
         atomic_path.DecodeAtomicPath(isVersioning);
         isAtomic = (atomic_path.GetName() != fmd->getName());
@@ -431,8 +429,9 @@
           // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
           // call utimes anyway
           // OC clients set the mtime during a commit!
-          if (!isAtomic || occhunk)
+          if (!isAtomic || occhunk) {
             fmd->setMTime(mt);
+          }
         }
 
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
@@ -440,6 +439,7 @@
         try {
           // check for a temporary Etag and remove it
           std::string tmpEtag = "sys.tmp.etag";
+
           if (fmd->hasAttribute(tmpEtag) && (!isAtomic || occhunk)
               && (commitsize || commitchecksum)) {
             fmd->removeAttribute(tmpEtag);
@@ -452,6 +452,7 @@
             if (cmd->hasAttribute(tmpEtag)) {
               cmd->removeAttribute(tmpEtag);
             }
+
             // update parent mtime
             cmd->setMTimeNow();
             gOFS->eosView->updateContainerStore(cmd.get());
@@ -535,7 +536,7 @@
             dir = eosView->getContainer(dname);
             fmd = gOFS->eosFileService->getFileMD(fid);
 
-            if (isVersioning) {
+            if (isVersioning && (std::string(version_path.GetPath()) != "/")) {
               std::shared_ptr<eos::IFileMD> versionfmd;
 
               try {
@@ -574,11 +575,9 @@
               } catch (eos::MDException& e) {
               }
 
-              if ( (!ocdone) && (atomic_tag != fmd->getName()))
-              {
+              if ((!ocdone) && (atomic_tag != fmd->getName())) {
                 // this is not our atomic upload, just abort that and delete the temporary artefact
                 delete_path = fmd->getName();
-
                 eos_thread_err("msg=\"we are not the last atomic upload - cleaning %s\"",
                                delete_path.c_str());
                 isAbort = true;
@@ -621,8 +620,8 @@
                          delete_path.c_str());
         }
       }
-      if (isAbort)
-      {
+
+      if (isAbort) {
         return Emsg(epname, error, EREMCHG, "commit replica - overlapping "
                     "atomic upload [EREMCHG] - discarding atomic upload", "");
       }
@@ -631,19 +630,18 @@
   {
     int envlen = 0;
     eos_thread_err("commit message does not contain all meta information: %s",
-    env.Env(envlen));
+                   env.Env(envlen));
     gOFS->MgmStats.Add("CommitFailedParameters", 0, 0, 1);
 
-    if (spath)
-    {
+    if (spath) {
       return Emsg(epname, error, EINVAL,
-      "commit filesize change - size,fid,fsid,mtime not complete", spath);
-    } else
-    {
+                  "commit filesize change - size,fid,fsid,mtime not complete", spath);
+    } else {
       return Emsg(epname, error, EINVAL,
-      "commit filesize change - size,fid,fsid,mtime,path not complete", "unknown");
+                  "commit filesize change - size,fid,fsid,mtime,path not complete", "unknown");
     }
   }
+
   gOFS->MgmStats.Add("Commit", 0, 0, 1);
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
