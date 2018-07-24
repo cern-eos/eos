@@ -138,4 +138,23 @@ bool PermissionHandler::parseOctalMask(const std::string &str, mode_t &out) {
   return true;
 }
 
+//------------------------------------------------------------------------------
+//! Convert requested permissions to internal representation. Ready to pass
+//! onto checkPerms then.
+//------------------------------------------------------------------------------
+mode_t PermissionHandler::filterWithSysMask(const std::string &sysmask, mode_t mode) {
+  if(sysmask.empty()) {
+    return mode;
+  }
+
+  mode_t mask;
+
+  if(!parseOctalMask(sysmask, mask)) {
+    // un-parseable mask, ignore
+    return mode;
+  }
+
+  return mode & mask;
+}
+
 EOSNSNAMESPACE_END

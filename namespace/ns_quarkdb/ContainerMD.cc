@@ -373,25 +373,26 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
     return true;
   }
 
+  // Filter out based on sys.mask
+  mode_t filteredMode = PermissionHandler::filterWithSysMask(mCont.xattrs(), mCont.mode());
+
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
 
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
-  const auto& attrmap = mCont.xattrs();
-
   // Check the perms
   if (uid == mCont.uid()) {
-    char user = PermissionHandler::convertModetUser(mCont.mode());
+    char user = PermissionHandler::convertModetUser(filteredMode);
     return PermissionHandler::checkPerms(user, convFlags);
   }
 
   if (gid == mCont.gid()) {
-    char group = PermissionHandler::convertModetGroup(mCont.mode());
+    char group = PermissionHandler::convertModetGroup(filteredMode);
     return PermissionHandler::checkPerms(group, convFlags);
   }
 
-  char other = PermissionHandler::convertModetOther(mCont.mode());
+  char other = PermissionHandler::convertModetOther(filteredMode);
   return PermissionHandler::checkPerms(other, convFlags);
 }
 

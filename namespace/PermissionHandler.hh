@@ -64,6 +64,25 @@ public:
   //----------------------------------------------------------------------------
   static bool parseOctalMask(const std::string &str, mode_t &out);
 
+  //----------------------------------------------------------------------------
+  //! Filter mode based a given mask, passed as string
+  //----------------------------------------------------------------------------
+  static mode_t filterWithSysMask(const std::string &sysmask, mode_t mode);
+
+  //------------------------------------------------------------------------------
+  //! Filter mode based on sys.mask, as given in xattrs.
+  //! Template, so we can handle both std::map and protobuf map.
+  //------------------------------------------------------------------------------
+  template<typename MapType>
+  static mode_t filterWithSysMask(const MapType &xattr, mode_t mode) {
+    auto it = xattr.find("sys.mask");
+    if(it == xattr.end()) {
+      return mode;
+    }
+
+    return filterWithSysMask(it->second, mode);
+  }
+
 };
 
 EOSNSNAMESPACE_END

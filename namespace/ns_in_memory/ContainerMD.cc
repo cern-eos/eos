@@ -339,21 +339,24 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
     return true;
   }
 
+  // Filter out based on sys.mask
+  mode_t filteredMode = PermissionHandler::filterWithSysMask(pXAttrs, pMode);
+
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
 
   // Check the perms
   if (uid == pCUid) {
-    char user = PermissionHandler::convertModetUser(pMode);
+    char user = PermissionHandler::convertModetUser(filteredMode);
     return PermissionHandler::checkPerms(user, convFlags);
   }
 
   if (gid == pCGid) {
-    char group = PermissionHandler::convertModetGroup(pMode);
+    char group = PermissionHandler::convertModetGroup(filteredMode);
     return PermissionHandler::checkPerms(group, convFlags);
   }
 
-  char other = PermissionHandler::convertModetOther(pMode);
+  char other = PermissionHandler::convertModetOther(filteredMode);
   return PermissionHandler::checkPerms(other, convFlags);
 }
 

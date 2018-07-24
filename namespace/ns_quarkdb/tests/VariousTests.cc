@@ -415,3 +415,39 @@ TEST(OctalParsing, BasicSanity) {
   ASSERT_FALSE(PermissionHandler::parseOctalMask("0709", mode));
   ASSERT_FALSE(PermissionHandler::parseOctalMask("0x123", mode));
 }
+
+TEST(SysMask, BasicSanity) {
+  std::map<std::string, std::string> xattr;
+  xattr.emplace("chicken.chicken", "chicken chicken chicken chicken");
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0700));
+  ASSERT_EQ(0770, PermissionHandler::filterWithSysMask(xattr, 0770));
+  ASSERT_EQ(0774, PermissionHandler::filterWithSysMask(xattr, 0774));
+
+  xattr.emplace("sys.mask", "700");
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0777));
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0744));
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0755));
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0444));
+
+  xattr["sys.mask"] = "0700";
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0777));
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0744));
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0755));
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0444));
+
+  xattr["sys.mask"] = "0400";
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0777));
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0744));
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0755));
+  ASSERT_EQ(0400, PermissionHandler::filterWithSysMask(xattr, 0444));
+
+  xattr["sys.mask"] = "744";
+  ASSERT_EQ(0744, PermissionHandler::filterWithSysMask(xattr, 0744));
+  ASSERT_EQ(0744, PermissionHandler::filterWithSysMask(xattr, 0757));
+  ASSERT_EQ(0404, PermissionHandler::filterWithSysMask(xattr, 0407));
+
+  xattr["sys.mask"] = "chicken";
+  ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0700));
+  ASSERT_EQ(0770, PermissionHandler::filterWithSysMask(xattr, 0770));
+  ASSERT_EQ(0774, PermissionHandler::filterWithSysMask(xattr, 0774));
+}
