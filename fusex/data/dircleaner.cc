@@ -265,7 +265,7 @@ dircleaner::leveler(ThreadAssistant& assistant)
 
       if (filled > clean_threshold) {
         // we force a complete cleanup of the cache if disk space runs low
-        eos_static_warning("diskspace on partition path %s less than 5% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache",
+        eos_static_warning("diskspace on partition path %s less than 5%% free : free-bytes=%lu total-bytes=%lu filled=%.02f %% - cleaning cache",
                            path.c_str(), free_partition_bytes, total_partition_bytes, filled);
         cleanall(trim_suffix);
       }
