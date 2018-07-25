@@ -40,6 +40,7 @@ public:
     _meta()
     {
       openr = openw = 0;
+      mInUse.SetBlockedStackTracing(false); // disable stacktracing
     }
 
     RWMutex mInUse;
