@@ -507,7 +507,7 @@ private:
   std::atomic<uint64_t> mRdLockCounter;
   std::atomic<uint64_t> mWrLockCounter;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
-  uint64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
+  int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
