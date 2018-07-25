@@ -50,8 +50,7 @@ RedisRequest
 RequestBuilder::writeContainerProto(ContainerIdentifier id, const std::string &hint, const std::string &blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHSET-AND-DEL-FALLBACK", constants::sContainerKey, sid, hint, blob, RequestBuilder::getContainerBucketKey(id) };
+  return { "LHSET", constants::sContainerKey, sid, hint, blob };
 }
 
 //------------------------------------------------------------------------------
@@ -74,8 +73,7 @@ RedisRequest
 RequestBuilder::writeFileProto(FileIdentifier id, const std::string &hint, const std::string &blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHSET-AND-DEL-FALLBACK", constants::sFileKey, sid, hint, blob, RequestBuilder::getFileBucketKey(id) };
+  return { "LHSET", constants::sFileKey, sid, hint, blob };
 }
 
 //------------------------------------------------------------------------------
@@ -85,8 +83,7 @@ RedisRequest
 RequestBuilder::readContainerProto(ContainerIdentifier id)
 {
   // TODO(gbitzes): Pass locality hint when available.
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHGET-WITH-FALLBACK", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getContainerBucketKey(id) };
+  return { "LHGET", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------
@@ -96,8 +93,7 @@ RedisRequest
 RequestBuilder::readFileProto(FileIdentifier id)
 {
   // TODO(gbitzes): Pass locality hint when available.
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHGET-WITH-FALLBACK", constants::sFileKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getFileBucketKey(id) };
+  return { "LHGET", constants::sFileKey, SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------
@@ -106,8 +102,7 @@ RequestBuilder::readFileProto(FileIdentifier id)
 RedisRequest
 RequestBuilder::deleteContainerProto(ContainerIdentifier id)
 {
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHDEL-WITH-FALLBACK", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getContainerBucketKey(id) };
+  return { "LHDEL", constants::sContainerKey, SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------
@@ -116,8 +111,7 @@ RequestBuilder::deleteContainerProto(ContainerIdentifier id)
 RedisRequest
 RequestBuilder::deleteFileProto(FileIdentifier id)
 {
-  // TODO(gbitzes): Remove compatibility hack eventually.
-  return { "LHDEL-WITH-FALLBACK", constants::sFileKey, SSTR(id.getUnderlyingUInt64()), RequestBuilder::getFileBucketKey(id) };
+  return { "LHDEL", constants::sFileKey, SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------
