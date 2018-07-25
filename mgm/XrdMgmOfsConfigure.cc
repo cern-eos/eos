@@ -302,6 +302,7 @@ XrdMgmOfs::InitializeFileView()
              (tstop - tstart));
     eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),
              e.getMessage().str().c_str());
+    std::abort();
   }
 
   {
@@ -1417,7 +1418,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     } else {
       ConfEngine = new QuarkDBConfigEngine(MgmConfigDir.c_str(),
-        gOFS->mQdbContactDetails);
+                                           gOFS->mQdbContactDetails);
     }
   } else {
     Eroute.Emsg("Config", "Unknown configuration engine type!",
@@ -2013,7 +2014,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ss << "Printing a test stacktrace to check for debugging symbols." << std::endl;
   ss << eos::common::getStacktrace() << std::endl;
   eos_static_info(ss.str().c_str());
-
   // add all stat entries with 0
   InitStats();
   // set IO accounting file

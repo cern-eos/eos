@@ -347,12 +347,12 @@ public:
   //----------------------------------------------------------------------------
   //! Initizlize the file service
   //----------------------------------------------------------------------------
-  virtual void initialize();
+  virtual void initialize() override;
 
   //----------------------------------------------------------------------------
   //! Get first free file id
   //----------------------------------------------------------------------------
-  IFileMD::id_t getFirstFreeId();
+  IFileMD::id_t getFirstFreeId() override;
 
   //----------------------------------------------------------------------------
   //! Set quota and file system view object references
