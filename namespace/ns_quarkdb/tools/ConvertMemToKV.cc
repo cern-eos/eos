@@ -607,8 +607,14 @@ ConvertFileMDSvc::initialize()
   auto start = std::time(nullptr);
   std::mutex mutex_lost_found;
   mFirstFreeId = scanner.getLargestId() + 1;
+
+  // Update the first free file id if we have a file offset defined
+  if (sFidOffset) {
+    mFirstFreeId += sFidOffset;
+  }
+
   // Recreate the files
-  eos::common::Parallel::For(0, nthreads, [&](int i) {
+  eos::common::Parallel::For(0, nthreads, [&](int i) noexcept {
     std::int64_t count = 0;
     IdMap::iterator it = pIdMap.begin();
     std::advance(it, i * chunk);
@@ -640,9 +646,9 @@ ConvertFileMDSvc::initialize()
       if (file) {
         file->deserialize(*(it->second.buffer));
 
-        // Update parent cid if container id offset is defined
+        // Update the file id if the file id offset is defined
         if (sFidOffset) {
-          file->setContainerId(file->getContainerId() + sFidOffset);
+          ((ConvertFileMD*)file.get())->setId(file->getId() + sFidOffset);
         }
 
         delete it->second.buffer;
@@ -799,7 +805,13 @@ ConvertQuotaView::addQuotaInfo(IFileMD* file)
 
   while ((current->getId() != 1) &&
          ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
-    current = mContSvc->getContainerMD(current->getParentId());
+    if (current->getParentId() == 0ull) {
+      std::cerr << __FUNCTION__ << "Cotainer id:" << current->getId()
+                << " has a 0 parent id - skip";
+      return;
+    } else {
+      current = mContSvc->getContainerMD(current->getParentId());
+    }
   }
 
   if ((current->getFlags() & QUOTA_NODE_FLAG) == 0) {
