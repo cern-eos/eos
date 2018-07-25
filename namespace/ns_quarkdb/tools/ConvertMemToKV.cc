@@ -450,10 +450,6 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 
     if (child == nullptr) {
       parent->addContainer(container.get());
-
-      if ((container->getFlags() & QUOTA_NODE_FLAG) != 0) {
-        mConvQView->addQuotaNode(container->getId());
-      }
     } else {
       nameConflicts.push_back(container);
     }
@@ -776,16 +772,6 @@ ConvertFileMDSvc::setViews(ConvertQuotaView* qview, ConvertFsView* fsview)
 //------------------------------------------------------------------------------
 //         ************* ConvertQuotaView Class ************
 //------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-// Add quota node for a specific container
-//------------------------------------------------------------------------------
-void
-ConvertQuotaView::addQuotaNode(IContainerMD::id_t id)
-{
-  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
-  mSetQuotaIds.insert(stringify(id));
-}
 
 //------------------------------------------------------------------------------
 // Add quota info for a specific file object

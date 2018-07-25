@@ -59,13 +59,6 @@ public:
   ~ConvertQuotaView() {};
 
   //----------------------------------------------------------------------------
-  //! Add quota node for a specific container
-  //!
-  //! @param id id of the container which is also a quota node
-  //----------------------------------------------------------------------------
-  void addQuotaNode(IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
   //! Add quota info for a specific file object
   //!
   //! @param file file object
