@@ -44,7 +44,7 @@
 # again the file is read out of EOS and the match with the original one is tested.
 #------------------------------------------------------------------------------
 
-#! /bin/bash
+#!/bin/bash
 
 . /etc/init.d/functions
 

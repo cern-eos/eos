@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#! /bin/bash
+#!/bin/bash
 
 ################################################################################
 # Usage:
@@ -85,6 +85,7 @@ export TESTSYSFILE0K=$EOS_TEST_TESTSYS/file.0K
 export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
 export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
+export EOSLOGBOOK=/var/log/eos/mgm/logbook.log
 
 ################################################################################
 if [ "x$1" != "xlist" ]; then
@@ -622,6 +623,12 @@ runtest "### Rem       " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Version   " unix 0 "" eos "version | grep EOS_INSTANCE"
 runtest "### Version   " unix 0 "" eos "version | grep EOS_CLIENT_VERSION"
 runtest "### Version   " unix 0 "" eos "version | grep EOS_SERVER_VERSION"
+runtest "### Version   " unix 0 "" eos "version -m | grep xrootd.version"
+################################################################################
+# COMMENT
+################################################################################
+runtest "### Comment         " unix 0 "" eos "whoami --comment \"Hello World\""
+runtest "### Comment         " unix 0 "" shell grep $EOSLOGBOOK -e \"Hello World\"
 ################################################################################
 # ACCESS
 ################################################################################
@@ -1108,7 +1115,6 @@ export S3_HOSTNAME=$EOS_TEST_REDIRECTOR
 #----------------------------------------------------------------------------
 # Prepare the setup for S3 tests
 #----------------------------------------------------------------------------
-
 runtest "### Prepare user " unix 0 "" shell adduser -M s3user
 runtest "### Prepare dir  " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
 runtest "### Prepare mod  " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
@@ -1118,7 +1124,6 @@ runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.id.s3user="0123456789"
 runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc
 
 # ------------------------------------------------------------------------------
-
 runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
 runtest "### S3 Upload    " unix 0 "" davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
 runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test
@@ -1131,7 +1136,6 @@ runtest "### S3 List      " unix 1 "" davix-ls  --s3accesskey s3user --s3secretk
 #----------------------------------------------------------------------------
 # Clean up the files created in S3 tests
 #----------------------------------------------------------------------------
-
 runtest "### Cleanup   " unix 0 "" shell userdel s3user
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
 runtest "### Cleanup   " unix 2 "" shell rm -f file.50m

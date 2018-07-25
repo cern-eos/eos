@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#! /bin/bash
+#!/bin/bash
 
 chunkedupload () {
   echo "# Testing Chunked upload"
