@@ -146,6 +146,9 @@ RWMutex::RWMutex(bool prefer_rd):
   } else {
     mMutexImpl = new SharedMutex();
   }
+
+  mBlockedForInterval = 10000;
+  mBlockedStackTracing = true;
 }
 
 //------------------------------------------------------------------------------
@@ -376,7 +379,8 @@ RWMutex::LockWrite()
 #endif
   }
 
-  mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>
+                   (std::chrono::steady_clock::now().time_since_epoch()).count();
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mWr);
 }
 
@@ -415,12 +419,19 @@ RWMutex::UnLockWrite()
   }
 
 #endif
+  // ATTENTION: this mechanism is not reliable because another thread can update mLastWriteLock by taking a new lock and update mLastWriteLock leading to negative blockedFor values
+  int64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>
+                       (std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
 
-  uint64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
-  if(blockedFor >= 10000) {
+  if (blockedFor >= mBlockedForInterval) {
     std::ostringstream ss;
-    ss << "WARNING - write lock held for " << blockedFor << " milliseconds by this thread: " << std::endl;
-    ss << eos::common::getStacktrace();
+    ss << "WARNING - write lock held for " << blockedFor <<
+       " milliseconds by this thread: " << std::endl;
+
+    if (mBlockedStackTracing) {
+      ss << eos::common::getStacktrace();
+    }
+
     eos_static_crit(ss.str().c_str());
   }
 }
@@ -452,8 +463,9 @@ RWMutex::TimedWrLock(uint64_t timeout_ns)
 
 #endif
 
-  if(retc == 0) {
-    mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  if (retc == 0) {
+    mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>
+                     (std::chrono::steady_clock::now().time_since_epoch()).count();
   }
 
   return (retc == 0);
@@ -1337,12 +1349,19 @@ RWMutexReadLock::Release()
   if (mRdMutex) {
     mRdMutex->UnLockRead();
     mRdMutex = nullptr;
+    std::chrono::milliseconds blockedFor =
+      std::chrono::duration_cast<std::chrono::milliseconds>
+      (std::chrono::steady_clock::now() - mAcquiredAt);
 
-    std::chrono::milliseconds blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - mAcquiredAt);
-    if(blockedFor.count() > 10000) {
+    if (blockedFor.count() > mRdMutex->BlockedForMsInterval()) {
       std::ostringstream ss;
-      ss << "WARNING - read lock held for " << blockedFor.count() << " milliseconds by this thread: " << std::endl;
-      ss << eos::common::getStacktrace();
+      ss << "WARNING - read lock held for " << blockedFor.count() <<
+         " milliseconds by this thread: " << std::endl;
+
+      if (mRdMutex->BlockedStackTracing()) {
+        ss << eos::common::getStacktrace();
+      }
+
       eos_static_crit(ss.str().c_str());
     }
   }

@@ -133,6 +133,36 @@ public:
     mBlocking = block;
   }
 
+
+  //----------------------------------------------------------------------------
+  //! Set the timeinterval when to stacktrace a long lasting lock
+  //!
+  //! @param blockedfor time in ms
+  //----------------------------------------------------------------------------
+  inline void SetBlockedForMsInterval(int64_t blockedfor)
+  {
+    mBlockedForInterval = blockedfor;
+  }
+
+  int64_t BlockedForMsInterval() const
+  {
+    return mBlockedForInterval;
+  }
+
+  //----------------------------------------------------------------------------
+  //! En-/Disable stack tracing of locks lasting longer then the interval
+  //!
+  //! @param onoff true=enable false=disable
+  inline void SetBlockedStackTracing(bool onoff)
+  {
+    mBlockedStackTracing = onoff;
+  }
+
+  bool BlockedStackTracing() const
+  {
+    return mBlockedStackTracing;
+  }
+
   //----------------------------------------------------------------------------
   //! Lock for read
   //----------------------------------------------------------------------------
@@ -477,6 +507,8 @@ private:
   std::atomic<uint64_t> mRdLockCounter;
   std::atomic<uint64_t> mWrLockCounter;
   bool mPreferRd; ///< If true reads go ahead of wr and are reentrant
+  uint64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
+  bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   std::string mDebugName;
@@ -529,7 +561,7 @@ private:
   static std::map<std::string, unsigned char>* ruleName2Index_static;
   unsigned char ruleLocalIndexToGlobalIndex[EOS_RWMUTEX_ORDER_NRULES];
   // rulename -> order
-  typedef std::map< std::string , std::vector<RWMutex*> > rules_t;
+  typedef std::map< std::string, std::vector<RWMutex*> > rules_t;
   static rules_t* rules_static;
   // lock to guarantee unique access to rules management
   static pthread_rwlock_t mOrderChkLock;
