@@ -479,7 +479,7 @@ rpm_testing_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y sudo
+    - yum install --nogpg -y sudo sssd-client
     - if [[ $CI_COMMIT_TAG ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
     - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
@@ -495,9 +495,9 @@ rpm_stable_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
+    - yum install --nogpg -y sudo sssd-client
     - if [[ $CI_COMMIT_TAG ]]; then BUILD_TYPE="tag"; else echo "This only works for tags"; exit 0; fi
     - ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /mnt/eos_repositories/eos
-    - yum install --nogpg -y sudo
     - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
     - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${BRANCH}/tag/latest_version
   tags:
