@@ -76,7 +76,7 @@ public:
   //----------------------------------------------------------------------------
   //! Overload function operator
   //----------------------------------------------------------------------------
-  operator uint64_t() const
+  explicit operator uint64_t() const
   {
     return val;
   }
@@ -121,7 +121,7 @@ public:
   //----------------------------------------------------------------------------
   //! Overload function operator
   //----------------------------------------------------------------------------
-  operator uint64_t() const
+  explicit operator uint64_t() const
   {
     return val;
   }
