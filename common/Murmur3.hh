@@ -69,14 +69,10 @@ public:
   };
 
   struct eqstr {
-    bool operator()(const uint64_t s1, const uint64_t s2) const
+    template<typename T>
+    bool operator()(const T& val1, const T& val2) const
     {
-      return (s1 == s2);
-    }
-
-    bool operator()(const std::string& s1, const std::string& s2) const
-    {
-      return (s1 == s2);
+      return (val1 == val2);
     }
   };
 };
