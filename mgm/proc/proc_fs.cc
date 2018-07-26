@@ -118,7 +118,7 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 // Dump metadata information
 //------------------------------------------------------------------------------
 int
-proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
+proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
                XrdOucString& stdErr,
                eos::common::Mapping::VirtualIdentity& vid_in, size_t& entries)
@@ -146,11 +146,11 @@ proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
     monitor = true;
   }
 
-  if (!fsidst.length()) {
+  if (!sfsid.length()) {
     stdErr = "error: illegal parameters";
     retc = EINVAL;
   } else {
-    int fsid = atoi(fsidst.c_str());
+    int fsid = atoi(sfsid.c_str());
     std::shared_ptr<eos::IFileMD> fmd;
     eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
       gOFS->eosView, gOFS->eosFsView, fsid);

@@ -52,8 +52,20 @@ enum class MvOpType {
 
 //------------------------------------------------------------------------------
 //! Dump metadata held on filesystem
+//! 
+//! @param sfsid id of the filesystem
+//! @param option output format option (can be default or monitor)
+//! @param dp display path flag
+//! @param df display fid flag
+//! @param ds display size flag
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//! @param vid_in virtual identity of the client
+//! @param entries counts the number of entries
+//!
+//! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_dumpmd(std::string& fsidst, XrdOucString& option, XrdOucString& dp,
+int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                    XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
                    XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid_in,
                    size_t& entries);

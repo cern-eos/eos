@@ -168,12 +168,13 @@ void com_fs_help()
       << std::endl
       <<  "        the files from disk)" << std::endl
       << std::endl
-      << "  fs dumpmd <fsid> [--fid] [--path] [-s|-m]"  << std::endl
+      << "  fs dumpmd <fsid> [--fid] [--path] [--size] [-m|-s]"  << std::endl
       << "    dump all file metadata on this filesystem in query format" << std::endl
-      << "    --fid  : dump only the list of file ids" << std::endl
-      << "    --path : dump only the paths of the files" << std::endl
-      << "    -s     : don't display, but keep an internal reference" << std::endl
+      << "    --fid  : dump only the file ids" << std::endl
+      << "    --path : dump only the file paths" << std::endl
+      << "    --size : dump only the file sizes" << std::endl
       << "    -m     : print full metadata record in env format" << std::endl
+      << "    -s     : silent mode (will keep an internal reference)" << std::endl
       << std::endl
       << "  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]"
       << std::endl

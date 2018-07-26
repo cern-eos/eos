@@ -788,8 +788,8 @@ eos::mgm::FsCmd::DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
 
 int
 FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
-                                    XrdOucString& dp,
-                                    XrdOucString& df, XrdOucString& ds, XrdOucString& out,
+                                    XrdOucString& dp, XrdOucString& df,
+                                    XrdOucString& ds, XrdOucString& out,
                                     XrdOucString& err, size_t& entries)
 {
   try {
