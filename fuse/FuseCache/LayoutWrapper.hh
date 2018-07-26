@@ -330,14 +330,6 @@ public:
     return mCanCache;
   }
 
-  //----------------------------------------------------------------------------
-  //! Return FUSE inode
-  //----------------------------------------------------------------------------
-  unsigned long long GetInode()
-  {
-    return eos::common::FileId::FidToInode(mInode);
-  }
-
 private:
   bool mDoneAsyncOpen; ///< Mark if async open was issued
   eos::fst::AsyncLayoutOpenHandler* mOpenHandler; ///< Asynchronous open handler
