@@ -16,7 +16,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the AGNU General Public License    *
+ * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
@@ -84,7 +84,7 @@ public:
   virtual ~ProcCommand();
 
   //----------------------------------------------------------------------------
-  //! Open a proc command e.g. call the appropriate user or admin commmand and
+  //! Open a proc command e.g. call the appropriate user or admin command and
   //! store the output in a resultstream of in case of find in temporary output
   //! files.
   //!
@@ -129,12 +129,12 @@ public:
   virtual int close() override;
 
   //----------------------------------------------------------------------------
-  //! Method implementing the specific behvior of the command executed by the
+  //! Method implementing the specific behavior of the command executed by the
   //! asynchronous thread - used only for protobuf commands
   //----------------------------------------------------------------------------
   virtual eos::console::ReplyProto ProcessRequest() override
   {
-    // Default behvior for old (raw) style commands
+    // Default behavior for old (raw) style commands
     return eos::console::ReplyProto();
   }
 
@@ -236,7 +236,7 @@ public:
   int ArchiveExecuteCmd(const::string& cmd);
 
   //----------------------------------------------------------------------------
-  //! Response structre holding information about the status of an archived dir
+  //! Response structure holding information about the status of an archived dir
   //----------------------------------------------------------------------------
   struct ArchDirStatus {
     std::string mTime;
@@ -308,7 +308,7 @@ private:
   bool mJsonFormat; ///< indicates JSON format
   bool mHttpFormat; ///< indicates HTTP format
   bool mClosed; ///< indicates the proc command has been closed already
-  bool mSendRetc; //< indicates to return the return code to the open call
+  bool mSendRetc; ///< indicates to return the return code to the open call
   XrdOucString mJsonCallback; ///< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
@@ -405,7 +405,7 @@ private:
   //! Format listing output. Includes combining the information that we get
   //! from the archiver daemon with the list of pending transfers at the MGM.
   //!
-  //! @param cmd_json command to be sent to the archive dameon
+  //! @param cmd_json command to be sent to the archive daemon
   //----------------------------------------------------------------------------
   void ArchiveFormatListing(const std::string& cmd_json);
 

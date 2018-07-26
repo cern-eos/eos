@@ -16,7 +16,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the AGNU General Public License    *
+ * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
@@ -34,7 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 std::atomic_uint_least64_t IProcCommand::uuid{0};
 
 //------------------------------------------------------------------------------
-// Open a proc command e.g. call the appropriate user or admin commmand and
+// Open a proc command e.g. call the appropriate user or admin command and
 // store the output in a resultstream or in case of find in a temporary output
 // file.
 //------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ IProcCommand::open(const char* path, const char* info,
         ConvertToJsonFormat(reply, oss);
       } else if (mReqProto.format() == eos::console::RequestProto::FUSE) {
         // @todo (esindril) This format should be dropped and the client should
-        // just parse the stdout reponse. For example the FST dumpmd should do
+        // just parse the stdout response. For example the FST dumpmd should do
         // this.
         oss << reply.std_out();
       } else {

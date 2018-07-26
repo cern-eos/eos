@@ -16,7 +16,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the AGNU General Public License    *
+ * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
@@ -136,7 +136,7 @@ ProcCommand::OpenTemporaryOutputFiles()
 }
 
 //------------------------------------------------------------------------------
-// Open a proc command e.g. call the appropriate user or admin commmand and
+// Open a proc command e.g. call the appropriate user or admin command and
 // store the output in a resultstream of in case of find in temporary output
 // files.
 //------------------------------------------------------------------------------
@@ -459,7 +459,7 @@ ProcCommand::close()
 }
 
 //------------------------------------------------------------------------------
-// Build the inmemory result of the stdout,stderr & retc of the proc command.
+// Build the in-memory result of the stdout, stderr & retc of the proc command.
 // Depending on the output format the key-value CGI returned changes => see
 // implementation.
 //------------------------------------------------------------------------------

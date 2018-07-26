@@ -16,7 +16,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the AGNU General Public License    *
+ * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
@@ -231,7 +231,7 @@ protected:
   XrdOucString stdOut; ///< stdOut returned by proc command
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command
-  int retc; ///< return code from the proc command
+  int retc; ///< Return code from the proc command
   std::string mTmpResp; ///< String used for streaming the response
   std::ofstream ofstdoutStream;
   std::ofstream ofstderrStream;
