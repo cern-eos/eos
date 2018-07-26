@@ -866,8 +866,8 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->setMTimeNow();
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
-            gOFS->FuseXCast(cmd->getId());
-            gOFS->FuseXCast(cmd->getParentId());
+            gOFS->FuseXCastContainer(cmd->getIdentifier());
+            gOFS->FuseXCastContainer(cmd->getParentIdentifier());
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1097,14 +1097,14 @@ XrdMgmOfsFile::open(const char* inpath,
 
       try {
         gOFS->eosView->updateFileStore(fmd.get());
-        gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+        gOFS->FuseXCastFile(fmd->getIdentifier());
         std::shared_ptr<eos::IContainerMD> cmd =
           gOFS->eosDirectoryService->getContainerMD(cid);
         cmd->setMTimeNow();
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
-        gOFS->FuseXCast(cmd->getId());
-        gOFS->FuseXCast(cmd->getParentId());
+        gOFS->FuseXCastContainer(cmd->getIdentifier());
+        gOFS->FuseXCastContainer(cmd->getParentIdentifier());
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -2556,7 +2556,7 @@ XrdMgmOfsFile::open(const char* inpath,
           // only update within the resolution of the access tracking
           fmd->setCTimeNow();
           gOFS->eosView->updateFileStore(fmd.get());
-          gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+          gOFS->FuseXCastFile(fmd->getIdentifier());
         }
 
         errno = 0;

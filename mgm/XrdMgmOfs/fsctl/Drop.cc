@@ -125,7 +125,7 @@
           if (container) {
             container->setMTimeNow();
             gOFS->eosView->updateContainerStore(container.get());
-            gOFS->FuseXCast(container->getId());
+            gOFS->FuseXCastContainer(container->getIdentifier());
             container->notifyMTimeChange(gOFS->eosDirectoryService);
           }
         }

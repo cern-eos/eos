@@ -177,6 +177,13 @@ public:
   virtual IContainerMD::id_t getParentId() const = 0;
 
   //----------------------------------------------------------------------------
+  //! Get parent identifier
+  //----------------------------------------------------------------------------
+  virtual ContainerIdentifier getParentIdentifier() const {
+    return ContainerIdentifier(getParentId());
+  }
+
+  //----------------------------------------------------------------------------
   //! Set parent id
   //----------------------------------------------------------------------------
   virtual void setParentId(IContainerMD::id_t parentId) = 0;

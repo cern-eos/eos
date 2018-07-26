@@ -81,7 +81,7 @@ XrdMgmOfs::_touch(const char* path,
 
     fmd->setMTimeNow();
     gOFS->eosView->updateFileStore(fmd.get());
-    gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
+    gOFS->FuseXCastFile(fmd->getIdentifier());
     unsigned long long cid = fmd->getContainerId();
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(cid);
@@ -90,7 +90,7 @@ XrdMgmOfs::_touch(const char* path,
     cmd->setMTime(mtime);
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     gOFS->eosView->updateContainerStore(cmd.get());
-    gOFS->FuseXCast(cmd->getId());
+    gOFS->FuseXCastContainer(cmd->getIdentifier());
     errno = 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();

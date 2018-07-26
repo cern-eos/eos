@@ -460,7 +460,7 @@
             // Broadcast to the fusex network only if the change has been
             // triggered outside the fusex client network e.g. xrdcp etc.
             if (!fusex) {
-              gOFS->FuseXCast(cmd->getId());
+              gOFS->FuseXCastContainer(cmd->getIdentifier());
             }
 
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -549,7 +549,7 @@
                 versiondir->addFile(versionfmd.get());
                 versiondir->setMTimeNow();
                 eosView->updateFileStore(versionfmd.get());
-                gOFS->FuseXCast(eos::common::FileId::FidToInode(versiondir->getId()));
+                gOFS->FuseXCastContainer(versiondir->getIdentifier());
                 // Update the ownership and mode of the new file to the original
                 // one
                 fmd->setCUid(versionfmd->getCUid());

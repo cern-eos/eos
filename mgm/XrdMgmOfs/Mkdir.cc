@@ -354,8 +354,8 @@ XrdMgmOfs::_mkdir(const char* path,
           // commit
           eosView->updateContainerStore(newdir.get());
           eosView->updateContainerStore(dir.get());
-          gOFS->FuseXCast(newdir->getId());
-          gOFS->FuseXCast(dir->getId());
+          gOFS->FuseXCastContainer(newdir->getIdentifier());
+          gOFS->FuseXCastContainer(dir->getIdentifier());
           dir->notifyMTimeChange(gOFS->eosDirectoryService);
           newdir->notifyMTimeChange(gOFS->eosDirectoryService);
         } catch (eos::MDException& e) {
@@ -414,8 +414,8 @@ XrdMgmOfs::_mkdir(const char* path,
     // Commit to backend
     eosView->updateContainerStore(newdir.get());
     eosView->updateContainerStore(dir.get());
-    gOFS->FuseXCast(newdir->getId());
-    gOFS->FuseXCast(dir->getId());
+    gOFS->FuseXCastContainer(newdir->getIdentifier());
+    gOFS->FuseXCastContainer(dir->getIdentifier());
     // Notify after attribute inheritance
     newdir->notifyMTimeChange(gOFS->eosDirectoryService);
     dir->notifyMTimeChange(gOFS->eosDirectoryService);

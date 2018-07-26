@@ -1489,12 +1489,19 @@ public:
   //----------------------------------------------------------------------------
   std::string AuthPrintStatistics() const;
 
-  //------------------------------------------------------------------------------
-  //! Cast a change message to all fusex clients
+  //----------------------------------------------------------------------------
+  //! Cast a change message to all fusex clients regarding a file change
   //!
-  //! @param inode input innode
-  //------------------------------------------------------------------------------
-  void FuseXCast(uint64_t inode);
+  //! @param id file identifier
+  //----------------------------------------------------------------------------
+  void FuseXCastFile(eos::FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Cast a change message to all fusex clients regarding a container change
+  //!
+  //! @param id file identifier
+  //----------------------------------------------------------------------------
+  void FuseXCastContainer(eos::ContainerIdentifier id);
 
   //----------------------------------------------------------------------------
   // Class objects

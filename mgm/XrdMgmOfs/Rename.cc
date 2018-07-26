@@ -379,7 +379,7 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
-            gOFS->FuseXCast(dir->getId());
+            gOFS->FuseXCastContainer(dir->getIdentifier());
           }
         } else {
           file = dir->findFile(oPath.GetName());
@@ -395,8 +395,8 @@ XrdMgmOfs::_rename(const char* old_name,
             newdir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
             eosView->updateContainerStore(newdir.get());
-            gOFS->FuseXCast(dir->getId());
-            gOFS->FuseXCast(newdir->getId());
+            gOFS->FuseXCastContainer(dir->getIdentifier());
+            gOFS->FuseXCastContainer(newdir->getIdentifier());
             file->setName(nPath.GetName());
             file->setContainerId(newdir->getId());
 
@@ -571,8 +571,8 @@ XrdMgmOfs::_rename(const char* old_name,
             rdir->setMTimeNow();
             rdir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
-            gOFS->FuseXCast(rdir->getId());
-            gOFS->FuseXCast(rdir->getParentId());
+            gOFS->FuseXCastContainer(rdir->getIdentifier());
+            gOFS->FuseXCastContainer(rdir->getParentIdentifier());
           } else {
             // Remove from one container to another one
             unsigned long long tree_size = rdir->getTreeSize();
@@ -587,7 +587,7 @@ XrdMgmOfs::_rename(const char* old_name,
               }
 
               eosView->updateContainerStore(dir.get());
-              gOFS->FuseXCast(dir->getId());
+              gOFS->FuseXCastContainer(dir->getIdentifier());
             }
             {
               // rename the moved directory and udpate it's parent ID
@@ -599,7 +599,7 @@ XrdMgmOfs::_rename(const char* old_name,
               }
 
               eosView->updateContainerStore(rdir.get());
-              gOFS->FuseXCast(rdir->getId());
+              gOFS->FuseXCastContainer(rdir->getIdentifier());
             }
             {
               // update the target directory - add the directory
@@ -612,7 +612,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(newdir.get());
-              gOFS->FuseXCast(newdir->getId());
+              gOFS->FuseXCastContainer(newdir->getIdentifier());
             }
           }
         }

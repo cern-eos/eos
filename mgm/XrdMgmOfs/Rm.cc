@@ -75,7 +75,7 @@ XrdMgmOfs::_rem(const char* path,
                 const char* ininfo,
                 bool simulate,
                 bool keepversion,
-                bool no_recycling, 
+                bool no_recycling,
 		bool no_quota_enforcement)
 /*----------------------------------------------------------------------------*/
 /*
@@ -317,7 +317,7 @@ XrdMgmOfs::_rem(const char* path,
           container->setMTimeNow();
           container->notifyMTimeChange(gOFS->eosDirectoryService);
           eosView->updateContainerStore(container.get());
-          gOFS->FuseXCast(container->getId());
+          gOFS->FuseXCastContainer(container->getIdentifier());
         }
       }
 

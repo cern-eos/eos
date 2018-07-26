@@ -96,7 +96,7 @@ XrdMgmOfs::_chown(const char* path,
 
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
-      gOFS->FuseXCast(cmd->getId());
+      gOFS->FuseXCastContainer(cmd->getIdentifier());
       errno = 0;
     }
   } catch (eos::MDException& e) {
@@ -156,4 +156,3 @@ XrdMgmOfs::_chown(const char* path,
 
   return Emsg(epname, error, errno, "chown", path);
 }
-
