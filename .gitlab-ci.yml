@@ -496,8 +496,6 @@ rpm_stable_artifacts:
     - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${BRANCH}/tag/latest_version
   tags:
     - docker-cc7
-  only:
-    - tags
   when: manual
   environment:
     name: production
