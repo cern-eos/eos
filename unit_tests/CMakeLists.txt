@@ -51,6 +51,7 @@ set(MGM_UT_SRCS
 
 set(COMMON_UT_SRCS
   common/FutureWrapperTests.cc
+  common/InodeTests.cc
   common/TimingTests.cc
   common/MappingTests.cc
   common/SymKeysTests.cc

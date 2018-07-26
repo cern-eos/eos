@@ -70,20 +70,64 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Convert an EOS file id into an inode number - we shift the range by 28
-  //! bytes to not overlap with directory inodes
+  //! Convert an EOS file id into an inode number. Currently dispatches to the
+  //! legacy implementation.
   //----------------------------------------------------------------------------
   static unsigned long long FidToInode(unsigned long long fid)
   {
-    return (fid << 28);
+    return LegacyFidToInode(fid);
   }
 
   static unsigned long long InodeToFid(unsigned long long ino)
   {
-    return (ino >> 28);
+    if(NewIsFileInode(ino)) {
+      return NewInodeToFid(ino);
+    }
+
+    return LegacyInodeToFid(ino);
   }
 
   static bool IsFileInode(unsigned long long ino)
+  {
+    return LegacyIsFileInode(ino);
+  }
+
+  //----------------------------------------------------------------------------
+  //! New encoding - convert an EOS file id into an inode number.
+  //! We mark the last bit with "1" for files, and "0" for containers.
+  //----------------------------------------------------------------------------
+  static constexpr unsigned long long kLastBitSet = (1ull << 63);
+
+  static unsigned long long NewFidToInode(unsigned long long fid)
+  {
+    return fid | kLastBitSet;
+  }
+
+  static unsigned long long NewInodeToFid(unsigned long long ino)
+  {
+    return ino & (~kLastBitSet);
+  }
+
+  static bool NewIsFileInode(unsigned long long ino)
+  {
+    return (ino & kLastBitSet) != 0ull;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Legacy encoding - convert an EOS file id into an inode number - we shift
+  //! the range by 28 bytes to not overlap with directory inodes.
+  //----------------------------------------------------------------------------
+  static unsigned long long LegacyFidToInode(unsigned long long fid)
+  {
+    return (fid << 28);
+  }
+
+  static unsigned long long LegacyInodeToFid(unsigned long long ino)
+  {
+    return (ino >> 28);
+  }
+
+  static bool LegacyIsFileInode(unsigned long long ino)
   {
     return (ino >= (1 << 28));
   }
