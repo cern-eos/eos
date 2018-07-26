@@ -495,7 +495,7 @@ publish_rpm_stable:
     - tags
   when: manual
   environment:
-    - production
+    name: production
 
 
 publish_debian_artifacts:
