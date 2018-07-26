@@ -464,7 +464,7 @@ publish_koji_slc6:
     - tags
 
 
-publish_rpm_testing:
+rpm_testing_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -479,7 +479,7 @@ publish_rpm_testing:
   retry: 2
 
 
-publish_rpm_stable:
+rpm_stable_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -498,7 +498,7 @@ publish_rpm_stable:
     name: production
 
 
-publish_debian_artifacts:
+debian_artifacts:
   stage: publish
   image: ubuntu:artful
   script:
@@ -523,7 +523,7 @@ publish_debian_artifacts:
     - tags
 
 
-publish_debian_artifacts_volume:
+debian_artifacts_volume:
   stage: publish
   image: ubuntu:artful
   script:
