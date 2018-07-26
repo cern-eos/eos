@@ -374,7 +374,7 @@ private:
 
   typedef tsl::hopscotch_map <
   IFileMD::id_t, DataInfo,
-          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > IdMap;
+          Murmur3::MurmurHasher<uint64_t> > IdMap;
   typedef std::set<IContainerMD::id_t> DeletionSet;
   typedef std::list<IContainerMDChangeListener*> ListenerList;
   typedef std::list<std::shared_ptr<IContainerMD>> ContainerList;

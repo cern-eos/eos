@@ -71,10 +71,10 @@ public:
   typedef std::map<std::string, std::string> XAttrMap;
   typedef google::dense_hash_map <
   std::string, IContainerMD::id_t,
-      Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > ContainerMap;
+      Murmur3::MurmurHasher<std::string> > ContainerMap;
   typedef google::dense_hash_map <
   std::string, IContainerMD::id_t,
-      Murmur3::MurmurHasher<std::string>, Murmur3::eqstr > FileMap;
+      Murmur3::MurmurHasher<std::string> > FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor

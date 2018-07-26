@@ -36,8 +36,7 @@ namespace
 // Record scanner
 //----------------------------------------------------------------------------
 typedef google::dense_hash_map<uint64_t, uint64_t,
-        Murmur3::MurmurHasher<uint64_t>,
-        Murmur3::eqstr> RecordMap;
+        Murmur3::MurmurHasher<uint64_t>> RecordMap;
 class CompactingScanner: public eos::ILogRecordScanner
 {
 public:

@@ -369,7 +369,7 @@ private:
 
   typedef tsl::hopscotch_map <
   IFileMD::id_t, DataInfo,
-          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > IdMap;
+          Murmur3::MurmurHasher<uint64_t> > IdMap;
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
   //----------------------------------------------------------------------------

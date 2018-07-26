@@ -81,7 +81,7 @@ public:
   // and the memory overhead is not visible in a million file namespace.
   //------------------------------------------------------------------------
   typedef google::dense_hash_set <IFileMD::id_t,
-          Murmur3::MurmurHasher<uint64_t>, Murmur3::eqstr > FileList;
+          Murmur3::MurmurHasher<uint64_t> > FileList;
 
   //----------------------------------------------------------------------------
   //! Contructor

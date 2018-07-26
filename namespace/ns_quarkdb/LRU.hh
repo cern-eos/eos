@@ -188,8 +188,7 @@ private:
   typename std::list<std::shared_ptr<EntryT>>::iterator ListIterT;
   //using MapT = std::map<IdT, decltype(ListIterT)>;
   using MapT = google::dense_hash_map<IdT, decltype(ListIterT),
-        Murmur3::MurmurHasher<IdT>,
-        Murmur3::eqstr>;
+        Murmur3::MurmurHasher<IdT>>;
   MapT mMap;   ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects where new/used objects are at the
   ///< end of the list
@@ -341,7 +340,7 @@ LRU<IdT, EntryT>::Purge(double stop_ratio)
     mToDelete.push(*iter);
     iter = mList.erase(iter);
   }
-  
+
   mMap.resize(0); // compact after deletion
 }
 

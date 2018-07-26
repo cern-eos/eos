@@ -75,12 +75,4 @@ namespace Murmur3
       return hash;
     }
   };
-
-  struct eqstr {
-    template<typename T>
-    bool operator()(const T& val1, const T& val2) const noexcept
-    {
-      return (val1 == val2);
-    }
-  };
 };
