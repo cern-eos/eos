@@ -160,14 +160,6 @@ public:
   //----------------------------------------------------------------------------
   void serializeToStr(std::string& buffer);
 
-  //----------------------------------------------------------------------------
-  //! Update the id of the current file
-  //----------------------------------------------------------------------------
-  void setId(IFileMD::id_t id)
-  {
-    pId = id;
-  }
-
 private:
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
 };
