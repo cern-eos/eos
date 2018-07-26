@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.5 Citrine``
+===================
+
+2018-07-26
+
+Bug
+----
+
+* [EOS-2692] - Lock-order-inversion between FsView::ViewMutex and ConfigEngine::mMutex
+* [EOS-2698] - XrdMqSharedObjectManager locks the wrong mutex
+* [EOS-2701] - FsView::SetGlobalConfig corrupts the configuration file during shutdown
+* [EOS-2718] - Commit.cc assigns zero-sized filename during rename, corrupting the namespace queue
+* [EOS-2723] - user.forced.placementpolicy overrules sys.forced.placementpolicy
+
+Improvement
+------------
+
+* [EOS-2691] - FUSEX abort in ShellException("Unable to open stdout file")
+
+
 ``v4.3.4 Citrine``
 ===================
 
