@@ -129,6 +129,7 @@ add_library(
   XrdMgmOfsFile.cc
   XrdMgmOfsDirectory.cc
   XrdMgmOfs.cc
+  XrdMgmOfs/fsctl/CommitHelper.cc
   DrainJob.cc
   Balancer.cc
   FileSystem.cc

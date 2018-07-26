@@ -28,6 +28,8 @@
 // -----------------------------------------------------------------------
 
 {
+
+  static const char* epname = "commit";
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
@@ -35,134 +37,77 @@
 
   EXEC_TIMING_BEGIN("Commit");
 
-  char* asize = env.Get("mgm.size");
-  char* spath = env.Get("mgm.path");
-  char* afid = env.Get("mgm.fid");
-  char* afsid = env.Get("mgm.add.fsid");
-  char* amtime = env.Get("mgm.mtime");
-  char* amtimensec = env.Get("mgm.mtime_ns");
-  char* alogid = env.Get("mgm.logid");
-
-  if (alogid)
-  {
-    ThreadLogId.SetLogId(alogid, tident);
-  }
-
-  XrdOucString averifychecksum = env.Get("mgm.verify.checksum");
-  XrdOucString acommitchecksum = env.Get("mgm.commit.checksum");
-  XrdOucString averifysize = env.Get("mgm.verify.size");
-  XrdOucString acommitsize = env.Get("mgm.commit.size");
-  XrdOucString adropfsid = env.Get("mgm.drop.fsid");
-  XrdOucString areplication = env.Get("mgm.replication");
-  XrdOucString areconstruction = env.Get("mgm.reconstruction");
-  XrdOucString aismodified = env.Get("mgm.modified");
-  XrdOucString afusex = env.Get("mgm.fusex");
-
-  bool verifychecksum = (averifychecksum == "1");
-  bool commitchecksum = (acommitchecksum == "1");
-  bool verifysize = (averifysize == "1");
-  bool commitsize = (acommitsize == "1");
-  bool replication = (areplication == "1");
-  bool reconstruction = (areconstruction == "1");
-  bool modified = (aismodified == "1");
-  bool fusex = (afusex == "1");
-  bool isAbort = false;
-  eos::common::Path atomic_path("");
-  bool isVersioning = false;
-  bool isAtomic = false;
-
-  int envlen;
-  int oc_n = 0;
-  int oc_max = 0;
-  XrdOucString oc_uuid = "";
-  bool occhunk = eos::common::OwnCloud::GetChunkInfo(env.Env(envlen), oc_n,
-      oc_max, oc_uuid);
-
-  // Indicate when the last chunk of a chunked OC upload has been committed
-  bool ocdone = false;
-  char* checksum = env.Get("mgm.checksum");
+  // checksums
   char binchecksum[SHA_DIGEST_LENGTH];
-  memset(binchecksum, 0, sizeof(binchecksum));
-  unsigned long dropfsid = 0;
 
-  static const char* epname = "commit";
+  XrdOucString oc_uuid = "";
 
-  if (adropfsid.length())
+  // cgi parameters
+  CommitHelper::cgi_t cgi;
+  CommitHelper::grab_cgi(env, cgi);
+
+  // initialize logging
+  if (cgi.count("logid"))
   {
-    dropfsid = strtoul(adropfsid.c_str(), 0, 10);
+    ThreadLogId.SetLogId(cgi["logid"].c_str(), tident);
   }
 
-  if (reconstruction)
+  // OC parameters
+  CommitHelper::param_t params;
+  params["oc_n"] = 0;
+  params["oc_max"] = 0;
+
+  // selected options
+  CommitHelper::option_t option;
+  CommitHelper::set_options(option, cgi);
+
+  // has parameters
+  CommitHelper::path_t paths;
+  paths["atomic"] = std::string("");
+
+  if (cgi.count("path"))
   {
-    // remove the checksum we don't care about it
-    checksum = 0;
-    verifysize = false;
-    verifychecksum = false;
-    commitsize = false;
-    commitchecksum = false;
-    replication = false;
+    paths["commit"] = cgi["path"];
   }
 
-  if (checksum)
+  // extract all OC upload relevant parameters
+  // populates also cgi["ocuuid"]
+  CommitHelper::init_oc(env, cgi, option, params);
+
+  if (CommitHelper::is_reconstruction(option))
   {
-    for (unsigned int i = 0; i < strlen(checksum); i += 2) {
-      // hex2binary conversion
-      char hex[3];
-      hex[0] = checksum[i];
-      hex[1] = checksum[i + 1];
-      hex[2] = 0;
-      binchecksum[i / 2] = strtol(hex, 0, 16);
+    // remove checksum in case of a chunk reconstruction, they have to be ignored
+    cgi["checksum"] = "";
+  }
+
+  if (cgi["checksum"].length())
+  {
+    // compute binary checksum
+    CommitHelper::hex2bin_checksum(cgi["checksum"], binchecksum);
+  }
+
+  // check that all required parameters for a commit are defined
+  if (CommitHelper::check_commit_params(cgi))
+  {
+    // convert the main cgi parameters into numbers
+    unsigned long long size = std::stoull(cgi["size"]);
+    unsigned long long fid = strtoull(cgi["fid"].c_str(), 0, 16);
+    unsigned long fsid = std::stoul(cgi["fsid"]);
+    unsigned long mtime = std::stoul(cgi["mtime"]);
+    unsigned long mtimens = std::stoul(cgi["mtimensec"]);
+    std::string emsg;
+
+    if ((errno = CommitHelper::check_filesystem(vid, ThreadLogId, fsid, cgi, option,
+         params, emsg))) {
+      return Emsg(epname, error, errno, emsg.c_str(), "");
     }
-  }
 
-  if (asize && afid && spath && afsid && amtime && amtimensec)
-  {
-    unsigned long long size = strtoull(asize, 0, 10);
-    unsigned long long fid = strtoull(afid, 0, 16);
-    unsigned long fsid = strtoul(afsid, 0, 10);
-    unsigned long mtime = strtoul(amtime, 0, 10);
-    unsigned long mtimens = strtoul(amtimensec, 0, 10);
-    {
-      // Check that the file system is still allowed to accept replica's
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-      eos::mgm::FileSystem* fs = 0;
-
-      if (FsView::gFsView.mIdView.count(fsid)) {
-        fs = FsView::gFsView.mIdView[fsid];
-      }
-
-      if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain)) {
-        eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
-                       "path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s"
-                       " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
-                       "oc-uuid=%s", (fs ? eos::common::FileSystem::GetConfigStatusAsString(
-                                        fs->GetConfigStatus()) :
-                                      "deleted"), spath, asize, afid, afsid,
-                       dropfsid, checksum, amtime, amtimensec, occhunk, oc_n,
-                       oc_max, oc_uuid.c_str());
-        return Emsg(epname, error, EIO,
-                    "commit file metadata - filesystem is in non-operational state [EIO]", "");
-      }
-    }
+    // create a checksum buffer object
     eos::Buffer checksumbuffer;
     checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
-
-    if (checksum) {
-      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu"
-                      " checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d "
-                      "oc-max=%d oc-uuid=%s", spath, asize, afid, afsid, dropfsid,
-                      checksum, amtime, amtimensec, occhunk, oc_n, oc_max,
-                      oc_uuid.c_str());
-    } else {
-      eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu "
-                      "mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
-                      spath, asize, afid, afsid, dropfsid, amtime, amtimensec, occhunk,
-                      oc_n, oc_max, oc_uuid.c_str());
-    }
-
+    CommitHelper::log_info(vid, ThreadLogId, cgi, option, params);
     // get the file meta data if exists
     std::shared_ptr<eos::IFileMD> fmd;
-    std::shared_ptr<eos::IContainerMD> cmd;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
     {
@@ -189,7 +134,7 @@
                       "commit filesize change - file is already removed [EIDRM]", "");
         } else {
           emsg.insert("commit filesize change [EIO] ", 0);
-          return Emsg(epname, error, errno, emsg.c_str(), spath);
+          return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
         }
       } else {
         unsigned long lid = fmd->getLayoutId();
@@ -199,7 +144,7 @@
           eos_thread_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
           gOFS->MgmStats.Add("CommitFailedFid", 0, 0, 1);
           return Emsg(epname, error, EINVAL,
-                      "commit filesize change - file id is wrong [EINVAL]", spath);
+                      "commit filesize change - file id is wrong [EINVAL]", cgi["path"].c_str());
         }
 
         // check if this file is already unlinked from the visible namespace
@@ -212,25 +157,11 @@
         }
 
         // check if this commit comes from a transfer and if the size/checksum is ok
-        if (replication) {
-          // we remote this file NOW from the scheduling maps
-          {
-            XrdSysMutexHelper sLock(ScheduledToDrainFidMutex);
-
-            if (ScheduledToDrainFid.count(fid)) {
-              ScheduledToDrainFid.erase(fid);
-            }
-          }
-          {
-            XrdSysMutexHelper sLock(ScheduledToBalanceFidMutex);
-
-            if (ScheduledToBalanceFid.count(fid)) {
-              ScheduledToBalanceFid.erase(fid);
-            }
-          }
+        if (option["replication"]) {
+          CommitHelper::remove_scheduler(fid);
 
           // check if we have this replica in the unlink list
-          if (fusex && fmd->hasUnlinkedLocation((unsigned short) fsid)) {
+          if (option["fusex"] && fmd->hasUnlinkedLocation((unsigned short) fsid)) {
             eos_thread_err("suppressing possible recovery replica for fid=%lu on unlinked fsid=%llu- rejecting replica",
                            fmd->getId(), fsid);
             // this happens when a FUSEX recovery has been triggered, to avoid to reattach replicas,
@@ -245,74 +176,22 @@
             // we check filesize and the checksum only for replica layouts
             eos_thread_debug("fmd size=%lli, size=%lli", fmd->getSize(), size);
 
-            if (fmd->getSize() != size) {
-              eos_thread_err("replication for fid=%lu resulted in a different file "
-                             "size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
-              gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
-
-              // -----------------------------------------------------------
-              // if we come via FUSE, we have to remove this replica
-              // -----------------------------------------------------------
-              if (fmd->hasLocation((unsigned short) fsid)) {
-                fmd->unlinkLocation((unsigned short) fsid);
-                fmd->removeLocation((unsigned short) fsid);
-
-                try {
-                  gOFS->eosView->updateFileStore(fmd.get());
-                  // this call is not needed, since it is just a new replica location
-                  // gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
-                } catch (eos::MDException& e) {
-                  errno = e.getErrno();
-                  std::string errmsg = e.getMessage().str();
-                  eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                                  e.getErrno(), e.getMessage().str().c_str());
-                }
-              }
-
+            // validate the correct size parameters
+            if (!CommitHelper::validate_size(vid, ThreadLogId, fmd, fsid, size)) {
               return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]",
                           "");
             }
 
-            bool cxError = false;
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-
-            for (size_t i = 0; i < cxlen; i++) {
-              if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i)) {
-                cxError = true;
-              }
-            }
-
-            if (cxError) {
-              eos_thread_err("replication for fid=%lu resulted in a different checksum "
-                             "on fsid=%llu - rejecting replica", fmd->getId(), fsid);
-              gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 1);
-
-              // -----------------------------------------------------------
-              // if we come via FUSE, we have to remove this replica
-              // -----------------------------------------------------------
-              if (fmd->hasLocation((unsigned short) fsid)) {
-                fmd->unlinkLocation((unsigned short) fsid);
-                fmd->removeLocation((unsigned short) fsid);
-
-                try {
-                  gOFS->eosView->updateFileStore(fmd.get());
-                  // this call is not be needed, since it is just a new replica location
-                  //gOFS->FuseXCast(eos::common::FileId::FidToInode(fmd->getId()));
-                } catch (eos::MDException& e) {
-                  errno = e.getErrno();
-                  std::string errmsg = e.getMessage().str();
-                  eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                                  e.getErrno(), e.getMessage().str().c_str());
-                }
-              }
-
+            // validate the correct checksum parameters
+            if (!CommitHelper::validate_checksum(vid, ThreadLogId, fmd, checksumbuffer,
+                                                 fsid)) {
               return Emsg(epname, error, EBADR,
                           "commit replica - file checksum is wrong [EBADR]", "");
             }
           }
         }
 
-        if (verifysize) {
+        if (option["verifysize"]) {
           // check if we saw a file size change or checksum change
           if (fmd->getSize() != size) {
             eos_thread_err("commit for fid=%lu gave a file size change after "
@@ -320,299 +199,93 @@
           }
         }
 
-        if (checksum) {
-          if (verifychecksum) {
-            bool cxError = false;
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+        CommitHelper::log_verifychecksum(vid, ThreadLogId, fmd, checksumbuffer, fsid,
+                                         cgi, option);
 
-            for (size_t i = 0; i < cxlen; i++) {
-              if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i)) {
-                cxError = true;
-              }
-            }
-
-            if (cxError) {
-              eos_thread_err("commit for fid=%lu gave a different checksum after "
-                             "verification on fsid=%llu", fmd->getId(), fsid);
-            }
-          }
+        if (!CommitHelper::handle_location(vid, ThreadLogId, cid, fmd, fsid, size,
+                                           cgi, option)) {
+          return Emsg(epname, error, EIDRM,
+                      "commit file, parent contrainer removed [EIDRM]", "");
         }
 
-        // For changing the modification time we have to figure out if we
-        // just attach a new replica or if we have a change of the contents
-        bool isUpdate = false;
-        {
-          std::shared_ptr<eos::IContainerMD> dir;
+        fmdname = fmd->getName();
+        // advance oc upload parameters if concerned
+        CommitHelper::handle_occhunk(vid, ThreadLogId, fmd, option, params);
+        // set checksum if concerned
+        CommitHelper::handle_checksum(vid, ThreadLogId, fmd, option, checksumbuffer);
+        paths["atomic"].Init(fmd->getName().c_str());
+        paths["atomic"].DecodeAtomicPath(option["versioning"]);
+        option["atomic"] = (paths["atomic"].GetName() != fmd->getName());
 
-          try {
-            dir = gOFS->eosDirectoryService->getContainerMD(cid);
-          } catch (eos::MDException& e) {
-            eos_thread_err("parent_id=%llu not found", cid);
-            gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
-            return Emsg(epname, error, EIDRM,
-                        "commit file, parent contrainer removed [EIDRM]", "");
-          }
-
-          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir.get());
-
-          // Free previous quota
-          if (ns_quota) {
-            ns_quota->removeFile(fmd.get());
-          }
-
-          fmd->addLocation(fsid);
-
-          // If fsid is in the deletion list, we try to remove it if there
-          // is something in the deletion list
-          if (fmd->getNumUnlinkedLocation()) {
-            fmd->removeLocation(fsid);
-          }
-
-          if (dropfsid) {
-            eos_thread_debug("commit: dropping replica on fs %lu", dropfsid);
-            fmd->unlinkLocation((unsigned short) dropfsid);
-          }
-
-          if (commitsize) {
-            fmdname = fmd->getName();
-
-            if ((fmd->getSize() != size) || modified) {
-              eos_thread_debug("size difference forces mtime %lld %lld or "
-                               "ismodified=%d", fmd->getSize(), size, modified);
-              isUpdate = true;
-            }
-
-            fmd->setSize(size);
-          }
-
-          if (ns_quota) {
-            ns_quota->addFile(fmd.get());
-          }
-        }
-
-        if (occhunk && commitsize) {
-          // store the index in flags;
-          fmd->setFlags(oc_n + 1);
-          eos_thread_info("subcmd=commit max-chunks=%d commited-chunks=%d", oc_max,
-                          fmd->getFlags());
-
-          // The last chunk terminates all
-          if (oc_max == (oc_n + 1)) {
-            // we are done with chunked upload, remove the flags counter
-            fmd->setFlags((S_IRWXU | S_IRWXG | S_IRWXO));
-            ocdone = true;
-          }
-        }
-
-        if (commitchecksum) {
-          if (!isUpdate) {
-            for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-              if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i)) {
-                eos_thread_debug("checksum difference forces mtime");
-                isUpdate = true;
-              }
-            }
-          }
-
-          fmd->setChecksum(checksumbuffer);
-        }
-
-        eos::IFileMD::ctime_t mt;
-        mt.tv_sec = mtime;
-        mt.tv_nsec = mtimens;
-        atomic_path.Init(fmd->getName().c_str());
-        atomic_path.DecodeAtomicPath(isVersioning);
-        isAtomic = (atomic_path.GetName() != fmd->getName());
-
-        if (isUpdate && mtime) {
+        if (option["update"] && mtime) {
           // Update the modification time only if the file contents changed and
           // mtime != 0 (FUSE clients will commit mtime=0 to indicated that they
           // call utimes anyway
           // OC clients set the mtime during a commit!
-          if (!isAtomic || occhunk) {
+          if (!option["atomic"] || option["occhunk"]) {
+            eos::IFileMD::ctime_t mt;
+            mt.tv_sec = mtime;
+            mt.tv_nsec = mtimens;
             fmd->setMTime(mt);
           }
         }
 
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
+        std::string errmsg;
 
-        try {
-          // check for a temporary Etag and remove it
-          std::string tmpEtag = "sys.tmp.etag";
-
-          if (fmd->hasAttribute(tmpEtag) && (!isAtomic || occhunk)
-              && (commitsize || commitchecksum)) {
-            fmd->removeAttribute(tmpEtag);
-          }
-
-          gOFS->eosView->updateFileStore(fmd.get());
-          cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-
-          if (isUpdate) {
-            if (cmd->hasAttribute(tmpEtag)) {
-              cmd->removeAttribute(tmpEtag);
-            }
-
-            // update parent mtime
-            cmd->setMTimeNow();
-            gOFS->eosView->updateContainerStore(cmd.get());
-
-            // Broadcast to the fusex network only if the change has been
-            // triggered outside the fusex client network e.g. xrdcp etc.
-            if (!fusex) {
-              gOFS->FuseXCastContainer(cmd->getIdentifier());
-            }
-
-            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-          }
-        } catch (eos::MDException& e) {
-          errno = e.getErrno();
-          std::string errmsg = e.getMessage().str();
-          eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                           e.getErrno(), e.getMessage().str().c_str());
-          gOFS->MgmStats.Add("CommitFailedNamespace", 0, 0, 1);
+        if (!CommitHelper::commit_fmd(vid, ThreadLogId, cid, fmd, option, errmsg)) {
           return Emsg(epname, error, errno, "commit filesize change",
                       errmsg.c_str());
         }
       }
     }
     {
-      // check if this is an atomic path
-      std::string dname;
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
       // Path of a previous version existing before an atomic/versioning upload
       std::string delete_path = "";
-      eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d", commitsize,
-                      fmdname.c_str(), atomic_path.GetName(), occhunk, ocdone);
+      eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d",
+                      option["commitsize"],
+                      fmdname.c_str(), paths["atomic"].GetName(),
+                      option["occhunk"], option["ocdone"]);
 
-      if ((commitsize) && (fmdname != atomic_path.GetName()) && (!occhunk ||
-          ocdone)) {
+      // -----------------------------------------------------------------------
+      // we are asked to commit the size and this commit changes the current
+      // atomic name to the final name and we are not an OC upload
+      // -----------------------------------------------------------------------
+      if ((option["commitsize"]) && (fmdname != paths["atomic"].GetName()) &&
+          (!option["occhunk"] || option["ocdone"])) {
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(),
-                        atomic_path.GetName());
-        std::shared_ptr<eos::IContainerMD> dir;
-        std::shared_ptr<eos::IContainerMD> versiondir;
+                        paths["atomic"].GetName());
         XrdOucString versionedname = "";
-        unsigned long long vfid = 0;
-        {
-          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-          std::shared_ptr<eos::IFileMD> versionfmd;
-
-          try {
-            dname = gOFS->eosView->getUri(fmd.get());
-            eos::common::Path dPath(dname.c_str());
-            dname = dPath.GetParentPath();
-
-            if (isVersioning) {
-              versionfmd = gOFS->eosView->getFile(dname + atomic_path.GetPath());
-              vfid = versionfmd->getId();
-            }
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                      e.getErrno(), e.getMessage().str().c_str());
-          }
-        }
+        unsigned long long vfid = CommitHelper::get_version_fid(vid, ThreadLogId, fmd,
+                                  paths, option);
 
         // check if we want versioning
-        if (isVersioning) {
-          eos_static_info("checked  %s%s vfid=%llu", dname.c_str(), atomic_path.GetPath(),
+        if (option["versioning"]) {
+          eos_static_info("checked  %s%s vfid=%llu",
+                          paths["versiondir"].GetParentPath(),
+                          paths["atomic"].GetPath(),
                           vfid);
 
           // We purged the versions before during open, so we just simulate a new
           // one and do the final rename in a transaction
           if (vfid) {
             gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true);
+            paths["version"].Init(versionedname.c_str());
           }
         }
 
-        eos::common::Path version_path(versionedname.c_str());
-        {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
-          // We have to de-atomize the fmd name here e.g. make the temporary
-          // atomic name a persistent name
-          try {
-            dir = eosView->getContainer(dname);
-            fmd = gOFS->eosFileService->getFileMD(fid);
-
-            if (isVersioning && (std::string(version_path.GetPath()) != "/")) {
-              std::shared_ptr<eos::IFileMD> versionfmd;
-
-              try {
-                versiondir = eosView->getContainer(version_path.GetParentPath());
-                // rename the existing path to the version path
-                versionfmd = gOFS->eosView->getFile(dname + atomic_path.GetPath());
-                dir->removeFile(atomic_path.GetName());
-                versionfmd->setName(version_path.GetName());
-                versionfmd->setContainerId(versiondir->getId());
-                versiondir->addFile(versionfmd.get());
-                versiondir->setMTimeNow();
-                eosView->updateFileStore(versionfmd.get());
-                gOFS->FuseXCastContainer(versiondir->getIdentifier());
-                // Update the ownership and mode of the new file to the original
-                // one
-                fmd->setCUid(versionfmd->getCUid());
-                fmd->setCGid(versionfmd->getCGid());
-                fmd->setFlags(versionfmd->getFlags());
-                eosView->updateFileStore(fmd.get());
-              } catch (eos::MDException& e) {
-                errno = e.getErrno();
-                eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                               e.getErrno(), e.getMessage().str().c_str());
-              }
-            }
-
-            std::shared_ptr<eos::IFileMD> pfmd;
-
-            // Rename the temporary upload path to the final path
-            if ((pfmd = dir->findFile(atomic_path.GetName()))) {
-              // Check if we are tagged as that 'latest' atomic upload
-              std::string atomic_tag;
-
-              try {
-                atomic_tag = pfmd->getAttribute("sys.tmp.atomic");
-              } catch (eos::MDException& e) {
-              }
-
-              if ((!ocdone) && (atomic_tag != fmd->getName())) {
-                // this is not our atomic upload, just abort that and delete the temporary artefact
-                delete_path = fmd->getName();
-                eos_thread_err("msg=\"we are not the last atomic upload - cleaning %s\"",
-                               delete_path.c_str());
-                isAbort = true;
-              } else {
-                eos_thread_info("msg=\"found final path\" %s", atomic_path.GetName());
-                // If the target exists we swap the two and then delete the
-                // previous one
-                delete_path = fmd->getName();
-                delete_path += ".delete";
-                eosView->renameFile(pfmd.get(), delete_path);
-              }
-            } else {
-              eos_thread_info("msg=\"didn't find path\" %s", atomic_path.GetName());
-            }
-
-            if (!isAbort) {
-              eosView->renameFile(fmd.get(), atomic_path.GetName());
-              eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s "
-                              "final-name=%s", fmd->getId(), fmd->getName().c_str(),
-                              atomic_path.GetName());
-            }
-          } catch (eos::MDException& e) {
-            delete_path = "";
-            errno = e.getErrno();
-            std::string errmsg = e.getMessage().str();
-            eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                           e.getErrno(), e.getMessage().str().c_str());
-          }
-        }
+        CommitHelper::handle_versioning(vid, ThreadLogId, fid, paths, option,
+                                        delete_path);
       }
 
+      // -----------------------------------------------------------------------
       // If there was a previous target file we have to delete the renamed
       // atomic left-over
+      // -----------------------------------------------------------------------
       if (delete_path.length()) {
-        delete_path.insert(0, dname.c_str());
+        delete_path.insert(0, paths["versiondir"].GetParentPath());
         eos_thread_info("msg=\"delete path\" %s", delete_path.c_str());
 
         if (gOFS->_rem(delete_path.c_str(), error, rootvid, "")) {
@@ -621,7 +294,7 @@
         }
       }
 
-      if (isAbort) {
+      if (option["abort"]) {
         return Emsg(epname, error, EREMCHG, "commit replica - overlapping "
                     "atomic upload [EREMCHG] - discarding atomic upload", "");
       }
@@ -633,9 +306,10 @@
                    env.Env(envlen));
     gOFS->MgmStats.Add("CommitFailedParameters", 0, 0, 1);
 
-    if (spath) {
+    if (cgi["path"].length()) {
       return Emsg(epname, error, EINVAL,
-                  "commit filesize change - size,fid,fsid,mtime not complete", spath);
+                  "commit filesize change - size,fid,fsid,mtime not complete",
+                  cgi["path"].c_str());
     } else {
       return Emsg(epname, error, EINVAL,
                   "commit filesize change - size,fid,fsid,mtime,path not complete", "unknown");

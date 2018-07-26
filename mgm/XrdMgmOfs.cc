@@ -63,6 +63,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/Master.hh"
+#include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"
