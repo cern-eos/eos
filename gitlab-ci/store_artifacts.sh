@@ -1,13 +1,11 @@
-#! /bin/bash
+#!/bin/bash
 set -ex
 
 BRANCH=$1
 BUILD_TYPE=$2
 PATH_PREFIX=$3
 
-if [[ "${BUILD_TYPE}" == "tag" ]]; then
-  BUILD_TYPE="tag/testing"
-fi
+yum install --nogpg -y sssd-client sudo createrepo
 
 STORAGE_PATH_CC7=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
 mkdir -p $STORAGE_PATH_CC7
@@ -30,15 +28,6 @@ createrepo --update -q $STORAGE_PATH_SLC6_SRPM
 # Allow failures from now on, since the builds for
 # these platforms are allowed to fail
 set +e
-
-STORAGE_PATH_FC27=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-27/x86_64
-mkdir -p $STORAGE_PATH_FC27
-cp fc-27_artifacts/RPMS/* $STORAGE_PATH_FC27
-createrepo --update -q $STORAGE_PATH_FC27
-STORAGE_PATH_FC27_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-27/SRPMS
-mkdir -p $STORAGE_PATH_FC27_SRPM
-cp fc-27_artifacts/SRPMS/* $STORAGE_PATH_FC27_SRPM
-createrepo --update -q $STORAGE_PATH_FC27_SRPM
 
 STORAGE_PATH_FC28=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-28/x86_64
 mkdir -p $STORAGE_PATH_FC28
