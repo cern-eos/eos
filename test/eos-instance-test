@@ -634,6 +634,8 @@ runtest "### Version   " unix 0 "" eos "version -m | grep xrootd.version"
 ################################################################################
 runtest "### Comment         " unix 0 "" eos "whoami --comment \"Hello World\""
 runtest "### Comment         " unix 0 "" shell grep $EOSLOGBOOK -e \"Hello World\"
+runtest "### Comment Proto   " unix 0 "" eos "fs ls --comment \"Hello Proto World\""
+runtest "### Comment Proto   " unix 0 "" shell grep $EOSLOGBOOK -e \"Hello Proto World\"
 ################################################################################
 # ACCESS
 ################################################################################
