@@ -46,8 +46,11 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mExecRequest(false), mReqProto(), mDoAsync(false),
-    mForceKill(false), stdOut(), stdErr(), stdJson(), retc(0), mTmpResp() {}
+    mExecRequest(false), mReqProto(), mDoAsync(false), mForceKill(false),
+    mVid(), mComment(), stdOut(), stdErr(), stdJson(), retc(0), mTmpResp()
+  {
+    mTimestamp = time(NULL);
+  }
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -58,9 +61,13 @@ public:
   //----------------------------------------------------------------------------
   IProcCommand(eos::console::RequestProto&& req,
                eos::common::Mapping::VirtualIdentity& vid, bool async):
-    mExecRequest(false), mReqProto(req), mDoAsync(async),
-    mForceKill(false), mVid(vid), stdOut(), stdErr(), stdJson(), retc(0),
-    mTmpResp() {}
+    IProcCommand()
+  {
+    mReqProto = req;
+    mDoAsync = async;
+    mVid = vid;
+    mComment = req.comment().c_str();
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -140,14 +147,12 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Close the proc stream and store the clients comment for the command in the
-  //! comment log file
+  //! Close the proc stream
   //!
   //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
   virtual int close()
   {
-    //@todo (esindril): to implement for proto commands
     if (ifstdoutStream.is_open()) {
       ifstdoutStream.close();
     }
@@ -243,6 +248,8 @@ protected:
   bool mDoAsync; ///< If true use thread pool to do the work
   std::atomic<bool> mForceKill; ///< Flag to notify worker thread
   eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
+  time_t mTimestamp; ///< Timestamp of the proc command
+  XrdOucString mComment; ///< Comment issued by the user for the proc command
   XrdOucString stdOut; ///< stdOut returned by proc command
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command

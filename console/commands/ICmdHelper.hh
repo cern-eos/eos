@@ -41,6 +41,11 @@ public:
     if (json) {
       mReq.set_format(eos::console::RequestProto::JSON);
     }
+
+    if (global_comment.length()) {
+      mReq.set_comment(global_comment.c_str());
+      global_comment = "";
+    }
   }
 
   //----------------------------------------------------------------------------

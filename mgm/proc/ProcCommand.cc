@@ -38,13 +38,10 @@ ProcCommand::ProcCommand():
   pVid(0), mPath(""),  mCmd(""), mSubCmd(""), mArgs(""), mResultStream(""),
   pOpaque(0), ininfo(0),  mDoSort(false), mSelection(0), mOutFormat(""),
   mOutDepth(0), fstdout(0), fstderr(0), fresultStream(0), fstdoutfilename(""),
-  fstderrfilename(""), fresultStreamfilename(""), mError(0), mComment(""),
+  fstderrfilename(""), fresultStreamfilename(""), mError(0),
   mLen(0), mAdminCmd(false), mUserCmd(false), mFuseFormat(false),
   mJsonFormat(false), mHttpFormat(false), mClosed(false),  mSendRetc(false),
-  mJsonCallback("")
-{
-  mExecTime = time(NULL);
-}
+  mJsonCallback("") {}
 
 //------------------------------------------------------------------------------
 // Constructor with parameter
@@ -435,19 +432,19 @@ ProcCommand::stat(struct stat* buf)
 }
 
 //------------------------------------------------------------------------------
-// Close the proc stream and store the clients comment for the command in the
-// comment log file.
+// Close the proc stream and store the client's command comment
+// in the comments logbook.
 //------------------------------------------------------------------------------
 int
 ProcCommand::close()
 {
   if (!mClosed) {
-    // Only instance users or sudoers can add to the log book
+    // Only instance users or sudoers can add to the logbook
     if ((pVid->uid <= 2) || (pVid->sudoer)) {
       if (mComment.length() && gOFS->mCommentLog) {
-        if (!gOFS->mCommentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
+        if (!gOFS->mCommentLog->Add(mTimestamp, mCmd.c_str(), mSubCmd.c_str(),
                                     mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc)) {
-          eos_err("failed to log to comment log file");
+          eos_err("failed to log to comments logbook");
         }
       }
     }

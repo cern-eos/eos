@@ -35,4 +35,6 @@ message RequestProto {
     StagerRmProto stagerRm = 8;
     RouteProto route       = 9;
   }
+
+  string Comment = 10;
 }

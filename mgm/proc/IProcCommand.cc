@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/Path.hh"
+#include "common/CommentLog.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
@@ -28,6 +29,7 @@
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include "json/json.h"
+#include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -92,6 +94,21 @@ IProcCommand::open(const char* path, const char* info,
       }
 
       mTmpResp = oss.str();
+    }
+
+    // Store the client's command comment in the comments logbook
+    if ((vid.uid <= 2) || (vid.sudoer)) {
+      // Only instance users or sudoers can add to the logbook
+      if (mComment.length() && gOFS->mCommentLog) {
+        std::string argsJson;
+        (void) google::protobuf::util::MessageToJsonString(mReqProto, &argsJson);
+
+        if (!gOFS->mCommentLog->Add(mTimestamp, "", "", argsJson.c_str(),
+                                    mComment.c_str(), stdErr.c_str(),
+                                    reply.retc())) {
+          eos_err("failed to log to comments logbook");
+        }
+      }
     }
   }
 

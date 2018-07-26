@@ -121,8 +121,8 @@ public:
   virtual int stat(struct stat* buf) override;
 
   //----------------------------------------------------------------------------
-  //! Close the proc stream and store the clients comment for the command in the
-  //! comment log file
+  //! Close the proc stream and store the client's command comment
+  //! in the comments logbook
   //!
   //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
@@ -299,8 +299,6 @@ private:
   XrdOucString fresultStreamfilename;
   XrdOucErrInfo* mError;
 
-  XrdOucString mComment; ///< comment issued by the user for the proc comamnd
-  time_t mExecTime; ///< execution time measured for the proc command
   ssize_t mLen; ///< len of the result stream
   bool mAdminCmd; ///< indicates an admin command
   bool mUserCmd; ///< indicates a user command
