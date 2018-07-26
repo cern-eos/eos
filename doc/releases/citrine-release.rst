@@ -29,12 +29,16 @@ Bug
 * [EOS-2701] - FsView::SetGlobalConfig corrupts the configuration file during shutdown
 * [EOS-2718] - Commit.cc assigns zero-sized filename during rename, corrupting the namespace queue
 * [EOS-2723] - user.forced.placementpolicy overrules sys.forced.placementpolicy
+* Fix S3 access configuration not getting properly refreshed
 
 Improvement
 ------------
 
 * [EOS-2691] - FUSEX abort in ShellException("Unable to open stdout file")
-
+* [EOS-2684] - Allow uuid identifier in 'fs boot' command
+* [EOS-2679] - Display xrootd version in 'eos version -m' and 'node ls --sys' commands
+* Documentation for setting up S3 access [Doc > Configuration > S3 access]
+* More helpful error messages for S3 access
 
 ``v4.3.4 Citrine``
 ===================
