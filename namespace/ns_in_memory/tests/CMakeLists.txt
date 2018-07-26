@@ -57,3 +57,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_executable(ns-benchmark NSBenchmark.cc)
 target_link_libraries(ns-benchmark PRIVATE EosNsInMemory-Static ${FOLLY_LIBRARIES})
+
+add_executable(eosnsbench_mem EosNamespaceBenchmark.cc)
+target_link_libraries(eosnsbench_mem eosCommon-Static EosNsInMemory-Static ${FOLLY_LIBRARIES})
+set_target_properties(eosnsbench_mem PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
