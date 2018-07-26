@@ -30,6 +30,7 @@ include_directories(
   ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/common/ulib/
   ${KINETIC_INCLUDE_DIR}
+  ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
