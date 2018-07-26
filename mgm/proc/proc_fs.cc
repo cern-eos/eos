@@ -271,7 +271,8 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 int
 proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                XrdOucString& stdOut, XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in)
+               eos::common::Mapping::VirtualIdentity& vid_in,
+               std::string statusComment)
 {
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
@@ -396,6 +397,17 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             stdErr = "error: failed to apply configuration change";
             retc = EINVAL;
             return retc;
+          }
+
+          // Work around for placing an empty value in the hash
+          if (statusComment.empty()) {
+            statusComment = " ";
+          }
+
+          if (!fs->SetString("statuscomment", statusComment.c_str())) {
+            eos_static_warning("failed to save config status comment "
+                               "fs_identifier=%s comment=%s",
+                               identifier.c_str(), statusComment.c_str());
           }
 
           FsView::gFsView.StoreFsConfig(fs);

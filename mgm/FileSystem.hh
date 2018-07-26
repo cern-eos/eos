@@ -112,7 +112,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Set a 'key' describing the filesystem
-  //! @note Must be called wiht a lock on FsView::ViewMutex
+  //! @note Must be called with a lock on FsView::ViewMutex
   //!
   //! @param key key to set
   //! @param str value of the key

@@ -284,7 +284,8 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto)
   }
 
   XrdOucString outLocal, errLocal;
-  retc = proc_fs_config(identifier, key, value, outLocal, errLocal, mVid);
+  retc = proc_fs_config(identifier, key, value, outLocal, errLocal,
+                        mVid, mComment.c_str());
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;

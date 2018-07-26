@@ -71,15 +71,38 @@ int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                    size_t& entries);
 
 //------------------------------------------------------------------------------
-//! Dump metada held on filesystem
+//! Set filesystem configuration parameter
+//!
+//! @param identifier filesystem identifier (can be id, uuid or hostname)
+//! @param key parameter identifier
+//! @param value parameter value
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//! @param vid_in virtual identity of the client
+//! @param statusComment comment detailing last config status change
+//!
+//! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
 int proc_fs_config(std::string& identifier, std::string& key,
                    std::string& value,
                    XrdOucString& stdOut, XrdOucString& stdErr,
-                   eos::common::Mapping::VirtualIdentity& vid_in);
+                   eos::common::Mapping::VirtualIdentity& vid_in,
+                   std::string statusComment = "");
 
 //------------------------------------------------------------------------------
-//! Dump metada held on filesystem
+//! Add a new filesystem
+//!
+//! @param sfsid id of the filesystem
+//! @param uuid uuid of the filesystem
+//! @param nodename node identifier in the node queue
+//! @param mountpoint location where to mount the filesystem
+//! @param space assigned scheduling space
+//! @param configstatus assigned config status
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//! @param vid_in virtual identity of the client
+//!
+//! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
 int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 std::string& mountpoint, std::string& space,
@@ -90,9 +113,9 @@ int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 //------------------------------------------------------------------------------
 //! Remove a filesystem
 //!
-//! @param nodename
-//! @param mountpont
-//! @param id
+//! @param nodename node identifier in the node queue
+//! @param mountpoint location where to mount the filesystem
+//! @param id id of the filesystem
 //! @param stdOut normal output string
 //! @param stdErr error output string
 //! @param vid_in virtual identify of the client
@@ -242,8 +265,8 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 //!
 //! @param fs_view file system view handler
 //! @param space space from which to sort the groups
-//! @param grp_size maxium number of file systems per group
-//! @param grp_mod maxium number of groups in current space
+//! @param grp_size maximum number of file systems per group
+//! @param grp_mod maximum number of groups in current space
 //!
 //! @return sorted list of groups with the most desirable one in the beginning
 //------------------------------------------------------------------------------

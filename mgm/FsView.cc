@@ -1314,7 +1314,8 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=drainstatus:width=12:format=s|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
-    format += "key=stat.health:width=16:format=s";
+    format += "key=stat.health:width=16:format=s|";
+    format += "key=statuscomment:width=24:format=s";
   } else if (option == "e") {
     // error format
     format = "header=1:key=host:width=24:format=-S:condition=stat.errc=!0|";
