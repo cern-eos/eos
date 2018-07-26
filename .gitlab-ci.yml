@@ -297,6 +297,7 @@ ubuntu_dockerimage_commit:
     DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
   only:
     - dev
+    - master
   allow_failure: true
 
 docker_image_tag:
