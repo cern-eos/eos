@@ -26,6 +26,7 @@
 #include "FileAbstraction.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/InodeTranslator.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
@@ -1064,7 +1065,8 @@ unsigned long long
 LayoutWrapper::CacheRestore(unsigned long long inode)
 {
   // the variable mInode is actually using the EOS file ID
-  inode = eos::common::FileId::InodeToFid(inode);
+  eos::common::InodeTranslator translator;
+  inode = translator.InodeToFid(inode);
   XrdSysMutexHelper l(gCacheAuthorityMutex);
   eos_static_debug("inode=%llu", inode);
 
@@ -1079,7 +1081,7 @@ LayoutWrapper::CacheRestore(unsigned long long inode)
         gCacheAuthority[new_ino].mRestoreInode = 0;
         eos_static_notice("migrated cap owner-authority for file inode=%lu => inode=%lu",
                           inode, new_ino);
-        return eos::common::FileId::FidToInode(new_ino);
+        return translator.FidToInode(new_ino);
       }
     }
   }

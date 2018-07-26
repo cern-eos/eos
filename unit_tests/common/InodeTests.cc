@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "common/FileId.hh"
+#include "common/InodeTranslator.hh"
 #include <iostream>
 #include <random>
 
@@ -165,7 +166,16 @@ TEST(Inode, InodeToFidCompatibility) {
     ASSERT_TRUE(FileId::IsFileInode(FileId::NewFidToInode(randomID)));
     ASSERT_TRUE(FileId::IsFileInode(FileId::LegacyFidToInode(randomID)));
   }
+}
 
+TEST(InodeTranslator, BasicSanity) {
+  InodeTranslator oldTranslator;
+  ASSERT_EQ(oldTranslator.InodeToFid(FileId::LegacyFidToInode(1)), 1);
+  ASSERT_EQ(oldTranslator.FidToInode(1), FileId::LegacyFidToInode(1));
+
+  InodeTranslator newTranslator;
+  ASSERT_EQ(newTranslator.InodeToFid(FileId::NewFidToInode(1)), 1);
+  ASSERT_EQ(newTranslator.FidToInode(1), FileId::NewFidToInode(1));
 }
 
 EOSCOMMONTESTING_END
