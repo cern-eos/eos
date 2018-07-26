@@ -22,11 +22,16 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
-)
+  ${CMAKE_SOURCE_DIR})
 
-add_executable(fusex-benchmark fusex-benchmark.cc )
-target_link_libraries( fusex-benchmark eosCommonServer eosCommon)
+add_executable(fusex-benchmark
+  fusex-benchmark.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc)
+
+target_link_libraries(fusex-benchmark
+  eosCommon
+  ${CMAKE_THREAD_LIBS_INIT})
 
 install(
   TARGETS fusex-benchmark
