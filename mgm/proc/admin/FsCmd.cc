@@ -678,7 +678,7 @@ int
 FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
 {
   std::string filePath;
-  std::unordered_set<std::string, Murmur3::MurmurHasher<const std::string&>>
+  std::unordered_set<std::string, Murmur3::MurmurHasher<std::string>>
       sourceHash, targetHash;
   {
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);

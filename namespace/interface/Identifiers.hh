@@ -24,6 +24,7 @@
 #ifndef EOS_NS_I_IDENTIFIERS_HH
 #define EOS_NS_I_IDENTIFIERS_HH
 
+#include "common/Murmur3.hh"
 #include "namespace/Namespace.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -67,16 +68,11 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve the underlying uint64_t. Use this only if you have to, ie
   //! when serializing to disk.
+  //!
+  //! The name is long and ugly on purpose, to make you think twice before
+  //! using it. ;)
   //----------------------------------------------------------------------------
   uint64_t getUnderlyingUInt64() const
-  {
-    return val;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Overload function operator
-  //----------------------------------------------------------------------------
-  operator uint64_t() const
   {
     return val;
   }
@@ -119,16 +115,11 @@ public:
   ContainerIdentifier() : val(0) {}
 
   //----------------------------------------------------------------------------
-  //! Overload function operator
-  //----------------------------------------------------------------------------
-  operator uint64_t() const
-  {
-    return val;
-  }
-
-  //----------------------------------------------------------------------------
   //! Retrieve the underlying uint64_t. Use this only if you have to, ie
   //! when serializing to disk.
+  //!
+  //! The name is long and ugly on purpose, to make you think twice before
+  //! using it. ;)
   //----------------------------------------------------------------------------
   uint64_t getUnderlyingUInt64() const
   {
@@ -156,5 +147,34 @@ private:
 };
 
 EOSNSNAMESPACE_END
+
+namespace Murmur3 {
+
+  //----------------------------------------------------------------------------
+  //! MurmurHasher specialization for FileIdentifier.
+  //----------------------------------------------------------------------------
+  template<>
+  struct MurmurHasher<eos::FileIdentifier> {
+    MurmurHasher<uint64_t> hasher;
+
+    size_t operator()(const eos::FileIdentifier &key) const
+    {
+      return hasher(key.getUnderlyingUInt64());
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  //! MurmurHasher specialization for ContainerIdentifier.
+  //----------------------------------------------------------------------------
+  template<>
+  struct MurmurHasher<eos::ContainerIdentifier> {
+    MurmurHasher<uint64_t> hasher;
+
+    size_t operator()(const eos::ContainerIdentifier &key) const
+    {
+      return hasher(key.getUnderlyingUInt64());
+    }
+  };
+}
 
 #endif

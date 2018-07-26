@@ -1,14 +1,18 @@
 #pragma once
 #include <random>
 
-class Murmur3
+namespace Murmur3
 {
-  // simple murmur3 hash
-public:
-
+  // Poisoned generic specialization, which cannot be used, where poisoned means
+  // the same thing as with std::hash -> https://en.cppreference.com/w/cpp/utility/hash
   template<typename T>
   struct MurmurHasher {
-    size_t operator()(uint64_t key) const
+  };
+
+  // uint64_t specialization
+  template<>
+  struct MurmurHasher<uint64_t> {
+    size_t operator()(uint64_t key) const noexcept
     {
       key ^= key >> 33;
       key *= 0xff51afd7ed558ccd;
@@ -17,8 +21,12 @@ public:
       key ^= key >> 33;
       return key;
     }
+  };
 
-    size_t operator()(const std::string& key) const
+  // std::string specialization
+  template<>
+  struct MurmurHasher<std::string> {
+    size_t operator()(const std::string& key) const noexcept
     {
       static std::random_device murmur_rd;
       static std::mt19937_64 murmur_gen(murmur_rd());
@@ -69,14 +77,10 @@ public:
   };
 
   struct eqstr {
-    bool operator()(const uint64_t s1, const uint64_t s2) const
+    template<typename T>
+    bool operator()(const T& val1, const T& val2) const noexcept
     {
-      return (s1 == s2);
-    }
-
-    bool operator()(const std::string& s1, const std::string& s2) const
-    {
-      return (s1 == s2);
+      return (val1 == val2);
     }
   };
 };
