@@ -1348,17 +1348,19 @@ RWMutexReadLock::Release()
 {
   if (mRdMutex) {
     mRdMutex->UnLockRead();
+    int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
+    bool blockedtracing = mRdMutex->BlockedStackTracing();
     mRdMutex = nullptr;
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>
       (std::chrono::steady_clock::now() - mAcquiredAt);
 
-    if (blockedFor.count() > mRdMutex->BlockedForMsInterval()) {
+    if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
       ss << "WARNING - read lock held for " << blockedFor.count() <<
          " milliseconds by this thread: " << std::endl;
 
-      if (mRdMutex->BlockedStackTracing()) {
+      if (blockedtracing) {
         ss << eos::common::getStacktrace();
       }
 
