@@ -590,7 +590,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           response->AddHeader("X-OC-Mtime", "accepted");
           // return the OC-FileId header
           std::string ocid;
-          eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
+          eos::common::StringConversion::GetSizeString(ocid, eos::common::FileId::FidToInode(mFileId));
           response->AddHeader("OC-FileId", ocid);
 
           if (checksumMatch && request->GetHeaders().count("oc-checksum")) {

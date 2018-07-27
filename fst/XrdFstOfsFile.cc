@@ -2520,7 +2520,7 @@ XrdFstOfsFile::stat(struct stat* buf)
 
   // store the file id as inode number
   if (!rc) {
-    buf->st_ino = mFileId << 28;
+    buf->st_ino = eos::common::FileId::FidToInode(mFileId);
   }
 
   // we store the mtime.ns time in st_dev ... sigh@Xrootd ...
