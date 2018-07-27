@@ -113,7 +113,8 @@ void com_fs_help()
       << "  fs config <fsid>|<uuid>|<host>:<port> <key>=<value>" << std::endl
       << "    configure the filesystem parameter, where <key> and <value> can be:" <<
       std::endl
-      << "    configstatus=rw|wo|ro|drain|draindead|off|empty" << std::endl
+      << "    configstatus=rw|wo|ro|drain|draindead|off|empty [--comment \"<comment>\"]"
+      << std::endl
       << "      rw        : set filesystem in read-write mode" << std::endl
       << "      wo        : set filesystem in write-only mode" << std::endl
       << "      ro        : set filesystem in read-only mode" << std::endl
@@ -124,6 +125,7 @@ void com_fs_help()
       << "      empty     : empty filesystem, possible only if there are no"
       << std::endl
       << "                  more files stored on it" << std::endl
+      << "      --comment : pass a reason for the status change" << std::endl
       << "    headroom=<size>" << std::endl
       << "      headroom to keep per filesystem. <size> can be (>0)[BMGT]"
       << std::endl
