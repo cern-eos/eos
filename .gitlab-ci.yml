@@ -286,6 +286,7 @@ cc7_docker_image_commit:
     - beryl_aquamarine
     - tags
 
+
 ubuntu_docker_image_commit:
   stage: build:dockerimage
   tags:
