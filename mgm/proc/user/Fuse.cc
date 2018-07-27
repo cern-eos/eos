@@ -128,7 +128,7 @@ ProcCommand::Fuse()
 
         try {
           fmd = gOFS->eosView->getFile(cPath.GetPath(), false);
-          inode = fmd->getId() << 28;
+          inode = eos::common::FileId::FidToInode(fmd->getId());
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_debug("caught exception %d %s\n", e.getErrno(),

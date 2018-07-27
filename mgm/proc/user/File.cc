@@ -2012,7 +2012,7 @@ ProcCommand::File()
         // now stage a new version of the existing file
         XrdOucString versionedpath;
 
-        if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError,
+        if (gOFS->Version(eos::common::FileId::InodeToFid(buf.st_ino), *mError,
                           *pVid, -1, &versionedpath)) {
           stdErr += "error: unable to create a version of path=";
           stdErr += spath.c_str();

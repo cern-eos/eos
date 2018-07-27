@@ -30,6 +30,7 @@
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/FileId.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -525,7 +526,7 @@ S3Store::HeadBucket(const std::string& id,
 
     response = new PlainHttpResponse();
     // shift back the inode number to the original file id
-    buf.st_ino >>= 28;
+    buf.st_ino = eos::common::FileId::InodeToFid(buf.st_ino);
     std::string sinode;
     response->AddHeader("x-amz-id-2",
                         StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
@@ -604,7 +605,7 @@ S3Store::HeadObject(const std::string& id,
     }
 
     // shift back the inode number to the original file id
-    buf.st_ino >>= 28;
+    buf.st_ino = eos::common::FileId::InodeToFid(buf.st_ino);
     std::string sinode;
     response = new PlainHttpResponse();
     response->AddHeader("x-amz-id-2",

@@ -279,7 +279,7 @@ ProcCommand::Ls()
                 char sinode[16];
                 bool isfile = (modestr[0] != 'd');
                 snprintf(sinode, 16, "%llu",
-                         (unsigned long long)(isfile ? (buf.st_ino >> 28) : buf.st_ino));
+                         (unsigned long long)(isfile ? eos::common::FileId::InodeToFid(buf.st_ino) : buf.st_ino));
                 sprintf(lsline, "%-16s", sinode);
                 stdOut += lsline;
               }

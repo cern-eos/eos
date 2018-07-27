@@ -958,7 +958,7 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
       std::string newold = oPath.GetPath();
       char sp[256];
       snprintf(sp, sizeof(sp) - 1, "%016llx",
-               (unsigned long long)(S_ISDIR(buf.st_mode) ? buf.st_ino : buf.st_ino >> 28));
+               (unsigned long long)(S_ISDIR(buf.st_mode) ? buf.st_ino : eos::common::FileId::InodeToFid(buf.st_ino) ));
       newold += ".";
       newold += sp;
 
