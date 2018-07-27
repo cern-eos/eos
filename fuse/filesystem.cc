@@ -51,6 +51,7 @@
 #include "ProcCache.hh"
 #include "common/XrdErrorMap.hh"
 #include "filesystem.hh"
+#include "GlobalInodeTranslator.hh"
 #include "xrdutils.hh"
 
 #ifndef __macos__
@@ -3263,7 +3264,7 @@ filesystem::open(const char* path,
               const char* sino = RedEnv.Get("mgm.id");
 
               if (sino) {
-                *return_inode = eos::common::FileId::Hex2Fid(sino) << 28;
+                *return_inode = gInodeTranslator.FidToInode(eos::common::FileId::Hex2Fid(sino));
               } else {
                 *return_inode = 0;
               }
@@ -3365,7 +3366,7 @@ filesystem::open(const char* path,
       XrdOucEnv RedEnv = file->GetLastUrl().c_str();
       const char* sino = RedEnv.Get("mgm.id");
       ino_t old_ino = *return_inode;
-      ino_t new_ino = sino ? (eos::common::FileId::Hex2Fid(sino) << 28) : 0;
+      ino_t new_ino = sino ? (gInodeTranslator.FidToInode(eos::common::FileId::Hex2Fid(sino))) : 0;
 
       if (old_ino && (old_ino != new_ino)) {
         if (new_ino) {
