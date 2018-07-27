@@ -446,7 +446,7 @@ publish_koji_cc7:
     - yum install --nogpg -y sssd-client
     - yum install -y koji --disablerepo=extras
     - mkdir ~/.koji
-    - echo -e '[koji]\nserver = http://koji.cern.ch/kojihub\nweburl = http://koji.cern.ch/koji\ntopurl = http://koji.cern.ch/kojifiles\ncert   = /not/existing/file\n' >> ~/.koji/config
+    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build eos7 cc7_artifacts/SRPMS/*.src.rpm
   tags:
@@ -464,7 +464,7 @@ publish_koji_slc6:
     - yum install --nogpg -y sssd-client
     - yum install -y koji --disablerepo=extras
     - mkdir ~/.koji
-    - echo -e '[koji]\nserver = http://koji.cern.ch/kojihub\nweburl = http://koji.cern.ch/koji\ntopurl = http://koji.cern.ch/kojifiles\ncert   = /not/existing/file\n' >> ~/.koji/config
+    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build eos6 slc6_artifacts/SRPMS/*.src.rpm
   tags:
