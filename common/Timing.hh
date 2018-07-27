@@ -146,7 +146,7 @@ public:
   //! Return the coarse age of a timespec
   // ---------------------------------------------------------------------------
   static long long
-  GetCoarseAgeInNs(const struct timespec* ts , const struct timespec* now = NULL)
+  GetCoarseAgeInNs(const struct timespec* ts, const struct timespec* now = NULL)
   {
     struct timespec tsn;
 
@@ -163,7 +163,7 @@ public:
   //! Return the age of a ns timestamp
   //----------------------------------------------------------------------------
   static long long
-  GetAgeInNs(long long ts , const struct timespec* now = NULL)
+  GetAgeInNs(long long ts, const struct timespec* now = NULL)
   {
     struct timespec tsn;
 
@@ -179,7 +179,7 @@ public:
   //! Return the coarse age of a ns timestamp
   //----------------------------------------------------------------------------
   static long long
-  GetCoarseAgeInNs(long long ts , const struct timespec* now = NULL)
+  GetCoarseAgeInNs(long long ts, const struct timespec* now = NULL)
   {
     struct timespec tsn;
 
@@ -372,7 +372,7 @@ public:
       "Jan", "Feb", "Mar", "Apr", "May", "Jun",
       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
-    static char result[40];
+    char result[40];
     sprintf(result, "%.3s, %02d %.3s %d %.2d:%.2d:%.2d GMT",
             wday_name[utc.tm_wday], utc.tm_mday, mon_name[utc.tm_mon],
             1900 + utc.tm_year, utc.tm_hour, utc.tm_min, utc.tm_sec);
