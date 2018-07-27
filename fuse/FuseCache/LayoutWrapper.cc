@@ -31,6 +31,7 @@
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "../xrdutils.hh"
+#include "../GlobalInodeTranslator.hh"
 #include <thread>
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
@@ -1065,8 +1066,7 @@ unsigned long long
 LayoutWrapper::CacheRestore(unsigned long long inode)
 {
   // the variable mInode is actually using the EOS file ID
-  eos::common::InodeTranslator translator;
-  inode = translator.InodeToFid(inode);
+  inode = gInodeTranslator.InodeToFid(inode);
   XrdSysMutexHelper l(gCacheAuthorityMutex);
   eos_static_debug("inode=%llu", inode);
 
@@ -1081,7 +1081,7 @@ LayoutWrapper::CacheRestore(unsigned long long inode)
         gCacheAuthority[new_ino].mRestoreInode = 0;
         eos_static_notice("migrated cap owner-authority for file inode=%lu => inode=%lu",
                           inode, new_ino);
-        return translator.FidToInode(new_ino);
+        return gInodeTranslator.FidToInode(new_ino);
       }
     }
   }
@@ -1094,7 +1094,7 @@ LayoutWrapper::CacheRestore(unsigned long long inode)
 //------------------------------------------------------------------------------
 void LayoutWrapper::CacheRemove(unsigned long long inode)
 {
-  inode = eos::common::FileId::InodeToFid(inode);
+  inode = gInodeTranslator.InodeToFid(inode);
   XrdSysMutexHelper l(gCacheAuthorityMutex);
   {
     if (gCacheAuthority.count(inode)) {

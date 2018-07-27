@@ -178,4 +178,21 @@ TEST(InodeTranslator, BasicSanity) {
   ASSERT_EQ(newTranslator.FidToInode(1), FileId::NewFidToInode(1));
 }
 
+TEST(InodeTranslatorDeathTest, NoFidToInodeBeforeKnowingEncodingScheme) {
+  InodeTranslator translator;
+  ASSERT_DEATH(translator.FidToInode(133), "");
+}
+
+TEST(InodeTranslatorDeathTest, NoLegacyThenNew) {
+  InodeTranslator translator;
+  ASSERT_EQ(translator.InodeToFid(FileId::LegacyFidToInode(5)), 5);
+  ASSERT_DEATH(translator.InodeToFid(FileId::NewFidToInode(6)), "");
+}
+
+TEST(InodeTranslatorDeathTest, NoNewThenLegacy) {
+  InodeTranslator translator;
+  ASSERT_EQ(translator.InodeToFid(FileId::NewFidToInode(5)), 5);
+  ASSERT_DEATH(translator.InodeToFid(FileId::LegacyFidToInode(6)), "");
+}
+
 EOSCOMMONTESTING_END

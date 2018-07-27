@@ -24,6 +24,8 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/FileId.hh"
+#include "common/Logging.hh"
+#include <sstream>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -37,18 +39,43 @@ public:
   InodeTranslator() {}
 
   unsigned long long InodeToFid(unsigned long long inode) {
-    if(FileId::NewIsFileInode(inode)) {
-      oldEncodingScheme = false;
+    if(encodingScheme == EncodingScheme::kUninitialized) {
+      initialize(inode);
     }
-    else {
-      oldEncodingScheme = true;
+
+    if(encodingScheme == EncodingScheme::kLegacy && !FileId::LegacyIsFileInode(inode)) {
+      std::string err = SSTR("Configured to use legacy encoding scheme, but encountered inode which is not recognized as legacy: " << inode);
+      eos_static_crit(err.c_str());
+      std::cerr << err << std::endl;
+      std::abort();
+    }
+
+    if(encodingScheme == EncodingScheme::kLegacy && FileId::NewIsFileInode(inode)) {
+      std::string err = SSTR("Configured to use legacy encoding scheme, but encountered inode which is recognized as new: " << inode);
+      eos_static_crit(err.c_str());
+      std::cerr << err << std::endl;
+      std::abort();
+    }
+
+    if(encodingScheme == EncodingScheme::kNew && !FileId::NewIsFileInode(inode)) {
+      std::string err = SSTR("Configured to use new encoding scheme, but encountered inode which is not recognized as new: " << inode);
+      eos_static_crit(err.c_str());
+      std::cerr << err << std::endl;
+      std::abort();
     }
 
     return FileId::InodeToFid(inode);
   }
 
   unsigned long long FidToInode(unsigned long long fid) {
-    if(oldEncodingScheme) {
+    if(encodingScheme == EncodingScheme::kUninitialized) {
+      std::string err = SSTR("Attempted to convert from file ID (" << fid << ") to inode before discovering the inode encoding scheme.");
+      eos_static_crit(err.c_str());
+      std::cerr << err << std::endl;
+      std::abort();
+    }
+
+    if(encodingScheme == EncodingScheme::kLegacy) {
       return FileId::LegacyFidToInode(fid);
     }
 
@@ -56,7 +83,22 @@ public:
   }
 
 private:
-  bool oldEncodingScheme = true;
+  void initialize(unsigned long long inode) {
+    if(FileId::NewIsFileInode(inode)) {
+      encodingScheme = EncodingScheme::kNew;
+    }
+    else {
+      encodingScheme = EncodingScheme::kLegacy;
+    }
+  }
+
+  enum class EncodingScheme {
+    kLegacy,
+    kNew,
+    kUninitialized
+  };
+
+  EncodingScheme encodingScheme = EncodingScheme::kUninitialized;
 };
 
 EOSCOMMONNAMESPACE_END
