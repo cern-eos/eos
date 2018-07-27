@@ -278,6 +278,7 @@ PathRouting::UpdateEndpointsStatus(ThreadAssistant& assistant) noexcept
 
     for (auto& route : mPathRoute) {
       int num_masters = 0;
+      eos_debug("checking route='%s'", route.first.c_str());
 
       for (auto& endpoint : route.second) {
         endpoint.UpdateStatus();
