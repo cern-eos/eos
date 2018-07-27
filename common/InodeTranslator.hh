@@ -86,9 +86,11 @@ private:
   void initialize(unsigned long long inode) {
     if(FileId::NewIsFileInode(inode)) {
       encodingScheme = EncodingScheme::kNew;
+      eos_static_notice("Initializing inode translator using new encoding scheme. (seed inode: %llu)", inode);
     }
     else {
       encodingScheme = EncodingScheme::kLegacy;
+      eos_static_notice("Initializing inode translator using legacy encoding scheme. (seed inode: %llu)", inode);
     }
   }
 
