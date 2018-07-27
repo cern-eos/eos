@@ -50,7 +50,6 @@ add_executable(
   filesystem.cc              filesystem.hh
   FuseCacheEntry.cc          FuseCacheEntry.hh
   AuthIdManager.cc           xrdutils.cc
-  GlobalInodeTranslator.cc   GlobalInodeTranslator.hh
 )
 
 if(MacOSX)

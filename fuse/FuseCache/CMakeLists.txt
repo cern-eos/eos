@@ -26,11 +26,12 @@ include_directories(${XROOTD_INCLUDE_DIRS})
 add_library(
   FuseCache-Objects OBJECT
 
-  FuseWriteCache.cc  FuseWriteCache.hh
-  CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh
-  LayoutWrapper.cc   LayoutWrapper.hh
-  ../xrdutils.cc     ../xrdutils.hh
+  FuseWriteCache.cc             FuseWriteCache.hh
+  CacheEntry.cc                 CacheEntry.hh
+  FileAbstraction.cc            FileAbstraction.hh
+  LayoutWrapper.cc              LayoutWrapper.hh
+  ../GlobalInodeTranslator.cc   ../GlobalInodeTranslator.hh
+  ../xrdutils.cc                ../xrdutils.hh
 )
 
 set_target_properties(
