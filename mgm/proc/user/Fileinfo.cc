@@ -77,7 +77,7 @@ ProcCommand::Fileinfo()
     if ((sid.replace("inode:", ""))) {
       id = strtoull(sid.c_str(), 0, 10);
 
-      if (id >=  eos::common::FileId::FidToInode(1)) {
+      if (eos::common::FileId::IsFileInode(id)) {
         buf.st_mode = S_IFREG;
         spath = "fid:";
         id = eos::common::FileId::InodeToFid(id);

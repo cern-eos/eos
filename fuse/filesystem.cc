@@ -4684,6 +4684,20 @@ filesystem::init(int argc, char* argv[], void* userdata,
     return false;
   }
 
+  // Seed inode translator based on the MGM's inode encoding scheme
+  if(features && (*features)["eos.inodeencodingscheme"] == "0") {
+    eos_static_notice("The MGM is advertising support for legacy (version 0) inode encoding scheme.");
+    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(1)); // seed translator
+  }
+  else if(features && (*features)["eos.inodeencodingscheme"] == "1") {
+    eos_static_notice("The MGM is advertising support for new (version 1) inode encoding scheme.");
+    gInodeTranslator.InodeToFid(eos::common::FileId::NewFidToInode(1)); // seed translator
+  }
+  else {
+    eos_static_notice("Could not determine which inode encoding scheme the MGM is using based on advertised features. Assuming old one. (version 0)");
+    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(1)); // seed translator
+  }
+
   // Get read-ahead configuration
   if (getenv("EOS_FUSE_RDAHEAD") && (!strcmp(getenv("EOS_FUSE_RDAHEAD"), "1"))) {
     do_rdahead = true;
