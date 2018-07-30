@@ -46,7 +46,7 @@ EOSCOMMONNAMESPACE_BEGIN;
 CommentLog::CommentLog (const char* file)
 {
   mName = file;
-  mFd = ::open(file, O_CREAT | O_RDWR, 0644);
+  mFd = ::open(file, O_CREAT | O_RDWR | O_APPEND, 0644);
 }
 
 /*----------------------------------------------------------------------------*/
