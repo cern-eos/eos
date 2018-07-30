@@ -84,6 +84,7 @@ extern COMMAND commands[];
 extern int done;
 
 char* stripwhite(char* string);
+char* parse_comment(char* line, std::string& comment);
 COMMAND* find_command(const char* command);
 int execute_line(char* line);
 

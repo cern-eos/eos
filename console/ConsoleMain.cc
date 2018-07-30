@@ -1130,35 +1130,18 @@ Run(int argc, char* argv[])
 int
 execute_line(char* line)
 {
-  std::string exec_line = line;
-
-  // Commands issued from the EOS shell do not encase arguments in quotes
-  // whereas commands issued from the terminal do
-  size_t cbpos = exec_line.find("\"--comment\" \"");
-  int size = 12;
-  if (cbpos == std::string::npos) {
-    cbpos = exec_line.find("--comment \"");
-    size = 10;
+  std::string comment;
+  if (!(line = parse_comment(line, comment))) {
+    fprintf(stderr,
+            "error: syntax for comment is '<command> <args> --comment \"<comment>\"'\n");
+    global_retc = -1;
+    return (-1);
   }
-
-  if (cbpos != std::string::npos) {
-    size_t cepos = exec_line.find('"', cbpos + size + 2);
-
-    if (cepos == std::string::npos) {
-      fprintf(stderr,
-              "error: syntax for comment is '<command> <args> --comment \"...\"'\n");
-      return 0;
-    } else {
-      global_comment =
-          exec_line.substr(cbpos + size, cepos + 1 - (cbpos + size)).c_str();
-      exec_line.erase(cbpos, cepos - cbpos + 1);
-      line = (char*) exec_line.c_str();
-    }
-  }
+  global_comment = comment.c_str();
 
   // Isolate the command word and the rest of the arguments
   std::list<std::string> tokens =
-    eos::common::StringTokenizer::split<std::list<std::string>>(exec_line, ' ');
+    eos::common::StringTokenizer::split<std::list<std::string>>(line, ' ');
 
   if (!tokens.size()) {
     global_retc = -1;
@@ -1222,7 +1205,61 @@ stripwhite(char* string)
 }
 
 //------------------------------------------------------------------------------
-// Check if input matches pattern and extact the file id if possible
+// Parse the command line, extract the comment
+// and returns the line without the comment in it
+//------------------------------------------------------------------------------
+char*
+parse_comment(char* line, std::string& comment)
+{
+  std::string exec_line = line;
+
+  // Commands issued from the EOS shell do not encase arguments in quotes
+  // whereas commands issued from the terminal do
+  size_t cbpos = exec_line.find("\"--comment\"");
+  int size = 11;
+
+  if (cbpos == std::string::npos) {
+    cbpos = exec_line.find("--comment");
+    size = 9;
+  }
+
+  if (cbpos != std::string::npos) {
+    // Check that line doesn't end with comment flag
+    if (cbpos + size == exec_line.length()) {
+      return 0;
+    }
+
+    // Check we found a complete word
+    if (exec_line[cbpos + size] == ' ') {
+      // Check we have comment text
+      if (cbpos + size + 3 >= exec_line.length()) {
+        return 0;
+      }
+
+      // Comment text should always start with quotes: --comment "<comment>"
+      if (exec_line[cbpos + size + 1] == '"') {
+        size_t cepos = exec_line.find('"', cbpos + size + 2);
+
+        // Comment text should always end with quotes: --comment "<comment>"
+        if (cepos != std::string::npos) {
+          comment =
+              exec_line.substr(cbpos + size + 1, cepos - (cbpos + size)).c_str();
+          exec_line.erase(cbpos, cepos - cbpos + 1);
+          line = (char *) exec_line.c_str();
+        } else {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  return line;
+}
+
+//------------------------------------------------------------------------------
+// Check if input matches pattern and extract the file id if possible
 //------------------------------------------------------------------------------
 bool RegWrapDenominator(XrdOucString& input, const std::string& key)
 {
