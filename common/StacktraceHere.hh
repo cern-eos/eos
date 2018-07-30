@@ -40,6 +40,10 @@ inline std::string getStacktrace() {
 }
 #else
 inline std::string getStacktrace() {
+  if(getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+    return "backward disabled through environment variable EOS_DISABLE_BACKWARD_STACKTRACE";
+  }
+
   std::ostringstream ss;
 
   backward::StackTrace st;
