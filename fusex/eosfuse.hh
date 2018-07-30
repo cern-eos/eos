@@ -28,8 +28,6 @@
 #include "misc/MacOSXHelper.hh"
 #include "common/AssistedThread.hh"
 #include "common/LinuxTotalMem.hh"
-#include "common/Murmur3.hh"
-
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -48,12 +46,6 @@
 #include <string.h>
 #include <string>
 #include <thread>
-
-#include <google/dense_hash_set>
-#include <google/dense_hash_map>
-
-// PROTOBUF protocol version announced via heartbeats and attached to URLs by the backend
-#define FUSEPROTOCOLVERSION eos::fusex::heartbeat::PROTOCOLV4
 
 class EosFuse : public llfusexx::FuseBase<EosFuse>
 {
@@ -200,8 +192,7 @@ public:
 
   std::string Prefix(std::string path);
 
-  typedef struct cfg
-  {
+  typedef struct cfg {
     std::string name;
     std::string hostport;
     std::string remotemountdir;
@@ -219,8 +210,7 @@ public:
     std::string ssskeytab;
     std::string appname;
 
-    typedef struct options
-    {
+    typedef struct options {      
       int debug;
       int debuglevel;
       int libfusethreads;
@@ -241,12 +231,10 @@ public:
 
 
       int flush_wait_open;
-
-      enum eFLUSH_WAIT_OPEN
-      {
-        kWAIT_FLUSH_NEVER = 0, // if a file is updated/created - flush will not wait to open it
-        kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it 
-        kWAIT_FLUSH_ON_CREATE = 2 // if a file is created - flush will wait to open it
+      enum eFLUSH_WAIT_OPEN {
+	kWAIT_FLUSH_NEVER = 0,     // if a file is updated/created - flush will not wait to open it
+	kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it 
+	kWAIT_FLUSH_ON_CREATE = 2  // if a file is created - flush will wait to open it
       };
 
 
@@ -268,8 +256,7 @@ public:
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 
-    typedef struct recovery
-    {
+    typedef struct recovery {
       int read;
       int write;
       int read_open;
@@ -280,8 +267,7 @@ public:
       size_t write_open_noserver_retrywindow;
     } recovery_t;
 
-    typedef struct fuzzing
-    {
+    typedef struct fuzzing {
       size_t open_async_submit;
       size_t open_async_return;
       size_t read_async_return;
@@ -289,8 +275,7 @@ public:
       bool open_async_return_fatal;
     } fuzzing_t;
 
-    typedef struct inlining
-    {
+    typedef struct inlining {
       uint64_t max_size;
       std::string default_compressor;
     } inlining_t;
@@ -344,69 +329,27 @@ public:
     return s;
   }
 
-  typedef struct opendir_fh
-  {
-    typedef std::vector<std::string> ChildSet;
-    typedef std::map <std::string, uint64_t> ChildMap;
-
-    opendir_fh()
-    {
-      pmd_mtime.tv_sec = pmd_mtime.tv_nsec = 0;
-    }
-
+  typedef struct opendir_fh {
     metad::shared_md md;
-
-    ChildSet readdir_items;
-    ChildMap pmd_children;
-
-    struct reply_buf
-    {
-      char blob[65536];
-      char* ptr;
-      off_t size;
-
-      reply_buf()
-      {
-        reset();
-      }
-
-      void reset() {
-        ptr = blob;
-        size = 0;
-      }
-      
-      char* buffer()
-      {
-        return blob;
-      }
-    };
-
-    struct timespec pmd_mtime;
-    struct reply_buf b;
-
+    std::set<std::string> readdir_items;
+    off_t next_offset;
     XrdSysMutex items_lock;
   } opendir_t;
-
-  static int readdir_filler(fuse_req_t req, opendir_t* md,
-                            mode_t&pmd_mode, uint64_t&pmd_id);
 
   void getHbStat(eos::fusex::statistics&);
 
   kv* getKV()
   {
-
     return mKV.get();
   }
 
   cap& getCap()
   {
-
     return caps;
   }
 
   void cleanup(fuse_ino_t ino)
   {
-
     return mds.cleanup(ino);
   }
 
@@ -416,9 +359,8 @@ public:
 
   int truncateLogFile()
   {
-
     fflush(fstderr);
-    return ftruncate(fileno(fstderr), (off_t) 0);
+    return ftruncate(fileno(fstderr), (off_t)0);
   }
 
   size_t sizeLogFile()
@@ -428,17 +370,7 @@ public:
     if (!fstat(fileno(fstderr), &buf)) {
       return buf.st_size;
     } else {
-
       return 0;
-    }
-  }
-
-  void shrinkLogFile()
-  {
-    const size_t maxsize = 4*1024ll*1024ll*1024ll; // 4G
-    if ( sizeLogFile() > maxsize) {
-      ftruncate(fileno(fstderr), maxsize/2);
-      eos_static_crit("logfile has been truncated back to %lu bytes - exceeded %lu bytes", maxsize/2, maxsize);
     }
   }
 
@@ -464,7 +396,6 @@ private:
 
   Stat& getFuseStat()
   {
-
     return fusestat;
   }
 

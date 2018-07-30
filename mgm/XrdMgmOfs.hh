@@ -156,6 +156,7 @@ class MgmOfsVstMessaging;
 class VstMessaging;
 class IConfigEngine;
 class HttpServer;
+class GrpcServer;
 class Egroup;
 class GeoTreeEngine;
 class ZMQ;
@@ -1606,6 +1607,8 @@ public:
   Drainer mDrainEngine; ///< Centralized draining
   bool mIsCentralDrain; ///< Flag to mark central draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
+
+  std::unique_ptr<GrpcServer> GRPCd; ///< Grpc server
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> mLRUEngine;

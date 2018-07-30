@@ -27,6 +27,7 @@
 #include <cstring>
 #include <sstream>
 #include "authz/XrdCapability.hh"
+#include "grpc/GrpcServer.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1815,6 +1816,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!Httpd->Start()) {
     eos_warning("msg=\"cannot start httpd daemon\"");
   }
+
+#ifdef EOS_GRPC
+  GRPCd->Start();
+#endif
 
   // start the LRU daemon
   mLRUEngine->Start();
