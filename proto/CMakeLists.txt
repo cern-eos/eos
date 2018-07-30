@@ -61,6 +61,52 @@ add_library(EosFstProto-Objects OBJECT
 set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+
+#-------------------------------------------------------------------------------
+# Generate protobol buffer object for GRPC
+#-------------------------------------------------------------------------------
+if (GRPC_FOUND)
+
+set(GRPC_PROTOS
+    ${CMAKE_CURRENT_SOURCE_DIR}/grpc/Rpc.proto
+)
+
+set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
+
+PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS grpc/Rpc.proto)
+grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
+
+set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
+set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
+set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
+set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
+
+set_source_files_properties(
+  ${GRPC_SRCS}
+  ${GRPC_HDRS}
+  ${GRPC_SVC_SRCS}
+  ${GRPC_SVC_HDRS}
+
+  PROPERTIES GENERATED TRUE)
+
+add_library(EosGrpcProto-Objects OBJECT
+  ${GRPC_SRCS}
+  ${GRPC_HDRS}
+  ${GRPC_SVC_SRCS}
+  ${GRPC_SVC_HDRS}
+
+
+)
+
+set_target_properties(EosGrpcProto-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+else()
+
+add_library(EosGrpcProto-OBJECTS OBJECT)
+
+endif()
+
 #-------------------------------------------------------------------------------
 # Generate protobol buffer object for the CLI
 #-------------------------------------------------------------------------------
@@ -97,10 +143,13 @@ set_target_properties(EosCliProto-Objects PROPERTIES
 add_library(EosProtobuf SHARED
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosProtobuf PUBLIC
-  ${PROTOBUF_LIBRARIES})
+  ${PROTOBUF_LIBRARIES}
+  ${GRPC_GRPC++_LIBRARY}
+)
 
 set_target_properties(EosProtobuf PROPERTIES
   VERSION ${VERSION}
@@ -110,6 +159,7 @@ set_target_properties(EosProtobuf PROPERTIES
 add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosProtobuf-Static PRIVATE

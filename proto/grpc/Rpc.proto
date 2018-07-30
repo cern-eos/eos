@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package eos.rpc;
+
+option java_multiple_files = true;
+option java_package = "io.grpc.eos.rpc";
+option java_outer_classname = "EosProto";
+option objc_class_prefix = "EOS";
+
+service Eos {
+	// Replies to a ping
+	rpc Ping (PingRequest) returns (PingReply) {}	
+}
+
+message PingRequest {
+	string message = 1;
+}
+
+message PingReply {
+	string message = 1;
+}
