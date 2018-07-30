@@ -53,7 +53,11 @@ com_attr(char* arg1)
     in += "&mgm.option=";
     in += option;
   } else {
-    arg = subtokenizer.GetToken(false);
+    if (subcommand == "ls") {
+      arg = subtokenizer.GetToken(true);
+    } else {
+      arg = subtokenizer.GetToken(false);
+    }
   }
 
   // require base64 encoding of response
