@@ -360,9 +360,10 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
       XrdOucString esccomment = comment;
       XrdOucString configkey = "";
       time_t now = time(0);
-      char dtime[1024];
-      sprintf(dtime, "%lu ", now);
-      XrdOucString stime = dtime;
+      char timestamp[1024];
+      sprintf(timestamp, "%lu", now);
+      XrdOucString stime = timestamp;
+      stime += " ";
       stime += ctime(&now);
       stime.erase(stime.length() - 1);
       stime += " ";
@@ -373,7 +374,7 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
       esccomment.insert("\"", 0);
       esccomment.append("\"");
       configkey += "comment-";
-      configkey += dtime;
+      configkey += timestamp;
       configkey += ":";
       XrdSysMutexHelper lock(mMutex);
       sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));

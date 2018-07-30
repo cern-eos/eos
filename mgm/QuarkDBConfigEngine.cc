@@ -178,15 +178,16 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     }
   }
 
-  //comments
+  // Comments
   if (comment) {
     // we store comments as "<unix-tst> <date> <comment>"
     XrdOucString esccomment = comment;
     XrdOucString configkey = "";
     time_t now = time(0);
-    char dtime[1024];
-    sprintf(dtime, "%lu ", now);
-    XrdOucString stime = dtime;
+    char timestamp[1024];
+    sprintf(timestamp, "%lu", now);
+    XrdOucString stime = timestamp;
+    stime += " ";
     stime += ctime(&now);
     stime.erase(stime.length() - 1);
     stime += " ";
@@ -198,7 +199,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     esccomment.insert("\"", 0);
     esccomment.append("\"");
     configkey += "comment-";
-    configkey += dtime;
+    configkey += timestamp;
     configkey += ":";
     sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
   }

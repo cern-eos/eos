@@ -45,7 +45,7 @@ com_config(char* arg1)
 
     if (arg.length()) {
       do {
-        if ((arg == "--comment") || (arg == "-c")) {
+        if ((arg == "--comments") || (arg == "-c")) {
           in += "&mgm.config.comment=1";
           arg = subtokenizer.GetToken();
         } else if ((arg == "--fs") || (arg == "-f")) {
@@ -164,8 +164,9 @@ com_config(char* arg1)
 
   if (subcommand == "save") {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=save";
+    bool hascomment = false;
     bool hasfile = false;
-    bool match = false;
+    bool match;
 
     do {
       match = false;
@@ -174,37 +175,22 @@ com_config(char* arg1)
         in += "&mgm.config.force=1";
         arg = subtokenizer.GetToken();
         match = true;
-      } else if ((arg == "--comment") || (arg == "-c")) {
-        in += "&mgm.config.comment=";
-        arg = subtokenizer.GetToken();
+      } else if (arg == "-c") {
+        std::string comment;
+        XrdOucString line = arg1;
+        int pos = line.find("-c");
+        line.replace("-c", "--comment", pos, pos + 1);
 
-        // The comment is in escaped quotes \"some comment\"
-        if ((arg.beginswith("\"") || (arg.beginswith("'")))) {
-          arg.replace("'", "\"");
-
-          if (arg.length()) {
-            do {
-              in += " ";
-              in += arg;
-              arg = subtokenizer.GetToken();
-            } while (arg.length() && (!arg.endswith("\"")) && (!arg.endswith("'")));
-
-            if (arg.endswith("\"") || arg.endswith("'")) {
-              in += " ";
-              arg.replace("'", "\"");
-              in += arg;
-            }
-
-            arg = subtokenizer.GetToken();
-          }
-        } else {
-          // The comment is unescaped quotes e.g. "some comment"
-          in += "\"";
-          in += arg;
-          in += "\"";
-          arg = subtokenizer.GetToken();
+        parse_comment((char *) line.c_str(), comment);
+        if (comment.length()) {
+          in += "&mgm.config.comment=";
+          in += comment.c_str();
+          hascomment = true;
         }
 
+        // Skip flag and comment text
+        subtokenizer.GetToken();
+        arg = subtokenizer.GetToken();
         match = true;
       } else if (!arg.beginswith("-")) {
         in += "&mgm.config.file=";
@@ -221,6 +207,12 @@ com_config(char* arg1)
 
     if (!match || !hasfile) {
       goto com_config_usage;
+    }
+
+    // Capture global comment if -c flag not set
+    if (!hascomment && global_comment.length()) {
+      in += "&mgm.config.comment=";
+      in += global_comment.c_str();
     }
 
     global_retc = output_result(client_command(in, true));
@@ -271,7 +263,7 @@ com_config_usage:
       << "config dump [-cfgpqmsv] [<name>]" << std::endl
       << "       dump configuration with name <name> or current one by default" <<
       std::endl
-      << "       -c|--comment  : " << "dump only comment config" << std::endl
+      << "       -c|--comments : " << "dump only comment config" << std::endl
       << "       -f|--fs       : " << "dump only file system config" << std::endl
       << "       -g|--global   : " << "dump only global config" << std::endl
       << "       -p|--policy   : " << "dump only policy config" << std::endl
@@ -303,6 +295,9 @@ com_config_usage:
       "overwrite existing config name and create a timestamped backup" << std::endl
       << "            " <<
       "If no name is specified the current config file is overwritten."
+      << std::endl
+      << "       -c : " << "add a comment entry to the config" << std::endl
+      << "            " << "Extended option will also add the entry to the logbook."
       << std::endl;
   fprintf(stdout, "%s", oss.str().c_str());
   global_retc = EINVAL;
