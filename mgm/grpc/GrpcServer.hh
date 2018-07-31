@@ -1,6 +1,5 @@
-
 // ----------------------------------------------------------------------
-// File: Handler.hh
+// File: GrpcServer.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -43,6 +42,7 @@ EOSMGMNAMESPACE_BEGIN
  * @brief  This class implements a gRPC server running embedded in the MGM
  *
  */
+
 
 class GrpcServer
 {

@@ -207,6 +207,7 @@ add_library(
   WFE.cc
   Workflow.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
+  grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GrpcServer.cc
+// File: GrpcNsInterface.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -21,71 +21,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
+
+#ifdef EOS_GRPC
+
+/*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "GrpcServer.hh"
-#include "GrpcNsInterface.hh"
 #include "proto/Rpc.grpc.pb.h"
+/*----------------------------------------------------------------------------*/
+#include <grpc++/grpc++.h>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-#ifdef EOS_GRPC
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::ServerWriter;
-using grpc::Status;
+/**
+ * @file   GrpcNsInterface.hh
+ *
+ * @brief  This class bridges namespace to gRPC requests
+ *
+ */
 
-using eos::rpc::Eos;
-using eos::rpc::PingRequest;
-using eos::rpc::PingReply;
 
-class RequestServiceImpl final : public Eos::Service
+class GrpcNsInterface
 {
-  Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
-              eos::rpc::PingReply* reply) override
-  {
-    reply->set_message(request->message());
-    return Status::OK;
-  }
+public:
 
-  Status MD(ServerContext* context, const eos::rpc::MDRequest* request,
-            ServerWriter<eos::rpc::MDResponse>* writer) override
-  {
-    switch (request->type()) {
-    case eos::rpc::FILE:
-    case eos::rpc::CONTAINER:
-      return GrpcNsInterface::GetMD(writer, request);
-      break;
+  static grpc::Status GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+                            const eos::rpc::MDRequest* request);
 
-    case eos::rpc::LISTING:
-      return GrpcNsInterface::StreamMD(writer, request);
-      break;
+  static grpc::Status StreamMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+                               const eos::rpc::MDRequest* request);
 
-    default:
-      ;
-    }
-
-    return Status(grpc::StatusCode::INVALID_ARGUMENT, "request is not supported");
-  }
 };
+
 #endif
 
-
-void
-GrpcServer::Run(ThreadAssistant& assistant) noexcept
-{
-#ifdef EOS_GRPC
-  RequestServiceImpl service;
-  std::string bind_address = "0.0.0.0:";
-  bind_address += std::to_string(mPort);
-  grpc::ServerBuilder builder;
-  builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
-  builder.RegisterService(&service);
-  mServer = builder.BuildAndStart();
-  mServer->Wait();
-#endif
-}
 
 EOSMGMNAMESPACE_END
 
