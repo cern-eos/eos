@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <curl/curl.h>
 
 std::atomic<bool> XrdMqSharedObjectManager::sDebug { false };
 bool XrdMqSharedObjectManager::sBroadcast = true;
@@ -331,13 +332,17 @@ XrdMqSharedHash::GetUInt(const char* key)
 
 //-------------------------------------------------------------------------------
 // Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=keyn'
-// but return only keys that don't start with filter_prefix
+// but return only keys that don't start with filter_prefix. If specified,
+// string literal values will be curl encoded
 //-------------------------------------------------------------------------------
 std::string
-XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
+XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix,
+                                     bool encode_strings)
 {
   std::string key {""};
+  std::string val {""};
   std::ostringstream oss;
+  CURL* curl = curl_easy_init();
   XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
@@ -345,7 +350,23 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix)
 
     if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
         (key.find(filter_prefix) != 0)) {
-      oss << key << "=" << it->second.GetValue() << " ";
+      val = it->second.GetValue();
+
+      if (curl && encode_strings) {
+        if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
+          std::string to_encode = val.substr(1, val.length() - 2);
+          char* encoded = curl_easy_escape(curl, to_encode.c_str(), 0);
+
+          if (encoded) {
+            val = '"';
+            val += encoded;
+            val += '"';
+            curl_free(encoded);
+          }
+        }
+      }
+
+      oss << key << "=" << val.c_str() << " ";
     }
   }
 

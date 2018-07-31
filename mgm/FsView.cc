@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include <cfloat>
+#include <curl/curl.h>
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
@@ -1682,8 +1683,12 @@ FsView::StoreFsConfig(FileSystem* fs)
     std::string key, val;
     fs->CreateConfig(key, val);
 
+    // Handle empty values (e.g.: key= )
+    XrdOucString sval = val.c_str();
+    sval.replace("= ", "=<empty>");
+
     if (FsView::sConfEngine) {
-      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), sval.c_str());
     }
   }
 }
@@ -2835,6 +2840,10 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     return false;
   }
 
+  // Decoding setup
+  CURL* curl = curl_easy_init();
+  std::string sval;
+
   // Convert to map
   std::string key = inkey;
   std::map<std::string, std::string> configmap;
@@ -2845,6 +2854,27 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     std::vector<std::string> keyval;
     std::string delimiter = "=";
     eos::common::StringConversion::Tokenize(tokens[i], keyval, delimiter);
+
+    // Capture empty config value (e.g: key=<empty>)
+    if (keyval[1] == "<empty>") {
+      keyval[1] = " ";
+    }
+
+    sval = keyval[1].c_str();
+
+    // Curl decode string literal value
+    if (sval[0] == '"' && sval[sval.length() - 1] == '"') {
+      std::string to_decode = sval.substr(1, sval.length() - 2);
+      char* decoded = curl_easy_unescape(curl, to_decode.c_str(), 0, 0);
+
+      if (decoded) {
+        keyval[1] = '"';
+        keyval[1] += decoded;
+        keyval[1] += '"';
+        curl_free(decoded);
+      }
+    }
+
     configmap[keyval[0]] = keyval[1];
   }
 

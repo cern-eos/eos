@@ -733,10 +733,10 @@ public:
              std::string listformat, const std::string& filter = "");
 
   //----------------------------------------------------------------------------
-  //! Store a configuration key-val pair. Internally these keys are prefixed
-  //! with 'stat.'
+  //! Store a configuration key-val pair.
+  //! Internally, these keys are not prefixed with 'stat.'
   //!
-  //! para, key key string
+  //! @param key key string
   //! @param val value string
   //----------------------------------------------------------------------------
   void CreateConfig(std::string& key, std::string& val);

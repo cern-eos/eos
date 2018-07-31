@@ -457,8 +457,8 @@ FileSystem::GetRegisterRequestString()
 }
 
 //------------------------------------------------------------------------------
-// Store a configuration key-val pair. Internally these keys are prefixed
-// with 'stat.'
+// Store a configuration key-val pair.
+// Internally, these keys are not prefixed with 'stat.'
 //------------------------------------------------------------------------------
 void
 FileSystem::CreateConfig(std::string& key, std::string& val)
@@ -467,7 +467,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
-  val = hash->SerializeWithFilter("stat.");
+  val = hash->SerializeWithFilter("stat.", true);
 }
 
 //------------------------------------------------------------------------------
