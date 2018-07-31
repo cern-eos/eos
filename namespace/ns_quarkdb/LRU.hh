@@ -272,6 +272,7 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
     Purge(sPurgeStopRatio);
   }
 
+  // @todo (esindril): add time based and for a fixed number of entries purging
   auto iter = mList.insert(mList.end(), obj);
   mMap[id] = iter;
   return *iter;
