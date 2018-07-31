@@ -153,7 +153,6 @@ else ()
 add_library(EosProtobuf SHARED
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosProtobuf PUBLIC
@@ -179,7 +178,6 @@ else ()
 add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 endif ()
 
