@@ -25,6 +25,13 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS})
 
+set (PROTOBUF_IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
+
+#execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/namespace )
+#execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/namespace/ns_quarkdb )
+#execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/fst )
+
+
 #-------------------------------------------------------------------------------
 # Generate protobol buffer object for the Namespace
 #-------------------------------------------------------------------------------
@@ -47,12 +54,13 @@ set_target_properties(EosNsQuarkdbProto-Objects PROPERTIES
 # Generate protobol buffer object for FST
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS fst/FmdBase.proto)
-set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
-set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
-set_source_files_properties(
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS}
-  PROPERTIES GENERATED TRUE)
+
+#set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
+#set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
+#set_source_files_properties(
+#  ${FMDBASE_SRCS} 
+#  ${FMDBASE_HDRS}
+#  PROPERTIES GENERATED TRUE)
 
 add_library(EosFstProto-Objects OBJECT
   ${FMDBASE_SRCS}
@@ -60,7 +68,6 @@ add_library(EosFstProto-Objects OBJECT
 
 set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
 
 #-------------------------------------------------------------------------------
 # Generate protobol buffer object for GRPC
