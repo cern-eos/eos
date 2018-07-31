@@ -41,7 +41,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void DrainTransferJob::ReportError(const std::string& error)
 {
-  eos_err(error.c_str());
+  eos_err("%s", error.c_str());
   mErrorString = error;
   mStatus.store(Status::Failed);
 }
@@ -157,15 +157,17 @@ DrainTransferJob::GetFileInfo() const
       throw e;
     }
   } else {
-    qclient::QClient* qcl = eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
-                            "drain");
+    qclient::QClient* qcl = eos::BackendClient::getInstance(
+                              gOFS->mQdbContactDetails,
+                              "drain");
     auto tmp = eos::MetadataFetcher::getFileFromId(*qcl,
                FileIdentifier(mFileId)).get();
     std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
     // Get the full path to the file
     std::string dir_uri;
     {
-      eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fdrain.mProto.cont_id());
+      eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView,
+          fdrain.mProto.cont_id());
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       dir_uri = gOFS->eosView->getUri(fdrain.mProto.cont_id());
     }
