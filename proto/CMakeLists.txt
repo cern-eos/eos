@@ -174,15 +174,22 @@ add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
+
+target_link_libraries(EosProtobuf-Static PRIVATE
+  eosCommon-Static
+  ${PROTOBUF_LIBARIES}
+  ${GRPC_GRPC++_LIBRARY_STATIC}
+)
 else ()
 add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
-endif ()
 
 target_link_libraries(EosProtobuf-Static PRIVATE
   ${PROTOBUF_LIBARIES})
+
+endif ()
 
 install(
   TARGETS EosProtobuf EosProtobuf-Static
