@@ -101,10 +101,6 @@ add_library(EosGrpcProto-Objects OBJECT
 set_target_properties(EosGrpcProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-else()
-
-add_library(EosGrpcProto-OBJECTS OBJECT)
-
 endif()
 
 #-------------------------------------------------------------------------------
@@ -140,6 +136,7 @@ add_library(EosCliProto-Objects OBJECT
 set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+if (GRPC_FOUND)
 add_library(EosProtobuf SHARED
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
@@ -151,16 +148,40 @@ target_link_libraries(EosProtobuf PUBLIC
   ${GRPC_GRPC++_LIBRARY}
 )
 
+else ()
+
+add_library(EosProtobuf SHARED
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
+
+target_link_libraries(EosProtobuf PUBLIC
+  eosCommon
+  ${PROTOBUF_LIBRARIES}
+)
+
+endif ()
+
+
 set_target_properties(EosProtobuf PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
+if (GRPC_FOUND)
 add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
   $<TARGET_OBJECTS:EosGrpcProto-Objects>
   $<TARGET_OBJECTS:EosCliProto-Objects>)
+else ()
+add_library(EosProtobuf-Static STATIC
+  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+  $<TARGET_OBJECTS:EosFstProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
+  $<TARGET_OBJECTS:EosCliProto-Objects>)
+endif ()
 
 target_link_libraries(EosProtobuf-Static PRIVATE
   ${PROTOBUF_LIBARIES})
