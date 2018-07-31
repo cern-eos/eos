@@ -62,8 +62,10 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
   seq_offset = 0;
   mCreated = false;
   mShortRead = false;
+  mIsS3 = false;
   std::string lFilePath = mFilePath;
   size_t qpos;
+  Davix::DavixError* err = 0;
 
   //............................................................................
   // Opaque info can be part of the 'path'
@@ -113,17 +115,35 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
                   "s3-access-key=\"%s\" s3-secret-key=\"%s\"",
                   id.c_str(), key.c_str());
     } else {
+      // Use path-based S3 URLs
+      mParams.setAwsAlternate(true);
       mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
       eos_debug("s3-access-key=\"%s\" s3-secret-key=\"%s\" (source=%s)",
-                id.c_str(), key.c_str(), credSource);
+                id.c_str(), key.c_str(), credSource.c_str());
     }
-  } else {
-    mIsS3 = false;
+  }
+
+  //............................................................................
+  // Retrieve x509 certificates for HTTPS access
+  //............................................................................
+  if ((path.substr(0, 6)) == "https:") {
+    std::string certPath = getenv("EOS_FST_HTTPS_X509_CERTIFICATE_PATH") ?
+        getenv("EOS_FST_HTTPS_X509_CERTIFICATE_PATH") : "";
+
+    if (certPath.length()) {
+      Davix::X509Credential x509;
+
+      if (x509.loadFromFilePEM(certPath, certPath, "", &err) < 0) {
+        eos_warning("failed to load x509 certificate path=\"%s\" msg=\"%s\"",
+                certPath.c_str(), (*err).getErrMsg().c_str());
+      } else {
+        mParams.setClientCertX509(x509);
+        eos_debug("using x509 certificate path=\"%s\"", certPath.c_str());
+      }
+    }
   }
 
   mParams.setOperationRetry(0);
-  // Use path-based S3 URLs
-  mParams.setAwsAlternate(true);
 
   setAttrSync(false);// by default sync attributes lazily
   mAttrLoaded = false;
@@ -157,8 +177,6 @@ DavixIo::~DavixIo()
 int
 DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
 {
-  eos_debug("");
-
   if (errcode == 0) {
     errno = 0;
 
@@ -214,6 +232,9 @@ DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
     errno = EIO;
   }
 
+  eos_info("davix error: url=\"%s\" msg=\"%s\" errno=%d",
+           mFilePath.c_str(), (*err)->getErrMsg().c_str(), errno);
+
   if (free_error) {
     Davix::DavixError::clearError(err);
   }
@@ -250,12 +271,13 @@ DavixIo::fileOpen(
   const std::string& opaque,
   uint16_t timeout)
 {
-  eos_debug("");
-  eos_info("flags=%x", flags);
   Davix::DavixError* err = 0;
   mParent = mFilePath.c_str();
   mParent.erase(mFilePath.rfind("/"));
   int pflags = 0;
+
+  XrdOucString lFilePath = mFilePath.c_str();
+  bool isStatfs = lFilePath.endswith(DAVIX_QUOTA_FILE);
 
   if (flags & SFS_O_CREAT) {
     pflags |= (O_CREAT | O_RDWR);
@@ -286,7 +308,13 @@ DavixIo::fileOpen(
     }
   }
 
-  eos_info("open=%s flags=%x", mFilePath.c_str(), pflags);
+  // Avoid verbosity of statfs calls
+  if (!isStatfs) {
+    eos_info("open=%s flags=%x pflags=%x", mFilePath.c_str(), flags, pflags);
+  } else {
+    eos_debug("open=%s flags=%x pflags=%x", mFilePath.c_str(), flags, pflags);
+  }
+
   mFd = mDav.open(&mParams, mFilePath, pflags, &err);
 
   if (pflags & O_CREAT) {
@@ -329,7 +357,7 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
 
   if (mShortRead) {
     if (offset >= short_read_offset) {
-      // return an EOF read;
+      // return an EOF read
       return 0;
     }
   }
@@ -1012,7 +1040,7 @@ DavixIo::Statfs(struct statfs* sfs)
 {
   eos_debug("msg=\"davixio class statfs called\"");
   std::string url = mFilePath;;
-  url += "/";
+  url += (url[url.length() - 1] != '/') ? "/" : "";
   url += DAVIX_QUOTA_FILE;
   std::string opaque;
 
