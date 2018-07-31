@@ -127,7 +127,7 @@ ContainerMD::findContainerFut(const std::string& name)
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mSubcontainers->find(name);
 
-  if(iter == mSubcontainers->end()) {
+  if (iter == mSubcontainers->end()) {
     //--------------------------------------------------------------------------
     // Not found in subcontainer map, return result immediately.
     //--------------------------------------------------------------------------
@@ -135,21 +135,19 @@ ContainerMD::findContainerFut(const std::string& name)
   }
 
   lock.unlock();
-
   //----------------------------------------------------------------------------
   // Retrieve result asynchronously from container service.
   //----------------------------------------------------------------------------
   folly::Future<IContainerMDPtr> fut = pContSvc->getContainerMDFut(iter->second)
-    .onError([this, name](const folly::exception_wrapper& e) {
-      //------------------------------------------------------------------------
-      // Curate the list of subcontainers in case entry is not found.
-      //------------------------------------------------------------------------
-      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-      pFlusher->hdel(pDirsKey, name);
-      mSubcontainers->erase(name);
-      return IContainerMDPtr();
-    } );
-
+  .onError([this, name](const folly::exception_wrapper & e) {
+    //------------------------------------------------------------------------
+    // Curate the list of subcontainers in case entry is not found.
+    //------------------------------------------------------------------------
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pFlusher->hdel(pDirsKey, name);
+    mSubcontainers->erase(name);
+    return IContainerMDPtr();
+  });
   return fut;
 }
 
@@ -191,9 +189,11 @@ ContainerMD::addContainer(IContainerMD* container)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
-  if(container->getName().empty()) {
+  if (container->getName().empty()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EINVAL, "Attempted to add container with empty name! ID: " << container->getId() << ", target container ID: " << mCont.id());
+    throw_mdexception(EINVAL,
+                      "Attempted to add container with empty name! ID: " << container->getId() <<
+                      ", target container ID: " << mCont.id());
   }
 
   container->setParentId(mCont.id());
@@ -224,7 +224,7 @@ ContainerMD::findFileFut(const std::string& name)
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
 
-  if(iter == mFiles->end()) {
+  if (iter == mFiles->end()) {
     //--------------------------------------------------------------------------
     // Not found in file map, return result immediately.
     //--------------------------------------------------------------------------
@@ -232,21 +232,19 @@ ContainerMD::findFileFut(const std::string& name)
   }
 
   lock.unlock();
-
   //----------------------------------------------------------------------------
   // Retrieve result asynchronously from file service.
   //----------------------------------------------------------------------------
   folly::Future<IFileMDPtr> fut = pFileSvc->getFileMDFut(iter->second)
-    .onError([this, name](const folly::exception_wrapper& e) {
-      //------------------------------------------------------------------------
-      // Curate the list of files in case entry is not found.
-      //------------------------------------------------------------------------
-      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-      pFlusher->hdel(pFilesKey, name);
-      mFiles->erase(name);
-      return IFileMDPtr();
-    } );
-
+  .onError([this, name](const folly::exception_wrapper & e) {
+    //------------------------------------------------------------------------
+    // Curate the list of files in case entry is not found.
+    //------------------------------------------------------------------------
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pFlusher->hdel(pFilesKey, name);
+    mFiles->erase(name);
+    return IFileMDPtr();
+  });
   return fut;
 }
 
@@ -267,9 +265,11 @@ ContainerMD::addFile(IFileMD* file)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
-  if(file->getName().empty()) {
+  if (file->getName().empty()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EINVAL, "Attempted to add file with empty filename! ID: " << file->getId() << ", target container ID: " << mCont.id());
+    throw_mdexception(EINVAL,
+                      "Attempted to add file with empty filename! ID: " << file->getId() <<
+                      ", target container ID: " << mCont.id());
   }
 
   file->setContainerId(mCont.id());
@@ -343,20 +343,6 @@ ContainerMD::getNumContainers()
   return mSubcontainers->size();
 }
 
-static bool
-checkPerms(char actual, char requested)
-{
-  for (int i = 0; i < 3; ++i) {
-    if ((requested & (1 << i)) != 0) {
-      if ((actual & (1 << i)) == 0) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
 //------------------------------------------------------------------------------
 // Check the access permissions
 //------------------------------------------------------------------------------
@@ -374,11 +360,10 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
   }
 
   // Filter out based on sys.mask
-  mode_t filteredMode = PermissionHandler::filterWithSysMask(mCont.xattrs(), mCont.mode());
-
+  mode_t filteredMode = PermissionHandler::filterWithSysMask(mCont.xattrs(),
+                        mCont.mode());
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
-
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   // Check the perms
@@ -403,7 +388,6 @@ void
 ContainerMD::setName(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   // // Check that there is no clash with other subcontainers having the same name
   // if (mCont.parent_id() != 0u) {
   //   auto parent = pContSvc->getContainerMD(mCont.parent_id());
@@ -517,7 +501,6 @@ bool
 ContainerMD::setTMTime(tmtime_t tmtime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   tmtime_t tmt;
   getTMTimeNoLock(tmt);
 
@@ -678,8 +661,10 @@ ContainerMD::loadChildren()
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
 
   if (pQcl) {
-    mFiles = MetadataFetcher::getFilesInContainer(*pQcl, ContainerIdentifier(mCont.id()));
-    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl, ContainerIdentifier(mCont.id()));
+    mFiles = MetadataFetcher::getFilesInContainer(*pQcl,
+             ContainerIdentifier(mCont.id()));
+    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl,
+                     ContainerIdentifier(mCont.id()));
   } else {
     // I think this case only happens inside some tests.. remove eventually?
     mFiles->clear();
@@ -702,15 +687,13 @@ ContainerMD::deserialize(Buffer& buffer)
 // Initialize, inject children
 //------------------------------------------------------------------------------
 void
-ContainerMD::initialize(eos::ns::ContainerMdProto &&proto,
-    IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap)
+ContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
+                        IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   mCont = std::move(proto);
   mFiles.get() = std::move(fileMap);
   mSubcontainers.get() = std::move(containerMap);
-
   // Rebuild the file and subcontainer keys
   pFilesKey = stringify(mCont.id()) + constants::sMapFilesSuffix;
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
@@ -749,7 +732,6 @@ void
 ContainerMD::getEnv(std::string& env, bool escapeAnd)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   env.clear();
   std::ostringstream oss;
   std::string saveName = mCont.name();
