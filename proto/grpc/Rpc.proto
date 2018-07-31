@@ -23,6 +23,16 @@ message PingReply {
 	string message = 1;
 }
 
+message Time {
+	uint64 sec = 1;
+	uint64 n_sec = 2;
+}
+
+message Checksum {
+	bytes value = 1;
+	string type = 2;
+}
+
 message FileMdProto {
 	uint64 id = 1;
 	uint64 cont_id = 2;
@@ -33,12 +43,13 @@ message FileMdProto {
 	uint32 flags = 7;
 	bytes name = 8;
 	bytes link_name = 9;
-	bytes ctime = 10; // change time
-	bytes mtime = 11; // modification time
-	bytes checksum = 12;
+	Time ctime = 10; // change time
+	Time mtime = 11; // modification time
+	Checksum checksum =12;
 	repeated uint32 locations = 13;
 	repeated uint32 unlink_locations = 14;
 	map<string, bytes> xattrs = 15;
+	bytes path = 16;
 }
 
 message ContainerMdProto {
@@ -50,10 +61,11 @@ message ContainerMdProto {
 	uint32 mode = 5;
 	uint32 flags = 7;
 	bytes name = 8;
-	bytes ctime = 9;  // change time
-	bytes mtime = 10; // modification time
-	bytes stime = 11; // sync time
+	Time ctime = 9;  // change time
+	Time mtime = 10; // modification time
+	Time stime = 11; // sync time
 	map<string, bytes> xattrs = 12;
+	bytes path = 13;
 }
 
 
@@ -61,8 +73,9 @@ enum TYPE { FILE = 0; CONTAINER = 1; LISTING = 2;}
 
 message MDRequest {
 	TYPE type = 1;
-	string path = 2;
-	fixed64 fid = 3;
+        bytes path = 2;
+	fixed64 id = 3;
+	fixed64 ino = 4;
 }
 
 message MDResponse {
