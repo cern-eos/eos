@@ -624,7 +624,7 @@ usage()
   fprintf(stderr,
           "`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--verAsion] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,
           "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr,

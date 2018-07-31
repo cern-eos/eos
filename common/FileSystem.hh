@@ -180,9 +180,9 @@ public:
   //! Constructor
   //! @param queuepath Named Queue to specify the receiver filesystem of
   //!                  modifications e.g. /eos/<host:port>/fst/<path>
-  //! @param queue     Named Queue to specify the reciever of modifications
+  //! @param queue     Named Queue to specify the receiver of modifications
   //!                  e.g. /eos/<host:port>/fst
-  //! @param som       Handle to the shared obejct manager to store filesystem
+  //! @param som       Handle to the shared object manager to store filesystem
   //!                  key-value pairs
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
@@ -292,13 +292,13 @@ public:
   time_t cActiveTime; ///< unix time stamp of last update of the active status
   fsstatus_t cStatus; ///< cache value of the status
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
-  XrdSysMutex cStatusLock; ///< lock protecting the cached statuss
+  XrdSysMutex cStatusLock; ///< lock protecting the cached status
   std::atomic<fsstatus_t> cConfigStatus; ///< cached value of the config status
   XrdSysMutex cConfigLock; ///< lock protecting the cached config status
   time_t cConfigTime; ///< unix time stamp of last update of the cached config status
 
   //----------------------------------------------------------------------------
-  //! Open transcation to initiate bulk modifications on a file system
+  //! Open transaction to initiate bulk modifications on a file system
   //----------------------------------------------------------------------------
   bool
   OpenTransaction()
@@ -315,7 +315,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Close transcation do finish modifications on a file system
+  //! Close transaction to finish modifications on a file system
   //----------------------------------------------------------------------------
   bool
   CloseTransaction()

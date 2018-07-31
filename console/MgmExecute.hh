@@ -113,7 +113,7 @@ private:
   //----------------------------------------------------------------------------
   //! Command to process the server response
   //!
-  //! @param reply incoming data strream
+  //! @param reply incoming data stream
   //!
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------

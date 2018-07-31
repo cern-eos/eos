@@ -66,7 +66,7 @@ FileMD::FileMD(const FileMD& other)
 }
 
 //------------------------------------------------------------------------------
-// Asignment operator
+// Assignment operator
 //------------------------------------------------------------------------------
 FileMD&
 FileMD::operator = (const FileMD& other)
