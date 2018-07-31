@@ -737,6 +737,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
           std::string pwlen = std::to_string(mQdbPassword.size());
           Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          mQdbContactDetails.password = mQdbPassword;
         }
 
         if (!strcmp("authlib", var)) {
