@@ -44,7 +44,7 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
   id(basename(path.c_str())),
   notifier(*this),
   backgroundFlusher(contactDetails.members, contactDetails.constructOptions(),
-    notifier, new qclient::RocksDBPersistency(path)),
+                    notifier, new qclient::RocksDBPersistency(path)),
   sizePrinter(&MetadataFlusher::queueSizeMonitoring, this)
 {
   synchronize();
@@ -164,7 +164,7 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
 
   eos_static_info("starting-index=%" PRId64 " ending-index=%" PRId64
                   " msg=\"queue item %" PRId64
-                  "has been acknowledged\"", backgroundFlusher.getStartingIndex(),
+                  " has been acknowledged\"", backgroundFlusher.getStartingIndex(),
                   backgroundFlusher.getEndingIndex(), targetIndex);
 }
 
@@ -200,7 +200,7 @@ MetadataFlusherFactory::getInstance(const std::string& id,
   }
 
   std::tuple<std::string, qclient::Members> key = std::make_tuple(id,
-    contactDetails.members);
+      contactDetails.members);
   auto it = instances.find(key);
 
   if (it != instances.end()) {
