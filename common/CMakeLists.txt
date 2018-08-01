@@ -149,7 +149,7 @@ target_link_libraries(eosCommon-Static PRIVATE
 
 if(Linux)
   target_link_libraries(eosCommon-Static PUBLIC
-    bfd
+    ${LIBBFD_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${GLIBC_RT_LIBRARY})
 endif()

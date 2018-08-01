@@ -79,7 +79,7 @@ target_link_libraries(xrdcptruncate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRA
 target_link_libraries(xrdcpposixcache ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcppartial ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcpupdate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(eoshashbench eosCommon-Static)
+target_link_libraries(eoshashbench eosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-udp-dumper)
 
