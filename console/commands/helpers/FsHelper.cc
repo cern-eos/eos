@@ -49,7 +49,7 @@ FsHelper::ParseCommand(const char* arg)
     } else {
       soption = option;
 
-      if (soption == "-m") {
+      if ((soption == "-m") || (soption == "--manual")) {
         add->set_manual(true);
 
         // Parse fsid
@@ -70,12 +70,13 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
 
-      // Parse uuid, but only if the manual was not set
+      // Advance token if manual option was set
       if (add->manual() && !(option = tokenizer.GetToken())) {
         std::cerr << "error: missing uuid" << std::endl;
         return false;
       }
 
+      // Parse uuid
       add->set_uuid(option);
 
       // Parse node queue or host:port
