@@ -79,6 +79,17 @@ filesystem::filesystem():
   base_fd = 1;
   XFC = 0;
   tCacheCleanup = 0;
+  mutex_inode_path.SetBlockedStackTracing(false);
+  mutex_dir2inodelist.SetBlockedStackTracing(false);
+  mutex_fuse_cache.SetBlockedStackTracing(false);
+  rwmutex_fd2fabst.SetBlockedStackTracing(false);
+  rwmutex_inodeopenw.SetBlockedStackTracing(false);
+
+  for (auto i = 0; i < N_OPEN_MUTEXES; ++i) {
+    openmutexes[i].SetBlockedStackTracing(false);
+  }
+
+  mMapPidDenyRmMutex.SetBlockedStackTracing(false);
 }
 
 filesystem::~filesystem()
@@ -1804,7 +1815,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
 int
-filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid ,
+filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid,
                    gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s", path);
@@ -3374,7 +3385,8 @@ filesystem::open(const char* path,
       XrdOucEnv RedEnv = file->GetLastUrl().c_str();
       const char* sino = RedEnv.Get("mgm.id");
       ino_t old_ino = *return_inode;
-      ino_t new_ino = sino ? (gInodeTranslator.FidToInode(eos::common::FileId::Hex2Fid(sino))) : 0;
+      ino_t new_ino = sino ? (gInodeTranslator.FidToInode(
+                                eos::common::FileId::Hex2Fid(sino))) : 0;
 
       if (old_ino && (old_ino != new_ino)) {
         if (new_ino) {
@@ -4685,17 +4697,18 @@ filesystem::init(int argc, char* argv[], void* userdata,
   }
 
   // Seed inode translator based on the MGM's inode encoding scheme
-  if(features && (*features)["eos.inodeencodingscheme"] == "0") {
+  if (features && (*features)["eos.inodeencodingscheme"] == "0") {
     eos_static_notice("The MGM is advertising support for legacy (version 0) inode encoding scheme.");
-    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(1)); // seed translator
-  }
-  else if(features && (*features)["eos.inodeencodingscheme"] == "1") {
+    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(
+                                  1)); // seed translator
+  } else if (features && (*features)["eos.inodeencodingscheme"] == "1") {
     eos_static_notice("The MGM is advertising support for new (version 1) inode encoding scheme.");
-    gInodeTranslator.InodeToFid(eos::common::FileId::NewFidToInode(1)); // seed translator
-  }
-  else {
+    gInodeTranslator.InodeToFid(eos::common::FileId::NewFidToInode(
+                                  1)); // seed translator
+  } else {
     eos_static_notice("Could not determine which inode encoding scheme the MGM is using based on advertised features. Assuming old one. (version 0)");
-    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(1)); // seed translator
+    gInodeTranslator.InodeToFid(eos::common::FileId::LegacyFidToInode(
+                                  1)); // seed translator
   }
 
   // Get read-ahead configuration

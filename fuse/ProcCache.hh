@@ -133,6 +133,7 @@ public:
 
     if (!sMutexOk) {
       ProcReaderKrb5UserName::sMutex.SetBlocking(true);
+      ProcReaderKrb5UserName::sMutex.SetBlockedStackTracing(false);
       sMutexOk = true;
     }
   }
@@ -211,6 +212,7 @@ public:
     ss << (procpath ? procpath : "/proc/") << pPid;
     pProcPrefix = ss.str();
     pMutex.SetBlocking(true);
+    pMutex.SetBlockedStackTracing(false);
   }
 
   ~ProcCacheEntry()

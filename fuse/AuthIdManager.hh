@@ -95,6 +95,10 @@ public:
     proccachemutexes.resize(size);
     pid2StrongLogin.resize(size);
     siduid2credinfo.resize(size);
+
+    for (auto i = 0 ; i < size; ++i) {
+      proccachemutexes[i].SetBlockedStackTracing(false);
+    }
   }
 
   int connectionId;

@@ -665,6 +665,7 @@ public:
     _meta()
     {
       openr = openw = 0;
+      mInUse.SetBlockedStackTracing(false);
     }
 
     RWMutexR mInUse;

@@ -44,6 +44,7 @@ FuseCacheEntry::FuseCacheEntry(int noEntries,
   mBuf.size = pBuf->size;
   mBuf.p = static_cast<char*>(calloc(mBuf.size, sizeof(char)));
   mBuf.p = static_cast<char*>(memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof(char)));
+  mMutex.SetBlockedStackTracing(false);
 }
 
 
