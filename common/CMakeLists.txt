@@ -21,17 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if (Linux)
-add_subdirectory(backward-cpp)
-
-# @note We need this here since backward-cpp overwrites the global flags for
-# c++11 and something similar happens for the fmt directory. This is also the
-# reason why the common subdirectory needs to be the first on the list in the
-# main CMakeLists.txt file.
-set(CMAKE_CXX_STANDARD 14)
-set(CPP_VERSION -std=c++14)
-endif()
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -41,7 +30,9 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIRS})
+  ${OPENSSL_INCLUDE_DIRS}
+  ${LIBBFD_INCLUDE_DIRS}
+)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -78,6 +69,7 @@ set(EOSCOMMON_SRCS
   SymKeys.cc
   GlobalConfig.cc
   Report.cc
+  StacktraceHere.cc
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
@@ -104,7 +96,7 @@ target_link_libraries(eosCommon PUBLIC
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${BACKWARD_LIBRARIES})
+)
 
 target_compile_definitions(eosCommon PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -118,7 +110,7 @@ set_target_properties(eosCommon PROPERTIES
 
 if(Linux)
   target_link_libraries(eosCommon PUBLIC
-    bfd
+    ${LIBBFD_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${GLIBC_RT_LIBRARY})
 endif()
@@ -152,7 +144,7 @@ target_link_libraries(eosCommon-Static PRIVATE
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${PROTOBUF_LIBRARY}
-  ${BACKWARD_LIBRARIES}
+  ${LIBBFD_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(Linux)
@@ -199,6 +191,7 @@ if (Linux)
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
+    ${LIBBFD_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
@@ -223,7 +216,7 @@ endif()
 #-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc)
+  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
   add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
@@ -246,5 +239,6 @@ endif()
 
 add_executable(threadpooltest ThreadPoolTest.cc)
 target_link_libraries(threadpooltest PRIVATE
+  ${LIBBFD_LIBRARIES}
   eosCommon
   ${CMAKE_THREAD_LIBS_INIT})

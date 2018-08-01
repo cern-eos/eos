@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StacktraceHere.hh
+// File: StacktraceHere.cc
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -21,18 +21,56 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOSCOMMON_STACKTRACE_HERE_HH
-#define EOSCOMMON_STACKTRACE_HERE_HH
+#include "common/StacktraceHere.hh"
+#include <mutex>
 
-#include <signal.h>
-#include "common/Namespace.hh"
-#include <string>
+#ifndef __APPLE__
+#define BACKWARD_HAS_BFD 1
+#include "common/backward-cpp/backward.hpp"
+#endif
+
+namespace {
+  std::mutex mtx;
+}
 
 EOSCOMMONNAMESPACE_BEGIN
 
-std::string getStacktrace();
-void handleSignal(int sig, siginfo_t* si, void* ctx);
+#ifdef __APPLE__
+std::string getStacktrace() {
+  return "No stacktrack available on this platform";
+}
+#else
+std::string getStacktrace() {
+  if(getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+    return "backward disabled through environment variable EOS_DISABLE_BACKWARD_STACKTRACE";
+  }
+
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::ostringstream ss;
+  backward::StackTrace st;
+  st.load_here(128);
+  backward::Printer p;
+  p.object = true;
+  p.address = true;
+  p.print(st, ss);
+  return ss.str();
+}
+#endif
+
+
+#ifdef __APPLE__
+void handleSignal(int sig, siginfo_t* si, void* ctx) {
+}
+#else
+void handleSignal(int sig, siginfo_t* si, void* ctx) {
+  if(getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mtx);
+  backward::SignalHandling::handleSignal(sig, si, ctx);
+}
+#endif
 
 EOSCOMMONNAMESPACE_END
-
-#endif

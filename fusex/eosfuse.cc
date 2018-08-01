@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/StacktraceHere.hh"
 #ifndef __APPLE__
-#include "common/backward-cpp/backward.hpp"
 #include "common/ShellCmd.hh"
 #endif
 #ifdef ROCKSDB_FOUND
@@ -1355,9 +1355,7 @@ void
 EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 /* -------------------------------------------------------------------------- */
 {
-#ifdef __linux__
-  backward::SignalHandling::handleSignal(sig, si, ctx);
-#endif
+  eos::common::handleSignal(sig, si, ctx);
   std::string systemline = "fusermount -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
   system(systemline.c_str());

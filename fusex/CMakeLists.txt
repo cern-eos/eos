@@ -37,6 +37,7 @@ include_directories(
   ${LIBEVENT_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
   ${RICHACL_INCLUDE_DIRS}
+  ${LIBBFD_INCLUDE_DIRS}
   ./)
 
 find_package(RocksDB)
@@ -57,7 +58,7 @@ endif (Linux)
 # Compile flags
 #-------------------------------------------------------------------------------
 set(EOSXD_COMPILE_FLAGS
-  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DBACKWARD_HAS_DW -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
 )
 
 #-------------------------------------------------------------------------------
@@ -97,6 +98,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   ${BZ2_LIBRARY}
   ${RICHACL_LIBRARIES}
+  ${LIBBFD_LIBRARIES}
   eosCommon)
 
 #-------------------------------------------------------------------------------

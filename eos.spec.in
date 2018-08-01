@@ -83,7 +83,6 @@ BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel
-Requires: binutils
 
 %if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: eos-rocksdb = 5.7.3-1%{dist}
@@ -118,10 +117,8 @@ BuildRequires: centos-release-scl
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: devtoolset-6
 BuildRequires: devtoolset-6-binutils-devel
-Requires:      devtoolset-6-binutils
 %else
 BuildRequires: binutils-devel
-Requires:      binutils
 %endif
 
 %if %{use_systemd}

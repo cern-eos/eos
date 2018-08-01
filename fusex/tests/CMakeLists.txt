@@ -52,7 +52,6 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   ${JSONCPP_LIBRARIES}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
-  ${BACKWARD_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   eosCommonServer eosCommon
 )
@@ -71,7 +70,6 @@ add_executable(eos-fusex-tests
   interval-tree.cc
   journal-cache.cc
   rb-tree.cc
-  ${BACKWARD_ENABLE}
   ${EOSXD_COMMON_SOURCES}
 )
 
@@ -90,7 +88,6 @@ add_executable(eos-fusex-stress-tests
   stress/xrdcl-proxy.cc
   ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.cc
   ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.hh
-  ${BACKWARD_ENABLE}
 )
 
 target_link_libraries(
