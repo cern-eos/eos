@@ -77,7 +77,7 @@ public:
                              std::shared_ptr<eos::IFileMD> &fmd,
                              XrdOucString& physicalPath)
   {
-    if ((fsid < 0) || (!fmd)) {
+    if (!fmd) {
       physicalPath = "";
       return -1;
     }
@@ -101,7 +101,7 @@ public:
     }
 
     if (useLogicalPath) {
-      map = attributeString2FsPathMap(attributeString.c_str());
+      map = attributeStringToFsPathMap(attributeString.c_str());
       physicalPath = map[fsid].c_str();
     } else {
       FileId::FidPrefix2FullPath(FileId::Fid2Hex(fmd->getId()).c_str(), "path",
@@ -140,6 +140,7 @@ public:
   //----------------------------------------------------------------------------
   //! Store a file's physical path for a given filesystem as extended attributes
   //! within the file's metadata.
+  //!
   //! This function changes the file's metadata and should be called
   //! in a thread-safe context.
   //----------------------------------------------------------------------------
@@ -157,13 +158,43 @@ public:
     fmd->setAttribute("sys.eos.lpath", attributeString);
   }
 
+    //----------------------------------------------------------------------------
+    //! Remove a file's physical path for a given filesystem from the file's
+    //! extended attributes metadata.
+    //! Upon removal, if the extended attribute values becomes empty,
+    //! it will be removed entirely from the metadata.
+    //!
+    //! This function changes the file's metadata and should be called
+    //! in a thread-safe context.
+    //----------------------------------------------------------------------------
+    static void RemovePhysicalPath(unsigned long fsid,
+                                   const std::shared_ptr<eos::IFileMD> &fmd)
+    {
+      if (fmd->hasAttribute("sys.eos.lpath")) {
+        std::string attributeString = fmd->getAttribute("sys.eos.lpath");
+        std::map<unsigned long, std::string> map =
+            attributeStringToFsPathMap(attributeString.c_str());
+
+        if (map.count(fsid)) {
+          map.erase(fsid);
+
+          if (map.size()) {
+            attributeString = fsPathMapToAttributeString(map);
+            fmd->setAttribute("sys.eos.lpath", attributeString);
+          } else {
+            fmd->removeAttribute("sys.eos.lpath");
+          }
+        }
+      }
+    }
+
 private:
 
   //----------------------------------------------------------------------------
   //! Convert attribute string into a FilesystemId <-> PhysicalPath mapping
   //----------------------------------------------------------------------------
   static std::map<unsigned long, std::string>
-  attributeString2FsPathMap(XrdOucString attributeString)
+  attributeStringToFsPathMap(XrdOucString attributeString)
   {
     std::map<unsigned long, std::string> map;
     std::string physicalPath;
@@ -201,8 +232,8 @@ private:
   //----------------------------------------------------------------------------
   //! Convert a FilesystemId <-> PhysicalPath mapping into an attribute string
   //----------------------------------------------------------------------------
-  static std::string FsPathMap2AttributeString(
-                             std::map<unsigned long, std::string> map)
+  static std::string fsPathMapToAttributeString(
+      std::map<unsigned long, std::string> map)
   {
     std::string attributeString = "";
 
@@ -238,13 +269,13 @@ private:
     } else {
       // Construct map
       std::map<unsigned long, std::string> map =
-          attributeString2FsPathMap(attributeString.c_str());
+          attributeStringToFsPathMap(attributeString.c_str());
 
       // Replace entry
       map[fsid] = physicalPath;
 
       // Construct string from map
-      attributeString = FsPathMap2AttributeString(map);
+      attributeString = fsPathMapToAttributeString(map);
     }
   }
 
