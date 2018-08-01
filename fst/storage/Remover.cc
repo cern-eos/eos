@@ -75,7 +75,7 @@ Storage::Remover()
                        0, 0, 0, true) != SFS_OK)) {
           std::string errMsg = "unable to remove fid %s fsid %lu localprefix=%s";
           if (to_del->fileVector[j].logicalPath.length()) {
-            errMsg += " logicalpath=%s creation_time %s";
+            errMsg += " logicalpath=%s creation_time=%s";
           }
           eos_static_err(errMsg.c_str(), hexstring.c_str(), to_del->fsId, to_del->localPrefix.c_str(),
                          to_del->fileVector[j].logicalPath.c_str(),

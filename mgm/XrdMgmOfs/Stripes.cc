@@ -276,6 +276,7 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
 
       fmd->removeLocation(fsid);
+      eos::common::FileFsPath::RemovePhysicalPath(fsid, fmd);
       gOFS->eosView->updateFileStore(fmd.get());
       eos_debug("removing/unlinking location %u", fsid);
     }
@@ -386,6 +387,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
         }
 
         fmd->removeLocation(location);
+        eos::common::FileFsPath::RemovePhysicalPath(location, fmd);
         eos_debug("removing/unlinking location %u", location);
       }
     }
