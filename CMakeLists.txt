@@ -48,7 +48,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #-------------------------------------------------------------------------------
 set(GTEST "${CMAKE_SOURCE_DIR}/unit_tests/googletest/")
 set(GTEST_BINARY_DIR "${CMAKE_BINARY_DIR}/unit_tests/googletest/")
-add_subdirectory("${GTEST}" "${GTEST_BINARY_DIR}")
+add_subdirectory("${GTEST}" "${GTEST_BINARY_DIR}" EXCLUDE_FROM_ALL)
 
 #-------------------------------------------------------------------------------
 # Activate include-what-you-use
