@@ -432,7 +432,7 @@ RWMutex::UnLockWrite()
       ss << eos::common::getStacktrace();
     }
 
-    eos_static_crit(ss.str().c_str());
+    eos_static_crit("%s", ss.str().c_str());
   }
 }
 
@@ -1364,7 +1364,7 @@ RWMutexReadLock::Release()
         ss << eos::common::getStacktrace();
       }
 
-      eos_static_crit(ss.str().c_str());
+      eos_static_crit("%s", ss.str().c_str());
     }
   }
 }
