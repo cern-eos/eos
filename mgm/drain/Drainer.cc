@@ -75,11 +75,11 @@ Drainer::~Drainer()
 bool
 Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
                       eos::common::FileSystem::fsid_t dst_fsid,
-                      std::string& err, bool force)
+                      std::string& err)
 {
   using eos::common::FileSystem;
   FileSystem::fsid_t src_fsid = fs->GetId();
-  eos_info("start draining fsid=%d force=%i", src_fsid, force);
+  eos_info("start draining fsid=%d", src_fsid);
   FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
@@ -117,14 +117,9 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
     });
 
     if (it != it_drainfs->second.end()) {
-      if (force) {
-        (*it)->ForceRetry();
-        return true;
-      } else {
-        err = SSTR("error: drain has already started for the given fsid="
-                   << src_fsid);
-        return false;
-      }
+      err = SSTR("error: drain has already started for the given fsid="
+                 << src_fsid);
+      return false;
     } else {
       // Check if drain request is not already pending
       auto it_pending = std::find_if(mPending.begin(), mPending.end(),

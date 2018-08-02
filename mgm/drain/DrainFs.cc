@@ -34,6 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 
 using namespace std::chrono;
 
+constexpr std::chrono::seconds DrainFs::sUpdateTimeout;
 constexpr std::chrono::seconds DrainFs::sRefreshTimeout;
 constexpr std::chrono::seconds DrainFs::sStallTimeout;
 
@@ -45,11 +46,12 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool,
                  eos::common::FileSystem::fsid_t dst_fsid):
   mFsId(src_fsid), mTargetFsId(dst_fsid),
   mStatus(eos::common::FileSystem::kNoDrain),
-  mDrainStop(false), mForceRetry(false), mMaxRetries(1), mMaxJobs(10),
+  mDrainStop(false), mMaxRetries(1), mMaxJobs(10),
   mDrainPeriod(0), mThreadPool(thread_pool), mTotalFiles(0ull),
   mLastNumToDrain(0ull), mLastNumFailed(0ull),
   mLastRefreshTime(steady_clock::now()),
-  mLastProgressTime(steady_clock::now())
+  mLastProgressTime(steady_clock::now()),
+  mLastUpdateTime(steady_clock::now())
 {}
 
 //------------------------------------------------------------------------------
@@ -109,19 +111,6 @@ DrainFs::DoIt()
     }
 
     do { // Loop to drain the files
-      if (mForceRetry.load()) {
-        mForceRetry.store(false);
-
-        for (const auto job : mJobsFailed) {
-          job->SetForce();
-          mJobsPending.push_back(job);
-        }
-
-        mJobsFailed.clear();
-        mDrainStart = steady_clock::now();
-        mDrainEnd = mDrainStart + mDrainPeriod;
-      }
-
       auto it_job = mJobsPending.begin();
 
       while ((mJobsRunning.size() <= mMaxJobs.load()) &&
@@ -319,8 +308,8 @@ DrainFs::CollectDrainJobs()
 
   for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);
        (it_fid && it_fid->valid()); it_fid->next()) {
-    mJobsPending.emplace_back(new DrainTransferJob(it_fid->getElement(),
-                              mFsId, mTargetFsId));
+    mJobsPending.emplace_back
+    (new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId));
     ++mTotalFiles;
   }
 
@@ -392,8 +381,17 @@ DrainFs::UpdateProgress()
     is_expired = true;
   }
 
+  // Check if we should do an update, we update every sUpdateTimeout seconds
+  bool do_update = false;
+  auto last_upd = now - mLastUpdateTime;
+
+  if (duration_cast<seconds>(last_upd).count() > sUpdateTimeout.count()) {
+    mLastUpdateTime = now;
+    do_update = true;
+  }
+
   // Update drain display variables
-  if (is_stalled || is_expired || (mLastProgressTime == now)) {
+  if ((is_stalled || is_expired || (mLastProgressTime == now)) && do_update) {
     FileSystem* fs = nullptr;
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 

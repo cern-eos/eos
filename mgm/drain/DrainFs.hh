@@ -125,14 +125,6 @@ public:
             std::future_status::ready);
   }
 
-  //----------------------------------------------------------------------------
-  //! Force retry any failed jobs
-  //----------------------------------------------------------------------------
-  inline void ForceRetry()
-  {
-    mForceRetry.store(true);
-  }
-
 private:
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
@@ -187,13 +179,13 @@ private:
   //---------------------------------------------------------------------------
   void Stop();
 
+  constexpr static std::chrono::seconds sUpdateTimeout {5};
   constexpr static std::chrono::seconds sRefreshTimeout {60};
   constexpr static std::chrono::seconds sStallTimeout {600};
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::FileSystem::eDrainStatus mStatus;
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
-  std::atomic<bool> mForceRetry; ///< Flag to retry failed transfers
   std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
@@ -214,6 +206,8 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mLastRefreshTime;
   //! Last timestamp when drain progress was recorded
   std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
+  //! Last timestamp when drain status was updated
+  std::chrono::time_point<std::chrono::steady_clock> mLastUpdateTime;
 };
 
 EOSMGMNAMESPACE_END

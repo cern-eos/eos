@@ -143,9 +143,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       std::string out_msg;
 
       if (drain_tx > 0) {
-        bool force = (drain_tx == 2);
-
-        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg, force)) {
+        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
           eos_static_err("%s", out_msg.c_str());
           return false;
         }
@@ -202,23 +200,11 @@ FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
   using eos::common::FileSystem;
 
   // Enable draining
-  if (((old_status != FileSystem::kDrain) &&
-       (old_status != FileSystem::kDrainDead) &&
-       (new_status == FileSystem::kDrain)) ||
-      ((old_status == FileSystem::kDrain) &&
-       (old_status == new_status))) {
-    return 1;
-  }
-
-  // Enable forced draining
-  if (((old_status != FileSystem::kDrain) &&
-       (old_status != FileSystem::kDrainDead) &&
-       (new_status == FileSystem::kDrainDead)) ||
-      ((old_status == FileSystem::kDrainDead) &&
-       (old_status == new_status)) ||
-      ((old_status == FileSystem::kDrain) &&
+  if ((old_status != FileSystem::kDrain) &&
+      (old_status != FileSystem::kDrainDead) &&
+      ((new_status == FileSystem::kDrain) ||
        (new_status == FileSystem::kDrainDead))) {
-    return 2;
+    return 1;
   }
 
   // Stop draining

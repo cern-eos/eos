@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
 // @file DrainTransferJob.cc
-// @author Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -43,7 +42,7 @@ void DrainTransferJob::ReportError(const std::string& error)
 {
   eos_err("%s", error.c_str());
   mErrorString = error;
-  mStatus.store(Status::Failed);
+  mStatus = Status::Failed;
 }
 
 //------------------------------------------------------------------------------
@@ -55,7 +54,7 @@ DrainTransferJob::DoIt()
   eos_debug("running drain job fsid_src=%i, fsid_dst=%i, fid=%llu",
             mFsIdSource, mFsIdTarget, mFileId);
   using eos::common::LayoutId;
-  mStatus.store(Status::Running);
+  mStatus = Status::Running;
   FileDrainInfo fdrain;
 
   try {
@@ -70,54 +69,59 @@ DrainTransferJob::DoIt()
     return;
   }
 
-  // Prepare the TPC copy job
-  std::string log_id = LogId::GenerateLogId();
-  XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
-  XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
+  while (true) {
+    // Prepare the TPC copy job
+    std::string log_id = LogId::GenerateLogId();
+    XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
+    XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
-  if (!url_src.IsValid() || !url_dst.IsValid()) {
-    ReportError("msg=\"src/dst drain url is not valid\"");
-    return;
-  }
-
-  XrdCl::PropertyList properties;
-  properties.Set("force", true);
-  properties.Set("posc", false);
-  properties.Set("coerce", false);
-  properties.Set("source", url_src);
-  properties.Set("target", url_dst);
-  properties.Set("sourceLimit", (uint16_t) 1);
-  properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-  properties.Set("parallelChunks", (uint8_t) 1);
-  properties.Set("tpcTimeout",  900);
-
-  // Non-empty files run with TPC only
-  if (fdrain.mProto.size()) {
-    properties.Set("thirdParty", "only");
-  }
-
-  // Create the process job
-  XrdCl::PropertyList result;
-  XrdCl::CopyProcess cpy;
-  cpy.AddJob(properties, &result);
-  XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-  eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
-           url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
-           log_id.c_str(), prepare_st.ToStr().c_str());
-
-  if (prepare_st.IsOK()) {
-    XrdCl::XRootDStatus tpc_st = cpy.Run(0);
-
-    if (!tpc_st.IsOK()) {
-      ReportError(SSTR("tpc_err=" << tpc_st.ToStr() << " logid="  << log_id));
-    } else {
-      eos_info("msg=\"drain successful\" logid=%s",
-               log_id.c_str());
-      mStatus.store(Status::OK);
+    if (!url_src.IsValid() || !url_dst.IsValid()) {
+      break;
     }
-  } else {
-    ReportError(SSTR("msg=\"prepare drain failed\" logid="
-                     << log_id.c_str()));
+
+    XrdCl::PropertyList properties;
+    properties.Set("force", true);
+    properties.Set("posc", false);
+    properties.Set("coerce", false);
+    properties.Set("source", url_src);
+    properties.Set("target", url_dst);
+    properties.Set("sourceLimit", (uint16_t) 1);
+    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+    properties.Set("parallelChunks", (uint8_t) 1);
+    properties.Set("tpcTimeout",  900);
+
+    // Non-empty files run with TPC only
+    if (fdrain.mProto.size()) {
+      properties.Set("thirdParty", "only");
+    }
+
+    // Create the process job
+    XrdCl::PropertyList result;
+    XrdCl::CopyProcess cpy;
+    cpy.AddJob(properties, &result);
+    XrdCl::XRootDStatus prepare_st = cpy.Prepare();
+    eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
+             url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+             log_id.c_str(), prepare_st.ToStr().c_str());
+
+    if (prepare_st.IsOK()) {
+      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
+
+      if (!tpc_st.IsOK()) {
+        eos_err("%s", SSTR("tpc_err=" << tpc_st.ToStr() << " logid=" << log_id));
+      } else {
+        eos_info("msg=\"drain successful\" logid=%s", log_id.c_str());
+        mStatus = Status::OK;
+        break;
+      }
+    } else {
+      eos_err("%s", SSTR("msg=\"prepare drain failed\" logid="
+                         << log_id.c_str()));
+    }
+  }
+
+  if (mStatus != Status::OK) {
+    mStatus = Status::Failed;
   }
 
   return;
@@ -158,8 +162,7 @@ DrainTransferJob::GetFileInfo() const
     }
   } else {
     qclient::QClient* qcl = eos::BackendClient::getInstance(
-                              gOFS->mQdbContactDetails,
-                              "drain");
+                              gOFS->mQdbContactDetails, "drain");
     auto tmp = eos::MetadataFetcher::getFileFromId(*qcl,
                FileIdentifier(mFileId)).get();
     std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
@@ -192,8 +195,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 {
   using eos::common::LayoutId;
   XrdCl::URL url_src;
-  std::ostringstream oss;
-  bool rain_reconstruct = false;
   eos::common::FileSystem::fs_snapshot src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -203,55 +204,57 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
   }
 
-  {
-    // Get source fs snapshot
-    eos::common::FileSystem* fs {nullptr};
+  // First try with the original source
+  if (mTriedSrcs.find(mFsIdSource) == mTriedSrcs.end()) {
+    mTriedSrcs.insert(mFsIdSource);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    // Normal drain operation
     auto it = FsView::gFsView.mIdView.find(mFsIdSource);
 
     if (it == FsView::gFsView.mIdView.end()) {
-      oss << "msg=\"fsid=" << mFsIdSource << " no longer in the list";
-      ReportError(oss.str());
+      ReportError(SSTR("msg=\"fsid=" << mFsIdSource << " no longer in the list"));
       return url_src;
     }
 
     it->second->SnapShotFileSystem(src_snapshot);
+  } else {
+    eos_debug("run transfer using different replica if possible");
 
-    // This is drain dead mode
-    if (mForce) {
-      eos_debug("run transfer using different replica if possible");
+    if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
+        eos::common::LayoutId::kReplica) {
+      // Pick up a new location as the source of the drain
+      bool found = false;
 
-      if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
-          eos::common::LayoutId::kReplica) {
-        // Pick up a new location as the source of the drain
-        bool found = false;
+      for (const auto id : fdrain.mProto.locations()) {
+        if (mTriedSrcs.find(id) == mTriedSrcs.end()) {
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          auto it = FsView::gFsView.mIdView.find(id);
 
-        for (const auto id : fdrain.mProto.locations()) {
-          if (id != mFsIdSource) {
-            auto it = FsView::gFsView.mIdView.find(id);
+          if (it != FsView::gFsView.mIdView.end()) {
+            auto fs = FsView::gFsView.mIdView[id];
+            fs->SnapShotFileSystem(src_snapshot);
+            mTriedSrcs.insert(id);
 
-            if (it != FsView::gFsView.mIdView.end()) {
-              fs = FsView::gFsView.mIdView[id];
-              fs->SnapShotFileSystem(src_snapshot);
-
-              if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
-                found = true;
-                break;
-              }
+            if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
+              found = true;
+              break;
             }
           }
         }
+      }
 
-        if (!found) {
-          oss << "msg=\"fid=" << fdrain.mProto.id() << " has no available replicas"
-              << std::endl;
-          ReportError(oss.str());
-          return url_src;
-        }
+      if (!found) {
+        ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id() <<
+                         " no more replicas available\""));
+        return url_src;
+      }
+    } else {
+      // For RAIN layouts we trigger a reconstruction only once
+      if (mRainReconstruct) {
+        ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id()
+                         << " rain reconstruct already failed\""));
+        return url_src;
       } else {
-        // For RAIN layouts we trigger a reconstruction
-        rain_reconstruct = true;
+        mRainReconstruct = true;
       }
     }
   }
@@ -259,7 +262,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   // Construct the source URL
   std::ostringstream src_params;
 
-  if (rain_reconstruct) {
+  if (mRainReconstruct) {
     src_params << "&mgm.path=" << fdrain.mFullPath
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
@@ -288,15 +291,15 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
   if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
                                         symkey, gOFS->mCapabilityValidity))) {
-    oss << "msg=\"unable to create src capability, errno=" << caprc << "\"";
-    ReportError(oss.str());
+    ReportError(SSTR("msg=\"unable to create src capability, errno=" << caprc
+                     << "\""));
     return url_src;
   }
 
   int cap_len = 0;
   std::ostringstream src_cap;
 
-  if (rain_reconstruct) {
+  if (mRainReconstruct) {
     url_src.SetHostName(gOFS->MgmOfsAlias.c_str());
     url_src.SetPort(gOFS->ManagerPort);
     src_cap << output_cap->Env(cap_len)
@@ -329,7 +332,6 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 {
   using eos::common::LayoutId;
   XrdCl::URL url_dst;
-  bool rain_reconstruct = false;
   eos::common::FileSystem::fs_snapshot dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -337,10 +339,6 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   // Mask block checksums (set to kNone) for replica layouts
   if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
-  } else {
-    if (mForce) {
-      rain_reconstruct = true;
-    }
   }
 
   {
@@ -349,7 +347,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
     eos::common::FileSystem* dst_fs = FsView::gFsView.mIdView[mFsIdTarget];
 
     if (!dst_fs) {
-      ReportError("msg=\"taget file system not found\"");
+      ReportError("msg=\"target file system not found\"");
       return url_dst;
     }
 
@@ -358,7 +356,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 
   std::ostringstream dst_params;
 
-  if (rain_reconstruct) {
+  if (mRainReconstruct) {
     dst_params << "mgm.access=write"
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1&mgm.fid=0"
                << "&mgm.lid=" << target_lid
@@ -431,7 +429,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   url_dst.SetParams(oss_cap.str());
   std::ostringstream oss_path;
   oss_path << "/replicate:"
-           << (rain_reconstruct ? "0" : eos::common::FileId::Fid2Hex(mFileId));
+           << (mRainReconstruct ? "0" : eos::common::FileId::Fid2Hex(mFileId));
   url_dst.SetPath(oss_path.str());
   delete output_cap;
   return url_dst;
