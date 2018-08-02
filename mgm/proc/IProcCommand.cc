@@ -420,15 +420,16 @@ IProcCommand::HasSlot(const eos::console::RequestProto& req_proto)
 {
   static bool init = false;
 
-  // Initialize only one in the beginning
+  // Initialize only once in the beginning
   if (!init) {
-    init  = true;
+    init = true;
 
     for (const auto& type : {
     eos::console::RequestProto::kAcl,
         eos::console::RequestProto::kNs,
         eos::console::RequestProto::kDrain,
         eos::console::RequestProto::kFind,
+        eos::console::RequestProto::kFs,
         eos::console::RequestProto::kRm,
         eos::console::RequestProto::kStagerRm,
         eos::console::RequestProto::kRoute

@@ -368,12 +368,12 @@ DrainFs::UpdateProgress()
   bool is_stalled = (duration_cast<seconds>(duration).count() >
                      sStallTimeout.count());
   eos_debug("msg=\"fsid=%d, timestamp=%llu, last_progress=%llu, is_stalled=%i, "
-            "num_to_drain=%llu, last_num_to_drain=%llu, running=%llu, "
-            "pending=%llu, failed=%llu\"", mFsId,
+            "total_files=%llu, num_to_drain=%llu, last_num_to_drain=%llu, "
+            "running=%llu, pending=%llu, failed=%llu\"", mFsId,
             duration_cast<milliseconds>(now.time_since_epoch()).count(),
             duration_cast<milliseconds>(mLastProgressTime.time_since_epoch()).count(),
-            is_stalled, num_to_drain, mLastNumToDrain, mJobsRunning.size(),
-            mJobsPending.size(), mJobsFailed.size());
+            is_stalled, mTotalFiles, num_to_drain, mLastNumToDrain,
+            mJobsRunning.size(), mJobsPending.size(), mJobsFailed.size());
 
   // Check if drain expired
   if (mDrainPeriod.count() && (mDrainEnd < now)) {
@@ -445,6 +445,7 @@ DrainFs::UpdateProgress()
     fs->SetLongLong("stat.timeleft", time_left, false);
     fs->SetLongLong("stat.drainbytesleft",
                     fs->GetLongLong("stat.statfs.usedbytes"), false);
+    eos_debug("msg=\"fsid=%d, update progress", mFsId);
   }
 
   // Sleep for a longer period since nothing moved in the last 10 min
