@@ -24,6 +24,7 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/ConcurrentQueue.hh"
+#include "common/Logging.hh"
 #include <future>
 
 #ifdef __APPLE__
@@ -35,31 +36,35 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------------
 //! @brief Dynamically scaling pool of threads which will asynchronously execute tasks
 //------------------------------------------------------------------------------------
-class ThreadPool
+class ThreadPool: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------------
   //! @brief Create a new thread pool
   //!
   //! @param threadsMin the minimum and starting number of allocated threads,
-  //! defaults to hardware concurrency
+  //!        defaults to hardware concurrency
   //! @param threadsMax the maximum number of allocated threads,
-  //! defaults to hardware concurrency
+  //!        defaults to hardware concurrency
   //! @param samplingInterval sampling interval in seconds for the waiting jobs,
-  //! required for dynamic scaling, defaults to 10 seconds
-  //! @param samplingNumber number of samples to collect before making a scaling decision,
-  //! scaling decision will be made after samplingInterval * samplingNumber seconds
+  //!        required for dynamic scaling, defaults to 10 seconds
+  //! @param samplingNumber number of samples to collect before making a scaling
+  //!        decision, scaling decision will be made after samplingInterval *
+  //!        samplingNumber seconds
   //! @param averageWaitingJobsPerNewThread the average number of waiting jobs per which
-  //! one new thread should be started, defaults to 10,
-  //! e.g. if in average 27.8 jobs were waiting for execution,
-  //! then 2 new threads will be added to the pool
+  //!        one new thread should be started, defaults to 10,
+  //!        e.g. if in average 27.8 jobs were waiting for execution, then 2 new
+  //!        threads will be added to the pool
+  //! @param name identifier for the thread pool
   //----------------------------------------------------------------------------------
   explicit ThreadPool(unsigned int threadsMin =
                         std::thread::hardware_concurrency(),
                       unsigned int threadsMax = std::thread::hardware_concurrency(),
                       unsigned int samplingInterval = 10,
                       unsigned int samplingNumber = 12,
-                      unsigned int averageWaitingJobsPerNewThread = 10)
+                      unsigned int averageWaitingJobsPerNewThread = 10,
+                      const std::string& identifier = "default"):
+    mId(identifier)
   {
     threadsMax = threadsMin > threadsMax ? threadsMin : threadsMax;
     auto threadPoolFunc = [this] {
@@ -94,6 +99,9 @@ public:
 
         while (true)
         {
+          eos_debug("id=%s, queue_size=%llu, thread_pool_size=%llu",
+          mId.c_str(), mTasks.size(), mThreadPool.size());
+
           if (signalFuture.valid()) {
             if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) ==
             std::future_status::ready) {
@@ -232,6 +240,7 @@ private:
   std::unique_ptr<std::thread> mMaintainerThread;
   std::promise<void> mMaintainerSignal;
   std::atomic_uint mThreadCount {0};
+  std::string mId; ///< Thread pool identifier
 };
 
 EOSCOMMONNAMESPACE_END
