@@ -6,6 +6,7 @@ REST API
 .. toctree::
    :maxdepth: 2
 
+   restapi/putrange
    restapi/format
    restapi/space
    restapi/group
