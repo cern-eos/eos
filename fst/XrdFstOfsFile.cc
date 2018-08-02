@@ -574,7 +574,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // Preset with the last known checksum
-    if (mCheckSum && isRW && !mIsOCchunk) {
+    if (mCheckSum && isRW && !IsChunkedUpload()) {
       eos_info("msg=\"reset init\" file-xs=%s", fMd->mProtoFmd.checksum().c_str());
       mCheckSum->ResetInit(0, openSize, fMd->mProtoFmd.checksum().c_str());
     }
@@ -1088,6 +1088,7 @@ XrdFstOfsFile::close()
     OpaqueString += hexstring;
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
+    eos_info("viaDelete=%d", viaDelete);
 
     if ((viaDelete || writeDelete || remoteDelete) && ((isCreation ||
         IsChunkedUpload()) && (!mFusex))) {
@@ -1343,7 +1344,7 @@ XrdFstOfsFile::close()
             capOpaqueFile += logId;
 
             // Evt. tag as an OC-Chunk commit
-            if (mIsOCchunk) {
+            if (IsChunkedUpload()) {
               // Add the chunk information
               int envlen;
               capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
@@ -1688,7 +1689,7 @@ XrdFstOfsFile::close()
       }
     }
 
-    if ((!mIsOCchunk) && repairOnClose) {
+    if ((!IsChunkedUpload()) && repairOnClose) {
       // Do an upcall to the MGM and ask to adjust the replica of the uploaded file
       XrdOucString OpaqueString = "/?mgm.pcmd=adjustreplica&mgm.path=";
       OpaqueString += mCapOpaque->Get("mgm.path");

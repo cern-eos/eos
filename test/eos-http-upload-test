@@ -49,8 +49,10 @@ rangeupload () {
     let stop=$i+1;
     let stop=$stop*10485760;
     if [ $stop -ge 33554432 ]; then
-      let stop=33554432;
-    fi
+      let stop=33554431;
+    else 
+      let stop=$stop-1;
+    fi 
     echo $checksum start=$start stop=$stop
 
     curl --header "x-upload-checksum: $checksum" --header "x-upload-totalsize: 33554432" --header "x-upload-mtime: 1533100000" --header "x-upload-range: bytes=$start-$stop" -L -X PUT -T $f $DEST_URL$EOS_FN  >> $DIR/$NAME.log 2>&1

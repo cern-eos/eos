@@ -379,10 +379,29 @@ HttpHandler::Put(eos::common::HttpRequest* request)
   bool checksumError = false;
   bool checksumMatch = false;
 
+  if (mRangeDecodingError) {
+    mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+    mErrText = "Illegal Range request";
+  } else {
+    if (mRangeRequest) {
+      auto it = mOffsetMap.begin();
+
+      if ((it->second) != (off_t)std::stoul(
+            request->GetHeaders()["content-length"])) {
+        mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+        mErrText = "Illegal Range request - not matching content length";
+        eos_static_err("range: [%lu:%lu] content-length: %lu", it->first, it->second,
+                       std::stoul(request->GetHeaders()["content-length"]));
+      }
+    }
+  }
+
   if (mErrCode) {
     eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode,
                    mErrText.c_str());
     response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+    delete mFile;
+    mFile = 0;
     return response;
   }
 
@@ -495,6 +514,16 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           ((off_t) std::stoul(request->GetHeaders()["x-upload-totalsize"]) ==
            mCurrentCallbackOffset)) {
         mLastChunk = true;
+      }
+
+      if (!mUploadLeftSize) {
+        if (request->GetHeaders()["x-upload-done"] == "true") {
+          mLastChunk = true;
+        }
+
+        if (request->GetHeaders()["x-upload-done"] == "false") {
+          mLastChunk = false;
+        }
       }
 
       eos_static_debug("c-offset=%lu body-size=%lu ranget-offset=%lu range-size=%lu last-chunk=%d",
