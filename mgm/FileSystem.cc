@@ -150,12 +150,12 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       } else if (drain_tx < 0) {
         if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
           eos_static_err("%s", out_msg.c_str());
-          return false;
         }
       }
     }
   } else {
     eos_static_info("fsid=%d, unknown drain type", GetId());
+    return true;
   }
 
   std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
