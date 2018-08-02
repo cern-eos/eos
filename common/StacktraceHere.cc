@@ -29,47 +29,49 @@
 #include "common/backward-cpp/backward.hpp"
 #endif
 
-namespace {
-  std::mutex mtx;
+namespace
+{
+std::mutex mtx;
 }
 
 EOSCOMMONNAMESPACE_BEGIN
 
 #ifdef __APPLE__
-std::string getStacktrace() {
+std::string getStacktrace()
+{
   return "No stacktrack available on this platform";
 }
 #else
-std::string getStacktrace() {
-  if(getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
-    return "backward disabled through environment variable EOS_DISABLE_BACKWARD_STACKTRACE";
+std::string getStacktrace()
+{
+  if (getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
+    std::lock_guard<std::mutex> lock(mtx);
+    std::ostringstream ss;
+    backward::StackTrace st;
+    st.load_here(128);
+    backward::Printer p;
+    p.object = true;
+    p.address = true;
+    p.print(st, ss);
+    return ss.str();
+  } else {
+    return "backward disabled";
   }
-
-  std::lock_guard<std::mutex> lock(mtx);
-
-  std::ostringstream ss;
-  backward::StackTrace st;
-  st.load_here(128);
-  backward::Printer p;
-  p.object = true;
-  p.address = true;
-  p.print(st, ss);
-  return ss.str();
 }
 #endif
 
 
 #ifdef __APPLE__
-void handleSignal(int sig, siginfo_t* si, void* ctx) {
+void handleSignal(int sig, siginfo_t* si, void* ctx)
+{
 }
 #else
-void handleSignal(int sig, siginfo_t* si, void* ctx) {
-  if(getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
-    return;
+void handleSignal(int sig, siginfo_t* si, void* ctx)
+{
+  if (getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
+    std::lock_guard<std::mutex> lock(mtx);
+    backward::SignalHandling::handleSignal(sig, si, ctx);
   }
-
-  std::lock_guard<std::mutex> lock(mtx);
-  backward::SignalHandling::handleSignal(sig, si, ctx);
 }
 #endif
 
