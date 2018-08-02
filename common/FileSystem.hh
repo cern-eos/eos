@@ -432,19 +432,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the drain progress
-  //----------------------------------------------------------------------------
-  bool
-  SetDrainProgress(int percent)
-  {
-    if ((percent < 0) || (percent > 100)) {
-      return false;
-    }
-
-    return SetLongLong("stat.drainprogress", (long long) percent);
-  }
-
-  //----------------------------------------------------------------------------
   //! Store a given statfs struct into the hash representation
   //!
   //! @param statfs struct to read
