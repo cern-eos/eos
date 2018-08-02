@@ -1,0 +1,88 @@
+# ----------------------------------------------------------------------
+# File: eos-http-upload--test
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2018 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+#!/bin/bash
+# usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/
+
+rangeupload () {
+  echo "# Testing HTTP range upload"
+  NAME=$1
+  DIR=/tmp/X-UPLOAD/
+  mkdir -p $DIR
+  rm -f $DIR/$NAME*
+  CHUNK_NUMBER=4
+  dd if=/dev/zero of=$DIR/$NAME bs=1M count=32
+  split -b 10485760 -a 1 -d $DIR/$NAME $DIR/$NAME-chunking-`uuidgen | sed s/-//g`-$CHUNK_NUMBER-
+  echo "# about to upload $DIR/$NAME"
+  DEST_URL=http://localhost:8000$2
+  echo "# to $DEST_URL"
+  let LAST_CHUNK_NUMBER=$CHUNK_NUMBER-1
+  let i=0
+  UUID=`echo $RANDOM`
+  ok=0
+  checksum=`eos-adler32 $DIR/$NAME | awk '{print $4}' | sed s/=/:/g`;
+
+  for f in `ls $DIR/$NAME-chunking*`; do
+    echo $f
+    EOS_FN=$NAME
+    let start=$i*10485760
+    let stop=$i+1;
+    let stop=$stop*10485760;
+    if [ $stop -ge 33554432 ]; then
+      let stop=33554432;
+    fi
+    echo $checksum start=$start stop=$stop
+
+    curl --header "x-upload-checksum: $checksum" --header "x-upload-totalsize: 33554432" --header "x-upload-mtime: 1533100000" --header "x-upload-range: bytes=$start-$stop" -L -X PUT -T $f $DEST_URL$EOS_FN  >> $DIR/$NAME.log 2>&1
+
+  
+    let i=$i+1
+
+  done
+
+  sleep 1  
+  if [ $ok -eq 0 ]; then
+    curl -v -i $DEST_URL$EOS_FN >> $DIR/$NAME.log 2>&1
+    ok=$?
+    echo HEAD request on $DIR/$NAME gave error=$ok
+  fi
+
+  if [ $ok -eq 0 ]; then 
+    cks=`echo $checksum|sed s/adler32://g`;
+    cat $DIR/$NAME.log | grep ETag | grep $cks >& /dev/null
+    ok=$?
+    echo CHECKSUM verification on $DIR/$NAME gave error=$ok
+  fi
+
+  return $ok;
+}
+
+if [ "$1" = "rangeupload" ]; then
+  rangeupload $2 $3;
+  exit $?
+else
+  echo "usage:  eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/"
+fi
+
+exit -1
+

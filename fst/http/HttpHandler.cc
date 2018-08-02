@@ -40,9 +40,8 @@ XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
 
-
 /*----------------------------------------------------------------------------*/
-HttpHandler::~HttpHandler ()
+HttpHandler::~HttpHandler()
 {
   if (mFile) {
     delete mFile;
@@ -83,13 +82,29 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     XrdOucString openUrl = request->GetUrl().c_str();
     XrdOucString query = request->GetQuery().c_str();
 
+    if (request->GetHeaders().count("x-upload-range")) {
+      // we need to indicate to XrdFstOfsFile that this is a partial upload
+      query += "&x-upload-range=";
+      query += request->GetHeaders()["x-upload-range"].c_str();
+    }
+
     if (request->GetMethod() == "PUT") {
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
 
+      if (EOS_LOGS_DEBUG) {
+        for (auto it = request->GetHeaders().begin(); it != request->GetHeaders().end();
+             ++it) {
+          eos_static_debug("header %s <=> %s", it->first.c_str(), it->second.c_str());
+        }
+      }
+
       // avoid truncation of chunked uploads
-      if (!request->GetHeaders().count("oc-chunked")) {
+      if (!request->GetHeaders().count("oc-chunked") &&
+          !request->GetHeaders().count("x-upload-range")) {
         open_mode |= SFS_O_TRUNC;
+      } else {
+        eos_static_info("removing truncation flag");
       }
 
       open_mode |= SFS_O_RDWR;
@@ -133,6 +148,20 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
                            mOffsetMap,
                            mRangeRequestSize,
                            mFileSize)) {
+        // indicate range decoding error
+        mRangeDecodingError = true;
+      } else {
+        mRangeRequest = true;
+      }
+    }
+
+    // check for range requests
+    if (request->GetHeaders().count("x-upload-range") &&
+        request->GetHeaders().count("x-upload-totalsize")) {
+      if (!DecodeByteRange(request->GetHeaders()["x-upload-range"],
+                           mOffsetMap,
+                           mRangeRequestSize,
+                           std::stoul(request->GetHeaders()["x-upload-totalsize"]))) {
         // indicate range decoding error
         mRangeDecodingError = true;
       } else {
@@ -283,10 +312,11 @@ HttpHandler::Get(eos::common::HttpRequest* request)
           while (checksum_val[0] == '0') {
             checksum_val.erase(0, 1);
           }
-          std::string checksum_string = eos::common::OwnCloud::GetChecksumString(checksum_name,
-                                  checksum_val);
+
+          std::string checksum_string = eos::common::OwnCloud::GetChecksumString(
+                                          checksum_name,
+                                          checksum_val);
           response->AddHeader("OC-Checksum", checksum_string);
-          response->AddHeader("Digest", checksum_string);
         }
       }
 
@@ -340,10 +370,11 @@ HttpHandler::Head(eos::common::HttpRequest* request)
 eos::common::HttpResponse*
 HttpHandler::Put(eos::common::HttpRequest* request)
 {
-  eos_static_info("method=PUT offset=%llu size=%llu size_ptr=%llu",
+  eos_static_info("method=PUT offset=%llu size=%llu size_ptr=%llu range-map-size:%u",
                   mCurrentCallbackOffset,
                   request->GetBodySize() ? *request->GetBodySize() : 0,
-                  request->GetBodySize());
+                  request->GetBodySize(),
+                  mOffsetMap.size());
   eos::common::HttpResponse* response = 0;
   bool checksumError = false;
   bool checksumMatch = false;
@@ -450,6 +481,27 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       }
     }
 
+    // check for content range PUT
+    if (mOffsetMap.size() == 1) {
+      auto it = mOffsetMap.begin();
+
+      // there is a range header
+      if (mUploadLeftSize == mContentLength) {
+        // place the offset to the initial range
+        mCurrentCallbackOffset = it->first;
+      }
+
+      if (!mUploadLeftSize &&
+          ((off_t) std::stoul(request->GetHeaders()["x-upload-totalsize"]) ==
+           mCurrentCallbackOffset)) {
+        mLastChunk = true;
+      }
+
+      eos_static_debug("c-offset=%lu body-size=%lu ranget-offset=%lu range-size=%lu last-chunk=%d",
+                       mCurrentCallbackOffset, *request->GetBodySize(), it->first, it->second,
+                       mLastChunk);
+    }
+
     // File streaming in
     size_t* bodySize = request->GetBodySize();
 
@@ -489,13 +541,22 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       eos_static_info("entering close handler");
       eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
 
+      if (header.count("x-upload-mtime")) {
+        header["x-oc-mtime"] = header["x-upload-mtime"];
+      }
+
+      if (mOffsetMap.size()) {
+        header["oc-chunked"] = "true";
+      }
+
       if (header.count("x-oc-mtime")) {
         // there is an X-OC-Mtime header to force the mtime for that file
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
-      if ((!mLastChunk) && (request->GetHeaders().count("oc-chunked"))) {
-        // WARNING: this assumes that chunks are uploaded in order
+      if ((!mLastChunk) &&
+          (header.count("oc-chunked"))) {
+        // WARNING: this assumes that the last chunk is the last uploaded
         std::string cmd = "nochecksum";
 
         if (mFile->fctl(SFS_FCTL_SPEC1, cmd.length(), cmd.c_str(), 0)) {
@@ -506,14 +567,16 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           mFile = 0;
           return response;
         }
+      } else {
+        eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
+                         mFile->GetChecksum());
       }
 
       // retrieve a checksum when file is still open
       eos::common::OwnCloud::checksum_t checksum;
 
       if (mFile->GetChecksum()) {
-        if (header.count("x-oc-mtime") &&
-            (mLastChunk || (!request->GetHeaders().count("oc-chunked")))) {
+        if (mLastChunk || (!header.count("oc-chunked"))) {
           // Call explicitly the checksum verification
           mFile->verifychecksum();
           std::string checksum_name = mFile->GetChecksum()->GetName();
@@ -528,7 +591,8 @@ HttpHandler::Put(eos::common::HttpRequest* request)
                        checksum_val);
           // inspect if there is checksum provided
           eos::common::OwnCloud::checksum_t client_checksum =
-            eos::common::OwnCloud::GetChecksum(request);
+            eos::common::OwnCloud::GetChecksum(request,
+                                               header.count("x-upload-checksum") ? "x-upload-checksum" : "oc-checksum");
           eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
                            "server-checksum-type=%s server-checksum-value=%s",
                            client_checksum.first.c_str(),
@@ -550,15 +614,15 @@ HttpHandler::Put(eos::common::HttpRequest* request)
               }
 
               checksumMatch = true;
+            } else {
+              eos_static_warning("msg=\"client required different checksum\" "
+                                 "client-checksum-type=%s client-checksum-value=%s "
+                                 "server-checksum-type=%s server-checksum-value=%s",
+                                 client_checksum.first.c_str(),
+                                 client_checksum.second.c_str(),
+                                 checksum.first.c_str(),
+                                 checksum.second.c_str());
             }
-          } else {
-            eos_static_warning("msg=\"client required different checksum\" "
-                               "client-checksum-type=%s client-checksum-value=%s "
-                               "server-checksum-type=%s server-checksum-value=%s",
-                               client_checksum.first.c_str(),
-                               client_checksum.second.c_str(),
-                               checksum.first.c_str(),
-                               checksum.second.c_str());
           }
         }
       }
@@ -584,17 +648,34 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         response = new eos::common::PlainHttpResponse();
 
         if (header.count("x-oc-mtime") && (mLastChunk ||
-                                           (!request->GetHeaders().count("oc-chunked")))) {
+                                           (!header.count("oc-chunked")))) {
           response->AddHeader("ETag", mFile->GetETag());
-          // only normal uploads or the last chunk receive these extra response headers
-          response->AddHeader("X-OC-Mtime", "accepted");
-          // return the OC-FileId header
-          std::string ocid;
-          eos::common::StringConversion::GetSizeString(ocid, eos::common::FileId::FidToInode(mFileId));
-          response->AddHeader("OC-FileId", ocid);
 
-          if (checksumMatch && request->GetHeaders().count("oc-checksum")) {
-            response->AddHeader("OC-Checksum", request->GetHeaders()["oc-checksum"]);
+          // only normal uploads or the last chunk receive these extra response headers
+          if (!mOffsetMap.size()) {
+            response->AddHeader("X-OC-Mtime", "accepted");
+            // return the OC-FileId header
+            std::string ocid;
+            eos::common::StringConversion::GetSizeString(ocid,
+                eos::common::FileId::FidToInode(mFileId));
+            response->AddHeader("OC-FileId", ocid);
+
+            if (checksumMatch && request->GetHeaders().count("oc-checksum")) {
+              response->AddHeader("OC-Checksum", request->GetHeaders()["oc-checksum"]);
+            }
+          } else {
+            // PUT with range
+            time_t mtime = mFile->GetMtime();
+            response->AddHeader("Last-Modified", eos::common::Timing::utctime(mtime));
+            std::string inode;
+            eos::common::StringConversion::GetSizeString(inode,
+                eos::common::FileId::FidToInode(mFileId));
+            response->AddHeader("x-eos-inode", inode);
+
+            if (checksumMatch && request->GetHeaders().count("x-upload-checksum")) {
+              response->AddHeader("x-eos-checksum",
+                                  request->GetHeaders()["x-upload-checksum"]);
+            }
           }
         }
 

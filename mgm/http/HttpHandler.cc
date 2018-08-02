@@ -762,6 +762,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
   // Classify path to split between directory or file objects
   bool isfile = true;
   bool isOcChunked = false;
+  bool isPartialPut = false;
   std::map<std::string, std::string> ocHeader;
   eos::common::HttpResponse* response = 0;
   XrdOucString spath = request->GetUrl().c_str();
@@ -781,6 +782,11 @@ HttpHandler::Put(eos::common::HttpRequest* request)
     if (response) {
       return response;
     }
+  }
+
+  if (request->GetHeaders().count("x-upload-range")) {
+    // this is a partial put, we have to remove the truncate flag
+    isPartialPut = true;
   }
 
   std::string etag;
@@ -820,8 +826,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
     if (file) {
       XrdSfsFileOpenMode open_mode = 0;
       mode_t create_mode = 0;
+
       // use the proper creation/open flags for PUT's
-      open_mode |= SFS_O_TRUNC;
+      if (!isPartialPut) {
+        open_mode |= SFS_O_TRUNC;
+      }
+
       open_mode |= SFS_O_RDWR;
       create_mode |= (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
       std::string query;
@@ -837,7 +847,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           query += request->GetHeaders()["content-length"];
         }
 
-        if (!isOcChunked) {
+        if (!isOcChunked && !isPartialPut) {
           query += "&eos.targetsize=";
           query += request->GetHeaders()["content-length"];
         }
@@ -849,6 +859,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         // there is an X-OC-Mtime header to force the mtime for that file
         query += "&eos.mtime=";
         query += request->GetHeaders()["x-oc-mtime"];
+      }
+
+      if (request->GetHeaders().count("x-upload-mtime")) {
+        // there is an x-upload-mtime header to force the mtime for that file
+        query += "&eos.mtime=";
+        query += request->GetHeaders()["x-upload-mtime"];
       }
 
       if (isOcChunked) {

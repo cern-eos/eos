@@ -2741,6 +2741,12 @@ XrdFstOfsFile::ProcessOpenOpaque()
     mIsOCchunk = true;
   }
 
+  if ((val = mOpenOpaque->Get("x-upload-range"))) {
+    // for partial range uploads via HTTP we run the same buisness logic like
+    // for OC chunk uploads
+    mIsOCchunk = true;
+  }
+
   // Check if transfer is still valid to avoid any open replays
   if ((val = mOpenOpaque->Get("fst.valid"))) {
     try {

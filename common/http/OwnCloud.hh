@@ -181,13 +181,14 @@ public:
 
   typedef std::pair<std::string, std::string> checksum_t;
 
-  static checksum_t GetChecksum(HttpRequest* request)
+  static checksum_t GetChecksum(HttpRequest* request,
+                                std::string headertag = "oc-checksum")
   {
-    if (!request->GetHeaders().count("oc-checksum")) {
+    if (!request->GetHeaders().count(headertag)) {
       return std::make_pair<std::string, std::string>("", "");
     }
 
-    std::string checksum_data = request->GetHeaders()["oc-checksum"];
+    std::string checksum_data = request->GetHeaders()[headertag];
     std::string checksum_type = checksum_data;
     std::string checksum_value = checksum_data;
     size_t epos = checksum_data.find(":");
