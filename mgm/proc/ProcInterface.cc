@@ -38,7 +38,7 @@ std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
     ProcInterface::mMapCmds;
 eos::common::ThreadPool ProcInterface::sProcThreads(
   std::max(std::thread::hardware_concurrency() / 10, 4u),
-  std::max(std::thread::hardware_concurrency() / 4, 64u)
+  std::max(std::thread::hardware_concurrency() / 4, 256u)
 );
 
 //------------------------------------------------------------------------------
