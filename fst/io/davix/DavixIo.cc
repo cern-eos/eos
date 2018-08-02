@@ -321,7 +321,7 @@ DavixIo::fileOpen(
     mCreated = true;
   }
 
-  if (mFd > 0) {
+  if (mFd != NULL) {
     return 0;
   }
 
@@ -947,7 +947,8 @@ DavixIo::ftsOpen()
     XrdOucString fname = ent->d_name;
 
     // Skip attribute files
-    if (fname.beginswith(".") && fname.endswith(".xattr")) {
+    if ((fname.beginswith(".") && fname.endswith(".xattr")) ||
+        (fname == DAVIX_QUOTA_FILE)) {
       continue;
     }
 
@@ -956,13 +957,14 @@ DavixIo::ftsOpen()
       fname += mOpaque.c_str();
     }
 
+    std::string fullPath = filePath + fname.c_str();
+
     if (ent->d_type == DT_REG) {
-      handle->files.push_back(filePath + fname.c_str());
+      handle->files.push_back(fullPath);
     } else if (ent->d_type == DT_DIR) {
-      handle->directories.push_back(filePath + fname.c_str());
+      handle->directories.push_back(fullPath);
     } else {
-      eos_warning("url=\"%s\" msg=\"unknown file type\"",
-                  filePath + fname.c_str());
+      eos_warning("url=\"%s\" msg=\"unknown file type\"", fullPath.c_str());
     }
   }
 
@@ -1011,7 +1013,7 @@ DavixIo::ftsRead(FileIo::FtsHandle* fts_handle)
       delete dirHandle;
       return ftsRead(fts_handle);
     } else {
-      eos_err("url=\"%s\" msg=\"%unable to open directory\"", newDir);
+      eos_err("url=\"%s\" msg=\"unable to open directory\"", newDir.c_str());
     }
   }
 
@@ -1039,7 +1041,8 @@ int
 DavixIo::Statfs(struct statfs* sfs)
 {
   eos_debug("msg=\"davixio class statfs called\"");
-  std::string url = mFilePath;;
+
+  std::string url = mFilePath;
   url += (url[url.length() - 1] != '/') ? "/" : "";
   url += DAVIX_QUOTA_FILE;
   std::string opaque;
