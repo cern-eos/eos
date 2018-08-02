@@ -32,6 +32,8 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::atomic_uint_least64_t IProcCommand::uuid{0};
+std::map<eos::console::RequestProto::CommandCase, std::atomic<uint64_t>>
+    IProcCommand::mCmdsExecuting;
 
 //------------------------------------------------------------------------------
 // Open a proc command e.g. call the appropriate user or admin command and
@@ -47,8 +49,14 @@ IProcCommand::open(const char* path, const char* info,
   int delay = 5;
 
   if (!mExecRequest) {
-    LaunchJob();
-    mExecRequest = true;
+    if (HasSlot(mReqProto)) {
+      LaunchJob();
+      mExecRequest = true;
+    } else {
+      eos_notice("%s", SSTR("cmd_type=" << mReqProto.command_case() <<
+                            " no more slots, stall client 3 seconds").c_str());
+      return delay - 2;
+    }
   }
 
   if (mFuture.wait_for(std::chrono::seconds(delay)) !=
@@ -58,7 +66,6 @@ IProcCommand::open(const char* path, const char* info,
     eos_notice("%s", msg.c_str());
     error->setErrInfo(0, msg.c_str());
     return delay;
-    // @todo (esindril): Investigate how SFS_STARTED would behave in such a case
   } else {
     eos::console::ReplyProto reply = mFuture.get();
 
@@ -88,6 +95,7 @@ IProcCommand::open(const char* path, const char* info,
     }
   }
 
+  --mCmdsExecuting[mReqProto.command_case()];
   return SFS_OK;
 }
 
@@ -402,6 +410,49 @@ IProcCommand::IsOperationForbidden(const char* inpath)
 {
   PROC_BOUNCE_NOT_ALLOWED;
   return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Check if there is still an available slot for the current type of command
+//------------------------------------------------------------------------------
+bool
+IProcCommand::HasSlot(const eos::console::RequestProto& req_proto)
+{
+  static bool init = false;
+
+  // Initialize only one in the beginning
+  if (!init) {
+    init  = true;
+
+    for (const auto& type : {
+    eos::console::RequestProto::kAcl,
+        eos::console::RequestProto::kNs,
+        eos::console::RequestProto::kDrain,
+        eos::console::RequestProto::kFind,
+        eos::console::RequestProto::kRm,
+        eos::console::RequestProto::kStagerRm,
+        eos::console::RequestProto::kRoute
+  }) {
+      mCmdsExecuting.emplace(type, 0ull);
+    }
+  }
+
+  uint64_t slot_limit {50};
+  auto it = mCmdsExecuting.find(req_proto.command_case());
+
+  if (it == mCmdsExecuting.end()) {
+    // This should not happen unless you forgot to populate the map in the
+    // section above
+    mCmdsExecuting[req_proto.command_case()] = 1;
+  } else {
+    if (it->second >= slot_limit) {
+      return false;
+    } else {
+      ++it->second;
+    }
+  }
+
+  return true;
 }
 
 EOSMGMNAMESPACE_END

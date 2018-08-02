@@ -222,6 +222,21 @@ protected:
   //----------------------------------------------------------------------------
   int IsOperationForbidden(const char* inpath);
 
+  //----------------------------------------------------------------------------
+  //! Check if there is still an available slot for the current type of command
+  //! in the queue served by the thread pool
+  //!
+  //! @param req_proto command request proto
+  //!
+  //! @return true if command can be queued, otherwise false
+  //----------------------------------------------------------------------------
+  static bool HasSlot(const eos::console::RequestProto& req_proto);
+
+  static std::atomic_uint_least64_t uuid;
+  //! Map of command types to number of commands actually queued
+  static std::map<eos::console::RequestProto::CommandCase,
+         std::atomic<uint64_t>> mCmdsExecuting;
+
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
@@ -243,7 +258,6 @@ protected:
   bool readStdOutStream {false};
   bool readStdErrStream {false};
   bool readRetcStream {false};
-  static std::atomic_uint_least64_t uuid;
 };
 
 EOSMGMNAMESPACE_END
