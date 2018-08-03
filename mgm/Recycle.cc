@@ -1272,7 +1272,7 @@ Recycle::Purge(XrdOucString& stdOut, XrdOucString& stdErr,
       !vid.sudoer &&
       !(eos::common::Mapping::HasUid(3, vid.uid_list)) &&
       !(eos::common::Mapping::HasGid(4, vid.gid_list))) {
-    stdErr = "error: you cannot purge your recycle bin without being a sudor or having an admin role";
+    stdErr = "error: you cannot purge your new recycle bin without being a sudor or having an admin role";
     return EPERM;
   }
 
