@@ -106,20 +106,7 @@ fi
 # Now test the draindead mode, for this we simulate a fmd open error on the
 # targeted file system
 eos node config eos-fst4-test.eoscluster.cern.ch:1095 error.simulation=fmd_open
-eos fs config 4 configstatus=drain
-# Sleep 2 min - 1 for the prepare phase and 1 to give a chance to the normal
-# drain to have a go at it.
-sleep 2m
-
-eos fs ls | grep " 4 " | grep "empty" | grep "nodrain"
-
-if [[ $? -eq 0 ]]; then
-    echo "unexpected: file system 4 is drained?!"
-    exit 1
-fi
-
 eos fs config 4 configstatus=draindead
-
 eos fs ls | grep " 4 " | grep "draindead" | grep "prepare\|draining"
 
 while [[ $? -eq 0 ]]; do
