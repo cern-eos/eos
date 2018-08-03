@@ -250,6 +250,32 @@ NsHelper::ParseCommand(const char* arg)
         }
       }
     }
+  } else if (cmd == "recompute_quotanode") {
+    using eos::console::NsProto_QuotaSizeProto;
+    NsProto_QuotaSizeProto* quota = ns->mutable_quota();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      while (true) {
+        int pos = 0;
+        soption = option;
+
+        if ((soption.find("cid:") == 0)) {
+          pos = soption.find(':') + 1;
+          quota->mutable_container()->set_cid(soption.substr(pos));
+        } else if (soption.find("cxid:") == 0) {
+          pos = soption.find(':') + 1;
+          quota->mutable_container()->set_cxid(soption.substr(pos));
+        } else { // this should be a plain path
+          quota->mutable_container()->set_path(soption);
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
   } else if (cmd == "cache") {
     eos::console::NsProto_CacheProto* cache = ns->mutable_cache();
 
@@ -401,6 +427,12 @@ void com_ns_help()
       << "    recompute the tree size of a directory and all its subdirectories"
       << std::endl
       << "    --depth : maximum depth for recomputation, default 0 i.e no limit"
+      << std::endl
+      << std::endl
+      << "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>"
+      << std::endl
+      << "    recompute the specified quotanode"
+      << std::endl
       << std::endl
       << std::endl
       << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl

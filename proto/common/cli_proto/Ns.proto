@@ -62,6 +62,10 @@ message NsProto {
     ContainerSpecificationProto container = 2;
   }
 
+  message QuotaSizeProto {
+    ContainerSpecificationProto container = 1;
+  }
+
   message CacheProto {
     enum OpType {
       SET_FILE  = 0;
@@ -83,5 +87,6 @@ message NsProto {
     MasterProto master   = 4;
     TreeSizeProto tree   = 5;
     CacheProto cache     = 6;
+    QuotaSizeProto quota = 7;
   }
 }

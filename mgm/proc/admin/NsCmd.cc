@@ -32,6 +32,7 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/Resolver.hh"
+#include "namespace/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
@@ -64,6 +65,8 @@ NsCmd::ProcessRequest()
     TreeSizeSubcmd(ns.tree(), reply);
   } else if (subcmd == eos::console::NsProto::kCache) {
     CacheSubcmd(ns.cache(), reply);
+  } else if (subcmd == eos::console::NsProto::kQuota) {
+    QuotaSizeSubcmd(ns.quota(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -551,9 +554,7 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
-  using eos::console::NsProto_TreeSizeProto;
   eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -587,6 +588,35 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
       UpdateTreeSize(tmp_cont);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Execute quota size recompute comand
+//------------------------------------------------------------------------------
+void
+NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
+                      eos::console::ReplyProto& reply)
+{
+  std::shared_ptr<IContainerMD> cont;
+
+  try {
+    cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
+  }
+  catch(const eos::MDException& e) {
+    reply.set_std_err(SSTR(e.what()));
+    reply.set_retc(e.getErrno());
+    return;
+  }
+
+  if( (cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+    reply.set_std_err("Specified directory is not a quota node.");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  reply.set_std_err("TODO LOL");
+  reply.set_retc(EINVAL);
+  return;
 }
 
 //------------------------------------------------------------------------------

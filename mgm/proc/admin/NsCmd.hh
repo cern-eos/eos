@@ -104,6 +104,15 @@ private:
                       eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Execute quota size recompute
+  //!
+  //! @param quota size subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
+                      eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Execute cache update command
   //!
   //! @param cache cache subcommand proto object
