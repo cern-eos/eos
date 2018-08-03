@@ -39,6 +39,7 @@ com_recycle(char* arg1)
   std::vector<std::string> options;
   bool monitoring = false;
   bool translateids = false;
+  bool globaloption = false;
   XrdOucString subcmd = subtokenizer.GetToken();
 
   if (wants_help(arg1)) {
@@ -73,7 +74,11 @@ com_recycle(char* arg1)
         if (param == "-n") {
           translateids = true;
         } else {
-          options.push_back(param.c_str());
+          if (param == "-g") {
+            globaloption = true;
+          } else {
+            options.push_back(param.c_str());
+          }
         }
       }
     } else {
@@ -85,15 +90,15 @@ com_recycle(char* arg1)
     goto com_recycle_usage;
   }
 
-  if ((subcmd == "ls") && args.size()) {
+  if ((subcmd == "ls") && (args.size() && globaloption)) {
     goto com_recycle_usage;
   }
 
-  if ((subcmd == "purge") && options.size()) {
+  if ((subcmd == "purge") && (options.size() && !globaloption)) {
     goto com_recycle_usage;
   }
 
-  if ((subcmd == "purge") && args.size()) {
+  if ((subcmd == "purge") && (args.size() && globaloption)) {
     goto com_recycle_usage;
   }
 
@@ -162,6 +167,10 @@ com_recycle(char* arg1)
     in += "&mgm.recycle.printid=n";
   }
 
+  if (globaloption) {
+    in += "&mgm.recycle.global=1";
+  }
+
   global_retc = output_result(client_command(in));
   return (0);
 com_recycle_usage:
@@ -171,13 +180,25 @@ com_recycle_usage:
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "recycle :\n");
   fprintf(stdout,
-          "                                                  print status of recycle bin and if executed by root the recycle bin configuration settings.\n");
-  fprintf(stdout, "recycle ls :\n");
+          "                                                  print status of recycle bin and if executed by root the recycle bin configuration settings.\n\n");
+  fprintf(stdout, "recycle ls [date]:\n");
   fprintf(stdout,
           "                                                  list files in the recycle bin\n");
-  fprintf(stdout, "recycle purge :\n");
+  fprintf(stdout,
+          "                                                  [date] can be <year>,<year>/<month> or <year>/<month>/<day>\n");
+  fprintf(stdout,
+          "                                                  e.g.: recycle purge 2018/08/12\n\n");
+  fprintf(stdout, "recycle purge [-g|<date>]:\n");
   fprintf(stdout,
           "                                                  purge files in the recycle bin\n");
+  fprintf(stdout,
+          "                                                 -g : empties the recycle bin of all users\n");
+  fprintf(stdout,
+          "                                                  [date] can be <year>, <year>/<month>  or <year>/<month>/<day>\n");
+  fprintf(stdout,
+          "                                                  e.g.: recycle purge 2018/03/05\n");
+  fprintf(stdout,
+          "                                                  -g cannot be combined with a date restriction\n\n");
   fprintf(stdout,
           "recycle restore [--force-original-name|-f] [--restore-versions|-r] <recycle-key> :\n");
   fprintf(stdout,
@@ -185,7 +206,7 @@ com_recycle_usage:
   fprintf(stdout,
           "       --force-original-name : move's deleted files/dirs back to the original location (otherwise the key entry will have a <.inode> suffix\n");
   fprintf(stdout,
-          "       --restore-versions    : restore all previous versions of a file\n");
+          "       --restore-versions    : restore all previous versions of a file\n\n");
   fprintf(stdout, "recycle config --add-bin <sub-tree>:\n");
   fprintf(stdout,
           "                                                  configures to use the recycle bin for deletions in <sub-tree>\n");

@@ -59,6 +59,11 @@ public:
     Init(path);
   }
 
+  Path(std::string path)
+  {
+    Init(path.c_str());
+  }
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -95,11 +100,13 @@ public:
   //----------------------------------------------------------------------------
   //! Return constracted path replacing all '/' with '::'
   //----------------------------------------------------------------------------
-  std::string 
+  std::string
   GetContractedPath()
   {
     XrdOucString contractedpath = GetPath();
-    while (contractedpath.replace("/","::")) {}
+
+    while (contractedpath.replace("/", "::")) {}
+
     return contractedpath.c_str();
   }
 
@@ -327,7 +334,7 @@ public:
     struct stat buf;
 
     if (stat(GetParentPath(), &buf)) {
-      for (int i = GetSubPathSize()-1; i >= 0; i--) {
+      for (int i = GetSubPathSize() - 1; i >= 0; i--) {
         // go backwards until the directory exists
         if (!stat(GetSubPath(i), &buf)) {
           // this exists

@@ -68,10 +68,10 @@ public:
   //! Default Constructor - use it to run the Recycle thread by callign Start
   //! afterwards.
   //----------------------------------------------------------------------------
-  Recycle():
+
+  Recycle() :
     mThread(0), mPath(""), mRecycleDir(""), mRecyclePath(""),
-    mOwnerUid(99), mOwnerGid(99), mId(0), mWakeUp(false)
-  {}
+    mOwnerUid(99), mOwnerGid(99), mId(0), mWakeUp(false) { }
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -81,13 +81,13 @@ public:
   //! @param gid group id
   //! @param id of the container or file
   //----------------------------------------------------------------------------
+
   Recycle(const char* path, const char* recycledir,
           eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid,
-          gid_t ownerGid, unsigned long long id):
+          gid_t ownerGid, unsigned long long id) :
     mThread(0), mPath(path), mRecycleDir(recycledir),
     mRecyclePath(""), mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id),
-    mWakeUp(false)
-  {}
+    mWakeUp(false) { }
 
   ~Recycle()
   {
@@ -121,6 +121,17 @@ public:
    */
   int ToGarbage(const char* epname, XrdOucErrInfo& error);
 
+
+  /**
+   * @parame epname error printing name
+   * @param error error object
+   * @param recyclepath computed by this function
+   * @param index if -1, a new index directory will be created, otherwise the given one will be returned
+   * @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
+   */
+  int GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
+                       std::string& recyclepath, int index = -1);
+
   /**
    * return the path from where the action can be recycled ( this is filled after ToGarbage has been called
    * @return string with the path name in the recycle bin
@@ -139,10 +150,27 @@ public:
    * @param vid of the client
    * @param monitoring selects monitoring key-value output format
    * @param translateids selects to display uid/gid as number or string
+   * @param global show files of all users as root
+   * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
    */
   static void Print(XrdOucString& stdOut, XrdOucString& stdErr,
                     eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
-                    bool transalteids, bool details);
+                    bool transalteids, bool details,
+                    std::string date = "",
+                    bool global = false
+                   );
+
+  /**
+   * print the recycle bin contents
+   * @param stdOut where to print
+   * @param stdErr where to print
+   * @param vid of the client
+   * @param monitoring selects monitoring key-value output format
+   * @param translateids selects to display uid/gid as number or string
+   */
+  static void PrintOld(XrdOucString& stdOut, XrdOucString& stdErr,
+                       eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+                       bool transalteids, bool details);
 
   /**
    * undo a deletion
@@ -158,14 +186,26 @@ public:
                      XrdOucString& options);
 
   /**
-   * purge all files in the recycle bin
+   * purge all files in the recycle bin with new uid:<uid>/<date> structure
    * @param stdOut where to print
    * @param stdErr where to print
    * @param vid of the client
+   * @PARAM date can be empty, <year> or <year>/<month> or <year>/<month>/<day>
    * @return 0 if done, otherwise errno
    */
   static int Purge(XrdOucString& stdOut, XrdOucString& stdErr,
-                   eos::common::Mapping::VirtualIdentity_t& vid);
+                   eos::common::Mapping::VirtualIdentity_t& vid,
+                   std::string date = "",
+                   bool global = false);
+
+  /**
+   * purge all files in the recycle bin
+   * @param stdOut where to print
+   * @param stdErr where to print
+   * @return 0 if done, otherwise errno
+   */
+  static int PurgeOld(XrdOucString& stdOut, XrdOucString& stdErr,
+                      eos::common::Mapping::VirtualIdentity_t& vid);
 
   /**
    * configure the recycle bin
@@ -179,7 +219,6 @@ public:
   static int Config(XrdOucString& stdOut, XrdOucString& stdErr,
                     eos::common::Mapping::VirtualIdentity_t& vid, const char* arg,
                     XrdOucString& options);
-
 
   /**
    * set the wake-up flag in the recycle thread to look at modified recycle bin settings

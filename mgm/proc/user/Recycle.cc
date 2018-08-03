@@ -38,12 +38,25 @@ ProcCommand::Recycle()
     XrdOucString monitoring = pOpaque->Get("mgm.recycle.format");
     XrdOucString translateids = pOpaque->Get("mgm.recycle.printid");
     XrdOucString option = pOpaque->Get("mgm.option");
+    XrdOucString global = pOpaque->Get("mgm.recycle.global");
+    XrdOucString date = pOpaque->Get("mgm.recycle.arg");
+
+    if (!date.length()) {
+      Recycle::PrintOld(stdOut, stdErr, *pVid, (monitoring == "m"),
+                        !(translateids == "n"), (mSubCmd == "ls"));
+    }
+
     Recycle::Print(stdOut, stdErr, *pVid, (monitoring == "m"),
-                   !(translateids == "n"), (mSubCmd == "ls"));
+                   !(translateids == "n"), (mSubCmd == "ls"),
+                   date.length() ? date.c_str() : "", global == "1");
   }
 
   if (mSubCmd == "purge") {
-    retc = Recycle::Purge(stdOut, stdErr, *pVid);
+    XrdOucString global = pOpaque->Get("mgm.recycle.global");
+    XrdOucString date = pOpaque->Get("mgm.recycle.arg");
+    Recycle::PurgeOld(stdOut, stdErr, *pVid);
+    retc = Recycle::Purge(stdOut, stdErr, *pVid, date.length() ? date.c_str() : "",
+                          global == "1");
   }
 
   if (mSubCmd == "restore") {

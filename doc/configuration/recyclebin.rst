@@ -188,7 +188,8 @@ kicks in using recycle purge:
    success: purged 1 bulk deletions and 0 individual files from the recycle bin!
 
 Notice that purging only removes files of the current uid/gid role. 
-Running as **root** does not purge the recycle bin of all users!
+Running as **root** does not purge the recycle bin of all users by default.
+If you want to purge the recycle bin completely add the ``-g`` option.
 
 Implementation
 ----------------
@@ -197,11 +198,24 @@ deeper insight to administrators. All the functionality is wrapped as demonstrat
 
 The recycle bin resides in the namespace under the proc directory under ``/recycle/``.
 
-Each deleted objects is moved into
+The old structure until release 4.3.35 was
 
 ``/recycle/<gid>/<uid>/<contracted-path>.<hex-inode>`` for files and
 
 ``/recycle/<gid>/<uid>/<contracted-path>.<hex-inode>.d`` for bulk deletions.
+
+The new structure since release 4.3.36 is
+
+``/recycle/<uid>/<year>/<month>/<date>/<index>/<contracted-path>.<hex-inode>`` for files and
+
+``/recycle/<uid>/<year>/<month>/<date>/<index>/<contracted-path>.<hex-inode>.d`` for bulk deletions.
+
+The new structure adds to purge the recycle bin easily by date:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/eos/dev/2rep/subnode/> recycle purge 2018/03/01
+   success: purged 12 bulk deletions and 0 individual files from the recycle bin!
 
 The internal structure is however not relevant or exported to the end-user. 
 The contracted path flattens the full pathname replacing '/' with '#:#'.
