@@ -474,7 +474,7 @@ Storage::Publish()
                      lCycleDuration);
 
     if (lSleepTime < 0) {
-      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
+      eos_static_warning("Publisher cycle exceeded %d milliseconds - took %d milliseconds",
                          lReportIntervalMilliSeconds, lCycleDuration);
     } else {
       std::this_thread::sleep_for(std::chrono::seconds(lSleepTime / 1000));

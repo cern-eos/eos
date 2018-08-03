@@ -473,11 +473,11 @@ Storage::Boot(FileSystem* fs)
 
     eos_info("msg=\"finished disk synchronisation\" fsid=%u", fsid);
   } else {
-    eos_info("msg=\"skipped disk synchronisization\" fsid=%u", fsid);
+    eos_info("msg=\"skipped disk synchronisation\" fsid=%u", fsid);
   }
 
-  // If we see the stat.bootcheck resyncflag for the filesystem, we resync with
-  // the mgm. Remove the bootcheck flag.
+  // If we see the stat.bootcheck resync flag for the filesystem, we resync with
+  // the mgm and remove the bootcheck flag
   fs->SetLongLong("bootcheck", 0);
 
   if (resyncmgm) {
@@ -509,7 +509,7 @@ Storage::Boot(FileSystem* fs)
   // @note the disk and mgm synchronization can end up in a state where files
   // present on disk but not tracked by the MGM are still accounted in EOS. They
   // are tracked in the local database and also show up in the "used_files" info
-  // displayed per file system.
+  // displayed per filesystem.
 
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid
@@ -598,7 +598,7 @@ Storage::Boot(FileSystem* fs)
 }
 
 //------------------------------------------------------------------------------
-// Start scurbber thread
+// Start scrubber thread
 //------------------------------------------------------------------------------
 void*
 Storage::StartFsScrub(void* pp)

@@ -246,14 +246,14 @@ public:
   //--------------------------------------------------------------------------
   int fileStat(struct stat* buf, uint16_t timeout = 0);
 
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   //! Execute implementation dependant commands
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
   //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   int fileFctl(const std::string& cmd, uint16_t timeout = 0) {
     // Operation not supported in DavixIO
     return -ENOTSUP;
@@ -393,32 +393,36 @@ public:
 
   int Statfs(struct statfs* statFs);
 
+  constexpr static std::chrono::seconds sStatFsTimeout {60};
   static Davix::Context gContext;
 
 private:
   int SetErrno(int errcode, Davix::DavixError** err, bool free_error = true);
   std::string RetrieveS3Credentials();
-  bool mCreated;
-  std::string mAttrUrl;
-  std::string mOpaque;
-  std::string mParent;
-  off_t seq_offset;
-  off_t short_read_offset;
-  bool mShortRead;
 
-  Davix::DavPosix mDav;
-  DAVIX_FD* mFd;
-  bool mAttrLoaded;
-  bool mAttrDirty;
-  bool mAttrSync;
+  std::string mAttrUrl; ///< Extended attributes file path
+  std::string mOpaque; ///< Opaque info extracted from initial path
+  std::string mParent; ///< Parent directory of initial path
+  off_t seq_offset; ///< Sequential write offset
+  off_t short_read_offset; ///< Keeps the offset of a partial read
+  bool mShortRead; ///< Indicates a partial read
+  bool mCreated; ///< Indicates a file create operation
 
-  Davix::RequestParams mParams;;
+  eos::common::FileMap mFileMap; ///< Extended attributes file map
+  bool mAttrLoaded; ///< Indicates extended attributes have been downloaded
+  bool mAttrDirty; ///< Indicates extended attributes are due for an upload
+  bool mAttrSync; ///< Indicates extended attributes are synced synchronously
 
-  eos::common::FileMap mFileMap; ///< extended attribute file map
-  bool mIsS3; ///< indicates an s3 protocol flavour
+  struct statfs mStatfs; ///< Cached filesystem quota structure
+  //! Timestamp of last statfs execution
+  std::chrono::time_point<std::chrono::steady_clock> mLastStatFsTime;
+
+  Davix::RequestParams mParams; ///< Davix access parameters
+  Davix::DavPosix mDav; ///< Davix access object
+  DAVIX_FD* mFd; ///< Davix file descriptor
+  bool mIsS3; ///< Indicates an S3 protocol flavour
 };
 
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_DAVIXIO_HH__
-

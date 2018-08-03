@@ -35,18 +35,22 @@ Davix::Context DavixIo::gContext;
 
 namespace
 {
-std::string getAttrUrl(std::string path)
-{
-  size_t rfind = path.rfind("/");
+  std::string getAttrUrl(std::string path)
+  {
+    size_t rfind = path.rfind("/");
 
-  if (rfind != std::string::npos) {
-    path.insert(rfind + 1, ".");
+    if (rfind != std::string::npos) {
+      path.insert(rfind + 1, ".");
+    }
+
+    path += ".xattr";
+    return path;
   }
+}
 
-  path += ".xattr";
-  return path;
-}
-}
+using namespace std::chrono;
+
+constexpr std::chrono::seconds DavixIo::sStatFsTimeout;
 
 //------------------------------------------------------------------------------
 //! Constructor
@@ -370,7 +374,7 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
   }
 
   if (retval != length) {
-    // mark the offset when a short read happened ...
+    // mark the offset when a short read happened
     short_read_offset = offset + retval;
     mShortRead = true;
   }
@@ -1040,13 +1044,14 @@ DavixIo::ftsClose(FileIo::FtsHandle* fts_handle)
 int
 DavixIo::Statfs(struct statfs* sfs)
 {
-  eos_debug("msg=\"davixio class statfs called\"");
+  eos_debug("msg=\"DavixIo statfs called\"");
 
   std::string url = mFilePath;
   url += (url[url.length() - 1] != '/') ? "/" : "";
   url += DAVIX_QUOTA_FILE;
   std::string opaque;
 
+  // Emulate statfs call for S3 paths
   if (mFilePath.substr(0, 2) == "s3") {
     unsigned long long s3_size = 4000ll * 1000ll * 1000ll * 1000ll;
     s3_size *= 1000ll;
@@ -1066,54 +1071,71 @@ DavixIo::Statfs(struct statfs* sfs)
     return 0;
   }
 
-  DavixIo io(url);;
-  int fd = io.fileOpen((XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (uint16_t) 0);
+  auto now = steady_clock::now();
+  auto lastUpdate = now - mLastStatFsTime;
 
-  if (fd < 0) {
-    eos_err("msg=\"failed to get quota file\" path=\"%s\"", url.c_str());
-    return -ENODATA;
+  // Do a statfs call only once every 60 seconds
+  if (duration_cast<seconds>(lastUpdate).count() > sStatFsTimeout.count()) {
+    mLastStatFsTime = now;
+
+    DavixIo io(url);
+    int fd = io.fileOpen((XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (uint16_t) 0);
+
+    if (fd < 0) {
+      eos_err("msg=\"failed to get the quota file\" path=\"%s\"", url.c_str());
+      return -ENODATA;
+    }
+
+    char buffer[65536];
+    memset(buffer, 0, sizeof(buffer));
+
+    // Read filesystem quota file
+    if (io.fileRead(0, buffer, 65536) > 0) {
+      eos_debug("quota-buffer=\"%s\"", buffer);
+    } else {
+      eos_err("msg=\"failed to read the quota file\"");
+      return -EREMOTEIO;
+    }
+
+    std::map<std::string, std::string> map;
+    std::vector<std::string> keyvector;
+    unsigned long long total_bytes = 0;
+    unsigned long long free_bytes = 0;
+    unsigned long long total_files = 0;
+    unsigned long long free_files = 0;
+
+    // Parse filesystem quota response
+    if (eos::common::StringConversion::GetKeyValueMap(buffer,
+        map,
+        "=",
+        "\n")
+        &&
+        map.count("dav.total.bytes") &&
+        map.count("dav.free.bytes") &&
+        map.count("dav.total.files") &&
+        map.count("dav.free.files")) {
+      total_bytes = strtoull(map["dav.total.bytes"].c_str(), 0, 10);
+      free_bytes = strtoull(map["dav.free.bytes"].c_str(), 0, 10);
+      total_files = strtoull(map["dav.total.files"].c_str(), 0, 10);
+      free_files = strtoull(map["dav.free.files"].c_str(), 0, 10);
+    } else {
+      eos_err("msg=\"failed to parse key-val quota map\"");
+      return -EINVAL;
+    }
+
+    // Update cached statfs structure
+    mStatfs.f_frsize = 4096;
+    mStatfs.f_bsize = mStatfs.f_frsize;
+    mStatfs.f_blocks = (fsblkcnt_t)(total_bytes / mStatfs.f_frsize);
+    mStatfs.f_bavail = (fsblkcnt_t)(free_bytes / mStatfs.f_frsize);
+    mStatfs.f_bfree = mStatfs.f_bavail;
+    mStatfs.f_files = total_files;
+    mStatfs.f_ffree = free_files;
   }
 
-  char buffer[65536];
-  memset(buffer, 0, sizeof(buffer));
+  // Copy cached statfs structure
+  *sfs = mStatfs;
 
-  if (io.fileRead(0, buffer, 65536) > 0) {
-    eos_debug("quota-buffer=\"%s\"", buffer);
-  } else {
-    eos_err("msg=\"failed to get the quota file\"");
-  }
-
-  std::map<std::string, std::string> map;
-  std::vector<std::string> keyvector;
-  unsigned long long total_bytes = 0;
-  unsigned long long free_bytes = 0;
-  unsigned long long total_files = 0;
-  unsigned long long free_files = 0;
-
-  if (eos::common::StringConversion::GetKeyValueMap(buffer,
-      map,
-      "=",
-      "\n")
-      &&
-      map.count("dav.total.bytes") &&
-      map.count("dav.free.bytes") &&
-      map.count("dav.total.files") &&
-      map.count("dav.free.files")) {
-    total_bytes = strtoull(map["dav.total.bytes"].c_str(), 0, 10);
-    free_bytes = strtoull(map["dav.free.bytes"].c_str(), 0, 10);
-    total_files = strtoull(map["dav.total.files"].c_str(), 0, 10);
-    free_files = strtoull(map["dav.free.files"].c_str(), 0, 10);
-  } else {
-    eos_err("msg=\"failed to parse key-val quota map\"");
-  }
-
-  sfs->f_frsize = 4096;
-  sfs->f_bsize = sfs->f_frsize;
-  sfs->f_blocks = (fsblkcnt_t)(total_bytes / sfs->f_frsize);
-  sfs->f_bavail = (fsblkcnt_t)(free_bytes / sfs->f_frsize);
-  sfs->f_bfree = sfs->f_bavail;
-  sfs->f_files = total_files;
-  sfs->f_ffree = free_files;
   return 0;
 }
 

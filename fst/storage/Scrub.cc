@@ -87,7 +87,7 @@ Storage::Scrub()
           continue;
         }
 
-        // check if there is a lable on the disk and if the configuration shows the same fsid
+        // check if there is a label on the disk and if the configuration shows the same fsid
         if ((bootstatus == eos::common::FileSystem::kBooted) &&
             (configstatus >= eos::common::FileSystem::kRO) &&
             (!CheckLabel(mFsVect[i]->GetPath(), mFsVect[i]->GetId(),
