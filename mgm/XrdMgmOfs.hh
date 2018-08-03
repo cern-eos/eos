@@ -1549,6 +1549,7 @@ public:
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
   Drainer mDrainEngine; ///< Centralized draning
+  bool mIsCentralDrain; ///< Flag to mark central draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   //! LRU object running the LRU policy engine

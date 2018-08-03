@@ -343,7 +343,7 @@ XrdMgmOfs::FsConfigListener()
 
               if (FsView::gFsView.mIdView.count(fsid)) {
                 FileSystem* fs = FsView::gFsView.mIdView[fsid];
-                fs->SetConfigStatus(eos::common::FileSystem::kRW);
+                fs->StopDrainJob();
               }
             }
           }

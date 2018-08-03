@@ -94,11 +94,27 @@ bool
 FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
 {
   using eos::mgm::FsView;
-  FsView::DrainType dt =
-    FsView::gFsView.GetDrainType(this, gOFS->MasterPtr->IsActivated());
   eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
 
-  if (dt == FsView::DrainType::Distributed) {
+  if (gOFS->mIsCentralDrain) {
+    eos_static_info("fsid=%d, centralized drain type", GetId());
+    int drain_tx = IsDrainTransition(old_status, new_status);
+
+    if (drain_tx) {
+      std::string out_msg;
+
+      if (drain_tx > 0) {
+        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+          eos_static_err("%s", out_msg.c_str());
+          return false;
+        }
+      } else if (drain_tx < 0) {
+        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+          eos_static_err("%s", out_msg.c_str());
+        }
+      }
+    }
+  } else {
     eos_static_info("fsid=%d, distributed drain type", GetId());
 
     if ((old_status == kDrainDead) || (old_status == kDrain)) {
@@ -135,26 +151,6 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
         SetDrainStatus(eos::common::FileSystem::kNoDrain);
       }
     }
-  } else if (dt == FsView::DrainType::Central) {
-    eos_static_info("fsid=%d, centralized drain type", GetId());
-    int drain_tx = IsDrainTransition(old_status, new_status);
-
-    if (drain_tx) {
-      std::string out_msg;
-
-      if (drain_tx > 0) {
-        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
-          return false;
-        }
-      } else if (drain_tx < 0) {
-        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
-        }
-      }
-    }
-  } else {
-    eos_static_info("fsid=%d, unknown drain type", GetId());
   }
 
   std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);

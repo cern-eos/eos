@@ -1107,24 +1107,6 @@ public:
   //----------------------------------------------------------------------------
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
 
-  //----------------------------------------------------------------------------
-  //! Get type of draining for given file system
-  //!
-  //! @param fs file system object
-  //! @param activated true if all config loaded, otherwise false
-  //!
-  //! @return DrainType value
-  //----------------------------------------------------------------------------
-  DrainType GetDrainType(FileSystem* fs, bool activated);
-
-  //----------------------------------------------------------------------------
-  //! @note This method and its associated functionality should be dropped one
-  //! we remove the distributed draining
-  //!
-  //! Reapply the status of the file system to trigger eventually the draining
-  //----------------------------------------------------------------------------
-  void ReapplyConfigStatus();
-
 private:
   pthread_t hbthread; ///< Thread ID of the heartbeat thread
   bool mIsHeartbeatOn; ///< True if heartbeat thread is running

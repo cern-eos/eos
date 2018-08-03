@@ -172,7 +172,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mCommentLog(nullptr),
   FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
   MasterPtr(new eos::mgm::Master()), MgmMaster(*MasterPtr),
-  mRouting(new eos::mgm::PathRouting()),
+  mRouting(new eos::mgm::PathRouting()), mIsCentralDrain(false),
   LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),

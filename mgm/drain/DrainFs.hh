@@ -179,7 +179,6 @@ private:
   //---------------------------------------------------------------------------
   void Stop();
 
-  constexpr static std::chrono::seconds sUpdateTimeout {5};
   constexpr static std::chrono::seconds sRefreshTimeout {60};
   constexpr static std::chrono::seconds sStallTimeout {600};
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid

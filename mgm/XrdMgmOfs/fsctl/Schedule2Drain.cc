@@ -46,20 +46,11 @@
   eos::common::FileSystem::fsid_t >> sZeroMove;
   static time_t sScheduledFidCleanupTime = 0;
 
+  // If distributed drain not enabled this doesn't return anything
+  if (gOFS->mIsCentralDrain)
   {
-    // If distributed drain not enabled this doesn't return anything
-    eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto fs = FsView::gFsView.mIdView[fsid];
-
-    if (fs)
-    {
-      if (FsView::gFsView.GetDrainType(fs, gOFS->MasterPtr->IsActivated()) !=
-      FsView::DrainType::Distributed) {
-        error.setErrInfo(0, "");
-        return SFS_DATA;
-      }
-    }
+    error.setErrInfo(0, "");
+    return SFS_DATA;
   }
 
   // Deal with 0-size files 'scheduled' before, which just need a move in the

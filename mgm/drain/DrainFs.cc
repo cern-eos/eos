@@ -34,7 +34,6 @@ EOSMGMNAMESPACE_BEGIN
 
 using namespace std::chrono;
 
-constexpr std::chrono::seconds DrainFs::sUpdateTimeout;
 constexpr std::chrono::seconds DrainFs::sRefreshTimeout;
 constexpr std::chrono::seconds DrainFs::sStallTimeout;
 
@@ -221,7 +220,7 @@ DrainFs::Stop()
     if (fs) {
       mStatus = eos::common::FileSystem::kNoDrain;
       fs->OpenTransaction();
-      fs->SetConfigStatus(eos::common::FileSystem::kRW);
+      // fs->SetConfigStatus(eos::common::FileSystem::kRW);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
       fs->CloseTransaction();
       FsView::gFsView.StoreFsConfig(fs);
@@ -381,17 +380,8 @@ DrainFs::UpdateProgress()
     is_expired = true;
   }
 
-  // Check if we should do an update, we update every sUpdateTimeout seconds
-  bool do_update = false;
-  auto last_upd = now - mLastUpdateTime;
-
-  if (duration_cast<seconds>(last_upd).count() > sUpdateTimeout.count()) {
-    mLastUpdateTime = now;
-    do_update = true;
-  }
-
   // Update drain display variables
-  if ((is_stalled || is_expired || (mLastProgressTime == now)) && do_update) {
+  if (is_stalled || is_expired || (mLastProgressTime == now)) {
     FileSystem* fs = nullptr;
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 

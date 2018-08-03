@@ -751,6 +751,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.authlib : ", mAuthLib.c_str());
         }
 
+        if (!strcmp("centraldrain", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument 2 for centraldrain illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              mIsCentralDrain = true;
+            }
+          }
+        }
+
         if (!strcmp("authorize", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
