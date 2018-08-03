@@ -551,15 +551,17 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
   using eos::console::NsProto_TreeSizeProto;
+  using eos::console::NsProto_ContainerSpecificationProto;
   std::ostringstream oss;
-  NsProto_TreeSizeProto::ContainerCase cont_type = tree.container_case();
+  eos::console::NsProto_ContainerSpecificationProto::ContainerCase cont_type =
+  tree.container().container_case();
   eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
   std::shared_ptr<IContainerMD> cont {nullptr};
 
-  if (cont_type == NsProto_TreeSizeProto::kPath) {
+  if (cont_type == NsProto_ContainerSpecificationProto::kPath) {
     try {
       // @todo (esindril): how to deal with symlinks
-      cont = gOFS->eosView->getContainer(tree.path());
+      cont = gOFS->eosView->getContainer(tree.container().path());
     } catch (const eos::MDException& e) {
       oss << "error: " << e.what();
       reply.set_std_err(oss.str());
@@ -570,10 +572,10 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     eos::IContainerMD::id_t cid = 0;
 
     try {
-      if (cont_type == NsProto_TreeSizeProto::kCid) {
-        cid = std::stoull(tree.cid(), nullptr, 10);
+      if (cont_type == NsProto_ContainerSpecificationProto::kCid) {
+        cid = std::stoull(tree.container().cid(), nullptr, 10);
       } else {
-        cid = std::stoull(tree.cxid(), nullptr, 16);
+        cid = std::stoull(tree.container().cxid(), nullptr, 16);
       }
     } catch (const std::exception& e) {
       oss << "error: " << e.what();

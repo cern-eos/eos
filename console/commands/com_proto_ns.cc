@@ -237,12 +237,12 @@ NsHelper::ParseCommand(const char* arg)
           }
         } else if ((soption.find("cid:") == 0)) {
           pos = soption.find(':') + 1;
-          tree->set_cid(soption.substr(pos));
+          tree->mutable_container()->set_cid(soption.substr(pos));
         } else if (soption.find("cxid:") == 0) {
           pos = soption.find(':') + 1;
-          tree->set_cxid(soption.substr(pos));
+          tree->mutable_container()->set_cxid(soption.substr(pos));
         } else { // this should be a plain path
-          tree->set_path(soption);
+          tree->mutable_container()->set_path(soption);
         }
 
         if (!(option = tokenizer.GetToken())) {
