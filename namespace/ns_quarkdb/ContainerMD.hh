@@ -24,8 +24,6 @@
 #ifndef EOS_NS_CONTAINER_MD_HH
 #define EOS_NS_CONTAINER_MD_HH
 
-#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
-
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"

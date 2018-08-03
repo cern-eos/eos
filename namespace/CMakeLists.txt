@@ -25,8 +25,10 @@
 # EosNsCommon-Sources library
 #-------------------------------------------------------------------------------
 include_directories(
+  ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}
   ${XROOTD_INCLUDE_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
 )
 
@@ -39,6 +41,7 @@ add_library(
 
   PermissionHandler.cc                PermissionHandler.hh
   Prefetcher.cc                       Prefetcher.hh
+  Resolver.cc                         Resolver.hh
 
   # Namespace interface
   interface/IView.hh
@@ -59,6 +62,8 @@ add_library(
   utils/TestHelpers.cc
   utils/Buffer.hh)
 
+add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
+
 set_target_properties(
   EosNsCommon-Objects
   PROPERTIES
@@ -74,6 +79,7 @@ target_include_directories(
 
 target_link_libraries(
   EosNsCommon PUBLIC
+  EosProtobuf
   ${Z_LIBRARY} fmt)
 
 set_target_properties(
@@ -101,6 +107,7 @@ if (Linux)
 
   target_link_libraries(
     EosNsCommon-Static PUBLIC
+    EosProtobuf
     ${Z_LIBRARY_STATIC} fmt)
 
   set_target_properties(

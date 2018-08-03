@@ -31,6 +31,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/Resolver.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
@@ -551,52 +552,21 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
   using eos::console::NsProto_TreeSizeProto;
-  using eos::console::NsProto_ContainerSpecificationProto;
-  std::ostringstream oss;
-  eos::console::NsProto_ContainerSpecificationProto::ContainerCase cont_type =
-  tree.container().container_case();
   eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-  std::shared_ptr<IContainerMD> cont {nullptr};
 
-  if (cont_type == NsProto_ContainerSpecificationProto::kPath) {
-    try {
-      // @todo (esindril): how to deal with symlinks
-      cont = gOFS->eosView->getContainer(tree.container().path());
-    } catch (const eos::MDException& e) {
-      oss << "error: " << e.what();
-      reply.set_std_err(oss.str());
-      reply.set_retc(e.getErrno());
-      return;
-    }
-  } else {
-    eos::IContainerMD::id_t cid = 0;
+  std::shared_ptr<IContainerMD> cont;
 
-    try {
-      if (cont_type == NsProto_ContainerSpecificationProto::kCid) {
-        cid = std::stoull(tree.container().cid(), nullptr, 10);
-      } else {
-        cid = std::stoull(tree.container().cxid(), nullptr, 16);
-      }
-    } catch (const std::exception& e) {
-      oss << "error: " << e.what();
-      reply.set_std_err(oss.str());
-      reply.set_retc(EINVAL);
-      return;
-    }
-
-    try {
-      cont = gOFS->eosDirectoryService->getContainerMD(cid);
-    } catch (const eos::MDException& e) {
-      oss << "error: " << e.what();
-      reply.set_std_err(oss.str());
-      reply.set_retc(e.getErrno());
-      return;
-    }
+  try {
+    cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
+  }
+  catch(const eos::MDException& e) {
+    reply.set_std_err(SSTR(e.what()));
+    reply.set_retc(e.getErrno());
+    return;
   }
 
   if (cont == nullptr) {
-    oss << "error: container not found";
-    reply.set_std_err(oss.str());
+    reply.set_std_err("error: container not found");
     reply.set_retc(ENOENT);
     return;
   }

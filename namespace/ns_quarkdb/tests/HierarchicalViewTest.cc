@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
+#include "namespace/Resolver.hh"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -221,6 +222,40 @@ TEST_F(HierarchicalViewF, ZeroSizedFilenames)
 
   cont2->setName("");
   ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException);
+}
+
+//------------------------------------------------------------------------------
+// Test namespace resolver based on (path, cid, cxid)
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, Resolver) {
+  // Make a lot of containers
+  for(size_t i = 0; i < 50; i++) {
+    view()->createContainer(SSTR("/dir" << i), true);
+  }
+
+  eos::ContainerSpecificationProto spec;
+  ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
+
+  spec.set_path("/dir49");
+  eos::IContainerMDPtr cont = eos::Resolver::resolveContainer(view(), spec);
+  ASSERT_EQ(cont->getName(), "dir49");
+
+  spec.set_cid("48");
+  cont = eos::Resolver::resolveContainer(view(), spec);
+  ASSERT_EQ(cont->getName(), "dir46");
+
+  spec.set_cxid("30");
+  cont = eos::Resolver::resolveContainer(view(), spec);
+  ASSERT_EQ(cont->getName(), "dir46");
+
+  spec.set_path("/chicken");
+  ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
+
+  spec.set_cid("chicken chicken");
+  ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
+
+  spec.set_cxid("chicken");
+  ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
 }
 
 TEST_F(HierarchicalViewF, QuotaTest)
