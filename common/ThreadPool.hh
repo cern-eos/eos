@@ -36,7 +36,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------------
 //! @brief Dynamically scaling pool of threads which will asynchronously execute tasks
 //------------------------------------------------------------------------------------
-class ThreadPool: public eos::common::LogId
+class ThreadPool
 {
 public:
   //----------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ public:
 
         while (true)
         {
-          eos_debug("id=%s, queue_size=%llu, thread_pool_size=%llu",
+          eos_static_debug("id=%s, queue_size=%llu, thread_pool_size=%llu",
           mId.c_str(), mTasks.size(), mThreadPool.size());
 
           if (signalFuture.valid()) {
