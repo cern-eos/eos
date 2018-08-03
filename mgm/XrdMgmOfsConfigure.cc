@@ -1600,7 +1600,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
   eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
-  eos::common::RWMutex::EstimateLatenciesAndCompensation();
+  // eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetBlocking(true);
   fs_mtx->SetDebugName("FsView");
   fs_mtx->SetTiming(false);
@@ -2013,7 +2013,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Print a test-stacktrace to ensure we have debugging symbols.
   std::ostringstream ss;
   ss << "Printing a test stacktrace to check for debugging symbols." << std::endl;
-  ss << eos::common::getStacktrace() << std::endl;
+  ss << eos::common::getStacktrace();
   eos_static_info(ss.str().c_str());
   // add all stat entries with 0
   InitStats();
