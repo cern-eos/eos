@@ -928,6 +928,14 @@ again:
       rc = EREMCHG;
     }
 
+    if (msg.find("[ENOTDIR]") != STR_NPOS) {
+      rc = ENOTDIR;
+    }
+
+    if (msg.find("[EEXIST]") != STR_NPOS) {
+      rc = EEXIST;
+    }
+
     // Avoid duplication of "Unable to" prefix in error message
     // (gOFS.Emsg will add its own "Unable to" prefix to the message)
     int pos = msg.rfind("Unable to ");

@@ -110,6 +110,15 @@ Storage::ImportScan()
         pathSuffix.erase(0, 1);
       }
 
+      // Prepare command arguments
+      char filesize[256];
+      sprintf(filesize, "%" PRIu64 "", buf.st_size);
+      XrdOucString destPath = scan->lclPath.c_str();
+      if (!destPath.endswith("/")) {
+        destPath += "/";
+      }
+      destPath += pathSuffix.c_str();
+
       // Construct command message
       XrdOucErrInfo error;
       XrdOucString capOpaqueFile = "";
@@ -119,28 +128,23 @@ Storage::ImportScan()
       capOpaqueFile += "&mgm.import.extpath=";
       capOpaqueFile += lFilePath.c_str();
       capOpaqueFile += "&mgm.import.lclpath=";
-      capOpaqueFile += scan->lclPath;
-      if (!scan->lclPath.endswith("/")) {
-        capOpaqueFile += "/";
-      }
-      capOpaqueFile += pathSuffix.c_str();
+      capOpaqueFile += destPath.c_str();
       capOpaqueFile += "&mgm.import.size=";
-      char filesize[256];
-      sprintf(filesize, "%" PRIu64 "", buf.st_size);
       capOpaqueFile += filesize;
 
       // Send command and process Mgm file metadata response
       XrdOucString response;
-      int rc = gOFS.CallManager(&error,  lFilePath.c_str(), 0,
+      int rc = gOFS.CallManager(&error, 0, 0,
                                 capOpaqueFile, &response);
       if (rc) {
-        eos_static_err("unable to import file name=%s fs=%u at manager %s",
-                       lFilePath.c_str(), scan->fsId,
-                       scan->managerId.c_str());
+        eos_static_err("unable to import file fs=%u name=%s dest=%s "
+                       "at manager %s reason=\"%s\"", scan->fsId,
+                       lFilePath.c_str(), destPath.c_str(),
+                       scan->managerId.c_str(), error.getErrText());
       } else if (!response.length()) {
         eos_static_err("file imported in namespace. Mgm file metadata expected "
-                       "but response is empty name=%s fs=%u at manager %s",
-                       lFilePath.c_str(), scan->fsId,
+                       "but response is empty fs=%u name=%s dest=%s at manager %s",
+                       scan->fsId, lFilePath.c_str(), destPath.c_str(),
                        scan->managerId.c_str());
       } else {
         XrdOucEnv fMdEnv(response.c_str());
@@ -165,19 +169,19 @@ Storage::ImportScan()
                               fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(),
                               fMd.locations())) {
               eos_static_err("unable to update local fmd entry from Mgm "
-                             "name=%s metadata=%s", lFilePath.c_str(),
-                             fMdEnv.Env(envlen));
+                             "fs=%u name=%s metadata=%s", scan->fsId,
+                             lFilePath.c_str(), fMdEnv.Env(envlen));
             }
 
             delete localFmd;
           } else {
-            eos_static_err("unable to create local fmd entry name=%s fs=%u",
-                           lFilePath.c_str(), scan->fsId);
+            eos_static_err("unable to create local fmd entry fs=%u name=%s",
+                           scan->fsId, lFilePath.c_str());
           }
         } else {
           eos_static_err("unable to parse Mgm file metadata. "
-                         "No local fmd entry created name=%s metadata=%s",
-                         lFilePath.c_str(), fMdEnv.Env(envlen));
+                         "No local fmd entry created fs=%u name=%s metadata=%s",
+                         scan->fsId, lFilePath.c_str(), fMdEnv.Env(envlen));
         }
       }
     }

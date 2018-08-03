@@ -70,7 +70,7 @@
           (file_exists != XrdSfsFileExistIsDirectory)) {
         gOFS->MgmStats.Add("ImportFailedParentPathNotDir", 0, 0, 1);
         return Emsg(epname, error, ENOTDIR,
-                    "import file - parent path is not a directory",
+                    "import file - parent path is not a directory [ENOTDIR]",
                      cPath.GetParentPath());
         }
 
@@ -87,7 +87,7 @@
       }
     } else {
       gOFS->MgmStats.Add("ImportFailedParentPathCheck", 0, 0, 1);
-      return Emsg(epname, error, errno, "check if path exists",
+      return Emsg(epname, error, errno, "check if parent path exists",
                   cPath.GetParentPath());
     }
 
@@ -100,7 +100,8 @@
       } else {
         eos_thread_err("msg=\"could not find filesystem fsid=%d\"", fsid);
         gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
-        return Emsg(epname, error, EIO, "retrieve filesystem", "");
+        return Emsg(epname, error, EBADR, "retrieve filesystem [EBADR]",
+                    std::to_string(fsid).c_str());
       }
     }
 
@@ -116,7 +117,8 @@
       eos_thread_err("could not determine filesystem prefix "
                      "in extpath=%s", extpath);
       gOFS->MgmStats.Add("ImportFailedFsPrefix", 0, 0, 1);
-      return Emsg(epname, error, errno, "match fs prefix", "");
+      return Emsg(epname, error, EBADE, "match fs prefix [EBADE]",
+                  fsPrefix.c_str());
     }
 
     {
@@ -134,7 +136,11 @@
         gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
         eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                        e.getErrno(), errmsg.c_str());
-        return Emsg(epname, error, errno, "create fmd", errmsg.c_str());
+        if (e.getErrno() == EEXIST) {
+          return Emsg(epname, error, EEXIST, "create fmd [EEXIST]", lpath);
+        } else {
+          return Emsg(epname, error, e.getErrno(), "create fmd", lpath);
+        }
       }
     }
 
@@ -188,7 +194,8 @@
         gOFS->MgmStats.Add("ImportFailedFmdUpdate", 0, 0, 1);
         eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                        e.getErrno(), errmsg.c_str());
-        return Emsg(epname, error, errno, "update fmd", errmsg.c_str());
+        return Emsg(epname, error, e.getErrno(), "update fmd",
+                    errmsg.c_str());
       }
     }
 
@@ -209,7 +216,8 @@
     gOFS->MgmStats.Add("ImportFailedParameters", 0, 0, 1);
     XrdOucString filename = (extpath) ? extpath : "unknown";
     return Emsg(epname, error, EINVAL,
-                "import file - fsid, path, size not complete", filename.c_str());
+                "import file - fsid, path, size not complete [EINVAL]",
+                filename.c_str());
   }
 
   gOFS->MgmStats.Add("Import", 0, 0, 1);

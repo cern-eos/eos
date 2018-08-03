@@ -54,7 +54,7 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
-// Process incomming messages
+// Process incoming messages
 //------------------------------------------------------------------------------
 void
 Messaging::Process(XrdMqMessage* newmessage)

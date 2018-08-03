@@ -83,7 +83,7 @@ Storage::Remover()
         }
 
         // Update the manager
-        int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
+        int rc = gOFS.CallManager(&error, 0, 0, capOpaqueString);
 
         if (rc) {
           eos_static_err("unable to drop file id %s fsid %u at manager %s",
