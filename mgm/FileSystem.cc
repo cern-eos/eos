@@ -155,7 +155,6 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
     }
   } else {
     eos_static_info("fsid=%d, unknown drain type", GetId());
-    return true;
   }
 
   std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
