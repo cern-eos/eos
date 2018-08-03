@@ -153,6 +153,10 @@ IProcCommand::LaunchJob()
     ([this]() -> eos::console::ReplyProto {
       return ProcessRequest();
     });
+
+    if (EOS_LOGS_DEBUG) {
+      eos_debug("%s", ProcInterface::sProcThreads.GetInfo().c_str());
+    }
   } else {
     std::promise<eos::console::ReplyProto> promise;
     mFuture = promise.get_future();

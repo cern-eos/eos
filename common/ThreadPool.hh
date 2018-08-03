@@ -24,8 +24,8 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/ConcurrentQueue.hh"
-#include "common/Logging.hh"
 #include <future>
+#include <sstream>
 
 #ifdef __APPLE__
 #include <cmath>
@@ -99,9 +99,6 @@ public:
 
         while (true)
         {
-          eos_static_debug("id=%s, queue_size=%llu, thread_pool_size=%llu",
-          mId.c_str(), mTasks.size(), mThreadPool.size());
-
           if (signalFuture.valid()) {
             if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) ==
             std::future_status::ready) {
@@ -225,6 +222,17 @@ public:
   ~ThreadPool()
   {
     Stop();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get thread pool information
+  //----------------------------------------------------------------------------
+  std::string GetInfo()
+  {
+    std::ostringstream oss;
+    oss <<  "id=" << mId << ", queue_size=" << mTasks.size()
+        << ",thread_pool_size=" << mThreadPool.size();
+    return oss.str();
   }
 
   // Disable copy/move constructors and assignment operators
