@@ -42,7 +42,7 @@ Static libraries for gRPC.
 rm -rf grpc
 git clone https://github.com/grpc/grpc
 cd grpc
-git submodule update --init 
+git submodule update --init --recursive
 git checkout v%{version}
 git checkout -b v1.13.1
 %build
