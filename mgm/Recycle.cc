@@ -605,7 +605,7 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
         }
 
         if (sdname.substr(0, 4) == "uid:") {
-          uid_t uid = std::stoull(sdname.substr(5));
+          uid_t uid = std::stoull(sdname.substr(4));
           printmap[uid] = true;
         }
       }
@@ -1089,8 +1089,14 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
   rprefix += (int) vid.gid;
   rprefix += "/";
   rprefix += (int) vid.uid;
+  XrdOucString newrprefix = Recycle::gRecyclingPrefix.c_str();
+  newrprefix += "/uid:";
+  newrprefix += (int) vid.uid;
 
   while (rprefix.replace("//", "/")) {
+  }
+
+  while (newrprefix.replace("//", "/")) {
   }
 
   {
@@ -1105,7 +1111,8 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
         recyclepath = gOFS->eosView->getUri(fmd.get());
         repath = recyclepath.c_str();
 
-        if (!repath.beginswith(rprefix.c_str())) {
+        if (!repath.beginswith(rprefix.c_str()) &&
+            !repath.beginswith(newrprefix.c_str())) {
           stdErr = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
           return EPERM;
         }
@@ -1119,7 +1126,8 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
         recyclepath = gOFS->eosView->getUri(cmd.get());
         repath = recyclepath.c_str();
 
-        if (!repath.beginswith(rprefix.c_str())) {
+        if (!repath.beginswith(rprefix.c_str()) &&
+            !repath.beginswith(newrprefix.c_str())) {
           stdErr = "error: this is not a directory in your recycle bin\n";
           return EPERM;
         }
