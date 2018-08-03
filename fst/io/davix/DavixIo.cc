@@ -69,7 +69,6 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
   mIsS3 = false;
   std::string lFilePath = mFilePath;
   size_t qpos;
-  Davix::DavixError* err = 0;
 
   //............................................................................
   // Opaque info can be part of the 'path'
@@ -136,6 +135,7 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
 
     if (certPath.length()) {
       Davix::X509Credential x509;
+      Davix::DavixError* err = 0;
 
       if (x509.loadFromFilePEM(certPath, certPath, "", &err) < 0) {
         eos_warning("failed to load x509 certificate path=\"%s\" msg=\"%s\"",
@@ -143,6 +143,10 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
       } else {
         mParams.setClientCertX509(x509);
         eos_debug("using x509 certificate path=\"%s\"", certPath.c_str());
+      }
+
+      if (err) {
+        Davix::DavixError::clearError(&err);
       }
     }
   }
@@ -236,8 +240,8 @@ DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
     errno = EIO;
   }
 
-  eos_info("davix error: url=\"%s\" msg=\"%s\" errno=%d",
-           mFilePath.c_str(), (*err)->getErrMsg().c_str(), errno);
+  eos_debug("davix error: url=\"%s\" msg=\"%s\" errno=%d",
+            mFilePath.c_str(), (*err)->getErrMsg().c_str(), errno);
 
   if (free_error) {
     Davix::DavixError::clearError(err);
@@ -247,7 +251,7 @@ DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
 }
 
 //------------------------------------------------------------------------------
-//! Returns the s3 credentials in-use by this Davix client
+//! Returns the S3 credentials in-use by this Davix client
 //------------------------------------------------------------------------------
 
 std::string
@@ -321,11 +325,8 @@ DavixIo::fileOpen(
 
   mFd = mDav.open(&mParams, mFilePath, pflags, &err);
 
-  if (pflags & O_CREAT) {
-    mCreated = true;
-  }
-
   if (mFd != NULL) {
+    mCreated = (pflags & O_CREAT) != 0;
     return 0;
   }
 
@@ -337,7 +338,7 @@ DavixIo::fileOpen(
   }
 
   if (err) {
-    delete err;
+    Davix::DavixError::clearError(&err);
   }
 
   return rc;
@@ -396,7 +397,6 @@ DavixIo::fileWrite(XrdSfsFileOffset offset,
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
             static_cast<int64_t>(length));
-  errno = 0;
 
   if (offset != seq_offset) {
     eos_err("msg=\"non sequential writes are not supported\"");
@@ -938,9 +938,8 @@ DavixIo::ftsOpen()
   // Obtain Davix dir handler
   dir = mDav.opendir(&mParams, filePath, &err);
   if (!dir) {
-    SetErrno(-1, &err, false);
-    eos_err("url=\"%s\" msg=\"%s\" errno=%d", filePath.c_str(),
-            err->getErrMsg().c_str(), errno);
+    eos_err("url=\"%s\" msg=\"%s\"", filePath.c_str(), err->getErrMsg().c_str());
+    SetErrno(-1, &err);
     return NULL;
   }
 
@@ -974,9 +973,8 @@ DavixIo::ftsOpen()
 
   // Check if any errors occurred
   if (err) {
-    SetErrno(-1, &err, false);
-    eos_err("url=\"%s\" msg=\"%s\" errno=%d ", filePath.c_str(),
-            err->getErrMsg().c_str(), errno);
+    eos_err("url=\"%s\" msg=\"%s\"", filePath.c_str(), err->getErrMsg().c_str());
+    SetErrno(-1, &err);
     return NULL;
   }
 
