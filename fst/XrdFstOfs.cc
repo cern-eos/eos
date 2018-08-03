@@ -928,6 +928,13 @@ again:
       rc = EREMCHG;
     }
 
+    // Avoid duplication of "Unable to" prefix in error message
+    // (gOFS.Emsg will add its own "Unable to" prefix to the message)
+    int pos = msg.rfind("Unable to ");
+    if (pos != STR_NPOS) {
+      msg.erase(pos, 10);
+    }
+
     if (rc != SFS_ERROR) {
       return gOFS.Emsg(epname, *error, rc, msg.c_str(), path);
     } else {
