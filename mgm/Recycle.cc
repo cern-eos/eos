@@ -604,8 +604,10 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
           continue;
         }
 
-        uid_t uid = strtoull(dname1, 0, 10);
-        printmap[uid] = true;
+        if (sdname.substr(0, 4) == "uid:") {
+          uid_t uid = std::stoull(sdname.substr(5));
+          printmap[uid] = true;
+        }
       }
 
       dirl.close();
@@ -627,7 +629,7 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
                Recycle::gRecyclingPrefix.c_str(),
                (unsigned int) ituid->first, date.c_str());
       XrdOucErrInfo lError;
-      int depth = 5 + (int)global;
+      int depth = 5 + (int) global;
 
       if (dPath.GetSubPathSize()) {
         if (depth > (int) dPath.GetSubPathSize()) {
@@ -869,6 +871,10 @@ Recycle::PrintOld(XrdOucString& stdOut, XrdOucString& stdErr,
         std::string sdname = dname1;
 
         if ((sdname == ".") || (sdname == "..")) {
+          continue;
+        }
+
+        if (sdname.substr(0, 4) == "uid:") {
           continue;
         }
 
@@ -1187,7 +1193,8 @@ Recycle::Restore(XrdOucString& stdOut, XrdOucString& stdErr,
       std::string newold = oPath.GetPath();
       char sp[256];
       snprintf(sp, sizeof(sp) - 1, "%016llx",
-               (unsigned long long)(S_ISDIR(buf.st_mode) ? buf.st_ino : eos::common::FileId::InodeToFid(buf.st_ino) ));
+               (unsigned long long)(S_ISDIR(buf.st_mode) ? buf.st_ino :
+                                    eos::common::FileId::InodeToFid(buf.st_ino)));
       newold += ".";
       newold += sp;
 
@@ -1261,7 +1268,15 @@ Recycle::Purge(XrdOucString& stdOut, XrdOucString& stdErr,
   int nbulk_deleted = 0;
   std::string rpath;
 
-  if (!global) {
+  if (vid.uid &&
+      !vid.sudoer &&
+      !(eos::common::Mapping::HasUid(3, vid.uid_list)) &&
+      !(eos::common::Mapping::HasGid(4, vid.gid_list))) {
+    stdErr = "error: you cannot purge your recycle bin without being a sudor or having an admin role";
+    return EPERM;
+  }
+
+  if (!global || (global && vid.uid)) {
     snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
              Recycle::gRecyclingPrefix.c_str(),
              (unsigned int) vid.uid,
@@ -1271,7 +1286,7 @@ Recycle::Purge(XrdOucString& stdOut, XrdOucString& stdErr,
   }
 
   std::map<std::string, std::set < std::string>> findmap;
-  int depth = 5 + (int)global;
+  int depth = 5 + (int) global;
   eos::common::Path dPath(std::string("/") + date);
 
   if (dPath.GetSubPathSize()) {
