@@ -84,13 +84,13 @@ void
 FileMD::addLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   if (hasLocationNoLock(location)) {
     return;
   }
 
   mFile.add_locations(location);
   lock.unlock();
-
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationAdded,
                                  location);
   pFileMDSvc->notifyListeners(&e);
@@ -103,11 +103,11 @@ void
 FileMD::removeLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   for (auto it = mFile.mutable_unlink_locations()->cbegin();
        it != mFile.mutable_unlink_locations()->cend(); ++it) {
     if (*it == location) {
       it = mFile.mutable_unlink_locations()->erase(it);
-
       lock.unlock();
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationRemoved, location);
@@ -123,11 +123,13 @@ FileMD::removeLocation(location_t location)
 void
 FileMD::removeAllLocations()
 {
-  while(true) {
+  while (true) {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
     auto it = mFile.unlink_locations().cbegin();
-    if(it == mFile.unlink_locations().cend()) return;
+
+    if (it == mFile.unlink_locations().cend()) {
+      return;
+    }
 
     location_t location = *it;
     lock.unlock();
@@ -142,12 +144,12 @@ void
 FileMD::unlinkLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
       mFile.add_unlink_locations(*it);
       it = mFile.mutable_locations()->erase(it);
-
       lock.unlock();
       IFileMDChangeListener::Event
       e(this, IFileMDChangeListener::LocationUnlinked, location);
@@ -163,10 +165,13 @@ FileMD::unlinkLocation(location_t location)
 void
 FileMD::unlinkAllLocations()
 {
-  while(true) {
+  while (true) {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     auto it = mFile.locations().cbegin();
-    if(it == mFile.locations().cend()) return;
+
+    if (it == mFile.locations().cend()) {
+      return;
+    }
 
     location_t location = *it;
     lock.unlock();
@@ -245,6 +250,7 @@ void
 FileMD::serialize(eos::Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
   if (pFileMDSvc == nullptr) {
     MDException ex(ENOTSUP);
     ex.getMessage() << "This was supposed to be a read only copy!";
@@ -284,7 +290,7 @@ FileMD::serialize(eos::Buffer& buffer)
 // Initialize from protobuf contents
 //------------------------------------------------------------------------------
 void
-FileMD::initialize(eos::ns::FileMdProto &&proto)
+FileMD::initialize(eos::ns::FileMdProto&& proto)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mFile = std::move(proto);
@@ -359,7 +365,6 @@ FileMD::setCTimeNow()
 #else
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
-
   setCTime(tnow);
 }
 
@@ -427,8 +432,10 @@ FileMD::getAttributes() const
 }
 
 bool
-FileMD::hasUnlinkedLocation(IFileMD::location_t location) {
+FileMD::hasUnlinkedLocation(IFileMD::location_t location)
+{
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
   for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
     if (mFile.unlink_locations()[i] == location) {
       return true;
