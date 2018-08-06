@@ -78,6 +78,9 @@ com_attr(char* arg1)
     }
 
     path = abspath(path.c_str());
+
+    while (path.replace("&", "#AND#")) {}
+
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";
     in += path;
@@ -139,6 +142,9 @@ com_attr(char* arg1)
     }
 
     path = abspath(path.c_str());
+
+    while (path.replace("&", "#AND#")) {}
+
     in += "&mgm.subcmd=set&mgm.attr.key=";
     in += key;
     in += "&mgm.attr.value=";
@@ -280,6 +286,9 @@ com_attr(char* arg1)
     }
 
     path = abspath(path.c_str());
+
+    while (path.replace("&", "#AND#")) {}
+
     in += "&mgm.subcmd=get&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -294,6 +303,9 @@ com_attr(char* arg1)
     }
 
     path = abspath(path.c_str());
+
+    while (path.replace("&", "#AND#")) {}
+
     in += "&mgm.subcmd=fold";
     in += "&mgm.path=";
     in += path;
@@ -313,6 +325,9 @@ com_attr(char* arg1)
     }
 
     path = abspath(path.c_str());
+
+    while (path.replace("&", "#AND#")) {}
+
     in += "&mgm.subcmd=rm&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";

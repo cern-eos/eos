@@ -42,6 +42,8 @@ ProcCommand::Attr()
   eos::common::Path cPath(path);
   spath = cPath.GetPath();
 
+  while (spath.replace("#AND#", "&")) {}
+
   if ((!spath.length()) ||
       ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") &&
        (mSubCmd != "rm") && (mSubCmd != "fold"))) {
@@ -109,15 +111,17 @@ ProcCommand::Attr()
 
                 for (it = map.begin(); it != map.end(); ++it) {
                   partialStdOut += (it->first).c_str();
-		  if (it->first != "sys.file.buffer") {
-		    partialStdOut += "=";
-		    partialStdOut += "\"";
-		    partialStdOut += (it->second).c_str();
-		  } else {
-		    partialStdOut += "=\"[";
-		    partialStdOut += (std::to_string(it->second.size()).c_str());
-		    partialStdOut += "] bytes";
-		  }
+
+                  if (it->first != "sys.file.buffer") {
+                    partialStdOut += "=";
+                    partialStdOut += "\"";
+                    partialStdOut += (it->second).c_str();
+                  } else {
+                    partialStdOut += "=\"[";
+                    partialStdOut += (std::to_string(it->second.size()).c_str());
+                    partialStdOut += "] bytes";
+                  }
+
                   partialStdOut += "\"";
                   partialStdOut += "\n";
                 }
