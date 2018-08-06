@@ -58,7 +58,7 @@ com_debug(char* arg1)
       in += level;
 
       if (nodequeue.length()) {
-        if (nodequeue == "-filter") {
+        if (nodequeue == "--filter") {
           filterlist = subtokenizer.GetToken();
           in += "&mgm.filter=";
           in += filterlist;
@@ -67,7 +67,7 @@ com_debug(char* arg1)
           in += nodequeue;
           nodequeue = subtokenizer.GetToken();
 
-          if (nodequeue == "-filter") {
+          if (nodequeue == "--filter") {
             filterlist = subtokenizer.GetToken();
             in += "&mgm.filter=";
             in += filterlist;
@@ -81,14 +81,17 @@ com_debug(char* arg1)
   }
 
   fprintf(stdout,
-          "Usage: debug [node-queue] this|<level> [-filter <unitlist>]\n");
+          "Usage: debug [node-queue] this|<level> [--filter <unitlist>]\n");
   fprintf(stdout,
           "'[eos] debug ...' allows to modify the verbosity of the EOS log files in MGM and FST services.\n\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "debug  <level> [-filter <unitlist>] :\n");
+  fprintf(stdout, "debug  this :\n");
+  fprintf(stdout,
+          "                                                  toggle EOS shell debug mode\n");
+  fprintf(stdout, "debug  <level> [--filter <unitlist>] :\n");
   fprintf(stdout,
           "                                                  set the MGM where the console is connected to into debug level <level>\n");
-  fprintf(stdout, "debug  <node-queue> <level> [-filter <unitlist>] :\n");
+  fprintf(stdout, "debug  <level> <node-queue> [--filter <unitlist>] :\n");
   fprintf(stdout,
           "                                                  set the <node-queue> into debug level <level>. <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n");
   fprintf(stdout,
@@ -101,13 +104,13 @@ com_debug(char* arg1)
           "The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
   fprintf(stdout, "Examples:\n");
   fprintf(stdout,
-          "  debug info *                        set MGM & all FSTs into debug mode 'info'\n\n");
+          "  debug info *                         set MGM & all FSTs into debug mode 'info'\n\n");
   fprintf(stdout,
-          "  debug err /eos/*/fst                set all FSTs into debug mode 'info'\n\n");
+          "  debug err /eos/*/fst                 set all FSTs into debug mode 'info'\n\n");
   fprintf(stdout,
-          "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
+          "  debug crit /eos/*/mgm                set MGM into debug mode 'crit'\n\n");
   fprintf(stdout,
-          "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'.\n\n");
+          "  debug debug --filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'.\n\n");
   global_retc = EINVAL;
   return (0);
 }
