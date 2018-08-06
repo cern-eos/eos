@@ -47,7 +47,7 @@ git checkout v%{version}
 git checkout -b v1.13.1
 %build
 cd grpc
-export CPPFLAGS="-Wno-error"
+export CPPFLAGS="-Wno-error=class-memaccess"
 %if 0%{?rhel} == 6
 make -j 4 
 %else
