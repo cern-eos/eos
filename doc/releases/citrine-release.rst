@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.6 Citrine``
+===================
+
+2018-08-06
+
+Bug
+----
+
+* [EOS-2752] - FUSE: crashes around "blockedtracing" getStacktrace()
+* [EOS-2758] - SLC6 FST crashes on getStacktrace()
+
+Task
+----
+
+* [EOS-2757] - The 4.3.6 pre-release generates FST crashes (SEGFAULT)
+
+Improvement
+------------
+
+* [EOS-2753] - Logging crashing
+
+
 ``v4.3.5 Citrine``
 ===================
 
