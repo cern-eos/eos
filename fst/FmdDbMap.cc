@@ -1192,8 +1192,9 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
   std::string cursor = "0";
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
-  std::unique_ptr<qclient::QClient> qcl(new
-                                        qclient::QClient(contactDetails.members, contactDetails.constructOptions()));
+  std::unique_ptr<qclient::QClient>
+  qcl(new qclient::QClient(contactDetails.members,
+                           contactDetails.constructOptions()));
   qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
@@ -1232,8 +1233,9 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
     try {
       NsFileProtoToFmd(files.front().get(), ns_fmd);
     } catch (const eos::MDException& e) {
-      eos_err("msg=\"failed to get metadata from QuarkDB\"");
-      return false;
+      eos_err("msg=\"failed to get metadata from QuarkDB: %s\"", e.what());
+      files.pop_front();
+      continue;
     }
 
     files.pop_front();
