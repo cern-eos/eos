@@ -205,7 +205,7 @@ build_fedora28:
 
 
 build_fedora_rawhide:
-  image: fedora:rawhide
+  image: registry.fedoraproject.org/fedora:rawhide
   <<: *fedora_template_definition
   variables:
     EOS_ARCH: fc-rawhide
