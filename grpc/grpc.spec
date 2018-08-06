@@ -47,7 +47,11 @@ git checkout v%{version}
 git checkout -b v1.13.1
 %build
 cd grpc
+%if 0%{distribution} == 6 
+make -j 4 
+%else
 %make_build
+%endif
 
 %check
 
