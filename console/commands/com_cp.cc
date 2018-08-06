@@ -40,7 +40,7 @@ int
 com_cp_usage()
 {
   fprintf(stdout,
-          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
+          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>\n");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout,
@@ -86,16 +86,17 @@ com_cp_usage()
   fprintf(stdout,
           "      env S3_ACCESS_ID=<access-id>          [as used in ROOT  ]\n");
   fprintf(stdout,
-          "      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n\n");
+          "      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n");
   fprintf(stdout,
-          "      <as3-url>?s3.id=<access-id>           [as used in EOS transfers\n");
+          "      <as3-url>?s3.id=<access-id>           [as used in EOS transfers ]\n");
+  fprintf(stdout, "\n");
   fprintf(stdout, "      The access key can be defined in 3 ways:\n");
   fprintf(stdout,
           "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT  ]\n");
   fprintf(stdout,
           "      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n");
   fprintf(stdout,
-          "      <as3-url>?s3.key=<access-key>         [as used in EOS transfers\n");
+          "      <as3-url>?s3.key=<access-key>         [as used in EOS transfers ]\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "      If <src> and <dst> are using S3, we are using the same credentials on both ands and the target credentials will overwrite source credentials!\n");
@@ -1128,10 +1129,16 @@ com_cp(char* argin)
 
     cmdline += transfersize;
     cmdline += " ";
-    cmdline += "-N '";
+    cmdline += "-N $'";
     XrdOucString safepath = cPath.GetName();
 
     while (safepath.replace("&", "#AND#")) {}
+
+    // Preprocess single quotes
+    int qpos = safepath.length() - 1;
+    while ((qpos = safepath.rfind("'", qpos)) != STR_NPOS) {
+       safepath.replace("'", "\\'", qpos, qpos);
+     }
 
     cmdline += safepath.c_str();
     cmdline += "' ";
@@ -1139,8 +1146,16 @@ com_cp(char* argin)
     if (rstdin) {
       cmdline += "- ";
     } else {
-      cmdline += "'";
-      cmdline += arg1;
+      XrdOucString safearg1 = arg1;
+
+      // Preprocess single quotes
+      qpos = safearg1.length() - 1;
+      while ((qpos = safearg1.rfind("'", qpos)) != STR_NPOS) {
+        safearg1.replace("'", "\\'", qpos, qpos);
+      }
+
+      cmdline += "$'";
+      cmdline += safearg1;
       cmdline += "'";
       cmdline += " ";
     }
@@ -1148,8 +1163,16 @@ com_cp(char* argin)
     if (rstdout) {
       cmdline += "- ";
     } else {
-      cmdline += "'";
-      cmdline += arg2;
+      XrdOucString safearg2 = arg2;
+
+      // Preprocess single quotes
+      qpos = safearg2.length() - 1;
+      while ((qpos = safearg2.rfind("'", qpos)) != STR_NPOS) {
+        safearg2.replace("'", "\\'", qpos, qpos);
+      }
+
+      cmdline += "$'";
+      cmdline += safearg2;
       cmdline += "'";
     }
 
@@ -1202,7 +1225,7 @@ com_cp(char* argin)
 
       if ((!WEXITSTATUS(lrc)) && (!XrdPosixXrootd::Stat(url.c_str(), &buf))) {
         if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile])) {
-          fprintf(stderr, "error: filesize differ between source and target file!\n");
+          fprintf(stderr, "error: file size difference between source and target file!\n");
           lrc = 0xffff00;
         } else {
           if (preserve && (source_size.size() == source_utime.size())) {
@@ -1265,7 +1288,7 @@ com_cp(char* argin)
 
         if (!stat(targetfile.c_str(), &buf)) {
           if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile])) {
-            fprintf(stderr, "error: filesize differ between source and target file!\n");
+            fprintf(stderr, "error: file size difference between source and target file!\n");
             lrc = 0xffff00;
           } else {
             if (preserve && (source_size.size() == source_utime.size())) {
@@ -1304,7 +1327,7 @@ com_cp(char* argin)
           auto* fs = new XrdCl::FileSystem(url);
 
           if (!fs) {
-            fprintf(stderr, "erroe: failed to get new FS object. \n");
+            fprintf(stderr, "error: failed to get new FS object. \n");
             return (0);
           }
 
