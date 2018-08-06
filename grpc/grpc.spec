@@ -47,6 +47,7 @@ git checkout v%{version}
 git checkout -b v1.13.1
 %build
 cd grpc
+export CPPFLAGS="-Wno-error"
 %if 0%{distribution} == 6 
 make -j 4 
 %else
