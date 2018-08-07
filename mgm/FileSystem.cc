@@ -110,7 +110,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
             eos_static_err("%s", out_msg.c_str());
             return false;
           }
-        } else if (drain_tx < 0) {
+        } else {
           if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
             eos_static_err("%s", out_msg.c_str());
           }
