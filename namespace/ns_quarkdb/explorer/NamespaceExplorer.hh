@@ -41,8 +41,18 @@ class QClient;
 
 EOSNSNAMESPACE_BEGIN
 
+class ExpansionDecider {
+public:
+  //----------------------------------------------------------------------------
+  //! Returns whether to expand the given container, or ignore it.
+  //! Useful to filter out certain parts of the namespace tree.
+  //----------------------------------------------------------------------------
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &containerMd) = 0;
+};
+
 struct ExplorationOptions {
   int depthLimit;
+  std::shared_ptr<ExpansionDecider> expansionDecider;
 };
 
 struct NamespaceItem {
@@ -55,13 +65,15 @@ struct NamespaceItem {
   eos::ns::ContainerMdProto containerMd;
 };
 
+class NamespaceExplorer;
+
 //------------------------------------------------------------------------------
 //! Represents a node in the search tree.
 //------------------------------------------------------------------------------
 class SearchNode
 {
 public:
-  SearchNode(qclient::QClient& qcl, ContainerIdentifier id, SearchNode* prnt);
+  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier id, SearchNode* prnt);
   inline ContainerIdentifier getID() const
   {
     return id;
@@ -97,6 +109,7 @@ public:
   eos::ns::ContainerMdProto& getContainerInfo();
 
 private:
+  NamespaceExplorer &explorer;
   ContainerIdentifier id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
@@ -143,6 +156,7 @@ public:
   bool fetch(NamespaceItem& result);
 
 private:
+  friend class SearchNode;
   std::string buildStaticPath();
   std::string buildDfsPath();
 

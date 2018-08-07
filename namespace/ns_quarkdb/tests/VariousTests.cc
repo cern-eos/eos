@@ -390,6 +390,70 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(explorer2.fetch(item));
 }
 
+class ContainerFilter : public eos::ExpansionDecider {
+public:
+
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &proto) override {
+    if(proto.name() == "d4") {
+      std::cerr << "INFO: Filtering out encountered container with name d4." << std::endl;
+      return false;
+    }
+
+    return true;
+  }
+};
+
+TEST_F(NamespaceExplorerF, ExpansionDecider) {
+  populateDummyData1();
+
+  ExplorationOptions options;
+  options.depthLimit = 999;
+  options.expansionDecider.reset(new ContainerFilter());
+
+  NamespaceExplorer explorer("/eos/d2", options, qcl());
+  NamespaceItem item;
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/");
+
+  for(size_t i = 1; i <= 3; i++) {
+    ASSERT_TRUE(explorer.fetch(item));
+    ASSERT_TRUE(item.isFile);
+    ASSERT_EQ(item.fullPath, SSTR("/eos/d2/asdf" << i));
+  }
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/b");
+
+  for(size_t i = 1; i <= 6; i++) {
+    ASSERT_TRUE(explorer.fetch(item));
+    ASSERT_TRUE(item.isFile);
+    ASSERT_EQ(item.fullPath, SSTR("/eos/d2/zzzzz" << i));
+  }
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-1/");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/my-file");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d4/");
+
+  ASSERT_FALSE(explorer.fetch(item));
+  ASSERT_FALSE(explorer.fetch(item));
+  ASSERT_FALSE(explorer.fetch(item));
+}
+
 TEST(OctalParsing, BasicSanity) {
   mode_t mode;
   ASSERT_TRUE(PermissionHandler::parseOctalMask("0700", mode));
