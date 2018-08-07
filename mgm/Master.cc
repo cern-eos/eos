@@ -1132,6 +1132,13 @@ Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
   }
 
   fActivated.store(true);
+
+  // Reapply the fs configstatus to start eventually the draining given the
+  // space config
+  if (transitiontype == Transition::Type::kMasterToMaster) {
+    FsView::gFsView.ReapplyConfigStatus();
+  }
+
   return true;
 }
 

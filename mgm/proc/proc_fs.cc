@@ -368,12 +368,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           auto new_status = eos::common::FileSystem::GetConfigStatusFromString(
                               value.c_str());
 
-          // Nothing to do
-          if (!FileSystem::IsConfigTransition(old_status, new_status)) {
-            eos_static_info("msg=\"fsid=%d already in the desired state\"", fsid);
-            return 0;
-          }
-
           if (value == "empty") {
             // Check if this filesystem is really empty
             if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId()) != 0) {
