@@ -333,6 +333,10 @@ ProcCommand::FileInfo(const char* path)
             etag = setag;
           }
 
+          if (fmd_copy->hasAttribute("sys.tmp.etag")) {
+            etag = fmd_copy->getAttribute("sys.tmp.etag");
+          }
+
           if (!Monitoring) {
             stdOut = "  File: '";
             stdOut += spath;
@@ -864,6 +868,10 @@ ProcCommand::DirInfo(const char* path)
                  (unsigned long)tmtime.tv_nsec / 1000000);
         etag = setag;
 
+        if (dmd_copy->hasAttribute("sys.tmp.etag")) {
+          etag = dmd_copy->getAttribute("sys.tmp.etag");
+        }
+
         if (!Monitoring) {
           stdOut = "  Directory: '";
           stdOut += spath;
@@ -1035,14 +1043,21 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-    if (dolock)
-      gOFS->eosViewRWMutex.LockRead();
+    eos::common::RWMutexReadLock viewReadLock;
+
+    if (dolock) {
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
+    }
+
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
     fullpath = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
-    if (dolock)
+
+    if (dolock) {
       gOFS->eosViewRWMutex.UnLockRead();
+    }
+
     // TODO (esindril): All this copying should be reviewed
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
@@ -1149,8 +1164,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["etag"] = etag;
     json["path"] = fullpath;
   } catch (eos::MDException& e) {
-    if (dolock)
+    if (dolock) {
       gOFS->eosViewRWMutex.UnLockRead();
+    }
+
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
@@ -1185,8 +1202,12 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   json["id"] = (Json::Value::UInt64)fid;
 
   try {
-    if (dolock)
-      gOFS->eosViewRWMutex.LockRead();
+    eos::common::RWMutexReadLock viewReadLock;
+
+    if (dolock) {
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
+    }
+
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(fid);
     fullpath = gOFS->eosView->getUri(cmd.get());
@@ -1211,36 +1232,38 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nndirectories"] = (int)cmd->getNumContainers();
     json["nfiles"] = (int)cmd->getNumFiles();
     Json::Value chld;
+    std::shared_ptr<eos::IContainerMD> cmd_copy(cmd->clone());
+    cmd_copy->InheritChildren(*(cmd.get()));
+    cmd.reset();
+    viewReadLock.Release();
 
     if (!ret_json) {
-      for (auto it = FileMapIterator(cmd); it.valid(); it.next()) {
-        std::shared_ptr<IFileMD> fmd = cmd->findFile(it.key());
+      for (auto it = FileMapIterator(cmd_copy); it.valid(); it.next()) {
         Json::Value fjson;
-        FileJSON(fmd->getId(), &fjson, false);
+        FileJSON(it.value(), &fjson, true);
         chld.append(fjson);
       }
 
       // Loop through all subcontainers
-      for (auto dit = ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+      for (auto dit = ContainerMapIterator(cmd_copy); dit.valid(); dit.next()) {
         Json::Value djson;
-        std::shared_ptr<IContainerMD> dmd = cmd->findContainer(dit.key());
-        DirJSON(dmd->getId(), &djson, false);
+        DirJSON(dit.value(), &djson, true);
         chld.append(djson);
       }
     }
 
-    if ((cmd->getNumFiles() + cmd->getNumContainers()) != 0) {
+    if ((cmd_copy->getNumFiles() + cmd_copy->getNumContainers()) != 0) {
       json["children"] = chld;
     }
 
     Json::Value jsonxattr;
-    eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
+    eos::IFileMD::XAttrMap xattrs = cmd_copy->getAttributes();
 
     for (const auto& elem : xattrs) {
       jsonxattr[elem.first] = elem.second;
     }
 
-    if (cmd->numAttributes()) {
+    if (cmd_copy->numAttributes()) {
       json["xattr"] = jsonxattr;
     }
 
@@ -1248,19 +1271,28 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     // use inode + mtime
     char setag[256];
     eos::IFileMD::ctime_t mtime;
-    cmd->getMTime(mtime);
+    cmd_copy->getMTime(mtime);
     time_t filemtime = (time_t) mtime.tv_sec;
     snprintf(setag, sizeof(setag) - 1, "%llu:%llu",
-             (unsigned long long) eos::common::FileId::FidToInode(cmd->getId()),
+             (unsigned long long) eos::common::FileId::FidToInode(cmd_copy->getId()),
              (unsigned long long) filemtime);
     etag = setag;
+
+    if (cmd_copy->hasAttribute("sys.tmp.etag")) {
+      etag = cmd_copy->getAttribute("sys.tmp.etag");
+    }
+
     json["etag"] = etag;
     json["path"] = fullpath;
-    if (dolock)
+
+    if (dolock) {
       gOFS->eosViewRWMutex.UnLockRead();
+    }
   } catch (eos::MDException& e) {
-    if (dolock)
+    if (dolock) {
       gOFS->eosViewRWMutex.UnLockRead();
+    }
+
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
