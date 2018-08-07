@@ -518,6 +518,11 @@ runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instance
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+runtest "### Rmdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+runtest "### Rmrf      " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+
 runtest "### MkSpace   " unix 0 "" eos "space define __test__"
 runtest "### SetSpace  " unix 0 "" eos "space set __test__ on "
 runtest "### RmSpace   " unix 0 "" eos "space rm __test__"
