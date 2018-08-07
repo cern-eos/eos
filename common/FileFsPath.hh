@@ -68,6 +68,33 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Checks whether a file has a logical path mapping for a given filesystem
+  //! from the file's extended attributes metadata.
+  //----------------------------------------------------------------------------
+  static bool HasLogicalPath(unsigned long fsid,
+                             std::shared_ptr<eos::IFileMD> &fmd)
+  {
+    XrdOucString attributeString;
+    bool hasLogicalPath = false;
+
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
+
+      // Check if filesystem id appears in attribute string
+      std::string fsIdentifier = std::to_string(fsid);
+      fsIdentifier += "|";
+      int pos = attributeString.find(fsIdentifier.c_str());
+
+      if ((pos != STR_NPOS) &&
+          ((pos == 0) || (attributeString[pos - 1] == '&'))) {
+        hasLogicalPath = true;
+      }
+    }
+
+    return hasLogicalPath;
+  }
+
+  //----------------------------------------------------------------------------
   //! Constructs file physical path for a given filesystem from file metadata.
   //! It will search through the extended attributes in search of a
   //! logical path mapping. If none are found, it returns the path obtained
@@ -82,25 +109,12 @@ public:
       return -1;
     }
 
-    std::map<unsigned long, std::string> map;
-    std::string attributeString;
-    bool useLogicalPath = false;
+    bool hasLogicalPath = HasLogicalPath(fsid, fmd);
 
-    if (fmd->hasAttribute("sys.eos.lpath")) {
-      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
+    if (hasLogicalPath) {
+      std::map<unsigned long, std::string> map;
+      std::string attributeString = fmd->getAttribute("sys.eos.lpath");
 
-      // Check if filesystem id appears in attribute string
-      std::string fsIdentifier = std::to_string(fsid);
-      fsIdentifier += "|";
-      int pos = attributeString.find(fsIdentifier.c_str());
-
-      if ((pos != STR_NPOS) &&
-          ((pos == 0) || (attributeString[pos - 1] == '&'))) {
-        useLogicalPath = true;
-      }
-    }
-
-    if (useLogicalPath) {
       map = attributeStringToFsPathMap(attributeString.c_str());
       physicalPath = map[fsid].c_str();
     } else {
@@ -158,35 +172,35 @@ public:
     fmd->setAttribute("sys.eos.lpath", attributeString);
   }
 
-    //----------------------------------------------------------------------------
-    //! Remove a file's physical path for a given filesystem from the file's
-    //! extended attributes metadata.
-    //! Upon removal, if the extended attribute values becomes empty,
-    //! it will be removed entirely from the metadata.
-    //!
-    //! This function changes the file's metadata and should be called
-    //! in a thread-safe context.
-    //----------------------------------------------------------------------------
-    static void RemovePhysicalPath(unsigned long fsid,
-                                   const std::shared_ptr<eos::IFileMD> &fmd)
-    {
-      if (fmd->hasAttribute("sys.eos.lpath")) {
-        std::string attributeString = fmd->getAttribute("sys.eos.lpath");
-        std::map<unsigned long, std::string> map =
-            attributeStringToFsPathMap(attributeString.c_str());
+  //----------------------------------------------------------------------------
+  //! Remove a file's physical path for a given filesystem from the file's
+  //! extended attributes metadata.
+  //! Upon removal, if the extended attribute values becomes empty,
+  //! it will be removed entirely from the metadata.
+  //!
+  //! This function changes the file's metadata and should be called
+  //! in a thread-safe context.
+  //----------------------------------------------------------------------------
+  static void RemovePhysicalPath(unsigned long fsid,
+                                 const std::shared_ptr<eos::IFileMD> &fmd)
+  {
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      std::string attributeString = fmd->getAttribute("sys.eos.lpath");
+      std::map<unsigned long, std::string> map =
+          attributeStringToFsPathMap(attributeString.c_str());
 
-        if (map.count(fsid)) {
-          map.erase(fsid);
+      if (map.count(fsid)) {
+        map.erase(fsid);
 
-          if (map.size()) {
-            attributeString = fsPathMapToAttributeString(map);
-            fmd->setAttribute("sys.eos.lpath", attributeString);
-          } else {
-            fmd->removeAttribute("sys.eos.lpath");
-          }
+        if (map.size()) {
+          attributeString = fsPathMapToAttributeString(map);
+          fmd->setAttribute("sys.eos.lpath", attributeString);
+        } else {
+          fmd->removeAttribute("sys.eos.lpath");
         }
       }
     }
+  }
 
 private:
 

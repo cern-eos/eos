@@ -1915,15 +1915,32 @@ XrdMgmOfsFile::open(const char* inpath,
     eos::IFileMD::ctime_t ctime;
     char buff[64];
 
-    capability += "&mgm.lpath=";
-    capability += path;
-    eos::common::FileFsPath::StorePhysicalPath(filesystem->GetId(), fmd, path);
-    gOFS->eosView->updateFileStore(fmd.get());
+    try {
+      fmd->getCTime(ctime);
+      eos::common::FileFsPath::StorePhysicalPath(filesystem->GetId(), fmd, path);
+      gOFS->eosView->updateFileStore(fmd.get());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      std::string errmsg = e.getMessage().str();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+      return Emsg(epname, error, errno, "open file", errmsg.c_str());
+    }
 
-    fmd->getCTime(ctime);
     sprintf(buff, "%ld", ctime.tv_sec);
     capability += "&mgm.ctime=";
     capability += buff;
+  }
+
+  // Retrieve logical path if present
+  bool hasLogicalPath =
+      eos::common::FileFsPath::HasLogicalPath(filesystem->GetId(), fmd);
+  if (hasLogicalPath) {
+    XrdOucString lpath;
+    eos::common::FileFsPath::GetPhysicalPath(filesystem->GetId(),
+                                             fmd, lpath);
+    capability += "&mgm.lpath=";
+    capability += lpath.c_str();
   }
 
   // Add the store flag for RAIN reconstruct jobs

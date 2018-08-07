@@ -74,9 +74,13 @@ TEST(FileFsPath, LogicalPath)
       std::make_shared<eos::FileMD>(1, fileSvc.get());
   XrdOucString path, fidPath;
 
+  // No logical path
+  ASSERT_FALSE(FileFsPath::HasLogicalPath(1, fmd));
+
   // Single logical path
   FileFsPath::StorePhysicalPath(1, fmd, "path1");
   FileFsPath::GetPhysicalPath(1, fmd, path);
+  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd));
   ASSERT_STREQ(path.c_str(), "path1");
 
   // Overwrite logical path
@@ -95,6 +99,9 @@ TEST(FileFsPath, LogicalPath)
   FileFsPath::StorePhysicalPath(2, fmd, "path2");
   FileFsPath::StorePhysicalPath(3, fmd, "path3");
   FileFsPath::StorePhysicalPath(3, fmd, "path3");
+  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd) &&
+              FileFsPath::HasLogicalPath(2, fmd) &&
+              FileFsPath::HasLogicalPath(3, fmd));
   FileFsPath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path1");
   FileFsPath::GetPhysicalPath(2, fmd, path);
@@ -123,11 +130,13 @@ TEST(FileFsPath, LogicalPathRemoval)
 
   // Store single logical path
   FileFsPath::StorePhysicalPath(1, fmd, "path1");
+  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd));
   FileFsPath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path1");
 
   // Remove single logical path
   FileFsPath::RemovePhysicalPath(1, fmd);
+  ASSERT_FALSE(FileFsPath::HasLogicalPath(1, fmd));
   FileFsPath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_FALSE(fmd->hasAttribute("sys.eos.lpath"));
@@ -144,6 +153,7 @@ TEST(FileFsPath, LogicalPathRemoval)
   FileFsPath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_TRUE(fmd->hasAttribute("sys.eos.lpath"));
+  ASSERT_FALSE(FileFsPath::HasLogicalPath(2, fmd));
 
   // Store multiple logical paths
   FileFsPath::StorePhysicalPath(1, fmd, "path1");
