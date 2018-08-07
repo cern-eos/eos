@@ -2,5 +2,12 @@ syntax="proto3";
 package eos.console;
 
 message StagerRmProto {
-    repeated string Path = 1;
+  message FileProto {
+    oneof File {
+      string Path = 1;
+      uint64 Fid = 2;
+    }
+  }
+
+  repeated FileProto File = 1;
 }

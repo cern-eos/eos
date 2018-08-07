@@ -71,15 +71,22 @@ StagerRmHelper::ParseCommand(const char* arg) {
     while (path.replace("\\ ", " "));
 
     if (path != "") {
-      path = abspath(path.c_str());
-      stagerRm->add_path(path.c_str());
+      auto file = stagerRm->add_file();
+
+      auto fid = 0ull;
+      if (Path2FileDenominator(path, fid)) {
+        file->set_fid(fid);
+      } else {
+        path = abspath(path.c_str());
+        file->set_path(path.c_str());
+      }
     }
 
     path = tokenizer.GetToken();
   }
 
   // at least 1 path has to be given
-  return stagerRm->path_size() > 0;
+  return stagerRm->file_size() > 0;
 
 }
 
@@ -108,7 +115,7 @@ int com_stagerrm(char* arg)
 
 void com_stagerrm_help() {
   std::ostringstream oss;
-  oss << "Usage: stagerrm <path0 path1 ...>"
+  oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
       << "       This command required write and p acl flag permission"
