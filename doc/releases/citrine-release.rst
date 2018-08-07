@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.7 Citrine``
+===================
+
+2018-08-07
+
+Bug
+---
+
+* Fix possible deadlock when starting the MGM with more than the maximum allowed
+  number of draining file systems per node.
+
+
 ``v4.3.6 Citrine``
 ===================
 
