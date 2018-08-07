@@ -135,7 +135,7 @@ StringTokenizer::GetLine()
 }
 
 //------------------------------------------------------------------------------
-// Return next parsed space seperated token taking into account escaped
+// Return next parsed space separated token taking into account escaped
 // blanks and quoted strings
 //------------------------------------------------------------------------------
 const char*

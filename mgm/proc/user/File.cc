@@ -1216,7 +1216,9 @@ ProcCommand::File()
         retc = ENOENT;
       } else {
         if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0)) {
-          stdErr = "error: unable to touch";
+          stdErr = "error: unable to touch '";
+          stdErr += spath.c_str();
+          stdErr += "'";
           retc = errno;
         } else {
           stdOut += "success: touched '";

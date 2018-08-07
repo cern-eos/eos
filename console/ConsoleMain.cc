@@ -255,7 +255,7 @@ jump_handler(int a)
 }
 
 //------------------------------------------------------------------------------
-// Absolut path conversion funcion
+// Absolute path conversion function
 //------------------------------------------------------------------------------
 const char*
 abspath(const char* in)
@@ -273,10 +273,10 @@ abspath(const char* in)
     if (getcwd(pwd, sizeof(pwd))) {
       XrdOucString lpwd = pwd;
       if (lpwd.beginswith("/eos")) {
-	inpath = pwd;
-	inpath += "/";
+	      inpath = pwd;
+	      inpath += "/";
       } else {
-	inpath = gPwd;
+	      inpath = gPwd;
       }
     } else {
       inpath = gPwd;
