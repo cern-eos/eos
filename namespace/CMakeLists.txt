@@ -43,6 +43,9 @@ add_library(
   Prefetcher.cc                       Prefetcher.hh
   Resolver.cc                         Resolver.hh
 
+  # Common helper classes, common to both namespaces
+  common/QuotaNodeCore.cc             common/QuotaNodeCore.hh
+
   # Namespace interface
   interface/IView.hh
   interface/IFsView.hh

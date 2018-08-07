@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/PermissionHandler.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
@@ -514,4 +515,35 @@ TEST(SysMask, BasicSanity) {
   ASSERT_EQ(0700, PermissionHandler::filterWithSysMask(xattr, 0700));
   ASSERT_EQ(0770, PermissionHandler::filterWithSysMask(xattr, 0770));
   ASSERT_EQ(0774, PermissionHandler::filterWithSysMask(xattr, 0774));
+}
+
+TEST(QuotaNodeCore, BasicSanity) {
+  QuotaNodeCore qn;
+
+  ASSERT_EQ(qn.getNumFilesByUser(12), 0u);
+  ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
+
+  qn.addFile(12, 13, 1024, 2048);
+
+  ASSERT_EQ(qn.getNumFilesByUser(12), 1u);
+  ASSERT_EQ(qn.getNumFilesByUser(13), 0u);
+
+  ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
+  ASSERT_EQ(qn.getNumFilesByGroup(13), 1u);
+
+  ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2048);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 0);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 2048);
+
+  qn.addFile(12, 12, 1, 2);
+
+  ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2050);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 2048);
+
+  qn.removeFile(12, 13, 1024, 2048);
+
+  ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 0);
 }
