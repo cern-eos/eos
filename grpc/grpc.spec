@@ -47,7 +47,9 @@ git checkout v%{version}
 git checkout -b v1.13.1
 %build
 cd grpc
-export CXXFLAGS="-Wno-error"
+%if %{?fedora}%{!?fedora:0} >= 19
+export CPPFLAGS="-Wno-error=class-memaccess"
+%endif
 %if 0%{?rhel} == 6
 make -j 4 
 %else
