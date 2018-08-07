@@ -122,6 +122,20 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_FST_NO_FAST_BOOT=0 (default off)
 
 #-------------------------------------------------------------------------------
+# FST External Storage Configuration
+#-------------------------------------------------------------------------------
+
+# Set S3 access credentials
+#EOS_FST_S3_ACCESS_KEY=""
+#EOS_FST_S3_SECRET_KEY=""
+
+# Set S3 theoretical storage size
+#EOS_FST_S3_STORAGE_SIZE=20000000000
+
+# Set HTTPS X509 certificate path
+#EOS_FST_HTTPS_X509_CERTIFICATE_PATH=""
+
+#-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------
 # HTTP server ports
