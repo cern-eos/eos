@@ -1053,11 +1053,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     fullpath = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
-
-    if (dolock) {
-      gOFS->eosViewRWMutex.UnLockRead();
-    }
-
+    viewReadLock.Release();
     // TODO (esindril): All this copying should be reviewed
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
@@ -1164,10 +1160,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["etag"] = etag;
     json["path"] = fullpath;
   } catch (eos::MDException& e) {
-    if (dolock) {
-      gOFS->eosViewRWMutex.UnLockRead();
-    }
-
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
@@ -1284,15 +1276,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     json["etag"] = etag;
     json["path"] = fullpath;
-
-    if (dolock) {
-      gOFS->eosViewRWMutex.UnLockRead();
-    }
   } catch (eos::MDException& e) {
-    if (dolock) {
-      gOFS->eosViewRWMutex.UnLockRead();
-    }
-
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
