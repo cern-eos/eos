@@ -67,11 +67,11 @@ RmHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
 
-  while ((option = tokenizer.GetToken()).length() > 0 &&
+  while ((option = tokenizer.GetToken(false)).length() > 0 &&
          (option.beginswith("-"))) {
-    if (option == "-r") {
+    if ((option == "-r") || (option == "-rf") || (option == "-fr")) {
       rm->set_recursive(true);
-    } else if (option == "-f") {
+    } else if ((option == "-F") || (option == "--no-recycle-bin")) {
       rm->set_bypassrecycle(true);
     } else if (option == "-rF" || option == "-Fr") {
       rm->set_recursive(true);
@@ -105,6 +105,7 @@ RmHelper::ParseCommand(const char* arg)
 
   if (Path2FileDenominator(path, id)) {
     rm->set_fileid(id);
+    rm->set_recursive(false); // disable recursive option for files
     path = "";
   } else {
     if (Path2ContainerDenominator(path, id)) {
@@ -167,11 +168,21 @@ int com_protorm(char* arg)
 void com_rm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: rm [-rF] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
+  oss << "Usage: rm [-r|-rf|-rF] [--no-recycle-bin|-F] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
       << std::endl
-      << "           -r : remove files/directories recursively"
+      << "            -r | -rf : remove files/directories recursively" << std::endl
+      << "                     - the 'f' option is a convenience option with no additional functionality!"
       << std::endl
-      << "           -F : remove bypassing recycling policies (you have to take the root role to use this flag!)"
+      << "                     - the recursive flag is automatically removed it the target is a file!"
+      << std::endl << std::endl
+      << " --no-recycle-bin|-F : remove bypassing recycling policies" << std::endl
+      << "                     - you have to take the root role to use this flag!"
+      << std::endl << std::endl
+      << "            -rF | Fr : remove files/directories recursively bypassing recycling policies"
+      << std::endl
+      << "                     - you have to take the root role to use this flag!" <<
+      std::endl
+      << "                     - the recursive flag is automatically removed it the target is a file!"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
