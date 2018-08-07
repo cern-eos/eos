@@ -21,6 +21,9 @@
 //! @brief  Quota node core logic, shared between the two namespaces
 //------------------------------------------------------------------------------
 
+#ifndef EOS_NS_COMMON_QUOTA_NODE_CORE_HH
+#define EOS_NS_COMMON_QUOTA_NODE_CORE_HH
+
 #include "namespace/Namespace.hh"
 #include "namespace/interface/Identifiers.hh"
 #include <map>
@@ -36,6 +39,13 @@ public:
 
   struct UsageInfo {
     UsageInfo(): space(0), physicalSpace(0), files(0) {}
+    UsageInfo& operator += (const UsageInfo& other)
+    {
+      space         += other.space;
+      physicalSpace += other.physicalSpace;
+      files         += other.files;
+      return *this;
+    }
     uint64_t space;
     uint64_t physicalSpace;
     uint64_t files;
@@ -93,3 +103,5 @@ private:
 };
 
 EOSNSNAMESPACE_END
+
+#endif

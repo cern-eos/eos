@@ -25,6 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/common/QuotaNodeCore.hh"
 #include <iostream>
 #include <memory>
 #include <map>
@@ -43,22 +44,8 @@ class IQuotaNode
 {
 public:
 
-  struct UsageInfo {
-    UsageInfo(): space(0), physicalSpace(0), files(0) {}
-    UsageInfo& operator += (const UsageInfo& other)
-    {
-      space         += other.space;
-      physicalSpace += other.physicalSpace;
-      files         += other.files;
-      return *this;
-    }
-    uint64_t space;
-    uint64_t physicalSpace;
-    uint64_t files;
-  };
-
-  typedef std::map<uid_t, UsageInfo> UserMap;
-  typedef std::map<gid_t, UsageInfo> GroupMap;
+  typedef std::map<uid_t, QuotaNodeCore::UsageInfo> UserMap;
+  typedef std::map<gid_t, QuotaNodeCore::UsageInfo> GroupMap;
 
   //----------------------------------------------------------------------------
   //! Constructor

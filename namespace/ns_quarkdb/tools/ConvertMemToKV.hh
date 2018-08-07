@@ -39,7 +39,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
-using QuotaNodeMapT = std::map<std::string, eos::IQuotaNode::UsageInfo>;
+using QuotaNodeMapT = std::map<std::string, eos::QuotaNodeCore::UsageInfo>;
 
 //------------------------------------------------------------------------------
 //! Class ConvertQuotaView

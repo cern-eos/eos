@@ -541,9 +541,27 @@ TEST(QuotaNodeCore, BasicSanity) {
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 2048);
 
+  ASSERT_EQ(qn.getNumFilesByUser(12), 2u);
+  ASSERT_EQ(qn.getNumFilesByUser(13), 0u);
+
+  ASSERT_EQ(qn.getNumFilesByGroup(12), 1u);
+  ASSERT_EQ(qn.getNumFilesByGroup(13), 1u);
+
   qn.removeFile(12, 13, 1024, 2048);
 
   ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 0);
+
+  qn.removeFile(12, 12, 1, 2);
+
+  ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 0);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 0);
+  ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 0);
+
+  ASSERT_EQ(qn.getNumFilesByUser(12), 0u);
+  ASSERT_EQ(qn.getNumFilesByUser(13), 0u);
+
+  ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
+  ASSERT_EQ(qn.getNumFilesByGroup(13), 0u);
 }

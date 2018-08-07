@@ -184,8 +184,8 @@ mapSize(const eos::IFileMD* file)
 //------------------------------------------------------------------------------
 static void
 createFiles(const std::string& path, eos::IView* view,
-            std::map<uid_t, eos::QuotaNode::UsageInfo>* users,
-            std::map<gid_t, eos::QuotaNode::UsageInfo>* groups)
+            std::map<uid_t, eos::QuotaNodeCore::UsageInfo>* users,
+            std::map<gid_t, eos::QuotaNodeCore::UsageInfo>* groups)
 {
   eos::IQuotaNode* node = view->getQuotaNode(view->getContainer(path).get());
 
@@ -200,8 +200,8 @@ createFiles(const std::string& path, eos::IView* view,
     view->updateFileStore(file.get());
     node->addFile(file.get());
     uint64_t size = mapSize(file.get());
-    eos::IQuotaNode::UsageInfo& user = (*users)[file->getCUid()];
-    eos::IQuotaNode::UsageInfo& group = (*groups)[file->getCGid()];
+    eos::QuotaNodeCore::UsageInfo& user = (*users)[file->getCUid()];
+    eos::QuotaNodeCore::UsageInfo& group = (*groups)[file->getCGid()];
     user.space += file->getSize();
     user.physicalSpace += size;
     user.files++;
@@ -296,16 +296,16 @@ TEST_F(HierarchicalViewF, QuotaTest)
   ASSERT_TRUE(qn3 != qn5);
   ASSERT_TRUE(qn3 != qn2);
   // Create some files
-  std::map<uid_t, eos::IQuotaNode::UsageInfo> users1;
-  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups1;
+  std::map<uid_t, eos::QuotaNodeCore::UsageInfo> users1;
+  std::map<gid_t, eos::QuotaNodeCore::UsageInfo> groups1;
   std::string path1 = "/test/embed/embed1/";
   createFiles(path1, view(), &users1, &groups1);
-  std::map<uid_t, eos::IQuotaNode::UsageInfo> users2;
-  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups2;
+  std::map<uid_t, eos::QuotaNodeCore::UsageInfo> users2;
+  std::map<gid_t, eos::QuotaNodeCore::UsageInfo> groups2;
   std::string path2 = "/test/embed/embed2/";
   createFiles(path2, view(), &users2, &groups2);
-  std::map<uid_t, eos::IQuotaNode::UsageInfo> users3;
-  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups3;
+  std::map<uid_t, eos::QuotaNodeCore::UsageInfo> users3;
+  std::map<gid_t, eos::QuotaNodeCore::UsageInfo> groups3;
   std::string path3 = "/test/embed/embed3/";
   createFiles(path3, view(), &users3, &groups3);
   // Verify correctness

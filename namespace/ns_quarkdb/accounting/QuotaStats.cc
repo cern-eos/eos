@@ -73,8 +73,8 @@ QuotaNode::addFile(const IFileMD* file)
   );
 
   // Update the cached information
-  UsageInfo& user  = pUserUsage[file->getCUid()];
-  UsageInfo& group = pGroupUsage[file->getCGid()];
+  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
+  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
   user.physicalSpace  += size;
   group.physicalSpace += size;
   user.space   += file->getSize();
@@ -107,8 +107,8 @@ QuotaNode::removeFile(const IFileMD* file)
   );
 
   // Update the cached information
-  UsageInfo& user  = pUserUsage[file->getCUid()];
-  UsageInfo& group = pGroupUsage[file->getCGid()];
+  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
+  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
   user.physicalSpace  -= size;
   group.physicalSpace -= size;
   user.space   -= file->getSize();
@@ -187,11 +187,11 @@ void QuotaNode::updateFromBackend()
       auto it_uid = pUserUsage.find(uid);
 
       if (it_uid == pUserUsage.end()) {
-        auto pair = pUserUsage.emplace(uid, UsageInfo());
+        auto pair = pUserUsage.emplace(uid, QuotaNodeCore::UsageInfo());
         it_uid = pair.first;
       }
 
-      UsageInfo& uinfo = it_uid->second;
+      QuotaNodeCore::UsageInfo& uinfo = it_uid->second;
 
       if (type == "logical_size") {
         uinfo.space = std::stoull(elem.second);
@@ -216,11 +216,11 @@ void QuotaNode::updateFromBackend()
       auto it_gid = pGroupUsage.find(uid);
 
       if (it_gid == pGroupUsage.end()) {
-        auto pair = pGroupUsage.emplace(uid, UsageInfo());
+        auto pair = pGroupUsage.emplace(uid, QuotaNodeCore::UsageInfo());
         it_gid = pair.first;
       }
 
-      UsageInfo& ginfo = it_gid->second;
+      QuotaNodeCore::UsageInfo& ginfo = it_gid->second;
 
       if (type == "logical_size") {
         ginfo.space = std::stoull(elem.second);

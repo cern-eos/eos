@@ -810,8 +810,8 @@ ConvertQuotaView::addQuotaInfo(IFileMD* file)
 
   QuotaNodeMapT& map_uid = it_map->second.first;
   QuotaNodeMapT& map_gid = it_map->second.second;
-  eos::IQuotaNode::UsageInfo& user = map_uid[suid];
-  eos::IQuotaNode::UsageInfo& group = map_gid[sgid];
+  eos::QuotaNodeCore::UsageInfo& user = map_uid[suid];
+  eos::QuotaNodeCore::UsageInfo& group = map_gid[sgid];
   user.physicalSpace += size;
   group.physicalSpace += size;
   user.space += file->getSize();
@@ -844,7 +844,7 @@ ConvertQuotaView::commitToBackend()
     qclient::QHash quota_map(*sQcl, uid_key);
 
     for (auto& elem : uid_map) {
-      eos::IQuotaNode::UsageInfo& info = elem.second;
+      eos::QuotaNodeCore::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
       quota_map.hset_async(field, info.physicalSpace, &ah);
       field = elem.first + quota::sLogicalSize;
@@ -856,7 +856,7 @@ ConvertQuotaView::commitToBackend()
     quota_map.setKey(gid_key);
 
     for (auto& elem : gid_map) {
-      eos::IQuotaNode::UsageInfo& info = elem.second;
+      eos::QuotaNodeCore::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
       quota_map.hset_async(field, info.physicalSpace, &ah);
       field = elem.first + quota::sLogicalSize;
