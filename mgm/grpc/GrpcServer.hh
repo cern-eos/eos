@@ -48,6 +48,14 @@ class GrpcServer
 {
 private:
   int mPort;
+  bool mSSL;
+  std::string mSSLCert;
+  std::string mSSLKey;
+  std::string mSSLCa;
+  std::string mSSLCertFile;
+  std::string mSSLKeyFile;
+  std::string mSSLCaFile;
+
 #ifdef EOS_GRPC
   std::unique_ptr<grpc::Server> mServer;
 #endif
@@ -57,7 +65,7 @@ public:
 
   /* Default Constructor - enabling port 50051 by default
    */
-  GrpcServer(int port = 50051) : mPort(port) {}
+  GrpcServer(int port = 50051) : mPort(port), mSSL(false) {}
 
   virtual ~GrpcServer()
   {

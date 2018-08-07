@@ -25,11 +25,17 @@
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
 #include "proto/Rpc.grpc.pb.h"
+#include "common/Logging.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
+
 
 EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
+
+#include <grpc++/security/credentials.h>
+
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -42,6 +48,7 @@ using eos::rpc::PingReply;
 
 class RequestServiceImpl final : public Eos::Service
 {
+
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
@@ -71,16 +78,58 @@ class RequestServiceImpl final : public Eos::Service
 };
 #endif
 
-
 void
 GrpcServer::Run(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_GRPC
+
+  if (getenv("EOS_MGM_GRPC_SSL_CERT") &&
+      getenv("EOS_MGM_GRPC_SSL_KEY") &&
+      getenv("EOS_MGM_GRPC_SSL_CA")) {
+    mSSL = true;
+    mSSLCertFile = getenv("EOS_MGM_GRPC_SSL_CERT");
+    mSSLKeyFile = getenv("EOS_MGM_GRPC_SSL_KEY");
+    mSSLCaFile = getenv("EOS_MGM_GRPC_SSL_CA");
+
+    if (!eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(),
+        mSSLCert)) {
+      eos_static_crit("unsable to load ssl certificate file '%s'",
+                      mSSLCertFile.c_str());
+      mSSL = false;
+    }
+
+    if (!eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
+        mSSLKey)) {
+      eos_static_crit("unsable to load ssl key file '%s'", mSSLKeyFile.c_str());
+      mSSL = false;
+    }
+
+    if (!eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(),
+        mSSLCa)) {
+      eos_static_crit("unsable to load ssl ca file '%s'", mSSLCaFile.c_str());
+      mSSL = false;
+    }
+  }
+
   RequestServiceImpl service;
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
   grpc::ServerBuilder builder;
-  builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
+
+  if (mSSL) {
+    grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
+      mSSLKey,
+      mSSLCert
+    };
+    grpc::SslServerCredentialsOptions sslOps(
+      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY);
+    sslOps.pem_root_certs = mSSLCa;
+    sslOps.pem_key_cert_pairs.push_back(keycert);
+    builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps));
+  } else {
+    builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
+  }
+
   builder.RegisterService(&service);
   mServer = builder.BuildAndStart();
   mServer->Wait();
