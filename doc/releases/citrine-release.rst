@@ -15,6 +15,15 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.2.29 Citrine``
+===================
+
+Improvement
+-----------
+
+* change locking implemention for DirJSON calls (don't use one lock/unlock)
+* fix copy constructor in NS/in-memory for extended attributes in files
+
 
 ``v4.2.28 Citrine``
 ===================
