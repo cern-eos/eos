@@ -98,9 +98,9 @@ uint64_t QuotaNodeCore::getNumFilesByGroup(gid_t gid) {
   return it->second.files;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Account a new file.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QuotaNodeCore::addFile(uid_t uid, gid_t gid, uint64_t size,
   uint64_t physicalSize) {
 
@@ -117,9 +117,9 @@ void QuotaNodeCore::addFile(uid_t uid, gid_t gid, uint64_t size,
   group.files++;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Remove a file.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void QuotaNodeCore::removeFile(uid_t uid, gid_t gid, uint64_t size,
   uint64_t physicalSize) {
 
@@ -134,6 +134,59 @@ void QuotaNodeCore::removeFile(uid_t uid, gid_t gid, uint64_t size,
 
   user.files--;
   group.files--;
+
+  if(user == UsageInfo()) {
+    mUserInfo.erase(uid);
+  }
+
+  if(group == UsageInfo()) {
+    mGroupInfo.erase(gid);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get the set of uids for which information is stored in the current quota
+// node.
+//
+// @return set of uids
+//------------------------------------------------------------------------------
+std::unordered_set<uint64_t> QuotaNodeCore::getUids() {
+  std::unordered_set<uint64_t> uids;
+
+  for (auto it = mUserInfo.begin(); it != mUserInfo.end(); ++it) {
+    uids.insert(it->first);
+  }
+
+  return uids;
+}
+
+//------------------------------------------------------------------------------
+// Get the set of gids for which information is stored in the current quota
+// node.
+//
+// @return set of gids
+//------------------------------------------------------------------------------
+std::unordered_set<uint64_t> QuotaNodeCore::getGids() {
+  std::unordered_set<uint64_t> gids;
+
+  for (auto it = mGroupInfo.begin(); it != mGroupInfo.end(); ++it) {
+    gids.insert(it->first);
+  }
+
+  return gids;
+}
+
+//------------------------------------------------------------------------------
+// Meld in another quota node core
+//------------------------------------------------------------------------------
+void QuotaNodeCore::meld(const QuotaNodeCore& other) {
+  for (auto it = other.mUserInfo.begin(); it != other.mUserInfo.end(); it++) {
+    mUserInfo[it->first] += it->second;
+  }
+
+  for (auto it = other.mGroupInfo.begin(); it != other.mGroupInfo.end(); it++) {
+    mGroupInfo[it->first] += it->second;
+  }
 }
 
 EOSNSNAMESPACE_END

@@ -520,6 +520,9 @@ TEST(SysMask, BasicSanity) {
 TEST(QuotaNodeCore, BasicSanity) {
   QuotaNodeCore qn;
 
+  std::unordered_set<uint64_t> uids;
+  std::unordered_set<uint64_t> gids;
+
   ASSERT_EQ(qn.getNumFilesByUser(12), 0u);
   ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
 
@@ -535,6 +538,11 @@ TEST(QuotaNodeCore, BasicSanity) {
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 0);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 2048);
 
+  uids.emplace(12);
+  gids.emplace(13);
+  ASSERT_EQ(qn.getUids(), uids);
+  ASSERT_EQ(qn.getGids(), gids);
+
   qn.addFile(12, 12, 1, 2);
 
   ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2050);
@@ -547,11 +555,19 @@ TEST(QuotaNodeCore, BasicSanity) {
   ASSERT_EQ(qn.getNumFilesByGroup(12), 1u);
   ASSERT_EQ(qn.getNumFilesByGroup(13), 1u);
 
+  gids.emplace(12);
+  ASSERT_EQ(qn.getUids(), uids);
+  ASSERT_EQ(qn.getGids(), gids);
+
   qn.removeFile(12, 13, 1024, 2048);
 
   ASSERT_EQ(qn.getPhysicalSpaceByUser(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 0);
+
+  gids.erase(13);
+  ASSERT_EQ(qn.getUids(), uids);
+  ASSERT_EQ(qn.getGids(), gids);
 
   qn.removeFile(12, 12, 1, 2);
 
@@ -564,4 +580,10 @@ TEST(QuotaNodeCore, BasicSanity) {
 
   ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
   ASSERT_EQ(qn.getNumFilesByGroup(13), 0u);
+
+  uids.clear();
+  gids.clear();
+
+  ASSERT_EQ(qn.getUids(), uids);
+  ASSERT_EQ(qn.getGids(), gids);
 }

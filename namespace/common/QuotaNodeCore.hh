@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/Identifiers.hh"
 #include <map>
+#include <unordered_set>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -46,6 +47,13 @@ public:
       files         += other.files;
       return *this;
     }
+
+    bool operator==(const UsageInfo& other) const {
+      return (space == other.space) &&
+             (physicalSpace == other.physicalSpace) &&
+             (files == other.files);
+    }
+
     uint64_t space;
     uint64_t physicalSpace;
     uint64_t files;
@@ -96,6 +104,27 @@ public:
   //! Remove a file.
   //----------------------------------------------------------------------------
   void removeFile(uid_t uid, gid_t gid, uint64_t size, uint64_t physicalSize);
+
+  //----------------------------------------------------------------------------
+  //! Meld in another quota node core
+  //----------------------------------------------------------------------------
+  void meld(const QuotaNodeCore& other);
+
+  //----------------------------------------------------------------------------
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of uids
+  //----------------------------------------------------------------------------
+  std::unordered_set<uint64_t> getUids();
+
+  //----------------------------------------------------------------------------
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of gids
+  //----------------------------------------------------------------------------
+  std::unordered_set<uint64_t> getGids();
 
 private:
   std::map<uid_t, UsageInfo> mUserInfo;
