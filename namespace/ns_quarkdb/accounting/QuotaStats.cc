@@ -73,14 +73,12 @@ QuotaNode::addFile(const IFileMD* file)
   );
 
   // Update the cached information
-  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
-  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
-  user.physicalSpace  += size;
-  group.physicalSpace += size;
-  user.space   += file->getSize();
-  group.space  += file->getSize();
-  ++user.files;
-  ++group.files;
+  pCore.addFile(
+    file->getCUid(),
+    file->getCGid(),
+    file->getSize(),
+    size
+  );
 }
 
 //------------------------------------------------------------------------------
@@ -107,14 +105,12 @@ QuotaNode::removeFile(const IFileMD* file)
   );
 
   // Update the cached information
-  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
-  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
-  user.physicalSpace  -= size;
-  group.physicalSpace -= size;
-  user.space   -= file->getSize();
-  group.space  -= file->getSize();
-  --user.files;
-  --group.files;
+  pCore.removeFile(
+    file->getCUid(),
+    file->getCGid(),
+    file->getSize(),
+    size
+  );
 }
 
 //------------------------------------------------------------------------------
@@ -154,15 +150,7 @@ QuotaNode::meld(const IQuotaNode* node)
   } while (cursor != "0");
 
   // Update the cached information
-  for (auto it1 = impl_node->pUserUsage.begin();
-       it1 != impl_node->pUserUsage.end(); ++it1) {
-    pUserUsage[it1->first] += it1->second;
-  }
-
-  for (auto it2 = impl_node->pGroupUsage.begin();
-       it2 != impl_node->pGroupUsage.end(); ++it2) {
-    pGroupUsage[it2->first] += it2->second;
-  }
+  pCore.meld(node->getCore());
 }
 
 //------------------------------------------------------------------------------
@@ -184,10 +172,10 @@ void QuotaNode::updateFromBackend()
       size_t pos = elem.first.find(':');
       uint64_t uid = std::stoull(elem.first.substr(0, pos));
       std::string type = elem.first.substr(pos + 1);
-      auto it_uid = pUserUsage.find(uid);
+      auto it_uid = pCore.mUserInfo.find(uid);
 
-      if (it_uid == pUserUsage.end()) {
-        auto pair = pUserUsage.emplace(uid, QuotaNodeCore::UsageInfo());
+      if (it_uid == pCore.mUserInfo.end()) {
+        auto pair = pCore.mUserInfo.emplace(uid, QuotaNodeCore::UsageInfo());
         it_uid = pair.first;
       }
 
@@ -213,10 +201,10 @@ void QuotaNode::updateFromBackend()
       size_t pos = elem.first.find(':');
       uint64_t uid = std::stoull(elem.first.substr(0, pos));
       std::string type = elem.first.substr(pos + 1);
-      auto it_gid = pGroupUsage.find(uid);
+      auto it_gid = pCore.mGroupInfo.find(uid);
 
-      if (it_gid == pGroupUsage.end()) {
-        auto pair = pGroupUsage.emplace(uid, QuotaNodeCore::UsageInfo());
+      if (it_gid == pCore.mGroupInfo.end()) {
+        auto pair = pCore.mGroupInfo.emplace(uid, QuotaNodeCore::UsageInfo());
         it_gid = pair.first;
       }
 

@@ -71,7 +71,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getUsedSpaceByUser(uid_t uid)
   {
-    return pUserUsage[uid].space;
+    return pCore.getUsedSpaceByUser(uid);
   }
 
   //----------------------------------------------------------------------------
@@ -79,7 +79,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getUsedSpaceByGroup(gid_t gid)
   {
-    return pGroupUsage[gid].space;
+    return pCore.getUsedSpaceByGroup(gid);
   }
 
   //----------------------------------------------------------------------------
@@ -87,7 +87,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getPhysicalSpaceByUser(uid_t uid)
   {
-    return pUserUsage[uid].physicalSpace;
+    return pCore.getPhysicalSpaceByUser(uid);
   }
 
   //----------------------------------------------------------------------------
@@ -95,7 +95,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getPhysicalSpaceByGroup(gid_t gid)
   {
-    return pGroupUsage[gid].physicalSpace;
+    return pCore.getPhysicalSpaceByGroup(gid);
   }
 
   //----------------------------------------------------------------------------
@@ -103,7 +103,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getNumFilesByUser(uid_t uid)
   {
-    return pUserUsage[uid].files;
+    return pCore.getNumFilesByUser(uid);
   }
 
   //----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ public:
   //----------------------------------------------------------------------------
   virtual uint64_t getNumFilesByGroup(gid_t gid)
   {
-    return pGroupUsage[gid].files;
+    return pCore.getNumFilesByGroup(gid);
   }
 
   //----------------------------------------------------------------------------
@@ -137,13 +137,7 @@ public:
   //----------------------------------------------------------------------------
   virtual std::unordered_set<uint64_t> getUids()
   {
-    std::unordered_set<uint64_t> uids;
-
-    for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it) {
-      uids.insert(it->first);
-    }
-
-    return uids;
+    return pCore.getUids();
   }
 
   //----------------------------------------------------------------------------
@@ -154,20 +148,20 @@ public:
   //----------------------------------------------------------------------------
   virtual std::unordered_set<uint64_t> getGids()
   {
-    std::unordered_set<uint64_t> gids;
+    return pCore.getGids();
+  }
 
-    for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it) {
-      gids.insert(it->first);
-    }
-
-    return gids;
+  //----------------------------------------------------------------------------
+  //! Get underlying QuotaNodeCore object.
+  //----------------------------------------------------------------------------
+  const QuotaNodeCore& getCore() const {
+    return pCore;
   }
 
 protected:
   IQuotaStats* pQuotaStats;
   IContainerMD::id_t pContainerId; ///< Id of the corresponding container
-  UserMap pUserUsage;
-  GroupMap pGroupUsage;
+  QuotaNodeCore pCore;
 };
 
 //----------------------------------------------------------------------------

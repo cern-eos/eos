@@ -32,15 +32,12 @@ namespace eos
 //----------------------------------------------------------------------------
 void QuotaNode::addFile(const IFileMD* file)
 {
-  uint64_t size = pQuotaStats->getPhysicalSize(file);
-  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
-  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
-  user.physicalSpace  += size;
-  group.physicalSpace += size;
-  user.space   += file->getSize();
-  group.space  += file->getSize();
-  user.files++;
-  group.files++;
+  pCore.addFile(
+    file->getCUid(),
+    file->getCGid(),
+    file->getSize(),
+    pQuotaStats->getPhysicalSize(file)
+  );
 }
 
 //----------------------------------------------------------------------------
@@ -48,15 +45,12 @@ void QuotaNode::addFile(const IFileMD* file)
 //----------------------------------------------------------------------------
 void QuotaNode::removeFile(const IFileMD* file)
 {
-  uint64_t size = pQuotaStats->getPhysicalSize(file);
-  QuotaNodeCore::UsageInfo& user  = pUserUsage[file->getCUid()];
-  QuotaNodeCore::UsageInfo& group = pGroupUsage[file->getCGid()];
-  user.physicalSpace  -= size;
-  group.physicalSpace -= size;
-  user.space   -= file->getSize();
-  group.space  -= file->getSize();
-  user.files--;
-  group.files--;
+  pCore.removeFile(
+    file->getCUid(),
+    file->getCGid(),
+    file->getSize(),
+    pQuotaStats->getPhysicalSize(file)
+  );
 }
 
 //----------------------------------------------------------------------------
@@ -64,17 +58,7 @@ void QuotaNode::removeFile(const IFileMD* file)
 //----------------------------------------------------------------------------
 void QuotaNode::meld(const IQuotaNode* node)
 {
-  const QuotaNode* qnode = static_cast<const QuotaNode*>(node);
-
-  for (auto it1 = qnode->pUserUsage.begin(); it1 != qnode->pUserUsage.end();
-       ++it1) {
-    pUserUsage[it1->first] += it1->second;
-  }
-
-  for (auto it2 = qnode->pGroupUsage.begin(); it2 != qnode->pGroupUsage.end();
-       ++it2) {
-    pGroupUsage[it2->first] += it2->second;
-  }
+  pCore.meld(node->getCore());
 }
 
 //----------------------------------------------------------------------------

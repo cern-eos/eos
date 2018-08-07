@@ -50,7 +50,7 @@ public:
   //----------------------------------------------------------------------------
   void changeSpaceUser(uid_t uid, int64_t delta)
   {
-    pUserUsage[uid].space += delta;
+    pCore.mUserInfo[uid].space += delta;
   }
 
   //----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ public:
   //----------------------------------------------------------------------------
   void changeSpaceGroup(gid_t gid, int64_t delta)
   {
-    pGroupUsage[gid].space += delta;
+    pCore.mGroupInfo[gid].space += delta;
   }
 
   //----------------------------------------------------------------------------
@@ -66,7 +66,7 @@ public:
   //----------------------------------------------------------------------------
   void changePhysicalSpaceUser(uid_t uid, int64_t delta)
   {
-    pUserUsage[uid].physicalSpace += delta;
+    pCore.mUserInfo[uid].physicalSpace += delta;
   }
 
   //----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ public:
   //----------------------------------------------------------------------------
   void changePhysicalSpaceGroup(gid_t gid, int64_t delta)
   {
-    pGroupUsage[gid].physicalSpace += delta;
+    pCore.mGroupInfo[gid].physicalSpace += delta;
   }
 
   //----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ public:
   //----------------------------------------------------------------------------
   uint64_t changeNumFilesUser(uid_t uid, uint64_t delta)
   {
-    return pUserUsage[uid].files += delta;
+    return pCore.mUserInfo[uid].files += delta;
   }
 
   //----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta)
   {
-    return pGroupUsage[gid].files += delta;
+    return pCore.mGroupInfo[gid].files += delta;
   }
 
   //----------------------------------------------------------------------------

@@ -21,19 +21,6 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Get the amount of space occupied by the given user
-//------------------------------------------------------------------------------
-uint64_t QuotaNodeCore::getUsedSpaceByUser(uid_t uid) {
-  auto it = mUserInfo.find(uid);
-
-  if(it == mUserInfo.end()) {
-    return 0;
-  }
-
-  return it->second.space;
-}
-
-//------------------------------------------------------------------------------
 //! Get the amount of space occupied by the given group
 //------------------------------------------------------------------------------
 uint64_t QuotaNodeCore::getUsedSpaceByGroup(gid_t gid) {
@@ -142,38 +129,6 @@ void QuotaNodeCore::removeFile(uid_t uid, gid_t gid, uint64_t size,
   if(group == UsageInfo()) {
     mGroupInfo.erase(gid);
   }
-}
-
-//------------------------------------------------------------------------------
-// Get the set of uids for which information is stored in the current quota
-// node.
-//
-// @return set of uids
-//------------------------------------------------------------------------------
-std::unordered_set<uint64_t> QuotaNodeCore::getUids() {
-  std::unordered_set<uint64_t> uids;
-
-  for (auto it = mUserInfo.begin(); it != mUserInfo.end(); ++it) {
-    uids.insert(it->first);
-  }
-
-  return uids;
-}
-
-//------------------------------------------------------------------------------
-// Get the set of gids for which information is stored in the current quota
-// node.
-//
-// @return set of gids
-//------------------------------------------------------------------------------
-std::unordered_set<uint64_t> QuotaNodeCore::getGids() {
-  std::unordered_set<uint64_t> gids;
-
-  for (auto it = mGroupInfo.begin(); it != mGroupInfo.end(); ++it) {
-    gids.insert(it->first);
-  }
-
-  return gids;
 }
 
 //------------------------------------------------------------------------------

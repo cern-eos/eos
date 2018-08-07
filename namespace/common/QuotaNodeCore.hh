@@ -31,6 +31,9 @@
 
 EOSNSNAMESPACE_BEGIN
 
+class IQuotaNode;
+class QuotaNode;
+
 //------------------------------------------------------------------------------
 //! QuotaNode core logic, which keeps track of user/group volume/inode use for
 //! a single quotanode.
@@ -68,7 +71,15 @@ public:
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid);
+  uint64_t getUsedSpaceByUser(uid_t uid) {
+    auto it = mUserInfo.find(uid);
+
+    if(it == mUserInfo.end()) {
+      return 0;
+    }
+
+    return it->second.space;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
@@ -116,7 +127,15 @@ public:
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getUids();
+  std::unordered_set<uint64_t> getUids() {
+    std::unordered_set<uint64_t> uids;
+
+    for (auto it = mUserInfo.begin(); it != mUserInfo.end(); ++it) {
+      uids.insert(it->first);
+    }
+
+    return uids;
+  }
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -124,9 +143,20 @@ public:
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getGids();
+  std::unordered_set<uint64_t> getGids() {
+    std::unordered_set<uint64_t> gids;
+
+    for (auto it = mGroupInfo.begin(); it != mGroupInfo.end(); ++it) {
+      gids.insert(it->first);
+    }
+
+    return gids;
+  }
 
 private:
+  friend class IQuotaNode;
+  friend class QuotaNode;
+
   std::map<uid_t, UsageInfo> mUserInfo;
   std::map<gid_t, UsageInfo> mGroupInfo;
 };
