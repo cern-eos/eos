@@ -158,6 +158,11 @@ public:
     return pCore;
   }
 
+  //----------------------------------------------------------------------------
+  //! Replace underlying QuotaNodeCore obejct.
+  //----------------------------------------------------------------------------
+  virtual void replaceCore(const QuotaNodeCore &updated) = 0;
+
 protected:
   IQuotaStats* pQuotaStats;
   IContainerMD::id_t pContainerId; ///< Id of the corresponding container

@@ -94,6 +94,11 @@ public:
   //----------------------------------------------------------------------------
   void updateFromBackend();
 
+  //----------------------------------------------------------------------------
+  //! Replace underlying QuotaNodeCore object.
+  //----------------------------------------------------------------------------
+  void replaceCore(const QuotaNodeCore &updated) override;
+
 private:
   //! Quota quota node uid hash key e.g. quota_node:id:uid
   std::string pQuotaUidKey;
