@@ -31,6 +31,8 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -591,6 +593,21 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 }
 
 //------------------------------------------------------------------------------
+// Filtering class for NamespaceExplorer to ignore sub-quotanodes when
+// recomputing a quotanode.
+//------------------------------------------------------------------------------
+class QuotaNodeFilter : public ExpansionDecider {
+public:
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &proto) override {
+    if( (proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
+      return true; // not a quota node, continue
+    }
+
+    return false; // quota node, ignore
+  }
+};
+
+//------------------------------------------------------------------------------
 // Execute quota size recompute comand
 //------------------------------------------------------------------------------
 void
@@ -614,8 +631,53 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     return;
   }
 
-  reply.set_std_err("TODO LOL");
-  reply.set_retc(EINVAL);
+  if(gOFS->eosView->inMemory()) {
+    reply.set_std_err("Command only available for QDB namespace.");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  ExplorationOptions options;
+  options.depthLimit = 2048;
+  options.expansionDecider.reset(new QuotaNodeFilter());
+
+  NamespaceExplorer explorer(gOFS->eosView->getUri(cont.get()),
+    options,
+    *eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation")
+  );
+
+  NamespaceItem item;
+  QuotaNodeCore qnc;
+  while(explorer.fetch(item)) {
+
+    if(item.isFile) {
+      // Calculate physical size
+      uint64_t logicalSize = item.fileMd.size();
+      uint64_t physicalSize = item.fileMd.size() *
+        eos::common::LayoutId::GetSizeFactor(item.fileMd.layout_id());
+
+      // Account file.
+      qnc.addFile(
+        item.fileMd.uid(),
+        item.fileMd.gid(),
+        logicalSize,
+        physicalSize
+      );
+    }
+  }
+
+  try {
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
+    quotaNode->replaceCore(qnc);
+  }
+  catch(const eos::MDException& e) {
+    reply.set_std_err(SSTR(e.what()));
+    reply.set_retc(e.getErrno());
+    return;
+  }
+
+  reply.set_retc(0);
   return;
 }
 
