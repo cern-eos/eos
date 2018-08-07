@@ -182,6 +182,11 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # GRPC port
 # EOS_MGM_GRPC_PORT=50051
 
+# GRPC security - define to enable SSL server
+# EOS_MGM_GRPC_SSL_CERT
+# EOS_MGM_GRPC_SSL_KEY
+# EOS_MGM_GRPC_SSL_CA
+
 #-------------------------------------------------------------------------------
 # FUSEX Configuration
 #-------------------------------------------------------------------------------
