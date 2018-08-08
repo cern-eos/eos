@@ -16,4 +16,4 @@ REST API
    restapi/who
    restapi/ns
    restapi/fileinfo
-   
+   restapi/grpc   
