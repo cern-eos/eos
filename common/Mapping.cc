@@ -89,6 +89,7 @@ Mapping::Init()
 //------------------------------------------------------------------------------
 // Reset
 //------------------------------------------------------------------------------
+
 void
 Mapping::Reset()
 {
@@ -188,6 +189,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.prot = client->prot;
 
   if (vid.prot == "sss") {
+    vid.key = (client->endorsements ? client->endorsements : "");
+  }
+
+  if (vid.prot == "grpc") {
     vid.key = (client->endorsements ? client->endorsements : "");
   }
 
@@ -655,6 +660,56 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     if (!vid.hasGid(4)) {
       vid.gid_list.push_back(vid.gid);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // grpc key mapping
+  // ---------------------------------------------------------------------------
+  if ((vid.prot == "grpc") && vid.key.length()) {
+    std::string keyname = vid.key.c_str();
+    std::string maptident = "tident:\"grpc@";
+    std::string wildcardmaptident = "tident:\"grpc@*\":uid";
+    std::vector<std::string> vtident;
+    eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
+
+    if (vtident.size() == 2) {
+      maptident += vtident[1];
+    }
+
+    maptident += "\":uid";
+    eos_static_info("%d %s %s %s", vtident.size(), client->tident,
+                    maptident.c_str(), wildcardmaptident.c_str());
+
+    if (gVirtualUidMap.count(maptident.c_str()) ||
+        gVirtualUidMap.count(wildcardmaptident.c_str())) {
+      // if this is an allowed gateway, map according to client name or authkey
+      std::string uidkey = "grpc:\"";
+      uidkey += keyname;
+      uidkey += "\":uid";
+      vid.uid = 99;
+      vid.uid_list.clear();
+      vid.uid_list.push_back(99);
+
+      if (gVirtualUidMap.count(uidkey.c_str())) {
+        vid.uid = gVirtualUidMap[uidkey.c_str()];
+        vid.uid_list.push_back(vid.uid);
+      }
+
+      std::string gidkey = "grpc:\"";
+      gidkey += keyname;
+      gidkey += "\":gid";
+      vid.gid = 99;
+      vid.gid_list.clear();
+      vid.gid_list.push_back(99);
+
+      if (gVirtualGidMap.count(gidkey.c_str())) {
+        vid.gid = gVirtualGidMap[gidkey.c_str()];
+        vid.gid_list.push_back(vid.gid);
+      }
+    } else {
+      // we are nobody if we are not an authorized host
+      Nobody(vid);
     }
   }
 
@@ -1133,7 +1188,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   }
 
   gid_vector* gv;
-  id_pair* id  = 0;
+  id_pair* id = 0;
   memset(&passwdinfo, 0, sizeof(passwdinfo));
   eos_static_debug("find in uid cache %s", name);
   XrdSysMutexHelper gLock(gPhysicalIdMutex);
@@ -1165,7 +1220,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
 
         if (eos::common::SymKey::Base64Decode(b64name, out, outlen)) {
           if (outlen <= 8) {
-            memcpy((((char*)&bituser)) + 8 - outlen, out, outlen);
+            memcpy((((char*) &bituser)) + 8 - outlen, out, outlen);
             eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx",
                              bituser, n_tohll(bituser));
           } else {
@@ -1185,7 +1240,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
           }
 
           if (sname.beginswith("*")) {
-            id  = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
+            id = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           } else {
             // only user id got forwarded, we retrieve the corresponding group
             uid_t ruid = (bituser >> 6) & 0xfffffffff;
@@ -1421,6 +1476,7 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
  *
  * @return user id
  */
+
 /*----------------------------------------------------------------------------*/
 uid_t
 Mapping::UserNameToUid(const std::string& username, int& errc)
@@ -1589,6 +1645,7 @@ Mapping::ip_cache::GetIp(const char* hostname)
 // -----------------------------------------------------------------------------
 //! Convert a komma separated uid string to a vector uid list
 // -----------------------------------------------------------------------------
+
 void
 Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
 {
@@ -1635,6 +1692,7 @@ Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
 // -----------------------------------------------------------------------------
 //! Convert a komma separated gid string to a vector gid list
 // -----------------------------------------------------------------------------
+
 void
 Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
 {
@@ -1666,8 +1724,44 @@ Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
 }
 
 // -----------------------------------------------------------------------------
+//! Check if a vector contains uid
+// -----------------------------------------------------------------------------
+
+bool Mapping::HasUid(uid_t uid, uid_vector vector)
+{
+  uid_vector::const_iterator it;
+
+  for (it = vector.begin(); it != vector.end(); ++it) {
+    if ((*it) == uid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// -----------------------------------------------------------------------------
+//! Check if vector contains gid
+// -----------------------------------------------------------------------------
+
+bool Mapping::HasGid(gid_t gid, gid_vector vector)
+{
+  uid_vector::const_iterator it;
+
+  for (it = vector.begin(); it != vector.end(); ++it) {
+    if ((*it) == gid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// -----------------------------------------------------------------------------
+>>>>>>> COMMON: add 'grpc' mapping to Mapping class
 //! Compare a uid with the string representation
 // -----------------------------------------------------------------------------
+
 bool Mapping::IsUid(XrdOucString idstring, uid_t& id)
 {
   id = strtoul(idstring.c_str(), 0, 10);
@@ -1685,6 +1779,7 @@ bool Mapping::IsUid(XrdOucString idstring, uid_t& id)
 // -----------------------------------------------------------------------------
 //! Compare a gid with the string representation
 // -----------------------------------------------------------------------------
+
 bool Mapping::IsGid(XrdOucString idstring, gid_t& id)
 {
   id = strtoul(idstring.c_str(), 0, 10);
@@ -1724,6 +1819,7 @@ const char* Mapping::ReduceTident(XrdOucString& tident,
 // -----------------------------------------------------------------------------
 //! Convert a uid into a string
 // -----------------------------------------------------------------------------
+
 std::string Mapping::UidAsString(uid_t uid)
 {
   std::string uidstring = "";
@@ -1736,6 +1832,7 @@ std::string Mapping::UidAsString(uid_t uid)
 // -----------------------------------------------------------------------------
 //! Convert a gid into a string
 // -----------------------------------------------------------------------------
+
 std::string Mapping::GidAsString(gid_t gid)
 {
   std::string gidstring = "";
@@ -1745,10 +1842,46 @@ std::string Mapping::GidAsString(gid_t gid)
   return gidstring;
 }
 
+// -----------------------------------------------------------------------------
+//! Copy function for virtual identities
+// -----------------------------------------------------------------------------
+
+void Mapping::Copy(Mapping::VirtualIdentity& vidin,
+                   Mapping::VirtualIdentity& vidout)
+{
+  vidout.uid = vidin.uid;
+  vidout.gid = vidin.gid;
+  vidout.sudoer = vidin.sudoer;
+  vidout.name = vidin.name;
+  vidout.tident = vidin.tident;
+  vidout.prot = vidin.prot;
+  vidout.uid_list.clear();
+  vidout.gid_list.clear();
+  vidout.uid_string = vidin.uid_string;
+  vidout.gid_string = vidin.gid_string;
+
+  for (unsigned int i = 0; i < vidin.uid_list.size(); i++) {
+    vidout.uid_list.push_back(vidin.uid_list[i]);
+  }
+
+  for (unsigned int i = 0; i < vidin.gid_list.size(); i++) {
+    vidout.gid_list.push_back(vidin.gid_list[i]);
+  }
+
+  vidout.host = vidin.host;
+  vidout.domain = vidin.domain;
+  vidout.grps = vidin.grps;
+  vidout.role = vidin.role;
+  vidout.dn = vidin.dn;
+  vidout.geolocation = vidin.geolocation;
+  vidout.app = vidin.app;
+}
+
 //------------------------------------------------------------------------------
 //! Function converting vid frin a string representation
 //------------------------------------------------------------------------------
-bool Mapping::VidFromString(VirtualIdentity& vid,
+
+bool Mapping::VidFromString(Mapping::VirtualIdentity& vid,
                             const char* vidstring)
 {
   std::string svid = vidstring;
@@ -1775,6 +1908,7 @@ bool Mapping::VidFromString(VirtualIdentity& vid,
 //----------------------------------------------------------------------------
 //! Function converting vid to a string representation
 //----------------------------------------------------------------------------
+
 std::string Mapping::VidToString(VirtualIdentity& vid)
 {
   char vids[4096];
