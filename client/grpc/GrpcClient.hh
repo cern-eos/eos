@@ -32,7 +32,6 @@
 #include <grpc++/grpc++.h>
 #include "proto/Rpc.grpc.pb.h"
 
-
 /*----------------------------------------------------------------------------*/
 
 EOSCLIENTNAMESPACE_BEGIN
@@ -48,8 +47,16 @@ EOSCLIENTNAMESPACE_BEGIN
 class GrpcClient
 {
 public:
+
   explicit GrpcClient(std::shared_ptr<grpc::Channel> channel)
-    : stub_(eos::rpc::Eos::NewStub(channel)) {}
+    : stub_(eos::rpc::Eos::NewStub(channel)) { }
+
+  // convenience factory function
+  static std::unique_ptr<GrpcClient> Create(std::string endpoint =
+        "localhost:50051",
+      std::string keyfile = "",
+      std::string certfile = "",
+      std::string cafile = "");
 
   std::string Ping(const std::string& payload);
 
@@ -57,9 +64,19 @@ public:
   std::string MdId(uint64_t id);
   std::string MdIno(uint64_t ino);
 
+  void set_ssl(bool onoff)
+  {
+    mSSL = onoff;
+  }
+
+  const bool ssl()
+  {
+    return mSSL;
+  }
 
 private:
   std::unique_ptr<eos::rpc::Eos::Stub> stub_;
+  bool mSSL;
 };
 
 #endif

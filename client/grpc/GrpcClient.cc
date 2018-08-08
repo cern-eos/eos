@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "GrpcClient.hh"
 #include "proto/Rpc.grpc.pb.h"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
@@ -61,7 +62,7 @@ std::string GrpcClient::Ping(const std::string& payload)
   // Request that, upon completion of the RPC, "reply" be updated with the
   // server's response; "status" with the indication of whether the operation
   // was successful. Tag the request with the integer 1.
-  rpc->Finish(&reply, &status, (void*)1);
+  rpc->Finish(&reply, &status, (void*) 1);
   void* got_tag;
   bool ok = false;
   // Block until the next result is available in the completion queue "cq".
@@ -70,7 +71,7 @@ std::string GrpcClient::Ping(const std::string& payload)
   GPR_ASSERT(cq.Next(&got_tag, &ok));
   // Verify that the result from "cq" corresponds, by its tag, our previous
   // request.
-  GPR_ASSERT(got_tag == (void*)1);
+  GPR_ASSERT(got_tag == (void*) 1);
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
   GPR_ASSERT(ok);
@@ -83,6 +84,58 @@ std::string GrpcClient::Ping(const std::string& payload)
   }
 }
 
+std::unique_ptr<GrpcClient>
+GrpcClient::Create(std::string endpoint,
+                   std::string keyfile,
+                   std::string certfile,
+                   std::string cafile
+                  )
+{
+  std::string key;
+  std::string cert;
+  std::string ca;
+  bool ssl = false;
+
+  if (keyfile.length() || certfile.length() || cafile.length()) {
+    if (!keyfile.length() || !certfile.length() || !cafile.length()) {
+      return 0;
+    }
+
+    ssl = true;
+
+    if (eos::common::StringConversion::LoadFileIntoString(certfile.c_str(),
+        cert) && !cert.length()) {
+      fprintf(stderr, "error: unable to load ssl certificate file '%s'\n",
+              certfile.c_str());
+      return 0;
+    }
+
+    if (eos::common::StringConversion::LoadFileIntoString(keyfile.c_str(),
+        key) && !key.length()) {
+      fprintf(stderr, "unable to load ssl key file '%s'\n", keyfile.c_str());
+      return 0;
+    }
+
+    if (eos::common::StringConversion::LoadFileIntoString(cafile.c_str(),
+        ca) && !ca.length()) {
+      fprintf(stderr, "unable to load ssl ca file '%s'\n", cafile.c_str());
+      return 0;
+    }
+  }
+
+  grpc::SslCredentialsOptions opts = {
+    ca,
+    key,
+    cert
+  };
+  std::unique_ptr<eos::client::GrpcClient> p(new eos::client::GrpcClient(
+        grpc::CreateChannel(
+          endpoint,
+          ssl ? grpc::SslCredentials(opts)
+          : grpc::InsecureChannelCredentials())));
+  p->set_ssl(ssl);
+  return p;
+}
 
 std::string
 GrpcClient::Md(const std::string& path)

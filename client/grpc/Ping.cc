@@ -22,7 +22,6 @@ int main(int argc, const char* argv[])
   std::string keyfile;
   std::string certfile;
   std::string cafile;
-  bool mSSL = false;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -74,38 +73,19 @@ int main(int argc, const char* argv[])
     if (!keyfile.length() || !certfile.length() || !cafile.length()) {
       return usage(argv[0]);
     }
-
-    mSSL = true;
-
-    if (eos::common::StringConversion::LoadFileIntoString(certfile.c_str(),
-        cert) && !cert.length()) {
-      fprintf(stderr, "error: unable to load ssl certificate file '%s'\n",
-              certfile.c_str());
-      return usage(argv[0]);
-    }
-
-    if (eos::common::StringConversion::LoadFileIntoString(keyfile.c_str(),
-        key) && !key.length()) {
-      fprintf(stderr, "unable to load ssl key file '%s'\n", keyfile.c_str());
-      return usage(argv[0]);
-    }
-
-    if (eos::common::StringConversion::LoadFileIntoString(cafile.c_str(),
-        ca) && !ca.length()) {
-      fprintf(stderr, "unable to load ssl ca file '%s'\n", cafile.c_str());
-      return usage(argv[0]);
-    }
   }
 
-  grpc::SslCredentialsOptions opts = {
-    ca,
-    key,
-    cert
-  };
-  eos::client::GrpcClient eosgrpc(grpc::CreateChannel(
-                                    endpoint,
-                                    mSSL ? grpc::SslCredentials(opts)
-                                    : grpc::InsecureChannelCredentials()));
+  std::unique_ptr<eos::client::GrpcClient> eosgrpc =
+    eos::client::GrpcClient::Create(
+      endpoint,
+      keyfile,
+      certfile,
+      cafile);
+
+  if (!eosgrpc) {
+    return usage(argv[0]);
+  }
+
   std::string message("ping");
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
@@ -114,7 +94,7 @@ int main(int argc, const char* argv[])
   for (auto i = 0; i < n_requests; ++i) {
     std::chrono::steady_clock::time_point watch_local =
       std::chrono::steady_clock::now();
-    std::string reply = eosgrpc.Ping(message);
+    std::string reply = eosgrpc->Ping(message);
 
     if (reply != "ping") {
       std::cout << "request: failed/timeout" << std::endl;
