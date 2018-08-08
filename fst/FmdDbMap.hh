@@ -128,10 +128,11 @@ public:
   //! Shutdown an open DB file
   //!
   //! @param fsid filesystem id
+  //! @param do_lock if true then lock the mMapMutex
   //!
   //! @return true if successfull, otherwise false
   //----------------------------------------------------------------------------
-  bool ShutdownDB(eos::common::FileSystem::fsid_t fsid);
+  bool ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock = false);
 
   // Meta data handling functions
 
@@ -295,7 +296,7 @@ public:
   //!
   //! @return true if successfull, otherwise false
   //----------------------------------------------------------------------------
-  bool ResyncAllFromQdb(const QdbContactDetails &contactDetails,
+  bool ResyncAllFromQdb(const QdbContactDetails& contactDetails,
                         eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------

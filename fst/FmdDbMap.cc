@@ -361,29 +361,18 @@ FmdDbMapHandler::GetNumFileSystems() const
 bool
 FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
 {
-  bool is_attached = false;
   {
     // First check if DB is already open - in this case we first do a shutdown
-    eos::common::RWMutexReadLock lock(mMapMutex);
+    eos::common::RWMutexWriteLock wr_lock(mMapMutex);
 
     if (mDbMap.count(fsid)) {
-      is_attached = true;
+      ShutdownDB(fsid, false);
+    } else {
+      mDbMap[fsid] = new eos::common::DbMap();
     }
   }
-
-  if (is_attached) {
-    if (ShutdownDB(fsid)) {
-      is_attached = false;
-    }
-  }
-
-  eos::common::RWMutexWriteLock lock(mMapMutex);
+  eos::common::RWMutexReadLock rd_lock(mMapMutex);
   FsWriteLock vlock(fsid);
-
-  if (!is_attached) {
-    mDbMap[fsid] = new eos::common::DbMap();
-  }
-
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s/fmd.%04d.%s", meta_dir, fsid,
           eos::common::DbMap::getDbType().c_str());
@@ -415,11 +404,15 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
 // Shutdown an open DB file
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock)
 {
-  eos_info("%s DB shutdown for fsid=%d",
+  eos_info("%s DB shutdown for fsid=%u",
            eos::common::DbMap::getDbType().c_str(), fsid);
-  eos::common::RWMutexWriteLock lock(mMapMutex);
+  eos::common::RWMutexWriteLock wr_lock;
+
+  if (do_lock) {
+    wr_lock.Grab(mMapMutex);
+  }
 
   if (mDbMap.count(fsid)) {
     if (mDbMap[fsid]->detachDb()) {
