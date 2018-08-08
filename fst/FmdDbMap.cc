@@ -366,18 +366,20 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
     eos::common::RWMutexWriteLock wr_lock(mMapMutex);
 
     if (mDbMap.count(fsid)) {
-      ShutdownDB(fsid, false);
+      if (ShutdownDB(fsid, false)) {
+        mDbMap[fsid] = new eos::common::DbMap();
+      }
     } else {
       mDbMap[fsid] = new eos::common::DbMap();
     }
   }
-  eos::common::RWMutexReadLock rd_lock(mMapMutex);
-  FsWriteLock vlock(fsid);
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s/fmd.%04d.%s", meta_dir, fsid,
           eos::common::DbMap::getDbType().c_str());
   eos_info("%s DB is now %s", eos::common::DbMap::getDbType().c_str(),
            fsDBFileName);
+  eos::common::RWMutexReadLock rd_lock(mMapMutex);
+  FsWriteLock vlock(fsid);
   // Store the DB file name
   DBfilename[fsid] = fsDBFileName;
   // Create / or attach the db (try to repair if needed)
