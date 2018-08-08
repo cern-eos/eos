@@ -125,6 +125,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # FST External Storage Configuration
 #-------------------------------------------------------------------------------
 
+# Set number of connection retries
+#EOS_FST_CONNECTION_RETRY=3
+
 # Set S3 access credentials
 #EOS_FST_S3_ACCESS_KEY=""
 #EOS_FST_S3_SECRET_KEY=""

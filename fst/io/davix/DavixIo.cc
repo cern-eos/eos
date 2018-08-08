@@ -68,6 +68,7 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
   mShortRead = false;
   mIsS3 = false;
   std::string lFilePath = mFilePath;
+  int retries = 3;
   size_t qpos;
 
   //............................................................................
@@ -151,7 +152,19 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
     }
   }
 
-  mParams.setOperationRetry(0);
+  //............................................................................
+  // Retrieve connection retries parameter
+  //............................................................................
+  if (getenv("EOS_FST_CONNECTION_RETRY")) {
+    std::string sretries = getenv("EOS_FST_CONNECTION_RETRY");
+    try {
+      retries = std::stoi(sretries);
+    } catch (...) {}
+
+    eos_debug("setting number of retries to=%d", retries);
+  }
+
+  mParams.setOperationRetry(retries);
 
   setAttrSync(false);// by default sync attributes lazily
   mAttrLoaded = false;
