@@ -66,7 +66,8 @@ target_link_libraries(
   ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  eosCommon)
 
 set_target_properties(
   eos PROPERTIES

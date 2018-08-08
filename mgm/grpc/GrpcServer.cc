@@ -91,22 +91,22 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     mSSLKeyFile = getenv("EOS_MGM_GRPC_SSL_KEY");
     mSSLCaFile = getenv("EOS_MGM_GRPC_SSL_CA");
 
-    if (!eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(),
-        mSSLCert)) {
-      eos_static_crit("unsable to load ssl certificate file '%s'",
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(),
+        mSSLCert) && !mSSLCert.length()) {
+      eos_static_crit("unable to load ssl certificate file '%s'",
                       mSSLCertFile.c_str());
       mSSL = false;
     }
 
-    if (!eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
-        mSSLKey)) {
-      eos_static_crit("unsable to load ssl key file '%s'", mSSLKeyFile.c_str());
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
+        mSSLKey) && !mSSLKey.lenght()) {
+      eos_static_crit("unable to load ssl key file '%s'", mSSLKeyFile.c_str());
       mSSL = false;
     }
 
-    if (!eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(),
-        mSSLCa)) {
-      eos_static_crit("unsable to load ssl ca file '%s'", mSSLCaFile.c_str());
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(),
+        mSSLCa) && !mSSLCa.length()) {
+      eos_static_crit("unable to load ssl ca file '%s'", mSSLCaFile.c_str());
       mSSL = false;
     }
   }

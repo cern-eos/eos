@@ -1,19 +1,111 @@
 #include <string>
 #include <iostream>
-
 #include "client/grpc/GrpcClient.hh"
+#include <stdio.h>
+#include "common/StringConversion.hh"
+
+int usage(const char* prog)
+{
+  fprintf(stderr, "usage: %s [--key <ssl-key-file> "
+          "--cert <ssl-cert-file> "
+          "--ca <ca-cert-file>] "
+          "[--endponit <host:port>]\n", prog);
+  return -1;
+}
 
 int main(int argc, const char* argv[])
 {
   std::string endpoint = "localhost:50051";
+  std::string key;
+  std::string cert;
+  std::string ca;
+  std::string keyfile;
+  std::string certfile;
+  std::string cafile;
+  bool mSSL = false;
 
-  if (argc == 2) {
-    endpoint = argv[1];
+  for (auto i = 1; i < argc; ++i) {
+    std::string option = argv[i];
+
+    if (option == "--key") {
+      if (argc > i + 1) {
+        keyfile = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--cert") {
+      if (argc > i + 1) {
+        certfile = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--ca") {
+      if (argc > i + 1) {
+        cafile = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--endpoint") {
+      if (argc > i + 1) {
+        endpoint = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    return usage(argv[0]);
   }
 
+  if (keyfile.length() || certfile.length() || cafile.length()) {
+    if (!keyfile.length() || !certfile.length() || !cafile.length()) {
+      return usage(argv[0]);
+    }
+
+    mSSL = true;
+
+    if (eos::common::StringConversion::LoadFileIntoString(certfile.c_str(),
+        cert) && !cert.length()) {
+      fprintf(stderr, "error: unable to load ssl certificate file '%s'\n",
+              certfile.c_str());
+      return usage(argv[0]);
+    }
+
+    if (eos::common::StringConversion::LoadFileIntoString(keyfile.c_str(),
+        key) && !key.length()) {
+      fprintf(stderr, "unable to load ssl key file '%s'\n", keyfile.c_str());
+      return usage(argv[0]);
+    }
+
+    if (eos::common::StringConversion::LoadFileIntoString(cafile.c_str(),
+        ca) && !ca.length()) {
+      fprintf(stderr, "unable to load ssl ca file '%s'\n", cafile.c_str());
+      return usage(argv[0]);
+    }
+  }
+
+  grpc::SslCredentialsOptions opts = {
+    ca,
+    key,
+    cert
+  };
   eos::client::GrpcClient eosgrpc(grpc::CreateChannel(
                                     endpoint,
-                                    grpc::InsecureChannelCredentials()));
+                                    mSSL ? grpc::SslCredentials(opts)
+                                    : grpc::InsecureChannelCredentials()));
   std::string message("ping");
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
