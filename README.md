@@ -18,7 +18,7 @@ The most up to date documentation can be found at:
 http://eos-docs.web.cern.ch/eos-docs/
 
 
-**Doxygent** documentaion of the API is available in the ``./doc`` directory
+**Doxygent** documentation of the API is available in the ``./doc`` directory
  and can be generated using the following command:
 
 ```bash
@@ -39,7 +39,7 @@ doxygen
 * common - Common helper files and classes
 * console - Command line client implementation
 * doc - Doxygen documentation
-* etc - Service scripts, logrotation and sysconfig Files
+* etc - Service scripts, log rotation and sysconfig Files
 * fst - The Storage Server Plugin (FST)
 * fuse - The FUSE mount Client (eosd low level API)
 * man - Manual pages
@@ -50,24 +50,31 @@ doxygen
 * srm - SRM BestMan utility scripts
 * sync - file/directory synchronization programs
 * test - Instance test script with some dedicated test executables
-* utils - Usefull utilities and the uninstall scripts
+* utils - Useful utilities and the uninstall scripts
 * var - Placeholder directory to create log, http and namespace directories
 
 ## Dependencies
 
+It is recommended to set up xrootd and eos-citrine-dependency repositories,
+as seen in the [documentation][1].
+
 ```bash
-  yum install -y git gcc cmake readline readline-devel fuse fuse-devel \
-leveldb leveldb-devel zlib zlib-devel libattr libattr-devel libuuid libuuid-devel \
+yum install -y git gcc cmake cmake3 readline readline-devel fuse fuse-devel \
+leveldb leveldb-devel binutils-devel zlib zlib-devel zlib-static \
+bzip2 bzip2-devel libattr libattr-devel libuuid libuuid-devel \
 xfsprogs xfsprogs-devel sparsehash sparsehash-devel e2fsprogs e2fsprogs-devel \
 libmicrohttpd libmicrohttpd-devel openssl openssl-devel openssl-static \
-ncurses ncurses-devel ncurses-static protobuf-devel cppunit-devel openldap-devel \
-hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel xrootd-client-devel \
-xrootd-private-devel cppzmq-devel libcurl-devel
+eos-folly eos-rocksdb ncurses ncurses-devel ncurses-static protobuf3-devel \
+cppunit-devel openldap-devel hiredis-devel zeromq-devel jsoncpp-devel \
+xrootd xrootd-server-devel xrootd-client-devel xrootd-private-devel \
+cppzmq-devel libcurl-devel libevent-devel jemalloc jemalloc-devel
 ```
 
 ## Build
 
-To build **EOS**, you need **gcc (>=4.4)** and **CMake** installed on your system:
+To build **EOS**, you need **gcc (>=4.9)** with **C++14 features** and **CMake** 
+installed on your system:
+
 ```bash
 # Note that you will also need to check out the fmd and qclient git submodules
 git submodule update --init --recursive
@@ -103,7 +110,7 @@ To build the source/binary RPMs run:
 make dist
 # Create Source RPM
 make srpm
-# Create RPMS
+# Create RPM
 make rpm
 ```
 
@@ -116,10 +123,10 @@ which has a hard requirement on **XRootD 3.3.6**.
 
 ## Bug Reporting
 
-You can send **EOS** bug reports to <project-eos@cern.ch>. The preferable way,
-if you have access, is use the online bug tracking system
-[Jira ](https://its.cern.ch/jira/secure/Dashboard.jspa) to submit new problem
- reports or search for existing ones: https://its.cern.ch/jira/browse/EOS
+You can send **EOS** bug reports to <project-eos@cern.ch>. 
+The preferable way, if you have access, is use the online bug tracking 
+system [Jira][2] to submit new problem reports or search for existing ones: 
+https://its.cern.ch/jira/browse/EOS
 
 ## Licence
 
@@ -135,3 +142,6 @@ details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[1]: http://eos-docs.web.cern.ch/eos-docs/quickstart/setup_repo.html#eos-base-setup-repos
+[2]: https://its.cern.ch/jira/secure/Dashboard.jspa

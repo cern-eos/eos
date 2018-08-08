@@ -15,7 +15,7 @@ else()
   find_path(
     ROCKSDB_INCLUDE_DIR
     NAMES rocksdb/version.h
-    HINTS  ${ROCKSDB_ROOT_DIR}
+    HINTS ${ROCKSDB_ROOT_DIR}
     PATH_SUFFIXES include)
 
   find_library(

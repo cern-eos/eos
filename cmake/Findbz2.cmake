@@ -1,10 +1,9 @@
 # Try to find bz2
 # Once done, this will define
 #
-# BZ2_FOUND          - system has zlib
-# BZ2_INCLUDE_DIRS   - zlib include directories
-# BZ2_LIBRARY        - zlib library
-# BZ2_LIBRARY_STATIC - static zlib library
+# BZ2_FOUND          - system has bz2
+# BZ2_INCLUDE_DIRS   - bz2 include directories
+# BZ2_LIBRARY        - bz2 library
 
 include(FindPackageHandleStandardArgs)
 
@@ -29,5 +28,6 @@ else()
     bz2
     DEFAULT_MSG
     BZ2_LIBRARY BZ2_INCLUDE_DIR)
+
   mark_as_advanced(BZ2_LIBRARY BZ2_INCLUDE_DIR)
 endif()

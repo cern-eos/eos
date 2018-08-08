@@ -29,7 +29,8 @@ else()
 
   find_package_handle_standard_args(
     davix
-    DEFAULT_MSG DAVIX_LIBRARY DAVIX_INCLUDE_DIR)
+    DEFAULT_MSG
+    DAVIX_LIBRARY DAVIX_INCLUDE_DIR)
 
   mark_as_advanced(DAVIX_LIBRARY DAVIX_INCLUDE_DIR)
 endif()
