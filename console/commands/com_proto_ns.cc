@@ -175,15 +175,15 @@ NsHelper::ParseCommand(const char* arg)
                 compact->set_type(NsProto_CompactProto::DIRS);
               } else if (soption == "all") {
                 compact->set_type(NsProto_CompactProto::ALL);
+              } else if (soption == "files-repair") {
+                compact->set_type(NsProto_CompactProto::FILES_REPAIR);
+              } else if (soption == "directories-repair") {
+                compact->set_type(NsProto_CompactProto::DIRS_REPAIR);
+              } else if (soption == "all-repair") {
+                compact->set_type(NsProto_CompactProto::ALL_REPAIR);
+              } else {
+                return false;
               }
-            } else if (soption == "files-repair") {
-              compact->set_type(NsProto_CompactProto::FILES_REPAIR);
-            } else if (soption == "directories-repair") {
-              compact->set_type(NsProto_CompactProto::DIRS_REPAIR);
-            } else if (soption == "all-repair") {
-              compact->set_type(NsProto_CompactProto::ALL_REPAIR);
-            } else {
-              compact->set_type(NsProto_CompactProto::FILES);
             }
           }
         }

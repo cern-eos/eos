@@ -1422,7 +1422,7 @@ Bug Fixes
 +++++++++
 - fix missing object in drain lock helper mutex
 - distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
-- add min/maxfilesize check during the open function, to block too large uploads immedeatly
+- add min/maxfilesize check during the open function, to block too large uploads immediately
 
 ``V0.3.139 Aquamarine``
 =======================

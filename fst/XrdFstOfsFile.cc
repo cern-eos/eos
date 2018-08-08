@@ -1360,7 +1360,7 @@ XrdFstOfsFile::close()
 
                 if (error.getErrInfo() == EIDRM) {
                   // This file has been deleted in the meanwhile ... we can
-                  // unlink that immedeatly
+                  // unlink that immediately
                   eos_info("info=\"unlinking fid=%08x path=%s - "
                            "file has been already unlinked from the namespace\"",
                            fMd->mProtoFmd.fid(), mNsPath.c_str());

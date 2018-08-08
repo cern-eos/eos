@@ -188,10 +188,10 @@ point only to one box. This has to be tested.
 Configure Online Compactification
 ---------------------------------
 
-On the MGM master running in RW mode one can configure online compactificiation 
+On the MGM master running in RW mode one can configure online compactification 
 to compact the namespace once or in defined intervals. The configuration of 
 online compacting is for the moment not persistent e.g. after a service restart 
-online compactificiation is always disabled. For the rare event of a change-log file corruption
+online compactification is always disabled. For the rare event of a change-log file corruption
 it is possible to add a '-repair' to the compactification type e.g. 'all-repair', 'all-files', 'all-directories'. 
 The repair skips broken records up to 1kb, otherwise 'eos-log-repair' has to be used offline.
 
@@ -199,8 +199,8 @@ The interface for online compactification is
 
 .. code-block:: bash
 
-   eos -b ns compact on : schedules online compactification for files immedeatly. Immedeatly means that the compactification starts within the next minute.
-   eos -b ns compact on 100 : schedules online compactificiation for files with a delay of 100 seconds. The compactification starts with a delay of 100 to max. 160 seconds.
+   eos -b ns compact on : schedules online compactification for files immediately. Immedeatly means that the compactification starts within the next minute.
+   eos -b ns compact on 100 : schedules online compactification for files with a delay of 100 seconds. The compactification starts with a delay of 100 to max. 160 seconds.
    eos -b ns compact on 1 86400 : schedules online compactification for files with a delay of 1 seconds. The compactification is rescheduled always one day later automatically.
    eos -b ns compact on 60 0 all : schedule online compactification for files and directories once in one minute.
    eos -b ns compact on 60 0 files : schedule online compactification for files once in one minute.

@@ -28,7 +28,7 @@ If the parent tree of the restore location is incomplete the user is asked
 to first recreate the parent directory structure before objects are restored.
 
 If the recycle bin is applicable for a deletion operation the quota is 
-immedeatly removed from the original quota node and added to the recycle quota. Without recycle bin quota is released once files are physically deleted!
+immediately removed from the original quota node and added to the recycle quota. Without recycle bin quota is released once files are physically deleted!
    
 Command Line Interface 
 ----------------------

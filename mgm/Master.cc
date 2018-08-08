@@ -764,7 +764,7 @@ Master::Compacting()
         }
 
         if (reschedule) {
-          eos_notice("msg=\"rescheduling online compactificiation\" interval=%u",
+          eos_notice("msg=\"rescheduling online compactification\" interval=%u",
                      (unsigned int) fCompactingInterval);
           XrdSysMutexHelper cLock(fCompactingMutex);
           fCompactingStart = time(nullptr) + fCompactingInterval;

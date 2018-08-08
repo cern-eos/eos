@@ -592,7 +592,7 @@ public:
 
   //--------------------------------------------------------------------------
   //! Return number of replicas which have to be online for a layout to be
-  //! immedeatly writable
+  //! immediately writable
   //--------------------------------------------------------------------------
   static unsigned long
   GetOnlineStripeNumber(unsigned long layout)
