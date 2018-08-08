@@ -39,6 +39,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
 #include "common/ZMQ.hh"
+#include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -2239,6 +2240,7 @@ FuseServer::HandleMD(const std::string& id,
         // refresh the cap with the same authid
         FillContainerCAP(md.md_ino(), (*parent)[md.md_ino()], vid,
                          md.authid());
+        rd_ns_lock.Release();
 
         // store clock
         if (clock) {
@@ -2254,6 +2256,7 @@ FuseServer::HandleMD(const std::string& id,
             // this is a map by inode
             (*parent)[it->second].set_md_ino(it->second);
             auto child_md = &((*parent)[it->second]);
+            rd_ns_lock.Grab(gOFS->eosViewRWMutex);
 
             if (eos::common::FileId::IsFileInode(it->second)) {
               // this is a file
@@ -2269,6 +2272,8 @@ FuseServer::HandleMD(const std::string& id,
               FillContainerCAP(it->second, *child_md, vid, "", true);
               child_md->clear_operation();
             }
+
+            rd_ns_lock.Release();
           }
 
           n_attached ++;
@@ -2476,6 +2481,12 @@ FuseServer::HandleMD(const std::string& id,
           // dir creation
           op = CREATE;
           pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+
+          if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
+              EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
+            eos_static_err("ino=%lx name=%s atomic path is forbidden as a directory name");
+            return EPERM;
+          }
 
           if (exclusive && pcmd->findContainer(md.name())) {
             // O_EXCL set on creation -
@@ -2756,6 +2767,13 @@ FuseServer::HandleMD(const std::string& id,
         } else {
           // file creation
           op = CREATE;
+
+          if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
+              EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
+            eos_static_err("ino=%lx name=%s atomic path is forbidden as a filename");
+            return EPERM;
+          }
+
           unsigned long layoutId = 0;
           unsigned long forcedFsId = 0;
           long forcedGroup = 0;
@@ -2911,6 +2929,13 @@ FuseServer::HandleMD(const std::string& id,
           op = UPDATE;
         } else {
           op = CREATE;
+
+          if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
+              EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
+            eos_static_err("ino=%lx name=%s atomic path is forbidden as a link/fifo name");
+            return EPERM;
+          }
+
           fmd = gOFS->eosFileService->createFile();
         }
 
