@@ -280,8 +280,15 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
-  Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));
-  GRPCd.reset(new eos::mgm::GrpcServer(mGRPCPort));
+
+  if (mHttpdPort)  {
+    Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));
+  }
+
+  if (mGRPCPort) {
+    GRPCd.reset(new eos::mgm::GrpcServer(mGRPCPort));
+  }
+
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
 }

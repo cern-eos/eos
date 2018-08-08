@@ -1813,13 +1813,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  // Create the 'default' quota space which is needed if quota is disabled!
-  if (!Httpd->Start()) {
-    eos_warning("msg=\"cannot start httpd daemon\"");
+  // create the 'default' quota space which is needed if quota is disabled!
+  if (Httpd) {
+    if (!Httpd->Start()) {
+      eos_warning("msg=\"cannot start httpd daemon\"");
+    }
   }
 
 #ifdef EOS_GRPC
-  GRPCd->Start();
+
+  if (GRPCd) {
+    GRPCd->Start();
+  }
+
 #endif
 
   // start the LRU daemon

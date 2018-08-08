@@ -808,7 +808,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
   }
 
-  mHttpd = new HttpServer(mHttpdPort);
+  if (mHttpdPort) {
+    mHttpd = new HttpServer(mHttpdPort);
+  }
 
   if (mHttpd) {
     mHttpd->Start();
