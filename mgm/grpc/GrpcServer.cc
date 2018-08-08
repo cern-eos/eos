@@ -52,6 +52,8 @@ class RequestServiceImpl final : public Eos::Service
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
+    eos_static_info("grpc::ping from client DN=%s",
+                    GrpcServer::DN(context).c_str());
     reply->set_message(request->message());
     return Status::OK;
   }
@@ -99,7 +101,7 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     }
 
     if (eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
-        mSSLKey) && !mSSLKey.lenght()) {
+        mSSLKey) && !mSSLKey.length()) {
       eos_static_crit("unable to load ssl key file '%s'", mSSLKeyFile.c_str());
       mSSL = false;
     }

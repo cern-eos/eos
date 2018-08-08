@@ -65,7 +65,7 @@ public:
 
   /* Default Constructor - enabling port 50051 by default
    */
-  GrpcServer(int port = 50051) : mPort(port), mSSL(false) {}
+  GrpcServer(int port = 50051) : mPort(port), mSSL(false) { }
 
   virtual ~GrpcServer()
   {
@@ -80,6 +80,26 @@ public:
   {
     mThread.reset(&GrpcServer::Run, this);
   }
+
+#ifdef EOS_GRPC
+  /* return client DN*/
+  static std::string DN(grpc::ServerContext* context)
+  {
+    std::string property =
+      context->auth_context()->GetPeerIdentityPropertyName().c_str();
+
+    if (property == "x509_subject_alternative_name") {
+      std::vector<grpc::string_ref> identities =
+        context->auth_context()->GetPeerIdentity();
+
+      if (identities.size() == 1) {
+        return identities[0].data();
+      }
+    }
+
+    return "";
+  }
+#endif
 };
 
 
