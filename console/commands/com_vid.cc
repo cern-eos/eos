@@ -222,6 +222,11 @@ com_vid(char* arg1)
         hastype = true;
       }
 
+      if ((type == "-grpc")) {
+        in += "&mgm.vid.auth=grpc";
+        hastype = true;
+      }
+
       if (!hastype) {
         goto com_vid_usage;
       }
@@ -400,7 +405,8 @@ com_vid(char* arg1)
     XrdOucString protocol = subtokenizer.GetToken();
 
     if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") &&
-                              (protocol != "krb5") && (protocol != "unix") && (protocol != "https"))) {
+                              (protocol != "krb5") && (protocol != "unix") && (protocol != "https") &&
+                              (protocol != "grpc"))) {
       goto com_vid_usage;
     }
 
@@ -510,7 +516,7 @@ com_vid_usage:
           "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
   fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,
-          "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+          "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
@@ -526,7 +532,7 @@ com_vid_usage:
           "                                            : enable/disables the default mapping via password database\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
-          "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https]\n");
+          "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https|grpc]\n");
   fprintf(stdout,
           "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
   fprintf(stdout,
