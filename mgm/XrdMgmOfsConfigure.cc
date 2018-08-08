@@ -1105,7 +1105,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
-    "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
+    "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
     "GeoBalancer", "GeoTreeEngine", "#"};
   // Get the XRootD log directory
@@ -1136,6 +1136,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Add some alias for the logging
     g_logging.AddFanOutAlias("HttpHandler", "Http");
     g_logging.AddFanOutAlias("HttpServer", "Http");
+    g_logging.AddFanOutAlias("GrpcServer", "Grpc");
     g_logging.AddFanOutAlias("ProtocolHandler", "Http");
     g_logging.AddFanOutAlias("PropFindResponse", "Http");
     g_logging.AddFanOutAlias("WebDAV", "Http");
