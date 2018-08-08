@@ -48,6 +48,7 @@ std::string GrpcClient::Ping(const std::string& payload)
 {
   PingRequest request;
   request.set_message(payload);
+  request.set_authkey(token());
   PingReply reply;
   ClientContext context;
   // The producer-consumer queue we use to communicate asynchronously with the
@@ -86,6 +87,7 @@ std::string GrpcClient::Ping(const std::string& payload)
 
 std::unique_ptr<GrpcClient>
 GrpcClient::Create(std::string endpoint,
+                   std::string token,
                    std::string keyfile,
                    std::string certfile,
                    std::string cafile
@@ -134,6 +136,7 @@ GrpcClient::Create(std::string endpoint,
           ssl ? grpc::SslCredentials(opts)
           : grpc::InsecureChannelCredentials())));
   p->set_ssl(ssl);
+  p->set_token(token);
   return p;
 }
 

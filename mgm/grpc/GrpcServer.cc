@@ -52,8 +52,8 @@ class RequestServiceImpl final : public Eos::Service
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
-    eos_static_info("grpc::ping from client DN=%s",
-                    GrpcServer::DN(context).c_str());
+    eos_static_info("grpc::ping from client DN=%s token=%s",
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
     reply->set_message(request->message());
     return Status::OK;
   }

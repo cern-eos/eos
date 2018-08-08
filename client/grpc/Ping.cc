@@ -9,13 +9,14 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endponit <host:port>]\n", prog);
+          "[--endponit <host:port>] [--token <auth-token>]\n", prog);
   return -1;
 }
 
 int main(int argc, const char* argv[])
 {
   std::string endpoint = "localhost:50051";
+  std::string token = "";
   std::string key;
   std::string cert;
   std::string ca;
@@ -66,6 +67,16 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--token") {
+      if (argc > i + 1) {
+        token = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
     return usage(argv[0]);
   }
 
@@ -78,6 +89,7 @@ int main(int argc, const char* argv[])
   std::unique_ptr<eos::client::GrpcClient> eosgrpc =
     eos::client::GrpcClient::Create(
       endpoint,
+      token,
       keyfile,
       certfile,
       cafile);

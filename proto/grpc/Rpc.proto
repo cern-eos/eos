@@ -17,6 +17,7 @@ service Eos {
 
 message PingRequest {
 	string message = 1;
+	string authkey = 2;
 }
 
 message PingReply {
@@ -76,6 +77,7 @@ message MDRequest {
         bytes path = 2;
 	fixed64 id = 3;
 	fixed64 ino = 4;
+	string authkey = 5;
 }
 
 message MDResponse {

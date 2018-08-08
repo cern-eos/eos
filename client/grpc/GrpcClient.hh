@@ -54,6 +54,7 @@ public:
   // convenience factory function
   static std::unique_ptr<GrpcClient> Create(std::string endpoint =
         "localhost:50051",
+      std::string token = "",
       std::string keyfile = "",
       std::string certfile = "",
       std::string cafile = "");
@@ -74,9 +75,20 @@ public:
     return mSSL;
   }
 
+  void set_token(const std::string& _token)
+  {
+    mToken = _token;
+  }
+
+  std::string token()
+  {
+    return mToken;
+  }
+
 private:
   std::unique_ptr<eos::rpc::Eos::Stub> stub_;
   bool mSSL;
+  std::string mToken;
 };
 
 #endif
