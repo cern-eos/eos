@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
+#include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #ifdef EOS_GRPC
@@ -82,23 +83,17 @@ public:
   }
 
 #ifdef EOS_GRPC
+
   /* return client DN*/
-  static std::string DN(grpc::ServerContext* context)
-  {
-    std::string property =
-      context->auth_context()->GetPeerIdentityPropertyName().c_str();
+  static std::string DN(grpc::ServerContext* context);
+  /* return client IP*/
+  static std::string IP(grpc::ServerContext* context, std::string* id = 0,
+                        std::string* net = 0);
+  /* return VID for a given call */
+  static void Vid(grpc::ServerContext* context,
+                  eos::common::Mapping::VirtualIdentity_t* vid,
+                  const std::string& authkey);
 
-    if (property == "x509_subject_alternative_name") {
-      std::vector<grpc::string_ref> identities =
-        context->auth_context()->GetPeerIdentity();
-
-      if (identities.size() == 1) {
-        return identities[0].data();
-      }
-    }
-
-    return "";
-  }
 #endif
 };
 

@@ -27,6 +27,8 @@
 #include "proto/Rpc.grpc.pb.h"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
+#include "common/StringConversion.hh"
+#include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -52,8 +54,11 @@ class RequestServiceImpl final : public Eos::Service
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
-    eos_static_info("grpc::ping from client DN=%s token=%s",
+    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos::common::Mapping::VirtualIdentity_t vid;
+    GrpcServer::Vid(context, &vid, request->authkey());
     reply->set_message(request->message());
     return Status::OK;
   }
@@ -78,6 +83,108 @@ class RequestServiceImpl final : public Eos::Service
     return Status(grpc::StatusCode::INVALID_ARGUMENT, "request is not supported");
   }
 };
+
+/* return client DN*/
+std::string
+GrpcServer::DN(grpc::ServerContext* context)
+{
+  std::string property =
+    context->auth_context()->GetPeerIdentityPropertyName().c_str();
+
+  if (property == "x509_subject_alternative_name") {
+    std::vector<grpc::string_ref> identities =
+      context->auth_context()->GetPeerIdentity();
+
+    if (identities.size() == 1) {
+      return identities[0].data();
+    }
+  }
+
+  if (property == "x509_common_name") {
+    std::vector<grpc::string_ref> identities =
+      context->auth_context()->GetPeerIdentity();
+
+    if (identities.size() == 1) {
+      return identities[0].data();
+    }
+  }
+
+  return "";
+}
+
+/* return client IP */
+std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
+                           std::string* net)
+{
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(std::string(context->peer().c_str()),
+                                          tokens,
+                                          ":");
+
+  if (tokens.size() == 3) {
+    // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
+    if (id) {
+      *id = tokens[2];
+    }
+
+    if (net) {
+      *net = tokens[0];
+    }
+
+    return tokens[1];
+  }
+
+  if ((tokens.size() > 3) && tokens[0] == "ipv6") {
+    std::string ip;
+
+    for (size_t it = 1; it < tokens.size() - 1; ++it) {
+      ip += tokens[it];
+
+      if (it != tokens.size() - 2) {
+        ip += ":";
+      }
+    }
+
+    if (id) {
+      *id = tokens[tokens.size() - 1];
+    }
+
+    if (net) {
+      *net = tokens[0];
+    }
+
+    return ip;
+  }
+
+  return "";
+}
+
+/* return VID for a given call */
+void
+GrpcServer::Vid(grpc::ServerContext* context,
+                eos::common::Mapping::VirtualIdentity_t* vid,
+                const std::string& authkey)
+{
+  XrdSecEntity client("grpc");
+  std::string dn = DN(context);
+  client.name = const_cast<char*>(dn.c_str());
+  std::string tident = dn.length() ? dn.c_str() : authkey.c_str();
+  std::string id;
+  std::string ip = GrpcServer::IP(context, &id).c_str();
+  tident += ".1:";
+  tident += id;
+  tident += "@";
+  tident += ip;
+  client.tident = tident.c_str();
+
+  if (authkey.length()) {
+    client.endorsements = const_cast<char*>(authkey.c_str());
+  }
+
+  vid = new eos::common::Mapping::VirtualIdentity();
+  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, *vid, true);
+}
+
 #endif
 
 void
