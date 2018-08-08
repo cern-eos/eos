@@ -347,7 +347,7 @@ Storage::Boot(FileSystem* fs)
       std::this_thread::sleep_for(std::chrono::seconds(10));
       XrdFstOfs::xrdfstofs_shutdown(1);
     }
-  } while (1);
+  } while (true);
 
   eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
@@ -431,7 +431,7 @@ Storage::Boot(FileSystem* fs)
                     eos::common::FileSystem::kBootResync);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >=
                      eos::common::FileSystem::kBootForced);
-  eos_info("msg=\"start disk synchronisation\"");
+  eos_info("msg=\"start disk synchronisation\" fsid=%u", fsid);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
@@ -449,11 +449,9 @@ Storage::Boot(FileSystem* fs)
       return;
     }
 
-    eos_info("msg=\"finished disk synchronisation\" fsid=%lu",
-             (unsigned long) fsid);
+    eos_info("msg=\"finished disk synchronisation\" fsid=%u", fsid);
   } else {
-    eos_info("msg=\"skipped disk synchronisization\" fsid=%lu",
-             (unsigned long) fsid);
+    eos_info("msg=\"skipped disk synchronisization\" fsid=%u", fsid);
   }
 
   // If we see the stat.bootcheck resyncflag for the filesystem, we resync with
@@ -461,7 +459,7 @@ Storage::Boot(FileSystem* fs)
   fs->SetLongLong("bootcheck", 0);
 
   if (resyncmgm) {
-    eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
+    eos_info("msg=\"start mgm synchronisation\" fsid=%u", fsid);
 
     if (!gOFS.mQdbContactDetails.empty()) {
       // Resync meta data connecting directly to QuarkDB
@@ -481,10 +479,9 @@ Storage::Boot(FileSystem* fs)
       }
     }
 
-    eos_info("msg=\"finished mgm synchronization\" fsid=%lu", (unsigned long) fsid);
+    eos_info("msg=\"finished mgm synchronization\" fsid=%u", fsid);
   } else {
-    eos_info("msg=\"skip mgm resynchronization\" fsid=%lu",
-             (unsigned long) fsid);
+    eos_info("msg=\"skip mgm resynchronization\" fsid=%u", fsid);
   }
 
   // @note the disk and mgm synchronization can end up in a state where files

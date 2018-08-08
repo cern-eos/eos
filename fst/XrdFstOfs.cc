@@ -69,8 +69,7 @@
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
-XrdSysMutex eos::fst::XrdFstOfs::sShutdownMutex;
-bool eos::fst::XrdFstOfs::sShutdown = false;
+std::atomic<bool> eos::fst::XrdFstOfs::sShutdown {false};
 
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
@@ -212,10 +211,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 {
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
-  {
-    XrdSysMutexHelper sLock(sShutdownMutex);
-    sShutdown = true;
-  }
+  sShutdown = true;
   pid_t watchdog;
 
   if (!(watchdog = fork())) {
@@ -224,11 +220,10 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     // on the current machine
     std::chrono::seconds timeout(gFmdDbMapHandler.GetNumFileSystems() * 5);
     std::this_thread::sleep_for(timeout);
-    fprintf(stderr, "@@@@@@ 00:00:00 %s %li %s",
-            "op=shutdown msg=\"shutdown timedout after ", timeout.count(),
-            " seconds\"\n");
+    fprintf(stderr, "@@@@@@ 00:00:00 op=shutdown msg=\"shutdown timedout after "
+            "%li seconds, signal=%i\n", timeout.count(), sig);
     kill(getppid(), 9);
-    fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
+    fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete\n");
     kill(getpid(), 9);
   }
 
@@ -240,7 +235,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
   gOFS.Storage->ShutdownThreads();
-  eos_static_warning("op=shutdown msg=\"stop messaging\"");
+  eos_static_warning("%s", "op=shutdown msg=\"stop messaging\"");
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
   kill(watchdog, 9);
@@ -269,10 +264,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   pid_t watchdog;
   static XrdSysMutex grace_shutdown_mtx;
   grace_shutdown_mtx.Lock();
-  {
-    XrdSysMutexHelper sLock(sShutdownMutex);
-    sShutdown = true;
-  }
+  sShutdown = true;
   const char* swait = getenv("EOS_GRACEFUL_SHUTDOWN_TIMEOUT");
   std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
 

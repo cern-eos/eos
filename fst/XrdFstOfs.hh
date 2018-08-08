@@ -80,8 +80,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
   friend class RaidMetaLayout;
 
 public:
-  static XrdSysMutex sShutdownMutex; ///< Protecting Shutdown variable
-  static bool sShutdown; ///< True if shutdown procedure is running
+  static std::atomic<bool> sShutdown; ///< True if shutdown procedure is running
 
   //----------------------------------------------------------------------------
   //! FST shutdown procedure
@@ -339,8 +338,8 @@ public:
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
   void MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
-			  unsigned long long fid,
-			  struct stat &deletion_stat);
+                          unsigned long long fid,
+                          struct stat& deletion_stat);
 
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class

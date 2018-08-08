@@ -67,9 +67,7 @@ FileSystem::FileSystem(const char* queuepath,
 FileSystem::~FileSystem()
 {
   delete scanDir;
-
   delete mFileIO;
-
   // ----------------------------------------------------------------------------
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
@@ -95,12 +93,9 @@ void
 FileSystem::BroadcastError(const char* msg)
 {
   bool shutdown = false;
-  {
-    XrdSysMutexHelper sLock(gOFS.sShutdownMutex);
 
-    if (gOFS.sShutdown) {
-      shutdown = true;
-    }
+  if (gOFS.sShutdown) {
+    shutdown = true;
   }
 
   if (!shutdown) {
@@ -114,12 +109,9 @@ void
 FileSystem::BroadcastError(int errc, const char* errmsg)
 {
   bool shutdown = false;
-  {
-    XrdSysMutexHelper sLock(gOFS.sShutdownMutex);
 
-    if (gOFS.sShutdown) {
-      shutdown = true;
-    }
+  if (gOFS.sShutdown) {
+    shutdown = true;
   }
 
   if (!shutdown) {
