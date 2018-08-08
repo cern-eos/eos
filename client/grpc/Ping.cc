@@ -9,7 +9,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endponit <host:port>] [--token <auth-token>]\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>]\n", prog);
   return -1;
 }
 
