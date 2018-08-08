@@ -81,8 +81,7 @@ Vid::Set(const char* value, bool storeConfig)
       }) !=
       username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      }
-      else {
+      } else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -157,7 +156,7 @@ Vid::Set(const char* value, bool storeConfig)
 
     if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
         (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
-        (auth != "https")) {
+        (auth != "https") && (auth != "grpc")) {
       eos_static_err("invalid auth mode");
       return false;
     }
@@ -359,8 +358,7 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         uid = 99;
       }
-    }
-    else {
+    } else {
       try {
         uid = std::stoul(usrname);
       } catch (const std::exception& e) {
@@ -387,8 +385,7 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         gid = 99;
       }
-    }
-    else {
+    } else {
       try {
         gid = std::stoul(grpname);
       } catch (const std::exception& e) {
@@ -458,7 +455,7 @@ Vid::Rm(XrdOucEnv& env,
 
       if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
           (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
-          (auth != "https")) {
+          (auth != "https") && (auth != "grpc")) {
         eos_static_err("invalid auth mode");
         break;
       }
