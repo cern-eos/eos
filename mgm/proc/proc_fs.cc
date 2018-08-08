@@ -364,10 +364,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                           eos::common::StringConversion::GetSizeFromString(value.c_str()));
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "configstatus") {
-          auto old_status = fs->GetConfigStatus();
-          auto new_status = eos::common::FileSystem::GetConfigStatusFromString(
-                              value.c_str());
-
           if (value == "empty") {
             // Check if this filesystem is really empty
             if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId()) != 0) {
