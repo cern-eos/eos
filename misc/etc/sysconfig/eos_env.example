@@ -155,10 +155,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #-------------------------------------------------------------------------------
 # HTTP server ports
 
-# MGM
+# MGM - set to 0 to disable HTTP
 # EOS_MGM_HTTP_PORT=8000
 
-# FST
+# FST - set to 0 to disable HTTP
 # EOS_FST_HTTP_PORT=8001
 
 # HTTP uses by default one thread per connection
@@ -179,7 +179,7 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # GRPC Configuration
 #-------------------------------------------------------------------------------
 
-# GRPC port
+# GRPC port - set to 0 toi disable GRPC
 # EOS_MGM_GRPC_PORT=50051
 
 # GRPC security - define to enable SSL server
