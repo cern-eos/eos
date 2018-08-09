@@ -920,7 +920,8 @@ filesystem::add_fd2file(LayoutWrapper* raw_file,
       fd = *iter_fd->second.begin();
       auto iter_file = fd2fabst.find(fd);
 
-      if (iter_file != fd2fabst.end()) {
+      if ((iter_file != fd2fabst.end()) &&
+          (iter_file->second != nullptr)) {
         fabst = iter_file->second;
 
         for (auto fdit = iter_fd->second.begin(); fdit != iter_fd->second.end();
