@@ -369,12 +369,11 @@ com_file(char* arg1)
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
   XrdOucString fsid3 = subtokenizer.GetToken();
-
-  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:"))) {
-    path = abspath(path.c_str());
-  }
-
   XrdOucString in = "mgm.cmd=file";
+
+  if (!path.length()) {
+    goto com_file_usage;
+  }
 
   if (wants_help(savearg.c_str())) {
     goto com_file_usage;
@@ -388,6 +387,10 @@ com_file(char* arg1)
       (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") &&
       (cmd != "workflow")) {
     goto com_file_usage;
+  }
+
+  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:"))) {
+    path = abspath(path.c_str());
   }
 
   // convenience function
@@ -1077,11 +1080,11 @@ com_file_usage:
   fprintf(stdout,
           "       - %%checksumattr                                               :  return with error code EFAULT if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
   fprintf(stdout,
-          "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
+          "       - %%silent                                                     :  suppresses all information for each replica to be printed\n");
   fprintf(stdout,
           "       - %%force                                                      :  forces to get the MD even if the node is down\n");
   fprintf(stdout,
-          "       - %%output                                                     :  prints lines with inconsitency information\n");
+          "       - %%output                                                     :  prints lines with inconsistency information\n");
   fprintf(stdout,
           "file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:\n");
   fprintf(stdout,
@@ -1097,9 +1100,9 @@ com_file_usage:
   fprintf(stdout,
           "        <placement-policy>   : optional placement policy valid values are 'scattered','hybrid:<some_geotag>' and 'gathered:<some_geotag>'\n");
   fprintf(stdout,
-          "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
+          "        --sync               : run conversion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
   fprintf(stdout,
-          "        --rewrite            : run convertion rewriting the file as is creating new copies and dropping old\n");
+          "        --rewrite            : run conversion rewriting the file as is creating new copies and dropping old\n");
   fprintf(stdout,
           "file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout,
@@ -1131,7 +1134,7 @@ com_file_usage:
           "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
   fprintf(stdout, "file purge <path> [purge-version] :\n");
   fprintf(stdout,
-          "                                                  keep maximumg <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.\n");
+          "                                                  keep maximum <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.\n");
   fprintf(stdout, "file rename [<path>|fid:<fid-dec>|fxid:<fid-hex>] <new> :\n");
   fprintf(stdout,
           "                                                  rename from <old> to <new> name (works for files and directories!).\n");
