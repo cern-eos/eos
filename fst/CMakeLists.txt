@@ -386,9 +386,8 @@ target_link_libraries(XrdEosFst PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Shared PUBLIC
-  eosCommon
   eosCommonServer
-  EosFstIo-Static
+  EosFstIo
   eosCapability-Static
   EosNsQuarkdb-Shared
   ${Z_LIBRARY}

@@ -604,6 +604,22 @@ public:
 #endif
 
   //----------------------------------------------------------------------------
+  //! Get hostname from tident. This is used when checking the origin match for
+  //! TPC transfers. It only extract the hostname without domain to avoid
+  //! mismatch in cases where the same machine provides both IPV4 and IPV6
+  //! interfaces. Eg. root.1.2@eosbackup.cern.ch and
+  //! root.1.2@eosbackup.ipv6.cern.ch should match
+  //!
+  //! @param tident xrootd like tident
+  //! @param hostname output parameter holding the hostname
+  //!
+  //! @return true if parsing succcessful and hostname stores the desired value,
+  //!         otherwise false
+  //----------------------------------------------------------------------------
+  static bool GetHostFromTident(const std::string& tident,
+                                std::string& hostname);
+
+  //----------------------------------------------------------------------------
   //! Filter out particular tags from the opaque information
   //!
   //! @param opaque opaque information to process
@@ -639,10 +655,10 @@ public:
   //! @return
   //----------------------------------------------------------------------------
   int NotifyProtoWfEndPointClosew(const Fmd& fmd, const string& ownerName,
-    const string& ownerGroupName, const string& requestorName,
-    const string& requestorGroupName, const string& instanceName,
-    const string& fullPath, const string &managerName,
-    const std::map<std::string, std::string>& xattrs, string &errMsgBack);
+                                  const string& ownerGroupName, const string& requestorName,
+                                  const string& requestorGroupName, const string& instanceName,
+                                  const string& fullPath, const string& managerName,
+                                  const std::map<std::string, std::string>& xattrs, string& errMsgBack);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager
@@ -652,7 +668,7 @@ public:
   //! @return SFS_OK if successful
   //----------------------------------------------------------------------------
   int SendArchiveFailedToManager(const uint64_t fid,
-    const std::string &errMsg);
+                                 const std::string& errMsg);
 };
 
 EOSFSTNAMESPACE_END

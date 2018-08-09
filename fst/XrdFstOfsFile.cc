@@ -180,7 +180,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   gettimeofday(&openTime, &tz);
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
   bool isRepairRead = false;
-  eos::common::Mapping::VirtualIdentity vid;
   // Mask some opaque parameters to shorten the logging
   XrdOucString maskOpaque = opaque ? opaque : "";
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
@@ -202,24 +201,26 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int tpc_retc = ProcessTpcOpaque(in_opaque, client);
 
   if (tpc_retc == SFS_ERROR) {
-    eos_err("msg=\"failed while processing TPC/open opaque\"");
+    eos_err("%s", "msg=\"failed while processing TPC/open opaque\"");
     return SFS_ERROR;
   } else if (tpc_retc >= SFS_STALL) {
     return tpc_retc; // this is stall time in seconds
   }
 
   if (ProcessOpenOpaque()) {
-    eos_err("msg=\"failed while processing open opaque info\"");
+    eos_err("%s", "msg=\"failed while processing open opaque info\"");
     return SFS_ERROR;
   }
 
+  eos::common::Mapping::VirtualIdentity vid;
+
   if (ProcessCapOpaque(isRepairRead, vid)) {
-    eos_err("msg=\"failed while processing cap opaque info\"");
+    eos_err("%s", "msg=\"failed while processing cap opaque info\"");
     return SFS_ERROR;
   }
 
   if (ProcessMixedOpaque()) {
-    eos_err("msg=\"failed while processing mixed opaque info\"");
+    eos_err("%s", "msg=\"failed while processing mixed opaque info\"");
     return SFS_ERROR;
   }
 
@@ -228,7 +229,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // the distinction between an open for write and open for recovery
   if (mCapOpaque && (val = mCapOpaque->Get("mgm.rain.store"))) {
     if (strncmp(val, "1", 1) == 0) {
-      eos_info("msg=\"enabling RAIN store recovery\"");
+      eos_info("%s", "msg=\"enabling RAIN store recovery\"");
       open_mode = SFS_O_RDWR;
       mRainReconstruct = true;
       mHasWrite = true;
@@ -241,7 +242,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
           // ignore
         }
       } else {
-        eos_warning("msg=\"unknown RAIN file size during reconstruction\"");
+        eos_warning("%s", "msg=\"unknown RAIN file size during reconstruction\"");
       }
     }
   }
@@ -259,11 +260,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // File is supposed to act as a sink, used for draining
   if (mNsPath == "/replicate:0") {
     if (isRW) {
-      eos_info("msg=\"file fid=0 acting as a sink i.e. /dev/null\"");
+      eos_info("%s", "msg=\"file fid=0 acting as a sink i.e. /dev/null\"");
       mIsDevNull = true;
       return SFS_OK;
     } else {
-      eos_info("msg=\"sink file i.e. /dev/null can only be opened for RW\"");
+      eos_info("%s", "msg=\"sink file i.e. /dev/null can only be opened for RW\"");
       return gOFS.Emsg(epname, error, EIO, "open - sink file can only be "
                        "opened RW mode", mNsPath.c_str());
     }
@@ -3128,12 +3129,24 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     // We trust 'sss' anyway and we miss the host name in the 'sss' entity
     std::string sec_prot = client->prot;
 
-    if ((sec_prot != "sss") &&
-        (gOFS.TpcMap[mIsTpcDst][tpc_key].org != tpc_org)) {
-      eos_err("tpc origin missmatch tpc_org=%s, cached_org=%s", tpc_org.c_str(),
-              gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str());
-      return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch",
-                       mNsPath.c_str());
+    if ((sec_prot != "sss")) {
+      // Extract hostname from tident to avoid IPV4/6 fqdn mismatch errors
+      std::string exp_org, cur_org;
+
+      if (!GetHostFromTident(gOFS.TpcMap[mIsTpcDst][tpc_key].org, exp_org) ||
+          !GetHostFromTident(tpc_org, cur_org)) {
+        eos_err("failed to parse host from tpc_org=%s or cached_org=%s",
+                tpc_org.c_str(), gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str());
+        return gOFS.Emsg(epname, error, EPERM, "open - tpc origin parse error",
+                         mNsPath.c_str());
+      }
+
+      if (exp_org != cur_org) {
+        eos_err("tpc origin missmatch tpc_org=%s, cached_org=%s",
+                tpc_org.c_str(), gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str());
+        return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch",
+                         mNsPath.c_str());
+      }
     }
 
     eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
@@ -3197,7 +3210,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     }
 
     if ((caprc = gCapabilityEngine.Extract(mOpenOpaque.get(), mCapOpaque))) {
-      // If we just miss the key, better stall the client
+      // If we just miss the key, better stall thec lient
       if (caprc == ENOKEY) {
         return gOFS.Stall(error, 10, "FST still misses the required capability key");
       }
@@ -3396,6 +3409,25 @@ int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid,
   return gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
                           mCapOpaque->Get("mgm.manager"),
                           errorReportOpaque, nullptr, 30, mSyncEventOnClose, false);
+}
+
+//------------------------------------------------------------------------------
+// Get hostname from tident
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::GetHostFromTident(const std::string& tident,
+                                 std::string& hostname)
+{
+  hostname.clear();
+  size_t pos = tident.find('@');
+
+  if ((pos == std::string::npos) || (pos + 1 == tident.length())) {
+    return false;
+  }
+
+  size_t dot_pos = tident.find('.', pos + 1);
+  hostname = tident.substr(pos + 1, dot_pos - pos - 1);
+  return true;
 }
 
 EOSFSTNAMESPACE_END
