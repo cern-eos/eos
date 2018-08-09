@@ -50,7 +50,7 @@ message FileMdProto {
 	repeated uint32 locations = 13;
 	repeated uint32 unlink_locations = 14;
 	map<string, bytes> xattrs = 15;
-	bytes path = 16;
+	string path = 16;
 }
 
 message ContainerMdProto {
@@ -66,18 +66,22 @@ message ContainerMdProto {
 	Time mtime = 10; // modification time
 	Time stime = 11; // sync time
 	map<string, bytes> xattrs = 12;
-	bytes path = 13;
+	string path = 13;
 }
 
 
 enum TYPE { FILE = 0; CONTAINER = 1; LISTING = 2;}	
 
+message MDId {
+        bytes path = 1;
+	fixed64 id = 2;
+	fixed64 ino = 3;
+}
+
 message MDRequest {
 	TYPE type = 1;
-        bytes path = 2;
-	fixed64 id = 3;
-	fixed64 ino = 4;
-	string authkey = 5;
+        MDId id = 2;
+	string authkey = 3;
 }
 
 message MDResponse {
