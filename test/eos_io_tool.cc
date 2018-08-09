@@ -817,10 +817,10 @@ int main(int argc, char* argv[])
     }
 
     if (ReadSequentially(url_file, ext_file)) {
-      eos_static_info("Operation successful");
+      eos_static_debug("Operation successful");
       return 0;
     } else {
-      eos_static_info("Operation failed");
+      eos_static_debug("Operation failed");
       return 1; // error
     }
   } else if (op_type == RD_PATT) {
@@ -830,10 +830,10 @@ int main(int argc, char* argv[])
     }
 
     if (ReadPattern(url_file, ext_file, pattern_file)) {
-      eos_static_info("Operation successful");
+      eos_static_debug("Operation successful");
       return 0;
     } else {
-      eos_static_info("Operation failed");
+      eos_static_debug("Operation failed");
       return 1; // error
     }
   } else if (op_type == WR_SEQU) {
@@ -843,10 +843,10 @@ int main(int argc, char* argv[])
     }
 
     if (WriteSequentially(url_file, ext_file)) {
-      eos_static_info("Operation successful");
+      eos_static_debug("Operation successful");
       return 0;
     } else {
-      eos_static_info("Operation failed");
+      eos_static_debug("Operation failed");
       return 1; // error
     }
   } else if (op_type == WR_PATT) {
@@ -856,10 +856,10 @@ int main(int argc, char* argv[])
     }
 
     if (WritePattern(url_file, ext_file, pattern_file)) {
-      eos_static_info("Operation successful");
+      eos_static_debug("Operation successful");
       return 0;
     } else {
-      eos_static_info("Operation failed");
+      eos_static_debug("Operation failed");
       return 1; // error
     }
   }

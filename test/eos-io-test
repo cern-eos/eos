@@ -1,3 +1,4 @@
+#/usr/bin/env bash
 #------------------------------------------------------------------------------
 # File: eos-io-test
 # Author: Elvin-Alin Sindrilaru - CERN
@@ -32,10 +33,9 @@
 #
 #------------------------------------------------------------------------------
 
-#!/bin/bash
 . /etc/init.d/functions
 
-if [ $LOGNAME != "root" ]; then
+if [[ "$LOGNAME" != "root" ]]; then
    SUDO="sudo"
 else 
   SUDO=""
