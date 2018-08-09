@@ -23,6 +23,7 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${CURL_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
@@ -55,6 +56,7 @@ target_link_libraries(
   XrdMqClient PUBLIC
   fmt
   ${UUID_LIBRARY}
+  ${CURL_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
