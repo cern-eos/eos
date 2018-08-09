@@ -95,10 +95,10 @@ add_dependencies(eos-unit-tests EosConsoleCommands-Objects)
 
 target_link_libraries(
   eos-unit-tests
-  eosCommonServer
   gtest_main
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
   gmock
+  eosCommonServer
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
   XrdEosMgm-Shared
   EosFstIo-Static
   ${READLINE_LIBRARY}

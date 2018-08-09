@@ -49,3 +49,29 @@ TEST(XrdFstOfsFileTest, FilterTags)
   eos::fst::XrdFstOfsFile::FilterTagsInPlace(opaque, tags);
   ASSERT_STREQ(opaque.c_str(), "");
 }
+
+TEST(XrdFstOfsFileTest, GetHostFromTident)
+{
+  std::string hostname;
+  std::string tident = "root.1.2@eospps.cern.ch";
+  ASSERT_TRUE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "eospps");
+  tident = "root@eospps.ipv6.cern.ch";
+  ASSERT_TRUE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "eospps");
+  tident = "root.1.1@eospps.dyndns.some.other.ipv6.cern.ch";
+  ASSERT_TRUE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "eospps");
+  tident = "root.1.1@eospps";
+  ASSERT_TRUE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "eospps");
+  tident = "root.1.1_eospps.dyndns.some.other.ipv6.cern.ch";
+  ASSERT_FALSE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "");
+  tident = "root.1.1@";
+  ASSERT_FALSE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "");
+  tident = "root.1.1";
+  ASSERT_FALSE(XrdFstOfsFile::GetHostFromTident(tident, hostname));
+  ASSERT_STREQ(hostname.c_str(), "");
+}
