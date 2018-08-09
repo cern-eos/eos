@@ -43,33 +43,6 @@ ProcCommand::Config()
     }
   }
 
-  if (mSubCmd == "autosave") {
-    eos_notice("config autosave");
-    XrdOucString onoff = pOpaque->Get("mgm.config.state") ?
-                         pOpaque->Get("mgm.config.state") : "";
-
-    if (!onoff.length()) {
-      if (gOFS->ConfEngine->GetAutoSave()) {
-        stdOut += "<autosave> is enabled\n";
-        retc = 0;
-      } else {
-        stdOut += "<autosave> is disabled\n";
-        retc = 0;
-      }
-    } else {
-      if ((onoff != "on") && (onoff != "off")) {
-        stdErr += "error: state must be either 'on' or 'off' or empty to read the current setting!\n";
-        retc = EINVAL;
-      } else {
-        if (onoff == "on") {
-          gOFS->ConfEngine->SetAutoSave(true);
-        } else {
-          gOFS->ConfEngine->SetAutoSave(false);
-        }
-      }
-    }
-  }
-
   int envlen;
 
   if (mSubCmd == "load") {

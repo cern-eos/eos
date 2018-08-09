@@ -149,13 +149,6 @@ com_config(char* arg1)
     return (0);
   }
 
-  if (subcommand == "autosave") {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=autosave&mgm.config.state=";
-    in += arg;
-    global_retc = output_result(client_command(in, true));
-    return (0);
-  }
-
   if (subcommand == "reset") {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=reset";
     global_retc = output_result(client_command(in, true));
@@ -244,15 +237,11 @@ com_config(char* arg1)
 
 com_config_usage:
   std::ostringstream oss;
-  oss << "Usage: config autosave|changelog|dump|export|load|ls|reset|save [OPTIONS]"
+  oss << "Usage: config changelog|dump|export|load|ls|reset|save [OPTIONS]"
       << std::endl
       << "'[eos] config' provides the configuration interface to EOS." << std::endl
       << std::endl
       << "Subcommands:" << std::endl
-      << "config autosave [on|off]" << std::endl
-      << "       without on/off just prints the state otherwise set's autosave to on or off"
-      << std::endl
-      << std::endl
       << "config changelog [-#lines]" << std::endl
       << "       show the last <#> lines from the changelog - default is 10" <<
       std::endl

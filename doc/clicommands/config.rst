@@ -3,13 +3,11 @@ config
 
 .. code-block:: text
 
-  config autosave|changelog|diff|dump|export|load|ls|reset|save [OPTIONS]
+  config changelog|diff|dump|export|load|ls|reset|save [OPTIONS]
   '[eos] config' provides the configuration interface to EOS.
 .. code-block:: text
 
   Subcommands:
-  config autosave [on|off]
-    without on/off just prints the state otherwise set's autosave to on or off
   config changelog [-#lines]
     show the last <#> lines from the changelog - default is 10
   config diff

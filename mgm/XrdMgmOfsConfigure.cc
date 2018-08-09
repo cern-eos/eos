@@ -497,7 +497,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   ErrorLog = true;
-  bool ConfigAutoSave = false;
   MgmConfigAutoLoad = "";
   long myPort = 0;
   std::string ns_lib_path;
@@ -850,26 +849,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
             if (!MgmArchiveDir.endswith("/")) {
               MgmArchiveDir += "/";
-            }
-          }
-        }
-
-        if (!strcmp("autosaveconfig", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for autosaveconfig missing. Can be true/1 or false/0");
-            NoGo = 1;
-          } else {
-            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))) {
-              ConfigAutoSave = true;
-            } else {
-              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
-                ConfigAutoSave = false;
-              } else {
-                Eroute.Emsg("Config",
-                            "argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0");
-                NoGo = 1;
-              }
             }
           }
         }
@@ -1440,25 +1419,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  if (ConfigAutoSave && (!getenv("EOS_AUTOSAVE_CONFIG"))) {
-    Eroute.Say("=====> mgmofs.autosaveconfig: true", "");
-    ConfEngine->SetAutoSave(true);
-  } else {
-    if (getenv("EOS_AUTOSAVE_CONFIG")) {
-      eos_info("autosave config=%s", getenv("EOS_AUTOSAVE_CONFIG"));
-      XrdOucString autosave = getenv("EOS_AUTOSAVE_CONFIG");
-
-      if ((autosave == "1") || (autosave == "true")) {
-        Eroute.Say("=====> mgmofs.autosaveconfig: true", "");
-        ConfEngine->SetAutoSave(true);
-      } else {
-        Eroute.Say("=====> mgmofs.autosaveconfig: false", "");
-        ConfEngine->SetAutoSave(false);
-      }
-    } else {
-      Eroute.Say("=====> mgmofs.autosaveconfig: false", "");
-    }
-  }
+  ConfEngine->SetAutoSave(true);
 
   // Create comment log to save all proc commands executed with a comment
   mCommentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");

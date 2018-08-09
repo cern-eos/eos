@@ -52,9 +52,6 @@ mgmofs.reportstorepath /var/eos/prefix/report
 # this defines the default config to load
 mgmofs.autoloadconfig default
 
-# this enables that every change get's immediately stored to the active configuration - can be overwritten by EOS_AUTOSAVE_CONFIG defined in /etc/sysconfig/eos
-mgmofs.autosaveconfig true
-
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
 #mgmofs.alias eosdev.cern.ch
 
