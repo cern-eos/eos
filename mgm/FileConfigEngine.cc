@@ -58,20 +58,12 @@ FileCfgEngineChangelog::FileCfgEngineChangelog(const char* chlog_fn):
 //------------------------------------------------------------------------------
 // Add entry to the changelog
 //------------------------------------------------------------------------------
-bool
-FileCfgEngineChangelog::AddEntry(const char* info)
+void
+FileCfgEngineChangelog::AddEntry(const std::string &action, const std::string &key,
+  const std::string &value)
 {
-  std::string key, value, action;
-
-  if (!ParseTextEntry(info, key, value, action)) {
-    eos_warning("Failed to parse entry %s in file %s. Entry will be ignored.",
-                info, mChLogFile.c_str());
-    return false;
-  }
-
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mMap.set(key, value, action);
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -143,9 +135,6 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
-  XrdOucString cl = "loaded config ";
-  cl += name;
-  cl += " ";
 
   if (!name) {
     err = "error: you have to specify a configuration file name";
@@ -259,15 +248,11 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 
     if (!ApplyConfig(err)) {
       mBroadcast = true;
-      cl += " with failure";
-      cl += " : ";
-      cl += err;
-      mChangelog->AddEntry(cl.c_str());
+      mChangelog->AddEntry("loaded config", name, SSTR("with failure : " << err));
       return false;
     } else {
       mBroadcast = true;
-      cl += " successfully";
-      mChangelog->AddEntry(cl.c_str());
+      mChangelog->AddEntry("loaded config", name, "successfully");
       mConfigFile = name;
       return true;
     }
@@ -302,20 +287,6 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   bool force = (bool)env.Get("mgm.config.force");
   bool autosave = (bool)env.Get("mgm.config.autosave");
   const char* comment = env.Get("mgm.config.comment");
-  XrdOucString cl = "";
-
-  if (autosave) {
-    cl += "autosaved config ";
-  } else {
-    cl += "saved config ";
-  }
-
-  cl += name;
-  cl += " ";
-
-  if (force) {
-    cl += "(force)";
-  }
 
   eos_debug("saving config name=%s comment=%s force=%d", name, comment, force);
 
@@ -449,11 +420,26 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
-  cl += " successfully";
-  cl += " [";
-  cl += comment;
-  cl += " ]";
-  mChangelog->AddEntry(cl.c_str());
+  std::string changeLogAction;
+
+  if (autosave) {
+    changeLogAction = "autosaved config";
+  } else {
+    changeLogAction = "saved config";
+  }
+
+  std::ostringstream changeLogValue;
+
+  if (force) {
+    changeLogValue << "(force)";
+  }
+
+  changeLogValue << " successfully";
+  if(comment) {
+    changeLogValue << "[" << comment << "]";
+  }
+
+  mChangelog->AddEntry(changeLogAction, name, changeLogValue.str());
   mConfigFile = name;
   return true;
 }
@@ -659,23 +645,9 @@ void
 FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                  const char* val, bool tochangelog)
 {
-  XrdOucString cl = "set config ";
-
-  if (prefix) {
-    // if there is a prefix
-    cl += prefix;
-    cl += ":";
-    cl += key;
-  } else {
-    // if not it is included in the key
-    cl += key;
-  }
-
-  cl += " => ";
-  cl += val;
 
   if (tochangelog) {
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
   XrdOucString configname;
@@ -720,18 +692,13 @@ void
 FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                     bool tochangelog)
 {
-  XrdOucString cl = "del config ";
   XrdOucString configname;
 
   if (prefix) {
-    cl += prefix;
-    cl += ":";
-    cl += key;
     configname = prefix;
     configname += ":";
     configname += key;
   } else {
-    cl += key;
     configname = key;
   }
 
@@ -754,7 +721,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   }
 
   if (tochangelog) {
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
   }
 
   (void) AutoSave();

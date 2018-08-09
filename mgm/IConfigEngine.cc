@@ -46,106 +46,6 @@ XrdOucHash<XrdOucString> IConfigEngine::sConfigDefinitions;
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Parse a text line into key value pairs
-//------------------------------------------------------------------------------
-bool
-ICfgEngineChangelog::ParseTextEntry(const char* entry, std::string& key,
-                                    std::string& value, std::string& action)
-
-{
-  std::stringstream ss(entry);
-  std::string tmp;
-  ss >> action;
-  ss >> tmp;
-  (action += " ") += tmp; // the action is put inside the comment
-  key = value = "";
-
-  if (action.compare("reset config") == 0) {
-    // nothing specific
-  } else if (action.compare("del config") == 0) {
-    ss >> key;
-
-    if (key.empty()) {
-      return false;
-    }
-  } else if (action.compare("set config") == 0) {
-    ss >> key;
-    ss >> tmp; // should be "=>"
-    getline(ss, value);
-
-    if (key.empty() || value.empty()) {
-      return false;
-    }
-  } else if (action.compare("loaded config") == 0) {
-    ss >> key;
-    getline(ss, value);
-
-    if (key.empty() || value.empty()) {
-      return false;
-    }
-  } else if (action.size() >= 12) {
-    if (action.substr(0, 12).compare("saved config") == 0) {
-      // Take into account the missing space after config when writing the old
-      // configchangelog file format.
-      std::string k;
-
-      if (action.size() > 12) {
-        // If the space is missing e.g:configNAME, the name is put in this
-        // string and space is appended.
-        k = action.substr(12);
-      }
-
-      if (k.size()) {
-        k += " ";
-      }
-
-      ss >> key;
-      k += key;
-      key = k;
-      getline(ss, value);
-      // Take into account the missing space after config when writing the old
-      // configchangelog file format
-      action = action.substr(0, 12);
-
-      if (key.empty() || value.empty()) {
-        return false;
-      }
-    } else if (action.substr(0, 15).compare("exported config") == 0) {
-      std::string k;
-
-      if (action.size() > 15) {
-        k = action.substr(15);
-      }
-
-      if (k.size()) {
-        k += " ";
-      }
-
-      ss >> key;
-      k += key;
-      key = k;
-      getline(ss, value);
-      action = action.substr(0, 15);
-
-      if (key.empty() || value.empty()) {
-        return false;  // error, should not happen
-      }
-    }
-  } else if (action.compare("autosaved config") == 0) {
-    ss >> key;
-    getline(ss, value);
-
-    if (key.empty() || value.empty()) {
-      return false;  // error, should not happen
-    }
-  } else {
-    return false;
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 //                          **** IConfigEngine ****
 //------------------------------------------------------------------------------
 
@@ -597,8 +497,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 void
 IConfigEngine::ResetConfig()
 {
-  std::string cmd = "reset config";
-  mChangelog->AddEntry(cmd.c_str());
+  mChangelog->AddEntry("reset config", "", "");
   mConfigFile = "";
   (void) Quota::CleanUp();
   {

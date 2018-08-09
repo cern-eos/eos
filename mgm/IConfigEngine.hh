@@ -28,6 +28,7 @@
 #include "common/Logging.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
+#include <sstream>
 
 //------------------------------------------------------------------------------
 //! @brief Interface Class responsible to handle configuration (load, save,
@@ -63,13 +64,14 @@ public:
   virtual ~ICfgEngineChangelog() = default;
 
   //----------------------------------------------------------------------------
-  //! Add entry
+  //! Add entry to the changelog
   //!
-  //! @param info entry info
-  //!
-  //! @return true if successful, otherwise false
+  //! @param key      entry action
+  //! @param value    entry key
+  //! @param comment  entry value
   //----------------------------------------------------------------------------
-  virtual bool AddEntry(const char* info) = 0;
+  virtual void AddEntry(const std::string &action, const std::string &key,
+    const std::string &value) = 0;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -82,19 +84,6 @@ public:
   virtual bool Tail(unsigned int nlines, XrdOucString& tail) = 0;
 
 protected:
-  //----------------------------------------------------------------------------
-  //! Parse a text line into key value pairs
-  //!
-  //! @param entry entry to parse
-  //! @param key key parsed
-  //! @param value value parsed
-  //! @param comment comment parsed
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ParseTextEntry(const char* entry, std::string& key, std::string& value,
-                      std::string& comment);
-
   mutable eos::common::RWMutex mMutex; ///< Mutex protecting the config changes
 };
 
@@ -304,6 +293,14 @@ public:
   bool GetAutoSave()
   {
     return mAutosave;
+  }
+
+  static std::string formFullKey(const char* prefix, const char* key) {
+    if(prefix) {
+      return SSTR(prefix << ":" << key);
+    }
+
+    return SSTR(key);
   }
 
 protected:

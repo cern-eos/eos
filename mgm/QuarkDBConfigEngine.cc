@@ -45,15 +45,8 @@ QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
 //------------------------------------------------------------------------------
 // Add entry to the changelog
 //------------------------------------------------------------------------------
-bool QuarkDBCfgEngineChangelog::AddEntry(const char* info)
-{
-  std::string key, value, action;
-
-  if (!ParseTextEntry(info, key, value, action)) {
-    eos_warning("Failed to parse new entry %s. Entry will be ignored.",
-                info);
-    return false;
-  }
+void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
+  const std::string &key, const std::string &value) {
 
   // Add entry to the set
   std::ostringstream oss(action.c_str());
@@ -67,7 +60,6 @@ bool QuarkDBCfgEngineChangelog::AddEntry(const char* info)
   ss << now;
   std::string timestamp = ss.str();
   mChLogHash.hset(timestamp, oss.str().c_str());
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -133,9 +125,6 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
-  XrdOucString cl = "loaded config ";
-  cl += name;
-  cl += " ";
 
   if (!name) {
     err = "error: you have to specify a configuration  name";
@@ -155,15 +144,11 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   if (!ApplyConfig(err))   {
-    cl += " with failure";
-    cl += " : ";
-    cl += err;
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("loaded config", name, SSTR("with failure : " << err));
     return false;
   } else {
     mConfigFile = name;
-    cl += " successfully";
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("loaded config", name, "successfully");
     return true;
   }
 
@@ -180,20 +165,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   bool force = (bool)env.Get("mgm.config.force");
   bool autosave = (bool)env.Get("mgm.config.autosave");
   const char* comment = env.Get("mgm.config.comment");
-  XrdOucString cl = "";
-
-  if (autosave) {
-    cl += "autosaved config ";
-  } else {
-    cl += "saved config ";
-  }
-
-  cl += name;
-  cl += " ";
-
-  if (force) {
-    cl += "(force)";
-  }
 
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
@@ -291,11 +262,22 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   // Add the hash key to the set
   q_set.sadd(hash_key);
 
-  cl += " successfully";
-  cl += " [";
-  cl += comment;
-  cl += " ]";
-  mChangelog->AddEntry(cl.c_str());
+  std::string changeLogAction;
+
+  if (autosave) {
+    changeLogAction = "autosaved config";
+  } else {
+    changeLogAction = "saved config";
+  }
+
+  std::ostringstream changeLogValue;
+
+  if (force) {
+    changeLogValue << "(force)";
+  }
+
+  changeLogValue << " successfully [" << comment << "]";
+  mChangelog->AddEntry(changeLogAction, name, changeLogValue.str());
   mConfigFile = name;
   return true;
 }
@@ -475,20 +457,6 @@ void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
-  XrdOucString cl = "set config ";
-
-  if (prefix) {
-    // If there is a prefix
-    cl += prefix;
-    cl += ":";
-    cl += key;
-  } else {
-    // If not it is included in the key
-    cl += key;
-  }
-
-  cl += " => ";
-  cl += val;
   XrdOucString configname;
 
   if (prefix) {
@@ -526,7 +494,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
 
   // In case is not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
   // If the change is not coming from a broacast we can can save it
@@ -552,18 +520,13 @@ void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool not_bcast)
 {
-  XrdOucString cl = "del config ";
   XrdOucString configname;
 
   if (prefix) {
-    cl += prefix;
-    cl += ":";
-    cl += key;
     configname = prefix;
     configname += ":";
     configname += key;
   } else {
-    cl += key;
     configname = key;
   }
 
@@ -586,7 +549,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   // In case is not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
-    mChangelog->AddEntry(cl.c_str());
+    mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
   }
 
   // If the change is not coming from a broacast we can can save it
@@ -624,9 +587,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
   }
 
   eos_notice("loading name=%s ", name);
-  XrdOucString cl = "exported config ";
-  cl += name;
-  cl += " ";
   // TODO (esindril): Maybe remove mConfigDir from this class alltogether
   // and pass the full info via the env variable
   XrdOucString fullpath = mConfigDir;
@@ -665,9 +625,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
     }
 
     if (!ApplyConfig(err)) {
-      cl += " with failure";
-      cl += " : ";
-      cl += err;
+      mChangelog->AddEntry("exported config", name, SSTR("with failure : " << err));
       return false;
     } else {
       std::string hash_key;
@@ -729,8 +687,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       // Add the hash key to the set
       q_set.sadd(hash_key);
 
-      cl += " successfully";
-      mChangelog->AddEntry(cl.c_str());
+      mChangelog->AddEntry("exported config", name, "successfully");
       mConfigFile = name;
       return true;
     }

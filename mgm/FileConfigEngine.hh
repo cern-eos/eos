@@ -52,11 +52,12 @@ public:
   //----------------------------------------------------------------------------
   //! Add entry to the changelog
   //!
-  //! @param info entry info
-  //!
-  //! @return true if successful, otherwise false
+  //! @param key      entry action
+  //! @param value    entry key
+  //! @param comment  entry value
   //----------------------------------------------------------------------------
-  bool AddEntry(const char* info);
+  void AddEntry(const std::string &action, const std::string &key,
+    const std::string &value);
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
