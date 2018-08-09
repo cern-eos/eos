@@ -1584,60 +1584,67 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 
       if (iter_file != fd2fabst.end()) {
         std::shared_ptr<FileAbstraction> fabst = iter_file->second;
-        off_t cache_size = 0;
-        struct stat tmp;
-        bool isrw = true;
 
-        if (XFC && fuse_cache_write) {
-          cache_size = fabst->GetMaxWriteOffset();
-          eos_static_debug("path=%s ino=%llu cache size %lu fabst=%p\n",
-                           path ? path : "-undef-", inode, cache_size, fabst.get());
-        }
+        if (fabst != nullptr) {
+          off_t cache_size = 0;
+          struct stat tmp;
+          bool isrw = true;
 
-        // try to stat wih RO file if opened
-        LayoutWrapper* file = fabst->GetRawFileRW();
+          if (XFC && fuse_cache_write) {
+            cache_size = fabst->GetMaxWriteOffset();
+            eos_static_debug("path=%s ino=%llu cache size %lu fabst=%p\n",
+                             path ? path : "-undef-", inode, cache_size, fabst.get());
+          }
 
-        if (!file) {
-          file = fabst->GetRawFileRO();
-          isrw = false;
-        }
+          // try to stat wih RO file if opened
+          LayoutWrapper* file = fabst->GetRawFileRW();
 
-        rwmutex_fd2fabst.UnLockRead();
+          if (!file) {
+            file = fabst->GetRawFileRO();
+            isrw = false;
+          }
 
-        // if we do lazy open, the file should be open on the fst to stat
-        // otherwise, the file will be opened on the fst, just for a stat
-        if (isrw) {
-          // only stat via open files if we don't have cache capabilities
-          if (!file->CanCache()) {
-            if ((!file->Stat(&tmp))) {
-              file_size = tmp.st_size;
-              mtim.tv_sec = tmp.st_mtime;
-              atim.tv_sec = tmp.st_atime;
+          rwmutex_fd2fabst.UnLockRead();
 
-              if (tmp.st_dev & 0x80000000) {
-                // this server delivers ns resolution in st_dev
-                mtim.tv_nsec = tmp.st_dev & 0x7fffffff;
+          // if we do lazy open, the file should be open on the fst to stat
+          // otherwise, the file will be opened on the fst, just for a stat
+          if (isrw) {
+            // only stat via open files if we don't have cache capabilities
+            if (!file->CanCache()) {
+              if ((!file->Stat(&tmp))) {
+                file_size = tmp.st_size;
+                mtim.tv_sec = tmp.st_mtime;
+                atim.tv_sec = tmp.st_atime;
+
+                if (tmp.st_dev & 0x80000000) {
+                  // this server delivers ns resolution in st_dev
+                  mtim.tv_nsec = tmp.st_dev & 0x7fffffff;
+                }
+
+                if (cache_size > file_size) {
+                  file_size = cache_size;
+                }
+
+                fabst->GetUtimes(&mtim);
+                eos_static_debug("fd=%i, size-fd=%lld, mtim=%llu/%llu raw_file=%p", fd,
+                                 file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
+              } else {
+                eos_static_err("fd=%i stat failed on open file", fd);
               }
-
-              if (cache_size > file_size) {
-                file_size = cache_size;
-              }
-
-              fabst->GetUtimes(&mtim);
-              eos_static_debug("fd=%i, size-fd=%lld, mtim=%llu/%llu raw_file=%p", fd,
-                               file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
             } else {
-              eos_static_err("fd=%i stat failed on open file", fd);
+              file_size = cache_size;
+              fabst->GetUtimes(&mtim);
             }
           } else {
-            file_size = cache_size;
-            fabst->GetUtimes(&mtim);
+            if (file->CanCache()) {
+              // we can use the cache value here
+              file_size = cache_size;
+            }
           }
         } else {
-          if (file->CanCache()) {
-            // we can use the cache value here
-            file_size = cache_size;
-          }
+          rwmutex_fd2fabst.UnLockRead();
+          eos_static_err("fd=%i pointing to a null file abst obj",
+                         *iter_fd->second.begin());
         }
       } else {
         rwmutex_fd2fabst.UnLockRead();
@@ -1662,7 +1669,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
     }
   }
 
-// Do stat using the Fils System object
+  // Do stat using the Fils System object
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
