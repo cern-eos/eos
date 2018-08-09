@@ -52,7 +52,7 @@ enum class MvOpType {
 
 //------------------------------------------------------------------------------
 //! Dump metadata held on filesystem
-//! 
+//!
 //! @param sfsid id of the filesystem
 //! @param option output format option (can be default or monitor)
 //! @param dp display path flag
@@ -87,7 +87,7 @@ int proc_fs_config(std::string& identifier, std::string& key,
                    std::string& value,
                    XrdOucString& stdOut, XrdOucString& stdErr,
                    eos::common::Mapping::VirtualIdentity& vid_in,
-                   std::string statusComment = "");
+                   const std::string& statusComment = "");
 
 //------------------------------------------------------------------------------
 //! Add a new filesystem

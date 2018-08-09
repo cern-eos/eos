@@ -400,6 +400,23 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Remove a key from a filesystem and evt. broadcast it.
+  //----------------------------------------------------------------------------
+  bool
+  RemoveKey(const char* key, bool broadcast = true)
+  {
+    XrdMqSharedHash* hash = nullptr;
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+
+    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+      hash->Delete(key, broadcast);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  //----------------------------------------------------------------------------
   //! Set the filesystem status.
   //----------------------------------------------------------------------------
   bool

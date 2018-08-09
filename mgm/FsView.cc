@@ -1683,12 +1683,8 @@ FsView::StoreFsConfig(FileSystem* fs)
     std::string key, val;
     fs->CreateConfig(key, val);
 
-    // Handle empty values (e.g.: key= )
-    XrdOucString sval = val.c_str();
-    sval.replace("= ", "=<empty>");
-
     if (FsView::sConfEngine) {
-      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), sval.c_str());
+      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
     }
   }
 }
@@ -2854,12 +2850,6 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     std::vector<std::string> keyval;
     std::string delimiter = "=";
     eos::common::StringConversion::Tokenize(tokens[i], keyval, delimiter);
-
-    // Capture empty config value (e.g: key=<empty>)
-    if (keyval[1] == "<empty>") {
-      keyval[1] = " ";
-    }
-
     sval = keyval[1].c_str();
 
     // Curl decode string literal value
