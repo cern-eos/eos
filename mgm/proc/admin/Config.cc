@@ -145,13 +145,6 @@ ProcCommand::Config()
     }
   }
 
-  if (mSubCmd == "diff") {
-    eos_notice("config diff");
-    std::string diff;
-    gOFS->ConfEngine->Diffs(diff);
-    stdOut = diff.c_str();
-  }
-
   if (mSubCmd == "changelog") {
     int nlines = 5;
     char* val;

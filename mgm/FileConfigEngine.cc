@@ -71,8 +71,6 @@ FileCfgEngineChangelog::AddEntry(const char* info)
 
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mMap.set(key, value, action);
-  mConfigChanges += info;
-  mConfigChanges += "\n";
   return true;
 }
 
@@ -134,18 +132,7 @@ void
 FileConfigEngine::SetConfigDir(const char* config_dir)
 {
   mConfigDir = config_dir;
-  mChangelog->ClearChanges();
   mConfigFile = "default";
-}
-
-//------------------------------------------------------------------------------
-// Get configuration changes
-//------------------------------------------------------------------------------
-void
-FileConfigEngine::Diffs(std::string& diffs) const
-{
-  diffs = mChangelog->GetChanges();
-  std::replace(diffs.begin(), diffs.end(), '&', ' ');
 }
 
 //------------------------------------------------------------------------------
@@ -282,7 +269,6 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
       cl += " successfully";
       mChangelog->AddEntry(cl.c_str());
       mConfigFile = name;
-      mChangelog->ClearChanges();
       return true;
     }
   } else {
@@ -468,7 +454,6 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   cl += comment;
   cl += " ]";
   mChangelog->AddEntry(cl.c_str());
-  mChangelog->ClearChanges();
   mConfigFile = name;
   return true;
 }
@@ -558,11 +543,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
       fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
 
       if (fn == mConfigFile) {
-        if (mChangelog->HasChanges()) {
-          fn = "!";
-        } else {
-          fn = "*";
-        }
+        fn = "*";
       } else {
         fn = " ";
       }

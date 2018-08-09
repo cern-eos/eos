@@ -227,18 +227,6 @@ com_config(char* arg1)
     return (0);
   }
 
-  if (subcommand == "diff") {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=diff";
-    arg = subtokenizer.GetToken();
-
-    if (arg.length()) {
-      goto com_config_usage;
-    }
-
-    global_retc = output_result(client_command(in, true));
-    return (0);
-  }
-
   if (subcommand == "changelog") {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=changelog";
 
@@ -264,7 +252,7 @@ com_config(char* arg1)
 
 com_config_usage:
   std::ostringstream oss;
-  oss << "Usage: config autosave|changelog|diff|dump|export|load|ls|reset|save [OPTIONS]"
+  oss << "Usage: config autosave|changelog|dump|export|load|ls|reset|save [OPTIONS]"
       << std::endl
       << "'[eos] config' provides the configuration interface to EOS." << std::endl
       << std::endl

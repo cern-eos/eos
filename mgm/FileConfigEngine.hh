@@ -138,13 +138,6 @@ public:
   bool ListConfigs(XrdOucString& configlist, bool showbackups = false);
 
   //----------------------------------------------------------------------------
-  //! Get configuration changes
-  //!
-  //! @param diffs string holding the configuration changes
-  //----------------------------------------------------------------------------
-  void Diffs(std::string& diffs) const;
-
-  //----------------------------------------------------------------------------
   //! Do an autosave
   //----------------------------------------------------------------------------
   bool AutoSave();

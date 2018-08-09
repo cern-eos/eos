@@ -46,36 +46,6 @@ XrdOucHash<XrdOucString> IConfigEngine::sConfigDefinitions;
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Get latest changes
-//------------------------------------------------------------------------------
-std::string
-ICfgEngineChangelog::GetChanges() const
-{
-  eos::common::RWMutexReadLock rd_lock(mMutex);
-  return mConfigChanges;
-}
-
-//------------------------------------------------------------------------------
-// Check if there are any changes
-//------------------------------------------------------------------------------
-bool
-ICfgEngineChangelog::HasChanges() const
-{
-  eos::common::RWMutexReadLock rd_lock(mMutex);
-  return (!mConfigChanges.empty());
-}
-
-//------------------------------------------------------------------------------
-// Clean configuration changes
-//------------------------------------------------------------------------------
-void
-ICfgEngineChangelog::ClearChanges()
-{
-  eos::common::RWMutexWriteLock wr_lock(mMutex);
-  mConfigChanges.clear();
-}
-
-//------------------------------------------------------------------------------
 // Parse a text line into key value pairs
 //------------------------------------------------------------------------------
 bool
@@ -629,7 +599,6 @@ IConfigEngine::ResetConfig()
 {
   std::string cmd = "reset config";
   mChangelog->AddEntry(cmd.c_str());
-  mChangelog->ClearChanges();
   mConfigFile = "";
   (void) Quota::CleanUp();
   {

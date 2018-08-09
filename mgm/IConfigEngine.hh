@@ -81,25 +81,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool Tail(unsigned int nlines, XrdOucString& tail) = 0;
 
-  //----------------------------------------------------------------------------
-  //! Get latest changes
-  //!
-  //! @return string representing the changes, can also be an empty string
-  //----------------------------------------------------------------------------
-  std::string GetChanges() const;
-
-  //----------------------------------------------------------------------------
-  //! Check if there are any changes
-  //!
-  //! @return true if no changes, otherwise false
-  //----------------------------------------------------------------------------
-  bool HasChanges() const;
-
-  //----------------------------------------------------------------------------
-  //! Clean configuration changes
-  //----------------------------------------------------------------------------
-  void ClearChanges();
-
 protected:
   //----------------------------------------------------------------------------
   //! Parse a text line into key value pairs
@@ -115,7 +96,6 @@ protected:
                       std::string& comment);
 
   mutable eos::common::RWMutex mMutex; ///< Mutex protecting the config changes
-  std::string mConfigChanges; ///< Latest configuration changes
 };
 
 
@@ -215,13 +195,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool ListConfigs(XrdOucString& configlist,
                            bool showbackups = false) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get configuration changes
-  //!
-  //! @param diffs string holding the configuration changes
-  //----------------------------------------------------------------------------
-  virtual void Diffs(std::string& diffs) const = 0;
 
   //----------------------------------------------------------------------------
   //! Do an autosave

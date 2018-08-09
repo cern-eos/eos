@@ -67,8 +67,6 @@ bool QuarkDBCfgEngineChangelog::AddEntry(const char* info)
   ss << now;
   std::string timestamp = ss.str();
   mChLogHash.hset(timestamp, oss.str().c_str());
-  mConfigChanges += info;
-  mConfigChanges += "\n";
   return true;
 }
 
@@ -166,7 +164,6 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     mConfigFile = name;
     cl += " successfully";
     mChangelog->AddEntry(cl.c_str());
-    mChangelog->ClearChanges();
     return true;
   }
 
@@ -299,7 +296,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   cl += comment;
   cl += " ]";
   mChangelog->AddEntry(cl.c_str());
-  mChangelog->ClearChanges();
   mConfigFile = name;
   return true;
 }
@@ -736,7 +732,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       cl += " successfully";
       mChangelog->AddEntry(cl.c_str());
       mConfigFile = name;
-      mChangelog->ClearChanges();
       return true;
     }
   } else {
