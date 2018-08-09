@@ -517,9 +517,12 @@ com_vid_usage:
   fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,
           "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  fprintf(stdout, "\n");
   fprintf(stdout,
-          "                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
+          "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
+  fprintf(stdout,
+          "           -sss key:<key>  : <key> has to be defined on client side via 'export XrdSecsssENDORSEMENT=<key>'\n");
+  fprintf(stdout,
+          "           -grpc key:<key> : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
   fprintf(stdout,
           "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
   fprintf(stdout,
