@@ -61,9 +61,8 @@ public:
 
   std::string Ping(const std::string& payload);
 
-  std::string Md(const std::string& path);
-  std::string MdId(uint64_t id);
-  std::string MdIno(uint64_t ino);
+  std::string Md(const std::string& path, uint64_t id = 0, uint64_t ino = 0,
+                 bool list = false);
 
   void set_ssl(bool onoff)
   {

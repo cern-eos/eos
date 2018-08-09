@@ -54,12 +54,30 @@ add_executable(
   $<TARGET_OBJECTS:EosGrpcClient-Objects>
 )
 
+add_executable(
+  eos-grpc-md
+  grpc/Md.cc
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcClient-Objects>
+)
+
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
 # when we build the "eos" executable.
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos-grpc-ping PUBLIC
+  ${RT_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${READLINE_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${GRPC_LIBRARY}
+  ${GRPC_GRPC++_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  eosCommon)
+
+target_link_libraries(
+  eos-grpc-md PUBLIC
   ${RT_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${READLINE_LIBRARY}
@@ -78,7 +96,7 @@ set_target_properties(
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 install(
-  TARGETS eos-grpc-ping
+  TARGETS eos-grpc-ping eos-grpc-md
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

@@ -26,7 +26,11 @@
 #ifdef EOS_GRPC
 
 /*----------------------------------------------------------------------------*/
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 #include "GrpcServer.hh"
 #include "proto/Rpc.grpc.pb.h"
@@ -49,11 +53,16 @@ class GrpcNsInterface
 {
 public:
 
-  static grpc::Status GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                            const eos::rpc::MDRequest* request);
+  static grpc::Status GetMD(eos::common::Mapping::VirtualIdentity_t& vid,
+                            grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+                            const eos::rpc::MDRequest* request, bool check_perms = true);
 
-  static grpc::Status StreamMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+  static grpc::Status StreamMD(eos::common::Mapping::VirtualIdentity_t& vid,
+                               grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                                const eos::rpc::MDRequest* request);
+
+  static bool Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
+                     std::shared_ptr<eos::IContainerMD> cmd);
 
 };
 

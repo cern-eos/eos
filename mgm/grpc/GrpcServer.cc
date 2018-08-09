@@ -34,7 +34,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-#ifdef EOS_GRPC
+//#ifdef EOS_GRPC
 
 #include <grpc++/security/credentials.h>
 
@@ -66,14 +66,20 @@ class RequestServiceImpl final : public Eos::Service
   Status MD(ServerContext* context, const eos::rpc::MDRequest* request,
             ServerWriter<eos::rpc::MDResponse>* writer) override
   {
+    eos_static_info("grpc::md from client peer=%s ip=%s DN=%s token=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos::common::Mapping::VirtualIdentity_t vid;
+    GrpcServer::Vid(context, &vid, request->authkey());
+
     switch (request->type()) {
     case eos::rpc::FILE:
     case eos::rpc::CONTAINER:
-      return GrpcNsInterface::GetMD(writer, request);
+      return GrpcNsInterface::GetMD(vid, writer, request);
       break;
 
     case eos::rpc::LISTING:
-      return GrpcNsInterface::StreamMD(writer, request);
+      return GrpcNsInterface::StreamMD(vid, writer, request);
       break;
 
     default:
@@ -185,7 +191,7 @@ GrpcServer::Vid(grpc::ServerContext* context,
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, *vid, true);
 }
 
-#endif
+//#endif
 
 void
 GrpcServer::Run(ThreadAssistant& assistant) noexcept

@@ -28,14 +28,16 @@
 /*----------------------------------------------------------------------------*/
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
+#include <google/protobuf/util/json_util.h>
 /*----------------------------------------------------------------------------*/
 
 EOSCLIENTNAMESPACE_BEGIN
 
-#ifdef EOS_GRPC
+//#ifdef EOS_GRPC
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
+using grpc::ClientAsyncReader;
 using grpc::ClientContext;
 using grpc::CompletionQueue;
 using grpc::Status;
@@ -43,6 +45,8 @@ using grpc::Status;
 using eos::rpc::Eos;
 using eos::rpc::PingRequest;
 using eos::rpc::PingReply;
+using eos::rpc::MDRequest;
+using eos::rpc::MDResponse;
 
 std::string GrpcClient::Ping(const std::string& payload)
 {
@@ -83,6 +87,67 @@ std::string GrpcClient::Ping(const std::string& payload)
   } else {
     return "";
   }
+}
+
+std::string
+GrpcClient::Md(const std::string& path,
+               uint64_t id,
+               uint64_t ino,
+               bool list)
+{
+  MDRequest request;
+
+  if (list) {
+    request.set_type(eos::rpc::LISTING);
+  } else {
+    request.set_type(eos::rpc::CONTAINER);
+  }
+
+  if (path.length()) {
+    request.mutable_id()->set_path(path);
+  } else if (id) {
+    request.mutable_id()->set_id(id);
+  } else if (ino) {
+    request.mutable_id()->set_ino(ino);
+  } else {
+    return "";
+  }
+
+  request.set_authkey(token());
+  MDResponse response;
+  ClientContext context;
+  std::string responsestring;
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncReader<MDResponse> > rpc(
+    stub_->AsyncMD(&context, request, &cq, (void*) 1));
+  void* got_tag;
+  bool ok = false;
+  bool ret = cq.Next(&got_tag, &ok);
+
+  while (1) {
+    rpc->Read(&response, (void*) 1);
+    ok = false;
+    ret = cq.Next(&got_tag, &ok);
+
+    if (!ret || !ok || got_tag != (void*) 1) {
+      break;
+    }
+
+    google::protobuf::util::JsonPrintOptions options;
+    options.add_whitespace = true;
+    options.always_print_primitive_fields = true;
+    std::string jsonstring;
+    google::protobuf::util::MessageToJsonString(response,
+        &jsonstring, options);
+    responsestring += jsonstring;
+  }
+
+  if (!status.ok()) {
+    std::cerr << "error: " << status.error_message() << std::endl;
+  }
+
+  return responsestring;
 }
 
 std::unique_ptr<GrpcClient>
@@ -139,26 +204,7 @@ GrpcClient::Create(std::string endpoint,
   p->set_token(token);
   return p;
 }
-
-std::string
-GrpcClient::Md(const std::string& path)
-{
-  return "";
-}
-
-std::string
-GrpcClient::MdId(uint64_t id)
-{
-  return "";
-}
-
-std::string
-GrpcClient::MdIno(uint64_t ino)
-{
-  return "";
-}
-
-#endif
+//#endif
 
 
 EOSCLIENTNAMESPACE_END

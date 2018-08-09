@@ -25,14 +25,13 @@
 #include "GrpcNsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/IView.hh"
+#include "mgm/Acl.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
 
 #include "mgm/XrdMgmOfs.hh"
+
 /*----------------------------------------------------------------------------*/
 
 
@@ -40,29 +39,31 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
 grpc::Status
-GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                       const eos::rpc::MDRequest* request)
+GrpcNsInterface::GetMD(eos::common::Mapping::VirtualIdentity_t& vid,
+                       grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+                       const eos::rpc::MDRequest* request, bool check_perms)
 {
   if (request->type() == eos::rpc::FILE) {
     // stream file meta data
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
-    unsigned long fid  = 0;
+    std::shared_ptr<eos::IContainerMD> pmd;
+    unsigned long fid = 0;
     uint64_t clock = 0;
     std::string path;
 
-    if (request->ino()) {
+    if (request->id().ino()) {
       // get by inode
-      fid = eos::common::FileId::InodeToFid(request->ino());
-    } else if (request->id()) {
+      fid = eos::common::FileId::InodeToFid(request->id().ino());
+    } else if (request->id().id()) {
       // get by fileid
-      fid = request->id();
+      fid = request->id().id();
     }
 
     if (fid) {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     } else {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->path());
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->id().path());
     }
 
     viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -71,6 +72,10 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
       try {
         fmd = gOFS->eosFileService->getFileMD(fid, &clock);
         path = gOFS->eosView->getUri(fmd.get());
+
+        if (check_perms) {
+          pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -79,14 +84,23 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
       }
     } else {
       try {
-        fmd = gOFS->eosView->getFile(request->path());
+        fmd = gOFS->eosView->getFile(request->id().path());
         path = gOFS->eosView->getUri(fmd.get());
+
+        if (check_perms) {
+          pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
         return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
       }
+    }
+
+    if (check_perms && !Access(vid, R_OK, pmd)) {
+      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                          "access to parent container denied");
     }
 
     // create GRPC protobuf object
@@ -134,20 +148,22 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
     // stream container meta data
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IContainerMD> cmd;
-    unsigned long cid  = 0;
+    std::shared_ptr<eos::IContainerMD> pmd;
+    unsigned long cid = 0;
     uint64_t clock = 0;
     std::string path;
 
-    if (request->ino()) {
+    if (request->id().ino()) {
       // get by inode
-      cid = request->ino();
-    } else if (request->id()) {
+      cid = request->id().ino();
+    } else if (request->id().id()) {
       // get by containerid
-      cid = request->id();
+      cid = request->id().id();
     }
 
     if (!cid) {
-      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, request->path());
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+          request->id().path());
     }
 
     viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -156,6 +172,7 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
       try {
         cmd = gOFS->eosDirectoryService->getContainerMD(cid, &clock);
         path = gOFS->eosView->getUri(cmd.get());
+        pmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -164,8 +181,9 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
       }
     } else {
       try {
-        cmd = gOFS->eosView->getContainer(request->path());
+        cmd = gOFS->eosView->getContainer(request->id().path());
         path = gOFS->eosView->getUri(cmd.get());
+        pmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -174,9 +192,14 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
       }
     }
 
+    if (!Access(vid, R_OK, pmd)) {
+      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                          "access to parent container denied");
+    }
+
     // create GRPC protobuf object
     eos::rpc::MDResponse gRPCResponse;
-    gRPCResponse.set_type(eos::rpc::FILE);
+    gRPCResponse.set_type(eos::rpc::CONTAINER);
     eos::rpc::ContainerMdProto gRPCFmd;
     gRPCResponse.mutable_cmd()->set_name(cmd->getName());
     gRPCResponse.mutable_cmd()->set_id(cmd->getId());
@@ -211,27 +234,28 @@ GrpcNsInterface::GetMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
 }
 
 grpc::Status
-GrpcNsInterface::StreamMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+GrpcNsInterface::StreamMD(eos::common::Mapping::VirtualIdentity_t& vid,
+                          grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                           const eos::rpc::MDRequest* request)
 {
   // stream container meta data
   eos::common::RWMutexReadLock viewReadLock;
   std::shared_ptr<eos::IContainerMD> cmd;
-  unsigned long cid  = 0;
+  unsigned long cid = 0;
   uint64_t clock = 0;
   std::string path;
 
-  if (request->ino()) {
+  if (request->id().ino()) {
     // get by inode
-    cid = request->ino();
-  } else if (request->id()) {
+    cid = request->id().ino();
+  } else if (request->id().id()) {
     // get by containerid
-    cid = request->id();
+    cid = request->id().id();
   }
 
   if (!cid) {
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-        request->path());
+        request->id().path());
   }
 
   viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -248,7 +272,7 @@ GrpcNsInterface::StreamMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
     }
   } else {
     try {
-      cmd = gOFS->eosView->getContainer(request->path());
+      cmd = gOFS->eosView->getContainer(request->id().path());
       path = gOFS->eosView->getUri(cmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -258,30 +282,92 @@ GrpcNsInterface::StreamMD(grpc::ServerWriter<eos::rpc::MDResponse>* writer,
     }
   }
 
-  // stream the requested contanier
+  // stream the requested container
   eos::rpc::MDRequest c_dir;
-  c_dir.set_id(cid);
+  c_dir.mutable_id()->set_id(cid);
   c_dir.set_type(eos::rpc::CONTAINER);
-  GetMD(writer, &c_dir);
+  grpc::Status status;
+  status = GetMD(vid, writer, &c_dir, true);
+
+  if (!status.ok()) {
+    return status;
+  }
+
+  bool first = true;
 
   // stream all the children files
   for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
     eos::rpc::MDRequest c_file;
-    c_file.set_id(it.value());
+    c_file.mutable_id()->set_id(it.value());
     c_file.set_type(eos::rpc::FILE);
-    GetMD(writer, &c_file);
+    status = GetMD(vid, writer, &c_file, first);
+
+    if (!status.ok()) {
+      return status;
+    }
+
+    first = false;
   }
 
   // stream all the children container
   for (auto it = eos::ContainerMapIterator(cmd); it.valid(); it.next()) {
     eos::rpc::MDRequest c_dir;
-    c_dir.set_id(it.value());
+    c_dir.mutable_id()->set_id(it.value());
     c_dir.set_type(eos::rpc::CONTAINER);
-    GetMD(writer, &c_dir);
+    status = GetMD(vid, writer, &c_dir, first);
+
+    if (!status.ok()) {
+      return status;
+    }
+
+    first = false;
   }
 
   // finished streaming
   return grpc::Status::OK;
+}
+
+bool
+GrpcNsInterface::Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
+                        std::shared_ptr<eos::IContainerMD> cmd)
+{
+  // UNIX permissions
+  if (cmd->access(vid.uid, vid.gid, mode)) {
+    return true;
+  }
+
+  // ACLs - WARNING: this does not support ACLs to be linked attributes !
+  eos::IContainerMD::XAttrMap xattr = cmd->getAttributes();
+  eos::mgm::Acl acl(xattr, vid);
+
+  // check for immutable
+  if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
+    return false;
+  }
+
+  bool permok = false;
+
+  if (acl.HasAcl()) {
+    permok = true;
+
+    if ((mode & W_OK) && (!acl.CanWrite())) {
+      permok = false;
+    }
+
+    if (mode & R_OK) {
+      if (!acl.CanRead()) {
+        permok = false;
+      }
+    }
+
+    if (mode & X_OK) {
+      if ((!acl.CanBrowse())) {
+        permok = false;
+      }
+    }
+  }
+
+  return permok;
 }
 
 #endif
