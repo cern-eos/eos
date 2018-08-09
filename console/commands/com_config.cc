@@ -246,9 +246,6 @@ com_config_usage:
       << "       show the last <#> lines from the changelog - default is 10" <<
       std::endl
       << std::endl
-      << "config diff" << std::endl
-      << "       show changes since last load/save operation" << std::endl
-      << std::endl
       << "config dump [-cfgpqmsv] [<name>]" << std::endl
       << "       dump configuration with name <name> or current one by default" <<
       std::endl
