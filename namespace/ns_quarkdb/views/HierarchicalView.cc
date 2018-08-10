@@ -148,10 +148,195 @@ HierarchicalView::finalize()
 }
 
 //------------------------------------------------------------------------------
-// Extract IFileMDPtr out of PathLookupState
+// Extract FileMDPtr out of FileOrContainerMD.
 //------------------------------------------------------------------------------
-static IFileMDPtr extractFileMDPtr(PathLookupState state) {
-  return state.file;
+static folly::Future<IFileMDPtr> extractFileMD(FileOrContainerMD ptr) {
+  if(!ptr.file) {
+    return folly::makeFuture<IFileMDPtr>(make_mdexception(ENOENT, "No such file or directory"));
+  }
+
+  return ptr.file;
+}
+
+//------------------------------------------------------------------------------
+// Extract ContainerMDPtr out of FileOrContainerMD.
+//------------------------------------------------------------------------------
+static folly::Future<IContainerMDPtr> extractContainerMD(FileOrContainerMD ptr) {
+  if(!ptr.container) {
+    return folly::makeFuture<IContainerMDPtr>(make_mdexception(ENOENT, "No such file or directory"));
+  }
+
+  return ptr.container;
+}
+
+//------------------------------------------------------------------------------
+// Lookup a given path.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+HierarchicalView::getPath(const std::string& uri, bool follow)
+{
+  //----------------------------------------------------------------------------
+  // Build our deque of pending chunks...
+  //----------------------------------------------------------------------------
+  std::deque<std::string> pendingChunks;
+  eos::PathProcessor::insertChunksIntoDeque(pendingChunks, uri);
+
+  //----------------------------------------------------------------------------
+  // Initial state: We're at "/", and have to look up all chunks.
+  //----------------------------------------------------------------------------
+  FileOrContainerMD initialState {nullptr, pRoot};
+  return getPathInternal(initialState, pendingChunks, follow, 0);
+}
+
+//------------------------------------------------------------------------------
+// Lookup a given path - deferred function.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+HierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut, std::deque<std::string> pendingChunks,
+  bool follow, size_t expendedEffort)
+{
+  //----------------------------------------------------------------------------
+  // We're blocked on a network request. "Pause" execution of getPathInternal
+  // for now, return a pending folly::Future to caller.
+  //
+  // The Executor pool will "resume" computation later, once the network
+  // request is completed.
+  //----------------------------------------------------------------------------
+  return fut.via(pExecutor.get())
+    .then(std::bind(&HierarchicalView::getPathInternal, this, _1, pendingChunks, follow, expendedEffort));
+}
+
+//------------------------------------------------------------------------------
+// Lookup a given path - internal function.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+HierarchicalView::getPathInternal(FileOrContainerMD state, std::deque<std::string> pendingChunks,
+  bool follow, size_t expendedEffort)
+{
+  //----------------------------------------------------------------------------
+  // Our goal is to consume pendingChunks until it's empty.
+  // If everything we need is in memory, we keep executing.
+  //
+  // However, if a network request is necessary to continue lookup, we bail,
+  // and do it asynchronously. Execution of the function will "resume" as soon
+  // as the network request is complete.
+  //----------------------------------------------------------------------------
+  while(true) {
+
+    //--------------------------------------------------------------------------
+    // Protection against symbolic link loops.
+    //--------------------------------------------------------------------------
+    expendedEffort++;
+    if(expendedEffort > 255) {
+      return folly::makeFuture<FileOrContainerMD>(make_mdexception(
+        ELOOP, "Too many symbolic links were encountered in translating the pathname"));
+    }
+
+    if(!state.container && !state.file) {
+      //------------------------------------------------------------------------
+      // The previous iteration of the loop resulted in an empty state: Only one
+      // way to get here, looking up a non-existent chunk.
+      //------------------------------------------------------------------------
+      return folly::makeFuture<FileOrContainerMD>(make_mdexception(ENOENT, "No such file or directory"));
+    }
+
+    if(pendingChunks.empty()) {
+      if( !(follow && state.file && state.file->isLink()) ) {
+        //------------------------------------------------------------------------
+        // We're done. Our current state contains the desired output.
+        //------------------------------------------------------------------------
+        return state;
+      }
+      else {
+        //----------------------------------------------------------------------
+        // Edge case: State is actually a symlink we must follow, not done yet.
+        //----------------------------------------------------------------------
+      }
+    }
+
+    if(state.container) {
+      //------------------------------------------------------------------------
+      // Handle special cases, "." and ".."
+      //------------------------------------------------------------------------
+      if(pendingChunks.front() == ".") {
+        pendingChunks.pop_front();
+        continue;
+      }
+
+      if(pendingChunks.front() == "..") {
+        pendingChunks.pop_front();
+        state.container = pContainerSvc->getContainerMD(state.container->getParentId());
+        continue;
+      }
+
+      //------------------------------------------------------------------------
+      // Normal case: Our current state contains a container, and we're simply
+      // looking up the next chunk.
+      //------------------------------------------------------------------------
+      folly::Future<FileOrContainerMD> next = state.container->findItem(pendingChunks.front());
+      pendingChunks.pop_front();
+
+      //------------------------------------------------------------------------
+      // If we're lucky, the result is ready immediately. Update state, and
+      // carry on.
+      //------------------------------------------------------------------------
+      if(next.isReady()) {
+        state = next.get();
+        continue;
+      }
+      else {
+        //----------------------------------------------------------------------
+        // We're blocked, "pause" execution, unblock caller.
+        //----------------------------------------------------------------------
+        return getPathDeferred(std::move(next), pendingChunks, follow, expendedEffort);
+      }
+    }
+
+    if(state.file) {
+      //------------------------------------------------------------------------
+      // This is unusual.. How come a file came up in the middle of a path
+      // lookup?
+      //
+      // 1. We've hit a symlink.
+      // 2. Caller is drunk, and doing "ls /eos/dir1/file1/not/existing".
+      //------------------------------------------------------------------------
+      if(!state.file->isLink()) {
+        return folly::makeFuture<FileOrContainerMD>(make_mdexception(ENOTDIR, "Not a directory"));
+      }
+
+      //------------------------------------------------------------------------
+      // Ok, this is definitely a symlink. Should we follow it?
+      //------------------------------------------------------------------------
+      if(pendingChunks.size() == 0u && !follow) {
+        //----------------------------------------------------------------------
+        // Nope, we're interested in the symlink itself, we're done.
+        //----------------------------------------------------------------------
+        return state;
+      }
+
+      //------------------------------------------------------------------------
+      // Populate our pendingChunks with the updated target.
+      //------------------------------------------------------------------------
+      const std::string& symlinkTarget = state.file->getLink();
+      eos::PathProcessor::insertChunksIntoDeque(pendingChunks, symlinkTarget);
+
+      if(!symlinkTarget.empty() && symlinkTarget[0] == '/') {
+        //----------------------------------------------------------------------
+        // This is an absolute symlink: Our state becomes pRoot again.
+        //----------------------------------------------------------------------
+        state = FileOrContainerMD {nullptr, pRoot};
+      }
+      else {
+        //----------------------------------------------------------------------
+        // This is a relative symlink: State becomes symlink's parent container.
+        //----------------------------------------------------------------------
+        state.container = pContainerSvc->getContainerMD(state.file->getContainerId());
+        state.file.reset();
+      }
+
+      continue;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -160,8 +345,7 @@ static IFileMDPtr extractFileMDPtr(PathLookupState state) {
 folly::Future<IFileMDPtr>
 HierarchicalView::getFileFut(const std::string& uri, bool follow)
 {
-  return lookupFileURL(uri, 0, follow)
-    .then(extractFileMDPtr);
+  return getPath(uri, follow).then(extractFileMD);
 }
 
 //----------------------------------------------------------------------------
@@ -269,7 +453,7 @@ HierarchicalView::lookupFile(PathLookupState parent, std::string name, bool foll
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
 HierarchicalView::getFile(const std::string& uri, bool follow,
-                          size_t* link_depths)
+  size_t* link_depths)
 {
   return getFileFut(uri, follow).get();
 }
@@ -357,8 +541,8 @@ HierarchicalView::removeLink(const std::string& uri)
 void
 HierarchicalView::unlinkFile(const std::string& uri)
 {
-  std::vector<std::string> chunks;
-  eos::PathProcessor::splitPath(chunks, uri);
+  std::deque<std::string> chunks;
+  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
 
   if(chunks.size() == 0) {
     MDException e(ENOENT);
@@ -369,7 +553,7 @@ HierarchicalView::unlinkFile(const std::string& uri)
   std::string lastChunk = chunks[chunks.size()-1];
   chunks.pop_back();
 
-  IContainerMDPtr parent = lookupContainer(pRoot, chunks, 0, true).get().current;
+  IContainerMDPtr parent = getPathExpectContainer(chunks).get();
   std::shared_ptr<IFileMD> file = parent->findFile(lastChunk);
 
   if (!file) {
@@ -419,13 +603,6 @@ HierarchicalView::removeFile(IFileMD* file)
 }
 
 //------------------------------------------------------------------------------
-// Extract IContainerMDPtr out of PathLookupState
-//------------------------------------------------------------------------------
-static IContainerMDPtr extractContainerMDPtr(PathLookupState state) {
-  return state.current;
-}
-
-//------------------------------------------------------------------------------
 // Get a container (directory) asynchronously
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
@@ -435,8 +612,7 @@ HierarchicalView::getContainerFut(const std::string& uri, bool follow)
     return std::shared_ptr<IContainerMD> {pContainerSvc->getContainerMD(1)};
   }
 
-  // Follow all symlinks for all containers, except last one if "follow" is set.
-  return lookupContainer(pRoot, uri, 0, follow).then(extractContainerMDPtr);
+  return getPath(uri, follow).then(extractContainerMD);
 }
 
 //------------------------------------------------------------------------------
@@ -515,6 +691,20 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
 }
 
 //------------------------------------------------------------------------------
+// Lookup a given path, expect a container there.
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+HierarchicalView::getPathExpectContainer(const std::deque<std::string> &chunks)
+{
+  if(chunks.size() == 0u) {
+    return pRoot;
+  }
+
+  return getPathInternal(FileOrContainerMD {nullptr, pRoot}, chunks, true, 0)
+    .then(extractContainerMD);
+}
+
+//------------------------------------------------------------------------------
 // Remove container
 //------------------------------------------------------------------------------
 void
@@ -530,17 +720,14 @@ HierarchicalView::removeContainer(const std::string& uri)
   //----------------------------------------------------------------------------
   // Lookup last container
   //----------------------------------------------------------------------------
-  std::vector<std::string> chunks;
-  eos::PathProcessor::splitPath(chunks, uri);
+  std::deque<std::string> chunks;
+  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
 
   eos_assert(chunks.size() != 0);
   std::string lastChunk = chunks[chunks.size()-1];
   chunks.pop_back();
 
-  IContainerMDPtr parent = pRoot;
-  if(chunks.size() != 0) {
-    parent = lookupContainer(pRoot, chunks, 0, true).get().current;
-  }
+  IContainerMDPtr parent = getPathExpectContainer(chunks).get();
 
   // Check if the container exist and remove it
   auto cont = parent->findContainer(lastChunk);
@@ -861,8 +1048,8 @@ std::string HierarchicalView::getRealPath(const std::string& uri)
     throw e;
   }
 
-  std::vector<std::string> chunks;
-  eos::PathProcessor::splitPath(chunks, uri);
+  std::deque<std::string> chunks;
+  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
 
   eos_assert(chunks.size() != 0);
   if(chunks.size() == 1) return chunks[0];
@@ -876,7 +1063,7 @@ std::string HierarchicalView::getRealPath(const std::string& uri)
   //----------------------------------------------------------------------------
   // Lookup parent container..
   //----------------------------------------------------------------------------
-  IContainerMDPtr cont = lookupContainer(pRoot, chunks, 0, true).get().current;
+  IContainerMDPtr cont = getPathExpectContainer(chunks).get();
   return SSTR(getUri(cont.get()) << lastChunk);
 }
 

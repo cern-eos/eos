@@ -38,6 +38,21 @@ namespace eos
 class PathProcessor
 {
 public:
+
+  //------------------------------------------------------------------------
+  //! Split the path and prepend its elements into a deque.
+  //------------------------------------------------------------------------
+  static void insertChunksIntoDeque(std::deque<std::string>& elements,
+                                    const std::string& path)
+  {
+    std::vector<std::string> tmp;
+    splitPath(tmp, path);
+
+    for(auto it = tmp.rbegin(); it != tmp.rend(); it++) {
+      elements.push_front(*it);
+    }
+  }
+
   //------------------------------------------------------------------------
   //! Split the path and put its elements in a vector, the tokens are
   //! copied, the buffer is not overwritten

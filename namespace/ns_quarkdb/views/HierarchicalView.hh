@@ -121,6 +121,12 @@ public:
   getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
+  //! Lookup a given path.
+  //----------------------------------------------------------------------------
+  folly::Future<FileOrContainerMD>
+  getPath(const std::string& uri, bool follow = true);
+
+  //----------------------------------------------------------------------------
   //! Create a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
@@ -286,6 +292,26 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
+  //! Lookup a given path - internal function.
+  //----------------------------------------------------------------------------
+  folly::Future<FileOrContainerMD>
+  getPathInternal(FileOrContainerMD state, std::deque<std::string> pendingChunks,
+    bool follow, size_t expendedEffort);
+
+  //----------------------------------------------------------------------------
+  //! Lookup a given path - deferred function.
+  //----------------------------------------------------------------------------
+  folly::Future<FileOrContainerMD>
+  getPathDeferred(folly::Future<FileOrContainerMD> fut, std::deque<std::string> pendingChunks,
+    bool follow, size_t expendedEffort);
+
+  //----------------------------------------------------------------------------
+  //! Lookup a given path, expect a container there.
+  //----------------------------------------------------------------------------
+  folly::Future<IContainerMDPtr>
+  getPathExpectContainer(const std::deque<std::string> &chunks);
+
   //----------------------------------------------------------------------------
   //! Get last existing container in the provided path
   //----------------------------------------------------------------------------

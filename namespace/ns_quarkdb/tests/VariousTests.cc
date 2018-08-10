@@ -110,6 +110,8 @@ TEST_F(VariousTests, BasicSanity) {
 
   ASSERT_TRUE(containerMap.empty());
   ASSERT_TRUE(fileMap.empty());
+
+  ASSERT_THROW(view()->getFile("/"), eos::MDException);
 }
 
 TEST_F(VariousTests, FileMDGetEnv) {
