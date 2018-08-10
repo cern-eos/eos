@@ -965,8 +965,7 @@ int
 FuseServer::Caps::BroadcastCap(shared_cap cap)
 {
   if (cap && cap->id()) {
-    int rc;
-    rc = gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
+    (void) gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
   }
 
   return -1;
@@ -3099,8 +3098,8 @@ FuseServer::HandleMD(const std::string& id,
           gOFS->WriteRecycleRecord(fmd);
           gOFS->eosViewRWMutex.UnLockWrite();
           XrdOucErrInfo error;
-          int rc = gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false, false,
-                              true);
+          (void) gOFS->_rem(fullpath.c_str(), error, *vid, "", false, false,
+                            false, true);
           gOFS->eosViewRWMutex.LockWrite();
         } else {
           try {

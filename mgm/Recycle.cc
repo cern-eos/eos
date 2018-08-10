@@ -303,9 +303,8 @@ Recycle::Recycler()
                 XrdOucErrInfo lError;
                 XrdOucString stdErr;
                 int depth = 6;
-                int retc = gOFS->_find(sdir, lError, stdErr, rootvid,
-                                       findmap,
-                                       0, 0, false, 0, true, depth);
+                (void) gOFS->_find(sdir, lError, stdErr, rootvid, findmap,
+                                   0, 0, false, 0, true, depth);
 
                 for (auto dirit = findmap.begin(); dirit != findmap.end(); ++dirit) {
                   XrdOucString dirname = dirit->first.c_str();
