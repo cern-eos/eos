@@ -55,6 +55,15 @@ using IContainerMDPtr = std::shared_ptr<IContainerMD>;
 using IFileMDPtr = std::shared_ptr<IFileMD>;
 
 //------------------------------------------------------------------------------
+//! Holds either a FileMD or a ContainerMD. Only one of these are ever filled,
+//! the other will be nullptr. Both might be nullptr as well.
+//------------------------------------------------------------------------------
+struct FileOrContainerMD {
+  IFileMDPtr file;
+  IContainerMDPtr container;
+};
+
+//------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
 //! single container
 //------------------------------------------------------------------------------
@@ -145,6 +154,11 @@ public:
   //! Find file
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> findFile(const std::string& name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Find item
+  //----------------------------------------------------------------------------
+  virtual folly::Future<FileOrContainerMD> findItem(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files

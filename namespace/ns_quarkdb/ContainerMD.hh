@@ -101,6 +101,11 @@ public:
   std::shared_ptr<IContainerMD> findContainer(const std::string& name) override;
 
   //----------------------------------------------------------------------------
+  //! Find item
+  //----------------------------------------------------------------------------
+  folly::Future<FileOrContainerMD> findItem(const std::string& name) override;
+
+  //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
   size_t getNumContainers() override;

@@ -118,45 +118,96 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
-// Find subcontainer, asynchronous API
+//! Turn a ContainerMDPtr into FileOrContainerMD.
 //------------------------------------------------------------------------------
-folly::Future<IContainerMDPtr>
-ContainerMD::findContainerFut(const std::string& name)
-{
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  auto iter = mSubcontainers->find(name);
-
-  if (iter == mSubcontainers->end()) {
-    //--------------------------------------------------------------------------
-    // Not found in subcontainer map, return result immediately.
-    //--------------------------------------------------------------------------
-    return IContainerMDPtr();
-  }
-
-  lock.unlock();
-  //----------------------------------------------------------------------------
-  // Retrieve result asynchronously from container service.
-  //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> fut = pContSvc->getContainerMDFut(iter->second)
-  .onError([this, name](const folly::exception_wrapper & e) {
-    //------------------------------------------------------------------------
-    // Curate the list of subcontainers in case entry is not found.
-    //------------------------------------------------------------------------
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    pFlusher->hdel(pDirsKey, name);
-    mSubcontainers->erase(name);
-    return IContainerMDPtr();
-  });
-  return fut;
+static FileOrContainerMD wrapContainerMD(IContainerMDPtr ptr) {
+  return FileOrContainerMD {nullptr, ptr};
 }
 
 //------------------------------------------------------------------------------
-// Find subcontainer
+//! Turn a FileMDPtr into FileOrContainerMD.
 //------------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-ContainerMD::findContainer(const std::string& name)
+static FileOrContainerMD wrapFileMD(IFileMDPtr ptr) {
+  return FileOrContainerMD {ptr, nullptr};
+}
+
+//------------------------------------------------------------------------------
+//! Extract FileMDPtr out of FileOrContainerMD.
+//------------------------------------------------------------------------------
+static IFileMDPtr extractFileMD(FileOrContainerMD ptr) {
+  return ptr.file;
+}
+
+//------------------------------------------------------------------------------
+//! Extract ContainerMDPtr out of FileOrContainerMD.
+//------------------------------------------------------------------------------
+static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr) {
+  return ptr.container;
+}
+
+//------------------------------------------------------------------------------
+//! Find item
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+ContainerMD::findItem(const std::string& name)
 {
-  return findContainerFut(name).get();
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  //----------------------------------------------------------------------------
+  // We're looking for "name". Look inside subcontainer map to check if there's
+  // a container with such name.
+  //----------------------------------------------------------------------------
+  auto iter = mSubcontainers->find(name);
+  if(iter != mSubcontainers->end()) {
+    //--------------------------------------------------------------------------
+    // We have a hit, this is a ContainerMD. Retrieve result asynchronously
+    // from container service.
+    //--------------------------------------------------------------------------
+    ContainerIdentifier target(iter->second);
+    lock.unlock();
+
+    folly::Future<FileOrContainerMD> fut = pContSvc->getContainerMDFut(target.getUnderlyingUInt64())
+    .then(wrapContainerMD)
+    .onError([this, name](const folly::exception_wrapper &e) {
+      //------------------------------------------------------------------------
+      // Should not happen...
+      //------------------------------------------------------------------------
+      eos_static_crit("Exception occurred while looking up container with name %s in subcontainer with id %llu: %s", name.c_str(), getId(), e.what());
+      return FileOrContainerMD {};
+    });
+
+    return fut;
+  }
+
+  //----------------------------------------------------------------------------
+  // This is not a ContainerMD.. maybe it's a FileMD?
+  //----------------------------------------------------------------------------
+  auto iter2 = mFiles->find(name);
+  if (iter2 != mFiles->end()) {
+    //--------------------------------------------------------------------------
+    // We have a hit, this is a FileMD. Retrieve result asynchronously
+    // from file service.
+    //--------------------------------------------------------------------------
+    FileIdentifier target(iter2->second);
+    lock.unlock();
+
+    folly::Future<FileOrContainerMD> fut = pFileSvc->getFileMDFut(target.getUnderlyingUInt64())
+    .then(wrapFileMD)
+    .onError([this, name](const folly::exception_wrapper &e) {
+      //------------------------------------------------------------------------
+      // Should not happen...
+      //------------------------------------------------------------------------
+      eos_static_crit("Exception occurred while looking up file with name %s in subcontainer with id %llu: %s", name.c_str(), getId(), e.what());
+      return FileOrContainerMD {};
+    });
+
+    return fut;
+  }
+
+  //----------------------------------------------------------------------------
+  // Nope, "name" doesn't exist in this container.
+  //----------------------------------------------------------------------------
+  return FileOrContainerMD {};
 }
 
 //------------------------------------------------------------------------------
@@ -220,31 +271,7 @@ ContainerMD::addContainer(IContainerMD* container)
 folly::Future<IFileMDPtr>
 ContainerMD::findFileFut(const std::string& name)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  auto iter = mFiles->find(name);
-
-  if (iter == mFiles->end()) {
-    //--------------------------------------------------------------------------
-    // Not found in file map, return result immediately.
-    //--------------------------------------------------------------------------
-    return IFileMDPtr();
-  }
-
-  lock.unlock();
-  //----------------------------------------------------------------------------
-  // Retrieve result asynchronously from file service.
-  //----------------------------------------------------------------------------
-  folly::Future<IFileMDPtr> fut = pFileSvc->getFileMDFut(iter->second)
-  .onError([this, name](const folly::exception_wrapper & e) {
-    //------------------------------------------------------------------------
-    // Curate the list of files in case entry is not found.
-    //------------------------------------------------------------------------
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    pFlusher->hdel(pFilesKey, name);
-    mFiles->erase(name);
-    return IFileMDPtr();
-  });
-  return fut;
+  return this->findItem(name).then(extractFileMD);
 }
 
 //------------------------------------------------------------------------------
@@ -253,7 +280,25 @@ ContainerMD::findFileFut(const std::string& name)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  return this->findFileFut(name).get();
+  return this->findItem(name).get().file;
+}
+
+//------------------------------------------------------------------------------
+// Find subcontainer, asynchronous API
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr>
+ContainerMD::findContainerFut(const std::string& name)
+{
+  return this->findItem(name).then(extractContainerMD);
+}
+
+//------------------------------------------------------------------------------
+// Find subcontainer
+//------------------------------------------------------------------------------
+std::shared_ptr<IContainerMD>
+ContainerMD::findContainer(const std::string& name)
+{
+  return this->findItem(name).get().container;
 }
 
 //------------------------------------------------------------------------------

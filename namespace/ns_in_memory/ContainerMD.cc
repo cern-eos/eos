@@ -146,6 +146,26 @@ ContainerMD::findContainer(const std::string& name)
 }
 
 //------------------------------------------------------------------------------
+// Find item
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+ContainerMD::findItem(const std::string &name)
+{
+  FileOrContainerMD retval;
+
+  // First, check if a file with such name exists.
+  retval.file = findFile(name);
+
+  if(retval.file) {
+    // Yep, we're done.
+    return retval;
+  }
+
+  retval.container = findContainer(name);
+  return retval;
+}
+
+//------------------------------------------------------------------------------
 // Remove container
 //------------------------------------------------------------------------------
 void
