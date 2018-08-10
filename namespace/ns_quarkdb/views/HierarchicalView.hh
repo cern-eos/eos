@@ -320,42 +320,6 @@ private:
       size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
-  //! Lookup file, using the URL.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupFileURL(const std::string &uri, size_t symlinkDepth, bool follow);
-
-  //----------------------------------------------------------------------------
-  //! Lookup file inside a directory.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupFile(PathLookupState parent, std::string name, bool follow);
-
-  //----------------------------------------------------------------------------
-  //! Lookup symlink, expect to find a directory there.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainerSymlink(IFileMDPtr symlink, IContainerMDPtr parent, size_t symlinkDepth);
-
-  //----------------------------------------------------------------------------
-  //! Lookup a subdirectory asynchronously, while following symlinks.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainer(
-    IContainerMDPtr root,
-    const std::vector<std::string> &chunks,
-    size_t symlinkDepth, bool follow);
-
-  //----------------------------------------------------------------------------
-  //! Lookup a subdirectory asynchronously, while following symlinks.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupContainer(IContainerMDPtr root,
-    const std::string &url,
-    size_t symlinkDepth, bool follow);
-
-  //----------------------------------------------------------------------------
-  //! Lookup a subdirectory asynchronously, while following symlinks.
-  //----------------------------------------------------------------------------
-  folly::Future<PathLookupState> lookupSubcontainer(
-    PathLookupState parent, std::string name, bool follow);
-
-  //----------------------------------------------------------------------------
   //! Clean up contents of container
   //!
   //! @param cont container object
