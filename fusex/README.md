@@ -59,6 +59,8 @@ This
   "auth" : {
     "shared-mount" : 1,
     "krb5" : 1,
+    "gsi-first" : 0,
+    "sss" : 0,
     "environ-deadlock-timeout" : 100, 
     "forknoexec-heuristic" : 1
   },
@@ -246,6 +248,22 @@ eosxd -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
 eosxd -ofsname=me@eos.cern.ch:/eos/user/m/me/ $HOME/eos/
 
 ```
+
+Mounting with sss credentials
+-----------------------------
+
+Use these authentication directives in the config file:
+```
+  "auth" : {
+    "shared-mount" : 1,
+    "krb5" : 0,
+    "gsi-first" : 1,
+    "sss" : 1
+  }
+```
+The root user will be mapped to nobody unless the server is configured not to squash root. All other
+clients will be mapped in EOS to the uid of the calling process.
+
 
 AUTOFS Configuration
 --------------------

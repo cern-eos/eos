@@ -79,3 +79,8 @@ std::string CredentialFinder::locateX509Proxy(const Environment& env)
 {
   return env.get("X509_USER_PROXY");
 }
+
+std::string CredentialFinder::locateSss(const Environment& env)
+{
+  return env.get("XrdSecSSSKT");
+}

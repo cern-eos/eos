@@ -42,6 +42,7 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
+    use_user_sss(false),
     use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false),
     fuse_shared(false),
     environ_deadlock_timeout(100), forknoexec_heuristic(true) { }
@@ -50,6 +51,8 @@ public:
   bool use_user_krb5cc;
   //! Indicates if user gsi proxy should be used for authentication
   bool use_user_gsiproxy;
+  //! Indicates if user sss file should be used for authentication
+  bool use_user_sss;
   //! Indicates if in memory krb5 tickets can be used without any safety check
   bool use_unsafe_krk5;
   //! Indicates if Krb5 should be tried before Gsi
@@ -71,7 +74,7 @@ public:
 struct CredInfo {
 
   enum CredType {
-    krb5, krk5, x509, nobody
+    krb5, krk5, x509, sss, nobody
   };
 
   CredType type; // krb5 , krk5 or x509
@@ -143,6 +146,19 @@ public:
     this->mtime = mtime;
   }
 
+  void setSss(const std::string& filename, uid_t uid, gid_t gid)
+  {
+    if (initialized) {
+      THROW("already initialized");
+    }
+
+    initialized = true;
+    type = CredInfo::sss;
+    contents = filename;
+    this->uid = uid;
+    this->gid = gid;
+  }
+
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
     for (size_t i = 0; i < contents.size(); i++) {
@@ -168,6 +184,8 @@ public:
     } else if (type == CredInfo::x509 || type == CredInfo::krk5) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = contents;
+    } else if (type == CredInfo::sss) {
+      paramsMap["xrd.wantprot"] = "sss";
     } else {
       THROW("should never reach here");
     }
@@ -284,7 +302,8 @@ public:
   std::string get(const std::string& key) const;
   std::vector<std::string> getAll() const;
 
-  void push_back(const std::string &str) {
+  void push_back(const std::string& str)
+  {
     contents.emplace_back(str);
   }
 
@@ -301,6 +320,7 @@ class CredentialFinder
 public:
   static std::string locateKerberosTicket(const Environment& env);
   static std::string locateX509Proxy(const Environment& env);
+  static std::string locateSss(const Environment& env);
 };
 
 #endif

@@ -393,6 +393,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["krb5"] = 1;
       }
 
+      if (!root["auth"].isMember("sss")) {
+        root["auth"]["sss"] = 0;
+      }
+
       if (!root["inline"].isMember("max-size")) {
         root["inline"]["max-size="] = 0;
       }
@@ -591,6 +595,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
+    config.auth.use_user_sss = root["auth"]["sss"].asInt();
     config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
     config.auth.environ_deadlock_timeout =
       root["auth"]["environ-deadlock-timeout"].asInt();
