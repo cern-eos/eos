@@ -47,14 +47,7 @@ before_script:
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
     - docker exec -i -u eos-user eos-client-test /bin/bash -c 'cd /eos1/dockertest/; fusex-benchmark'
-    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then \
-         docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; \
-         docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py \
-                     --workdir="/eos1/dockertest /eos2/dockertest" all; \
-      else \
-         docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py \
-            --workdir="/eos1/dockertest /eos2/dockertest" ci; \
-      fi
+    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" all; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
     - sudo ./eos-docker/scripts/shutdown_services.sh
 
 
