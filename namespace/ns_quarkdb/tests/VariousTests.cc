@@ -289,6 +289,33 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   ASSERT_EQ(view()->getRealPath("/eos/dev/test/instancetest/symrel2"), "/eos/dev/test/instancetest/symrel2");
 }
 
+TEST_F(VariousTests, MoreSymlinks) {
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/user", true).get());
+
+  IFileMDPtr myFile = view()->createFile("/eos/dev/user/my-file", true);
+  fileSvc()->updateStore(myFile.get());
+
+  IFileMDPtr link = view()->createFile("/eos/dev/user/link", true);
+  link->setLink("my-file");
+  fileSvc()->updateStore(link.get());
+
+  ASSERT_EQ(view()->getFile("/eos/dev/user/link", true), myFile);
+  ASSERT_EQ(view()->getFile("/eos/dev/user/link", false), link);
+
+
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/user/dir1", true).get());
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/user/dir1/dir2", true).get());
+
+  IFileMDPtr myFile2 = view()->createFile("/eos/dev/user/dir1/dir2/my-file-2", true);
+  fileSvc()->updateStore(myFile2.get());
+
+  link->setLink("dir1/dir2/my-file-2");
+  fileSvc()->updateStore(link.get());
+
+  ASSERT_EQ(view()->getFile("/eos/dev/user/link", true), myFile2);
+  ASSERT_EQ(view()->getFile("/eos/dev/user/link", false), link);
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

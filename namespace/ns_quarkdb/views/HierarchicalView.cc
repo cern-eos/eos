@@ -232,9 +232,33 @@ HierarchicalView::lookupFile(PathLookupState parent, std::string name, bool foll
       }
 
       //------------------------------------------------------------------------
-      // We have a symlink to follow.. return a future yet again.
+      // We have a symlink to follow.. Is it absolute?
       //------------------------------------------------------------------------
-      return lookupFileURL(result->getLink(), parent.symlinkDepth+1, true);
+      const std::string& targetLink = result->getLink();
+      if(targetLink.empty() || targetLink[0] == '/') {
+        return lookupFileURL(result->getLink(), parent.symlinkDepth+1, true);
+      }
+
+      //------------------------------------------------------------------------
+      // Nope, relative.. Difficult case. Split link into directories and
+      // filenames.
+      //------------------------------------------------------------------------
+      std::vector<std::string> chunks;
+      eos::PathProcessor::splitPath(chunks, targetLink);
+
+      std::string filename = chunks.back();
+      chunks.pop_back();
+
+      if(chunks.empty()) {
+        // Just a single chunk.
+        return lookupFile(parent, filename, follow);
+      }
+
+      //------------------------------------------------------------------------
+      // Multiple chunks in link.
+      //------------------------------------------------------------------------
+      return lookupContainer(parent.current, chunks, parent.symlinkDepth+1, true)
+        .then(std::bind(&HierarchicalView::lookupFile, this, _1, filename, follow));
     } );
 
   return fut;
