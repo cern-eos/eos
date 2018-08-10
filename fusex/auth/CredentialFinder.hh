@@ -72,10 +72,42 @@ public:
   bool ignore_containerization;
 };
 
+<<<<<<< HEAD
 //------------------------------------------------------------------------------
 // TrustedCredentials = UserCredentials with a stamp of approval. We need
 // this object to generate the parameters in the xrootd URL.
 //------------------------------------------------------------------------------
+=======
+
+// Information extracted from environment variables.
+
+struct CredInfo {
+
+  enum CredType {
+    krb5, krk5, x509, sss, nobody
+  };
+
+  CredType type; // krb5 , krk5 or x509
+  std::string fname; // credential file
+  time_t mtime;
+
+  bool operator<(const CredInfo& src) const
+  {
+    if (type != src.type) {
+      return type < src.type;
+    }
+
+    if (fname != src.fname) {
+      return fname < src.fname;
+    }
+
+    return mtime < src.mtime;
+  }
+};
+
+// We need this object to generate the parameters in the xrootd URL
+
+>>>>>>> FUSEX: add 'sss' as a possible authentication scheme for eosxd
 class TrustedCredentials
 {
 public:
