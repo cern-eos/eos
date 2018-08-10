@@ -44,8 +44,8 @@ before_script:
     - docker exec -i eos-mgm-test /bin/bash -c 'eos chmod 2777 /eos/dockertest; eos vid enable krb5'
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
-    - docker exec -i eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
-    - docker exec -i eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
+    - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
+    - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
     - docker exec -i -u eos-user eos-client-test /bin/bash -c 'cd /eos1/dockertest/; fusex-benchmark'
     - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then \
          docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; \
