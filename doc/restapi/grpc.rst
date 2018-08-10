@@ -59,7 +59,7 @@ To add an authorication key use:
 
 .. code-block:: text
 
-   vid set map -grpc <secret-key> vuid:<uid> vid:<gid>
+   vid set map -grpc <key:secret-key> vuid:<uid> vid:<gid>
 
 The client has to add this key as the ``authkey`` parameters to each GRPC request.
 
@@ -76,4 +76,12 @@ The syntax of the command options is shown here :
 
    e.g. eos-grpc-ping --key /etc/grid-security/daemon/privkey.pem --cert /etc/grid-security/daemon/host.cert --ca /etc/grid-security/daemon/ca.cert --endpoint foo.bar:50051 --token see_my_token
          
+
+The xecutable ``eos-grpc-md`` is available to get individual meta data in a JSON dump for a file or container or to get a listing of a JSON dump of the parent and all children. 
+
+.. code-block:: text
+
+   usage: eos-grpc-md [ ... TLS parameters see above ] [--endpoint <host:port] [--token <auth-token>] [-l] <eos-path>
+
+   e.g. eos-grpc-ping --key /etc/grid-security/daemon/privkey.pem --cert /etc/grid-security/daemon/host.cert --ca /etc/grid-security/daemon/ca.cert --endpoint foo.bar:50051 -l /eos/
 
