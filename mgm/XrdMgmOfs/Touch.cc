@@ -89,6 +89,18 @@ XrdMgmOfs::_touch(const char* path,
     fmd->getMTime(mtime);
     cmd->setMTime(mtime);
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+
+    // Check if there is any quota node to be updated
+    try {
+      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+
+      if (ns_quota) {
+        ns_quota->addFile(fmd.get());
+      }
+    } catch (const eos::MDException& eq) {
+      // no quota node
+    }
+
     gOFS->eosView->updateContainerStore(cmd.get());
     gOFS->FuseXCastContainer(cmd->getIdentifier());
     errno = 0;
