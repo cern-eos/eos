@@ -47,6 +47,7 @@ gid_t Quota::gProjectId = 99;
 // Constructor - requires the eosViewRWMutex write-lock
 //------------------------------------------------------------------------------
 SpaceQuota::SpaceQuota(const char* path):
+  eos::common::LogId(),
   pPath(path),
   mQuotaNode(nullptr),
   mLastEnableCheck(0),
@@ -58,7 +59,7 @@ SpaceQuota::SpaceQuota(const char* path):
   try {
     quotadir = gOFS->eosView->getContainer(path);
   } catch (const eos::MDException& e) {
-    eos_static_err("No such path=%s", path);
+    eos_err("No such path=%s", path);
   }
 
   if (quotadir == nullptr) {
@@ -67,7 +68,7 @@ SpaceQuota::SpaceQuota(const char* path):
       quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
       gOFS->eosView->updateContainerStore(quotadir.get());
     } catch (eos::MDException& e) {
-      eos_static_crit("Cannot create quota directory %s", path);
+      eos_crit("Cannot create quota directory %s", path);
       throw;
     }
   }
@@ -77,9 +78,9 @@ SpaceQuota::SpaceQuota(const char* path):
       mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
 
       if (mQuotaNode) {
-        eos_static_info("Found ns quota node for path=%s", path);
+        eos_info("Found ns quota node for path=%s", path);
       } else {
-        eos_static_info("No ns quota found for path=%s", path);
+        eos_info("No ns quota found for path=%s", path);
       }
     } catch (const eos::MDException& e) {
       mQuotaNode = nullptr;
@@ -90,13 +91,13 @@ SpaceQuota::SpaceQuota(const char* path):
         mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
       } catch (eos::MDException& e) {
         mQuotaNode = nullptr;
-        eos_static_crit("Cannot register quota node %s, errmsg=%s",
-                        path, e.what());
+        eos_crit("Cannot register quota node %s, errmsg=%s",
+                 path, e.what());
         throw;
       }
     }
   } else {
-    eos_static_crit("Failed to create quota dir=%s", path);
+    eos_crit("Failed to create quota dir=%s", path);
   }
 }
 
@@ -201,7 +202,7 @@ SpaceQuota::UpdateLogicalSizeFactor()
 bool
 SpaceQuota::RmQuota(unsigned long tag, unsigned long id)
 {
-  eos_static_debug("rm quota tag=%lu id=%lu", tag, id);
+  eos_debug("rm quota tag=%lu id=%lu", tag, id);
   XrdSysMutexHelper scope_lock(mMutex);
 
   if (mMapIdQuota.count(Index(tag, id))) {
@@ -230,7 +231,7 @@ void
 SpaceQuota::SetQuota(unsigned long tag, unsigned long id,
                      unsigned long long value)
 {
-  eos_static_debug("set quota tag=%lu id=%lu value=%llu", tag, id, value);
+  eos_debug("set quota tag=%lu id=%lu value=%llu", tag, id, value);
   XrdSysMutexHelper scope_lock(mMutex);
   mMapIdQuota[Index(tag, id)] = value;
 
@@ -268,15 +269,15 @@ SpaceQuota::ResetQuota(unsigned long tag, unsigned long id)
 void
 SpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value)
 {
-  eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id, value);
+  eos_debug("add quota tag=%lu id=%lu value=%llu", tag, id, value);
 
   // Avoid negative numbers
   if (((long long) mMapIdQuota[Index(tag, id)] + value) >= 0) {
     mMapIdQuota[Index(tag, id)] += value;
   }
 
-  eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id,
-                   mMapIdQuota[Index(tag, id)]);
+  eos_debug("sum quota tag=%lu id=%lu value=%llu", tag, id,
+            mMapIdQuota[Index(tag, id)]);
 }
 
 //------------------------------------------------------------------------------
@@ -289,7 +290,7 @@ SpaceQuota::UpdateTargetSums()
     return;
   }
 
-  eos_static_debug("updating targets");
+  eos_debug("updating targets");
   XrdSysMutexHelper scope_lock(mMutex);
   mDirtyTarget = false;
   mMapIdQuota[Index(kAllUserBytesTarget, 0)] = 0;
@@ -326,7 +327,7 @@ SpaceQuota::UpdateTargetSums()
 void
 SpaceQuota::UpdateIsSums()
 {
-  eos_static_debug("updating IS values");
+  eos_debug("updating IS values");
   XrdSysMutexHelper scope_lock(mMutex);
   mMapIdQuota[Index(kAllUserBytesIs, 0)] = 0;
   mMapIdQuota[Index(kAllUserLogicalBytesIs, 0)] = 0;
@@ -374,7 +375,7 @@ SpaceQuota::UpdateIsSums()
 void
 SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
 {
-  eos_static_debug("updating uid/gid values from quota node");
+  eos_debug("updating uid/gid values from quota node");
   XrdSysMutexHelper scope_lock(mMutex);
 
   if (mQuotaNode) {
@@ -520,19 +521,19 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
     }
   }
   // Sort and erase duplicated uids and gids
-  eos_static_info("uids_size=%i, gids_size=%i", uids.size(), gids.size());
+  eos_info("uids_size=%i, gids_size=%i", uids.size(), gids.size());
   std::sort(uids.begin(), uids.end());
   uids.erase(std::unique(uids.begin(), uids.end()), uids.end());
   std::sort(gids.begin(), gids.end());
   gids.erase(std::unique(gids.begin(), gids.end()), gids.end());
-  eos_static_debug("sorted");
+  eos_debug("sorted");
 
   for (unsigned int i = 0; i < uids.size(); ++i) {
-    eos_static_debug("sort %d %d", i, uids[i].second);
+    eos_debug("sort %d %d", i, uids[i].second);
   }
 
   for (unsigned int i = 0; i < gids.size(); ++i) {
-    eos_static_debug("sort %d %d", i, gids[i].second);
+    eos_debug("sort %d %d", i, gids[i].second);
   }
 
   // Print the header for selected uid/gid's only if there is something to print
@@ -583,7 +584,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
     for (auto it : uids) {
       std::string name = it.first.c_str();
       unsigned int id = it.second;
-      eos_static_debug("loop with id=%d", id);
+      eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
 
@@ -679,7 +680,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
     for (auto it : gids) {
       std::string name = it.first.c_str();
       unsigned int id = it.second;
-      eos_static_debug("loop with id=%d", id);
+      eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
 
@@ -893,8 +894,8 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   // Update info from the ns quota node - user, group and project quotas
   UpdateFromQuotaNode(uid, gid, GetQuota(kGroupBytesTarget, Quota::gProjectId)
                       ? true : false);
-  eos_static_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desired_vol,
-                  GetQuota(kUserBytesTarget, uid));
+  eos_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desired_vol,
+           GetQuota(kUserBytesTarget, uid));
   bool userquota = false;
   bool groupquota = false;
   bool projectquota = false;
@@ -971,10 +972,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   if (((GetQuota(kGroupBytesTarget, Quota::gProjectId) -
         GetQuota(kGroupBytesIs, Quota::gProjectId)) > desired_vol)) {
     hasprojectquota = true;
-    
-    if ( (GetQuota(kGroupFilesTarget, Quota::gProjectId)) && 
-	 ( (GetQuota(kGroupFilesTarget, Quota::gProjectId) <
-	    (GetQuota(kGroupFilesIs, Quota::gProjectId) + inodes)) ) ) {
+
+    if ((GetQuota(kGroupFilesTarget, Quota::gProjectId)) &&
+        ((GetQuota(kGroupFilesTarget, Quota::gProjectId) <
+          (GetQuota(kGroupFilesIs, Quota::gProjectId) + inodes)))) {
       hasprojectquota = false;
     }
   }
@@ -983,11 +984,11 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
     projectquota = true;
   }
 
-  eos_static_info("userquota=%d groupquota=%d hasuserquota=%d hasgroupquota=%d "
-                  "userinodequota=%d uservolumequota=%d projectquota=%d "
-                  "hasprojectquota=%d", userquota, groupquota, hasuserquota,
-                  hasgroupquota, userinodequota, uservolumequota, projectquota,
-                  hasprojectquota);
+  eos_info("userquota=%d groupquota=%d hasuserquota=%d hasgroupquota=%d "
+           "userinodequota=%d uservolumequota=%d projectquota=%d "
+           "hasprojectquota=%d", userquota, groupquota, hasuserquota,
+           hasgroupquota, userinodequota, uservolumequota, projectquota,
+           hasprojectquota);
 
   // If both quotas are defined we need to have both
   if (userquota && groupquota) {

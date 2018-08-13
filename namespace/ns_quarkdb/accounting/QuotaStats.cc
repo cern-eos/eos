@@ -59,19 +59,16 @@ QuotaNode::addFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
-
   const std::string physicalSize = std::to_string(size);
   const std::string logicalSize = std::to_string(file->getSize());
-
   pFlusher->exec("HINCRBYMULTI",
-    pQuotaUidKey, suid + quota::sPhysicalSize, physicalSize,
-    pQuotaGidKey, sgid + quota::sPhysicalSize, physicalSize,
-    pQuotaUidKey, suid + quota::sLogicalSize,  logicalSize,
-    pQuotaGidKey, sgid + quota::sLogicalSize,  logicalSize,
-    pQuotaUidKey, suid + quota::sNumFiles,     "1",
-    pQuotaGidKey, sgid + quota::sNumFiles,     "1"
-  );
-
+                 pQuotaUidKey, suid + quota::sPhysicalSize, physicalSize,
+                 pQuotaGidKey, sgid + quota::sPhysicalSize, physicalSize,
+                 pQuotaUidKey, suid + quota::sLogicalSize,  logicalSize,
+                 pQuotaGidKey, sgid + quota::sLogicalSize,  logicalSize,
+                 pQuotaUidKey, suid + quota::sNumFiles,     "1",
+                 pQuotaGidKey, sgid + quota::sNumFiles,     "1"
+                );
   // Update the cached information
   pCore.addFile(
     file->getCUid(),
@@ -91,19 +88,16 @@ QuotaNode::removeFile(const IFileMD* file)
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
   const int64_t logicalSizeInt = file->getSize();
-
   const std::string minusPhysicalSize = std::to_string(-size);
   const std::string minusLogicalSize = std::to_string(-logicalSizeInt);
-
   pFlusher->exec("HINCRBYMULTI",
-    pQuotaUidKey, suid + quota::sPhysicalSize, minusPhysicalSize,
-    pQuotaGidKey, sgid + quota::sPhysicalSize, minusPhysicalSize,
-    pQuotaUidKey, suid + quota::sLogicalSize,  minusLogicalSize,
-    pQuotaGidKey, sgid + quota::sLogicalSize,  minusLogicalSize,
-    pQuotaUidKey, suid + quota::sNumFiles,     "-1",
-    pQuotaGidKey, sgid + quota::sNumFiles,     "-1"
-  );
-
+                 pQuotaUidKey, suid + quota::sPhysicalSize, minusPhysicalSize,
+                 pQuotaGidKey, sgid + quota::sPhysicalSize, minusPhysicalSize,
+                 pQuotaUidKey, suid + quota::sLogicalSize,  minusLogicalSize,
+                 pQuotaGidKey, sgid + quota::sLogicalSize,  minusLogicalSize,
+                 pQuotaUidKey, suid + quota::sNumFiles,     "-1",
+                 pQuotaGidKey, sgid + quota::sNumFiles,     "-1"
+                );
   // Update the cached information
   pCore.removeFile(
     file->getCUid(),
@@ -224,48 +218,43 @@ void QuotaNode::updateFromBackend()
 //------------------------------------------------------------------------------
 // Replace underlying QuotaNodeCore object.
 //------------------------------------------------------------------------------
-void QuotaNode::replaceCore(const QuotaNodeCore &updated) {
+void
+QuotaNode::replaceCore(const QuotaNodeCore& updated)
+{
   pCore = updated;
-
   pFlusher->exec("DEL", pQuotaUidKey);
   pFlusher->exec("DEL", pQuotaGidKey);
 
-  for(auto it = pCore.mUserInfo.begin(); it != pCore.mUserInfo.end(); it++) {
+  for (auto it = pCore.mUserInfo.begin(); it != pCore.mUserInfo.end(); it++) {
     std::string suid = std::to_string(it->first);
-
     pFlusher->exec("HSET", pQuotaUidKey,
-      suid + quota::sPhysicalSize,
-      std::to_string(it->second.physicalSpace)
-    );
-
+                   suid + quota::sPhysicalSize,
+                   std::to_string(it->second.physicalSpace)
+                  );
     pFlusher->exec("HSET", pQuotaUidKey,
-      suid + quota::sLogicalSize,
-      std::to_string(it->second.space)
-    );
-
+                   suid + quota::sLogicalSize,
+                   std::to_string(it->second.space)
+                  );
     pFlusher->exec("HSET", pQuotaUidKey,
-      suid + quota::sNumFiles,
-      std::to_string(it->second.files)
-    );
+                   suid + quota::sNumFiles,
+                   std::to_string(it->second.files)
+                  );
   }
 
-  for(auto it = pCore.mGroupInfo.begin(); it != pCore.mGroupInfo.end(); it++) {
+  for (auto it = pCore.mGroupInfo.begin(); it != pCore.mGroupInfo.end(); it++) {
     std::string sgid = std::to_string(it->first);
-
     pFlusher->exec("HSET", pQuotaGidKey,
-      sgid + quota::sPhysicalSize,
-      std::to_string(it->second.physicalSpace)
-    );
-
+                   sgid + quota::sPhysicalSize,
+                   std::to_string(it->second.physicalSpace)
+                  );
     pFlusher->exec("HSET", pQuotaGidKey,
-      sgid + quota::sLogicalSize,
-      std::to_string(it->second.space)
-    );
-
+                   sgid + quota::sLogicalSize,
+                   std::to_string(it->second.space)
+                  );
     pFlusher->exec("HSET", pQuotaGidKey,
-      sgid + quota::sNumFiles,
-      std::to_string(it->second.files)
-    );
+                   sgid + quota::sNumFiles,
+                   std::to_string(it->second.files)
+                  );
   }
 }
 
@@ -303,16 +292,15 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_quota";
 
-  if(pQcl == nullptr && pFlusher == nullptr) {
+  if (pQcl == nullptr && pFlusher == nullptr) {
     QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
-    if(config.find(key_flusher) == config.end()) {
+    if (config.find(key_flusher) == config.end()) {
       throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
                         << " configuration was provided");
     }
 
     std::string qdb_flusher_id = config.at(key_flusher);
-
     pQcl = BackendClient::getInstance(contactDetails);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
   }
@@ -370,7 +358,7 @@ QuotaStats::removeNode(IContainerMD::id_t node_id)
 {
   auto it = pNodeMap.find(node_id);
 
-  if(it != pNodeMap.end()) {
+  if (it != pNodeMap.end()) {
     delete it->second;
     pNodeMap.erase(it);
   }

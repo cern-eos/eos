@@ -24,13 +24,10 @@
 #ifndef __EOSMGM_QUOTA__HH__
 #define __EOSMGM_QUOTA__HH__
 
-/*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
-/*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
-/*----------------------------------------------------------------------------*/
 #include "mgm/Scheduler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
@@ -38,11 +35,8 @@
 #include "common/RWMutex.hh"
 #include "namespace/interface/IQuota.hh"
 #include "XrdOuc/XrdOucString.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
-
-#define EOSMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
 
 class Quota;
 
