@@ -320,13 +320,6 @@ private:
   getPathExpectContainer(const std::deque<std::string> &chunks);
 
   //----------------------------------------------------------------------------
-  //! Get last existing container in the provided path
-  //----------------------------------------------------------------------------
-  std::shared_ptr<IContainerMD> findLastContainer(std::vector<char*>& elements,
-      size_t end, size_t& index,
-      size_t* link_depths = 0);
-
-  //----------------------------------------------------------------------------
   //! Clean up contents of container
   //!
   //! @param cont container object

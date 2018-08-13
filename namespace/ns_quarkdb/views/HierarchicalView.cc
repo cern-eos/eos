@@ -567,6 +567,28 @@ HierarchicalView::getContainer(const std::string& uri, bool follow,
 }
 
 //------------------------------------------------------------------------------
+// UpdateStoreGuard helper class
+//------------------------------------------------------------------------------
+class UpdateStoreGuard {
+public:
+  UpdateStoreGuard(eos::HierarchicalView *v) : view(v) {}
+
+  ~UpdateStoreGuard() {
+    for(auto it = ptrs.begin(); it != ptrs.end(); it++) {
+      view->updateContainerStore( (*it).get() );
+    }
+  }
+
+  void add(IContainerMDPtr cont) {
+    ptrs.insert(cont);
+  }
+
+private:
+  eos::HierarchicalView *view;
+  std::set<IContainerMDPtr> ptrs;
+};
+
+//------------------------------------------------------------------------------
 // Create container - method eventually consistent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
@@ -574,61 +596,62 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
 {
   // Split the path
   if (uri == "/") {
-    MDException e(EEXIST);
-    e.getMessage() << uri << ": Container exist" << std::endl;
-    throw e;
+    throw_mdexception(EEXIST, uri << ": Container exists");
   }
 
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
+  std::deque<std::string> chunks;
+  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
 
-  if (elements.empty()) {
-    MDException e(EEXIST);
-    e.getMessage() << uri << ": File exist" << std::endl;
-    throw e;
+  if(chunks.empty()) {
+    throw_mdexception(EEXIST, uri << ": File exists");
   }
 
-  // Look for the last existing container
-  size_t position;
-  std::shared_ptr<IContainerMD> lastContainer =
-    findLastContainer(elements, elements.size(), position);
+  // Resolve path chunks one by one
+  FileOrContainerMD state = {nullptr, pRoot};
+  UpdateStoreGuard updateGuard(this);
 
-  if (position == elements.size()) {
-    MDException e(EEXIST);
-    e.getMessage() << uri << ": Container exist" << std::endl;
-    throw e;
+  while(true) {
+    if(state.file) {
+      throw_mdexception(ENOTDIR, uri << ": Not a directory");
+    }
+
+    if(!state.container) {
+      throw_mdexception(ENOENT, uri << ": No such file or directory");
+    }
+
+    if(chunks.empty()) {
+      return state.container;
+    }
+
+    std::string nextChunk = chunks.front();
+    std::deque<std::string> nextChunkDeque { nextChunk }; // yes, this is stupid
+    chunks.pop_front();
+
+    // Lookup next chunk ..
+    try {
+      state = getPathInternal(state, nextChunkDeque, true, 0).get();
+    }
+    catch(const eos::MDException &e) {
+      if(e.getErrno() != ENOENT) {
+        // Something's wrong, rethrow
+        throw;
+      }
+
+      if(!createParents && !chunks.empty()) {
+        throw_mdexception(ENOENT, uri << ": No such file or directory");
+      }
+
+      IContainerMDPtr newContainer = pContainerSvc->createContainer();
+      newContainer->setName(nextChunk);
+      newContainer->setCTimeNow();
+
+      state.container->addContainer(newContainer.get());
+
+      updateGuard.add(state.container);
+      updateGuard.add(newContainer);
+      state.container = newContainer;
+    }
   }
-
-  // One of the parent containers does not exist
-  if ((!createParents) && (position < elements.size() - 1)) {
-    MDException e(ENOENT);
-    e.getMessage() << uri << ": Parent does not exist" << std::endl;
-    throw e;
-  }
-
-  if (lastContainer->findFile(elements[position])) {
-    MDException e(EEXIST);
-    e.getMessage() << "File exists" << std::endl;
-    throw e;
-  }
-
-  // Create the container with all missing parents if required. If a crash
-  // happens during the addContainer call and the updateContainerStore then
-  // we curate the list of subcontainers in the ContainerMD::findContainer
-  // method.
-  for (size_t i = position; i < elements.size(); ++i) {
-    std::shared_ptr<IContainerMD> newContainer{
-      pContainerSvc->createContainer()};
-    newContainer->setName(elements[i]);
-    newContainer->setCTimeNow();
-    lastContainer->addContainer(newContainer.get());
-    lastContainer.swap(newContainer);
-    updateContainerStore(lastContainer.get());
-  }
-
-  return lastContainer;
 }
 
 //------------------------------------------------------------------------------
@@ -688,67 +711,6 @@ HierarchicalView::removeContainer(const std::string& uri)
   // This is a two-step delete
   pContainerSvc->removeContainer(cont.get());
   parent->removeContainer(cont->getName());
-}
-
-//------------------------------------------------------------------------------
-// Find the last existing container in the path
-//------------------------------------------------------------------------------
-std::shared_ptr<IContainerMD>
-HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
-                                    size_t& index, size_t* link_depths)
-{
-  std::shared_ptr<IContainerMD> current = pRoot;
-  std::shared_ptr<IContainerMD> found;
-  size_t position = 0;
-
-  while (position < end) {
-    found = current->findContainer(elements[position]);
-
-    if (!found) {
-      // Check if link
-      std::shared_ptr<IFileMD> flink = current->findFile(elements[position]);
-
-      if (flink) {
-        if (flink->isLink()) {
-          if (link_depths != nullptr) {
-            (*link_depths)++;
-
-            if ((*link_depths) > 255) {
-              MDException e(ELOOP);
-              e.getMessage() << "Too many symbolic links were encountered "
-                             "in translating the pathname";
-              throw e;
-            }
-          }
-
-          std::string link = flink->getLink();
-
-          if (link[0] != '/') {
-            link.insert(0, getUri(current.get()));
-            eos::PathProcessor::absPath(link);
-          }
-
-          found = getContainer(link, false, link_depths);
-
-          if (!found) {
-            index = position;
-            return current;
-          }
-        }
-      }
-
-      if (!found) {
-        index = position;
-        return current;
-      }
-    }
-
-    current = found;
-    ++position;
-  }
-
-  index = position;
-  return current;
 }
 
 //------------------------------------------------------------------------------
