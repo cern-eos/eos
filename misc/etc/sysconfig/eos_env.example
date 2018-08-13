@@ -99,7 +99,7 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_USE_SHARED_MUTEX=1
 
 # By default statvfs reports the total space if the path deepness is < 4
-# If you want to report only quota accouting you can define 
+# If you want to report only quota accouting you can define
 # EOS_MGM_STATVFS_ONLY_QUOTA=1
 
 #-------------------------------------------------------------------------------
@@ -117,6 +117,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Specify in seconds how often FSTs should query for new delete operations
 # EOS_FST_DELETE_QUERY_INTERVAL=300
+
+# Number of threads for transfer operations (Balance, Drain or Transfer actions)
+# EOS_FST_TRANSFER_THREAD_POOL=2
 
 # Disable fast boot and always do a full resync when a fs is booting
 # EOS_FST_NO_FAST_BOOT=0 (default off)

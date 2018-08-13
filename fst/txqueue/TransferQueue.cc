@@ -43,6 +43,13 @@ TransferQueue::TransferQueue(eos::common::TransferQueue** queue,
   nslots = slots;
   bandwidth = band;
   mJobEndCallback = 0;
+
+  if (getenv("EOS_FST_TRANSFER_THREAD_POOL")) {
+    std::string sslots = getenv("EOS_FST_TRANSFER_THREAD_POOL");
+    try {
+      nslots = std::stoi(sslots);
+    } catch (...) {}
+  }
 }
 
 /* ------------------------------------------------------------------------- */
