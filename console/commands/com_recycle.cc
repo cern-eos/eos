@@ -181,9 +181,11 @@ com_recycle_usage:
   fprintf(stdout, "recycle :\n");
   fprintf(stdout,
           "                                                  print status of recycle bin and if executed by root the recycle bin configuration settings.\n\n");
-  fprintf(stdout, "recycle ls [date]:\n");
+  fprintf(stdout, "recycle ls [-g|<date>]:\n");
   fprintf(stdout,
           "                                                  list files in the recycle bin\n");
+  fprintf(stdout,
+          "                                          -g : list files of all users (if root or admin)\n");
   fprintf(stdout,
           "                                                  [date] can be <year>,<year>/<month> or <year>/<month>/<day>\n");
   fprintf(stdout,

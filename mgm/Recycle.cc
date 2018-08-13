@@ -580,9 +580,9 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
-  if ((!vid.uid) ||
-      (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
-      (eos::common::Mapping::HasGid(4, vid.gid_list))) {
+  if (global && ((!vid.uid) ||
+                 (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
+                 (eos::common::Mapping::HasGid(4, vid.gid_list)))) {
     // add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;
@@ -628,7 +628,7 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
                Recycle::gRecyclingPrefix.c_str(),
                (unsigned int) ituid->first, date.c_str());
       XrdOucErrInfo lError;
-      int depth = 5 + (int) global;
+      int depth = 5 ;
 
       if (dPath.GetSubPathSize()) {
         if (depth > (int) dPath.GetSubPathSize()) {
@@ -636,7 +636,7 @@ Recycle::Print(XrdOucString& stdOut, XrdOucString& stdErr,
         }
       }
 
-      int retc = gOFS->_find(sdir, lError, stdErr, vid,
+      int retc = gOFS->_find(sdir, lError, stdErr, rootvid,
                              findmap,
                              0, 0, false, 0, true, depth);
 
