@@ -132,8 +132,8 @@ If you want to list the restorable objects from the recycle bin you run:
    # ==============================================================================================================================
    Thu Mar 21 23:02:22 2013   apeters  z2       recursive-dir 00000000000007cf /eos/dev/2rep/subnode/tree
 
-Executed as a non-root this command displays all user private restorable objects. 
-If running as root it shows restorable objects of all users!
+By default this command displays all user private restorable objects. 
+If you have the root role or are member of the admin group, you can add the ``-g`` flag to list restorable objects of all users.
 
 For manageability reasons the list is truncated after 100k entries.
 
