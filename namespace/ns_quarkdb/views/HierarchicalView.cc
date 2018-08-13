@@ -189,6 +189,13 @@ HierarchicalView::getPath(const std::string& uri, bool follow)
 }
 
 //------------------------------------------------------------------------------
+// Convert a ContainerMDPtr to FileOrContainerMD.
+//------------------------------------------------------------------------------
+static FileOrContainerMD toFileOrContainerMD(IContainerMDPtr ptr) {
+  return {nullptr, ptr};
+}
+
+//------------------------------------------------------------------------------
 // Lookup a given path - deferred function.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
@@ -203,6 +210,21 @@ HierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut, std::deq
   // request is completed.
   //----------------------------------------------------------------------------
   return fut.via(pExecutor.get())
+    .then(std::bind(&HierarchicalView::getPathInternal, this, _1, pendingChunks, follow, expendedEffort));
+}
+
+//------------------------------------------------------------------------------
+// Lookup a given path - deferred function.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+HierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut, std::deque<std::string> pendingChunks,
+  bool follow, size_t expendedEffort)
+{
+  //----------------------------------------------------------------------------
+  // Same as getPathDeferred taking FileOrContainerMD.
+  //----------------------------------------------------------------------------
+  return fut.via(pExecutor.get())
+    .then(toFileOrContainerMD)
     .then(std::bind(&HierarchicalView::getPathInternal, this, _1, pendingChunks, follow, expendedEffort));
 }
 
@@ -265,7 +287,17 @@ HierarchicalView::getPathInternal(FileOrContainerMD state, std::deque<std::strin
 
       if(pendingChunks.front() == "..") {
         pendingChunks.pop_front();
-        state.container = pContainerSvc->getContainerMD(state.container->getParentId());
+
+        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMD(state.container->getParentId());
+
+        if(!fut.isReady()) {
+          //--------------------------------------------------------------------
+          // We're blocked, "pause" execution, unblock caller.
+          //--------------------------------------------------------------------
+          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
+        }
+
+        state.container = fut.get();
         continue;
       }
 
@@ -330,7 +362,16 @@ HierarchicalView::getPathInternal(FileOrContainerMD state, std::deque<std::strin
         //----------------------------------------------------------------------
         // This is a relative symlink: State becomes symlink's parent container.
         //----------------------------------------------------------------------
-        state.container = pContainerSvc->getContainerMD(state.file->getContainerId());
+
+        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMD(state.file->getContainerId());
+        if(!fut.isReady()) {
+          //--------------------------------------------------------------------
+          // We're blocked, "pause" execution, unblock caller.
+          //--------------------------------------------------------------------
+          return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
+        }
+
+        state.container = fut.get();
         state.file.reset();
       }
 
