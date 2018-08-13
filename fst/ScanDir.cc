@@ -408,7 +408,7 @@ ScanDir::CheckFile(const char* filepath)
 #ifndef _NOOFS
 
       if (bgThread) {
-        if (filecxerror || blockcxerror) {
+        if (filecxerror || blockcxerror || forcedScan) {
           XrdOucString manager = "";
           {
             XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
