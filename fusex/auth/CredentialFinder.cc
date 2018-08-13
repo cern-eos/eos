@@ -62,4 +62,3 @@ std::vector<std::string> Environment::getAll() const
 {
   return contents;
 }
-
