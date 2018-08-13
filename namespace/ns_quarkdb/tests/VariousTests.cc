@@ -594,7 +594,7 @@ TEST(QuotaNodeCore, BasicSanity) {
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(12), 2);
   ASSERT_EQ(qn.getPhysicalSpaceByGroup(13), 0);
 
-  gids.erase(13);
+  // gids.erase(13);
   ASSERT_EQ(qn.getUids(), uids);
   ASSERT_EQ(qn.getGids(), gids);
 
@@ -610,8 +610,8 @@ TEST(QuotaNodeCore, BasicSanity) {
   ASSERT_EQ(qn.getNumFilesByGroup(12), 0u);
   ASSERT_EQ(qn.getNumFilesByGroup(13), 0u);
 
-  uids.clear();
-  gids.clear();
+  // uids.clear();
+  // gids.clear();
 
   ASSERT_EQ(qn.getUids(), uids);
   ASSERT_EQ(qn.getGids(), gids);

@@ -121,14 +121,6 @@ void QuotaNodeCore::removeFile(uid_t uid, gid_t gid, uint64_t size,
 
   user.files--;
   group.files--;
-
-  if(user == UsageInfo()) {
-    mUserInfo.erase(uid);
-  }
-
-  if(group == UsageInfo()) {
-    mGroupInfo.erase(gid);
-  }
 }
 
 //------------------------------------------------------------------------------
