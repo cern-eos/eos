@@ -329,6 +329,51 @@ TEST_F(VariousTests, createFile) {
   ASSERT_THROW(view()->createFile("/eos/dev/user/my-file/aaaa"), eos::MDException);
 }
 
+TEST_F(VariousTests, createContainerMadness) {
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/../dev/", true).get());
+  containerSvc()->updateStore(view()->createContainer(
+    "/eos/dev/./my-dir-1/./../my-dir-2/../my-dir-3/./my-dir-4/../my-dir-5", true).get()); // MUAHAHAHAH
+
+  // This is how "mkdir -p" on Linux behaves, as well. We want to be compatible.
+
+  view()->getContainer("/eos");
+  view()->getContainer("/eos/dev");
+  view()->getContainer("/eos/dev/my-dir-1");
+  view()->getContainer("/eos/dev/my-dir-2");
+  view()->getContainer("/eos/dev/my-dir-3");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-5");
+
+  shut_down_everything();
+
+  view()->getContainer("/eos");
+  view()->getContainer("/eos/dev");
+  view()->getContainer("/eos/dev/my-dir-1");
+  view()->getContainer("/eos/dev/my-dir-2");
+  view()->getContainer("/eos/dev/my-dir-3");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-5");
+
+  ASSERT_THROW(view()->createContainer("/eos/dev/my-dir-1/aaa/bbb", false), eos::MDException);
+
+  IFileMDPtr file1 = view()->createFile("/eos/dev/my-dir-1/link", true);
+  file1->setLink("/eos/dev/my-dir-3/my-dir-4");
+  fileSvc()->updateStore(file1.get());
+
+  shut_down_everything();
+
+  ASSERT_THROW(view()->createContainer(
+    "/eos/dev/../dev/my-dir-1/./link/../my-dir-4/what-am-i-doing/aaaaaa/../bbbbbbb/../bbbbbbb/chicken", false), eos::MDException);
+
+  containerSvc()->updateStore(view()->createContainer(
+    "/eos/dev/../dev/my-dir-1/./link/../my-dir-4/what-am-i-doing/aaaaaa/../bbbbbbb/../bbbbbbb/chicken", true).get());
+
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/aaaaaa");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb");
+  view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken");
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
