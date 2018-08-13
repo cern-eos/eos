@@ -405,49 +405,49 @@ HierarchicalView::getFile(const std::string& uri, bool follow,
 std::shared_ptr<IFileMD>
 HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
 {
+
+  if(uri == "/") {
+    throw_mdexception(EEXIST, "File exists");
+  }
+
   // Split the path and find the last container
-  char uriBuffer[uri.length() + 1];
-  strcpy(static_cast<char*>(uriBuffer), uri.c_str());
-  std::vector<char*> elements;
-  eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
-  size_t position;
-  std::shared_ptr<IContainerMD> cont =
-    findLastContainer(elements, elements.size() - 1, position);
+  std::deque<std::string> chunks;
+  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
 
-  if (position != elements.size() - 1) {
-    MDException e(ENOENT);
-    e.getMessage() << "Container does not exist";
-    throw e;
+  if(chunks.size() == 0u) {
+    throw_mdexception(EEXIST, "File exists");
   }
 
-  // Check if the file of this name can be inserted
-  if (cont->findContainer(elements[position])) {
-    MDException e(EEXIST);
-    e.getMessage() << "File exist";
-    throw e;
+  std::string lastChunk = chunks.back();
+  chunks.pop_back();
+
+  FileOrContainerMD item = getPathInternal(FileOrContainerMD {nullptr, pRoot}, chunks, true, 0).get();
+
+  if(item.file) {
+    throw_mdexception(ENOTDIR, "Not a directory");
   }
 
-  if (cont->findFile(elements[position])) {
-    MDException e(EEXIST);
-    e.getMessage() << "File exist";
-    throw e;
+  IContainerMDPtr parent = item.container;
+
+  FileOrContainerMD potentialConflict = parent->findItem(lastChunk).get();
+  if(potentialConflict.file || potentialConflict.container) {
+    throw_mdexception(EEXIST, "File exists");
   }
 
-  std::shared_ptr<IFileMD> file{pFileSvc->createFile()};
+  IFileMDPtr file = pFileSvc->createFile();
 
   if (!file) {
-    MDException e(EIO);
-    e.getMessage() << "File creation failed";
-    throw e;
+    eos_static_crit("File creation failed for %s", uri.c_str());
+    throw_mdexception(EIO, "File creation failed");
   }
 
-  file->setName(elements[position]);
+  file->setName(lastChunk);
   file->setCUid(uid);
   file->setCGid(gid);
   file->setCTimeNow();
   file->setMTimeNow();
   file->clearChecksum(0);
-  cont->addFile(file.get());
+  parent->addFile(file.get());
   updateFileStore(file.get());
   return file;
 }

@@ -318,6 +318,17 @@ TEST_F(VariousTests, MoreSymlinks) {
   ASSERT_EQ(view()->getFile("/eos/dev/user/link", false), link);
 }
 
+TEST_F(VariousTests, createFile) {
+  containerSvc()->updateStore(view()->createContainer("/eos/dev/user", true).get());
+
+  IFileMDPtr myFile = view()->createFile("/eos/dev/user/my-file");
+  fileSvc()->updateStore(myFile.get());
+
+  ASSERT_THROW(view()->createFile("/eos/dev/user/my-file"), eos::MDException);
+  ASSERT_THROW(view()->createFile("/eos/dev/user"), eos::MDException);
+  ASSERT_THROW(view()->createFile("/eos/dev/user/my-file/aaaa"), eos::MDException);
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
