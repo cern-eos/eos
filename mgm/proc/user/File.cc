@@ -1779,9 +1779,9 @@ ProcCommand::File()
               stdOut += "mgm.fstpath";
               stdOut += i;
               stdOut += "=";
-              eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(),
-                                                      filesystem->GetPath().c_str(),
-                                                      fullpath);
+              eos::common::FileFsPath::GetFullPhysicalPath(*lociter, fmd,
+                                                           filesystem->GetPath().c_str(),
+                                                           fullpath);
               stdOut += fullpath;
               stdOut += "&";
             } else {
