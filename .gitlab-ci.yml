@@ -577,10 +577,10 @@ clean_debian_artifacts:
 periodic_coverity:
   stage: build:rpm
   script:
-    - git submodule update --init --recursive; mkdir build; cd build; cmake3 .. -DPACKAGEONLY=1; make srpm
-    - sudo yum-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" --setopt="eos-depend.exclude=protobuf3*" SRPMS/*
     - rm -f CMakeCache.txt
-    - scl enable devtoolset-6 "cmake3 .."
+    - git submodule update --init --recursive; mkdir build; cd build; scl enable "cmake3 .. -DPACKAGEONLY=1"; make srpm
+    - sudo yum-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" --setopt="eos-depend.exclude=protobuf3*" SRPMS/*
+    - rm -rf ./*; scl enable devtoolset-6 "cmake3 .."
     - cov-build --dir cov-int make -j 4
     - tar czvf eos-metrics.tgz cov-int
     - curl --form token="`cat /home/gitlab-runner/.coverity_token`" --form email=project-eos-commits@cern.ch --form file=@eos-metrics.tgz --form version="`../genversion.sh`" --form description="Periodic Gitlab build" https://scan.coverity.com/builds?project=cern-eos%2Feos
@@ -593,8 +593,9 @@ periodic_coverity:
 cppcheck_sonar:
   stage: build:rpm
   script:
-    - git submodule update --init --recursive; mkdir build; cd build; cmake3 .. -DPACKAGEONLY=1; make srpm
-    - sudo yum-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" --setopt="eos-depend.exclude=protobuf3*" SRPMS/*
+    - rm -f CMakeCache.txt
+    - git submodule update --init --recursive; mkdir build; cd build; scl enable "cmake3 .. -DPACKAGEONLY=1"; make srpm; cd ..;
+    - sudo yum-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" --setopt="eos-depend.exclude=protobuf3*" build/SRPMS/*
     - cppcheck -j 4 -v --enable=all --inline-suppr --xml --xml-version=2 -i common/fmt -i fst/layout/gf-complete -i fst/layout/jerasure -i common/sqlite -i namespace/ns_quarkdb/qclient common/ fst/ mgm/ console/ fuse/ fusex/ namespace/ mq/ 2> cppcheck-report.xml
     - sonar-scanner -Dsonar.cxx.cppcheck.reportPath=cppcheck-report.xml -Dsonar.projectVersion="`./genversion.sh`" -Dsonar.sources=common/,fst/,mgm/,console/,fuse/,namespace/,mq/
   tags:
