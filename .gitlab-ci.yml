@@ -591,10 +591,8 @@ periodic_coverity:
   tags:
     - coverity
   allow_failure: true
-  only:
-    - manual
-    - triggers
-    - schedules
+  when: manual
+
 
 cppcheck_sonar:
   stage: build:rpm
@@ -604,9 +602,7 @@ cppcheck_sonar:
   tags:
     - coverity
   allow_failure: true
-  only:
-    - master
-    - tags
+  when: manual
 
 
 #-------------------------------------------------------------------------------
