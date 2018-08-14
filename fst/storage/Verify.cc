@@ -29,7 +29,7 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
-#include "fst/io/FileIoPlugin.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
@@ -139,7 +139,7 @@ Storage::Verify()
       sFstPath += "?s3credentials=" + s3credentials;
     }
 
-    std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(
+    std::unique_ptr<FileIo> io (eos::fst::FileIoPluginHelper::GetIoObject(
                                   sFstPath.c_str()));
 
     if (!io || (open_rc = io->fileOpen(0, 0)) || io->fileStat(&statinfo)) {
