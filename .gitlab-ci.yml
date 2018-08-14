@@ -592,8 +592,9 @@ periodic_coverity:
     - coverity
   allow_failure: true
   only:
+    - manual
     - triggers
-
+    - schedules
 
 cppcheck_sonar:
   stage: build:rpm
