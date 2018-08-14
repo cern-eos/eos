@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+
+``v4.3.8 Citrine``
+===================
+
+2018-08-14
+
+Bug
+----
+
+* [EOS-2193] - Eosd fuse crash around FileAbstraction::GetMaxWriteOffset
+* [EOS-2292] - eosd crash around "FileAbstraction::IncNumOpenRW (this=0x0)"
+* [EOS-2772] - ns compact command doesn't do repairs
+* [EOS-2775] - TPC failing in IPV4/6 mixed setups
+* Fix quota accounting for touched files
+
+
+New Feature
+------------
+
+* [EOS-2742] - Add reason when we change the status for file systems and node
+
+
 ``v4.3.7 Citrine``
 ===================
 
