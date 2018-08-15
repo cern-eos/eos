@@ -2668,6 +2668,18 @@ FuseServer::HandleMD(const std::string& id,
           }
         }
 
+        size_t numAttr = cmd->numAttributes();
+        if (op != CREATE && numAttr != md.attr().size()) {		/* an attribute got removed */
+          eos::IContainerMD::XAttrMap cmap = cmd->getAttributes();
+          for (auto it = cmap.begin(); it != cmap.end(); ++it) {
+            if (md.attr().find(it->first) == md.attr().end()) {
+              eos_static_debug("attr %s=%s has been removed", it->first.c_str(), it->second.c_str());
+              cmd->removeAttribute(it->first);
+              /* if ((--numAttr) == md.attr().size()) break;   would be possible - under a lock! */
+            }
+          }
+        }
+
         if (op == CREATE) {
           // store the birth time as an extended attribute
           char btime[256];
