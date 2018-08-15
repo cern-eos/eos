@@ -125,31 +125,9 @@ public:
            std::string& stdErr) override;
 
   //----------------------------------------------------------------------------
-  //! Reset master log
-  //----------------------------------------------------------------------------
-  void
-  ResetLog() override
-  {
-    fMasterLog = "";
-  }
-
-  //----------------------------------------------------------------------------
   //! Get master Log
   //----------------------------------------------------------------------------
-  void
-  GetLog(std::string& stdOut) override;
-
-  //----------------------------------------------------------------------------
-  //! Add to master Log
-  //----------------------------------------------------------------------------
-  void
-  MasterLog(const char* log) override
-  {
-    if (log && strlen(log)) {
-      fMasterLog += log;
-      fMasterLog += "\n";
-    }
-  }
+  void GetLog(std::string& stdOut) override;
 
   //----------------------------------------------------------------------------
   //! Enable remote check
@@ -271,7 +249,6 @@ private:
   XrdOucString fRemoteHost; ///< hostname(+port) of the remote mgm master/slave
   XrdOucString fRemoteMq; ///< hostname(+port) of the remote mq  master/slave
   XrdOucString fThisMq; ///< hostname(+port) of the local  mq  master/slave
-  XrdOucString fMasterLog; ///< log output of master/slave interactions
   //! flag indicating if the remote master is in RW = master mode or not
   bool fRemoteMasterRW;
   bool fRemoteMqOk; ///< flag indicates if the remote mq is up

@@ -1557,8 +1557,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize user mapping
   eos::common::Mapping::Init();
 
-  // @todo (esindril) crate the Master object depending on the type of namespace
-  // implementation
+  // Create different type of master object depending on the ns implementation
+  if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
+    mMaster.reset(new eos::mgm::Master());
+  } else {
+    mMaster.reset(new eos::mgm::Master());
+  }
 
   // Initialize the master/slave class
   if (!mMaster->Init()) {

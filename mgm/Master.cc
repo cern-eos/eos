@@ -2437,7 +2437,7 @@ Master::GetLog(std::string& stdOut)
     eos_chlog_dirsvc->clearWarningMessages();
   }
 
-  stdOut = fMasterLog.c_str();
+  stdOut = mLog;
 }
 
 EOSMGMNAMESPACE_END

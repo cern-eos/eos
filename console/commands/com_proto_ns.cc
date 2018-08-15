@@ -434,7 +434,6 @@ void com_ns_help()
       << "    recompute the specified quotanode"
       << std::endl
       << std::endl
-      << std::endl
       << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl
       << "    set the max number of entries or the max size of the cache. Use the" <<
       std::endl
