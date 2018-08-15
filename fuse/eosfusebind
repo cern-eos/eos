@@ -28,8 +28,8 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then echo "credential directory is not ready" >&2; exit 1; fi
-  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential directory is not ready"; exit 1; fi
+  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then logger -s -t eosfusebind -p authpriv.err -- "credential store directory is not ready"; exit 2; fi
 }
 
 function ExitUsage
@@ -53,7 +53,7 @@ function ExitUsage
   printf "$f %s\\n" $exename "--pam"
   printf "$f %s\\n" "" "PAM module mode using environment variable PAM_TYPE. Recognized values for this variable are open_session and close_session"
   echo
-  exit 1
+  exit 3
 }
 
 function ParseArgs
@@ -83,7 +83,7 @@ function ParseArgs
       REQGLOBBIND=1;
       return
     else
-      echo "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'" >&2; exit 1
+      logger -s -t eosfusebind -p authpriv.err -- "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'"; exit 4
     fi
   fi
   if [[ $# = 1   &&  (  $1 = "-h" || $1 = "--help" ) ]]; then ExitUsage; fi
@@ -104,7 +104,7 @@ function UpdateCredIsFile
   # get rid of the 'FILE:' if it's specified
   if [[ "$CREDISFILE" = "0" && `echo $CREDTAG | cut -c1-5` = "FILE:" ]]; then
   CREDTAG=$(echo ${CREDTAG} | tail -c+6)
-  # if the mentioned file does not exit, discard its name
+  # if the mentioned file does not exist, discard its name
   stat $CREDTAG  >/dev/null 2>&1
   [[ "$?" == "1" ]] && CREDTAG="";
   fi;
@@ -112,11 +112,11 @@ function UpdateCredIsFile
 
 function CheckArgs
 {
-  if [[ "$EUID" = "0" && "$REQGLOBBIND" = "1" ]]; then echo "global user binding forbidden as root" >&2; exit 1; fi
-  if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE" >&2; exit 1; fi
+  if [[ "$EUID" = "0" && "$REQGLOBBIND" = "1" ]]; then logger -s -t eosfusebind -p authpriv.err -- "global user binding forbidden as root"; exit 5; fi
+  if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  logger -s -t eosfusebind -p authpriv.err -- "invalid authentication type $AUTHTYPE"; exit 6; fi
   UpdateCredIsFile
   if [[ "$CREDISFILE" = "0" ]]; then
-    if [[ "X$CREDTAG" != "X" && `stat -c "%a" $CREDTAG` != "600" ]]; then  echo "credential file $CREDTAG does not exist or has bad permissions" >&2; exit 1; fi
+    if [[ "X$CREDTAG" != "X" && `stat -c "%a" $CREDTAG` != "600" ]]; then  logger -s -t eosfusebind -p authpriv.err -- "credential file $CREDTAG does not exist or has bad permissions"; exit 7; fi
   fi
 }
 
@@ -150,7 +150,7 @@ function GetAutoKrb5CredFile
   UpdateCredIsFile
   if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  GetDefaultKrb5CredFile; fi
   UpdateCredIsFile
-  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  echo "could not find automatically a credential file"; exit 1; fi
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"; exit 8; fi
   #echo "using krb5 cache credential file $CREDTAG"
 }
 
@@ -168,7 +168,7 @@ function GetAutoX509CredFile
 {
   GetEnvX509CredFile
   if [[ "X$CREDTAG" = "X" || `stat -c "%a" $CREDTAG` != "600" ]]; then GetDefaultX509CredFile; fi
-  if [[ "X$CREDTAG" = "X" || `stat -c "%a" $CREDTAG` != "600" ]]; then echo "could not find automatically a credential file" >&2; exit 1; fi
+  if [[ "X$CREDTAG" = "X" || `stat -c "%a" $CREDTAG` != "600" ]]; then logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"; exit 9; fi
   #echo "using x509 user proxy file $CREDTAG"
 }
 
@@ -196,8 +196,8 @@ function GetSymlinkBaseNameSession
 function CheckSessionLeader
 {
   if test ! -n SUT ; then
-    echo "the session leader for the current session is not alive" >&2;
-    exit 1;
+    logger -s -t eosfusebind -p authpriv.err -- "the session leader for the current session is not alive";
+    exit 10;
   fi
 }
 
@@ -317,19 +317,19 @@ function LinkSession
   local EXTENSION="krk5"
   fi
   if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then
-  echo "could not find automatically a credential file"
-  exit 1
+    logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"
+    exit 11
   fi
   SymlinkName="${SymlinkBaseNameSession}.${EXTENSION}"
   #echo "ln -sf $CREDTAG $SymlinkName"
   # create the symlink and then rename it so the overwrite is atomic
   ln -sf $CREDTAG $SymlinkName.tmp
   if [ $? -ne 0 ]; then
-    echo "Error creating credentials symlink." >&2
+    logger -s -t eosfusebind -p authpriv.err -- "Error creating credentials symlink."
   fi
   mv -Tf $SymlinkName.tmp $SymlinkName
   if [ $? -ne 0 ]; then
-    echo "Error renaming temporary credentials symlink." >&2
+    logger -s -t eosfusebind -p authpriv.err -- "Error renaming temporary credentials symlink."
   fi
 }
 
@@ -342,8 +342,8 @@ function LinkUserGlob
   local EXTENSION="krk5"
   fi
   if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then
-  echo "could not find automatically a credential file"
-  exit 1
+    logger -s -t eosfusebind -p authpriv.err -- "could not find automatically a credential file"
+    exit 12
   fi
   SymlinkPathName="${SymlinkBaseNameUser}.${EXTENSION}"
   SymlinkName=$(basename $SymlinkPathName)
@@ -352,26 +352,26 @@ function LinkUserGlob
     TEMP_FILE=$(mktemp /var/run/eosd/credentials/store/temp-XXXXXXXXXXX)
 
     if [ $? -ne 0 ]; then
-      echo "Could not create temporary file inside /var/run/eosd/credentials/store, something is wrong with the credential store." >&2
-      exit 1
+      logger -s -t eosfusebind -p authpriv.err -- "Could not create temporary file inside /var/run/eosd/credentials/store, something is wrong with the credential store."
+      exit 13
     fi
 
     # Ensure permissions are sane, should never fail
     chmod 0600 "${TEMP_FILE}"
     if [ $? -ne 0 ]; then
-      echo "Could not chmod ${TEMP_FILE}, something is wrong in the credential store." >&2
+      logger -s -t eosfusebind -p authpriv.err -- "Could not chmod ${TEMP_FILE}, something is wrong in the credential store."
       stat "${TEMP_FILE}" >&2
       rm -f ${TEMP_FILE}
-      exit 1
+      exit 14
     fi
 
     # Replace contents of temporary file, should never fail
     cp -f "${CREDTAG}" "${TEMP_FILE}"
     if [ $? -ne 0 ]; then
-      echo "Could not replace contents of ${TEMP_FILE}, something is wrong in the credential store." >&2
+      logger -s -t eosfusebind -p authpriv.err -- "Could not replace contents of ${TEMP_FILE}, something is wrong in the credential store."
       stat "${TEMP_FILE}" >&2
       rm -f ${TEMP_FILE}
-      exit 1
+      exit 15
     fi
 
     # Atomically replace CFILE with TEMP_FILE
@@ -379,23 +379,23 @@ function LinkUserGlob
     mv -f --no-target-directory "${TEMP_FILE}" "${CFILE}"
 
     if [ $? -ne 0 ]; then
-      echo "Could not replace ${CFILE} with ${TEMP_FILE}, something is wrong in the credential store." >&2
+      logger -s -t eosfusebind -p authpriv.err -- "Could not replace ${CFILE} with ${TEMP_FILE}, something is wrong in the credential store."
       stat "${TEMP_FILE}" >&2
       stat "${CFILE}" >&2
 
       rm -f ${TEMP_FILE}
-      exit 1
+      exit 16
     fi
   fi
   #echo "ln -sf $CFILE $SymlinkPathName"
   # create the symlink and then rename it so the overwrite is atomic
   ln -sf $CFILE $SymlinkPathName.tmp
   if [ $? -ne 0 ]; then
-    echo "Error creating credentials symlink." >&2
+    logger -s -t eosfusebind -p authpriv.err -- "Error creating credentials symlink."
   fi
   mv -Tf $SymlinkPathName.tmp $SymlinkPathName
   if [ $? -ne 0 ]; then
-    echo "Error renaming temporary credentials symlink." >&2
+    logger -s -t eosfusebind -p authpriv.err -- "Error renaming temporary credentials symlink."
   fi
   # cleanup the other credentials in the store as only one global credential is required at a time
   find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \; >/dev/null 2>&1
@@ -404,7 +404,7 @@ function LinkUserGlob
 function UnlinkUserGlob
 {
   GetSymlinkBaseNameUser
-  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 1; fi
+  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 17; fi
   for symlink in ${SymlinkBaseNameUser}.*; do
     # remove the file from the store
     local file=$(readlink -f "$symlink")
@@ -428,7 +428,7 @@ function UnlinkUserSessions
 function UnlinkSession
 {
   GetSymlinkBaseNameSession
-  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then "error unbinding session"; exit 1; fi
+  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then "error unbinding session"; exit 18; fi
   #echo rm -f ${SymlinkBaseNameSession}*
   rm -f ${SymlinkBaseNameSession}*
 }
@@ -450,7 +450,7 @@ if [[ ( "$#" = 1 )   &&  (  "$1" = "--pam" ) && (  "$EUID" = "0" ) ]]; then
     runuser $PAM_USER -c "$0 $*"
     exit $?
   else
-    echo "note: eosfusebind not running for user root from pam."
+    logger -s -t eosfusebind -p authpriv.info -- "note: eosfusebind not running for user root from pam."
     exit 0
   fi
 fi
