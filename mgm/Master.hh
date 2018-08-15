@@ -103,14 +103,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Is master activated
-  //----------------------------------------------------------------------------
-  inline bool IsActivated() const override
-  {
-    return fActivated.load();
-  }
-
-  //----------------------------------------------------------------------------
   //! Return master host
   //----------------------------------------------------------------------------
   const char* GetMasterHost() override
@@ -181,13 +173,6 @@ public:
                          Transition::Type transitiontype);
 
   //----------------------------------------------------------------------------
-  //! Activate the current master/slave settings = configure configuration
-  //! directory and (re-)load the appropriate configuratio
-  //----------------------------------------------------------------------------
-  bool Activate(std::string& stdOut, std::string& stdErr, int transitiontype);
-
-
-  //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
   //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& out);
@@ -253,7 +238,6 @@ private:
   bool fRemoteMasterRW;
   bool fRemoteMqOk; ///< flag indicates if the remote mq is up
   bool fCheckRemote; ///< indicate if we check the remote host status
-  std::atomic<bool> fActivated; ///< flag indicating if the activation worked
   bool fRemoteMasterOk; ///< flag indicating if the remote master is up
   bool fCompactFiles; ///< compact the files changelog file if true
   bool fCompactDirectories; ///< compact the directories changelog file if true
@@ -343,6 +327,12 @@ private:
   };
 
   RWLock fNsLock;
+
+  //----------------------------------------------------------------------------
+  //! Activate the current master/slave settings = configure configuration
+  //! directory and (re-)load the appropriate configuratio
+  //----------------------------------------------------------------------------
+  bool Activate(std::string& stdOut, std::string& stdErr, int transitiontype);
 
   //----------------------------------------------------------------------------
   //! Signal the remote master to reload its namespace (issued by master)

@@ -56,16 +56,20 @@ public:
 
   //----------------------------------------------------------------------------
   //! Init method to determine the current master/slave state
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool Init() = 0;
 
   //----------------------------------------------------------------------------
-  //! Boot namespace according to master/slave configuration
+  //! Boot namespace
+  //!
+  //1 @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool BootNamespace() = 0;
 
   //----------------------------------------------------------------------------
-  //! Apply Configuration settings to the master class
+  //! Apply configuration setting
   //!
   //! @param stdOut output string
   //! @param stdErr output error string
@@ -75,11 +79,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
                                  Transition::Type transitiontype) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Is master activated
-  //----------------------------------------------------------------------------
-  virtual bool IsActivated() const = 0;
 
   //----------------------------------------------------------------------------
   //! Check if we are the master host

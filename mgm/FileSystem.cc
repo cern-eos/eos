@@ -92,67 +92,61 @@ bool
 FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
 {
   using eos::mgm::FsView;
+  eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
 
-  if (gOFS->mMaster->IsActivated()) {
-    eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
+  if (gOFS->mIsCentralDrain) {
+    eos_static_info("fsid=%d, centralized drain type", GetId());
+    int drain_tx = IsDrainTransition(old_status, new_status);
 
-    if (gOFS->mIsCentralDrain) {
-      eos_static_info("fsid=%d, centralized drain type", GetId());
-      int drain_tx = IsDrainTransition(old_status, new_status);
+    if (drain_tx) {
+      std::string out_msg;
 
-      if (drain_tx) {
-        std::string out_msg;
-
-        // Handle drain request only if we're a master
-        if (ShouldBroadCast()) {
-          if (drain_tx > 0) {
-            if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-              eos_static_err("%s", out_msg.c_str());
-              return false;
-            }
-          } else {
-            if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-              eos_static_err("%s", out_msg.c_str());
-            }
-          }
-        }
-      }
-    } else {
-      eos_static_info("fsid=%d, distributed drain type", GetId());
-
-      if ((old_status == kDrainDead) || (old_status == kDrain)) {
-        // Stop draining
-        XrdSysMutexHelper scop_lock(mDrainJobMutex);
-
-        if (mDrainJob) {
-          delete mDrainJob;
-          mDrainJob = 0;
-          SetDrainStatus(eos::common::FileSystem::kNoDrain);
-        }
-      }
-
-      if ((new_status == kDrain) || (new_status == kDrainDead)) {
-        // Create a drain job
-        XrdSysMutexHelper scope_lock(mDrainJobMutex);
-
-        // Check if there is still a drain job
-        if (mDrainJob) {
-          delete mDrainJob;
-          mDrainJob = 0;
-        }
-
-        if (ShouldBroadCast()) {
-          mDrainJob = new DrainJob(GetId());
-        } else {
-          // this is a filesystem on a ro-slave MGM e.g. it does not drain
+      if (drain_tx > 0) {
+        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+          eos_static_err("%s", out_msg.c_str());
+          return false;
         }
       } else {
-        if (new_status == kEmpty) {
-          SetDrainStatus(eos::common::FileSystem::kDrained);
-          SetLongLong("stat.drainprogress", 100);
-        } else {
-          SetDrainStatus(eos::common::FileSystem::kNoDrain);
+        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+          eos_static_err("%s", out_msg.c_str());
         }
+      }
+    }
+  } else {
+    eos_static_info("fsid=%d, distributed drain type", GetId());
+
+    if ((old_status == kDrainDead) || (old_status == kDrain)) {
+      // Stop draining
+      XrdSysMutexHelper scop_lock(mDrainJobMutex);
+
+      if (mDrainJob) {
+        delete mDrainJob;
+        mDrainJob = 0;
+        SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      }
+    }
+
+    if ((new_status == kDrain) || (new_status == kDrainDead)) {
+      // Create a drain job
+      XrdSysMutexHelper scope_lock(mDrainJobMutex);
+
+      // Check if there is still a drain job
+      if (mDrainJob) {
+        delete mDrainJob;
+        mDrainJob = 0;
+      }
+
+      if (ShouldBroadCast()) {
+        mDrainJob = new DrainJob(GetId());
+      } else {
+        // this is a filesystem on a ro-slave MGM e.g. it does not drain
+      }
+    } else {
+      if (new_status == kEmpty) {
+        SetDrainStatus(eos::common::FileSystem::kDrained);
+        SetLongLong("stat.drainprogress", 100);
+      } else {
+        SetDrainStatus(eos::common::FileSystem::kNoDrain);
       }
     }
   }
@@ -180,8 +174,7 @@ FileSystem::SetString(const char* key, const char* str, bool broadcast)
 // Check if this is a drain transition i.e. enables or disabled draining
 //------------------------------------------------------------------------------
 int
-FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t
-                              old,
+FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t old,
                               const eos::common::FileSystem::fsstatus_t status)
 {
   using eos::common::FileSystem;

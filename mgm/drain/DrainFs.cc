@@ -50,7 +50,7 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool,
   mLastNumToDrain(0ull), mLastNumFailed(0ull),
   mLastRefreshTime(steady_clock::now()),
   mLastProgressTime(steady_clock::now()),
-  mLastUpdateTime(steady_clock::now())
+  mLastUpdateTime(steady_clock::now()), mSpace()
 {}
 
 //------------------------------------------------------------------------------
@@ -71,14 +71,18 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
   if (FsView::gFsView.mSpaceView.count(space_name)) {
     auto space = FsView::gFsView.mSpaceView[space_name];
 
-    if (space->GetConfigMember("drainer.retries") != "") {
-      mMaxRetries.store(std::stoul(space->GetConfigMember("drainer.retries")));
-      eos_debug("msg=\"drain retries=%u\"", mMaxRetries.load());
-    }
+    if (space) {
+      if (space->GetConfigMember("drainer.retries") != "") {
+        mMaxRetries.store(std::stoul(space->GetConfigMember("drainer.retries")));
+        eos_debug("msg=\"drain retries=%u\"", mMaxRetries.load());
+      }
 
-    if (space->GetConfigMember("drainer.fs.ntx") != "") {
-      mMaxJobs.store(std::stoul(space->GetConfigMember("drainer.fs.ntx")));
-      eos_debug("msg=\"per fs max parallel jobs=%u\"", mMaxJobs.load());
+      if (space->GetConfigMember("drainer.fs.ntx") != "") {
+        mMaxJobs.store(std::stoul(space->GetConfigMember("drainer.fs.ntx")));
+        eos_debug("msg=\"per fs max parallel jobs=%u\"", mMaxJobs.load());
+      }
+    } else {
+      eos_warning("msg=\"space %s not yet initialized\"", space_name.c_str());
     }
   }
 }
@@ -257,7 +261,7 @@ DrainFs::PrepareFs()
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     fs->SnapShotFileSystem(drain_snapshot, false);
-    GetSpaceConfiguration(drain_snapshot.mSpace);
+    mSpace = drain_snapshot.mSpace;
   }
   mDrainStart = steady_clock::now();
   mDrainEnd = mDrainStart + mDrainPeriod;
@@ -340,6 +344,7 @@ DrainFs::MarkFsDraining()
   fs->SetLongLong("stat.drainfiles", mTotalFiles, false);
   fs->SetLongLong("stat.drain.failed", 0, false);
   FsView::gFsView.StoreFsConfig(fs);
+  GetSpaceConfiguration(mSpace);
   return true;
 }
 

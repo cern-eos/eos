@@ -207,6 +207,7 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
   //! Last timestamp when drain status was updated
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdateTime;
+  std::string mSpace; ///< Space name to which fs is attached
 };
 
 EOSMGMNAMESPACE_END

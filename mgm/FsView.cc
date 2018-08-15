@@ -4108,21 +4108,4 @@ FsSpace::ResetDraining()
   }
 }
 
-//------------------------------------------------------------------------------
-// Reapply the configstatus for file systems to trigger eventually the
-// draining - for the central draining case
-//------------------------------------------------------------------------------
-void
-FsView::ReapplyConfigStatus()
-{
-  eos_info("reapplying config status");
-  eos::common::RWMutexReadLock view_rd_lock(ViewMutex);
-
-  for (auto it = mIdView.cbegin(); it != mIdView.cend(); ++it) {
-    auto fs = it->second;
-    auto cfg_status = fs->GetConfigStatus();
-    fs->SetConfigStatus(cfg_status);
-  }
-}
-
 EOSMGMNAMESPACE_END

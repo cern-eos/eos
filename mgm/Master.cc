@@ -52,8 +52,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Master::Master():
-  fActivated(false)
+Master::Master()
 {
   fRemoteMasterOk = true;
   fRemoteMqOk = true;
@@ -972,12 +971,6 @@ Master::PrintOut(XrdOucString& out)
   out += " config=";
   out += gOFS->MgmConfigAutoLoad.c_str();
 
-  if (fActivated.load()) {
-    out += " active=true";
-  } else {
-    out += " active=false";
-  }
-
   if (fThisHost != fRemoteHost) {
     // print only if we have a master slave configuration
     if (fRemoteMasterOk) {
@@ -1040,8 +1033,6 @@ Master::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
 bool
 Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
 {
-  fActivated.store(false);
-
   // Change the configuration directory
   if (fMasterHost == fThisHost) {
     gOFS->MgmConfigDir.replace(fRemoteHost, fThisHost);
@@ -1113,14 +1104,6 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
     if (!Slave2Master()) {
       return false;
     }
-  }
-
-  fActivated.store(true);
-
-  // Reapply the fs configstatus to start eventually the draining given the
-  // space config
-  if (transitiontype == Transition::Type::kMasterToMaster) {
-    FsView::gFsView.ReapplyConfigStatus();
   }
 
   return true;

@@ -1097,12 +1097,6 @@ public:
   //----------------------------------------------------------------------------
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
 
-  //----------------------------------------------------------------------------
-  //! Reapply the status of the file system to trigger eventually the draining
-  //! - this is needed for the central draining
-  //----------------------------------------------------------------------------
-  void ReapplyConfigStatus();
-
 private:
   pthread_t hbthread; ///< Thread ID of the heartbeat thread
   bool mIsHeartbeatOn; ///< True if heartbeat thread is running
