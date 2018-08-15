@@ -125,12 +125,15 @@ public:
 
   //----------------------------------------------------------------------------
   //! Configure Online Compating Type for files and/or directories
+  //!
+  //! @param f mark file compacting
+  //! @param d mark directory compacting
+  //! @param r mark repair operation (not used)
   //----------------------------------------------------------------------------
-  void  SetCompactingType(bool f, bool d, bool r)
+  void SetCompactingType(bool f, bool d, bool r)
   {
     fCompactFiles = f;
     fCompactDirectories = d;
-    fAutoRepair = r;
   }
 
   //----------------------------------------------------------------------------
@@ -303,8 +306,6 @@ private:
   fFileNamespaceInode; ///< inode number of the file namespace file
   unsigned long long
   fDirNamespaceInode; ///< inode number of the dir  namespace file
-  // TODO: this variable is not used - could be removed
-  bool fAutoRepair; ///< enable auto-repair to skip over broken records during compaction
   bool fHasSystemd; ///< machine has systemd (as opposed to sysv init)
 
   //----------------------------------------------------------------------------
@@ -436,7 +437,6 @@ private:
   //----------------------------------------------------------------------------
   void BlockCompacting();
   void UnBlockCompacting();
-
 
   //----------------------------------------------------------------------------
   //! Wait for a compacting round to finish

@@ -75,7 +75,6 @@ Master::Master():
   f2MasterTransitionTime = time(nullptr) - 3600; // start without service delays
   fHasSystemd = false;
   fDirCompactingRatio = 0.0;
-  fAutoRepair = false;
 }
 
 //------------------------------------------------------------------------------
