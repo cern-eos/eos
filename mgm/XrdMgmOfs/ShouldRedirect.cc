@@ -39,7 +39,7 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
 
   if ((vid.host == "localhost") || (vid.host == "localhost.localdomain") ||
       (vid.uid == 0)) {
-    if (MgmMaster.IsMaster() || (IS_ACCESSMODE_R)) {
+    if (mMaster->IsMaster() || (IS_ACCESSMODE_R)) {
       // the slave is redirected to the master for everything which sort of 'writes'
       return false;
     }

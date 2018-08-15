@@ -59,8 +59,9 @@ FileCfgEngineChangelog::FileCfgEngineChangelog(const char* chlog_fn):
 // Add entry to the changelog
 //------------------------------------------------------------------------------
 void
-FileCfgEngineChangelog::AddEntry(const std::string &action, const std::string &key,
-  const std::string &value)
+FileCfgEngineChangelog::AddEntry(const std::string& action,
+                                 const std::string& key,
+                                 const std::string& value)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mMap.set(key, value, action);
@@ -287,7 +288,6 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   bool force = (bool)env.Get("mgm.config.force");
   bool autosave = (bool)env.Get("mgm.config.autosave");
   const char* comment = env.Get("mgm.config.comment");
-
   eos_debug("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
@@ -412,7 +412,8 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   }
 
   changeLogValue << " successfully";
-  if(comment) {
+
+  if (comment) {
     changeLogValue << "[" << comment << "]";
   }
 
@@ -570,7 +571,8 @@ bool
 FileConfigEngine::AutoSave()
 {
   std::lock_guard<std::mutex> lock(sMutex);
-  if (gOFS->MgmMaster.IsMaster() && mAutosave && mConfigFile.length()) {
+
+  if (gOFS->mMaster->IsMaster() && mAutosave && mConfigFile.length()) {
     int aspos = 0;
 
     if ((aspos = mConfigFile.find(".autosave")) != STR_NPOS) {
@@ -606,7 +608,6 @@ void
 FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                  const char* val, bool tochangelog)
 {
-
   if (tochangelog) {
     mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
@@ -619,7 +620,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     sConfigDefinitions.Rep(configname.c_str(), sdef);
   }
 
-  if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
+  if (mBroadcast && gOFS->mMaster->IsMaster()) {
     // Make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
@@ -646,7 +647,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 {
   XrdOucString configname = formFullKey(prefix, key).c_str();
 
-  if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
+  if (mBroadcast && gOFS->mMaster->IsMaster()) {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);

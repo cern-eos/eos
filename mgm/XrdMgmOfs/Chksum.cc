@@ -137,9 +137,9 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
 
   if (enonet) {
     // this file has no committed replicas, we might bounce to an alive remote master
-    if (!gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk()) {
+    if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
       // redirect ENONET to an alive remote master
-      error.setErrInfo(1094, gOFS->MgmMaster.GetMasterHost());
+      error.setErrInfo(1094, gOFS->mMaster->GetMasterHost());
       gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
       return SFS_REDIRECT;
     }

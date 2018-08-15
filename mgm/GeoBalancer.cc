@@ -634,7 +634,7 @@ GeoBalancer::GeoBalance()
       mThreshold /= 100.0;
       FsView::gFsView.ViewMutex.UnLockRead();
     }
-    isMaster = gOFS->MgmMaster.IsMaster();
+    isMaster = gOFS->mMaster->IsMaster();
 
     if (isMaster && isSpaceGeoBalancer) {
       eos_static_info("geobalancer is enabled ntx=%d ", nrTransfers);

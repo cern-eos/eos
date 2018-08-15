@@ -1514,9 +1514,9 @@ XrdMgmOfsFile::open(const char* inpath,
         return rcode;
       }
 
-      if (!gOFS->MgmMaster.IsMaster() && gOFS->MgmMaster.IsRemoteMasterOk()) {
+      if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
         // redirect ENONET to an alive remote master
-        redirectionhost = gOFS->MgmMaster.GetMasterHost();
+        redirectionhost = gOFS->mMaster->GetMasterHost();
         ecode = 1094;
         rcode = SFS_REDIRECT;
         error.setErrInfo(ecode, redirectionhost.c_str());

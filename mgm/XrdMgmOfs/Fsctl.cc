@@ -372,8 +372,13 @@ XrdMgmOfs::FSctl(const int cmd,
     if (execmd == "mastersignalbounce") {
       // a remote master signaled us to bounce everything to him
       REQUIRE_SSS_OR_LOCAL_AUTH;
-      gOFS->MgmMaster.TagNamespaceInodes();
-      gOFS->MgmMaster.RedirectToRemoteMaster();
+      eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+      if (master) {
+        master->TagNamespaceInodes();
+        master->RedirectToRemoteMaster();
+      }
+
       const char* ok = "OK";
       error.setErrInfo(strlen(ok) + 1, ok);
       return SFS_DATA;
@@ -397,8 +402,13 @@ XrdMgmOfs::FSctl(const int cmd,
         compact_directories = true;
       }
 
-      gOFS->MgmMaster.WaitNamespaceFilesInSync(compact_files, compact_directories);
-      gOFS->MgmMaster.RebootSlaveNamespace();
+      eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+      if (master) {
+        master->WaitNamespaceFilesInSync(compact_files, compact_directories);
+        master->RebootSlaveNamespace();
+      }
+
       const char* ok = "OK";
       error.setErrInfo(strlen(ok) + 1, ok);
       return SFS_DATA;

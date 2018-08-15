@@ -283,7 +283,7 @@ retry:
   }
   XrdSysThread::SetCancelOn();
   // now we wait 60 seconds or the service delay time indicated by Master
-  size_t kLoop = gOFS->MgmMaster.GetServiceDelay();
+  size_t kLoop = gOFS->mMaster->GetServiceDelay();
 
   if (!kLoop) {
     kLoop = 60;

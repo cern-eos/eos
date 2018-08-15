@@ -108,12 +108,12 @@ Balancer::Balance(void)
       IsSpaceBalancing = false;
     }
 
-    if (gOFS->MgmMaster.GetServiceDelay()) {
+    if (gOFS->mMaster->GetServiceDelay()) {
       eos_static_debug("msg=\"force balancing off due to slave-master transition\"");
       IsSpaceBalancing = false;
     }
 
-    IsMaster = gOFS->MgmMaster.IsMaster();
+    IsMaster = gOFS->mMaster->IsMaster();
     SpaceNodeThreshold = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
                          GetConfigMember("balancer.threshold");
     SpaceDifferenceThreshold = strtod(SpaceNodeThreshold.c_str(), 0);

@@ -287,8 +287,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   }
 
   XrdOucString compact_status = "", master_status = "";
-  gOFS->MgmMaster.PrintOutCompacting(compact_status);
-  gOFS->MgmMaster.PrintOut(master_status);
+  eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+  if (master) {
+    master->PrintOutCompacting(compact_status);
+    master->PrintOut(master_status);
+  }
 
   if (stat.monitor()) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
@@ -323,7 +327,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
-	<< "uid=all gid=all ns.fds.all=" << fds.all << std::endl
+        << "uid=all gid=all ns.fds.all=" << fds.all << std::endl
         << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
         std::endl
         << "uid=all gid=all ns.fusex.clients=" <<
@@ -359,7 +363,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      Replication                      "
         << master_status.c_str() << std::endl;
 
-    if (!gOFS->MgmMaster.IsMaster()) {
+    if (!gOFS->mMaster->IsMaster()) {
       oss << "ALL      Namespace Latency Files          " << latencyf << std::endl
           << "ALL      Namespace Latency Directories    " << latencyd << std::endl
           << "ALL      Namespace Pending Updates        " << latencyp << std::endl;
@@ -433,7 +437,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     oss << "ALL      threads                          " <<  pstat.threads
         << std::endl
         << "ALL      fds                              " << fds.all
-	<< std::endl
+        << std::endl
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->StartTime) << std::endl
         << line << std::endl;
@@ -460,38 +464,53 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
 
   if (master.op() == NsProto_MasterProto::DISABLE) {
     // Disable the master heart beat thread to do remote checks
-    if (!gOFS->MgmMaster.DisableRemoteCheck()) {
-      reply.set_std_err("warning: master heartbeat was already disabled!");
-      reply.set_retc(EINVAL);
-      retc = EINVAL;
+    eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+    if (master) {
+      if (!master->DisableRemoteCheck()) {
+        reply.set_std_err("warning: master heartbeat was already disabled!");
+        reply.set_retc(EINVAL);
+        retc = EINVAL;
+      } else {
+        reply.set_std_out("success: disabled master heartbeat check");
+      }
     } else {
-      reply.set_std_out("success: disabled master heartbeat check\n");
+      reply.set_std_err("error: operation supported by master object");
+      reply.set_retc(ENOTSUP);
+      retc = ENOTSUP;
     }
   } else if (master.op() == NsProto_MasterProto::ENABLE) {
     // Enable the master heart beat thread to do remote checks
-    if (!gOFS->MgmMaster.EnableRemoteCheck()) {
-      reply.set_std_err("warning: master heartbeat was already enabled!");
-      reply.set_retc(EINVAL);
+    eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+    if (master) {
+      if (!master->EnableRemoteCheck()) {
+        reply.set_std_err("warning: master heartbeat was already enabled!");
+        reply.set_retc(EINVAL);
+      } else {
+        reply.set_std_out("success: enabled master heartbeat check");
+      }
     } else {
-      reply.set_std_out("success: enabled master heartbeat check");
+      reply.set_std_err("error: operation supported by master object");
+      reply.set_retc(ENOTSUP);
+      retc = ENOTSUP;
     }
   } else if (master.op() == NsProto_MasterProto::LOG) {
-    XrdOucString out;
-    gOFS->MgmMaster.GetLog(out);
+    std::string out;
+    gOFS->mMaster->GetLog(out);
     reply.set_std_out(out.c_str());
   } else if (master.op() == NsProto_MasterProto::LOG_CLEAR) {
-    gOFS->MgmMaster.ResetLog();
+    gOFS->mMaster->ResetLog();
     reply.set_std_out("success: cleaned the master log");
   } else if (master.host().length()) {
-    XrdOucString out, err;
-    XrdOucString ouc_master(master.host().c_str());
+    std::string out, err;
 
-    if (!gOFS->MgmMaster.Set(ouc_master, out, err)) {
+    if (!gOFS->mMaster->Set(master.host(), out, err)) {
       reply.set_std_err(err.c_str());
       reply.set_retc(EIO);
     } else {
       out += "success: <";
-      out += gOFS->MgmMaster.GetMasterHost();
+      out += gOFS->mMaster->GetMasterHost();
       out += "> is now the master\n";
       reply.set_std_out(out.c_str());
     }
@@ -506,24 +525,32 @@ NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
                      eos::console::ReplyProto& reply)
 {
   using eos::console::NsProto_CompactProto;
+  eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+
+  if (master == nullptr) {
+    reply.set_std_err("error: operation supported by master object");
+    reply.set_retc(ENOTSUP);
+    retc = ENOTSUP;
+    return;
+  }
 
   if (mVid.uid == 0) {
     if (compact.on()) {
-      gOFS->MgmMaster.ScheduleOnlineCompacting((time(NULL) + compact.delay()),
-          compact.interval());
+      master->ScheduleOnlineCompacting((time(NULL) + compact.delay()),
+                                       compact.interval());
 
       if (compact.type() == NsProto_CompactProto::FILES) {
-        gOFS->MgmMaster.SetCompactingType(true, false, false);
+        master->SetCompactingType(true, false, false);
       } else if (compact.type() == NsProto_CompactProto::DIRS) {
-        gOFS->MgmMaster.SetCompactingType(false, true, false);
+        master->SetCompactingType(false, true, false);
       } else if (compact.type() == NsProto_CompactProto::ALL) {
-        gOFS->MgmMaster.SetCompactingType(true, true, false);
+        master->SetCompactingType(true, true, false);
       } else if (compact.type() == NsProto_CompactProto::FILES_REPAIR) {
-        gOFS->MgmMaster.SetCompactingType(true, false, true);
+        master->SetCompactingType(true, false, true);
       } else if (compact.type() == NsProto_CompactProto::DIRS_REPAIR) {
-        gOFS->MgmMaster.SetCompactingType(false, true, true);
+        master->SetCompactingType(false, true, true);
       } else if (compact.type() == NsProto_CompactProto::ALL_REPAIR) {
-        gOFS->MgmMaster.SetCompactingType(true, true, true);
+        master->SetCompactingType(true, true, true);
       }
 
       std::ostringstream oss;
@@ -540,7 +567,7 @@ NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
 
       reply.set_std_out(oss.str());
     } else {
-      gOFS->MgmMaster.ScheduleOnlineCompacting(0, 0);
+      master->ScheduleOnlineCompacting(0, 0);
       reply.set_std_out("success: disabled online compacting\n");
     }
   } else {
@@ -561,8 +588,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 
   try {
     cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
-  }
-  catch(const eos::MDException& e) {
+  } catch (const eos::MDException& e) {
     reply.set_std_err(SSTR(e.what()));
     reply.set_retc(e.getErrno());
     return;
@@ -596,10 +622,13 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 // Filtering class for NamespaceExplorer to ignore sub-quotanodes when
 // recomputing a quotanode.
 //------------------------------------------------------------------------------
-class QuotaNodeFilter : public ExpansionDecider {
+class QuotaNodeFilter : public ExpansionDecider
+{
 public:
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &proto) override {
-    if( (proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto)
+  override
+  {
+    if ((proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
       return true; // not a quota node, continue
     }
 
@@ -612,26 +641,25 @@ public:
 //------------------------------------------------------------------------------
 void
 NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
-                      eos::console::ReplyProto& reply)
+                       eos::console::ReplyProto& reply)
 {
   std::shared_ptr<IContainerMD> cont;
 
   try {
     cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
-  }
-  catch(const eos::MDException& e) {
+  } catch (const eos::MDException& e) {
     reply.set_std_err(SSTR(e.what()));
     reply.set_retc(e.getErrno());
     return;
   }
 
-  if( (cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+  if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
     reply.set_std_err("Specified directory is not a quota node.");
     reply.set_retc(EINVAL);
     return;
   }
 
-  if(gOFS->eosView->inMemory()) {
+  if (gOFS->eosView->inMemory()) {
     reply.set_std_err("Command only available for QDB namespace.");
     reply.set_retc(EINVAL);
     return;
@@ -640,22 +668,20 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   ExplorationOptions options;
   options.depthLimit = 2048;
   options.expansionDecider.reset(new QuotaNodeFilter());
-
   NamespaceExplorer explorer(gOFS->eosView->getUri(cont.get()),
-    options,
-    *eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation")
-  );
-
+                             options,
+                             *eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
+                                 "quota-recomputation")
+                            );
   NamespaceItem item;
   QuotaNodeCore qnc;
-  while(explorer.fetch(item)) {
 
-    if(item.isFile) {
+  while (explorer.fetch(item)) {
+    if (item.isFile) {
       // Calculate physical size
       uint64_t logicalSize = item.fileMd.size();
       uint64_t physicalSize = item.fileMd.size() *
-        eos::common::LayoutId::GetSizeFactor(item.fileMd.layout_id());
-
+                              eos::common::LayoutId::GetSizeFactor(item.fileMd.layout_id());
       // Account file.
       qnc.addFile(
         item.fileMd.uid(),
@@ -670,8 +696,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
     eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
     quotaNode->replaceCore(qnc);
-  }
-  catch(const eos::MDException& e) {
+  } catch (const eos::MDException& e) {
     reply.set_std_err(SSTR(e.what()));
     reply.set_retc(e.getErrno());
     return;

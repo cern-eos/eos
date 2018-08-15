@@ -664,7 +664,7 @@ GroupBalancer::GroupBalance()
       mThreshold /= 100.0;
       FsView::gFsView.ViewMutex.UnLockRead();
     }
-    isMaster = gOFS->MgmMaster.IsMaster();
+    isMaster = gOFS->mMaster->IsMaster();
 
     if (isMaster && isSpaceGroupBalancer) {
       eos_static_info("groupbalancer is enabled ntx=%d ", nrTransfers);

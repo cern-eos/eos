@@ -195,7 +195,7 @@ Fsck::Check(void)
     bool IsMaster = false;
 
     while (!IsMaster) {
-      IsMaster = gOFS->MgmMaster.IsMaster();
+      IsMaster = gOFS->mMaster->IsMaster();
 
       if (!IsMaster) {
         XrdSysThread::SetCancelOn();

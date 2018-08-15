@@ -275,7 +275,7 @@ VstMessaging::PublishVst()
   mVstMessage += ",version=";
   mVstMessage += VERSION;
 
-  if (gOFS->MgmMaster.IsMaster()) {
+  if (gOFS->mMaster->IsMaster()) {
     mVstMessage += ",mode=master";
   } else {
     mVstMessage += ",mode=slave";
@@ -378,7 +378,7 @@ VstMessaging::PublishVst()
     mymap["version"] = VERSION;
     mymap["uptime"] = uptime.c_str();
 
-    if (gOFS->MgmMaster.IsMaster()) {
+    if (gOFS->mMaster->IsMaster()) {
       mymap["mode"] = "master";
     } else {
       mymap["mode"] = "slave";

@@ -1012,7 +1012,7 @@ Master::PrintOut(XrdOucString& out)
 // Apply master configuration
 //------------------------------------------------------------------------------
 bool
-Master::ApplyMasterConfig(XrdOucString& stdOut, XrdOucString& stdErr,
+Master::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
                           Transition::Type transitiontype)
 {
   if (fThisHost == fMasterHost) {
@@ -1038,7 +1038,7 @@ Master::ApplyMasterConfig(XrdOucString& stdOut, XrdOucString& stdErr,
 // Activate
 //------------------------------------------------------------------------------
 bool
-Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
+Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
 {
   fActivated.store(false);
 
@@ -1048,13 +1048,13 @@ Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
     stdOut += "configdir=";
     stdOut += gOFS->MgmConfigDir.c_str();
     stdOut += " activating master=";
-    stdOut += fThisHost;
+    stdOut += fThisHost.c_str();
   } else {
     gOFS->MgmConfigDir.replace(fThisHost, fRemoteHost);
     stdOut += "configdir=";
     stdOut += gOFS->MgmConfigDir.c_str();
     stdOut += " activating master=";
-    stdOut += fRemoteHost;
+    stdOut += fRemoteHost.c_str();
   }
 
   MasterLog(eos_static_notice(stdOut.c_str()));
@@ -1130,8 +1130,8 @@ Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
 // Set transition for instance
 //------------------------------------------------------------------------------
 bool
-Master::Set(XrdOucString& mastername, XrdOucString& stdOut,
-            XrdOucString& stdErr)
+Master::Set(const std::string& mastername, std::string& stdOut,
+            std::string& stdErr)
 {
   Transition::Type transitiontype = Transition::Type::kMasterToMaster;
 
@@ -1151,7 +1151,7 @@ Master::Set(XrdOucString& mastername, XrdOucString& stdOut,
   }
 
   if ((fMasterHost == fThisHost)) {
-    if ((mastername != fThisHost)) {
+    if ((mastername != fThisHost.c_str())) {
       if (fRunningState == Run::State::kIsRunningMaster) {
         transitiontype = Transition::Type::kMasterToMasterRO;
       } else {
@@ -1182,11 +1182,11 @@ Master::Set(XrdOucString& mastername, XrdOucString& stdOut,
     }
   }
 
-  if (mastername == fThisHost) {
+  if (mastername == fThisHost.c_str()) {
     // Check if the remote machine is running as the master
     if (fRemoteMasterRW) {
       stdErr += "error: the remote machine <";
-      stdErr += fRemoteHost;
+      stdErr += fRemoteHost.c_str();
       stdErr += "> is still running as a RW master\n";
       return false;
     }
@@ -1198,7 +1198,7 @@ Master::Set(XrdOucString& mastername, XrdOucString& stdOut,
   }
 
   XrdOucString lOldMaster = fMasterHost;
-  fMasterHost = mastername;
+  fMasterHost = mastername.c_str();
   bool arc = ApplyMasterConfig(stdOut, stdErr, transitiontype);
 
   // Set back to the previous master
@@ -1942,7 +1942,7 @@ Master::BootNamespace()
     gOFS->eosView->initialize1();
     time_t tstop = time(nullptr);
     // Add boot errors to the master log
-    XrdOucString out;
+    std::string out;
     GetLog(out);
     gOFS->BootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
@@ -1960,7 +1960,7 @@ Master::BootNamespace()
   } catch (eos::MDException& e) {
     time_t tstop = time(nullptr);
     // Add boot errors to the master log
-    XrdOucString out;
+    std::string out;
     GetLog(out);
     MasterLog(eos_crit("eos view initialization failed after %d seconds",
                        (tstop - tstart)));
@@ -2387,7 +2387,7 @@ Master::StartSlaveFollower(std::string&& log_file)
 void
 Master::ShutdownSlaveFollower()
 {
-  if (!gOFS->MgmMaster.IsMaster()) {
+  if (!gOFS->mMaster->IsMaster()) {
     // Stop the follower thread ...
     if (gOFS->eosFileService) {
       auto* eos_chlog_filesvc =
@@ -2413,7 +2413,7 @@ Master::ShutdownSlaveFollower()
 // Post the namespace record errors to the master changelog
 //------------------------------------------------------------------------------
 void
-Master::GetLog(XrdOucString& stdOut)
+Master::GetLog(std::string& stdOut)
 {
   auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
@@ -2437,7 +2437,7 @@ Master::GetLog(XrdOucString& stdOut)
     eos_chlog_dirsvc->clearWarningMessages();
   }
 
-  stdOut = fMasterLog;
+  stdOut = fMasterLog.c_str();
 }
 
 EOSMGMNAMESPACE_END

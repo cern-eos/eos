@@ -149,7 +149,7 @@ XrdMgmOfs::_stat(const char* path,
 
   // Stat on the master proc entry succeeds only if this MGM is in RW master mode
   if (cPath.GetFullPath() == gOFS->MgmProcMasterPath) {
-    if (!gOFS->MgmMaster.IsMaster()) {
+    if (!gOFS->mMaster->IsMaster()) {
       return Emsg(epname, error, ENODEV, "stat", cPath.GetPath());
     }
   }

@@ -139,7 +139,7 @@ LRU::LRUr()
     }
 
     // only a master needs to run LRU
-    if (gOFS->MgmMaster.IsMaster() && IsEnabledLRU) {
+    if (gOFS->mMaster->IsMaster() && IsEnabledLRU) {
       // -------------------------------------------------------------------------
       // do a slow find
       // -------------------------------------------------------------------------

@@ -25,31 +25,20 @@
 #define __EOSMGM_MASTER__HH__
 
 #include <sys/stat.h>
-#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
+#include "mgm/IMaster.hh"
 #include "namespace/utils/Locking.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include <atomic>
 
 EOSMGMNAMESPACE_BEGIN
 
-class Master : public eos::common::LogId
+//------------------------------------------------------------------------------
+//! Class Master of the in-memory namespace
+//------------------------------------------------------------------------------
+class Master : public eos::mgm::IMaster
 {
 public:
-
-  //----------------------------------------------------------------------------
-  //! Transition types
-  //----------------------------------------------------------------------------
-  struct Transition {
-    enum Type {
-      kMasterToMaster               = 0,
-      kSlaveToMaster                = 1,
-      kMasterToMasterRO             = 2,
-      kMasterROToSlave              = 3,
-      kSecondarySlaveMasterFailover = 4
-    };
-  };
-
   //----------------------------------------------------------------------------
   //! Running states
   //----------------------------------------------------------------------------
@@ -88,24 +77,78 @@ public:
   //----------------------------------------------------------------------------
   //! Init method to determine the current master/slave state
   //----------------------------------------------------------------------------
-  bool Init();
+  bool Init() override;
 
   //----------------------------------------------------------------------------
   //! Boot Namespace according to master slave configuration
   //----------------------------------------------------------------------------
-  bool BootNamespace();
+  bool BootNamespace() override;
 
   //----------------------------------------------------------------------------
-  //! Show the current compacting state
+  //! Check if we are the master host
   //----------------------------------------------------------------------------
-  void PrintOutCompacting(XrdOucString& out);
+  bool IsMaster() override
+  {
+    return (fThisHost == fMasterHost);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get if remove master is OK
+  //!
+  //! @return true if OK, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsRemoteMasterOk() override
+  {
+    return fRemoteMasterOk;
+  }
 
   //----------------------------------------------------------------------------
   //! Is master activated
   //----------------------------------------------------------------------------
-  inline bool IsActivated() const
+  inline bool IsActivated() const override
   {
     return fActivated.load();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return master host
+  //----------------------------------------------------------------------------
+  const char* GetMasterHost() override
+  {
+    return (fMasterHost.c_str()) ? fMasterHost.c_str() : "<none>";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set the new master host
+  //----------------------------------------------------------------------------
+  bool Set(const std::string& mastername, std::string& stdout,
+           std::string& stdErr) override;
+
+  //----------------------------------------------------------------------------
+  //! Reset master log
+  //----------------------------------------------------------------------------
+  void
+  ResetLog() override
+  {
+    fMasterLog = "";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get master Log
+  //----------------------------------------------------------------------------
+  void
+  GetLog(std::string& stdOut) override;
+
+  //----------------------------------------------------------------------------
+  //! Add to master Log
+  //----------------------------------------------------------------------------
+  void
+  MasterLog(const char* log) override
+  {
+    if (log && strlen(log)) {
+      fMasterLog += log;
+      fMasterLog += "\n";
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -122,6 +165,11 @@ public:
   //! Schedule onlinec ompacting
   //----------------------------------------------------------------------------
   bool ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval);
+
+  //----------------------------------------------------------------------------
+  //! Show the current compacting state
+  //----------------------------------------------------------------------------
+  void PrintOutCompacting(XrdOucString& out);
 
   //----------------------------------------------------------------------------
   //! Configure Online Compating Type for files and/or directories
@@ -151,44 +199,20 @@ public:
   //----------------------------------------------------------------------------
   //! Apply Configuration settings to the master class
   //----------------------------------------------------------------------------
-  bool ApplyMasterConfig(XrdOucString& stdOut,
-                         XrdOucString& stdErr,
+  bool ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
                          Transition::Type transitiontype);
 
   //----------------------------------------------------------------------------
   //! Activate the current master/slave settings = configure configuration
   //! directory and (re-)load the appropriate configuratio
   //----------------------------------------------------------------------------
-  bool Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype);
+  bool Activate(std::string& stdOut, std::string& stdErr, int transitiontype);
 
-  //----------------------------------------------------------------------------
-  //! Set the new master host
-  //----------------------------------------------------------------------------
-  bool Set(XrdOucString& mastername, XrdOucString& stdout,
-           XrdOucString& stdErr);
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
   //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& out);
-
-  //----------------------------------------------------------------------------
-  //! Return master host
-  //----------------------------------------------------------------------------
-  const char*
-  GetMasterHost()
-  {
-    return (fMasterHost.c_str()) ? fMasterHost.c_str() : "<none>";
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check if we are the master host
-  //----------------------------------------------------------------------------
-  bool
-  IsMaster()
-  {
-    return (fThisHost == fMasterHost);
-  }
 
   //----------------------------------------------------------------------------
   //! Return's a delay time for balancing & draining since after a transition
@@ -208,44 +232,6 @@ public:
     }
 
     return delay;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get if remove master is OK
-  //!
-  //! @return true if OK, otherwise false
-  //----------------------------------------------------------------------------
-  bool
-  IsRemoteMasterOk()
-  {
-    return fRemoteMasterOk;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Reset master log
-  //----------------------------------------------------------------------------
-  void
-  ResetLog()
-  {
-    fMasterLog = "";
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get master Log
-  //----------------------------------------------------------------------------
-  void
-  GetLog(XrdOucString& stdOut);
-
-  //----------------------------------------------------------------------------
-  //! Add to master Log
-  //----------------------------------------------------------------------------
-  void
-  MasterLog(const char* log)
-  {
-    if (log && strlen(log)) {
-      fMasterLog += log;
-      fMasterLog += "\n";
-    }
   }
 
   //----------------------------------------------------------------------------

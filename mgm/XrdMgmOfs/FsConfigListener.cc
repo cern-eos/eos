@@ -131,7 +131,7 @@ XrdMgmOfs::FsConfigListener()
 
         if (queue == MgmConfigQueue.c_str()) {
           // This is an MGM configuration modification
-          if (!gOFS->MgmMaster.IsMaster()) {
+          if (!gOFS->mMaster->IsMaster()) {
             // only an MGM slave needs to apply this
             gOFS->ObjectManager.HashMutex.LockRead();
             XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
@@ -303,7 +303,7 @@ XrdMgmOfs::FsConfigListener()
           }
         } else {
           // This is a filesystem status error
-          if (gOFS->MgmMaster.IsMaster()) {
+          if (gOFS->mMaster->IsMaster()) {
             // only an MGM master needs to initiate draining
             eos::common::FileSystem::fsid_t fsid = 0;
             long long errc = 0;

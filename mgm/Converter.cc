@@ -358,7 +358,7 @@ Converter::Convert(void)
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Reset old jobs pending from service restart/crash
-  if (gOFS->MgmMaster.IsMaster()) {
+  if (gOFS->mMaster->IsMaster()) {
     ResetJobs();
   }
 
@@ -399,7 +399,7 @@ Converter::Convert(void)
                              GetConfigMember("converter.ntx").c_str());
       FsView::gFsView.ViewMutex.UnLockRead();
     }
-    IsMaster = gOFS->MgmMaster.IsMaster();
+    IsMaster = gOFS->mMaster->IsMaster();
 
     if (IsMaster && IsSpaceConverter) {
       if (!lConversionFidMap.size()) {
