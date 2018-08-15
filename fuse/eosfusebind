@@ -93,8 +93,8 @@ function ParseArgs
   if [[ $# = 1   &&  (  $1 = "-s" || $1 = "--show-session" ) ]]; then REQLSSES=1; REQLS=1; return; fi
   if [[ $# = 1   &&  (  $1 = "-S" || $1 = "--show-user" ) ]]; then REQLSUSR=1; REQLS=1; return; fi
   if [[ $1 = "-g" || $1 = "--global" ]]; then REQGLOBBIND=1; shift; fi
-  if [[ $# > 1 ]]; then CREDTAG=$2; fi
-  if [[ $# > 0 ]]; then AUTHTYPE=$1; fi
+  if [[ $# -gt 1 ]]; then CREDTAG=$2; fi
+  if [[ $# -gt 0 ]]; then AUTHTYPE=$1; fi
 }
 
 function UpdateCredIsFile
@@ -134,7 +134,7 @@ function GetDefaultKrb5CredFile
 {
   # if there is more than one credential, cannot chose a 'default'
   klist -s
-  if [[ "$?"="1" ]] ; then
+  if [[ "$?" = "1" ]] ; then
     return; # there is not ticket to grab there
   fi
   NCRED=$(klist -l | tail -n +3 | wc -l)
@@ -398,7 +398,7 @@ function LinkUserGlob
     logger -s -t eosfusebind -p authpriv.err -- "Error renaming temporary credentials symlink."
   fi
   # cleanup the other credentials in the store as only one global credential is required at a time
-  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \; >/dev/null 2>&1
+  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{\} \; >/dev/null 2>&1
 }
 
 function UnlinkUserGlob
@@ -414,7 +414,7 @@ function UnlinkUserGlob
   #echo rm -f ${SymlinkBaseNameUser}.*
   rm -f ${SymlinkBaseNameUser}.*
   # cleanup the other credentials in the store as no credentials is needed if there is no user global
-  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{} \; >/dev/null 2>&1
+  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{\} \; >/dev/null 2>&1
 }
 
 function UnlinkUserSessions
