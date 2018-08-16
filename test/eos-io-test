@@ -44,7 +44,7 @@ fi
 #-------------------------------------------------------------------------------
 # Do sequential operations on each file in the source location by first writing
 # it to EOS, then reading it back and in the end verifying that the checksum of 
-# the inital file matches the one of the file read back from EOS.
+# the initial file matches the one of the file read back from EOS.
 #
 # @param $1 test directory in EOS, e.g. root://host//eos_dir (can be any layout)
 # @param $2 external directory containing the files to be used for the test 
@@ -100,7 +100,7 @@ function write_read_sequential()
 
 #-------------------------------------------------------------------------------
 # Do sparse IO operations on a file by first writing it to EOS, then reading
-# it back and in the end verifying that the checksum of the inital file matches
+# it back and in the end verifying that the checksum of the initial file matches
 # the one of the file read back from EOS. We use a special file which contains
 # the pattern used for reading and writing. e.g if the file is called file1.io
 # then we look of the pattern file file1.io.pattern
@@ -153,7 +153,7 @@ function write_read_pattern()
 
       test "$XSINIT" = "$XSCOPY" 
       if [[ $? -ne 0 ]]; then
-        echo "Wr pattern - checksum missmatch"
+        echo "Wr pattern - checksum mismatch"
         echo_failure
         exit 1
       fi
@@ -174,8 +174,8 @@ function write_read_pattern()
 #        files used by the eos-io-tool. The user needs to make sure that the 
 #        pattern files needed for the non-sequential operations are present in 
 #        in the same directory. If this is not the case, then the PATTERN test 
-#        is skipped. Only files ending in ".io" will be used for tesing. The 
-#        pattern files need to end in ".io.pattern" for each corresponing test
+#        is skipped. Only files ending in ".io" will be used for testing. The
+#        pattern files need to end in ".io.pattern" for each corresponding test
 #        file.
 #-------------------------------------------------------------------------------
 

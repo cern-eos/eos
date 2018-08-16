@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+#------------------------------------------------------------------------------
+# File: eos-extstorage-test
+# Author: Mihai Patrascoiu - CERN
+#------------------------------------------------------------------------------
+
+# *****************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2018 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# *****************************************************************************
+
+#------------------------------------------------------------------------------
+# Description: Script testing EOS filesystems operating with external storage.
+#              This script is intended to be used in the eos-docker setup,
+#              otherwise, the file paths will not work properly.
+#              It assumes at least 2 FSTs are available in the instance.
+#
+# Usage:
+# eos-extstorage-test <eos_mgm_hostname> [--verbose]
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then
+    echo "Usage: $0 <eos_mgm_hostname> [--verbose]"
+    exit 1
+fi
+
+VERBOSE=false
+if [[ $2 == "--verbose" ]]; then
+    VERBOSE=true
+fi
+
+#------------------------------------------------------------------------------
+# Utility functions
+#------------------------------------------------------------------------------
+
+print_test () {
+    echo ""
+    echo "-------------------------------------------------------------------------------"
+    echo "TEST #${1}: ${2}"
+    echo "      -- ${3}"
+    echo "-------------------------------------------------------------------------------"
+}
+
+wait_result () {
+    ${VERBOSE} && echo "Waiting ${3} seconds for ${4}"
+    sleep 2
+    COUNT=0
+
+    while [[ $(eval $1) -ne ${2} ]]; do
+        sleep 1
+        COUNT=$((COUNT + 1))
+        ${VERBOSE} && echo ${COUNT}
+        [[ ${COUNT} -eq ${3} ]] && echo "error: timeout during ${4}" && exit ${5}
+    done
+}
+
+#------------------------------------------------------------------------------
+# Configuration
+#------------------------------------------------------------------------------
+
+EOS_MGM_URL=$1
+
+# These variables are injected via Gitlab CI secrets
+#EOS_FST_S3_ACCESS_KEY
+#EOS_FST_S3_SECRET_KEY
+
+# The mount points for the file systems
+PATHS=( "/home/data/eos_lpath"
+        "s3://cs3.cern.ch/" )
+
+# Assign spaces to the different mount points
+SPACE=( "lpath_test" "s3_test" )
+
+#------------------------------------------------------------------------------
+# Preparation
+#------------------------------------------------------------------------------
+
+# Check preconditions
+NUMFSTS=$((`eos node ls | grep "online" | wc -l`))
+
+if [[ NUMFSTS -lt ${#PATHS[@]} ]]; then
+    echo "error: minimum ${#PATHS[@]} FSTs should be configured"
+    exit 1
+fi
+
+# Extract names of FST nodes
+FSTS=($(eos -b node ls -m | grep hostport | cut -d\  -f 2 | cut -d= -f 2))
+IDS=()
+
+# Register file systems
+${VERBOSE} && echo "Registering EOS file systems"
+
+for (( i=0; i < ${#PATHS[@]}; i++ )); do
+    UUID=`uuidgen`
+    LOCAL_DRIVE=false
+    [[ ${PATHS[$i]} == /* ]] && LOCAL_DRIVE=true
+
+    # Check if file system location is not mounted already
+    eos fs ls -m | grep ${FSTS[$i]%%:*} | grep ${PATHS[$i]} &> /dev/null
+    if [[ $? -ne 0 ]]; then
+        # Do local drive set up before adding file system
+        if ${LOCAL_DRIVE}; then
+            mkdir -p ${PATHS[$i]}
+            rm -f ${PATHS[$i]}/.eosfsid
+            echo "$UUID" > ${PATHS[$i]}/.eosfsuuid
+            chown daemon:daemon -R ${PATHS[$i]}
+        fi
+
+        eos -b fs add ${UUID} ${FSTS[$i]} ${PATHS[$i]} ${SPACE[$i]} rw
+        eos space set ${SPACE[$i]} on
+        ${LOCAL_DRIVE} && eos -b fs boot ${UUID} &> /dev/null
+    fi
+
+    IDS[$i]=$(eos -b fs ls -m | grep ${FSTS[$i]%%:*} | grep ${PATHS[$i]} | cut -d\  -f3 | cut -d= -f2)
+done
+
+# Wait for file systems to come online
+${VERBOSE} && echo "Waiting for file systems to come online"
+
+OFFLINE=false
+for count in `seq 1 30`; do
+    OFFLINE=false
+    for i in ${IDS[@]}; do
+        eos fs ls -m | grep id=${i} | grep online &> /dev/null
+        if [[ $? -ne 0 ]]; then
+            OFFLINE=true
+            break
+        fi
+    done
+
+    ! ${OFFLINE} && break
+    sleep 1
+done
+
+${OFFLINE} && echo "error: file systems not online" && exit 1
+
+# Prepare EOS file systems
+for (( i=0; i < ${#IDS[@]}; i++ )); do
+    eos -b fs config ${IDS[$i]} logicalpath=true
+    eos mkdir -p /eos/dockertest/${SPACE[$i]}
+    eos chmod -r 2777 /eos/dockertest/${SPACE[$i]} &> /dev/null
+    eos attr set "sys.forced.space=${SPACE[$i]}" /eos/dockertest/${SPACE[$i]}
+done
+
+eos mkdir -p /eos/dockertest/${SPACE[1]}/upload/
+eos mkdir -p /eos/dockertest/${SPACE[1]}/import/
+
+# Upload test files to external storage
+${VERBOSE} && echo "Uploading test files to S3 external storage: ${PATHS[1]}eos/${SPACE[1]}/extfiles/"
+TEST_FILE=/tmp/4kb.dat
+dd if=/dev/urandom of=${TEST_FILE} bs=1k count=4 &> /dev/null
+
+davix-mkdir --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+            --s3alternate --retry 1 ${PATHS[1]}eos
+
+for i in `seq 0 49`; do
+    davix-put --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+              --s3alternate --retry 1 ${TEST_FILE} ${PATHS[1]}eos/${SPACE[1]}/extfiles/${i}.dat &
+done
+
+QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ 2> /dev/null | wc -l"
+wait_result "${QUERY}" 50 10 "S3 upload" 1
+
+#------------------------------------------------------------------------------
+# Tests
+#------------------------------------------------------------------------------
+
+# TEST #1: upload operation
+#       -- upload 50 files to EOS S3 space using xrdcp
+
+${VERBOSE} && print_test 1 "upload operation" "upload 50 files to /eos/dockertest/${SPACE[1]}/upload using xrdcp"
+
+for i in `seq 0 49`; do
+    xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_URL}//eos/dockertest/${SPACE[1]}/upload/${i}.dat &
+done
+
+QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/ 2> /dev/null | grep -v .xattr | wc -l"
+wait_result "${QUERY}" 50 10 "EOS upload" 2
+
+EOS_RESULT=`eos -b ls -l /eos/dockertest/${SPACE[1]}/upload/ | wc -l`
+EXT_RESULT=`davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                     --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/ | grep -v .xattr | wc -l`
+${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT} EXT_RESULT=${EXT_RESULT}"
+
+if [[ ${EOS_RESULT} != ${EXT_RESULT} ]]; then
+    echo "Failed upload operation. Mismatch in number of files between EOS and S3 storage."
+    exit 2
+fi
+
+# TEST #2: import operation
+#       -- import files from S3 to EOS using 'fs import'
+
+${VERBOSE} && print_test 2 "import operation" "import files from S3 to /eos/dockertest/${SPACE[1]}/import using 'fs import'"
+
+eos fs import ${IDS[1]} ${PATHS[1]}eos/${SPACE[1]}/extfiles/ /eos/dockertest/${SPACE[1]}/import/ &> /dev/null
+
+QUERY="eos -b ls -l /eos/dockertest/${SPACE[1]}/import/ | wc -l"
+wait_result "${QUERY}" 50 10 "EOS import" 2
+
+EOS_RESULT=`eos -b ls -l /eos/dockertest/${SPACE[1]}/import/ | wc -l`
+${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT}"
+
+if [[ ${EOS_RESULT} -ne 50 ]]; then
+    echo "Failed import operation. Not all files have been imported."
+    exit 2
+fi
+
+# TEST #3: move operation
+#       -- move imported replicas from S3 to different file system
+
+${VERBOSE} && print_test 3 "move operation" "move imported replicas from S3 to '${SPACE[0]}' file system"
+
+for i in `seq 0 49`; do
+    eos -b file move /eos/dockertest/${SPACE[1]}/import/${i}.dat ${IDS[1]} ${IDS[0]} &> /dev/null
+done
+sleep 300
+
+EOS_RESULT=`ls ${PATHS[0]}/eos/dockertest/${SPACE[1]}/import/ | wc -l`
+${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT}"
+
+davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+         --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ &> /dev/null
+
+if [[ ${EOS_RESULT} -ne 50 ]] || [[ $? -eq 0 ]]; then
+    echo "Failed move operation. Not all replicas were successfully moved."
+    exit 2
+fi
+
+#------------------------------------------------------------------------------
+# Clean-up
+#------------------------------------------------------------------------------
+
+${VERBOSE} && echo "Cleaning up"
+
+# Remove files from S3 storage
+for i in `seq 0 49`; do
+    davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+             --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/${i}.dat &> /dev/null &
+done
+
+# Remove all EOS files and directories
+eos rm -rF /eos/dockertest/${SPACE[0]}/*
+eos rm -rF /eos/dockertest/${SPACE[1]}/upload/*
+eos rm -rF /eos/dockertest/${SPACE[1]}/import/*
+eos rmdir /eos/dockertest/${SPACE[0]}/
+eos rmdir /eos/dockertest/${SPACE[1]}/upload/
+eos rmdir /eos/dockertest/${SPACE[1]}/import/
+eos rmdir /eos/dockertest/${SPACE[1]}/
+
+exit 0

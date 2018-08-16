@@ -1,5 +1,5 @@
-#!/bin/bash
-#
+#!/usr/bin/env bash
+
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
 # Copyright (C) 2018 CERN/Switzerland
@@ -37,7 +37,7 @@ EOS_MGM_HOSTNAME=$1
 eos fs ls | grep "online" | wc -l | grep "7" &> /dev/null
 
 if [[ $? -ne 0 ]]; then
-      echo "error: not enough FSTs not configured"
+      echo "error: not enough FSTs configured"
       exit 1
 fi
 
