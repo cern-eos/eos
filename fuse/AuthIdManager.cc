@@ -31,15 +31,6 @@ const unsigned int AuthIdManager::proccachenbins = 32768;
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
-void*
-AuthIdManager::CleanupThread (void* arg)
-{
-  AuthIdManager* am = static_cast<AuthIdManager*> (arg);
-  am->CleanupLoop();
-  return static_cast<void*> (am);
-}
-;
-
 std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t conid)
 {
   eos_static_debug("uid=%lu gid=%lu pid=%lu", (unsigned long ) uid, (unsigned long ) gid, (unsigned long ) pid);

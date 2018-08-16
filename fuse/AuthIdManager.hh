@@ -31,10 +31,10 @@
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/ShardedCache.hh"
+#include "common/AssistedThread.hh"
 #include "ProcCache.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 #include <unistd.h>
@@ -171,7 +171,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   AuthIdManager():
-    connectionId(0), mCleanupThread()
+    connectionId(0)
   {
     uidCache = new ShardedCache<CredKey, uint64_t, CredKeyHasher>
     (16 /* 16 shard bits */, 1000 * 60 * 60 * 3 /* 3 hours */);
@@ -226,7 +226,7 @@ protected:
   ShardedCache<CredKey, uint64_t, CredKeyHasher>* uidCache = nullptr;
   static std::atomic<uint64_t> sConIdCount;
   std::set<pid_t> runningPids;
-  pthread_t mCleanupThread;
+  AssistedThread mCleanupThread;
 
   bool
   findCred(CredInfo& credinfo, struct stat& linkstat, struct stat& filestat,
@@ -487,13 +487,10 @@ protected:
     return 0;
   }
 
-  static void*
-  CleanupThread(void* arg);
-
-  void CleanupLoop()
+  void CleanupLoop(ThreadAssistant &assistant)
   {
-    while (true) {
-      std::this_thread::sleep_for(std::chrono::seconds(300));
+    while(!assistant.terminationRequested()) {
+      assistant.wait_for(std::chrono::seconds(300));
       cleanProcCache();
     }
   }
@@ -777,12 +774,7 @@ public:
   StartCleanupThread()
   {
     // Start worker thread
-    if ((XrdSysThread::Run(&mCleanupThread, AuthIdManager::CleanupThread,
-                           static_cast<void*>(this)))) {
-      eos_static_crit("can not start cleanup thread");
-      return false;
-    }
-
+    mCleanupThread.reset(&AuthIdManager::CleanupLoop, this);
     return true;
   }
 
