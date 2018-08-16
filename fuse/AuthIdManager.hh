@@ -225,7 +225,6 @@ protected:
 
   ShardedCache<CredKey, uint64_t, CredKeyHasher>* uidCache = nullptr;
   static std::atomic<uint64_t> sConIdCount;
-  std::set<pid_t> runningPids;
   AssistedThread mCleanupThread;
 
   bool
@@ -405,12 +404,7 @@ protected:
     return (sConIdCount++) + 1;
   }
 
-  inline void releaseConId(uint64_t conid)
-  {
-    //TODO: implement channel disconnection when implementend in XRootD
-  }
-
-  bool populatePids()
+  static bool populatePids(std::set<pid_t> &runningPids)
   {
     runningPids.clear();
     // when entering this function proccachemutexes[pid] must be write locked
@@ -440,11 +434,11 @@ protected:
     return true;
   }
 
-  void cleanProcCacheBin(unsigned int i, int& cleancountProcCache,
+  void cleanProcCacheBin(const std::set<pid_t> &runningPids, unsigned int i, int& cleancountProcCache,
                          int& cleancountStrongLogin, int& cleancountCredInfo)
   {
     eos::common::RWMutexWriteLock lock(proccachemutexes[i]);
-    cleancountProcCache += gProcCacheV[i].RemoveEntries(&runningPids);
+    cleancountProcCache += gProcCacheV[i].RemoveEntries(runningPids);
 
     for (auto it = pid2StrongLogin[i].begin(); it != pid2StrongLogin[i].end();) {
       if (!runningPids.count(it->first)) {
@@ -471,9 +465,11 @@ protected:
     int cleancountStrongLogin = 0;
     int cleancountCredInfo = 0;
 
-    if (populatePids()) {
+    std::set<pid_t> runningPids;
+
+    if (populatePids(runningPids)) {
       for (unsigned int i = 0; i < proccachenbins; i++) {
-        cleanProcCacheBin(i, cleancountProcCache, cleancountStrongLogin,
+        cleanProcCacheBin(runningPids, i, cleancountProcCache, cleancountStrongLogin,
                           cleancountCredInfo);
       }
     }

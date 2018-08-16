@@ -418,13 +418,13 @@ public:
   }
 
   //! returns true if the entry is removed after the call
-  int RemoveEntries(const std::set<pid_t>* protect)
+  int RemoveEntries(const std::set<pid_t>& protect)
   {
     int count = 0;
     eos::common::RWMutexWriteLock lock(pMutex);
 
     for (auto it = pCatalog.begin(); it != pCatalog.end();) {
-      if (protect && protect->count(it->first)) {
+      if (protect.count(it->first)) {
         ++it;
       } else {
         delete it->second;
