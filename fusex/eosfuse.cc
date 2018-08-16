@@ -2415,7 +2415,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  eos_static_debug(name);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
@@ -2477,6 +2477,14 @@ EROFS  pathname refers to a file on a read-only filesystem.
         pmd->set_mtime_ns(ts.tv_nsec);
         md->set_uid(pcap->uid());
         md->set_gid(pcap->gid());
+        /* xattr inheritance */
+        auto attrMap = md->mutable_attr();
+        auto pattrMap = pmd->attr();
+        for (auto const it : pattrMap) {
+          eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
+          (*attrMap)[it.first] = it.second;
+        }
+
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
         md->set_nlink(2);
         md->set_creator(true);

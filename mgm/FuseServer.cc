@@ -2624,6 +2624,11 @@ FuseServer::HandleMD(const std::string& id,
             return EEXIST;
           }
 
+          eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+          if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
+            return EPERM;
+          }
+
           cmd = gOFS->eosDirectoryService->createContainer();
           cmd->setName(md.name());
           md_ino = cmd->getId();
@@ -2638,7 +2643,6 @@ FuseServer::HandleMD(const std::string& id,
           }
 
           // parent attribute inheritance
-          eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
 
           for (const auto& elem : xattrs) {
             cmd->setAttribute(elem.first, elem.second);
