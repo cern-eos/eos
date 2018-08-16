@@ -1740,10 +1740,6 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
       buf->st_ino = (ino_t) sval[1];
       buf->st_mode = (mode_t) sval[2];
 
-      if (!S_ISDIR(buf->st_mode)) {
-        gInodeTranslator.InodeToFid(buf->st_ino); // seed the translator
-      }
-
       if (S_ISREG(buf->st_mode) || S_ISLNK(buf->st_mode)) {
         buf->st_nlink = 1;
       } else {
@@ -2698,10 +2694,6 @@ filesystem::inodirlist(unsigned long long dirinode,
 
           if (S_ISREG(buf.st_mode) || S_ISLNK(buf.st_mode)) {
             buf.st_nlink = 1;
-          }
-
-          if (!S_ISDIR(buf.st_mode)) {
-            gInodeTranslator.InodeToFid(buf.st_ino); // seed the translator
           }
 
           buf.st_mode &= (~S_ISVTX); // clear the vxt bit
