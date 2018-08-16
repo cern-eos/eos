@@ -39,6 +39,8 @@ public:
   InodeTranslator() {}
 
   unsigned long long InodeToFid(unsigned long long inode) {
+    if(inode == 0) return 0; // invalid inode
+
     if(encodingScheme == EncodingScheme::kUninitialized) {
       initialize(inode);
     }
