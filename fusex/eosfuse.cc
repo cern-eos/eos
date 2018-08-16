@@ -4200,7 +4200,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, ino, 0, rc).c_str());
+		    dump(id, ino, 0, rc, xattr_name).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
