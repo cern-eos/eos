@@ -323,7 +323,7 @@ public:
   //! @param uid user uid
   //! @param fd file descriptor
   //----------------------------------------------------------------------------
-  void add_inodeuser_fd(unsigned long inode, uid_t uid, gid_t gid, pid_t pid,
+  void add_inodeuser_fd(unsigned long long inode, uid_t uid, gid_t gid, pid_t pid,
                         int fd);
 
   //----------------------------------------------------------------------------
@@ -331,7 +331,7 @@ public:
   //----------------------------------------------------------------------------
   int
   add_fd2file(LayoutWrapper* raw_file,
-              unsigned long inode,
+              unsigned long long inode,
               uid_t uid, gid_t gid, pid_t pid,
               bool isROfd,
               const char* path = "",
@@ -341,7 +341,7 @@ public:
   //! Force pending rw open to happen (in case of lazy open)
   //----------------------------------------------------------------------------
   int
-  force_rwopen(unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+  force_rwopen(unsigned long long inode, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Get the file abstraction object corresponding to the fd
@@ -353,7 +353,7 @@ public:
   //----------------------------------------------------------------------------
   //! Remove file descriptor from mapping
   //----------------------------------------------------------------------------
-  int remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
+  int remove_fd2file(int fd, unsigned long long inode, uid_t uid, gid_t gid,
                      pid_t pid);
 
   int
@@ -453,7 +453,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   int stat(const char* path, struct stat* buf, uid_t uid, gid_t gid, pid_t pid,
-           unsigned long inode, bool onlysizemtime = false);
+           unsigned long long inode, bool onlysizemtime = false);
 
   //----------------------------------------------------------------------------
   //!
@@ -506,13 +506,13 @@ public:
   //!
   //----------------------------------------------------------------------------
   int open(const char* pathname, int flags, mode_t mode, uid_t uid, gid_t gid,
-           pid_t pid, unsigned long* return_inode, bool mknod = false);
+           pid_t pid, unsigned long long* return_inode, bool mknod = false);
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
   int truncate(int fildes, off_t offset);
-  int truncate2(const char* fullpath, unsigned long inode,
+  int truncate2(const char* fullpath, unsigned long long inode,
                 unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
@@ -524,12 +524,12 @@ public:
   //!
   //----------------------------------------------------------------------------
   int utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
-                        unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+                        unsigned long long inode, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int close(int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+  int close(int fildes, unsigned long long inode, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //!
@@ -550,7 +550,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   int unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
-             unsigned long inode);
+             unsigned long long inode);
 
   //----------------------------------------------------------------------------
   //!

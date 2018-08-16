@@ -845,7 +845,7 @@ filesystem::generate_fd()
 //------------------------------------------------------------------------------
 int
 filesystem::force_rwopen(
-  unsigned long inode,
+  unsigned long long inode,
   uid_t uid, gid_t gid, pid_t pid
 )
 {
@@ -898,7 +898,7 @@ filesystem::force_rwopen(
 //------------------------------------------------------------------------------
 int
 filesystem::add_fd2file(LayoutWrapper* raw_file,
-                        unsigned long inode,
+                        unsigned long long inode,
                         uid_t uid, gid_t gid, pid_t pid,
                         bool isROfd,
                         const char* path,
@@ -1033,7 +1033,7 @@ filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 // Remove entry from mapping
 //------------------------------------------------------------------------------
 int
-filesystem::remove_fd2file(int fd, unsigned long inode, uid_t uid, gid_t gid,
+filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid, gid_t gid,
                            pid_t pid)
 {
   int retc = -1;
@@ -1548,7 +1548,7 @@ filesystem::listxattr(const char* path,
 //------------------------------------------------------------------------------
 int
 filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
-                 pid_t pid, unsigned long inode, bool onlysizemtime)
+                 pid_t pid, unsigned long long inode, bool onlysizemtime)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
@@ -3032,7 +3032,7 @@ filesystem::open(const char* path,
                  uid_t uid,
                  gid_t gid,
                  pid_t pid,
-                 unsigned long* return_inode,
+                 unsigned long long* return_inode,
                  bool mknod)
 {
   eos_static_info("path=%s flags=%08x mode=%d uid=%u pid=%u", path, oflags, mode,
@@ -3297,7 +3297,7 @@ filesystem::open(const char* path,
               }
 
               eos_static_debug("path=%s created inode=%lu", path,
-                               (unsigned long) *return_inode);
+                               (unsigned long long) *return_inode);
             }
 
             retc = add_fd2file(new LayoutWrapper(file), *return_inode, uid, gid, pid, isRO);
@@ -3370,7 +3370,7 @@ filesystem::open(const char* path,
 
   if (isRO && force_rwopen(*return_inode, uid, gid, pid) < 0) {
     eos_static_err("forcing rw open failed for inode %lu path %s",
-                   (unsigned long)*return_inode, path);
+                   (unsigned long long)*return_inode, path);
     return eos::common::error_retc_map(errno);
   }
 
@@ -3437,7 +3437,7 @@ filesystem::open(const char* path,
       }
 
       *return_inode = new_ino;
-      eos_static_debug("path=%s opened ino=%lu", path, (unsigned long) *return_inode);
+      eos_static_debug("path=%s opened ino=%lu", path, (unsigned long long) *return_inode);
     }
 
     retc = add_fd2file(file, *return_inode, uid, gid, pid, isRO, path, mknod);
@@ -3457,7 +3457,7 @@ filesystem::open(const char* path,
 //------------------------------------------------------------------------------
 int
 filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
-                              unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
+                              unsigned long long inode, uid_t uid, gid_t gid, pid_t pid)
 {
   LayoutWrapper* raw_file = fabst->GetRawFileRW();
 
@@ -3598,7 +3598,7 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
 int
-filesystem::close(int fildes, unsigned long inode, uid_t uid, gid_t gid,
+filesystem::close(int fildes, unsigned long long inode, uid_t uid, gid_t gid,
                   pid_t pid)
 {
   int ret = -1;
@@ -3774,7 +3774,7 @@ filesystem::truncate(int fildes, off_t offset)
 // Truncate file
 //------------------------------------------------------------------------------
 int
-filesystem::truncate2(const char* fullpath, unsigned long inode,
+filesystem::truncate2(const char* fullpath, unsigned long long inode,
                       unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid)
 {
   if (inode) {
@@ -3801,7 +3801,7 @@ filesystem::truncate2(const char* fullpath, unsigned long inode,
   }
 
   int fd, retc = -1;
-  unsigned long rinode = 0;
+  unsigned long long rinode = 0;
 
   if ((fd = open(fullpath, O_WRONLY,
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
@@ -4027,7 +4027,7 @@ filesystem::fsync(int fildes)
 //------------------------------------------------------------------------------
 int
 filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
-                   unsigned long inode)
+                   unsigned long long inode)
 {
   eos::common::Timing xpu("unlink");
   COMMONTIMING("start", &xpu);

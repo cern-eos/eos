@@ -1236,14 +1236,14 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
   }
 
-  fuse_ino_t rino = ino;
+  unsigned long long rino = ino;
 // Do open
   res = me.fs().open(fullpath.c_str(), fi->flags, mode, fuse_req_ctx(req)->uid,
 		     fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid, &rino);
   eos_static_debug("inode=%lld path=%s res=%d",
 		   (long long) ino, fullpath.c_str(), res);
 
-  if (rino != ino) {
+  if (rino != (unsigned long long) ino) {
     // this indicates a repaired file
     eos_static_notice("migrating inode=%llu to inode=%llu after repair", ino, rino);
     me.fs().redirect_p2i(ino, rino);
@@ -1320,7 +1320,7 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char* name,
   EosFuse& me = instance();
   filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent, true);
   int res;
-  unsigned long rinode = 0;
+  unsigned long long rinode = 0;
   bool mknod = false;
 
   if (mode & S_IFBLK) {
