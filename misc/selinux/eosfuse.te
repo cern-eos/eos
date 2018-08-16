@@ -1,4 +1,4 @@
-module eosfuse 1.4;
+module eosfuse 1.5;
 
 require {
 	attribute domain;
@@ -14,7 +14,7 @@ require {
 	class dir add_name;
 	class file { write read create setattr getattr };
 	class process { getpgid };
-	class fifo_file create;
+	class fifo_file { create unlink open };
 }
 
 #============= automount_t ==============
@@ -25,7 +25,7 @@ allow mount_t var_log_t:dir add_name;
 allow mount_t var_log_t:file { create setattr };
 allow mount_t var_run_t:lnk_file { read getattr };
 allow mount_t domain:process getpgid;
-allow mount_t tmp_t:fifo_file create;
+allow mount_t tmp_t:fifo_file { create unlink open };
 
 #============= sshd_t ==============
 allow sshd_t su_exec_t:file getattr;
