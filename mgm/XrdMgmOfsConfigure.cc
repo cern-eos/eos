@@ -47,6 +47,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
+//#include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/QuarkDBConfigEngine.hh"
 #include "common/StacktraceHere.hh"
@@ -55,6 +56,7 @@
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/PasswordHandler.hh"
+#include "common/ShellCmd.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -1177,12 +1179,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  if (!MgmConfigDir.length()) {
-    Eroute.Say("Config error: configuration directory is not defined : "
-               "mgm.configdir=</var/eos/config/>");
-    return 1;
-  }
-
   if (!MgmMetaLogDir.length()) {
     Eroute.Say("Config error: meta data log directory is not defined : "
                "mgm.metalog=</var/eos/md/>");
@@ -1370,37 +1366,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
              "placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,"
              "accessHeadReplicaMultipleGroup,updateTreeInfo,"
              "updateAtomicPenalties,updateFastStructures,work");
-  // Automatically append the host name to the config dir
-  MgmConfigDir += HostName;
-  MgmConfigDir += "/";
-  XrdOucString makeit = "mkdir -p ";
-  makeit += MgmConfigDir;
-  int src = system(makeit.c_str());
 
-  if (src) {
-    eos_err("%s returned %d", makeit.c_str(), src);
-  }
-
-  XrdOucString chownit = "chown -R daemon ";
-  chownit += MgmConfigDir;
-  src = system(chownit.c_str());
-
-  if (src) {
-    eos_err("%s returned %d", chownit.c_str(), src);
+  // Setup configuration directory and start the config engine
+  if (!SetupConfigDir()) {
     NoGo = 1;
     return NoGo;
   }
 
-  // Check config directory access
-  if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK)) {
-    Eroute.Emsg("Config", "Cannot acccess the configuration directory for r/w!",
-                MgmConfigDir.c_str());
-    NoGo = 1;
-  } else {
-    Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(), "");
-  }
-
-  // Start the config engine
   if (MgmOfsConfigEngineType == "file") {
     ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   } else if (MgmOfsConfigEngineType == "quarkdb") {
@@ -2231,4 +2203,71 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Version", 0, 0, 0);
   MgmStats.Add("Versioning", 0, 0, 0);
   MgmStats.Add("WhoAmI", 0, 0, 0);
+}
+
+//--------------------------------------------------------------------------------
+// Setup MGM configuration directory
+//--------------------------------------------------------------------------------
+bool
+XrdMgmOfs::SetupConfigDir()
+{
+  if (!MgmConfigDir.length()) {
+    eos_err("configuration directory is not defined, e.g mgm.configdir="
+            "</var/eos/config/>");
+    return false;
+  }
+
+  bool has_legacy_dir = false;
+  bool copy_config = false;
+  // Check if legacy config path (only with hostname) exists
+  struct stat buf;
+  std::string legacy_path = SSTR(MgmConfigDir << HostName << "/");
+
+  if (::stat(legacy_path.c_str(), &buf) == 0) {
+    has_legacy_dir = true;
+  }
+
+  // Check if new config dir path (with hostname and port) exists
+  MgmConfigDir = SSTR(MgmConfigDir << ManagerId << "/").c_str();
+
+  if (::stat(MgmConfigDir.c_str(), &buf)) {
+    copy_config = true;
+  }
+
+  eos::common::ShellCmd scmd1(SSTR("mkdir -p " << MgmConfigDir).c_str());
+
+  if (scmd1.wait(10).exit_code) {
+    eos_err("faile to create dir: %s", MgmConfigDir.c_str());
+    return false;
+  }
+
+  eos::common::ShellCmd scmd2(SSTR("chown -R daemon " << MgmConfigDir).c_str());
+
+  if (scmd2.wait(10).exit_code) {
+    eos_err("failed to chown dir: %s", MgmConfigDir.c_str());
+    return false;
+  }
+
+  // Check config directory access
+  if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK)) {
+    eos_err("cannot acccess the configuration directory %s for r/w!",
+            MgmConfigDir.c_str());
+    return false;
+  }
+
+  if (has_legacy_dir && copy_config) {
+    eos_info("copy configuration from legacy location :%s to:%s",
+             legacy_path.c_str(), MgmConfigDir.c_str());
+    eos::common::ShellCmd
+    scmd3(SSTR("cp " << legacy_path << "/default.eoscf " << MgmConfigDir
+               << "/default.eoscf").c_str());
+
+    if (scmd3.wait(10).exit_code) {
+      eos_err("failed copy from: %s to: %s", legacy_path.c_str(),
+              MgmConfigDir.c_str());
+      return false;
+    }
+  }
+
+  return true;
 }

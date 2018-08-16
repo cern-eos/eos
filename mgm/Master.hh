@@ -113,7 +113,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the new master host
   //----------------------------------------------------------------------------
-  bool Set(const std::string& mastername, std::string& stdout,
+  bool Set(const std::string& mastername, std::string& stdOut,
            std::string& stdErr) override;
 
   //----------------------------------------------------------------------------

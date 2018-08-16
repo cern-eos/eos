@@ -160,7 +160,6 @@ private:
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system
   eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
-  std::thread mThread; ///< Thread doing the draining
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src

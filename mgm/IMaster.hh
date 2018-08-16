@@ -95,12 +95,18 @@ public:
   virtual bool IsRemoteMasterOk() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get current master host
+  //! Get current master hostname
   //----------------------------------------------------------------------------
   virtual const char* GetMasterHost() = 0;
 
   //----------------------------------------------------------------------------
-  //! Set the new master host
+  //! Set the new master hostname
+  //!
+  //! @param mastername master hostname
+  //! @param stdOut output string
+  //! @param stdErr error output string
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool Set(const std::string& mastername, std::string& stdout,
                    std::string& stdErr) = 0;
@@ -113,7 +119,7 @@ public:
   virtual size_t GetServiceDelay() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get master Log
+  //! Get master log
   //----------------------------------------------------------------------------
   virtual void GetLog(std::string& stdOut) = 0;
 
