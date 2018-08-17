@@ -130,7 +130,7 @@ ProcCommand::Config()
       }
     }
 
-    gOFS->ConfEngine->GetChangelog()->Tail(nlines, stdOut);
+    gOFS->ConfEngine->Tail(nlines, stdOut);
     eos_notice("config changelog");
   }
 

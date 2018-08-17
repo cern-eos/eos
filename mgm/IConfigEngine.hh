@@ -144,13 +144,16 @@ public:
   virtual ~IConfigEngine() {};
 
   //----------------------------------------------------------------------------
-  //! Get the changlog object
+  //! Get tail of the changelog
   //!
-  //! @return changelog object
+  //! @param nlines number of lines to return
+  //! @param tail string to hold the response
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual ICfgEngineChangelog* GetChangelog()
-  {
-    return mChangelog.get();
+  bool Tail(unsigned int nlines, XrdOucString& tail) {
+    if(!mChangelog) return false;
+    return mChangelog->Tail(nlines, tail);
   }
 
   //----------------------------------------------------------------------------

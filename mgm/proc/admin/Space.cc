@@ -672,7 +672,6 @@ ProcCommand::Space()
             key.erase(0, 3);
             // we disable the autosave, do all the updates and then switch back
             // to autosave and evt. save all changes
-            bool autosave = gOFS->ConfEngine->GetAutoSave();
             gOFS->ConfEngine->SetAutoSave(false);
 
             // store these as a global parameter of the space
@@ -745,7 +744,7 @@ ProcCommand::Space()
               }
             }
 
-            gOFS->ConfEngine->SetAutoSave(autosave);
+            gOFS->ConfEngine->SetAutoSave(true);
             gOFS->ConfEngine->AutoSave();
           }
         } else {

@@ -198,17 +198,10 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       hash_key_backup += buff;
       eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
       // Backup hash
-      qclient::QHash q_hash_backup(*mQcl, hash_key_backup);
-      std::vector<std::string> resp = q_hash.hkeys();
-
-      for (auto && elem : resp) {
-        q_hash_backup.hset(elem, q_hash.hget(elem));
-      }
+      mQcl->exec("hclone", hash_key, hash_key_backup).get();
 
       // Clear
-      for (auto && elem : resp) {
-        q_hash.hdel(elem);
-      }
+      mQcl->exec("del", hash_key).get();
 
       // Add hash to backup set
       qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
@@ -236,10 +229,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   // Add the hash key to the set
   q_set.sadd(hash_key);
 
-  std::string changeLogAction;
-
   std::ostringstream changeLogValue;
-
   if (force) {
     changeLogValue << "(force)";
   }
@@ -612,17 +602,10 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
           hash_key_backup += buff;
           eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
           // Backup hash
-          qclient::QHash q_hash_backup(*mQcl, hash_key_backup);
-          std::vector<std::string> resp = q_hash.hkeys();
-
-          for (auto && elem : resp) {
-            q_hash_backup.hset(elem, q_hash.hget(elem));
-          }
+          mQcl->exec("hclone", hash_key, hash_key_backup);
 
           // Clear
-          for (auto && elem : resp) {
-            q_hash.hdel(elem);
-          }
+          mQcl->exec("del", hash_key);
 
           // Add hash to backup set
           qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
