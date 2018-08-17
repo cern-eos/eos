@@ -161,7 +161,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
-  bool autosave = (bool)env.Get("mgm.config.autosave");
   const char* comment = env.Get("mgm.config.comment");
 
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
@@ -263,12 +262,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   std::string changeLogAction;
 
-  if (autosave) {
-    changeLogAction = "autosaved config";
-  } else {
-    changeLogAction = "saved config";
-  }
-
   std::ostringstream changeLogValue;
 
   if (force) {
@@ -276,7 +269,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   changeLogValue << " successfully [" << comment << "]";
-  mChangelog->AddEntry(changeLogAction, name, changeLogValue.str());
+  mChangelog->AddEntry("saved config", name, changeLogValue.str());
   mConfigFile = name;
   return true;
 }
@@ -430,11 +423,10 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 bool
 QuarkDBConfigEngine::AutoSave()
 {
-  if (mAutosave && mConfigFile.length()) {
+  if (mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
     envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
@@ -497,12 +489,10 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   }
 
   // If the change is not coming from a broacast we can can save it
-  // (if autosave is enabled)
-  if (mAutosave && not_bcast && mConfigFile.length()) {
+  if (not_bcast && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
     envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
@@ -552,12 +542,10 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   }
 
   // If the change is not coming from a broacast we can can save it
-  // (if autosave is enabled)
-  if (mAutosave && not_bcast && mConfigFile.length()) {
+  if (not_bcast && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
     envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
     XrdOucEnv env(envstring.c_str());
     XrdOucString err = "";
 
