@@ -260,7 +260,7 @@ com_config_usage:
       << "       -v|--vid      : " << "dump only virtual id config" << std::endl
       << std::endl
       << "config export [-f] [<name>]" << std::endl
-      << "       export a configuration stored on file to QuarkDB" << std::endl
+      << "       export a configuration stored on file to QuarkDB - you need to specify the full path" << std::endl
       << "       -f : " <<
       "overwrite existing config name and create a timestamped backup"
       << std::endl

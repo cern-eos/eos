@@ -105,7 +105,7 @@ public:
   //! @param configdir
   //! @param quarkDBcluster
   //----------------------------------------------------------------------------
-  QuarkDBConfigEngine(const char* configdir, const QdbContactDetails &contactDetails);
+  QuarkDBConfigEngine(const QdbContactDetails &contactDetails);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -202,7 +202,7 @@ public:
   void
   SetConfigDir(const char* configdir)
   {
-    mConfigDir = configdir;
+    // noop
     mConfigFile = "default";
   }
 

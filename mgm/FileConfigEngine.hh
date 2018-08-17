@@ -185,6 +185,8 @@ private:
   static const std::string sBackupTag;
   std::mutex sMutex;
 
+  XrdOucString mConfigDir; ///< Path where configuration files are stored
+
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!

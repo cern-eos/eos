@@ -316,7 +316,6 @@ protected:
   //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
   bool mBroadcast;
   XrdOucString mConfigFile; ///< Currently loaded configuration
-  XrdOucString mConfigDir; ///< Path where configuration files are stored
 
   //! Configuration definitions currently in memory
   static XrdOucHash<XrdOucString> sConfigDefinitions;

@@ -1410,8 +1410,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       Eroute.Emsg("Config", "The QuarkDB configuration is empty!");
       NoGo = 1;
     } else {
-      ConfEngine = new QuarkDBConfigEngine(MgmConfigDir.c_str(),
-                                           gOFS->mQdbContactDetails);
+      ConfEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
     }
   } else {
     Eroute.Emsg("Config", "Unknown configuration engine type!",

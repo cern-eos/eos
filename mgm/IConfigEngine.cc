@@ -54,7 +54,7 @@ XrdOucHash<XrdOucString> IConfigEngine::sConfigDefinitions;
 //------------------------------------------------------------------------------
 IConfigEngine::IConfigEngine():
   mChangelog(), mAutosave(false), mBroadcast(true),
-  mConfigFile("default"), mConfigDir()
+  mConfigFile("default")
 {}
 
 

@@ -108,11 +108,9 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkDBConfigEngine::QuarkDBConfigEngine(const char* configdir,
-    const QdbContactDetails& contactDetails)
+QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails& contactDetails)
 {
   mQdbContactDetails = contactDetails;
-  SetConfigDir(configdir);
   mQcl = BackendClient::getInstance(mQdbContactDetails, "config");
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl));
 }
@@ -588,11 +586,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
   }
 
   eos_notice("loading name=%s ", name);
-  // TODO (esindril): Maybe remove mConfigDir from this class alltogether
-  // and pass the full info via the env variable
-  XrdOucString fullpath = mConfigDir;
-  fullpath += name;
-  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  std::string fullpath = SSTR(name << EOSMGMCONFIGENGINE_EOS_SUFFIX);
 
   if (::access(fullpath.c_str(), R_OK)) {
     err = "error: unable to open config file ";
