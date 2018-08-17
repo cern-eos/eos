@@ -210,7 +210,6 @@ public:
   int Config();
   int Debug();
   int Drain();
-  int Fs();
   int Fsck();
   int Fusex();
   int GeoSched();

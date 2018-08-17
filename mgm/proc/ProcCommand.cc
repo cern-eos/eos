@@ -255,9 +255,6 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "group") {
       Group();
       mDoSort = false;
-    } else if (mCmd == "fs") {
-      Fs();
-      mDoSort = false;
     } else if (mCmd == "io") {
       Io();
       mDoSort = false;

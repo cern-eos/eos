@@ -78,7 +78,6 @@ add_library(
   proc/admin/Backup.cc
   proc/admin/Config.cc
   proc/admin/Debug.cc
-  proc/admin/Fs.cc
   proc/admin/FsCmd.cc
   proc/admin/Fsck.cc
   proc/admin/Fusex.cc
