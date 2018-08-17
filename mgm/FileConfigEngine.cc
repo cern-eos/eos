@@ -354,31 +354,7 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   if (tmp_fstream.is_open()) {
     XrdOucString config = "";
     XrdOucEnv env("");
-
-    if (comment) {
-      // Store comments as "<unix-tst> <date> <comment>"
-      XrdOucString esccomment = comment;
-      XrdOucString configkey = "";
-      time_t now = time(0);
-      char timestamp[1024];
-      sprintf(timestamp, "%lu", now);
-      XrdOucString stime = timestamp;
-      stime += " ";
-      stime += ctime(&now);
-      stime.erase(stime.length() - 1);
-      stime += " ";
-
-      while (esccomment.replace("\"", "")) {}
-
-      esccomment.insert(stime.c_str(), 0);
-      esccomment.insert("\"", 0);
-      esccomment.append("\"");
-      configkey += "comment-";
-      configkey += timestamp;
-      configkey += ":";
-      XrdSysMutexHelper lock(mMutex);
-      sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
-    }
+    InsertComment(comment);
 
     DumpConfig(config, env);
     tmp_fstream << config.c_str();

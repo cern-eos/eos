@@ -320,6 +320,13 @@ protected:
   //! Configuration definitions currently in memory
   static XrdOucHash<XrdOucString> sConfigDefinitions;
 
+  //----------------------------------------------------------------------------
+  //! Insert comment
+  //!
+  //! @param comment pointer to character array, may be nullptr
+  //----------------------------------------------------------------------------
+  void InsertComment(const char* comment);
+
 private:
   //----------------------------------------------------------------------------
   //! Filter configuration

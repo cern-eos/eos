@@ -175,31 +175,7 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     }
   }
 
-  // Comments
-  if (comment) {
-    // we store comments as "<unix-tst> <date> <comment>"
-    XrdOucString esccomment = comment;
-    XrdOucString configkey = "";
-    time_t now = time(0);
-    char timestamp[1024];
-    sprintf(timestamp, "%lu", now);
-    XrdOucString stime = timestamp;
-    stime += " ";
-    stime += ctime(&now);
-    stime.erase(stime.length() - 1);
-    stime += " ";
-
-    while (esccomment.replace("\"", "")) {
-    }
-
-    esccomment.insert(stime.c_str(), 0);
-    esccomment.insert("\"", 0);
-    esccomment.append("\"");
-    configkey += "comment-";
-    configkey += timestamp;
-    configkey += ":";
-    sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
-  }
+  InsertComment(comment);
 
   // Store a new hash
   std::string hash_key = conf_hash_key_prefix.c_str();
@@ -268,7 +244,11 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     changeLogValue << "(force)";
   }
 
-  changeLogValue << " successfully [" << comment << "]";
+  changeLogValue << " successfully";
+  if(comment) {
+    changeLogValue << "[" << comment << "]";
+  }
+
   mChangelog->AddEntry("saved config", name, changeLogValue.str());
   mConfigFile = name;
   return true;
