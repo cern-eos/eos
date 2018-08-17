@@ -336,7 +336,6 @@ protected:
   off_t mMinSize;
   off_t mMaxSize;
   bool viaDelete;
-  bool remoteDelete;
   bool writeDelete;
   uint64_t mRainSize; ///< Rain file size used during reconstruction
 

@@ -51,7 +51,7 @@ const uint16_t XrdFstOfsFile::msDefaultTimeout = 300; // default timeout value
 XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   XrdOfsFile(user, MonID), eos::common::LogId(),
   mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
-  mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false), remoteDelete(false),
+  mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
   writeDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRedirectManager(""), mSecString(""), mTpcKey(""), mEtag(""), mFileId(0),
   mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0), mFusex(false),
@@ -1090,9 +1090,9 @@ XrdFstOfsFile::close()
     capOpaqueString += OpaqueString;
     eos_info("viaDelete=%d", viaDelete);
 
-    if ((viaDelete || writeDelete || remoteDelete) && ((isCreation ||
-        IsChunkedUpload()) && (!mFusex))) {
-      // It is closed by the constructor e.g. no proper close
+    if ((viaDelete || writeDelete) && ((isCreation ||
+                                        IsChunkedUpload()) && (!mFusex))) {
+      // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
       if (viaDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
@@ -1101,11 +1101,6 @@ XrdFstOfsFile::close()
 
       if (writeDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
-      }
-
-      if (remoteDelete) {
-        eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\""
                  " fsid=%u fxid=%08x on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
@@ -1787,8 +1782,8 @@ XrdFstOfsFile::close()
     }
   }
 
-  if (mFusexIsUnlinked &&
-      mFusex) {// mask close error for fusex, if the file had been removed already
+  // Mask close error for fusex, if the file had been removed already
+  if (mFusexIsUnlinked && mFusex) {
     rc = 0;
     error.setErrCode(0);
   }
