@@ -246,7 +246,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   time_t boot_time = 0;
   {
     XrdSysMutexHelper lock(gOFS->InitializationMutex);
-    bootstring = gOFS->gNameSpaceState[gOFS->Initialized];
+    bootstring = gOFS->gNameSpaceState[gOFS->mInitialized];
 
     if (bootstring == "booting") {
       fboot_time = time(nullptr) - gOFS->mFileInitTime;

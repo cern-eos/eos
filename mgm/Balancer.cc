@@ -75,7 +75,6 @@ Balancer::StaticBalance(void* arg)
 void*
 Balancer::Balance(void)
 {
-  // Wait that the namespace is initialized
   gOFS->WaitUntilNamespaceIsBooted();
 
   // Loop forever until cancelled

@@ -105,7 +105,6 @@ LRU::LRUr()
   // wait that the namespace is initialized
   // ---------------------------------------------------------------------------
   gOFS->WaitUntilNamespaceIsBooted();
-
   std::this_thread::sleep_for(std::chrono::seconds(10));
   // Eternal thread doing LRU scans
   time_t snoozetime = 60;

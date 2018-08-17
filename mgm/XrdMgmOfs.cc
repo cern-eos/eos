@@ -164,7 +164,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), ConfEngine(0), CapabilityEngine(0),
   mCapabilityValidity(3600), MgmOfsMessaging(0), MgmOfsVstMessaging(0),
   ManagerPort(1094), LinuxStatsStartup{0},
-  StartTime(0), HostName(0), HostPref(0), Initialized(kDown), mFileInitTime(0),
+  StartTime(0), HostName(0), HostPref(0), mInitialized(kDown), mFileInitTime(0),
   mTotalInitTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
   BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),
   mAuthorize(false), mAuthLib(""), IssueCapability(false), MgmRedirector(false),
@@ -844,7 +844,7 @@ bool
 XrdMgmOfs::IsNsBooted() const
 {
   XrdSysMutexHelper lock(InitializationMutex);
-  return ((Initialized == kBooted) || (Initialized == kCompacting));
+  return ((mInitialized == kBooted) || (mInitialized == kCompacting));
 }
 
 std::string
@@ -918,8 +918,6 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted()
       return;
     }
 
-    lock.UnLock();
-    XrdSysThread::SetCancelOn();
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }

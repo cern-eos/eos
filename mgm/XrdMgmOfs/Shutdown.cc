@@ -138,7 +138,7 @@ xrdmgmofs_shutdown(int sig)
   }
 
   // ---------------------------------------------------------------------------
-  if (gOFS->Initialized == gOFS->kBooted) {
+  if (gOFS->mInitialized == gOFS->kBooted) {
     eos_static_warning("Shutdown:: finalizing views ... ");
 
     try {

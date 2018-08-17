@@ -100,7 +100,7 @@ ProcCommand::Fs()
           // Stall if the namespace is still booting
           XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
-          if (gOFS->Initialized != gOFS->kBooted) {
+          if (gOFS->mInitialized != gOFS->kBooted) {
             return gOFS->Stall(*mError, 60, "Namespace is still booting");
           }
         }

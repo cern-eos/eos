@@ -1378,7 +1378,7 @@ public:
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
 
-  int Initialized; ///< Initialization state of the namespace
+  std::atomic<int> mInitialized; ///< Initialization state of the namespace
   time_t mFileInitTime; ///< Time for the file initialization
   time_t mTotalInitTime; ///< Time for entire initialization
   mutable XrdSysMutex InitializationMutex; ///< mutex protecting above variables

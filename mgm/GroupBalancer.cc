@@ -621,7 +621,6 @@ GroupBalancer::GroupBalance()
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
 

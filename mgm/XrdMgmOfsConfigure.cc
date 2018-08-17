@@ -47,7 +47,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Master.hh"
-//#include "mgm/QdbMaster.hh"
+#include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/QuarkDBConfigEngine.hh"
 #include "common/StacktraceHere.hh"
@@ -91,7 +91,7 @@ XrdMgmOfs::InitializeFileView()
 {
   {
     XrdSysMutexHelper lock(InitializationMutex);
-    Initialized = kBooting;
+    mInitialized = kBooting;
     mFileInitTime = time(0);
     RemoveStallRuleAfterBoot = false;
     BootFileId = 0;
@@ -217,7 +217,7 @@ XrdMgmOfs::InitializeFileView()
 
         {
           XrdSysMutexHelper lock(InitializationMutex);
-          Initialized = kBooted;
+          mInitialized = kBooted;
           eos_static_alert("msg=\"namespace booted (as master)\"");
         }
       }
@@ -232,13 +232,13 @@ XrdMgmOfs::InitializeFileView()
 
       if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the file changlog\"");
-        Initialized = kFailed;
+        mInitialized = kFailed;
         return nullptr;
       }
 
       if (::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the container changlog\"");
-        Initialized = kFailed;
+        mInitialized = kFailed;
         return nullptr;
       }
 
@@ -267,7 +267,7 @@ XrdMgmOfs::InitializeFileView()
 
       {
         XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kBooted;
+        mInitialized = kBooted;
         eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
@@ -295,7 +295,7 @@ XrdMgmOfs::InitializeFileView()
   } catch (eos::MDException& e) {
     {
       XrdSysMutexHelper lock(InitializationMutex);
-      Initialized = kFailed;
+      mInitialized = kFailed;
     }
     time_t tstop = time(nullptr);
     errno = e.getErrno();
@@ -320,7 +320,7 @@ XrdMgmOfs::InitializeFileView()
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
 
-  if (mMaster->IsMaster() && Initialized == kBooted) {
+  if (mMaster->IsMaster() && mInitialized == kBooted) {
     WFE::MoveFromRBackToQ();
   }
 
