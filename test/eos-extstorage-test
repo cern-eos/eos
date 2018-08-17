@@ -26,16 +26,44 @@
 #------------------------------------------------------------------------------
 # Description: Script testing EOS filesystems operating with external storage.
 #              This script is intended to be used in the eos-docker setup,
+#              where all the outside preparation has been done beforehand,
 #              otherwise, the file paths will not work properly.
+#
+#              An --ssh flag is provided which allows the script to do the
+#              needed preparation by itself. However, ssh access to the
+#              FST instances is needed. This option is useful when testing
+#              on an already existing EOS cluster.
+#
 #              It assumes at least 2 FSTs are available in the instance.
 #
 # Usage:
-# eos-extstorage-test <eos_mgm_hostname> [--verbose]
+# eos-extstorage-test <eos_mgm_hostname> [--ssh] [--verbose]
+#    <eos_mgm_hostname> - the name of the MGM host
+#    --ssh              - attempt preparation set-up using ssh
+#    --verbose          - trigger verbose output
+#
 #------------------------------------------------------------------------------
 
-if [[ $# -eq 0 || $# -gt 2 ]]; then
-    echo "Usage: $0 <eos_mgm_hostname> [--verbose]"
+#------------------------------------------------------------------------------
+# Input parsing
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 3 ]]; then
+    echo "Usage: $0 <eos_mgm_hostname> [--ssh] [--verbose]"
+    echo "          <eos_mgm_hostname> - the name of the MGM host"
+    echo "          --ssh              - attempt preparation set-up using ssh"
+    echo "          --verbose          - trigger verbose output"
     exit 1
+fi
+
+echo $1 | grep ":" &> /dev/null
+[[ $? -ne 0 ]] && echo "Hostname must be of format: <host>:<port>" && exit 1
+EOS_MGM_URL=$1
+
+CONN_CLIENT=false
+if [[ $2 == "--ssh" ]]; then
+    CONN_CLIENT=true
+    shift
 fi
 
 VERBOSE=false
@@ -56,23 +84,23 @@ print_test () {
 }
 
 wait_result () {
-    ${VERBOSE} && echo "Waiting ${3} seconds for ${4}"
+    [[ ${VERBOSE} != false ]] && echo "Waiting ${3} seconds for ${4}"
     sleep 2
     COUNT=0
 
     while [[ $(eval $1) -ne ${2} ]]; do
         sleep 1
         COUNT=$((COUNT + 1))
-        ${VERBOSE} && echo ${COUNT}
-        [[ ${COUNT} -eq ${3} ]] && echo "error: timeout during ${4}" && exit ${5}
+        [[ ${VERBOSE} != false ]] && [[ ${VERBOSE} != "nocount" ]] && echo ${COUNT}
+        [[ ${COUNT} -eq ${3} ]] && echo "error: timeout during ${4}" && return 1
     done
+
+    return 0
 }
 
 #------------------------------------------------------------------------------
 # Configuration
 #------------------------------------------------------------------------------
-
-EOS_MGM_URL=$1
 
 # These variables are injected via Gitlab CI secrets
 #EOS_FST_S3_ACCESS_KEY
@@ -105,48 +133,56 @@ IDS=()
 ${VERBOSE} && echo "Registering EOS file systems"
 
 for (( i=0; i < ${#PATHS[@]}; i++ )); do
-    UUID=`uuidgen`
-    LOCAL_DRIVE=false
-    [[ ${PATHS[$i]} == /* ]] && LOCAL_DRIVE=true
+    HOST=${FSTS[$i]%%:*}
+    eos fs ls -m | grep ${HOST} | grep ${PATHS[$i]} &> /dev/null
 
-    # Check if file system location is not mounted already
-    eos fs ls -m | grep ${FSTS[$i]%%:*} | grep ${PATHS[$i]} &> /dev/null
+    # Add file system if not mounted already
     if [[ $? -ne 0 ]]; then
-        # Do local drive set up before adding file system
-        if ${LOCAL_DRIVE}; then
-            mkdir -p ${PATHS[$i]}
-            rm -f ${PATHS[$i]}/.eosfsid
-            echo "$UUID" > ${PATHS[$i]}/.eosfsuuid
-            chown daemon:daemon -R ${PATHS[$i]}
+        [[ ${PATHS[$i]} == /* ]] && LOCAL_DRIVE=true || LOCAL_DRIVE=false
+        UUID=`uuidgen`
+
+        if ${LOCAL_DRIVE} && ${CONN_CLIENT}; then
+            ssh ${HOST} mkdir -p ${PATHS[$i]} &> /dev/null
+            ssh ${HOST} chown daemon:daemon -R ${PATHS[$i]}
+            ssh ${HOST} rm -f ${PATHS[$i]}/.eosfsid ${PATHS[$i]}/.eosfsuuid
+            ssh ${HOST} "echo ${UUID} > ${PATHS[$i]}/.eosfsuuid" &> /dev/null
         fi
 
         eos -b fs add ${UUID} ${FSTS[$i]} ${PATHS[$i]} ${SPACE[$i]} rw
-        eos space set ${SPACE[$i]} on
-        ${LOCAL_DRIVE} && eos -b fs boot ${UUID} &> /dev/null
+        eos -b fs boot ${UUID} &> /dev/null
     fi
 
+    eos space set ${SPACE[$i]} on &> /dev/null
     IDS[$i]=$(eos -b fs ls -m | grep ${FSTS[$i]%%:*} | grep ${PATHS[$i]} | cut -d\  -f3 | cut -d= -f2)
 done
 
 # Wait for file systems to come online
-${VERBOSE} && echo "Waiting for file systems to come online"
+${VERBOSE} && echo "Waiting 30 seconds for file systems to come online"
 
-OFFLINE=false
+OFFLINE_IDS=()
 for count in `seq 1 30`; do
-    OFFLINE=false
+    OFFLINE_IDS=()
     for i in ${IDS[@]}; do
-        eos fs ls -m | grep id=${i} | grep online &> /dev/null
+        eos fs ls -m | grep -w id=${i} | grep online | grep booted &> /dev/null
         if [[ $? -ne 0 ]]; then
-            OFFLINE=true
+            OFFLINE_IDS+=(${i})
             break
         fi
     done
 
-    ! ${OFFLINE} && break
+    [[ ${#OFFLINE_IDS[@]} -eq 0 ]] && break
     sleep 1
 done
 
-${OFFLINE} && echo "error: file systems not online" && exit 1
+# Print offline file systems
+if [[ ${#OFFLINE_IDS[@]} -ne 0 ]]; then
+    echo "error: following file systems are not online or booted"
+    for i in ${OFFLINE_IDS[@]}; do
+        echo "#" `eos -b fs ls | grep -w ${i}`
+    done
+
+    echo "" && exit 1
+fi
 
 # Prepare EOS file systems
 for (( i=0; i < ${#IDS[@]}; i++ )); do
@@ -174,7 +210,8 @@ done
 
 QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
                 --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ 2> /dev/null | wc -l"
-wait_result "${QUERY}" 50 10 "S3 upload" 1
+wait_result "${QUERY}" 50 60 "S3 upload"
+[[ $? -ne 0 ]] && exit 1
 
 #------------------------------------------------------------------------------
 # Tests
@@ -191,11 +228,10 @@ done
 
 QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
                 --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/ 2> /dev/null | grep -v .xattr | wc -l"
-wait_result "${QUERY}" 50 10 "EOS upload" 2
+wait_result "${QUERY}" 50 60 "EOS upload"
 
 EOS_RESULT=`eos -b ls -l /eos/dockertest/${SPACE[1]}/upload/ | wc -l`
-EXT_RESULT=`davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
-                     --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/ | grep -v .xattr | wc -l`
+EXT_RESULT=$(eval "${QUERY}")
 ${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT} EXT_RESULT=${EXT_RESULT}"
 
 if [[ ${EOS_RESULT} != ${EXT_RESULT} ]]; then
@@ -211,9 +247,9 @@ ${VERBOSE} && print_test 2 "import operation" "import files from S3 to /eos/dock
 eos fs import ${IDS[1]} ${PATHS[1]}eos/${SPACE[1]}/extfiles/ /eos/dockertest/${SPACE[1]}/import/ &> /dev/null
 
 QUERY="eos -b ls -l /eos/dockertest/${SPACE[1]}/import/ | wc -l"
-wait_result "${QUERY}" 50 10 "EOS import" 2
+wait_result "${QUERY}" 50 60 "EOS import"
 
-EOS_RESULT=`eos -b ls -l /eos/dockertest/${SPACE[1]}/import/ | wc -l`
+EOS_RESULT=$(eval "${QUERY}")
 ${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT}"
 
 if [[ ${EOS_RESULT} -ne 50 ]]; then
@@ -227,17 +263,21 @@ fi
 ${VERBOSE} && print_test 3 "move operation" "move imported replicas from S3 to '${SPACE[0]}' file system"
 
 for i in `seq 0 49`; do
-    eos -b file move /eos/dockertest/${SPACE[1]}/import/${i}.dat ${IDS[1]} ${IDS[0]} &> /dev/null
+    eos -b file move /eos/dockertest/${SPACE[1]}/import/${i}.dat ${IDS[1]} ${IDS[0]} &> /dev/null &
 done
-sleep 300
 
-EOS_RESULT=`ls ${PATHS[0]}/eos/dockertest/${SPACE[1]}/import/ | wc -l`
-${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT}"
+QUERY="eos -b fs dumpmd $IDS[0] --path | wc -l"
+wait_result "${QUERY}" 50 60 "EOS replica move"
+EOS_RESULT=$(eval "${QUERY}")
 
-davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
-         --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ &> /dev/null
+QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ 2> /dev/null | grep .dat | wc -l"
+VERBOSE="nocount" wait_result "${QUERY}" 0 300 "external storage replica drop"
+EXT_RESULT=$(eval "${QUERY}")
 
-if [[ ${EOS_RESULT} -ne 50 ]] || [[ $? -eq 0 ]]; then
+${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT} EXT_RESULT=${EXT_RESULT}"
+
+if [[ ${EOS_RESULT} -ne 50 ]] || [[ ${EXT_RESULT} -ne 0 ]]; then
     echo "Failed move operation. Not all replicas were successfully moved."
     exit 2
 fi
