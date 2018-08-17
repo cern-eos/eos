@@ -1645,8 +1645,6 @@ Master::MasterRO2Slave()
     XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
     if (gOFS->mInitialized == gOFS->kBooted) {
-      // Inform the boot thread that the stall should be removed after boot
-      gOFS->RemoveStallRuleAfterBoot = true;
       // Start the file view loader thread
       MasterLog(eos_info("msg=\"starting file view loader thread\""));
       pthread_t tid;
@@ -2300,8 +2298,6 @@ Master::RebootSlaveNamespace()
     XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
     if (gOFS->mInitialized == gOFS->kBooted) {
-      // Inform the boot thread that the stall should be removed after boot
-      gOFS->RemoveStallRuleAfterBoot = true;
       // Start the file view loader thread
       MasterLog(eos_info("msg=\"starting file view loader thread\""));
       pthread_t tid;

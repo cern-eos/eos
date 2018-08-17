@@ -165,7 +165,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mCapabilityValidity(3600), MgmOfsMessaging(0), MgmOfsVstMessaging(0),
   ManagerPort(1094), LinuxStatsStartup{0},
   StartTime(0), HostName(0), HostPref(0), mInitialized(kDown), mFileInitTime(0),
-  mTotalInitTime(0), Shutdown(false), RemoveStallRuleAfterBoot(false),
+  mTotalInitTime(0), Shutdown(false),
   BootFileId(0), BootContainerId(0), IsRedirect(true), IsStall(true),
   mAuthorize(false), mAuthLib(""), IssueCapability(false), MgmRedirector(false),
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),

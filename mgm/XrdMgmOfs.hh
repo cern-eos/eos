@@ -1383,8 +1383,6 @@ public:
   time_t mTotalInitTime; ///< Time for entire initialization
   mutable XrdSysMutex InitializationMutex; ///< mutex protecting above variables
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
-  //! Indicates that after a boot there shouldn't be a stall rule for all alias '*'
-  bool RemoveStallRuleAfterBoot;
   //! Const strings to print the namespace boot state as in eNamespace
   static const char* gNameSpaceState[];
 
