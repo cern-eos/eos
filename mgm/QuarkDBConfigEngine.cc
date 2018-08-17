@@ -356,14 +356,14 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
   mMutex.Lock();
   sConfigDefinitions.Purge();
 
-  for (auto && elem : hash.hkeys()) {
-    XrdOucString key = elem.c_str();
+  for(auto it = hash.getIterator(); it.valid(); it.next()) {
+    XrdOucString key = it.getKey().c_str();
 
-    if (key == "timestamp") {
+    if(key == "timestamp") {
       continue;
     }
 
-    XrdOucString value = hash.hget(elem).c_str();
+    XrdOucString value = it.getValue().c_str();
     eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
     sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
   }
