@@ -484,6 +484,12 @@ extstorage_test:
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
+    - UUID=`uuidgen` && echo $UUID > .eosfsuuid
+    - docker exec -i eos-fst1-test mkdir -p /home/data/eos_lpath
+    - docker cp .eosfsuuid eos-fst1-test:/home/data/eos_lpath/.eosfsuuid
+    - docker exec -i eos-fst1-test chown -R daemon:daemon /home/data/eos_lpath
+    - rm -f .eosfsuuid
+    - docker exec -i eos-mgm-test eos-extstorage-test eos fs add $UUID eos-fst1-test.eoscluster.cern.ch:1095 /home/data/eos_lpath lpath_test rw
     - docker exec -i eos-mgm-test eos-extstorage-test eos-mgm-test:1094 --verbose
     - sudo ./eos-docker/scripts/shutdown_services.sh
   tags:
