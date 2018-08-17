@@ -51,27 +51,12 @@ HttpServer::Handler(void* cls,
                     void** ptr)
 {
   std::map<std::string, std::string> headers;
-  bool go = false;
 
-  do {
-    // --------------------------------------------------------
-    // wait that the namespace is booted
-    // --------------------------------------------------------
-    {
-      {
-        XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-        if ((gOFS->mInitialized == gOFS->kBooted) ||
-            (gOFS->mInitialized == gOFS->kCompacting)) {
-          go = true;
-        }
-      }
-
-      if (!go) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    }
-  } while (!go);
+  // Wait for the namespace to boot
+  while (gOFS->mInitialized != gOFS->kBooted) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    XrdSysThread::CancelPoint();
+  }
 
   // If this is the first call, create an appropriate protocol handler based
   // on the headers and store it in *ptr. We should only return MHD_YES here

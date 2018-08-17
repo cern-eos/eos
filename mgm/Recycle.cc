@@ -80,16 +80,15 @@ Recycle::StartRecycleThread(void* arg)
   return reinterpret_cast<Recycle*>(arg)->Recycler();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Eternal thread doing garbage clean-up in the garbege bin
+// - default garbage directory is '<instance-proc>/recycle/'
+// - one should define an attribute like 'sys.recycle.keeptime' on this dir
+//   to define the time in seconds how long files stay in the recycle bin
+//------------------------------------------------------------------------------
 void*
 Recycle::Recycler()
 {
-  //.............................................................................
-  // Eternal thread doing garbage clean-up in the garbege bin
-  // - default garbage directory is '<instance-proc>/recycle/'
-  // - one should define an attribute like 'sys.recycle.keeptime' on this dir
-  //   to define the time in seconds how long files stay in the recycle bin
-  //.............................................................................
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo lError;
@@ -101,42 +100,30 @@ Recycle::Recycler()
   unsigned long long lLowSpaceWatermark = 0;
   bool show_attribute_missing = true;
   eos_static_info("msg=\"async recycling thread started\"");
-  // ---------------------------------------------------------------------------
-  // wait that the namespace is initialized
-  // ---------------------------------------------------------------------------
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
-  while (1) {
-    //...........................................................................
-    // every now and then we wake up
-    //..........................................................................
+  while (true) {
+    // Every now and then we wake up
     eos_static_info("snooze-time=%llu", snoozetime);
-    XrdSysThread::SetCancelOn();
 
     for (int i = 0; i < snoozetime / 10; i++) {
+      XrdSysThread::CancelPoint();
       std::this_thread::sleep_for(std::chrono::seconds(10));
-      {
-        XrdSysMutexHelper lock(mWakeUpMutex);
+      XrdSysMutexHelper lock(mWakeUpMutex);
 
-        if (mWakeUp) {
-          mWakeUp = false;
-          break;
-        }
+      if (mWakeUp) {
+        mWakeUp = false;
+        break;
       }
     }
 
-    snoozetime =
-      gRecyclingPollTime; // this will be reconfigured to an appropriate value later
-    XrdSysThread::SetCancelOff();
-    //...........................................................................
-    // read our current policy setting
-    //...........................................................................
+    // This will be reconfigured to an appropriate value later
+    snoozetime = gRecyclingPollTime;
+    // Read our current policy setting
     eos::IContainerMD::XAttrMap attrmap;
 
-    //...........................................................................
-    // check if this path has a recycle attribute
-    //...........................................................................
+    // Check if this path has a recycle attribute
     if (gOFS->_attr_ls(Recycle::gRecyclingPrefix.c_str(), lError, rootvid, "",
                        attrmap)) {
       eos_static_err("msg=\"unable to get attribute on recycle path\" recycle-path=%s",
@@ -486,8 +473,9 @@ Recycle::Recycler()
         }
       }
     }
-  };
+  }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 

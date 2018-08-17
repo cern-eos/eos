@@ -580,29 +580,20 @@ GeoBalancer::prepareTransfers(int nrTransfers)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! @brief eternal loop trying to run conversion jobs
+//------------------------------------------------------------------------------
 void*
 GeoBalancer::GeoBalance()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief eternal loop trying to run conversion jobs
- */
-/*----------------------------------------------------------------------------*/
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  XrdSysThread::SetCancelOn();
-  // ---------------------------------------------------------------------------
-  // wait that the namespace is initialized
-  // ---------------------------------------------------------------------------
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
-  // ---------------------------------------------------------------------------
-  // loop forever until cancelled
-  // ---------------------------------------------------------------------------
-  while (1) {
+  // Loop forever until cancelled
+  while (true) {
     bool isSpaceGeoBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;
@@ -616,7 +607,6 @@ GeoBalancer::GeoBalance()
         XrdSysThread::CancelPoint();
       }
 
-      XrdSysThread::SetCancelOff();
       FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
 
       if (space->GetConfigMember("converter") != "on") {
@@ -662,14 +652,12 @@ GeoBalancer::GeoBalance()
     }
 
 wait:
-    XrdSysThread::SetCancelOn();
-    // -------------------------------------------------------------------------
     // Let some time pass or wait for a notification
-    // -------------------------------------------------------------------------
     std::this_thread::sleep_for(std::chrono::seconds(10));
     XrdSysThread::CancelPoint();
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 

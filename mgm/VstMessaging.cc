@@ -101,20 +101,15 @@ void
 VstMessaging::Listen()
 {
   static int lPublishTime = 0;
-  {
-    XrdSysThread::SetCancelOn();
+  XrdSysThread::SetCancelDeferred();
 
-    // we give some time for startup
-    for (size_t i = 0; i < 30; ++i) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      XrdSysThread::CancelPoint();
-    }
+  // Give some time for startup
+  for (size_t i = 0; i < 30; ++i) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    XrdSysThread::CancelPoint();
   }
 
-  while (1) {
-    bool booted = false;
-    XrdSysThread::SetCancelOff();
-    //eos_static_debug("RecvMessage");
+  while (true) {
     XrdMqMessage* newmessage = mMessageClient.RecvMessage();
 
     if (newmessage) {
@@ -127,15 +122,7 @@ VstMessaging::Listen()
       XrdSysThread::SetCancelOff();
     }
 
-    {
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-      if (gOFS->mInitialized == gOFS->kBooted) {
-        booted = true;
-      }
-    }
-
-    if (booted) {
+    if (gOFS->mInitialized == gOFS->kBooted) {
       if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15)) {
         XrdMqMessage message("VST-Info");
         message.SetBody(PublishVst().c_str());
@@ -148,9 +135,10 @@ VstMessaging::Listen()
       }
     }
 
-    XrdSysThread::SetCancelOn();
     XrdSysThread::CancelPoint();
   }
+
+  XrdSysThread::SetCancelOn();
 }
 
 /*----------------------------------------------------------------------------*/

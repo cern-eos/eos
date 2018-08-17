@@ -625,7 +625,7 @@ GroupBalancer::GroupBalance()
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Loop forever until cancelled
-  while (1) {
+  while (true) {
     bool isSpaceGroupBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;

@@ -82,11 +82,8 @@ WFE::Start()
 {
   // run an asynchronous WFE thread
   mThread = 0;
-  XrdSysThread::Run(&mThread,
-                    WFE::StartWFEThread,
-                    static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD,
-                    "WFE engine Thread");
+  XrdSysThread::Run(&mThread, WFE::StartWFEThread, static_cast<void*>(this),
+                    XRDSYSTHREAD_HOLD, "WFE engine Thread");
   return mThread != 0;
 }
 
@@ -116,36 +113,25 @@ WFE::StartWFEThread(void* arg)
   return reinterpret_cast<WFE*>(arg)->WFEr();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief WFE method doing the actual workflow
+//
+// This thread method loops in regular intervals over all workflow jobs in the
+// workflow directory /eos/<instance>/proc/workflow/
+//------------------------------------------------------------------------------/
 void*
 WFE::WFEr()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief WFE method doing the actual workflow
- *
- * This thread method loops in regular intervals over all workflow jobs in the
- * workflow directory /eos/<instance>/proc/workflow/
- */
-/*----------------------------------------------------------------------------*/
+
 {
-  // ---------------------------------------------------------------------------
-  // wait that the namespace is initialized
-  // ---------------------------------------------------------------------------
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
-  //----------------------------------------------------------------------------
   // Eternal thread doing WFE scans
-  //----------------------------------------------------------------------------
   time_t snoozetime = 10;
   size_t lWFEntx = 0;
   time_t cleanuptime = 0;
   eos_static_info("msg=\"async WFE thread started\"");
 
   while (true) {
-    // -------------------------------------------------------------------------
-    // every now and then we wake up
-    // -------------------------------------------------------------------------
-    XrdSysThread::SetCancelOff();
     bool IsEnabledWFE;
     time_t lWFEInterval;
     time_t lStartTime = time(NULL);
@@ -180,15 +166,10 @@ WFE::WFEr()
       }
     }
 
-    // only a master needs to run WFE
+    // Only a master needs to run WFE
     if (gOFS->mMaster->IsMaster() && IsEnabledWFE) {
-      // -------------------------------------------------------------------------
-      // do a find
-      // -------------------------------------------------------------------------
       eos_static_debug("msg=\"start WFE scan\"");
-      // -------------------------------------------------------------------------
-      // find all directories defining an WFE policy
-      // -------------------------------------------------------------------------
+      // Find all directories defining an WFE policy
       gOFS->MgmStats.Add("WFEFind", 0, 0, 1);
       EXEC_TIMING_BEGIN("WFEFind");
       // prepare four queries today, yesterday for queued and error jobs
@@ -316,7 +297,7 @@ WFE::WFEr()
     }
 
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
-    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
     size_t snoozeloop = snoozetime * 10;
 
     for (size_t i = 0; i < snoozeloop; i++) {
@@ -388,6 +369,7 @@ WFE::WFEr()
     }
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 

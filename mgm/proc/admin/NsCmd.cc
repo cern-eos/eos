@@ -241,21 +241,18 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
                                             (1.0 * statd.st_size) / d : 0, "B");
   }
 
-  XrdOucString bootstring;
   time_t fboot_time = 0;
   time_t boot_time = 0;
-  {
-    XrdSysMutexHelper lock(gOFS->InitializationMutex);
-    bootstring = gOFS->gNameSpaceState[gOFS->mInitialized];
+  XrdOucString bootstring = gOFS->gNameSpaceState[gOFS->mInitialized];
 
-    if (bootstring == "booting") {
-      fboot_time = time(nullptr) - gOFS->mFileInitTime;
-      boot_time = time(nullptr) - gOFS->StartTime;
-    } else {
-      fboot_time = gOFS->mFileInitTime;
-      boot_time = gOFS->mTotalInitTime;
-    }
+  if (bootstring == "booting") {
+    fboot_time = time(nullptr) - gOFS->mFileInitTime;
+    boot_time = time(nullptr) - gOFS->StartTime;
+  } else {
+    fboot_time = gOFS->mFileInitTime;
+    boot_time = gOFS->mTotalInitTime;
   }
+
   // Statistics for memory usage
   eos::common::LinuxMemConsumption::linux_mem_t mem;
 
@@ -299,8 +296,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.total.directories=" << d << std::endl
         << "uid=all gid=all ns.current.fid=" << fid_now
         << " ns.current.cid=" << cid_now
-        << " ns.generated.fid=" << (int)(fid_now - gOFS->BootFileId)
-        << " ns.generated.cid=" << (int)(cid_now - gOFS->BootContainerId) << std::endl
+        << " ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
+        << " ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId) << std::endl
         << "uid=all gid=all ns.total.files.changelog.size="
         << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
         << std::endl
@@ -377,9 +374,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      avg. Dir  Entry Size             " << cldratio << std::endl
         << line << std::endl
         << "ALL      files created since boot         "
-        << (int)(fid_now - gOFS->BootFileId) << std::endl
+        << (int)(fid_now - gOFS->mBootFileId) << std::endl
         << "ALL      container created since boot     "
-        << (int)(cid_now - gOFS->BootContainerId) << std::endl
+        << (int)(cid_now - gOFS->mBootContainerId) << std::endl
         << line << std::endl
         << "ALL      current file id                  " << fid_now
         << std::endl

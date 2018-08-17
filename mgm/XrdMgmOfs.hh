@@ -1379,9 +1379,8 @@ public:
   };
 
   std::atomic<int> mInitialized; ///< Initialization state of the namespace
-  time_t mFileInitTime; ///< Time for the file initialization
-  time_t mTotalInitTime; ///< Time for entire initialization
-  mutable XrdSysMutex InitializationMutex; ///< mutex protecting above variables
+  std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
+  std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
   //! Const strings to print the namespace boot state as in eNamespace
   static const char* gNameSpaceState[];
@@ -1390,9 +1389,9 @@ public:
   // State variables
   //----------------------------------------------------------------------------
   //! Next free file id after namespace boot
-  eos::common::FileId::fileid_t BootFileId;
+  std::atomic<uint64_t> mBootFileId;
   ///< Next free container id after namespace boot
-  eos::common::FileId::fileid_t BootContainerId;
+  std::atomic<uint64_t> mBootContainerId;
   bool IsRedirect; ///< true if the Redirect function should be called to redirect
   bool IsStall; ///< true if the Stall function should be called to send a wait
   bool mAuthorize; ///< Determine if the autorization should be applied or not

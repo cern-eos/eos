@@ -93,8 +93,6 @@ Balancer::Balance(void)
       XrdSysThread::CancelPoint();
     }
 
-    XrdSysThread::SetCancelOff();
-
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
       break;
@@ -284,7 +282,6 @@ Balancer::Balance(void)
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-    XrdSysThread::SetCancelOn();
 
     // Wait a while ...
     for (size_t i = 0; i < 10; ++i) {
@@ -293,6 +290,7 @@ Balancer::Balance(void)
     }
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 

@@ -334,12 +334,11 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
   XrdOucString outLocal, errLocal;
 
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
-    {
-      // Stall if the namespace is still booting
-      while (!gOFS->IsNsBooted()) {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-      }
+    // Stall if the namespace is still booting
+    while (!gOFS->IsNsBooted()) {
+      std::this_thread::sleep_for(std::chrono::seconds(2));
     }
+  
     std::string sfsid = std::to_string(dumpmdProto.fsid());
     XrdOucString option = dumpmdProto.display() ==
                           eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";

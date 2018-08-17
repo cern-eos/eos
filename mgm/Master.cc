@@ -595,8 +595,9 @@ Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 void*
 Master::Compacting()
 {
+  XrdSysThread::SetCancelDeferred();
+
   do {
-    XrdSysThread::SetCancelOff();
     time_t now = time(nullptr);
     bool runcompacting = false;
     bool reschedule = false;
@@ -630,6 +631,7 @@ Master::Compacting()
 
     if (!gOFS->eosFileService || !gOFS->eosDirectoryService) {
       eos_notice("file/directory metadata service is not available");
+      XrdSysThread::SetCancelOn();
       return nullptr;
     }
 
@@ -641,16 +643,14 @@ Master::Compacting()
     // Check if namespace supports compacting
     if (!eos_chlog_filesvc || !eos_chlog_dirsvc) {
       eos_notice("msg=\"namespace does not support compacting - disable it\"");
+      XrdSysThread::SetCancelOn();
       return nullptr;
     }
 
     if (runcompacting) {
       // Run the online compacting procedure
       eos_alert("msg=\"online-compacting running\"");
-      {
-        XrdSysMutexHelper lock(gOFS->InitializationMutex);
-        gOFS->mInitialized = XrdMgmOfs::kCompacting;
-      }
+      gOFS->mInitialized = XrdMgmOfs::kCompacting;
       eos_notice("msg=\"starting online compaction\"");
       time_t now = time(nullptr);
       // File compacting
@@ -862,12 +862,7 @@ Master::Compacting()
         exit(-1);
       }
 
-      {
-        // Change from kCompacting to kBooted
-        XrdSysMutexHelper lock(gOFS->InitializationMutex);
-        gOFS->mInitialized = XrdMgmOfs::kBooted;
-      }
-
+      gOFS->mInitialized = XrdMgmOfs::kBooted;
       {
         // Set to not compacting
         XrdSysMutexHelper cLock(fCompactingMutex);
@@ -876,10 +871,11 @@ Master::Compacting()
     }
 
     // Check only once a minute
-    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
     std::this_thread::sleep_for(std::chrono::seconds(60));
   } while (true);
 
+  XrdSysThread::SetCancelOn();
   return nullptr;
 }
 
@@ -1641,26 +1637,22 @@ Master::MasterRO2Slave()
     }
   }
 
-  {
-    XrdSysMutexHelper lock(gOFS->InitializationMutex);
+  if (gOFS->mInitialized == gOFS->kBooted) {
+    // Start the file view loader thread
+    MasterLog(eos_info("msg=\"starting file view loader thread\""));
+    pthread_t tid;
 
-    if (gOFS->mInitialized == gOFS->kBooted) {
-      // Start the file view loader thread
-      MasterLog(eos_info("msg=\"starting file view loader thread\""));
-      pthread_t tid;
-
-      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                             static_cast<void*>(gOFS), 0, "File View Loader"))) {
-        MasterLog(eos_crit("cannot start file view loader"));
-        fRunningState = Run::State::kIsNothing;
-        return false;
-      }
-    } else {
-      MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
-                         "namespace in bootfailure state\""));
+    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
+                           static_cast<void*>(gOFS), 0, "File View Loader"))) {
+      MasterLog(eos_crit("cannot start file view loader"));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
+  } else {
+    MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
+                       "namespace in bootfailure state\""));
+    fRunningState = Run::State::kIsNothing;
+    return false;
   }
 
   fRunningState = Run::State::kIsRunningSlave;
@@ -1925,7 +1917,7 @@ Master::BootNamespace()
     // Add boot errors to the master log
     std::string out;
     GetLog(out);
-    gOFS->BootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
+    gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
                          (tstop - tstart)));
 
@@ -2242,11 +2234,8 @@ bool
 Master::RebootSlaveNamespace()
 {
   fRunningState = Run::State::kIsTransition;
+  gOFS->mInitialized = gOFS->kBooting;
   {
-    {
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-      gOFS->mInitialized = gOFS->kBooting;
-    }
     // now convert the namespace
     eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
@@ -2282,45 +2271,38 @@ Master::RebootSlaveNamespace()
     // Boot it from scratch
     if (!BootNamespace()) {
       fRunningState = Run::State::kIsNothing;
-      {
-        XrdSysMutexHelper lock(gOFS->InitializationMutex);
-        gOFS->mInitialized = gOFS->kFailed;
-      }
+      gOFS->mInitialized = gOFS->kFailed;
       return false;
     }
 
-    {
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-      gOFS->mInitialized = gOFS->kBooted;
-    }
+    gOFS->mInitialized = gOFS->kBooted;
   }
-  {
-    XrdSysMutexHelper lock(gOFS->InitializationMutex);
 
-    if (gOFS->mInitialized == gOFS->kBooted) {
-      // Start the file view loader thread
-      MasterLog(eos_info("msg=\"starting file view loader thread\""));
-      pthread_t tid;
+  if (gOFS->mInitialized == gOFS->kBooted) {
+    // Start the file view loader thread
+    MasterLog(eos_info("msg=\"starting file view loader thread\""));
+    pthread_t tid;
 
-      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                             static_cast<void*>(gOFS), 0, "File View Loader"))) {
-        MasterLog(eos_crit("cannot start file view loader"));
-        fRunningState = Run::State::kIsNothing;
-        return false;
-      }
-    } else {
-      MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
-                         "namespace in bootfailure state\""));
+    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
+                           static_cast<void*>(gOFS), 0, "File View Loader"))) {
+      MasterLog(eos_crit("cannot start file view loader"));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
+  } else {
+    MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
+                       "namespace in bootfailure state\""));
+    fRunningState = Run::State::kIsNothing;
+    return false;
   }
+
   {
     // Be aware of interference with the heart beat daemon
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
     // Remove global redirection
     Access::gRedirectionRules.erase(std::string("*"));
   }
+
   fRunningState = Run::State::kIsRunningSlave;
   MasterLog(eos_notice("running in slave mode"));
   return true;

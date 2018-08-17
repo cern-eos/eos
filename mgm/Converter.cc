@@ -365,7 +365,7 @@ Converter::Convert(void)
   // the parent container of the fid
   std::map<eos::common::FileId::fileid_t, std::string> lConversionFidMap;
 
-  while (1) {
+  while (true) {
     bool IsSpaceConverter = true;
     bool IsMaster = true;
     int lSpaceTransfers = 0;
@@ -378,8 +378,6 @@ Converter::Convert(void)
       while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
         XrdSysThread::CancelPoint();
       }
-
-      XrdSysThread::SetCancelOff();
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
         FsView::gFsView.ViewMutex.UnLockRead();
@@ -513,7 +511,6 @@ Converter::Convert(void)
       }
     }
 
-    XrdSysThread::SetCancelOn();
     // Let some time pass or wait for a notification
     mDoneSignal.Wait(10);
     XrdSysThread::CancelPoint();

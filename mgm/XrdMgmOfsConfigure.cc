@@ -21,12 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <cstring>
-/*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -61,16 +59,13 @@
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
-/*----------------------------------------------------------------------------*/
+
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
 extern void xrdmgmofs_stacktrace(int sig);
-
-/*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
 
@@ -89,12 +84,8 @@ XrdMgmOfs::StaticInitializeFileView(void* arg)
 void*
 XrdMgmOfs::InitializeFileView()
 {
-  {
-    XrdSysMutexHelper lock(InitializationMutex);
-    mInitialized = kBooting;
-    mFileInitTime = time(0);
-    BootFileId = 0;
-  }
+  mInitialized = kBooting;
+  mFileInitTime = time(0);
   time_t tstart = time(0);
   std::string oldstallrule;
   std::string oldstallcomment;
@@ -127,7 +118,7 @@ XrdMgmOfs::InitializeFileView()
       time_t t3 = time(nullptr);
       eos_notice("eos file view initialize2: %d seconds", t2 - t1);
       eos_notice("eos file view initialize3: %d seconds", t3 - t2);
-      BootFileId = gOFS->eosFileService->getFirstFreeId();
+      mBootFileId = gOFS->eosFileService->getFirstFreeId();
 
       if (mMaster->IsMaster()) {
         // create ../proc/<x> files
@@ -210,11 +201,8 @@ XrdMgmOfs::InitializeFileView()
           eosView->updateFileStore(fmd.get());
         }
 
-        {
-          XrdSysMutexHelper lock(InitializationMutex);
-          mInitialized = kBooted;
-          eos_static_alert("msg=\"namespace booted (as master)\"");
-        }
+        mInitialized = kBooted;
+        eos_static_alert("msg=\"namespace booted (as master)\"");
       }
     }
 
@@ -260,11 +248,8 @@ XrdMgmOfs::InitializeFileView()
         }
       }
 
-      {
-        XrdSysMutexHelper lock(InitializationMutex);
-        mInitialized = kBooted;
-        eos_static_alert("msg=\"namespace booted (as slave)\"");
-      }
+      mInitialized = kBooted;
+      eos_static_alert("msg=\"namespace booted (as slave)\"");
     }
 
     time_t tstop = time(nullptr);
@@ -288,10 +273,7 @@ XrdMgmOfs::InitializeFileView()
       Access::gStallGlobal = oldstallglobal;
     }
   } catch (eos::MDException& e) {
-    {
-      XrdSysMutexHelper lock(InitializationMutex);
-      mInitialized = kFailed;
-    }
+    mInitialized = kFailed;
     time_t tstop = time(nullptr);
     errno = e.getErrno();
     eos_crit("namespace file loading initialization failed after %d seconds",
@@ -301,15 +283,12 @@ XrdMgmOfs::InitializeFileView()
     std::abort();
   }
 
-  {
-    XrdSysMutexHelper lock(InitializationMutex);
-    mFileInitTime = time(nullptr) - mFileInitTime;
-    mTotalInitTime = time(nullptr) - StartTime;
+  mFileInitTime = time(nullptr) - mFileInitTime;
+  mTotalInitTime = time(nullptr) - StartTime;
 
-    // grab process status after boot
-    if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
-      eos_crit("failed to grab /proc/self/stat information");
-    }
+  // Get process status after boot
+  if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
+    eos_crit("failed to grab /proc/self/stat information");
   }
 
   // Load all the quota nodes from the namespace
