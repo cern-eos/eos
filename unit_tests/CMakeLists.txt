@@ -50,6 +50,7 @@ set(CONSOLE_UT_SRCS
   console/RegexUtilTest.cc)
 
 set(MGM_UT_SRCS
+  mgm/AccessTests.cc
   mgm/ProcFsTests.cc
   mgm/FsViewTests.cc
   mgm/AclCmdTests.cc
