@@ -1780,7 +1780,7 @@ XrdMgmOfsFile::open(const char* inpath,
           if (std::find(unavailfs.begin(), unavailfs.end(),
                         selectedfs[k]) == unavailfs.end()) {
             // take the highest fsid with the same geotag if possible
-            if ((vid.geolocation.empty() || fsgeotag == vid.geolocation) &&
+            if ((vid.geolocation.empty() || (fsgeotag.find(vid.geolocation) != std::string::npos)) &&
                 (selectedfs[k] > fsid)) {
               fsIndex = k;
               fsid = selectedfs[k];
