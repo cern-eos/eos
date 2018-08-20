@@ -186,7 +186,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       if ((!gOFS->_readlink(url.c_str(),
                             error,
                             *mVirtualIdentity,
-                            link)) && (link != "")) {
+                            link)) && (link != "") &&
+	        ( link.beginswith("http://") ||
+	          link.beginswith("https://") )) {
         if (gOFS->access(url.c_str(),
                          R_OK,
                          error,
