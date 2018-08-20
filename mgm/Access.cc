@@ -27,7 +27,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 //! singleton set for banned user IDs
 std::set<uid_t> Access::gBannedUsers;
 
@@ -114,14 +113,14 @@ const char* Access::gStallKey = "Stall";
 const char* Access::gRedirectionKey = "Redirection";
 
 /*----------------------------------------------------------------------------*/
-void
-Access::Reset()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Static function to reset all singleton objects defining access rules.
  *
  */
 /*----------------------------------------------------------------------------*/
+void
+Access::Reset()
+
 {
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gBannedUsers.clear();
@@ -142,14 +141,13 @@ Access::Reset()
 }
 
 /*----------------------------------------------------------------------------*/
-void
-Access::ApplyAccessConfig(bool applyredirectandstall)
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Static function to retrieve the access configuration from the global
  * configuration and apply to the static singleton rules.
  */
 /*----------------------------------------------------------------------------*/
+void
+Access::ApplyAccessConfig(bool applyredirectandstall)
 {
   Access::Reset();
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
@@ -157,12 +155,10 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
   std::string groupval = FsView::gFsView.GetGlobalConfig(gGroupKey);
   std::string hostval = FsView::gFsView.GetGlobalConfig(gHostKey);
   std::string domainval = FsView::gFsView.GetGlobalConfig(gDomainKey);
-
   std::string useraval = FsView::gFsView.GetGlobalConfig(gAllowedUserKey);
   std::string groupaval = FsView::gFsView.GetGlobalConfig(gAllowedGroupKey);
   std::string hostaval = FsView::gFsView.GetGlobalConfig(gAllowedHostKey);
   std::string domainaval = FsView::gFsView.GetGlobalConfig(gAllowedDomainKey);
-
   std::string stall = FsView::gFsView.GetGlobalConfig(gStallKey);
   std::string redirect = FsView::gFsView.GetGlobalConfig(gRedirectionKey);
   // parse the list's and fill the hash
@@ -201,10 +197,9 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
 
   tokens.clear();
   eos::common::StringConversion::Tokenize(domainval, tokens, delimiter);
-  for (size_t i = 0; i < tokens.size(); i++)
-  {
-    if (tokens[i].length())
-    {
+
+  for (size_t i = 0; i < tokens.size(); i++) {
+    if (tokens[i].length()) {
       Access::gBannedDomains.insert(tokens[i]);
     }
   }
@@ -240,6 +235,7 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
 
   tokens.clear();
   eos::common::StringConversion::Tokenize(domainaval, tokens, delimiter);
+
   for (size_t i = 0; i < tokens.size(); i++) {
     if (tokens[i].length()) {
       Access::gAllowedDomains.insert(tokens[i]);
@@ -312,15 +308,15 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-Access::StoreAccessConfig()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Static function to store all defined rules in the global configuration.
  *
  * @return true if successful, otherwise false
  */
 /*----------------------------------------------------------------------------*/
+bool
+Access::StoreAccessConfig()
+
 {
   std::set<uid_t>::const_iterator ituid;
   std::set<gid_t>::const_iterator itgid;
@@ -356,9 +352,9 @@ Access::StoreAccessConfig()
     hostval += ithost->c_str();
     hostval += ":";
   }
+
   for (itdomain = Access::gBannedDomains.begin();
-       itdomain != Access::gBannedDomains.end(); itdomain++)
-  {
+       itdomain != Access::gBannedDomains.end(); itdomain++) {
     hostval += itdomain->c_str();
     hostval += ":";
   }
@@ -380,13 +376,12 @@ Access::StoreAccessConfig()
     hostaval += ithost->c_str();
     hostaval += ":";
   }
+
   for (itdomain = Access::gAllowedDomains.begin();
-       itdomain != Access::gAllowedDomains.end(); itdomain++)
-  {
+       itdomain != Access::gAllowedDomains.end(); itdomain++) {
     domainaval += itdomain->c_str();
     domainaval += ":";
   }
-
 
   gStallRead = gStallWrite = gStallGlobal = gStallUserGroup = false;
 
@@ -440,7 +435,6 @@ Access::StoreAccessConfig()
   std::string gakey = gAllowedGroupKey;
   std::string hakey = gAllowedHostKey;
   std::string dakey = gAllowedDomainKey;
-
   bool ok = 1;
   ok &= FsView::gFsView.SetGlobalConfig(ukey, userval);
   ok &= FsView::gFsView.SetGlobalConfig(gkey, groupval);
@@ -507,6 +501,41 @@ Access::GetFindLimits(const eos::common::Mapping::VirtualIdentity& vid,
       dir_limit = strtoul(gStallRules[userwildcardmatchdirs].c_str(), 0, 10);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Set global stall rule and save the previous status
+//------------------------------------------------------------------------------
+void
+Access::SetStallRule(const StallInfo& new_stall, StallInfo& old_stall)
+{
+  eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+
+  if (new_stall.mType.empty()) {
+    return;
+  }
+
+  old_stall.mType = new_stall.mType;
+
+  if (Access::gStallRules.count(new_stall.mType)) {
+    old_stall.mDelay = Access::gStallRules[old_stall.mType];
+    old_stall.mComment = Access::gStallComment[old_stall.mType];
+    old_stall.mIsGlobal = Access::gStallGlobal;
+  }
+
+  if (new_stall.mDelay.empty()) {
+    Access::gStallRules.erase(new_stall.mType);
+  } else {
+    Access::gStallRules[new_stall.mType] = new_stall.mDelay;
+  }
+
+  if (new_stall.mComment.empty()) {
+    Access::gStallComment.erase(new_stall.mType);
+  } else {
+    Access::gStallComment[new_stall.mType] = new_stall.mComment;
+  }
+
+  Access::gStallGlobal = new_stall.mIsGlobal;
 }
 
 EOSMGMNAMESPACE_END

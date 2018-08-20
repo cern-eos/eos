@@ -71,11 +71,11 @@ public:
   // key-value map
   static const char* gHostKey;
 
-  // static key defining the ban domain key in the global configuration 
+  // static key defining the ban domain key in the global configuration
   // key-value map
   static const char* gDomainKey;
 
-  // static key defining the allowed users key in the global configuration 
+  // static key defining the allowed users key in the global configuration
   // key-value map
   static const char* gAllowedUserKey;
 
@@ -91,7 +91,7 @@ public:
   // key-value map
   static const char* gAllowedDomainKey;
 
-  // static key defining the stall rules in the global configuration 
+  // static key defining the stall rules in the global configuration
   // key-value map
   static const char* gStallKey;
 
@@ -154,6 +154,24 @@ public:
   //! global rw mutex protecting all static set's and maps in Access
   static eos::common::RWMutex gAccessMutex;
 
+  //----------------------------------------------------------------------------
+  //! Struct holding stall info
+  //----------------------------------------------------------------------------
+  struct StallInfo {
+    std::string mType;
+    std::string mDelay;
+    std::string mComment;
+    bool mIsGlobal;
+
+    //--------------------------------------------------------------------------
+    //! Default constructor
+    //--------------------------------------------------------------------------
+    StallInfo(const std::string& type = "", const std::string delay = "",
+              const std::string& comment = "", bool is_global = false):
+      mType(type), mDelay(delay), mComment(comment), mIsGlobal(is_global)
+    {}
+  };
+
   // ---------------------------------------------------------------------------
   // reset/cleear all access rules
   // ---------------------------------------------------------------------------
@@ -181,6 +199,14 @@ public:
   static void GetFindLimits(const eos::common::Mapping::VirtualIdentity& vid,
                             uint64_t& dir_limit, uint64_t& file_limit);
 
+  //----------------------------------------------------------------------------
+  //! Set global stall rule and save the previous status
+  //!
+  //! @param new_stall stall rule to be applied
+  //! @param old_stall old stall rule if present
+  //----------------------------------------------------------------------------
+  static void
+  SetStallRule(const StallInfo& new_stall, StallInfo& old_stall);
 };
 
 EOSMGMNAMESPACE_END
