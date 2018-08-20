@@ -306,6 +306,11 @@ public:
     return SSTR(key);
   }
 
+  //----------------------------------------------------------------------------
+  //! Check if config key matches filter options as given in opt
+  //----------------------------------------------------------------------------
+  static bool CheckFilterMatch(XrdOucString &option, XrdOucString &key);
+
 protected:
   //! Helper struct for passing information in/out of XrdOucHash callbacks
   struct PrintInfo {

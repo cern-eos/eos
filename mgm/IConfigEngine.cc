@@ -198,6 +198,28 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
 }
 
 //------------------------------------------------------------------------------
+// Check if config key matches filter options as given in opt
+//------------------------------------------------------------------------------
+bool
+IConfigEngine::CheckFilterMatch(XrdOucString &option, XrdOucString &key)
+{
+  if (((option.find("v") != STR_NPOS) && (key.beginswith("vid:"))) ||
+     ((option.find("f") != STR_NPOS) && (key.beginswith("fs:"))) ||
+     ((option.find("q") != STR_NPOS) && (key.beginswith("quota:"))) ||
+     ((option.find("p") != STR_NPOS) && (key.beginswith("policy:"))) ||
+     ((option.find("c") != STR_NPOS) && (key.beginswith("comment-"))) ||
+     ((option.find("g") != STR_NPOS) && (key.beginswith("global:"))) ||
+     ((option.find("m") != STR_NPOS) && (key.beginswith("map:"))) ||
+     ((option.find("r") != STR_NPOS) && (key.beginswith("route:"))) ||
+     ((option.find("s") != STR_NPOS) && (key.beginswith("geosched:")))) {
+
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // XrdOucHash callback function to print a configuration value
 //------------------------------------------------------------------------------
 int
@@ -211,15 +233,7 @@ IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
     XrdOucString option = reinterpret_cast<struct PrintInfo*>(arg)->option;
     XrdOucString skey = key;
 
-    if (((option.find("v") != STR_NPOS) && (skey.beginswith("vid:"))) ||
-        ((option.find("f") != STR_NPOS) && (skey.beginswith("fs:"))) ||
-        ((option.find("q") != STR_NPOS) && (skey.beginswith("quota:"))) ||
-        ((option.find("p") != STR_NPOS) && (skey.beginswith("policy:"))) ||
-        ((option.find("c") != STR_NPOS) && (skey.beginswith("comment-"))) ||
-        ((option.find("g") != STR_NPOS) && (skey.beginswith("global:"))) ||
-        ((option.find("m") != STR_NPOS) && (skey.beginswith("map:"))) ||
-        ((option.find("r") != STR_NPOS) && (skey.beginswith("route:"))) ||
-        ((option.find("s") != STR_NPOS) && (skey.beginswith("geosched:")))) {
+    if (CheckFilterMatch(option, skey)) {
       *outstring += key;
       *outstring += " => ";
       *outstring += val->c_str();

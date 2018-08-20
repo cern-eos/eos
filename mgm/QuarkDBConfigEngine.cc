@@ -366,15 +366,7 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
     filtered = false;
 
     // Filter according to user specification
-    if (((pinfo.option.find("v") != STR_NPOS) && (_key.beginswith("vid:"))) ||
-        ((pinfo.option.find("f") != STR_NPOS) && (_key.beginswith("fs:"))) ||
-        ((pinfo.option.find("q") != STR_NPOS) && (_key.beginswith("quota:"))) ||
-        ((pinfo.option.find("c") != STR_NPOS) && (_key.beginswith("comment-"))) ||
-        ((pinfo.option.find("p") != STR_NPOS) && (_key.beginswith("policy:"))) ||
-        ((pinfo.option.find("g") != STR_NPOS) && (_key.beginswith("global:"))) ||
-        ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("map:"))) ||
-        ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("route:"))) ||
-        ((pinfo.option.find("s") != STR_NPOS) && (_key.beginswith("geosched:")))) {
+    if(CheckFilterMatch(pinfo.option, _key)) {
       filtered = true;
     }
 
