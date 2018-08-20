@@ -1070,6 +1070,7 @@ XrdFstOfsFile::close()
 
   if (mIsDevNull) {
     eos_debug("msg=\"closing sink file i.e. /dev/null\"");
+    closed = true;
     return SFS_OK;
   }
 
