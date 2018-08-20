@@ -89,22 +89,7 @@ XrdMgmOfs::InitializeFileView()
   time_t tstart = time(0);
   Access::StallInfo old_stall;
   Access::StallInfo new_stall("*", "100", "namespace is booting", true);
-  std::string oldstallrule;
-  std::string oldstallcomment;
-  bool oldstallglobal = false;
-  {
-    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-
-    if (Access::gStallRules.count(std::string("*"))) {
-      oldstallrule = Access::gStallRules[std::string("*")];
-      oldstallcomment = Access::gStallComment[std::string("*")];
-      oldstallglobal = Access::gStallGlobal;
-    }
-
-    Access::gStallRules[std::string("*")] = "100";
-    Access::gStallGlobal = true;
-    Access::gStallComment[std::string("*")] = "namespace is booting";
-  }
+  Access::SetStallRule(new_stall, old_stall);
   eos_notice("starting eos file view initialize2");
 
   try {
@@ -177,23 +162,7 @@ XrdMgmOfs::InitializeFileView()
     time_t tstop = time(nullptr);
     mMaster->MasterLog(eos_notice("eos namespace file loading stopped after %d "
                                   "seconds", (tstop - tstart)));
-    {
-      eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-
-      if (oldstallrule.length()) {
-        Access::gStallRules[std::string("*")] = oldstallrule;
-      } else {
-        Access::gStallRules.erase(std::string("*"));
-      }
-
-      if (oldstallcomment.length()) {
-        Access::gStallComment[std::string("*")] = oldstallcomment;
-      } else {
-        Access::gStallComment.erase(std::string("*"));
-      }
-
-      Access::gStallGlobal = oldstallglobal;
-    }
+    Access::SetStallRule(old_stall, new_stall);
   } catch (eos::MDException& e) {
     mInitialized = kFailed;
     time_t tstop = time(nullptr);

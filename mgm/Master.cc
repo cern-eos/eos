@@ -313,10 +313,9 @@ Master::Supervisor()
 
   XrdCl::FileSystem FsMgm(remoteMgmUrl);
   XrdCl::FileSystem FsMq(remoteMqUrl);
+  XrdSysThread::SetCancelDeferred();
 
-  while (1) {
-    XrdSysThread::SetCancelOff();
-
+  while (true) {
     // Check the remote machine for its status
     if (fCheckRemote) {
       // Ping the two guys with short timeouts e.g. MGM & MQ
@@ -390,19 +389,19 @@ Master::Supervisor()
 
         if (!IsMaster()) {
           if (fRemoteMasterOk && fRemoteMasterRW) {
-            // Set the redirect for writes to the remote master
+            // Set the redirect for writes and ENOENT to the remote master
             Access::gRedirectionRules[std::string("w:*")] = fRemoteHost.c_str();
-            // Set the redirect for ENOENT to the remote master
             Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
             // Remove the stall
             Access::gStallRules.erase(std::string("w:*"));
             Access::gStallWrite = false;
           } else {
-            // Remove the redirect for writes and put a stall for writes
+            // Remove the redirect for writes and ENOENT
             Access::gRedirectionRules.erase(std::string("w:*"));
+            Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+            // Put stall for writes
             Access::gStallRules[std::string("w:*")] = "60";
             Access::gStallWrite = true;
-            Access::gRedirectionRules.erase(std::string("ENOENT:*"));
           }
         } else {
           // Check if we have two master-rw
@@ -413,17 +412,12 @@ Master::Supervisor()
           } else {
             if (fRunningState == Run::State::kIsRunningMaster) {
               // Remove any redirect or stall in this case
-              if (Access::gRedirectionRules.count(std::string("w:*"))) {
-                Access::gRedirectionRules.erase(std::string("w:*"));
-              }
+              (void) Access::gRedirectionRules.erase(std::string("w:*"));
+              (void) Access::gRedirectionRules.erase(std::string("ENOENT:*"));
 
               if (Access::gStallRules.count(std::string("w:*"))) {
                 Access::gStallRules.erase(std::string("w:*"));
                 Access::gStallWrite = false;
-              }
-
-              if (Access::gRedirectionRules.count(std::string("ENOENT:*"))) {
-                Access::gRedirectionRules.erase(std::string("ENOENT:*"));
               }
             }
           }
@@ -432,9 +426,9 @@ Master::Supervisor()
     }
 
     // Check if the local filesystem has enough space on the namespace partition
-    eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(
-                                    gOFS->MgmMetaLogDir.c_str());
     XrdOucString sizestring;
+    eos::common::Statfs* statfs =
+      eos::common::Statfs::DoStatfs(gOFS->MgmMetaLogDir.c_str());
 
     if (!statfs) {
       MasterLog(eos_err("path=%s statfs=failed", gOFS->MgmMetaLogDir.c_str()));
@@ -456,14 +450,13 @@ Master::Supervisor()
     if (lDiskFull != pDiskFull) {
       // This is a state change and we have to configure the redirection settings
       if (lDiskFull) {
-        // The disk is full, we stall every write
+        MasterLog(eos_warning("status=\"disk space warning - stalling\" "
+                              "path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(),
+                              sizestring.c_str()));
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         pStallSetting = Access::gStallRules[std::string("w:*")];
         Access::gStallRules[std::string("w:*")] = "60";
         Access::gStallWrite = true;
-        MasterLog(eos_warning("status=\"disk space warning - stalling\" "
-                              "path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(),
-                              sizestring.c_str()));
       } else {
         MasterLog(eos_notice("status=\"disk space ok - removed stall\" "
                              "path=%s freebyte=%s", gOFS->MgmMetaLogDir.c_str(),
@@ -472,14 +465,9 @@ Master::Supervisor()
         if (pStallSetting.length()) {
           // Put back the original stall setting
           Access::gStallRules[std::string("w:*")] = pStallSetting;
-
-          if (Access::gStallRules[std::string("w:*")].length()) {
-            Access::gStallWrite = true;
-          } else {
-            Access::gStallWrite = false;
-          }
+          Access::gStallWrite = true;
         } else {
-          // Remote the stall setting
+          // Remove the stall setting
           Access::gStallRules.erase(std::string("w:*"));
           Access::gStallWrite = false;
         }
@@ -490,10 +478,11 @@ Master::Supervisor()
       pDiskFull = lDiskFull;
     }
 
-    XrdSysThread::SetCancelOn();
     std::this_thread::sleep_for(std::chrono::seconds(1));
+    XrdSysThread::CancelPoint();
   }
 
+  XrdSysThread::SetCancelOn();
   return nullptr;
 }
 
