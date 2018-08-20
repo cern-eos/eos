@@ -289,6 +289,8 @@ ${VERBOSE} && echo "Cleaning up"
 for i in `seq 0 49`; do
     davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
              --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/${i}.dat &> /dev/null &
+    davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+             --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/.${i}.dat.xattr &> /dev/null &
 done
 
 # Remove all EOS files and directories
