@@ -1766,7 +1766,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-  XrdMqSharedHash* hash = nullptr;
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {
@@ -1816,9 +1815,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     zMQ->ServeFuse();
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
-    ObjectManager.HashMutex.LockRead();
-    hash = ObjectManager.GetHash("/eos/*");
-    ObjectManager.HashMutex.UnLockRead();
     XrdOucString dumperfile = MgmMetaLogDir;
     dumperfile += "/so.mgm.dump.";
     dumperfile += ManagerId;
@@ -1949,10 +1945,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ioaccounting += ".dump";
   eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
-  if (!IoStats->SetStoreFileName(ioaccounting.c_str()))
+  if (!IoStats->SetStoreFileName(ioaccounting.c_str())) {
     eos_warning("couldn't load anything from the io stat dump file %s",
                 ioaccounting.c_str());
-  else {
+  } else {
     eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
   }
 
@@ -1960,10 +1956,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   IoStats->StartCirculate();
 
   if (!MgmRedirector) {
+    ObjectManager.HashMutex.LockRead();
+    XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
+
+    // Ask for a broadcast from fst's
     if (hash) {
-      // ask for a broadcast from fst's
       hash->BroadcastRequest("/eos/*/fst");
     }
+
+    ObjectManager.HashMutex.UnLockRead();
   }
 
   if (!getenv("EOS_NO_SHUTDOWN")) {
