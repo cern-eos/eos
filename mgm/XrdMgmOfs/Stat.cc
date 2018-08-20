@@ -93,9 +93,9 @@ XrdMgmOfs::stat(const char* inpath,
 
   errno = 0;
   int rc = _stat(path, buf, error, vid, ininfo, etag, follow, uri);
-
   bool onDisk = ((buf->st_mode & EOS_TAPE_MODE_T) ? buf->st_nlink - 1 :
                  buf->st_nlink) > 0;
+
   if (!onDisk) {
     buf->st_rdev |= XRDSFS_OFFLINE;
   } else {
@@ -157,7 +157,8 @@ XrdMgmOfs::_stat(const char* path,
   // Prefetch path
   // TODO(gbitzes): This could be more precise..
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath(),
+      follow);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -183,16 +184,16 @@ XrdMgmOfs::_stat(const char* path,
 
     if (fmd->isLink()) {
       buf->st_nlink = 1;
-    }
-    else {
+      buf->st_size = fmd->getLink().length();
+    } else {
       buf->st_nlink = fmd->getNumLocation();
+      buf->st_size = fmd->getSize();
     }
 
     buf->st_mode = eos::modeFromMetadataEntry(fmd);
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
-    buf->st_size = fmd->getSize();
     buf->st_blksize = 512;
     buf->st_blocks = Quota::MapSizeCB(fmd.get()) / 512; // including layout factor
     eos::IFileMD::ctime_t atime;
@@ -257,9 +258,9 @@ XrdMgmOfs::_stat(const char* path,
 
       // check for a forced etag
       std::string tmpEtag = "sys.tmp.etag";
-      if (fmd->hasAttribute(tmpEtag))
-      {
-	*etag = fmd->getAttribute(tmpEtag);
+
+      if (fmd->hasAttribute(tmpEtag)) {
+        *etag = fmd->getAttribute(tmpEtag);
       }
     }
 
@@ -332,9 +333,9 @@ XrdMgmOfs::_stat(const char* path,
       *etag = setag;
       // check for a forced etag
       std::string tmpEtag = "sys.tmp.etag";
-      if (cmd->hasAttribute(tmpEtag))
-      {
-	*etag = cmd->getAttribute(tmpEtag);
+
+      if (cmd->hasAttribute(tmpEtag)) {
+        *etag = cmd->getAttribute(tmpEtag);
       }
     }
 
@@ -352,44 +353,45 @@ XrdMgmOfs::_stat(const char* path,
 // ---------------------------------------------------------------------------
 int
 XrdMgmOfs::_getchecksum(const char* Name,
-           XrdOucErrInfo& error,
-           std::string* xstype,
-           std::string* xs,
-           const XrdSecEntity* client,
-           const char* opaque,
-           bool follow)
+                        XrdOucErrInfo& error,
+                        std::string* xstype,
+                        std::string* xs,
+                        const XrdSecEntity* client,
+                        const char* opaque,
+                        bool follow)
 {
-    // ---------------------------------------------------------------------------
-    errno = 0;
-    std::shared_ptr<eos::IFileMD> fmd;
-    eos::common::Path cPath(Name);
+  // ---------------------------------------------------------------------------
+  errno = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
+  eos::common::Path cPath(Name);
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-    try {
-      fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
-
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+  try {
+    fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
-      return errno;
-    }
+    return errno;
+  }
 
-    if (fmd) {
-      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-      if (cxlen) {
-        *xstype = eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
-        for (unsigned int i = 0; i < cxlen; i++) {
-          char hb[3];
-          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
-                    fmd->getChecksum().getDataPadded(i)) : 0);
-          *xs += hb;
-        }
+  if (fmd) {
+    size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+
+    if (cxlen) {
+      *xstype = eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
+
+      for (unsigned int i = 0; i < cxlen; i++) {
+        char hb[3];
+        sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
+                  fmd->getChecksum().getDataPadded(i)) : 0);
+        *xs += hb;
       }
     }
-    return 0;
+  }
+
+  return 0;
 }
 //------------------------------------------------------------------------------
 // Stat following links (not existing in EOS - behaves like stat)
