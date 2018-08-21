@@ -115,8 +115,7 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
   XrdSecEntity client;
 
   std::string url = request->GetUrl();
-  eos_static_info("method=MKCOL path=%s",
-                          url.c_str());
+  eos_static_info("method=MKCOL path=%s", url.c_str());
 
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
   client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
@@ -218,8 +217,16 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
   XrdOucString prot, port;
-  std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["destination"].c_str(), prot, port);
+  std::string destination;
+  const char* dest = nullptr;
+
+  if (!(dest = eos::common::StringConversion::ParseUrl(
+                    request->GetHeaders()["destination"].c_str(), prot, port))) {
+    eos_static_warning("could not process destination header=%s",
+                        request->GetHeaders()["destination"].c_str());
+  }
+
+  destination = dest ? dest : "";
 
   char encode_destination[1024];
   snprintf(encode_destination,sizeof(encode_destination),"%s",destination.c_str());
@@ -255,7 +262,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   }
   else if (!destination.size())
   {
-    response = HttpServer::HttpError("destination required",
+    response = HttpServer::HttpError("destination invalid",
                                      response->BAD_REQUEST);
   }
   else if (request->GetUrl() == destination)
@@ -278,7 +285,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
         if (error.getErrInfo() == EEXIST)
         {
           // resource exists
-	  // webdav specifies to overwrite by default if the special header is not set to F
+	        // webdav specifies to overwrite by default if the special header is not set to F
           if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
           {
             // force the rename
@@ -389,11 +396,17 @@ eos::common::HttpResponse*
 WebDAVHandler::Copy (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
-
   XrdOucString prot, port;
-  std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["destination"].c_str(), prot, port);
+  std::string destination;
+  const char* dest = nullptr;
 
+  if (!(dest = eos::common::StringConversion::ParseUrl(
+                    request->GetHeaders()["destination"].c_str(), prot, port))) {
+    eos_static_warning("could not process destination header=%s",
+                        request->GetHeaders()["destination"].c_str());
+  }
+
+  destination = dest ? dest : "";
   eos_static_info("method=COPY src=\"%s\", dest=\"%s\"",
                   request->GetUrl().c_str(), destination.c_str());
 
@@ -410,7 +423,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
   }
   else if (!destination.size())
   {
-    response = HttpServer::HttpError("destination required",
+    response = HttpServer::HttpError("destination invalid",
                                      response->BAD_REQUEST);
   }
   else if (request->GetUrl() == destination)
@@ -432,7 +445,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
                  info += "&eos.ruid=";
                  info += mVirtualIdentity->uid_string.c_str();
                  info += "&eos.rgid=";
-                 info +=mVirtualIdentity->gid_string.c_str();
+                 info += mVirtualIdentity->gid_string.c_str();
 
     eos_static_debug("cmd=%s", info.c_str());
     cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
@@ -445,7 +458,8 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
       if (rc == EEXIST)
       {
         // resource exists
-	if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
+	      if ( (!request->GetHeaders().count("overwrite")) ||
+	           (request->GetHeaders()["overwrite"] == "T") )
         {
           // force overwrite
           info += "&mgm.file.option=f";

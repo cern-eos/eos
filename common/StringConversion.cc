@@ -794,7 +794,7 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
   }
 
   if (protocol == "https") {
-    // http://<hostname><path>
+    // https://<hostname><path>
     int spos = hostport.find("/", 8);
 
     if (spos == STR_NPOS) {
@@ -802,7 +802,7 @@ StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
     }
 
     hostport.erase(spos);
-    hostport.erase(0, 7);
+    hostport.erase(0, 8);
     return (url + spos);
   }
 
