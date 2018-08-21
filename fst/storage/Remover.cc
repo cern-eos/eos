@@ -32,9 +32,16 @@ void
 Storage::Remover()
 {
   static time_t lastAskedForDeletions = 0;
+  static int deletionInterval = 300;
   std::string nodeconfigqueue =
     eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
   std::unique_ptr<Deletion> to_del {};
+
+  if (getenv("EOS_FST_DELETE_QUERY_INTERVAL")) {
+    try {
+      deletionInterval = stoi(getenv("EOS_FST_DELETE_QUERY_INTERVAL"));
+    } catch (...) {}
+  }
 
   // Thread that unlinks stored files
   while (1) {
@@ -77,8 +84,8 @@ Storage::Remover()
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     time_t now = time(NULL);
 
-    // Ask to schedule deletions every 5 minutes
-    if ((now - lastAskedForDeletions) > 300) {
+    // Ask to schedule deletions regularly (default is every 5 minutes)
+    if ((now - lastAskedForDeletions) > deletionInterval) {
       // get some global variables
       gOFS.ObjectManager.HashMutex.LockRead();
       XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(

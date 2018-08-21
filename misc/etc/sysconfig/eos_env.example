@@ -111,6 +111,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Stream timeout for operations
 #EOS_FST_STREAM_TIMEOUT=300
 
+# Specify in seconds how often FSTs should query for new delete operations
+# EOS_FST_DELETE_QUERY_INTERVAL=300
+
 # Disable fast boot and always do a full resync when a fs is booting
 # EOS_FST_NO_FAST_BOOT=0 (default off)
 
