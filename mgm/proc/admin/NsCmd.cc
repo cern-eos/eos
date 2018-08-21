@@ -247,7 +247,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
 
   if (bootstring == "booting") {
     fboot_time = time(nullptr) - gOFS->mFileInitTime;
-    boot_time = time(nullptr) - gOFS->StartTime;
+    boot_time = time(nullptr) - gOFS->mStartTime;
   } else {
     fboot_time = gOFS->mFileInitTime;
     boot_time = gOFS->mTotalInitTime;
@@ -339,7 +339,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     }
 
     oss << "uid=all gid=all ns.uptime="
-        << (int)(time(NULL) - gOFS->StartTime)
+        << (int)(time(NULL) - gOFS->mStartTime)
         << std::endl;
   } else {
     std::string line = "# ------------------------------------------------------"
@@ -436,7 +436,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      fds                              " << fds.all
         << std::endl
         << "ALL      uptime                           "
-        << (int)(time(NULL) - gOFS->StartTime) << std::endl
+        << (int)(time(NULL) - gOFS->mStartTime) << std::endl
         << line << std::endl;
   }
 

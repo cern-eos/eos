@@ -180,7 +180,7 @@ XrdMgmOfs::InitializeFileView()
   }
 
   mFileInitTime = time(nullptr) - mFileInitTime;
-  mTotalInitTime = time(nullptr) - StartTime;
+  mTotalInitTime = time(nullptr) - mTotalInitTime;
 
   // Get process status after boot
   if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
@@ -263,7 +263,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
-  StartTime = time(nullptr);
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   // set connection window short

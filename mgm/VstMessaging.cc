@@ -270,7 +270,7 @@ VstMessaging::PublishVst()
   }
 
   XrdOucString uptime;
-  uptime += (int) gOFS->StartTime;
+  uptime += (int) gOFS->mStartTime;
   mVstMessage += ",uptime=";
   mVstMessage += uptime.c_str();
   unsigned long long freebytes, freefiles, maxbytes, maxfiles, ethin,
