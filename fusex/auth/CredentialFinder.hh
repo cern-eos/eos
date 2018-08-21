@@ -284,6 +284,10 @@ public:
   std::string get(const std::string& key) const;
   std::vector<std::string> getAll() const;
 
+  void push_back(const std::string &str) {
+    contents.emplace_back(str);
+  }
+
   bool operator==(const Environment& other) const
   {
     return contents == other.contents;

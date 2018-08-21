@@ -84,9 +84,20 @@ SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
     return lookupInjected(path, uid);
   }
 
+  std::string resolvedPath;
+  // is "path" a symlink?
+  char buffer[1024];
+  size_t retsize = readlink(path.c_str(), buffer, 1023);
+  if(retsize != -1) {
+    resolvedPath = std::string(buffer, retsize);
+  }
+  else {
+    resolvedPath = path;
+  }
+
   struct stat filestat;
 
-  if (::stat(path.c_str(), &filestat) != 0) {
+  if (::stat(resolvedPath.c_str(), &filestat) != 0) {
     // cannot stat
     return {};
   }

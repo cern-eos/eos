@@ -76,6 +76,26 @@ ProcessCache::useDefaultPaths(const ProcessInfo& processInfo, uid_t uid,
   return state;
 }
 
+CredentialState
+ProcessCache::useGlobalBinding(const ProcessInfo& processInfo, uid_t uid,
+                              gid_t gid, bool reconnect,
+                              ProcessSnapshot& snapshot)
+{
+  std::shared_ptr<const BoundIdentity> boundIdentity;
+  CredentialState state = boundIdentityProvider.useGlobalBinding(uid, gid,
+                          reconnect, boundIdentity);
+
+  if (state != CredentialState::kOk) {
+    return state;
+  }
+
+  ProcessCacheEntry* entry = new ProcessCacheEntry(processInfo,
+      *boundIdentity.get(), uid, gid);
+  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), entry);
+  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  return state;
+}
+
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
                                        bool reconnect)
 {
@@ -167,8 +187,18 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     }
   }
 
+  // Check global binding from eosfusebind
+  CredentialState state = useGlobalBinding(processInfo, uid, gid, reconnect,
+                                          result);
+
+  if (state == CredentialState::kOk) {
+    eos_static_debug("Associating pid = %d to global binding, as no credentials were found through environment variables",
+                     processInfo.getPid());
+    return result;
+  }
+
   // Fallback to default paths?
-  CredentialState state = useDefaultPaths(processInfo, uid, gid, reconnect,
+  state = useDefaultPaths(processInfo, uid, gid, reconnect,
                                           result);
 
   if (state == CredentialState::kOk) {

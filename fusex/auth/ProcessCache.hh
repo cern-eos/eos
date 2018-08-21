@@ -123,6 +123,10 @@ private:
                   bool reconnect, ProcessSnapshot& snapshot);
 
   CredentialState
+  useGlobalBinding(const ProcessInfo& processInfo, uid_t uid, gid_t gid,
+                  bool reconnect, ProcessSnapshot& snapshot);
+
+  CredentialState
   useCredentialsOfAnotherPID(const ProcessInfo& processInfo, pid_t pid,
                              uid_t uid, gid_t gid, bool reconnect,
                              ProcessSnapshot& snapshot);

@@ -184,11 +184,20 @@ BoundIdentityProvider::useDefaultPaths(uid_t uid, gid_t gid, bool reconnect,
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
   Environment defaultEnv;
-  std::string env = "KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid);
-  env.push_back('\0');
-  env += "X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid);
-  env.push_back('\0');
-  defaultEnv.fromString(env);
+  defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
+  defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
+  return retrieve(defaultEnv, uid, gid, reconnect, result);
+}
+
+CredentialState
+BoundIdentityProvider::useGlobalBinding(uid_t uid, gid_t gid, bool reconnect,
+                                        std::shared_ptr<const BoundIdentity>& result)
+{
+  // Pretend as if the environment of the process simply contained the eosfusebind
+  // global bindings, and follow the usual code path.
+  Environment defaultEnv;
+  defaultEnv.push_back(SSTR("KRB5CCNAME=FILE:/var/run/eosd/credentials/uid" << uid << ".krb5"));
+  defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eosd/credentials/uid" << uid << ".x509"));
   return retrieve(defaultEnv, uid, gid, reconnect, result);
 }
 
