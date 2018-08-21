@@ -487,7 +487,7 @@ extstorage_test:
     - docker exec -i eos-fst1-test chown daemon:daemon /var/eos/auth/
     - docker exec -i eos-fst1-test /eos_fst_setup.sh 3 -d /home/data/eos_lpath -s lpath_test
     - docker exec -i eos-fst2-test killall -s 9 xrootd
-    - docker exec -e EOS_FST_S3_ACCESS_KEY -e EOS_FST_S3_SECRET_KEY -i eos-fst2-test /eos_fst_setup.sh 4 -d s3://s3.cern.ch/ -s s3_test
+    - docker exec -e EOS_FST_S3_ACCESS_KEY -e EOS_FST_S3_SECRET_KEY -i eos-fst2-test /eos_fst_setup.sh 4 -d s3://s3.cern.ch/eostest/ -s s3_test
     - docker exec -i eos-mgm-test eos chmod 2777 /eos/dockertest
     - docker exec -e EOS_FST_S3_ACCESS_KEY -e EOS_FST_S3_SECRET_KEY -i eos-mgm-test eos-extstorage-test eos-mgm-test:1094 --verbose
     - sudo ./eos-docker/scripts/shutdown_services.sh

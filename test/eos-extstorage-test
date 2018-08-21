@@ -108,7 +108,7 @@ wait_result () {
 
 # The mount points for the file systems
 PATHS=( "/home/data/eos_lpath"
-        "s3://s3.cern.ch/" )
+        "s3://s3.cern.ch/eostest/" )
 
 # Assign spaces to the different mount points
 SPACE=( "lpath_test" "s3_test" )
