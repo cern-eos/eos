@@ -118,10 +118,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the new master host
+  //! Set the new master hostname
+  //!
+  //! @param hostname new master hostname
+  //! @param port new master port, default 1094
+  //! @param err_msg error message
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Set(const std::string& mastername, std::string& stdOut,
-           std::string& stdErr) override;
+  bool SetManagerId(const std::string& hostname, int port,
+                    std::string& err_msg) override;
 
   //----------------------------------------------------------------------------
   //! Get master Log

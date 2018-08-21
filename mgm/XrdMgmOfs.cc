@@ -29,6 +29,7 @@
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/SymKeys.hh"
+#include "common/ParseUtils.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/plugin_manager/Plugin.hh"
 #include "common/JeMallocHandler.hh"

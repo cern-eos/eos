@@ -1520,7 +1520,7 @@ XrdMgmOfsFile::open(const char* inpath,
         std::string hostname;
         std::string master_id = gOFS->mMaster->GetMasterId();
 
-        if (!eos::common::ParseHostNamePort(mastr_id, hostname, port)) {
+        if (!eos::common::ParseHostNamePort(master_id, hostname, port)) {
           eos_err("msg=\"failed parsing remote master info\", id=%s",
                   master_id.c_str());
           return Emsg(epname, error, retc, "open file - failed parsing remote "

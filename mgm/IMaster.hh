@@ -102,14 +102,14 @@ public:
   //----------------------------------------------------------------------------
   //! Set the new master hostname
   //!
-  //! @param mastername master hostname
-  //! @param stdOut output string
-  //! @param stdErr error output string
+  //! @param hostname new master hostname
+  //! @param port new master port, default 1094
+  //! @param err_msg error message
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool Set(const std::string& mastername, std::string& stdout,
-                   std::string& stdErr) = 0;
+  virtual bool SetManagerId(const std::string& hostname, int port,
+                            std::string& err_msg) = 0;
 
   //----------------------------------------------------------------------------
   //! Return a delay time for balancing & draining since after a transition

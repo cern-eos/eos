@@ -57,7 +57,7 @@ inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
 //!
 //! @return true if parsing succeeded, otherwise false
 //------------------------------------------------------------------------------
-inline bool ParseHostNamePort(cons std::string& input, std::string& host,
+inline bool ParseHostNamePort(const std::string& input, std::string& host,
                               int& port)
 {
   if (input.empty()) {
@@ -73,7 +73,7 @@ inline bool ParseHostNamePort(cons std::string& input, std::string& host,
     host = input.substr(0, pos - 1);
     int64_t ret = 0ll;
 
-    if (!parseInt64(intput.substr(pos + 1), ret)) {
+    if (!parseInt64(input.substr(pos + 1), ret)) {
       return false;
     }
 

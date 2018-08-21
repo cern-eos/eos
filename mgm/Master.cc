@@ -1098,42 +1098,43 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
 // Set transition for instance
 //------------------------------------------------------------------------------
 bool
-Master::Set(const std::string& mastername, std::string& stdOut,
-            std::string& stdErr)
+Master::SetManagerId(const std::string& hostname, int port,
+                     std::string& err_msg)
 {
   Transition::Type transitiontype = Transition::Type::kMasterToMaster;
 
   if (fRunningState == Run::State::kIsNothing) {
     MasterLog(eos_static_err("unable to change master/slave configuration - "
                              "node is in invalid state after a failed transition"));
-    stdErr += "error: unable to change master/slave configuration - node is "
-              "in invalid state after a failed transition";
+    err_msg += "error: unable to change master/slave configuration - node is "
+               "in invalid state after a failed transition";
     return false;
   }
 
-  if ((mastername != getenv("EOS_MGM_MASTER1")) &&
-      (mastername != getenv("EOS_MGM_MASTER2"))) {
-    stdErr += "error: invalid master name specified (/etc/sysconfig/eos:"
-              "EOS_MGM_MASTER1,EOS_MGM_MASTER2)\n";
+  if ((hostname != getenv("EOS_MGM_MASTER1")) &&
+      (hostname != getenv("EOS_MGM_MASTER2"))) {
+    err_msg += "error: invalid master name specified (/etc/sysconfig/eos:"
+               "EOS_MGM_MASTER1,EOS_MGM_MASTER2)\n";
     return false;
   }
 
   if ((fMasterHost == fThisHost)) {
-    if ((mastername != fThisHost.c_str())) {
+    if ((hostname != fThisHost.c_str())) {
       if (fRunningState == Run::State::kIsRunningMaster) {
         transitiontype = Transition::Type::kMasterToMasterRO;
       } else {
         MasterLog(eos_static_err("invalid master/slave transition requested - "
                                  "we are not a running master"));
-        stdErr += "invalid master/slave transition requested - "
-                  "we are not a running master\n";
+        err_msg += "invalid master/slave transition requested - "
+                   "we are not a running master\n";
         return false;
       }
     } else {
       transitiontype = Transition::Type::kMasterToMaster;
       MasterLog(eos_static_err("invalid master/master transition requested - "
                                "we are  a running master"));
-      stdErr += "invalid master/master transition requested - we are a running master\n";
+      err_msg +=
+        "invalid master/master transition requested - we are a running master\n";
       return false;
     }
   } else {
@@ -1143,19 +1144,19 @@ Master::Set(const std::string& mastername, std::string& stdOut,
       if (fRunningState != Run::State::kIsRunningSlave) {
         MasterLog(eos_static_err("invalid master/slave transition requested - "
                                  "we are not a running ro-master or we are already a slave"));
-        stdErr += "invalid master/slave transition requested - we are not a "
-                  "running ro-master or we are already a slave\n";
+        err_msg += "invalid master/slave transition requested - we are not a "
+                   "running ro-master or we are already a slave\n";
         return false;
       }
     }
   }
 
-  if (mastername == fThisHost.c_str()) {
+  if (hostname == fThisHost.c_str()) {
     // Check if the remote machine is running as the master
     if (fRemoteMasterRW) {
-      stdErr += "error: the remote machine <";
-      stdErr += fRemoteHost.c_str();
-      stdErr += "> is still running as a RW master\n";
+      err_msg += "error: the remote machine <";
+      err_msg += fRemoteHost.c_str();
+      err_msg += "> is still running as a RW master\n";
       return false;
     }
 
@@ -1166,8 +1167,9 @@ Master::Set(const std::string& mastername, std::string& stdOut,
   }
 
   XrdOucString lOldMaster = fMasterHost;
-  fMasterHost = mastername.c_str();
-  bool arc = ApplyMasterConfig(stdOut, stdErr, transitiontype);
+  std::string out_msg;
+  fMasterHost = hostname.c_str();
+  bool arc = ApplyMasterConfig(out_msg, err_msg, transitiontype);
 
   // Set back to the previous master
   if (!arc) {
