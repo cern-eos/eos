@@ -126,8 +126,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetManagerId(const std::string& hostname, int port,
-                    std::string& err_msg) override;
+  bool SetMasterId(const std::string& hostname, int port,
+                   std::string& err_msg) override;
 
   //----------------------------------------------------------------------------
   //! Get master Log

@@ -108,8 +108,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool SetManagerId(const std::string& hostname, int port,
-                            std::string& err_msg) = 0;
+  virtual bool SetMasterId(const std::string& hostname, int port,
+                           std::string& err_msg) = 0;
 
   //----------------------------------------------------------------------------
   //! Return a delay time for balancing & draining since after a transition

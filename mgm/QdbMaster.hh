@@ -51,9 +51,9 @@ public:
             const std::string& host_port);
 
   //----------------------------------------------------------------------------
-  //! Transition types
+  //! Destructor
   //----------------------------------------------------------------------------
-  ~QdbMaster() = default;
+  ~QdbMaster();
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -126,8 +126,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetManagerId(const std::string& hostname, int port,
-                    std::string& err_msg) override;
+  bool SetMasterId(const std::string& hostname, int port,
+                   std::string& err_msg) override;
 
   //----------------------------------------------------------------------------
   //! Return a delay time for balancing & draining since after a transition

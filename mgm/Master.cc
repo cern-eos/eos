@@ -1098,8 +1098,8 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
 // Set transition for instance
 //------------------------------------------------------------------------------
 bool
-Master::SetManagerId(const std::string& hostname, int port,
-                     std::string& err_msg)
+Master::SetMasterId(const std::string& hostname, int port,
+                    std::string& err_msg)
 {
   Transition::Type transitiontype = Transition::Type::kMasterToMaster;
 

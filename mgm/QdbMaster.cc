@@ -46,6 +46,14 @@ QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
 }
 
 //------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+QdbMaster::~QdbMaster()
+{
+  mThread.join();
+}
+
+//------------------------------------------------------------------------------
 // Init method to determine the current master/slave state
 //------------------------------------------------------------------------------
 bool
@@ -165,6 +173,12 @@ QdbMaster::BootNamespace()
   gOFS->mTotalInitTime = time(nullptr) - gOFS->mTotalInitTime;
   gOFS->mInitialized = gOFS->kBooted;
   eos_static_alert("msg=\"QDB namespace booted\"");
+
+  // Get process status after boot
+  if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
+    eos_err("msg=\"failed to grab /proc/self/stat information\"");
+  }
+
   return true;
 }
 
@@ -177,41 +191,38 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   static bool one_off = true;
   bool old_is_master;
   std::string old_master;
-  XrdSysThread::SetCancelDeferred();
   eos_notice("%s", "msg=\"set up booting stall rule\"");
   Access::StallInfo old_stall;
   Access::StallInfo new_stall("*", "100", "namespace is booting", true);
   Access::SetStallRule(new_stall, old_stall);
+  // @todo (esindril) handle case when config contains stall rules
 
   // Wait for the namespace to boot and the config to load
-  while ((gOFS->mInitialized != gOFS->kBooted) || (mConfigLoaded == false)) {
-    eos_info("%s", "msg=\"waiting for namespace to boot and config load\"");
+  while (((gOFS->mInitialized != gOFS->kBooted) ||
+          (mConfigLoaded == false)) &&
+         !assistant.terminationRequested()) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    XrdSysThread::CancelPoint();
-    eos_info("mInitialized=%s mConfigLoaded=%s",
+    eos_info("msg=\"waiting for namespace boot and config load\" "
+             "mInitialized=%s mConfigLoaded=%s",
              gOFS->gNameSpaceState[gOFS->mInitialized.load()],
              mConfigLoaded ? "true" : "false");
   }
 
-  // @todo (esindril) handle case when config contains stall rules
-  while (true) {
+  // Loop updating the master status
+  while (!assistant.terminationRequested()) {
     old_is_master = mIsMaster;
     old_master = GetMasterId();
     mIsMaster = AcquireLease();
+    // @todo (esindril): this must be set with the mutex locked
     mMasterIdentity = GetLeaseHolder();
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
              old_is_master ? "true" : "false",
              mIsMaster.load() ? "true" : "false",
              old_master.c_str(), mMasterIdentity.c_str());
 
+    // Run one-off after boot
     if (one_off) {
       one_off = false;
-
-      // This is first run after boot - get process initial status
-      if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
-        eos_crit("msg=\"failed to grab /proc/self/stat information\"");
-      }
-
       mIsMaster ? SlaveToMaster() : MasterToSlave();
       eos_notice("%s", "msg=\"remove booting stall rule\"");
       Access::SetStallRule(old_stall, new_stall);
@@ -226,11 +237,10 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     if (mIsMaster || !GetMasterId().empty()) {
       std::chrono::milliseconds wait_ms(sLeaseTimeout.count() / 2);
       std::this_thread::sleep_for(wait_ms);
-      XrdSysThread::CancelPoint();
     }
   }
 
-  XrdSysThread::SetCancelOn();
+  eos_notice("%s", "msg=\"supervisor thread joined\"");
 }
 
 //------------------------------------------------------------------------------
@@ -389,8 +399,8 @@ QdbMaster::GetLeaseHolder()
 // Set the new master hostname
 //------------------------------------------------------------------------------
 bool
-QdbMaster::SetManagerId(const std::string& hostname, int port,
-                        std::string& err_msg)
+QdbMaster::SetMasterId(const std::string& hostname, int port,
+                       std::string& err_msg)
 {
   // @todo (esindril): to be implemented
   return false;
