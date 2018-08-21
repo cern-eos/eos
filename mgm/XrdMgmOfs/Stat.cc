@@ -184,16 +184,11 @@ XrdMgmOfs::_stat(const char* path,
 
     if (fmd->isLink()) {
       buf->st_nlink = 1;
-      // @todo (esindril): this should be uncommented once the EOSHOME migration
-      // is done. It's broken now just to be compatible with the beryl_aquamarine
-      // behaviour.
-      // buf->st_size = fmd->getLink().length();
-      buf->st_size = 0;
     } else {
       buf->st_nlink = fmd->getNumLocation();
-      buf->st_size = fmd->getSize();
     }
 
+    buf->st_size = fmd->getSize();
     buf->st_mode = eos::modeFromMetadataEntry(fmd);
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
