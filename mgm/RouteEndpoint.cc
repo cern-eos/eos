@@ -92,8 +92,8 @@ RouteEndpoint::UpdateStatus()
   XrdCl::URL url(oss.str());
 
   if (!url.IsValid()) {
-    mIsOnline.store(false);
-    mIsMaster.store(false);
+    mIsOnline = false;
+    mIsMaster = false;
     eos_static_crit("invalid url host='%s'", mFqdn.c_str());
     return;
   }
@@ -103,8 +103,8 @@ RouteEndpoint::UpdateStatus()
   XrdCl::XRootDStatus st = fs.Ping(1);
 
   if (!st.IsOK()) {
-    mIsOnline.store(false);
-    mIsMaster.store(false);
+    mIsOnline = false;
+    mIsMaster = false;
     eos_static_debug("failed to ping host='%s'", mFqdn.c_str());
     return;
   }
@@ -113,8 +113,10 @@ RouteEndpoint::UpdateStatus()
   /* TODO: review if we want to have this policy by hostname or not ... currently disabled
   // If the host names is not starting with eos, we assume that is just a plain XrootD service
   if (mFqdn.substr(0,3) != "eos") {
-    mIsMaster.store(true);
-    eos_static_debug("disabling EOS master check host='%s' - assuming standard XRootD service (hostname does not start with eos...)", mFqdn.c_str());
+    mIsMaster = true;
+    eos_static_debug("disabling EOS master check host='%s' - assuming standard "
+                     "XRootD service (hostname does not start with eos...)",
+                     mFqdn.c_str());
     return ;
   }
   */
@@ -125,10 +127,10 @@ RouteEndpoint::UpdateStatus()
 
   if (!fs.Query(XrdCl::QueryCode::OpaqueFile, request, response).IsOK()) {
     eos_static_debug("host='%s' is running as 'master'", mFqdn.c_str());
-    mIsMaster.store(false);
+    mIsMaster = false;
   } else {
     eos_static_debug("host='%s' is NOT running as 'master'", mFqdn.c_str());
-    mIsMaster.store(true);
+    mIsMaster = true;
   }
 
   delete response;
