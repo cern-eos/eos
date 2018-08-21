@@ -63,12 +63,14 @@ MetadataFlusher::~MetadataFlusher()
 void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
-    eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64
-                    " acknowledged=%" PRId64,
-                    id.c_str(),
-                    backgroundFlusher.size(),
-                    backgroundFlusher.getEnqueuedAndClear(),
-                    backgroundFlusher.getAcknowledgedAndClear());
+    if (backgroundFlusher.size()) {
+      eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64
+                      " acknowledged=%" PRId64,
+                      id.c_str(), backgroundFlusher.size(),
+                      backgroundFlusher.getEnqueuedAndClear(),
+                      backgroundFlusher.getAcknowledgedAndClear());
+    }
+
     assistant.wait_for(std::chrono::seconds(10));
   }
 }

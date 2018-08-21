@@ -67,8 +67,8 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
   loadFromBackend();
   auto end = std::time(nullptr);
   std::chrono::seconds duration(end - start);
-  std::cerr << "FileSystemView loadingFromBackend duration: "
-            << duration.count() << " seconds" << std::endl;
+  eos_static_info("msg=\"FileSystemView loadFromBackend\" duration=%llus",
+                  duration.count());
   mNoReplicas.reset(new FileSystemHandler(mExecutor.get(), pQcl, pFlusher,
                                           IsNoReplicaListTag()));
 }
