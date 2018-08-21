@@ -161,13 +161,17 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   errno = 0;
   EXEC_TIMING_BEGIN("OpenDir");
   eos::common::Path cPath(dir_path);
-  eos_info("name=opendir path=%s", cPath.GetPath());
+
+  // Skip printout when listing the /eos/<instance/proc/conversion dir
+  if ((strstr(dir_path, "/proc/conversion") == nullptr) && (info != nullptr)) {
+    eos_info("name=opendir path=%s", cPath.GetPath());
+  }
+
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
   // Open the directory
   bool permok = false;
-
-  eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, cPath.GetPath());
-
+  eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+      cPath.GetPath());
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -201,6 +205,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
+
       // Collect all file names
       for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
         dh_list.insert(it.key());

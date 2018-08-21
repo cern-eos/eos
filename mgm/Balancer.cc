@@ -77,6 +77,9 @@ Balancer::Balance(void)
 {
   gOFS->WaitUntilNamespaceIsBooted();
 
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+  eos_static_info("%s", "msg=\"starting balancer thread\"");
+
   // Loop forever until cancelled
   while (true) {
     bool IsSpaceBalancing = true;
@@ -86,7 +89,6 @@ Balancer::Balance(void)
     std::string SpaceNodeTransferRate = "";
     std::string SpaceNodeThreshold = "";
     uint64_t timeout_ns = 100 * 1e6; // 100ms
-    eos_static_info("Looping in balancer");
 
     // Try to read lock the mutex
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {

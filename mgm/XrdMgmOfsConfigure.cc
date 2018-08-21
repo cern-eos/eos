@@ -1485,7 +1485,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
-  eos_info("/ permissions are %o", rootmd->getMode());
+  eos_info("msg=\"/ permissions are %o\"", rootmd->getMode());
 
   if (mMaster->IsMaster()) {
     // Create /eos/ and /eos/<instance>/ directories
@@ -1898,6 +1898,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     }
 
+    // @todo(esindril): this should be removed and we should use a
+    // pool of threads
     eos_info("starting the authentication worker threads");
 
     for (unsigned int i = 0; i < mNumAuthThreads; i++) {

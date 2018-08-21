@@ -128,17 +128,17 @@ QdbMaster::BootNamespace()
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
-    MasterLog(eos_notice("container initialization stopped after %d seconds",
+    MasterLog(eos_notice("msg=\"container initialization done\" duration=%ds",
                          (time(nullptr) - tstart)));
   } catch (eos::MDException& e) {
-    MasterLog(eos_crit("container initialization failed after %d seconds, "
-                       "errc=%d, %s", (time(nullptr) - tstart), e.getErrno(),
-                       e.getMessage().str().c_str()));
+    MasterLog(eos_crit("msg=\"container initialization failed\" duration=%ds, "
+                       "errc=%d, reason=\"%s\"", (time(nullptr) - tstart),
+                       e.getErrno(), e.getMessage().str().c_str()));
     gOFS->mInitialized = gOFS->kFailed;
     return false;
   } catch (const std::runtime_error& qdb_err) {
-    MasterLog(eos_crit("container initialization failed, unable to connect to "
-                       "QuarkDB cluster, reason: %s", qdb_err.what()));
+    MasterLog(eos_crit("msg=\"container initialization failed unable to connect to "
+                       "QuarkDB cluster\" reason=\"%s\"", qdb_err.what()));
     gOFS->mInitialized = gOFS->kFailed;
     return false;
   }
@@ -150,12 +150,12 @@ QdbMaster::BootNamespace()
     eos_notice("%s", "msg=\"eos file view initialize2 starting ...\"");
     eos::common::RWMutexWriteLock wr_view_lock(gOFS->eosViewRWMutex);
     gOFS->eosView->initialize2();
-    eos_notice("eos file view initialize2 succeeded after: %d seconds",
+    eos_notice("msg=\"file view initialize2 done\" duration=%ds",
                time(nullptr) - gOFS->mFileInitTime);
     gOFS->mBootFileId = gOFS->eosFileService->getFirstFreeId();
   } catch (eos::MDException& e) {
-    eos_crit("eos file view initialize2 failed after: %d seconds, "
-             "errc=%d, %s", (time(nullptr) - gOFS->mFileInitTime),
+    eos_crit("msg=\"file view initialize2 failed\" duration=%ds, "
+             "errc=%d reason=\"%s\"", (time(nullptr) - gOFS->mFileInitTime),
              e.getErrno(), e.getMessage().str().c_str());
     gOFS->mInitialized = gOFS->kFailed;
     return false;;
@@ -174,6 +174,7 @@ QdbMaster::BootNamespace()
 void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
+  static bool one_off = true;
   bool old_is_master;
   std::string old_master;
   XrdSysThread::SetCancelDeferred();
@@ -187,8 +188,9 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     eos_info("%s", "msg=\"waiting for namespace to boot and config load\"");
     std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
-    eos_info("mInitialized=%d, mConfigLoaded=%d", gOFS->mInitialized.load(),
-             mConfigLoaded.load());
+    eos_info("mInitialized=%s mConfigLoaded=%s",
+             gOFS->gNameSpaceState[gOFS->mInitialized.load()],
+             mConfigLoaded ? "true" : "false");
   }
 
   // @todo (esindril) handle case when config contains stall rules
@@ -197,12 +199,19 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     old_master = GetMasterId();
     mIsMaster = AcquireLease();
     mMasterIdentity = GetLeaseHolder();
-    eos_info("old_is_master=%d, is_master=%d, old_master_id=%s, master_id=%s",
-             old_is_master, mIsMaster.load(), old_master.c_str(),
-             mMasterIdentity.c_str());
+    eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
+             old_is_master ? "true" : "false",
+             mIsMaster.load() ? "true" : "false",
+             old_master.c_str(), mMasterIdentity.c_str());
 
-    if (old_master.empty()) {
-      // This is first run after boot
+    if (one_off) {
+      one_off = false;
+
+      // This is first run after boot - get process initial status
+      if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
+        eos_crit("msg=\"failed to grab /proc/self/stat information\"");
+      }
+
       mIsMaster ? SlaveToMaster() : MasterToSlave();
       eos_notice("%s", "msg=\"remove booting stall rule\"");
       Access::SetStallRule(old_stall, new_stall);
@@ -230,13 +239,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 void
 QdbMaster::SlaveToMaster()
 {
-  eos_info("slave to master transition");
-
-  // Get process status after boot
-  if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
-    eos_crit("failed to grab /proc/self/stat information");
-  }
-
+  eos_info("msg=\"slave to master transition\"");
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
@@ -296,12 +299,12 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     XrdOucString stdErr = "";
 
     if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s - fix your configuration file!",
-               gOFS->MgmConfigAutoLoad.c_str());
+      eos_crit("msg=\"failed config autoload, fix the configuration file!\" "
+               "config=\"%s\"", gOFS->MgmConfigAutoLoad.c_str());
       eos_crit("%s", stdErr.c_str());
     } else {
       mConfigLoaded = true;
-      eos_static_info("Successfully auto-loaded config %s",
+      eos_static_info("msg=\"successful config autoload\" config=\"%s\"",
                       gOFS->MgmConfigAutoLoad.c_str());
     }
   }
