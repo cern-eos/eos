@@ -628,10 +628,13 @@ public:
   static void FilterTagsInPlace(std::string& opaque,
                                 const std::set<std::string> tags);
 
-  //----------------------------------------------------------------------------
-  //! Send necessary event notifications
-  //----------------------------------------------------------------------------
-  void SendEventNotifications() const;
+  int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
+  pthread_t mTpcThread; ///< thread doing the TPC transfer
+  TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
+  XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
+  XrdSysMutex mTpcJobMutex; ///< TPC job mutex
+  int mTpcRetc; ///< TPC job return code
+  uint16_t mTimeout; ///< timeout for layout operations
 
   //----------------------------------------------------------------------------
   //! Notify the workflow protobuf endpoint that the user has closed a file that
@@ -655,26 +658,17 @@ public:
                                   const string& ownerGroupName, const string& requestorName,
                                   const string& requestorGroupName, const string& instanceName,
                                   const string& fullPath, const string& managerName,
-                                  const std::map<std::string, std::string>& xattrs, string& errMsgBack) const;
+                                  const std::map<std::string, std::string>& xattrs, string& errMsgBack);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager
   //!
-  //! @param errInfo Output parameter providi erro rinformation in th ecase of
-  //! an error.
   //! @param fid The file identifier
   //! @param errMsg The error message to enclosed in the archive failed event
   //! @return SFS_OK if successful
   //----------------------------------------------------------------------------
-  int SendArchiveFailedToManager(XrdOucErrInfo *errInfo, const uint64_t fid, const std::string& errMsg) const;
-
-  int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
-  pthread_t mTpcThread; ///< thread doing the TPC transfer
-  TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
-  XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
-  XrdSysMutex mTpcJobMutex; ///< TPC job mutex
-  int mTpcRetc; ///< TPC job return code
-  uint16_t mTimeout; ///< timeout for layout operations
+  int SendArchiveFailedToManager(const uint64_t fid,
+                                 const std::string& errMsg);
 };
 
 EOSFSTNAMESPACE_END
