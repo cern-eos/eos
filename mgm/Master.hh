@@ -97,7 +97,7 @@ public:
   //!
   //! @return true if OK, otherwise false
   //----------------------------------------------------------------------------
-  bool IsRemoteMasterOk() override
+  bool IsRemoteMasterOk() const override
   {
     return fRemoteMasterOk;
   }
@@ -105,9 +105,16 @@ public:
   //----------------------------------------------------------------------------
   //! Return master host
   //----------------------------------------------------------------------------
-  const char* GetMasterHost() override
+  const std::string GetMasterId() const override
   {
-    return (fMasterHost.c_str()) ? fMasterHost.c_str() : "<none>";
+    std::string master_id = "<none>";
+
+    if (fMasterHost.c_str()) {
+      master_id = fMasterHost.c_str();
+      master_id += ":1094";
+    }
+
+    return master_id;
   }
 
   //----------------------------------------------------------------------------

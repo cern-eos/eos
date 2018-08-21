@@ -414,14 +414,11 @@ XrdMgmOfs::FSctl(const int cmd,
       return SFS_DATA;
     }
 
-    // Query to determin if current node is acting as master
+    // Query to determine if current node is acting as master
     if (execmd == "is_master") {
       // @todo (esindril): maybe enable sss at some point
       // REQUIRE_SSS_OR_LOCAL_AUTH;
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosView->getFile(gOFS->MgmProcMasterPath.c_str());
-
-      if (fmd) {
+      if (gOFS->mMaster->IsMaster()) {
         const char* ok = "OK";
         error.setErrInfo(strlen(ok) + 1, ok);
         return SFS_DATA;

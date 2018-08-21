@@ -84,6 +84,11 @@ XrdMgmOfs::StaticInitializeFileView(void* arg)
 void*
 XrdMgmOfs::InitializeFileView()
 {
+  // For the namespace in QDB all the initialization is done in QdbMaster
+  if (NsInQDB) {
+    return nullptr;
+  }
+
   mInitialized = kBooting;
   mFileInitTime = time(0);
   time_t tstart = time(0);
@@ -1407,7 +1412,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Create different type of master object depending on the ns implementation
   if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
-    mMaster.reset(new eos::mgm::Master());
+    NsInQDB = true;
+    mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
   } else {
     mMaster.reset(new eos::mgm::Master());
   }
@@ -1446,6 +1452,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 #endif
 
   if (!mMaster->BootNamespace()) {
+    eos_crit("%s", "msg=\"namespace boot failed\"");
     return 1;
   }
 

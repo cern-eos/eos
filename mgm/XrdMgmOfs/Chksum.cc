@@ -136,10 +136,21 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   }
 
   if (enonet) {
-    // this file has no committed replicas, we might bounce to an alive remote master
+    // File has no committed replicas, we might bounce to an alive remote master
     if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
       // redirect ENONET to an alive remote master
-      error.setErrInfo(1094, gOFS->mMaster->GetMasterHost());
+      int port {0};
+      std::string hostname;
+      std::string master_id = gOFS->mMaster->GetMasterId();
+
+      if (!eos::common::ParseHostNamePort(mastr_id, hostname, port)) {
+        eos_err("msg=\"failed parsing remote master info\", id=%s",
+                master_id.c_str());
+        return Emsg(epname, error, ENOENT, "get checksum - failed parsing "
+                    "remote master info", path);
+      }
+
+      error.setErrInfo(port, hostname.c_str());
       gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
       return SFS_REDIRECT;
     }

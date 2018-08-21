@@ -92,12 +92,12 @@ public:
   //!
   //! @return true if OK, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool IsRemoteMasterOk() = 0;
+  virtual bool IsRemoteMasterOk() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Get current master hostname
+  //! Get current master identifier ie. hostname:port
   //----------------------------------------------------------------------------
-  virtual const char* GetMasterHost() = 0;
+  virtual const std::string GetMasterId() const = 0;
 
   //----------------------------------------------------------------------------
   //! Set the new master hostname

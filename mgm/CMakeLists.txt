@@ -150,6 +150,7 @@ add_library(
   FuseServer.cc FuseServer.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
+  QdbMaster.cc
   Recycle.cc
   PathRouting.cc
   RouteEndpoint.cc

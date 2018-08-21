@@ -507,7 +507,7 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
       reply.set_retc(EIO);
     } else {
       out += "success: <";
-      out += gOFS->mMaster->GetMasterHost();
+      out += gOFS->mMaster->GetMasterId();
       out += "> is now the master\n";
       reply.set_std_out(out.c_str());
     }
