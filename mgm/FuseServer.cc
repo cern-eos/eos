@@ -2955,7 +2955,7 @@ FuseServer::HandleMD(const std::string& id,
                         (long) md.md_pino(), md_ino);
         fmd->setCUid(md.uid());
         fmd->setCGid(md.gid());
-        fmd->setSize(1);
+        fmd->setSize(md.target().length());
         fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
         eos::IFileMD::ctime_t ctime;
         eos::IFileMD::ctime_t mtime;
