@@ -35,6 +35,7 @@
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/Fsck.hh"
+#include "common/StringUtils.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -201,17 +202,17 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
 // Check if config key matches filter options as given in opt
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::CheckFilterMatch(XrdOucString &option, XrdOucString &key)
+IConfigEngine::CheckFilterMatch(XrdOucString &option, const std::string& key)
 {
-  if (((option.find("v") != STR_NPOS) && (key.beginswith("vid:"))) ||
-     ((option.find("f") != STR_NPOS) && (key.beginswith("fs:"))) ||
-     ((option.find("q") != STR_NPOS) && (key.beginswith("quota:"))) ||
-     ((option.find("p") != STR_NPOS) && (key.beginswith("policy:"))) ||
-     ((option.find("c") != STR_NPOS) && (key.beginswith("comment-"))) ||
-     ((option.find("g") != STR_NPOS) && (key.beginswith("global:"))) ||
-     ((option.find("m") != STR_NPOS) && (key.beginswith("map:"))) ||
-     ((option.find("r") != STR_NPOS) && (key.beginswith("route:"))) ||
-     ((option.find("s") != STR_NPOS) && (key.beginswith("geosched:")))) {
+  if (((option.find("v") != STR_NPOS) && (eos::common::startsWith(key, "vid:"))) ||
+     ((option.find("f") != STR_NPOS) &&  (eos::common::startsWith(key, "fs:")))  ||
+     ((option.find("q") != STR_NPOS) &&  (eos::common::startsWith(key, "quota:"))) ||
+     ((option.find("p") != STR_NPOS) &&  (eos::common::startsWith(key, "policy:"))) ||
+     ((option.find("c") != STR_NPOS) && (eos::common::startsWith(key, "comment-"))) ||
+     ((option.find("g") != STR_NPOS) && (eos::common::startsWith(key, "global:"))) ||
+     ((option.find("m") != STR_NPOS) && (eos::common::startsWith(key, "map:"))) ||
+     ((option.find("r") != STR_NPOS) && (eos::common::startsWith(key, "route:"))) ||
+     ((option.find("s") != STR_NPOS) && (eos::common::startsWith(key, "geosched:"))) ) {
 
     return true;
   }
@@ -233,7 +234,7 @@ IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
     XrdOucString option = reinterpret_cast<struct PrintInfo*>(arg)->option;
     XrdOucString skey = key;
 
-    if (CheckFilterMatch(option, skey)) {
+    if (CheckFilterMatch(option, key)) {
       *outstring += key;
       *outstring += " => ";
       *outstring += val->c_str();

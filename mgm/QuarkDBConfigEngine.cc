@@ -356,24 +356,13 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   hash_key += configName;
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
   qclient::QHash q_hash(*mQcl, hash_key);
-  std::vector<std::string> resp = q_hash.hkeys();
-  std::sort(resp.begin(), resp.end());
-  bool filtered;
 
-  for (auto && key : resp) {
-    std::string _value = q_hash.hget(key);
-    XrdOucString _key = key.c_str();
-    filtered = false;
-
+  for (auto it = q_hash.getIterator(); it.valid(); it.next()) {
     // Filter according to user specification
-    if(CheckFilterMatch(pinfo.option, _key)) {
-      filtered = true;
-    }
-
-    if (filtered) {
-      out += key.c_str();
+    if(CheckFilterMatch(pinfo.option, it.getKey())) {
+      out += it.getKey().c_str();
       out += " => ";
-      out += _value.c_str();
+      out += it.getValue().c_str();
       out += "\n";
     }
   }

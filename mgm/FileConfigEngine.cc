@@ -553,19 +553,11 @@ FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
   std::ifstream infile(full_path.c_str());
   std::string sline;
   XrdOucString line;
-  bool filtered;
 
   while (getline(infile, sline)) {
-    filtered = false;
-    line = sline.c_str();
-
     // Filter according to user specification
-    if(CheckFilterMatch(pinfo.option, line)) {
-      filtered = true;
-    }
-
-    if (filtered) {
-      out += line;
+    if(CheckFilterMatch(pinfo.option, sline)) {
+      out += sline.c_str();
       out += "\n";
     }
   }

@@ -309,7 +309,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if config key matches filter options as given in opt
   //----------------------------------------------------------------------------
-  static bool CheckFilterMatch(XrdOucString &option, XrdOucString &key);
+  static bool CheckFilterMatch(XrdOucString &option, const std::string& key);
 
 protected:
   //! Helper struct for passing information in/out of XrdOucHash callbacks
