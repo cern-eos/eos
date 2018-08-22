@@ -1287,14 +1287,13 @@ metad::dump_md(shared_md md, bool lock)
   snprintf(capcnt, sizeof(capcnt), "%d", md->cap_count());
   jsonstring += "\nlocal-children: {\n";
 
-  for (auto it = md->local_children().begin(); it != md->local_children().end();
-      ) {
+  for (auto it = md->local_children().begin();
+       it != md->local_children().end(); ++it) {
     char buff[32];
     jsonstring += "\"";
     jsonstring += it->first;
     jsonstring += "\" : ";
     jsonstring += longstring::to_decimal(it->second, buff);
-    ++it;
 
     if (it == md->local_children().end()) {
       break;
@@ -1306,10 +1305,10 @@ metad::dump_md(shared_md md, bool lock)
   jsonstring += "}\n";
   jsonstring += "\nto-delete: {\n";
 
-  for (auto it = md->get_todelete().begin(); it != md->get_todelete().end();) {
+  for (auto it = md->get_todelete().begin();
+       it != md->get_todelete().end(); ++it) {
     jsonstring += "\"";
     jsonstring += it->first.c_str();
-    ++it;
 
     if (it == md->get_todelete().end()) {
       jsonstring += "\"";
@@ -1519,8 +1518,8 @@ metad::cleanup(shared_md md)
   std::vector<fuse_ino_t> inval_files;
   std::vector<fuse_ino_t> inval_dirs;
 
-  for (auto it = md->local_children().begin(); it != md->local_children().end();
-       ++it) {
+  for (auto it = md->local_children().begin();
+       it != md->local_children().end(); ++it) {
     shared_md cmd;
 
     if (mdmap.retrieveTS(it->second, cmd)) {
@@ -1843,6 +1842,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
                 eos_static_debug("clearing out %0016lx", pmd->id());
               }
 
+              XrdSysMutexHelper scope_lock(pmd->Locker());
               pmd->local_children().clear();
               pmd->get_todelete().clear();
             }
@@ -1903,6 +1903,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             eos_static_debug("clearing out %0016lx", pmd->id());
           }
 
+          XrdSysMutexHelper scope_lock(pmd->Locker());
           pmd->local_children().clear();
           pmd->get_todelete().clear();
         }
@@ -2383,22 +2384,19 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                 eos_static_debug("");
                 fuse_ino_t ino = EosFuse::Instance().getCap().forget(capid);
-                {
-                  shared_md md;
-                  {
-                    if (mdmap.retrieveTS(ino, md)) {
-                      md->Locker().Lock();
-                    }
-                  }
+                shared_md md;
 
-                  // invalidate children
-                  if (md && md->id()) {
-                    eos_static_info("md=%16x", md->id());
-                    cleanup(md);
+                if (mdmap.retrieveTS(ino, md)) {
+                  md->Locker().Lock();
+                }
 
-                    if (EOS_LOGS_DEBUG) {
-                      eos_static_debug("%s", dump_md(md).c_str());
-                    }
+                // invalidate children
+                if (md && md->id()) {
+                  eos_static_info("md=%16x", md->id());
+                  cleanup(md);
+
+                  if (EOS_LOGS_DEBUG) {
+                    eos_static_debug("%s", dump_md(md).c_str());
                   }
                 }
               } else {
