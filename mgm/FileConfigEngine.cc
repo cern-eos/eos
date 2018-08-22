@@ -611,16 +611,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
-  XrdOucString configname;
-
-  if (prefix) {
-    configname = prefix;
-    configname += ":";
-    configname += key;
-  } else {
-    configname = key;
-  }
-
+  XrdOucString configname = formFullKey(prefix, key).c_str();
   eos_static_debug("%s => %s", key, val);
   XrdOucString* sdef = new XrdOucString(val);
   {
@@ -653,15 +644,7 @@ void
 FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                     bool tochangelog)
 {
-  XrdOucString configname;
-
-  if (prefix) {
-    configname = prefix;
-    configname += ":";
-    configname += key;
-  } else {
-    configname = key;
-  }
+  XrdOucString configname = formFullKey(prefix, key).c_str();
 
   if (mBroadcast && gOFS->MgmMaster.IsMaster()) {
     eos_static_info("Deleting %s", configname.c_str());

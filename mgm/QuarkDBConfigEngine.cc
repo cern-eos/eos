@@ -370,15 +370,7 @@ void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
-  XrdOucString configname;
-
-  if (prefix) {
-    configname = prefix;
-    configname += ":";
-    configname += key;
-  } else {
-    configname = key;
-  }
+  XrdOucString configname = formFullKey(prefix, key).c_str();
 
   eos_static_debug("%s => %s", key, val);
   XrdOucString* sdef = new XrdOucString(val);
@@ -431,15 +423,7 @@ void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool not_bcast)
 {
-  XrdOucString configname;
-
-  if (prefix) {
-    configname = prefix;
-    configname += ":";
-    configname += key;
-  } else {
-    configname = key;
-  }
+  XrdOucString configname = formFullKey(prefix, key).c_str();
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
