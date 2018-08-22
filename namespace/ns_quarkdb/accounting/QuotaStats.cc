@@ -377,16 +377,12 @@ QuotaStats::getAllIds()
 {
   std::unordered_set<IContainerMD::id_t> quota_ids;
   qclient::QScanner quota_set(*pQcl, quota::sPrefix + "*:*");
-  std::vector<std::string> results;
+  for(; quota_set.valid(); quota_set.next()) {
+    // Extract quota node id
+    IContainerMD::id_t id = 0;
 
-  while (quota_set.next(results)) {
-    for (const std::string& rep : results) {
-      // Extract quota node id
-      IContainerMD::id_t id = 0;
-
-      if (ParseQuotaId(rep, id)) {
-        quota_ids.insert(id);
-      }
+    if (ParseQuotaId(quota_set.getValue(), id)) {
+      quota_ids.insert(id);
     }
   }
 

@@ -25,7 +25,7 @@
 #define __EOS_NS_STRINGCONVERTION_HH__
 
 #include "namespace/Namespace.hh"
-#include "common/fmt/fmt/format.h"
+#include "fmt/format.h"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -39,9 +39,7 @@ EOSNSNAMESPACE_BEGIN
 template <typename T>
 std::string stringify(const T& elem)
 {
-  fmt::MemoryWriter out;
-  out << elem;
-  return out.str();
+  return fmt::to_string(elem);
 }
 
 EOSNSNAMESPACE_END

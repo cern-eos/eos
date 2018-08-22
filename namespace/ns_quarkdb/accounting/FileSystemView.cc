@@ -387,21 +387,18 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 {
   qclient::QScanner replicaSets(*pQcl, pattern);
   std::set<IFileMD::location_t> uniqueFilesytems;
-  std::vector<std::string> results;
 
-  while (replicaSets.next(results)) {
-    for (std::string& rep : results) {
-      // Extract fsid from key
-      IFileMD::location_t fsid;
-      bool unused;
+  for(; replicaSets.valid(); replicaSets.next()) {
+    // Extract fsid from key
+    IFileMD::location_t fsid;
+    bool unused;
 
-      if (!parseFsId(rep, fsid, unused)) {
-        eos_static_crit("Unable to parse key: %s", rep.c_str());
-        continue;
-      }
-
-      uniqueFilesytems.insert(fsid);
+    if (!parseFsId(replicaSets.getValue(), fsid, unused)) {
+      eos_static_crit("Unable to parse key: %s", replicaSets.getValue().c_str());
+      continue;
     }
+
+    uniqueFilesytems.insert(fsid);
   }
 
   return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>

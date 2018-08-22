@@ -703,13 +703,7 @@ public:
   template <typename T>
   static std::string stringify(const T& elem)
   {
-    try {
-      fmt::MemoryWriter out;
-      out << elem;
-      return out.str();
-    } catch (fmt::FormatError& e) {
-      return std::string("");
-    }
+    return fmt::to_string(elem);
   }
 
   //------------------------------------------------------------------------------

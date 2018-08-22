@@ -139,7 +139,7 @@ endif ()
 # Build the libfmt for fast convertions
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
-  include_directories(common/fmt)
+  include_directories(common/fmt/include)
   add_subdirectory(common/fmt)
   set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif ()

@@ -383,7 +383,7 @@ TEST_F(FileMDFetching, CorruptionTest) {
 
   shut_down_everything();
 
-  qcl().exec(RequestBuilder::writeFileProto(FileIdentifier(1), "hint", "chicken_chicken_chicken_chicken")).get();
+  qcl().execute(RequestBuilder::writeFileProto(FileIdentifier(1), "hint", "chicken_chicken_chicken_chicken")).get();
 
   try {
     MetadataFetcher::getFileFromId(qcl(), FileIdentifier(1)).get();
