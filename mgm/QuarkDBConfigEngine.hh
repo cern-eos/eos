@@ -209,8 +209,26 @@ public:
 private:
   QdbContactDetails mQdbContactDetails;
   qclient::QClient* mQcl;
-  std::string conf_hash_key_prefix = "eos-config";
-  std::string conf_backup_hash_key_prefix = "eos-config-backup";
+  const std::string kConfigurationHashKeyPrefix = "eos-config";
+  const std::string kConfigurationBackupHashKeyPrefix = "eos-config-backup";
+
+  //----------------------------------------------------------------------------
+  //! Form configuration hash key
+  //----------------------------------------------------------------------------
+  std::string formConfigHashKey(const std::string &name) {
+    return SSTR(kConfigurationHashKeyPrefix << ":" << name);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Form backup configuration hash key
+  //----------------------------------------------------------------------------
+  std::string formBackupConfigHashKey(const std::string &name, time_t timestamp) {
+    char buff[128];
+    time_t now = time(NULL);
+    strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&now));
+
+    return SSTR(kConfigurationBackupHashKeyPrefix << ":" << name << "-" << buff);
+  }
 
   //----------------------------------------------------------------------------
   //! Get current timestamp

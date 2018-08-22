@@ -131,10 +131,7 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   ResetConfig();
-  std::string hash_key;
-  hash_key += conf_hash_key_prefix.c_str();
-  hash_key += ":";
-  hash_key += name;
+  std::string hash_key = formConfigHashKey(name);
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
   qclient::QHash q_hash(*mQcl, hash_key);
 
@@ -179,25 +176,13 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   InsertComment(comment);
 
   // Store a new hash
-  std::string hash_key = conf_hash_key_prefix.c_str();
-  hash_key += ":";
-  hash_key += name;
-  eos_notice("HASH KEY NAME => %s", hash_key.c_str());
+  std::string hash_key = formConfigHashKey(name);
   qclient::QHash q_hash(*mQcl, hash_key);
 
   if (q_hash.hlen() > 0) {
     if (force) {
       // Create backup
-      char buff[20];
-      time_t now = time(NULL);
-      strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
-      std::string hash_key_backup;
-      hash_key_backup += conf_backup_hash_key_prefix.c_str();
-      hash_key_backup += ":";
-      hash_key_backup += name;
-      hash_key_backup += "-";
-      hash_key_backup += buff;
-      eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
+      std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
       // Backup hash
       mQcl->exec("hclone", hash_key, hash_key_backup).get();
 
@@ -245,7 +230,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
   // Get the set from quarkdb with the available configurations
-  qclient::QScanner confScanner(*mQcl, conf_hash_key_prefix + ":*");
+  qclient::QScanner confScanner(*mQcl, kConfigurationHashKeyPrefix + ":*");
 
   for (; confScanner.valid(); confScanner.next()) {
     qclient::QHash q_hash(*mQcl, confScanner.getValue());
@@ -279,7 +264,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
-    qclient::QScanner confScannerBackup(*mQcl, conf_backup_hash_key_prefix + ":*");
+    qclient::QScanner confScannerBackup(*mQcl, kConfigurationBackupHashKeyPrefix + ":*");
 
     for (; confScannerBackup.valid(); confScannerBackup.next()) {
       qclient::QHash q_hash(*mQcl, confScannerBackup.getValue());
@@ -341,12 +326,7 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
                                   const char* configName)
 
 {
-  std::string hash_key;
-  hash_key += conf_hash_key_prefix.c_str();
-  hash_key += ":";
-  hash_key += configName;
-  eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  qclient::QHash q_hash(*mQcl, hash_key);
+  qclient::QHash q_hash(*mQcl, formConfigHashKey(configName));
 
   for (auto it = q_hash.getIterator(); it.valid(); it.next()) {
     // Filter according to user specification
@@ -553,26 +533,13 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       mChangelog->AddEntry("exported config", name, SSTR("with failure : " << err));
       return false;
     } else {
-      std::string hash_key;
-      hash_key += conf_hash_key_prefix.c_str();
-      hash_key += ":";
-      hash_key += name;
-      eos_notice("HASH KEY NAME => %s", hash_key.c_str());
+      std::string hash_key = formConfigHashKey(name);
       qclient::QHash q_hash(*mQcl, hash_key);
 
       if (q_hash.hlen() > 0) {
         if (force) {
           // Create backup
-          char buff[20];
-          time_t now = time(NULL);
-          strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
-          std::string hash_key_backup;
-          hash_key_backup += conf_backup_hash_key_prefix.c_str();
-          hash_key_backup += ":";
-          hash_key_backup += name;
-          hash_key_backup += "-";
-          hash_key_backup += buff;
-          eos_notice("HASH KEY NAME => %s", hash_key_backup.c_str());
+          std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
           // Backup hash
           mQcl->exec("hclone", hash_key, hash_key_backup);
 
