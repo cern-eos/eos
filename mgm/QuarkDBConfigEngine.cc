@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "common/GlobalConfig.hh"
+#include "qclient/QScanner.hh"
 #include <ctime>
 
 EOSMGMNAMESPACE_BEGIN
@@ -202,11 +203,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
       // Clear
       mQcl->exec("del", hash_key).get();
-
-      // Add hash to backup set
-      qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
-      // Add the hash key to the set if it's not there
-      q_set_backup.sadd(hash_key_backup);
     } else {
       errno = EEXIST;
       err = "error: a configuration with name \"";
@@ -223,11 +219,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString stime;
   getTimeStamp(stime);
   q_hash.hset("timestamp", stime.c_str());
-  // We store in quarkdb the list of available EOSConfigs as a set
-  qclient::QSet q_set(*mQcl, conf_set_key);
-
-  // Add the hash key to the set
-  q_set.sadd(hash_key);
 
   std::ostringstream changeLogValue;
   if (force) {
@@ -254,12 +245,12 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
   // Get the set from quarkdb with the available configurations
-  qclient::QSet q_set(*mQcl, conf_set_key);
+  qclient::QScanner confScanner(*mQcl, conf_hash_key_prefix + ":*");
 
-  for (auto && elem : q_set.smembers()) {
-    qclient::QHash q_hash(*mQcl, elem);
+  for (; confScanner.valid(); confScanner.next()) {
+    qclient::QHash q_hash(*mQcl, confScanner.getValue());
     // Strip the prefix
-    XrdOucString key = elem.c_str();
+    XrdOucString key = confScanner.getValue().c_str();
     int pos = key.rfind(":");
 
     if (pos != -1) {
@@ -288,11 +279,11 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
-    qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
+    qclient::QScanner confScannerBackup(*mQcl, conf_backup_hash_key_prefix + ":*");
 
-    for (auto && elem : q_set_backup.smembers()) {
-      qclient::QHash q_hash(*mQcl, elem);
-      XrdOucString key = elem.c_str();
+    for (; confScannerBackup.valid(); confScannerBackup.next()) {
+      qclient::QHash q_hash(*mQcl, confScannerBackup.getValue());
+      XrdOucString key = confScannerBackup.getValue().c_str();
       int pos = key.rfind(":");
 
       if (pos != -1) {
@@ -587,11 +578,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 
           // Clear
           mQcl->exec("del", hash_key);
-
-          // Add hash to backup set
-          qclient::QSet q_set_backup(*mQcl, conf_set_backup_key);
-          // Add the hash key to the set if it's not there
-          q_set_backup.sadd(hash_key_backup);
         } else {
           errno = EEXIST;
           err = "error: a configuration with name \"";
@@ -608,12 +594,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       XrdOucString stime;
       getTimeStamp(stime);
       q_hash.hset("timestamp", stime.c_str());
-      // We store in quarkdb the list of available EOSConfigs as Set
-      qclient::QSet q_set(*mQcl, conf_set_key);
-
-      // Add the hash key to the set
-      q_set.sadd(hash_key);
-
       mChangelog->AddEntry("exported config", name, "successfully");
       mConfigFile = name;
       return true;

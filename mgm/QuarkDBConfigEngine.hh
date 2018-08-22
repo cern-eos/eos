@@ -209,10 +209,8 @@ public:
 private:
   QdbContactDetails mQdbContactDetails;
   qclient::QClient* mQcl;
-  std::string conf_set_key = "EOSConfig:list";
-  std::string conf_hash_key_prefix = "EOSConfig";
-  std::string conf_backup_hash_key_prefix = "EOSConfig:backup";
-  std::string conf_set_backup_key = "EOSConfig:backuplist";
+  std::string conf_hash_key_prefix = "eos-config";
+  std::string conf_backup_hash_key_prefix = "eos-config-backup";
 
   //----------------------------------------------------------------------------
   //! Get current timestamp
