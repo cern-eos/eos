@@ -127,11 +127,11 @@ uint64_t offsetXrd = 0;
 int nparitystripes = 0;
 
 bool isRaidTransfer = false; ///< true if we currently handle a RAID transfer
-bool isSrcRaid = false; ///< meaninful only for RAID transfers
+bool isSrcRaid = false; ///< meaningful only for RAID transfers
 bool isStreamFile = false; ///< the file is streamed
 bool doStoreRecovery = false; ///< store recoveries if the file is corrupted
 std::string opaqueInfo; ///< opaque info containing the capabilities
-///< necesssary to do a parallel IO open
+///< necessary to do a parallel IO open
 
 std::string replicationType = "";
 //TODO: deal with the case when both the source and the destination are RAIN files
@@ -296,9 +296,9 @@ print_summary_header(VectLocationType& src,
 
   if (!monitoring) {
     COUT(("[eoscp] #################################################################\n"));
-    COUT(("[eoscp] # Date                     : ( %lu ) %s",
+    COUT(("[eoscp] # Date                     : ( %lu ) %s\n",
           (unsigned long) rawtime, astime.c_str()));
-    COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n",
+    COUT(("[eoscp] # auth forced=%s krb5=%s gsi=%s\n",
           getenv("XrdSecPROTOCOL") ? (getenv("XrdSecPROTOCOL")) : "<none>",
           getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "<none>",
           getenv("X509_USER_PROXY") ? getenv("X509_USER_PROXY") : "<none>"));

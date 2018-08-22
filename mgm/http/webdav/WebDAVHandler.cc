@@ -285,7 +285,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
         if (error.getErrInfo() == EEXIST)
         {
           // resource exists
-	        // webdav specifies to overwrite by default if the special header is not set to F
+          // webdav specifies to overwrite by default if the special header is not set to F
           if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
           {
             // force the rename
@@ -458,8 +458,8 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
       if (rc == EEXIST)
       {
         // resource exists
-	      if ( (!request->GetHeaders().count("overwrite")) ||
-	           (request->GetHeaders()["overwrite"] == "T") )
+        if ( (!request->GetHeaders().count("overwrite")) ||
+             (request->GetHeaders()["overwrite"] == "T") )
         {
           // force overwrite
           info += "&mgm.file.option=f";

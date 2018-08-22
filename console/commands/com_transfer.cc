@@ -409,7 +409,7 @@ com_transfer_usage:
   fprintf(stdout, "       --group         : list all transfers in this group\n");
   fprintf(stdout,
           "       --sync          : follow the transfer in interactive mode (like interactive third party 'cp')\n");
-  fprintf(stdout, "                  <id> : id of the transfer to list\n");
+  fprintf(stdout, "       <id>            : id of the transfer to list\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "transfer enable\n");
   fprintf(stdout,

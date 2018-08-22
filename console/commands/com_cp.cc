@@ -40,27 +40,30 @@ int
 com_cp_usage()
 {
   fprintf(stdout,
-          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>\n");
+          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>\n");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
+  fprintf(stdout, "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout,
-          "                                                             <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instanace...\n");
   fprintf(stdout,
           "       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
   fprintf(stdout,
-          "       --atomic        : run an atomic upload where files are only visible with the target name when their are completly uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
+          "       --atomic        : run an atomic upload where files are only visible with the target name when their are completely uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
   fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n");
   fprintf(stdout, "       --checksum      : output the checksums\n");
   fprintf(stdout,
-          " -p |--preserve : preserves file creation and modification time from the source\n");
-  fprintf(stdout,
           "       -a              : append to the target, don't truncate\n");
   fprintf(stdout, "       -n              : hide progress bar\n");
   fprintf(stdout, "       -S              : print summary\n");
-  fprintf(stdout, "       -s --silent     : no output just return code\n");
   fprintf(stdout, "       -d              : enable debug information\n");
-  fprintf(stdout, "   -k | --no-overwrite : disable overwriting of files\n");
+  fprintf(stdout,
+          "   -s | --silent         : no output outside error messages\n");
+  fprintf(stdout,
+          "   -k | --no-overwrite   : disable overwriting of files\n");
+  fprintf(stdout,
+          "   -p | --preserve       : preserves file creation and modification time from the source\n");
+  fprintf(stdout,
+          "   -r | -R | --recursive : copy source location recursively\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "Remark: \n");
   fprintf(stdout,
@@ -92,14 +95,14 @@ com_cp_usage()
   fprintf(stdout, "\n");
   fprintf(stdout, "      The access key can be defined in 3 ways:\n");
   fprintf(stdout,
-          "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT  ]\n");
+          "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT ]\n");
   fprintf(stdout,
           "      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n");
   fprintf(stdout,
           "      <as3-url>?s3.key=<access-key>         [as used in EOS transfers ]\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
-          "      If <src> and <dst> are using S3, we are using the same credentials on both ands and the target credentials will overwrite source credentials!\n");
+          "      If <src> and <dst> are using S3, we are using the same credentials on both ends and the target credentials will overwrite source credentials!\n");
   return (EINVAL);
 }
 
@@ -633,7 +636,7 @@ com_cp(char* argin)
         sPath.erase(sPath.find("?"));
       }
 
-      // apply the ROOT compatability environment variables
+      // apply the ROOT compatibility environment variables
       if (getenv("S3_ACCESS_KEY")) {
         setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
       }
@@ -794,7 +797,7 @@ com_cp(char* argin)
   for (size_t nfile = 0; nfile < source_list.size(); nfile++) {
     XrdOucString targetfile = "";
     XrdOucString transfersize =
-      ""; // used for STDIN pipes to specify the target size ot eoscp
+      ""; // used for STDIN pipes to specify the target size to eoscp
     cmdline = "";
     XrdOucString prot;
     XrdOucString hostport;
@@ -816,12 +819,12 @@ com_cp(char* argin)
     }
 
     if (arg2.beginswith("as3://")) {
-      // apply the ROOT compatability environment variables
+      // apply the ROOT compatibility environment variables
       if (getenv("S3_ACCESS_KEY")) {
         setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
       }
 
-      if (getenv("S3_ACESSS_ID")) {
+      if (getenv("S3_ACCESS_ID")) {
         setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"), 1);
       }
 
@@ -880,8 +883,8 @@ com_cp(char* argin)
         arg2.append(targetname.c_str());
       } else {
         if (debug) {
-          fprintf(stderr, "[eos-cp] appending %s %s\n", cPath.GetPath(),
-                  cPath.GetName());
+          fprintf(stderr, "[eos-cp] appending %s to target %s\n",
+                  cPath.GetName(), arg2.c_str());
         }
 
         arg2.append(cPath.GetName());
