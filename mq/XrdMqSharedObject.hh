@@ -624,7 +624,7 @@ private:
 
 public:
   static std::atomic<bool> sDebug; ///< Set debug mode
-  static bool sBroadcast; ///< Set broadcasting mode
+  static std::atomic<bool> sBroadcast; ///< Set broadcasting mode
 
   //----------------------------------------------------------------------------
   //! Constructor

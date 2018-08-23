@@ -33,7 +33,7 @@
 #include <curl/curl.h>
 
 std::atomic<bool> XrdMqSharedObjectManager::sDebug { false };
-bool XrdMqSharedObjectManager::sBroadcast = true;
+std::atomic<bool> XrdMqSharedObjectManager::sBroadcast {true};
 
 // Static counters
 std::atomic<unsigned long long> XrdMqSharedHash::sSetCounter {0};
@@ -2663,7 +2663,6 @@ void
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 {
   out = "";
-
   XrdMqRWMutexReadLock lock(HashMutex);
 
   for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
