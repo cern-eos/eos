@@ -16,6 +16,21 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.8 Citrine``
+===================
+
+2018-08-23
+
+Bug
+----
+
+* [EOS-2797] - FUSE aborts in LayoutWrapper::CacheRemove, ".. encountered inode which is not recognized as legacy"
+* [EOS-2798] - FUSE uses inconsistent datatypes to handle inodes
+* [EOS-2808] - Symlinks on EOSHOME have size of 1 instead of 0
+* [EOS-2817] - eosxd crash in metad::cleanup
+* [EOS-2826] - Cannot create a file via emacs on EOSHOME topdir
+* [EOS-2827] - log/tracing ID has extra '='
+
 
 ``v4.3.8 Citrine``
 ===================
