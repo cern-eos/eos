@@ -7,7 +7,7 @@
 
 
 Citrine Release Notes
-======================
+=====================
 
 ``Version 4 Citrine``
 
@@ -17,13 +17,14 @@ This release is based on XRootD V4 and IPV6 enabled.
 
 
 ``v4.3.9 Citrine``
-===================
+==================
 
 2018-08-23
 
 Bug
-----
+---
 
+* [EOS-2781] - MGM crash during WebDAV copy
 * [EOS-2797] - FUSE aborts in LayoutWrapper::CacheRemove, ".. encountered inode which is not recognized as legacy"
 * [EOS-2798] - FUSE uses inconsistent datatypes to handle inodes
 * [EOS-2808] - Symlinks on EOSHOME have size of 1 instead of 0
@@ -33,12 +34,12 @@ Bug
 
 
 ``v4.3.8 Citrine``
-===================
+==================
 
 2018-08-14
 
 Bug
-----
+---
 
 * [EOS-2193] - Eosd fuse crash around FileAbstraction::GetMaxWriteOffset
 * [EOS-2292] - eosd crash around "FileAbstraction::IncNumOpenRW (this=0x0)"
@@ -48,13 +49,13 @@ Bug
 
 
 New Feature
-------------
+-----------
 
 * [EOS-2742] - Add reason when we change the status for file systems and node
 
 
 ``v4.3.7 Citrine``
-===================
+==================
 
 2018-08-07
 
@@ -66,12 +67,12 @@ Bug
 
 
 ``v4.3.6 Citrine``
-===================
+==================
 
 2018-08-06
 
 Bug
-----
+---
 
 * [EOS-2752] - FUSE: crashes around "blockedtracing" getStacktrace()
 * [EOS-2758] - SLC6 FST crashes on getStacktrace()
@@ -82,18 +83,18 @@ Task
 * [EOS-2757] - The 4.3.6 pre-release generates FST crashes (SEGFAULT)
 
 Improvement
-------------
+-----------
 
 * [EOS-2753] - Logging crashing
 
 
 ``v4.3.5 Citrine``
-===================
+==================
 
 2018-07-26
 
 Bug
-----
+---
 
 * [EOS-2692] - Lock-order-inversion between FsView::ViewMutex and ConfigEngine::mMutex
 * [EOS-2698] - XrdMqSharedObjectManager locks the wrong mutex
@@ -103,7 +104,7 @@ Bug
 * Fix S3 access configuration not getting properly refreshed
 
 Improvement
-------------
+-----------
 
 * [EOS-2691] - FUSEX abort in ShellException("Unable to open stdout file")
 * [EOS-2684] - Allow uuid identifier in 'fs boot' command
@@ -112,24 +113,24 @@ Improvement
 * More helpful error messages for S3 access
 
 ``v4.3.4 Citrine``
-===================
+==================
 
 2018-07-04
 
 Bug
-----
+---
 
 * [EOS-2686] - DrainFs::UpdateProgress maxing out CPU on PPS
 * Fix race conditions and crashes while updating the global config map
 * Fix lock order inversion in the namespace prefetcher code leading to deadlocks
 
 New feature
-------------
+-----------
 
 * FUSEX: Add FIFO support
 
 Improvement
-------------
+-----------
 
 * Remove artificial sleep when generating TPC drain jobs since the underlying issue
   is now fixed in XRootD 4.8.4 - it was creating identical tpc keys.
@@ -137,12 +138,12 @@ Improvement
 
 
 ``v4.3.3 Citrine``
-===================
+==================
 
 2018-06-29
 
 Improvement
-------------
+-----------
 
 * FUSEX: Fix issues with the read-ahead functionality
 * MGM: Extended the routing functionality to detect online and master nodes with
@@ -151,7 +152,7 @@ Improvement
 
 
 ``v4.3.2 Citrine``
-===================
+==================
 
 2018-06-26
 
@@ -164,7 +165,7 @@ Bug
 
 
 ``v4.3.1 Citrine``
-===================
+==================
 
 2018-06-25
 
@@ -178,12 +179,12 @@ Bug
 
 
 ``v4.3.0 Citrine``
-===================
+==================
 
 2018-06-22
 
 Bug
-----
+---
 
 * [EOS-1132] - eosarchived.py, write to closed (log) file?
 * [EOS-2401] - FST crash in eos::fst::ScanDir::CheckFile (EOSPPS)
