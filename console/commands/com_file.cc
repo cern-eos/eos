@@ -1110,9 +1110,11 @@ com_file_usage:
   fprintf(stdout,
           "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
   fprintf(stdout,
-          "                                                                     -f :  force overwrite\n");
+          "         -f                                                            :  force overwrite\n");
   fprintf(stdout,
-          "                                                                     -c :  clone the file (keep ctime,mtime)\n");
+          "         -s                                                            :  don't print output\n");
+  fprintf(stdout,
+          "         -c                                                            :  clone the file (keep ctime, mtime)\n");
   fprintf(stdout,
           "file drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid> [-f] :\n");
   fprintf(stdout,
@@ -1152,7 +1154,7 @@ com_file_usage:
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
   fprintf(stdout, "file touch [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
-          "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+          "                                                  create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,
@@ -1168,24 +1170,24 @@ com_file_usage:
           "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
   fprintf(stdout, "file version <path> [purge-version] :\n");
   fprintf(stdout,
-          "                                                 create a new version of a file by cloning\n");
+          "                                                  create a new version of a file by cloning\n");
   fprintf(stdout, "file versions [grab-version] :\n");
   fprintf(stdout,
-          "                                                 list versions of a file\n");
+          "                                                  list versions of a file\n");
   fprintf(stdout,
-          "                                                 grab a version of a file\n");
+          "                                                  grab a version of a file\n");
   fprintf(stdout,
-          "        <purge-version>: defines the max. number of versions to keep\n");
+          "       <purge-version> : defines the max. number of versions to keep\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "                         if not specified it will add a new version without purging any previous version\n");
   fprintf(stdout, "file share <path> [lifetime] :\n");
   fprintf(stdout, "       <path>          : path to create a share link\n");
   fprintf(stdout,
-          "        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
+          "       <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
-          " file workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event> :\n");
+          "file workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event> :\n");
   fprintf(stdout,
           "                                                  trigger workflow <workflow> with event <event> on <path>\n");
   fprintf(stdout, "\n");
