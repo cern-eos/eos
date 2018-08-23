@@ -213,12 +213,11 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     old_is_master = mIsMaster;
     old_master = GetMasterId();
     mIsMaster = AcquireLease();
-    // @todo (esindril): this must be set with the mutex locked
-    mMasterIdentity = GetLeaseHolder();
+    UpdateMasterId(GetLeaseHolder());
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
              old_is_master ? "true" : "false",
              mIsMaster.load() ? "true" : "false",
-             old_master.c_str(), mMasterIdentity.c_str());
+             old_master.c_str(), GetMasterId().c_str());
 
     // Run one-off after boot
     if (one_off) {

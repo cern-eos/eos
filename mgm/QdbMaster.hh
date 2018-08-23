@@ -113,7 +113,7 @@ public:
   //----------------------------------------------------------------------------
   const std::string GetMasterId() const override
   {
-    std::unique_lock<std::mutex> lock(mMutedId);
+    std::unique_lock<std::mutex> lock(mMutexId);
     return mMasterIdentity;
   }
 
@@ -149,6 +149,17 @@ public:
   }
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Update the current master id
+  //!
+  //! @param master_id current master id
+  //----------------------------------------------------------------------------
+  inline void UpdateMasterId(const std::string& master_id)
+  {
+    std::unique_lock<std::mutex> lock(mMutexId);
+    mMasterIdentity = master_id;
+  }
 
   //----------------------------------------------------------------------------
   //! Method supervising the master/slave status
@@ -187,7 +198,7 @@ private:
   void MasterToSlave();
 
   std::string mIdentity; ///< MGM identity hostname:port
-  mutable std::mutex mMutedId; ///< Mutex for the master identity
+  mutable std::mutex mMutexId; ///< Mutex for the master identity
   std::string mMasterIdentity; ///< Current master host
   std::atomic<bool> mIsMaster; ///< Mark if current instance is master
   std::atomic<bool> mConfigLoaded; ///< Mark if configuration is loaded
