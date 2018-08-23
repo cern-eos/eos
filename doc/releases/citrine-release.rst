@@ -16,7 +16,7 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
-``v4.3.8 Citrine``
+``v4.3.9 Citrine``
 ===================
 
 2018-08-23
