@@ -1070,8 +1070,8 @@ class Transfer(object):
         indx_dir = 0
 
         # Root owns the .sys.b#.backup.file
-        fs = client.FileSystem(self.efile_full)
-        efile_url = client.URL(self.efile_full)
+        fs = client.FileSystem(self.efile_full.encode("utf-8"))
+        efile_url = client.URL(self.efile_full.encode("utf-8"))
         arg = ''.join([efile_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=0&gid=0"])
         xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
 
