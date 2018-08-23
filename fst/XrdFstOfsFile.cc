@@ -3261,76 +3261,6 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 }
 
 //------------------------------------------------------------------------------
-// Send necessary event notifications
-//------------------------------------------------------------------------------
-void
-XrdFstOfsFile::SendEventNotifications() const
-{
-  const XrdOucString eventType = isRW ? (mSyncEventOnClose ? "sync::closew" :
-                                         "closew") : "closer";
-
-  if (mSyncEventOnClose) {
-    // A synchronous close event is sent directly from the FST to the protobuf
-    // endpoint
-    std::string decodedAttributes;
-    eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
-    std::map<std::string, std::string> attributes;
-    eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(),
-        attributes,
-        eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
-        eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-    std::string errMsgBackFromWfEndpoint;
-
-    if (SFS_OK != NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner,
-        mEventOwnerGroup,
-        mEventRequestor, mEventRequestorGroup,
-        mEventInstance, mCapOpaque->Get("mgm.path"),
-        mCapOpaque->Get("mgm.manager"), attributes,
-        errMsgBackFromWfEndpoint)) {
-      XrdOucErrInfo sendErrInfo;
-
-      if (SFS_OK != SendArchiveFailedToManager(&sendErrInfo, fMd->mProtoFmd.fid(),
-          errMsgBackFromWfEndpoint)) {
-        eos_crit("msg=\"Failed to send archive failed event to manager: %s\" errMsgBackFromWfEndpoint=\"%s\"",
-                 sendErrInfo.getErrText(), errMsgBackFromWfEndpoint.c_str());
-      }
-    }
-  } else {
-    // An asynchronous close event is sent to the MGM
-    XrdOucString capOpaqueFile = "";
-    capOpaqueFile += "/?";
-    int envlen = 0;
-    capOpaqueFile += mCapOpaque->Env(envlen);
-    capOpaqueFile += "&mgm.pcmd=event";
-    capOpaqueFile += "&mgm.event=";
-    capOpaqueFile += eventType;
-    // The log ID to the commit
-    capOpaqueFile += "&mgm.logid=";
-    capOpaqueFile += logId;
-    capOpaqueFile += "&mgm.ruid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.ruid");
-    capOpaqueFile += "&mgm.rgid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.rgid");
-    capOpaqueFile += "&mgm.sec=";
-    capOpaqueFile += mCapOpaque->Get("mgm.sec");
-    const XrdOucString eventWorkflow = 0 == mEventWorkflow.length() ? "default" :
-                                       mEventWorkflow.c_str();
-    capOpaqueFile += "&mgm.workflow=";
-    capOpaqueFile += eventWorkflow;
-    eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
-             eventWorkflow.c_str());
-    XrdOucErrInfo callError;
-
-    if (SFS_OK != gOFS.CallManager(&callError, mCapOpaque->Get("mgm.path"),
-                                   mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
-                                   false)) {
-      eos_crit("msg=\"Failed to send %s event to manager: %s\"", eventType.c_str(),
-               callError.getErrText());
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
@@ -3454,7 +3384,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
 // Send archive failed event to the manager
 //------------------------------------------------------------------------------
 int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid,
-                                              const std::string& errMsg)
+    const std::string& errMsg)
 {
   const auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                             fid);
