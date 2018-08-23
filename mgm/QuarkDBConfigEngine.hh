@@ -73,8 +73,8 @@ public:
   bool Tail(unsigned int nlines, XrdOucString& tail);
 
 private:
-  static std::string sChLogHashKey; ///< Hash map key
-  qclient::QHash mChLogHash; ///< QuarkDB changelog hash map
+  const std::string kChangelogKey = "eos-config-changelog"; ///< Changelog key
+  qclient::QClient &mQcl;
 };
 
 

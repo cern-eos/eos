@@ -34,14 +34,11 @@ EOSMGMNAMESPACE_BEGIN
 //                   **** QuarkDBCfgEngineChangelog class ****
 //------------------------------------------------------------------------------
 
-std::string QuarkDBCfgEngineChangelog::sChLogHashKey =
-  "EOSConfig:changeLogHash";
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
-  : mChLogHash(*client, sChLogHashKey) {}
+: mQcl(*client) {}
 
 //------------------------------------------------------------------------------
 // Add entry to the changelog
@@ -50,7 +47,9 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
   const std::string &key, const std::string &value) {
 
   // Add entry to the set
-  std::ostringstream oss(action.c_str());
+  std::ostringstream oss;
+
+  oss << std::time(NULL) << ": " << action;
 
   if (key != "") {
     oss << " " << key.c_str() << " => " << value.c_str();
@@ -60,7 +59,8 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
   std::stringstream ss;
   ss << now;
   std::string timestamp = ss.str();
-  mChLogHash.hset(timestamp, oss.str().c_str());
+  mQcl.exec("deque-push-back", kChangelogKey, oss.str());
+  mQcl.exec("deque-trim-front", kChangelogKey, "500000");
 }
 
 //------------------------------------------------------------------------------
@@ -68,37 +68,38 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
 //------------------------------------------------------------------------------
 bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 {
-  // TODO (amanzi): grab the keys and values in one go and check if they are
-  // not already sorted by the keys - therefore avoid the sort overhead and
-  // requesting each value one by one with hget
-  std::vector<std::string> chlog_keys = mChLogHash.hkeys();
+  qclient::redisReplyPtr reply = mQcl.exec("deque-scan-back", kChangelogKey, "0", "COUNT", SSTR(nlines)).get();
+  if(reply->type != REDIS_REPLY_ARRAY) return false;
+  if(reply->elements != 2) return false;
 
-  if (chlog_keys.size() > 0) {
-    // Sort according to timestamp
-    std::sort(chlog_keys.begin(), chlog_keys.end());
-    std::uint64_t lines = std::min(nlines, (unsigned int)chlog_keys.size());
-    std::ostringstream oss;
-    std::string stime;
+  redisReply* array = reply->element[1];
 
-    for (auto it = chlog_keys.end() - lines; it != chlog_keys.end(); ++it) {
-      // Convert timestamp to readable string
-      try {
-        time_t t = std::stoull(*it);
-        stime = std::ctime(&t);
-      } catch (std::exception& e) {
-        stime = "unknown_timestamp\n";
-      }
+  std::ostringstream oss;
+  std::string stime;
 
+  for(size_t i = 0; i < array->elements; i++) {
+    if(array->element[i]->type != REDIS_REPLY_STRING) return false;
+    std::string line(array->element[i]->str, array->element[i]->len);
+
+    try {
+      time_t t = std::stoull(line.c_str());
+      stime = std::ctime(&t);
       stime.erase(stime.length() - 1);
-      oss << stime.c_str() << ": " << mChLogHash.hget(*it).c_str() << std::endl;
+    } catch (std::exception& e) {
+      stime = "unknown_timestamp";
     }
 
-    tail = oss.str().c_str();
-  } else {
-    tail = "No lines to show";
-    return false;
+    for(size_t i = 0; i < line.size(); i++) {
+      if(line[i] == ':') {
+        line = line.substr(i+2);
+        break;
+      }
+    }
+
+    oss << stime << ": " << line << std::endl;
   }
 
+  tail = oss.str().c_str();
   return true;
 }
 
