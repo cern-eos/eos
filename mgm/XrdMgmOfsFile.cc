@@ -1798,6 +1798,20 @@ XrdMgmOfsFile::open(const char* inpath,
               fsid = selectedfs[k];
             }
         }
+        // EOS-2787
+        // reshuffle the selectedfs to set if available the highest with matching geotag in front 
+        if (fsid) {
+          std::vector<unsigned int> newselectedfs;
+          newselectedfs.push_back(fsid);
+          
+          for (const auto& i : selectedfs) {
+            if (i != newselectedfs.front()) {
+              newselectedfs.push_back(i);
+            }
+          }                                                                  
+          selectedfs.swap(newselectedfs);
+          fsIndex = 0;
+        }                                                                             
       }
     } else {
       if (!fmd->getSize()) {
