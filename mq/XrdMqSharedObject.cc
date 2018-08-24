@@ -33,7 +33,6 @@
 #include <curl/curl.h>
 
 std::atomic<bool> XrdMqSharedObjectManager::sDebug { false };
-std::atomic<bool> XrdMqSharedObjectManager::sBroadcast {true};
 
 // Static counters
 std::atomic<unsigned long long> XrdMqSharedHash::sSetCounter {0};
@@ -393,7 +392,7 @@ XrdMqSharedHash::CloseTransaction()
 {
   bool retval = true;
 
-  if (XrdMqSharedObjectManager::sBroadcast && mTransactions.size()) {
+  if (mSOM->mBroadcast && mTransactions.size()) {
     XrdOucString txmessage = "";
     MakeUpdateEnvHeader(txmessage);
     AddTransactionsToEnvString(txmessage, false);
@@ -435,7 +434,7 @@ XrdMqSharedHash::CloseTransaction()
     }
   }
 
-  if (XrdMqSharedObjectManager::sBroadcast && mDeletions.size()) {
+  if (mSOM->mBroadcast && mDeletions.size()) {
     XrdOucString txmessage = "";
     MakeDeletionEnvHeader(txmessage);
     AddDeletionsToEnvString(txmessage);
@@ -544,7 +543,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
     mIsTransaction = false;
   }
 
-  if (XrdMqSharedObjectManager::sBroadcast) {
+  if (mSOM->mBroadcast) {
     XrdMqMessage message("XrdMqSharedHashMessage");
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
@@ -671,7 +670,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
     mStore.erase(key);
     deleted = true;
 
-    if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+    if (mSOM->mBroadcast && broadcast) {
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
         mTransactMutex->Lock();
@@ -720,7 +719,7 @@ XrdMqSharedHash::Clear(bool broadcast)
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     if (mIsTransaction) {
-      if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+      if (mSOM->mBroadcast && broadcast) {
         mDeletions.insert(it->first);
       }
 
@@ -748,7 +747,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
     }
   }
 
-  if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+  if (mSOM->mBroadcast && broadcast) {
     bool is_transact = false;
 
     // mSOM->IsMuxTransaction is tested first to avoid contention on the
@@ -2543,7 +2542,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
   HashMutex.LockWrite();
 
   if ((mHashSubjects.count(ss) > 0)) {
-    if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+    if (mBroadcast && broadcast) {
       XrdOucString txmessage = "";
       mHashSubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
@@ -2581,7 +2580,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
   HashMutex.LockWrite();
 
   if ((mQueueSubjects.count(ss) > 0)) {
-    if (XrdMqSharedObjectManager::sBroadcast && broadcast) {
+    if (mBroadcast && broadcast) {
       XrdOucString txmessage = "";
       mHashSubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");

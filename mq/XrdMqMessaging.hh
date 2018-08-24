@@ -26,7 +26,6 @@
 
 #include "mq/XrdMqClient.hh"
 #include "mq/XrdMqSharedObject.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 //------------------------------------------------------------------------------
 //! Class XrdMqMessaging
@@ -41,8 +40,8 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   XrdMqMessaging():
-    zombie(false), SharedObjectManager(0), tid(0)
-  { }
+    mIsZombie(false), mSom(nullptr), mThreadId(0)
+  {}
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -60,23 +59,36 @@ public:
 
   virtual bool StartListenerThread();
 
-  void Connect();
-
   virtual void StopListener();
 
-  bool IsZombie()
-  {
-    return zombie;
-  }
-
+  //----------------------------------------------------------------------------
+  //! Broadcast message and collect responses
+  //!
+  //! @param broadcastresponsequeue
+  //! @param broadcasttargetqueue
+  //! @param msgbody message which is broadcasted
+  //! @param reponses collected reponses
+  //! @param waittime timeout in seconds before we attempt to collect responses
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
   bool BroadCastAndCollect(XrdOucString broadcastresponsequeue,
                            XrdOucString broadcasttargetqueues,
                            XrdOucString& msgbody, XrdOucString& responses,
                            unsigned long waittime = 5);
+
+  //----------------------------------------------------------------------------
+  //! Check if listener thread is zombie
+  //----------------------------------------------------------------------------
+  inline bool IsZombie()
+  {
+    return mIsZombie;
+  }
+
 protected:
-  bool zombie;
-  XrdMqSharedObjectManager* SharedObjectManager;
-  pthread_t tid;
+  std::atomic<bool> mIsZombie;
+  XrdMqSharedObjectManager* mSom;
+  pthread_t mThreadId;
 };
 
 #endif

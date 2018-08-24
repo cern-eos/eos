@@ -22,7 +22,9 @@
  ************************************************************************/
 
 #include "mq/XrdMqMessaging.hh"
-#include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include <chrono>
+#include <thread>
 
 XrdMqClient XrdMqMessaging::gMessageClient;
 
@@ -32,38 +34,9 @@ XrdMqClient XrdMqMessaging::gMessageClient;
 void*
 XrdMqMessaging::Start(void* pp)
 {
-  ((XrdMqMessaging*)pp)->Listen();
+  static_cast<XrdMqMessaging*>(pp)->Listen();
   return 0;
 }
-
-//------------------------------------------------------------------------------
-// Method executed by listener thread
-//------------------------------------------------------------------------------
-void
-XrdMqMessaging::Listen()
-{
-  while (1) {
-    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
-
-    if (newmessage && SharedObjectManager) {
-      XrdOucString error;
-      bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
-
-      if (!result) {
-        fprintf(stderr, "XrdMqMessaging::Listen()=>ParseEnvMessage()=>Error %s\n",
-                error.c_str());
-      }
-    }
-
-    if (newmessage) {
-      delete newmessage;
-    } else {
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
-    }
-  }
-}
-
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -72,15 +45,14 @@ XrdMqMessaging::XrdMqMessaging(const char* url,
                                const char* defaultreceiverqueue,
                                bool advisorystatus, bool advisoryquery,
                                XrdMqSharedObjectManager* som):
-  tid(0)
+  mSom(som), mThreadId(0)
 {
   if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery)) {
-    zombie = false;
+    mIsZombie = false;
   } else {
-    zombie = true;
+    mIsZombie = true;
   }
 
-  SharedObjectManager = som;
   XrdOucString clientid = url;
   int spos;
   spos = clientid.find("//");
@@ -104,6 +76,36 @@ XrdMqMessaging::~XrdMqMessaging()
 }
 
 //------------------------------------------------------------------------------
+// Method executed by listener thread
+//------------------------------------------------------------------------------
+void
+XrdMqMessaging::Listen()
+{
+  std::unique_ptr<XrdMqMessage> new_msg;
+  XrdSysThread::SetCancelDeferred();
+
+  while (true) {
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+
+    if (new_msg && mSom) {
+      XrdOucString error;
+      bool result = mSom->ParseEnvMessage(new_msg.get(), error);
+
+      if (!result) {
+        fprintf(stderr, "XrdMqMessaging::Listen()=>ParseEnvMessage()=>Error %s\n",
+                error.c_str());
+      }
+    }
+
+    if (new_msg == nullptr) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    XrdSysThread::CancelPoint();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Start the listener thread
 //------------------------------------------------------------------------------
 bool XrdMqMessaging::StartListenerThread()
@@ -111,11 +113,11 @@ bool XrdMqMessaging::StartListenerThread()
   int rc;
   XrdMqMessage::Eroute.Say("###### " , "mq messaging: starting thread ", "");
 
-  if ((rc = XrdSysThread::Run(&tid, XrdMqMessaging::Start,
+  if ((rc = XrdSysThread::Run(&mThreadId, XrdMqMessaging::Start,
                               static_cast<void*>(this),
                               XRDSYSTHREAD_HOLD, "Messaging Receiver"))) {
     XrdMqMessage::Eroute.Emsg("messaging", rc, "create messaging thread");
-    zombie = true;
+    mIsZombie = true;
     return false;
   }
 
@@ -128,18 +130,17 @@ bool XrdMqMessaging::StartListenerThread()
 void
 XrdMqMessaging::StopListener()
 {
-  if (tid) {
-    XrdSysThread::Cancel(tid);
-    XrdSysThread::Join(tid, 0);
-    tid = 0;
+  if (mThreadId) {
+    XrdSysThread::Cancel(mThreadId);
+    XrdSysThread::Join(mThreadId, 0);
+    mThreadId = 0;
   }
 
   gMessageClient.Unsubscribe();
 }
 
-
 //------------------------------------------------------------------------------
-//
+// Broadcast messages and collect responses
 //------------------------------------------------------------------------------
 bool
 XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
@@ -179,19 +180,18 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
   }
 
   // sleep
-  XrdSysTimer sleeper;
-  sleeper.Wait(waittime * 1000);
+  std::this_thread::sleep_for(std::chrono::seconds(waittime));
   // now collect:
-  XrdMqMessage* newmessage = MessageClient.RecvMessage();
+  XrdMqMessage* new_msg = MessageClient.RecvMessage();
 
-  if (newmessage) {
-    responses += newmessage->GetBody();
-    delete newmessage;
+  if (new_msg) {
+    responses += new_msg->GetBody();
+    delete new_msg;
   }
 
-  while ((newmessage = MessageClient.RecvFromInternalBuffer())) {
-    responses += newmessage->GetBody();
-    delete newmessage;
+  while ((new_msg = MessageClient.RecvFromInternalBuffer())) {
+    responses += new_msg->GetBody();
+    delete new_msg;
   }
 
   return true;

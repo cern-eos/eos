@@ -609,22 +609,8 @@ class XrdMqSharedObjectManager
   friend class XrdMqSharedQueue;
   friend class XrdMqSharedObjectChangeNotifier;
 
-private:
-  pthread_t mDumperTid; ///< Dumper thread tid
-  ///! Map of subjects to shared hash objects
-  std::map<std::string, XrdMqSharedHash*> mHashSubjects;
-  ///! Map of subjects to shared queue objects
-  std::map<std::string, XrdMqSharedQueue> mQueueSubjects;
-  std::string mDumperFile; ///< File where dumps are written
-  //! Queue used to setup the reply queue of hashes which have been broadcasted
-  std::string AutoReplyQueue;
-  //! True if the reply queue is derived from the subject e.g. the subject
-  // "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
-  bool AutoReplyQueueDerive;
-
 public:
   static std::atomic<bool> sDebug; ///< Set debug mode
-  static std::atomic<bool> sBroadcast; ///< Set broadcasting mode
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -665,26 +651,24 @@ public:
     }
   };
 
-  XrdMqRWMutex HashMutex;
+  XrdMqRWMutex HashMutex; ///< Mutex protecting access to the subject maps
 
   //----------------------------------------------------------------------------
-  //! Switch to globally en-/disable broadcasting of changes into  shared queues
+  //! Switch to globally en-/disable broadcasting of changes into shared queues
   //!
   //! @param enable if true enable broadcast, otherwise disable - default enabled
   //----------------------------------------------------------------------------
-  // TODO(esindril): This method should be static
-  void EnableBroadCast(bool enable)
+  inline void EnableBroadCast(bool enable)
   {
-    sBroadcast = enable;
+    mBroadcast = enable;
   }
 
   //----------------------------------------------------------------------------
   //! Indicate if we are broadcasting
   //----------------------------------------------------------------------------
-  // TODO(esindril): This method should be static
   inline bool ShouldBroadCast()
   {
-    return sBroadcast;
+    return mBroadcast;
   }
 
   //----------------------------------------------------------------------------
@@ -855,6 +839,20 @@ protected:
   XrdSysSemWait SubjectsSem;
   //! Mutex to protect the creations/deletions/modifications & watch subjects
   XrdSysMutex mSubjectsMutex;
+
+private:
+  std::atomic<bool> mBroadcast {true}; ///< Broadcast mode, default on
+  pthread_t mDumperTid; ///< Dumper thread tid
+  ///! Map of subjects to shared hash objects
+  std::map<std::string, XrdMqSharedHash*> mHashSubjects;
+  ///! Map of subjects to shared queue objects
+  std::map<std::string, XrdMqSharedQueue> mQueueSubjects;
+  std::string mDumperFile; ///< File where dumps are written
+  //! Queue used to setup the reply queue of hashes which have been broadcasted
+  std::string AutoReplyQueue;
+  //! True if the reply queue is derived from the subject e.g. the subject
+  // "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
+  bool AutoReplyQueueDerive;
 };
 
 //------------------------------------------------------------------------------

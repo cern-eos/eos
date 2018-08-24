@@ -25,7 +25,6 @@
 #include <mq/XrdMqClient.hh>
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysDNS.hh>
-#include <XrdSys/XrdSysTimer.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <setjmp.h>
 #include <signal.h>
@@ -137,7 +136,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
 //------------------------------------------------------------------------------
 XrdMqClient::~XrdMqClient()
 {
-  if(kRecvBuffer) {
+  if (kRecvBuffer) {
     free(kRecvBuffer);
     kRecvBuffer = nullptr;
   }
@@ -415,12 +414,12 @@ XrdMqClient::RecvMessage()
     while (!file->Stat(true, stinfo).IsOK()) {
       ReNewBrokerXrdClientReceiver(0);
       file = GetBrokerXrdClientReceiver(0);
-      XrdSysTimer sleeper;
-      sleeper.Wait(2000);
+      std::this_thread::sleep_for(std::chrono::seconds(2));
       fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
+      XrdSysThread::CancelPoint();
     }
 
-    if (!stinfo->GetSize()) {
+    if (stinfo->GetSize() == 0) {
       return 0;
     }
 
