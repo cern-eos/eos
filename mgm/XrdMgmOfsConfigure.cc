@@ -1839,9 +1839,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Print a test-stacktrace to ensure we have debugging symbols.
   std::ostringstream ss;
-  ss << "Printing a test stacktrace to check for debugging symbols." << std::endl;
-  ss << eos::common::getStacktrace();
-  eos_static_info(ss.str().c_str());
+  ss << "Printing a test stacktrace to check for debugging symbols: "
+     << eos::common::getStacktrace();
+  eos_static_info("%s", ss.str().c_str());
   // add all stat entries with 0
   InitStats();
   // start the fuse server

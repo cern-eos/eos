@@ -187,8 +187,10 @@ public:
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
+  //!
+  //! @return string describing the status
   //----------------------------------------------------------------------------
-  void PrintOut(XrdOucString& out);
+  std::string PrintOut() override;
 
   //----------------------------------------------------------------------------
   //! Return's a delay time for balancing & draining since after a transition

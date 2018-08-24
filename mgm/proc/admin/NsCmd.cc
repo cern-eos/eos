@@ -198,7 +198,7 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 }
 
 //------------------------------------------------------------------------------
-// Execute stat comand
+// Execute stat command
 //------------------------------------------------------------------------------
 std::string
 NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
@@ -283,12 +283,13 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     latencyp = chlog_file_svc->getFollowPending();
   }
 
-  XrdOucString compact_status = "", master_status = "";
+  std::string master_status;
+  XrdOucString compact_status = "";
   eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+  master_status = master->PrintOut();
 
   if (master) {
     master->PrintOutCompacting(compact_status);
-    master->PrintOut(master_status);
   }
 
   if (stat.monitor()) {

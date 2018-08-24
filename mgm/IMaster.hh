@@ -142,6 +142,13 @@ public:
     }
   }
 
+  //----------------------------------------------------------------------------
+  //! Show the current master/slave run configuration (used by ns stat)
+  //!
+  //! @return string describing the status
+  //----------------------------------------------------------------------------
+  virtual std::string PrintOut() = 0;
+
 protected:
   std::string mLog; ///< Master logs
 };

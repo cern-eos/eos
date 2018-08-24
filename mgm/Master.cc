@@ -919,9 +919,11 @@ Master::PrintOutCompacting(XrdOucString& out)
 //------------------------------------------------------------------------------
 // Print out instance information
 //------------------------------------------------------------------------------
-void
-Master::PrintOut(XrdOucString& out)
+std::string
+Master::PrintOut()
 {
+  std::string out;
+
   if (fThisHost == fMasterHost) {
     out += "mode=master-rw";
   } else {
@@ -950,7 +952,7 @@ Master::PrintOut(XrdOucString& out)
   }
 
   out += " master=";
-  out += fMasterHost;
+  out += fMasterHost.c_str();
   out += " configdir=";
   out += gOFS->MgmConfigDir.c_str();
   out += " config=";
@@ -960,7 +962,7 @@ Master::PrintOut(XrdOucString& out)
     // print only if we have a master slave configuration
     if (fRemoteMasterOk) {
       out += " mgm:";
-      out += fRemoteHost;
+      out += fRemoteHost.c_str();
       out += "=ok";
 
       if (fRemoteMasterRW) {
@@ -970,20 +972,22 @@ Master::PrintOut(XrdOucString& out)
       }
     } else {
       out += " mgm:";
-      out += fRemoteHost;
+      out += fRemoteHost.c_str();
       out += "=down";
     }
 
     if (fRemoteMqOk) {
       out += " mq:";
-      out += fRemoteMq;
+      out += fRemoteMq.c_str();
       out += "=ok";
     } else {
       out += " mq:";
-      out += fRemoteMq;
+      out += fRemoteMq.c_str();
       out += "=down";
     }
   }
+
+  return out;
 }
 
 //------------------------------------------------------------------------------

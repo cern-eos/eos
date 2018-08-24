@@ -148,6 +148,13 @@ public:
     stdOut = mLog;
   }
 
+  //----------------------------------------------------------------------------
+  //! Show the current master/slave run configuration (used by ns stat)
+  //!
+  //! @return string describing the status
+  //----------------------------------------------------------------------------
+  std::string PrintOut() override;
+
 private:
 
   //----------------------------------------------------------------------------
@@ -176,6 +183,14 @@ private:
   bool AcquireLease();
 
   //----------------------------------------------------------------------------
+  //! Try to acquire lease with delay. If the mAcquireDelay timestamp is set
+  //! then we skip trying to acquire the lease until the delay has expired.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AcquireLeaseWitDelay();
+
+  //----------------------------------------------------------------------------
   //! Release lease
   //----------------------------------------------------------------------------
   void ReleaseLease();
@@ -202,6 +217,9 @@ private:
   std::string mMasterIdentity; ///< Current master host
   std::atomic<bool> mIsMaster; ///< Mark if current instance is master
   std::atomic<bool> mConfigLoaded; ///< Mark if configuration is loaded
+  ///! Timepoint until when to delay the acquiring of the lease - so that we
+  ///! give the chance to other MGMs to become masters
+  std::atomic<time_t> mAcquireDelay;
   AssistedThread mThread; ///< Supervisor thread updating master/slave state
   qclient::QClient* mQcl; ///< qclient for talking to the QDB cluster
 };

@@ -39,8 +39,9 @@ std::chrono::milliseconds QdbMaster::sLeaseTimeout {10000};
 //------------------------------------------------------------------------------
 QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
                      const std::string& host_port):
-  mIdentity(host_port), mMasterIdentity(), mIsMaster(false),
-  mConfigLoaded(false)
+  mIdentity(host_port), mMasterIdentity(),
+  mIsMaster(false),  mConfigLoaded(false),
+  mAcquireDelay(0)
 {
   mQcl = eos::BackendClient::getInstance(qdb_info, "HA");
 }
@@ -183,7 +184,7 @@ QdbMaster::BootNamespace()
 }
 
 //------------------------------------------------------------------------------
-// Method supervising the master/slave status
+// Thread supervising the master/slave status
 //------------------------------------------------------------------------------
 void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
@@ -212,7 +213,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     old_is_master = mIsMaster;
     old_master = GetMasterId();
-    mIsMaster = AcquireLease();
+    mIsMaster = AcquireLeaseWitDelay();
     UpdateMasterId(GetLeaseHolder());
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
              old_is_master ? "true" : "false",
@@ -229,11 +230,23 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       // There was a master-slave transition
       if (old_is_master != mIsMaster) {
         old_is_master ? MasterToSlave() : SlaveToMaster();
+      } else {
+        std::string new_master_id = GetMasterId();
+
+        // Update new master if we released the lease on purpose
+        if (!mIsMaster && (new_master_id == mIdentity)) {
+          new_master_id.clear();
+        }
+
+        // We're still a slave, but there is a new master
+        if (old_master != new_master_id) {
+          Access::SetMasterToSlaveRules(new_master_id);
+        }
       }
     }
 
-    // If there is a master then wait, otherwise continue looping
-    if (mIsMaster || !GetMasterId().empty()) {
+    // If there is a master then wait a bit
+    if (!GetMasterId().empty()) {
       std::chrono::milliseconds wait_ms(sLeaseTimeout.count() / 2);
       std::this_thread::sleep_for(wait_ms);
     }
@@ -248,18 +261,16 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 void
 QdbMaster::SlaveToMaster()
 {
-  eos_info("msg=\"slave to master transition\"");
+  eos_info("%s", "msg=\"slave to master transition\"");
+  // ******
+  // @todo (esindril): reapply the configuration
+  // ******
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
-  eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
-  // Remove any write stall and redirection rules
-  Access::gRedirectionRules.erase(std::string("w:*"));
-  Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-  Access::gStallRules.erase(std::string("w:*"));
-  Access::gStallWrite = false;
+  Access::SetSlaveToMasterRules();
 }
 
 //------------------------------------------------------------------------------
@@ -268,27 +279,16 @@ QdbMaster::SlaveToMaster()
 void
 QdbMaster::MasterToSlave()
 {
-  eos_info("master to slave transition");
+  eos_info("%s", "msg=\"master to slave transition\"");
   // We are the slave and we just listen and don't broad cast anything
   gOFS->ObjectManager.EnableBroadCast(false);
-  eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
+  std::string new_master_id = GetMasterId();
 
-  if (GetMasterId().empty()) {
-    // No master - remove redirections and put a stall for writes
-    Access::gRedirectionRules.erase(std::string("w:*"));
-    Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-    Access::gStallRules[std::string("w:*")] = "60";
-    Access::gStallWrite = true;
-  } else {
-    // We're the slave and there is a master - set redirection to him
-    std::string host = GetMasterId();
-    host = host.substr(0, host.find(':'));
-    Access::gRedirectionRules[std::string("w:*")] = host.c_str();
-    Access::gRedirectionRules[std::string("ENOENT:*")] = host.c_str();
-    // Remove write stall
-    Access::gStallRules.erase(std::string("w:*"));
-    Access::gStallWrite = false;
+  if (!mIsMaster && (new_master_id == mIdentity)) {
+    new_master_id.clear();
   }
+
+  Access::SetMasterToSlaveRules(new_master_id);
 }
 
 //------------------------------------------------------------------------------
@@ -346,6 +346,31 @@ QdbMaster::AcquireLease()
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Try to acquire lease with delay. If the mAcquireDelay timestamp is set
+// then we skip trying to acquire the lease until the delay has expired.
+//------------------------------------------------------------------------------
+bool
+QdbMaster::AcquireLeaseWitDelay()
+{
+  bool is_master = false;
+
+  if (mAcquireDelay != 0) {
+    if (mAcquireDelay >= time(nullptr)) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      eos_info("%s", "msg=\"enforce lease acquire delay\"");
+    } else {
+      mAcquireDelay = 0;
+      is_master = AcquireLease();
+    }
+  } else {
+    is_master = AcquireLease();
+  }
+
+  return is_master;
+}
+
+
 //----------------------------------------------------------------------------
 // Release lease
 //----------------------------------------------------------------------------
@@ -367,8 +392,8 @@ QdbMaster::GetLeaseHolder()
   std::future<qclient::redisReplyPtr> f = mQcl->exec("lease-get", sLeaseKey);
   qclient::redisReplyPtr reply = f.get();
 
-  if (reply == nullptr) {
-    eos_info("lease-get is NULL");
+  if ((reply == nullptr) || (reply->type == REDIS_REPLY_NIL)) {
+    eos_debug("%s", "msg=\"lease-get is NULL\"");
     return holder;
   }
 
@@ -401,8 +426,14 @@ bool
 QdbMaster::SetMasterId(const std::string& hostname, int port,
                        std::string& err_msg)
 {
-  // @todo (esindril): to be implemented
-  return false;
+  std::string new_id = hostname + std::to_string(port);
+
+  if (new_id != mIdentity) {
+    mAcquireDelay = time(nullptr) + 2 *
+                    std::chrono::duration_cast<std::chrono::seconds>(sLeaseTimeout).count();
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -437,6 +468,18 @@ QdbMaster::IsRemoteMasterOk() const
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Show the current master/slave run configuration (used by ns stat)
+//------------------------------------------------------------------------------
+std::string
+QdbMaster::PrintOut()
+{
+  std::ostringstream oss;
+  oss << "is_master=" << (mIsMaster ? "true" : "false")
+      << " master_id=" << GetMasterId();
+  return oss.str();
 }
 
 EOSMGMNAMESPACE_END
