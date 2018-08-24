@@ -207,6 +207,19 @@ public:
   //----------------------------------------------------------------------------
   static void
   SetStallRule(const StallInfo& new_stall, StallInfo& old_stall);
+
+  //----------------------------------------------------------------------------
+  //! Set access rules for a slave to master transition. More precisely remove
+  //! any stall and redirection rules
+  //----------------------------------------------------------------------------
+  static void SetSlaveToMasterRules();
+
+  //----------------------------------------------------------------------------
+  //! Set access rules for a master to slave transition.
+  //!
+  //! @param other_master_id newly assigned master identity <hostname>:<port>
+  //----------------------------------------------------------------------------
+  static void SetMasterToSlaveRules(const std::string& other_master_id);
 };
 
 EOSMGMNAMESPACE_END

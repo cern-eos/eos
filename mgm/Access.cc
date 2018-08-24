@@ -538,4 +538,47 @@ Access::SetStallRule(const StallInfo& new_stall, StallInfo& old_stall)
   Access::gStallGlobal = new_stall.mIsGlobal;
 }
 
+//------------------------------------------------------------------------------
+// Set access rules for a slave to master transition. More precisely remove
+// any stall and redirection rules
+//------------------------------------------------------------------------------
+void
+Access::SetSlaveToMasterRules()
+{
+  eos_static_info("%s", "msg=\"remove any stall and redirection rules\"");
+  eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
+  Access::gRedirectionRules.erase(std::string("w:*"));
+  Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+  Access::gStallRules.erase(std::string("w:*"));
+  Access::gStallWrite = false;
+}
+
+//----------------------------------------------------------------------------
+// Set access rules for a master to slave transition.
+//----------------------------------------------------------------------------
+void
+Access::SetMasterToSlaveRules(const std::string& other_master_id)
+{
+  eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
+
+  if (other_master_id.empty()) {
+    // No master - remove redirections and put a stall for writes
+    eos_static_info("%s", "msg=\"no master, add stall for writes\"");
+    Access::gRedirectionRules.erase(std::string("w:*"));
+    Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+    Access::gStallRules[std::string("w:*")] = "60";
+    Access::gStallWrite = true;
+  } else {
+    // We're the slave and there is a master - set redirection to him
+    eos_static_info("msg=\"add redirection to master %s\"",
+                    other_master_id.c_str());
+    std::string host = other_master_id.substr(0, other_master_id.find(':'));
+    Access::gRedirectionRules[std::string("w:*")] = host.c_str();
+    Access::gRedirectionRules[std::string("ENOENT:*")] = host.c_str();
+    // Remove write stall
+    Access::gStallRules.erase(std::string("w:*"));
+    Access::gStallWrite = false;
+  }
+}
+
 EOSMGMNAMESPACE_END
