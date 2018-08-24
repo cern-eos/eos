@@ -152,20 +152,7 @@ ProcCommand::Ls()
             stdOut += val;
             stdOut += "\n";
           } else {
-            char fmode[10];
-            int fmode_v[9];
-            char modestr[11];
             std::string backendstatus;
-            strcpy(fmode, "rwxrwxrwx");
-            fmode_v[0] = S_IRUSR;
-            fmode_v[1] = S_IWUSR;
-            fmode_v[2] = S_IXUSR;
-            fmode_v[3] = S_IRGRP;
-            fmode_v[4] = S_IWGRP;
-            fmode_v[5] = S_IXGRP;
-            fmode_v[6] = S_IROTH;
-            fmode_v[7] = S_IWOTH;
-            fmode_v[8] = S_IXOTH;
             // return full information
             XrdOucString statpath = spath;
             statpath += "/";
@@ -193,25 +180,9 @@ ProcCommand::Ls()
               struct tm* t_tm;
               struct tm t_tm_local;
               t_tm = localtime_r(&buf.st_mtime, &t_tm_local);
-              strcpy(modestr, "----------");
 
-              modestr[0] = eos::modeToFileTypeChar(buf.st_mode);
-
-              for (i = 0; i < 9; i++) if (fmode_v[i] & buf.st_mode) {
-                  modestr[i + 1] = fmode[i];
-                }
-
-              if (S_ISUID & buf.st_mode) {
-                modestr[3] = 's';
-              }
-
-              if (S_ISGID & buf.st_mode) {
-                modestr[6] = 's';
-              }
-
-              if (S_ISVTX & buf.st_mode) {
-                modestr[9] = '+';
-              }
+              char modestr[11];
+              eos::modeToBuffer(buf.st_mode, modestr);
 
               if (showbackendstatus) {
                 // to be extended later to display in-flight status
