@@ -378,10 +378,6 @@ main()
   dbm_1.loadDbLog("/tmp/testlog_no_slice.db");
   // compacting the log
   DbLog dbl_1("/tmp/testlog_no_slice.db");
-  pair<int, int> compactStats =
-    dbl_1.compactifyTo("/tmp/testlog_no_slice.db.compacted");
-  cout << "Number of Entries Before Compacting : " << compactStats.first << endl;
-  cout << "Number of Entries After  Compacting : " << compactStats.second << endl;
   // loading the compacted log
   dbm_2.loadDbLog("/tmp/testlog_no_slice.db.compacted");
   const DbMapTypes::Tkey* key1, *key2;

@@ -86,46 +86,6 @@ bool DbLogT::clear() {
   return pDb->clear();
 }
 
-std::pair<int, int> DbLogT::compactify() {
-  std::pair<int, int> retval;
-  DbMapT dbmap, dbmap2;
-  retval.second = 0;
-  retval.first = dbmap.loadDbLog(this);
-  this->clear();
-  dbmap2.attachLog(this);
-  const DbMapTypes::Tkey* key;
-  const DbMapTypes::Tval* val;
-  dbmap2.beginSetSequence();
-
-  for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
-    if (dbmap2.set(*key, *val)) {
-      retval.second++;
-    }
-  }
-
-  dbmap2.endSetSequence();
-  return retval;
-}
-
-std::pair<int, int> DbLogT::compactifyTo(const string& dbname) const {
-  std::pair<int, int> retval;
-  DbMapT dbmap, dbmap2;
-  retval.first = dbmap.loadDbLog(this);
-  dbmap2.attachLog(dbname);
-  const DbMapTypes::Tkey* key;
-  const DbMapTypes::Tval* val;
-  dbmap2.beginSetSequence();
-
-  for (dbmap.beginIter(); dbmap.iterate(&key, &val);) {
-    if (dbmap2.set(*key, *val)) {
-      retval.second++;
-    }
-  }
-
-  dbmap2.endSetSequence();
-  return retval;
-}
-
 std::string DbLogT::getDbType() {
   return TDbLogInterface::getDbType();
 }

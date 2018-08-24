@@ -118,23 +118,6 @@ public:
   bool clear();
 
   // ------------------------------------------------------------------------
-  //! Compactify a DbLog in place i.e. reduce the set of changes to the minimum equivalent set of changes.
-  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
-  //! @return a pair containing first the number of entries before the compactation
-  //!                           and second the number of entries after the compactation
-  // ------------------------------------------------------------------------
-  std::pair<int, int> compactify();
-
-  // ------------------------------------------------------------------------
-  //! Compactify a DbLog to another db file i.e. reduce the set of changes to the minimum equivalent set of changes.
-  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
-  //! @param[in] dbname the name of the db file to write the compacted version of the DbLog
-  //! @return a pair containing first the number of entries before the compactation
-  //!                           and second the number of entries after the compactation
-  // ------------------------------------------------------------------------
-  std::pair<int, int> compactifyTo(const string& dbname) const;
-
-  // ------------------------------------------------------------------------
   //! Get the underlying db system
   //! @return a string containing the name of the underlying db system
   // ------------------------------------------------------------------------
