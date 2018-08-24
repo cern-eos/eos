@@ -135,6 +135,14 @@ if (PYTHONINTERP_FOUND AND SPHINX_FOUND)
     COMMENT "Build HTML documentation with Sphinx ...")
 endif ()
 
+
+#-------------------------------------------------------------------------------
+# Generate man pages
+#-------------------------------------------------------------------------------
+if (BUILD_MANPAGES AND HELP2MAN_FOUND)
+  add_subdirectory(man)
+endif()
+
 #-------------------------------------------------------------------------------
 # Build the libfmt for fast convertions
 #-------------------------------------------------------------------------------
@@ -150,7 +158,6 @@ add_subdirectory(misc)
 add_subdirectory(authz)
 add_subdirectory(fst)
 add_subdirectory(mq)
-add_subdirectory(man)
 add_subdirectory(fuse)
 add_subdirectory(console)
 add_subdirectory(fusex)

@@ -5,7 +5,7 @@
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2018 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,10 +21,20 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-# Grab all the man files from the ./man1/ directory
-file(GLOB_RECURSE MAN_FILES *.1.gz)
+add_custom_target(
+  man ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/man1/)
+
+add_dependencies(man eos)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/
+  COMMAND ${CMAKE_COMMAND} -E env "PATH=${CMAKE_BINARY_DIR}/console:$ENV{PATH}" ${CMAKE_CURRENT_SOURCE_DIR}/create_man.sh
+)
 
 install(
-  FILES ${MAN_FILES}
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+  CODE "FILE ( GLOB MAN_FILES \"${CMAKE_CURRENT_BINARY_DIR}/man1/*.1.gz\" )"
+  CODE "FILE ( INSTALL \${MAN_FILES}
+               DESTINATION \"${CMAKE_INSTALL_MANDIR}/man1\"
+               PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ )"
+)
