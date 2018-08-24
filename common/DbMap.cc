@@ -57,10 +57,6 @@ bool DbLogT::setDbFile(const std::string& dbname, int volumeduration,
   return pDb->setDbFile(dbname, volumeduration, createperm, (void*)option);
 }
 
-bool DbLogT::isOpen() {
-  return pDb->isOpen();
-}
-
 std::string DbLogT::getDbFile() const {
   RWMutexWriteLock lock(pMutex);
   return pDb->getDbFile();

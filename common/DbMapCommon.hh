@@ -134,16 +134,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Drop the first "n" bytes from this slice.
-  //----------------------------------------------------------------------------
-  void remove_prefix(size_t n)
-  {
-    assert(n <= size());
-    data_ += n;
-    size_ -= n;
-  }
-
-  //----------------------------------------------------------------------------
   //! Return a string that contains the copy of the referenced data.
   //----------------------------------------------------------------------------
   std::string ToString() const
@@ -151,54 +141,11 @@ public:
     return std::string(data_, size_);
   }
 
-  //----------------------------------------------------------------------------
-  //! Three-way comparison.
-  //! @return
-  //!   <  0 iff "*this" <  "b",
-  //!   == 0 iff "*this" == "b",
-  //!   >  0 iff "*this" >  "b"
-  //----------------------------------------------------------------------------
-  int compare(const Slice& b) const
-  {
-    const int min_len = (size_ < b.size_) ? size_ : b.size_;
-    int r = memcmp(data_, b.data_, min_len);
-
-    if (r == 0) {
-      if (size_ < b.size_) {
-        r = -1;
-      } else if (size_ > b.size_) {
-        r = +1;
-      }
-    }
-
-    return r;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return true iff "x" is a prefix of "*this"
-  //----------------------------------------------------------------------------
-  bool starts_with(const Slice& x) const
-  {
-    return ((size_ >= x.size_) &&
-            (memcmp(data_, x.data_, x.size_) == 0));
-  }
-
 private:
   const char* data_;
   size_t size_;
   // Intentionally copyable
 };
-
-inline bool operator==(const Slice& x, const Slice& y)
-{
-  return ((x.size() == y.size()) &&
-          (memcmp(x.data(), y.data(), x.size()) == 0));
-}
-
-inline bool operator!=(const Slice& x, const Slice& y)
-{
-  return !(x == y);
-}
 
 inline std::string& operator+=(std::string& lhs, const Slice& rhs)
 {
@@ -374,13 +321,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool setDbFile(const std::string& dbname, int volumeduration,
                          int createperm, void* option) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Check if the log db is properly opened
-  //!
-  //! @return true if the db is open, false otherwise
-  //----------------------------------------------------------------------------
-  virtual bool isOpen() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get the name of the db file of the db representation

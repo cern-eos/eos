@@ -82,12 +82,6 @@ public:
                  int createperm = 0, Toption* option = NULL);
 
   // ------------------------------------------------------------------------
-  //! Check if the underlying db is properly opened
-  //! @return true if the underlying db is open, false otherzise
-  // ------------------------------------------------------------------------
-  bool isOpen();
-
-  // ------------------------------------------------------------------------
   //! Get the name of the underlying db file
   //! @return the name of the underlying dbfile
   // ------------------------------------------------------------------------

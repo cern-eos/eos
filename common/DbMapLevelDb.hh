@@ -200,7 +200,6 @@ public:
   LvDbDbLogInterface();
   LvDbDbLogInterface(const std::string &dbname, int volumeduration, int createperm, void* options=NULL);
   virtual bool setDbFile( const std::string &dbname, int volumeduration, int createperm, void* option);
-  virtual bool isOpen() const;
   virtual std::string getDbFile() const;
   static std::string getDbType()
   { return "LevelDB";}
@@ -222,7 +221,6 @@ class LvDbDbMapInterface : public LvDbInterfaceBase, public DbMapInterface
 
   std::string pName;
 
-  RWMutex pBatchMutex;
   leveldb::WriteBatch pExportBatch;
   leveldb::WriteBatch pDbBatch;
   bool pBatched;

@@ -495,12 +495,6 @@ LvDbDbLogInterface::setDbFile(const string& dbname, int volumeduration,
   return true;
 }
 
-bool
-LvDbDbLogInterface::isOpen() const
-{
-  return pIsOpen;
-}
-
 string
 LvDbDbLogInterface::getDbFile() const
 {
@@ -666,7 +660,6 @@ bool LvDbDbLogInterface::clear()
 LvDbDbMapInterface::LvDbDbMapInterface() :
   pNDbEntries(0) , pBatched(false), AttachedDb(0)
 {
-  pBatchMutex.SetBlocking(true);
 }
 
 LvDbDbMapInterface::~LvDbDbMapInterface()
