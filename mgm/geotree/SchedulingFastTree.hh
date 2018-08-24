@@ -1714,10 +1714,6 @@ public:
       _mFillRatio /= _mTotalSpace;
     }
 
-    if (_mTotalSpace) {
-      _mFillRatio /= _mTotalSpace;
-    }
-
     // testing the count is irrelevant but makes coverity happy
     pNodes[node].fsData.dlScore = (char)(count ? _mDlScore / count : 0);
     // testing the count is irrelevant but makes coverity happy
