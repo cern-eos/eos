@@ -29,6 +29,7 @@
 #include "mgm/Stat.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
+#include "namespace/utils/Mode.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -534,18 +535,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         char t_creat[36];
         char modestr[11];
         {
-          char ftype[8];
-          unsigned int ftype_v[7];
           char fmode[10];
           int fmode_v[9];
-          strcpy(ftype, "pcdb-ls");
-          ftype_v[0] = S_IFIFO;
-          ftype_v[1] = S_IFCHR;
-          ftype_v[2] = S_IFDIR;
-          ftype_v[3] = S_IFBLK;
-          ftype_v[4] = S_IFREG;
-          ftype_v[5] = S_IFLNK;
-          ftype_v[6] = S_IFSOCK;
           strcpy(fmode, "rwxrwxrwx");
           fmode_v[0] = S_IRUSR;
           fmode_v[1] = S_IWUSR;
@@ -562,11 +553,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
           t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
           strcpy(modestr, "----------");
 
-          for (i = 0; i < 6; i++) if (ftype_v[i] == (S_IFMT & buf.st_mode)) {
-              break;
-            }
-
-          modestr[0] = ftype[i];
+          modestr[0] = eos::modeToFileTypeChar(buf.st_mode);
 
           for (i = 0; i < 9; i++) if (fmode_v[i] & buf.st_mode) {
               modestr[i + 1] = fmode[i];
