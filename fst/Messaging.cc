@@ -68,9 +68,9 @@ Messaging::Process(XrdMqMessage* newmessage)
   XrdOucString subcmd = action.Get("mgm.subcmd");
 
   // Shared object communication point
-  if (SharedObjectManager) {
+  if (mSom) {
     XrdOucString error = "";
-    bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
+    bool result = mSom->ParseEnvMessage(newmessage, error);
 
     if (!result) {
       if (error != "no subject in message body") {

@@ -40,7 +40,7 @@ public:
             XrdMqSharedObjectManager* som = 0) :
     XrdMqMessaging(url, defaultreceiverqueue, advisorystatus, advisoryquery)
   {
-    SharedObjectManager = som;
+    mSom = som;
     eos::common::LogId();
   }
 

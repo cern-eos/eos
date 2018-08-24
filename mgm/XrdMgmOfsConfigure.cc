@@ -1683,15 +1683,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                     true, true, &ObjectManager);
 
     if (!MgmOfsMessaging->StartListenerThread()) {
-      NoGo = 1;
+      eos_crit("%s", "msg=\"messaging failed to start listening thread\"");
+      return 1;
     }
 
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
-
-    if (MgmOfsMessaging->IsZombie()) {
-      Eroute.Emsg("Config", "cannot create messaging object(thread)");
-      return NoGo;
-    }
 
     if (MgmOfsVstBrokerUrl.length() &&
         (getenv("EOS_VST_BROKER_ENABLE") &&
@@ -1700,15 +1696,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                             "/eos/*/vst", true, true, 0);
 
       if (!MgmOfsVstMessaging->StartListenerThread()) {
-        NoGo = 1;
+        eos_crit("%s", "msg=\"vst messaging failed to start listening thread\"");
+        return 1;
       }
 
-      MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
-
-      if (MgmOfsVstMessaging->IsZombie()) {
-        Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
-        return NoGo;
-      }
+      MgmOfsVstMessaging->SetLogId("MgmOfsVstMessaging");
     }
 
     // Create the ZMQ processor used especially for fuse
@@ -1806,13 +1798,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_crit("error starting the shared object change notifier");
   }
 
-  // initialize the transfer database
+  // Initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx")) {
     eos_crit("cannot intialize transfer database");
     NoGo = 1;
   }
 
-  // create the 'default' quota space which is needed if quota is disabled!
+  // Create the 'default' quota space which is needed if quota is disabled!
   if (!Httpd->Start()) {
     eos_warning("msg=\"cannot start httpd daemon\"");
   }
@@ -1860,7 +1852,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
   }
 
-  // start IO ciruclate thread
+  // Start IO ciruclate thread
   IoStats->StartCirculate();
 
   if (!MgmRedirector) {

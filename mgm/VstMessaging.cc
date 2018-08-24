@@ -54,9 +54,9 @@ VstMessaging::VstMessaging(const char* url, const char* defaultreceiverqueue,
   eos_info("vst-broker-url=%s default-receiver=%s", url, defaultreceiverqueue);
 
   if (mMessageClient.AddBroker(url, advisorystatus, advisoryquery, true)) {
-    zombie = false;
+    mIsZombie = false;
   } else {
-    zombie = true;
+    mIsZombie = true;
   }
 
   XrdOucString clientid = url;

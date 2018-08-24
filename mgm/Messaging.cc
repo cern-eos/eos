@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-
 #include "mgm/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
@@ -30,28 +28,26 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-void*
-Messaging::Start(void* pp)
-{
-  ((Messaging*) pp)->Listen();
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 Messaging::Messaging(const char* url, const char* defaultreceiverqueue,
-                     bool advisorystatus, bool advisoryquery, XrdMqSharedObjectManager* som)
+                     bool advisorystatus, bool advisoryquery,
+                     XrdMqSharedObjectManager* som)
 {
-  SharedObjectManager = som;
+  mSom = som;
 
-  // we add to a broker with the flushbacklog flag since we don't want to block message flow in case of a master/slave MGM where one got stuck or too slow
+  // Add to a broker with the flushbacklog flag since we don't want to
+  // block message flow in case of a master/slave MGM where one got stuck or
+  // is too slow
   if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery , true)) {
-    zombie = false;
+    mIsZombie = false;
   } else {
-    zombie = true;
+    mIsZombie = true;
   }
 
-  XrdOucString clientid = url;
   int spos;
+  XrdOucString clientid = url;
   spos = clientid.find("//");
 
   if (spos != STR_NPOS) {
@@ -62,13 +58,39 @@ Messaging::Messaging(const char* url, const char* defaultreceiverqueue,
 
   gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
-  eos::common::LogId();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Infinite loop processing messages
+//------------------------------------------------------------------------------
+void
+Messaging::Listen()
+{
+  std::unique_ptr<XrdMqMessage> new_msg;
+  XrdSysThread::SetCancelDeferred();
+
+  while (true) {
+    //eos_static_debug("RecvMessage");
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+    // if (new_msg) new_msg->Print();
+
+    if (new_msg) {
+      Process(new_msg.get());
+    } else {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    XrdSysThread::CancelPoint();
+  }
+
+  XrdSysThread::SetCancelOn();
+}
+
+//------------------------------------------------------------------------------
+// Update based on advisory message
+//------------------------------------------------------------------------------
 bool
 Messaging::Update(XrdAdvisoryMqMessage* advmsg)
-
 {
   if (!advmsg) {
     return false;
@@ -171,45 +193,22 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Process message
+//------------------------------------------------------------------------------
 void
-Messaging::Listen()
-{
-  while (1) {
-    XrdSysThread::SetCancelOn();
-    //eos_static_debug("RecvMessage");
-    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
-    XrdSysThread::CancelPoint();
-    //    if (newmessage) newmessage->Print();
-    XrdSysThread::SetCancelOff();
-
-    if (newmessage) {
-      Process(newmessage);
-      delete newmessage;
-      XrdSysThread::SetCancelOn();
-      XrdSysThread::CancelPoint();
-    } else {
-      XrdSysThread::SetCancelOn();
-      XrdSysThread::CancelPoint();
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-void
-Messaging::Process(XrdMqMessage* newmessage)
+Messaging::Process(XrdMqMessage* new_msg)
 {
   static bool discardmode = false;
 
-  if ((newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
-      (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
+  if ((new_msg->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
+      (new_msg->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
     if (discardmode) {
       return;
     }
 
     XrdAdvisoryMqMessage* advisorymessage = XrdAdvisoryMqMessage::Create(
-        newmessage->GetMessageBuffer());
+        new_msg->GetMessageBuffer());
 
     if (advisorymessage) {
       eos_debug("queue=%s online=%d", advisorymessage->kQueue.c_str(),
@@ -228,26 +227,26 @@ Messaging::Process(XrdMqMessage* newmessage)
     //    TIMING("ParseEnv-Start",&somTiming);
     //    somTiming.Print();
     // deal with shared object exchange messages
-    if (SharedObjectManager) {
+    if (mSom) {
       // do a cut on the maximum allowed delay for shared object messages
       if ((!discardmode) &&
-          ((newmessage->kMessageHeader.kReceiverTime_sec -
-            newmessage->kMessageHeader.kBrokerTime_sec) > 60)) {
+          ((new_msg->kMessageHeader.kReceiverTime_sec -
+            new_msg->kMessageHeader.kBrokerTime_sec) > 60)) {
         eos_crit("dropping shared object message because of message delays of %d seconds",
-                 (newmessage->kMessageHeader.kReceiverTime_sec -
-                  newmessage->kMessageHeader.kBrokerTime_sec));
+                 (new_msg->kMessageHeader.kReceiverTime_sec -
+                  new_msg->kMessageHeader.kBrokerTime_sec));
         discardmode = true;
         return;
       } else {
         // we accept when we catched up
-        if ((newmessage->kMessageHeader.kReceiverTime_sec -
-             newmessage->kMessageHeader.kBrokerTime_sec) <= 5) {
+        if ((new_msg->kMessageHeader.kReceiverTime_sec -
+             new_msg->kMessageHeader.kBrokerTime_sec) <= 5) {
           discardmode = false;
         } else {
           if (discardmode) {
             eos_crit("dropping shared object message because of message delays of %d seconds",
-                     (newmessage->kMessageHeader.kReceiverTime_sec -
-                      newmessage->kMessageHeader.kBrokerTime_sec));
+                     (new_msg->kMessageHeader.kReceiverTime_sec -
+                      new_msg->kMessageHeader.kBrokerTime_sec));
             return;
           }
         }
@@ -255,14 +254,14 @@ Messaging::Process(XrdMqMessage* newmessage)
 
       // parse as shared object manager message
       XrdOucString error = "";
-      bool result = SharedObjectManager->ParseEnvMessage(newmessage, error);
+      bool result = mSom->ParseEnvMessage(new_msg, error);
 
       //      TIMING("ParseEnv-Stop",&somTiming);
       //      somTiming.Print();
       if (!result) {
         if ((error != "no subject in message body") &&
             (error != "no pairs in message body")) {
-          //          newmessage->Print();
+          //          new_msg->Print();
           eos_err("%s", error.c_str());
         } else {
           eos_debug("%s", error.c_str());
@@ -274,8 +273,8 @@ Messaging::Process(XrdMqMessage* newmessage)
       }
     }
 
-    XrdOucString saction = newmessage->GetBody();
-    //    newmessage->Print();
+    XrdOucString saction = new_msg->GetBody();
+    //    new_msg->Print();
     // replace the arg separator # with an & to be able to put it into XrdOucEnv
     XrdOucEnv action(saction.c_str());
     XrdOucString cmd = action.Get("mgm.cmd");
