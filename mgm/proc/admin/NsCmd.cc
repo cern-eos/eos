@@ -283,10 +283,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     latencyp = chlog_file_svc->getFollowPending();
   }
 
-  std::string master_status;
+  std::string master_status = gOFS->mMaster->PrintOut();
   XrdOucString compact_status = "";
   eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-  master_status = master->PrintOut();
 
   if (master) {
     master->PrintOutCompacting(compact_status);
@@ -354,27 +353,35 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << d <<  std::endl
         << "ALL      Total boot time                  "
         << boot_time << " s" << std::endl
-        << line << std::endl
-        << "ALL      Compactification                 "
-        << compact_status.c_str() << std::endl
-        << line << std::endl
-        << "ALL      Replication                      "
+        << line << std::endl;
+
+    if (compact_status.length()) {
+      oss << "ALL      Compactification                 "
+          << compact_status.c_str() << std::endl
+          << line << std::endl;
+    }
+
+    oss << "ALL      Replication                      "
         << master_status.c_str() << std::endl;
 
-    if (!gOFS->mMaster->IsMaster()) {
+    if (!gOFS->NsInQDB && !gOFS->mMaster->IsMaster()) {
       oss << "ALL      Namespace Latency Files          " << latencyf << std::endl
           << "ALL      Namespace Latency Directories    " << latencyd << std::endl
           << "ALL      Namespace Pending Updates        " << latencyp << std::endl;
     }
 
-    oss << line << std::endl
-        << "ALL      File Changelog Size              " << clfsize << std::endl
-        << "ALL      Dir  Changelog Size              " << cldsize << std::endl
-        << line << std::endl
-        << "ALL      avg. File Entry Size             " << clfratio << std::endl
-        << "ALL      avg. Dir  Entry Size             " << cldratio << std::endl
-        << line << std::endl
-        << "ALL      files created since boot         "
+    oss << line << std::endl;
+
+    if (clfsize.length() && cldsize.length()) {
+      oss << "ALL      File Changelog Size              " << clfsize << std::endl
+          << "ALL      Dir  Changelog Size              " << cldsize << std::endl
+          << line << std::endl
+          << "ALL      avg. File Entry Size             " << clfratio << std::endl
+          << "ALL      avg. Dir  Entry Size             " << cldratio << std::endl
+          << line << std::endl;
+    }
+
+    oss << "ALL      files created since boot         "
         << (int)(fid_now - gOFS->mBootFileId) << std::endl
         << "ALL      container created since boot     "
         << (int)(cid_now - gOFS->mBootContainerId) << std::endl
