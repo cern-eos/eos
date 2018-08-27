@@ -100,15 +100,17 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
 
     if (drain_tx) {
       std::string out_msg;
-
-      if (drain_tx > 0) {
-        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
-          return false;
-        }
-      } else {
-        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
+      
+      if (ShouldBroadCast()) {
+        if (drain_tx > 0) {
+          if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+            eos_static_err("%s", out_msg.c_str());
+            return false;
+          }
+        } else {
+          if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+            eos_static_err("%s", out_msg.c_str());
+          }
         }
       }
     }
