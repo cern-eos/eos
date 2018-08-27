@@ -116,7 +116,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
           if ((it->first.find(userwildcardmatch) == 0)) {
             // catch all rule = global user rate cut
-            XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
+            XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
             if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
                 gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
@@ -126,7 +126,7 @@ XrdMgmOfs::ShouldStall(const char* function,
             }
           } else if ((it->first.find(groupwildcardmatch) == 0)) {
             // catch all rule = global user rate cut
-            XrdSysMutexHelper statLock(gOFS->MgmStats.Mutex);
+            XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
             if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
                 gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&

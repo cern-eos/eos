@@ -1766,7 +1766,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   FsView::gFsView.SetConfigEngine(ConfEngine);
   eos_info("starting statistics thread");
 
-  if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats,
+  if ((XrdSysThread::Run(&mStatsTid, XrdMgmOfs::StartMgmStats,
                          static_cast<void*>(this), 0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
@@ -1784,7 +1784,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!MgmRedirector) {
     eos_info("starting fs listener thread");
 
-    if ((XrdSysThread::Run(&fsconfiglistener_tid,
+    if ((XrdSysThread::Run(&mFsConfigTid,
                            XrdMgmOfs::StartMgmFsConfigListener,
                            static_cast<void*>(this), 0, "FsListener Thread"))) {
       eos_crit("cannot start fs listener thread");

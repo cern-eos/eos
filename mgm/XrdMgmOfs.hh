@@ -1422,8 +1422,8 @@ public:
   // thread variables
   // ---------------------------------------------------------------------------
   pthread_t deletion_tid; ///< Thead Id of the deletion thread
-  pthread_t stats_tid; ///< Thread Id of the stats thread
-  pthread_t fsconfiglistener_tid; ///< Thread ID of the fs listener/config change thread
+  pthread_t mStatsTid; ///< Thread Id of the stats thread
+  pthread_t mFsConfigTid; ///< Thread ID of the fs listener/config change thread
   pthread_t auth_tid; ///< Thread Id of the authentication thread
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 

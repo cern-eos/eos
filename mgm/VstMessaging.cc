@@ -309,7 +309,7 @@ VstMessaging::PublishVst()
     clients = eos::common::Mapping::ActiveTidents.size();
   }
   {
-    XrdSysMutexHelper sLock(gOFS->MgmStats.Mutex);
+    XrdSysMutexHelper sLock(gOFS->MgmStats.mMutex);
     lock_r = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockR");
     lock_w = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockW");
   }

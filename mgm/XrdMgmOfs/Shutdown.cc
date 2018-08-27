@@ -80,17 +80,17 @@ xrdmgmofs_shutdown(int sig)
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop statistics thread ... ");
 
-  if (gOFS->stats_tid) {
-    XrdSysThread::Cancel(gOFS->stats_tid);
-    XrdSysThread::Join(gOFS->stats_tid, 0);
+  if (gOFS->mStatsTid) {
+    XrdSysThread::Cancel(gOFS->mStatsTid);
+    XrdSysThread::Join(gOFS->mStatsTid, 0);
   }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop fs listener thread ... ");
 
-  if (gOFS->fsconfiglistener_tid) {
-    XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
-    XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
+  if (gOFS->mFsConfigTid) {
+    XrdSysThread::Cancel(gOFS->mFsConfigTid);
+    XrdSysThread::Join(gOFS->mFsConfigTid, 0);
   }
 
   // ---------------------------------------------------------------------------

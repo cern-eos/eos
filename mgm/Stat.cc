@@ -36,12 +36,11 @@ EOSMGMNAMESPACE_BEGIN
 void
 Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
 {
-  Mutex.Lock();
+  XrdSysMutexHelper lock(mMutex);
   StatsUid[tag][uid] += val;
   StatsGid[tag][gid] += val;
   StatAvgUid[tag][uid].Add(val);
   StatAvgGid[tag][gid].Add(val);
-  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -49,25 +48,22 @@ void
 Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
              const double& avgv, const double& minv, const double& maxv)
 {
-  Mutex.Lock();
+  XrdSysMutexHelper lock(mMutex);
   StatExtUid[tag][uid].Insert(nsample, avgv, minv, maxv);
   StatExtGid[tag][gid].Insert(nsample, avgv, minv, maxv);
-  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Stat::AddExec(const char* tag, float exectime)
 {
-  Mutex.Lock();
+  XrdSysMutexHelper lock(mMutex);
   StatExec[tag].push_back(exectime);
 
   // we average over 100 entries
   if (StatExec[tag].size() > 100) {
     StatExec[tag].pop_front();
   }
-
-  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -612,11 +608,9 @@ Stat::GetTotalExec(double& deviation)
 void
 Stat::Clear()
 {
-  Mutex.Lock();
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
-  ittag;
+  XrdSysMutexHelper lock(mMutex);
 
-  for (ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
+  for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatsUid[ittag->first].clear();
     StatsUid[ittag->first].resize(1000);
     StatsGid[ittag->first].clear();
@@ -628,8 +622,6 @@ Stat::Clear()
     StatExec[ittag->first].clear();
     StatExec[ittag->first].resize(1000);
   }
-
-  Mutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -637,7 +629,7 @@ void
 Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                     bool numerical)
 {
-  Mutex.Lock();
+  mMutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
   google::sparse_hash_map < std::string,
@@ -839,7 +831,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     tuit_ext;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
     tgit_ext;
-    Mutex.UnLock();
+    mMutex.UnLock();
     // Don't translate names with a mutex lock
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
@@ -884,7 +876,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    Mutex.Lock();
+    mMutex.Lock();
     //! User statistic
     TableFormatterBase table_user;
 
@@ -1155,7 +1147,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     out += table_group.GenerateTable(HEADER).c_str();
   }
 
-  Mutex.UnLock();
+  mMutex.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1177,10 +1169,12 @@ Stat::Circulate()
   unsigned long long ns1tmp = 0ull, ns2tmp = 0ull, view1tmp = 0ull,
                      view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
 #endif
+  XrdSysThread::SetCancelDeferred();
 
-  // empty the circular buffer and extract some Mq statistic values
-  while (1) {
+  // Empty the circular buffer and extract some Mq statistic values
+  while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(512));
+    XrdSysThread::CancelPoint();
     // --------------------------------------------
     // mq statistics extraction
     l1tmp = XrdMqSharedHash::sSetCounter.load();
@@ -1238,52 +1232,41 @@ Stat::Circulate()
     l1 = l1tmp;
     l2 = l2tmp;
     l3 = l3tmp;
-    // --------------------------------------------
-    Mutex.Lock();
-    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >::iterator
-    tit;
-    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt> >::iterator
-    tit_ext;
+    XrdSysMutexHelper lock(mMutex);
 
     // loop over tags
-    for (tit = StatAvgUid.begin(); tit != StatAvgUid.end(); ++tit) {
+    for (auto tit = StatAvgUid.begin(); tit != StatAvgUid.end(); ++tit) {
       // loop over vids
-      google::sparse_hash_map<uid_t, StatAvg>::iterator it;
-
-      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+      for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {
         it->second.StampZero();
       }
     }
 
-    for (tit = StatAvgGid.begin(); tit != StatAvgGid.end(); ++tit) {
+    for (auto tit = StatAvgGid.begin(); tit != StatAvgGid.end(); ++tit) {
       // loop over vids
-      google::sparse_hash_map<uid_t, StatAvg>::iterator it;
-
-      for (it = tit->second.begin(); it != tit->second.end(); ++it) {
+      for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {
         it->second.StampZero();
       }
     }
 
-    for (tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end(); ++tit_ext) {
+    for (auto tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end();
+         ++tit_ext) {
       // loop over vids
-      google::sparse_hash_map<uid_t, StatExt>::iterator it;
-
-      for (it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
+      for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
         it->second.StampZero();
       }
     }
 
-    for (tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end(); ++tit_ext) {
+    for (auto tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end();
+         ++tit_ext) {
       // loop over vids
-      google::sparse_hash_map<uid_t, StatExt>::iterator it;
-
-      for (it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
+      for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
         it->second.StampZero();
       }
     }
-
-    Mutex.UnLock();
   }
+
+  XrdSysThread::SetCancelOn();
 }
 
 EOSMGMNAMESPACE_END
