@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <thread>
 
 /******************************************************************************/
 /*                        X r d M q C l i e n t                               */
