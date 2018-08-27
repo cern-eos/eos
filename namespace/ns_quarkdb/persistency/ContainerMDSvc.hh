@@ -218,10 +218,10 @@ private:
   IFileMDSvc* pFileSvc;                 ///< File metadata service
   qclient::QClient* pQcl;               ///< QClient object
   MetadataFlusher* pFlusher;            ///< Metadata flusher object
-  qclient::QHash mMetaMap
-  ;             ///< Map holding metainfo about the namespace
+  //! Map holding metainfo about the namespace
+  qclient::QHash mMetaMap;
   MetadataProvider* mMetadataProvider;  ///< Provider namespace metadata
-  UnifiedInodeProvider *mUnifiedInodeProvider; ///< Provide next free inode
+  UnifiedInodeProvider* mUnifiedInodeProvider; ///< Provide next free inode
   std::atomic<uint64_t> mNumConts;      ///< Total number of containers
   std::string
   mCacheNum;                ///< Temporary workaround to store cache size

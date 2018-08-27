@@ -879,7 +879,7 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            fmd->getCUid(), fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  gOFS->IoStats->WriteRecord(record);
+  IoStats->WriteRecord(record);
 }
 
 //------------------------------------------------------------------------------
@@ -900,7 +900,7 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            fmd->getCUid(), fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  gOFS->IoStats->WriteRecord(record);
+  IoStats->WriteRecord(record);
 }
 
 //------------------------------------------------------------------------------

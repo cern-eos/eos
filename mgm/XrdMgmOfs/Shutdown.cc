@@ -63,7 +63,7 @@ xrdmgmofs_shutdown(int sig)
   eos_static_warning("Shutdown:: stop vst ... ");
 
   if (gOFS->MgmOfsVstMessaging) {
-    gOFS->MgmOfsVstMessaging->StopListener();
+    delete gOFS->MgmOfsVstMessaging;
   }
 
   // ---------------------------------------------------------------------------

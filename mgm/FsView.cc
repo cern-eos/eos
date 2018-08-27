@@ -2328,6 +2328,7 @@ FsView::HeartBeatCheck()
     XrdSysThread::CancelPoint();
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 

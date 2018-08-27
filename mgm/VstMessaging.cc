@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-
 #include "mgm/VstMessaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
@@ -35,13 +33,6 @@
 #include "XrdSys/XrdSysDNS.hh"
 
 EOSMGMNAMESPACE_BEGIN
-
-void*
-VstMessaging::Start(void* pp)
-{
-  ((VstMessaging*) pp)->Listen();
-  return 0;
-}
 
 /*----------------------------------------------------------------------------*/
 VstMessaging::VstMessaging(const char* url, const char* defaultreceiverqueue,

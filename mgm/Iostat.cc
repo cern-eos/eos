@@ -233,7 +233,9 @@ Iostat::StaticCirculate(void* arg)
 void*
 Iostat::Receive(void)
 {
-  while (1) {
+  XrdSysThread::SetCancelDeferred();
+
+  while (true) {
     XrdMqMessage* newmessage = 0;
 
     while ((newmessage = mClient.RecvMessage())) {
@@ -462,12 +464,11 @@ Iostat::Receive(void)
       delete newmessage;
     }
 
-    XrdSysThread::SetCancelOn();
     std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
-    XrdSysThread::SetCancelOff();
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 
@@ -1473,10 +1474,10 @@ Iostat::Circulate()
   // ! circulate the entries to get averages over sec.min.hour and day
   // ---------------------------------------------------------------------------
   unsigned long long sc = 0;
-  XrdSysThread::SetCancelOn();
+  XrdSysThread::SetCancelDeferred();
 
   // empty the circular buffer
-  while (1) {
+  while (true) {
     // we store once per minute the current statistics
     if (!(sc % 117)) {
       // save the current state ~ every minute
@@ -1547,6 +1548,7 @@ Iostat::Circulate()
     XrdSysThread::CancelPoint();
   }
 
+  XrdSysThread::SetCancelOn();
   return nullptr;
 }
 

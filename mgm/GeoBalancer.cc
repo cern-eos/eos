@@ -104,12 +104,7 @@ GeoBalancer::~GeoBalancer()
  */
 /*----------------------------------------------------------------------------*/
 {
-  Stop();
-
-  if (mThread && !gOFS->Shutdown) {
-    XrdSysThread::Join(mThread, NULL);
-  }
-
+  Join();
   clearCachedSizes();
 }
 
@@ -591,6 +586,7 @@ GeoBalancer::GeoBalance()
   XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
+  XrdSysThread::CancelPoint();
 
   // Loop forever until cancelled
   while (true) {

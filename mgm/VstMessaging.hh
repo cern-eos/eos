@@ -42,35 +42,39 @@ public:
                bool advisorystatus = false, bool advisoryquery = false,
                XrdMqSharedObjectManager* som = 0);
 
-  virtual ~VstMessaging() { }
+  virtual ~VstMessaging() = default;
 
   virtual bool Update(XrdAdvisoryMqMessage* advmsg);
   virtual void Listen();
   virtual void Process(XrdMqMessage* newmessage);
-  // listener thread startup
-  static void* Start(void*);
 
   bool SetInfluxUdpEndpoint(const char*, bool onlyme);
+
   int GetInfluxUdpPort()
   {
     return InfluxUdpPort;
   }
+
   std::string& GetInfluxUdpHost()
   {
     return InfluxUdpHost;
   }
+
   std::string& GetInfluxUdpEndpoint()
   {
     return InfluxUdpEndpoint;
   }
 
   bool PublishInfluxDbUdp();
-  bool KeyIsString(std::string
-                   key); //< defines if a published key should be treated as a String
+
+  //! Defines if a published key should be treated as a String
+  bool KeyIsString(std::string key);
+
   bool GetPublishOnlySelf()
   {
     return PublishOnlySelf;
   }
+
 private:
   XrdMqClient mMessageClient;
   std::string mVstMessage;

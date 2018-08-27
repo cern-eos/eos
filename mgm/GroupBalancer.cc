@@ -97,12 +97,7 @@ GroupBalancer::Join()
 /*----------------------------------------------------------------------------*/
 GroupBalancer::~GroupBalancer()
 {
-  Stop();
-
-  if (mThread && !gOFS->Shutdown) {
-    XrdSysThread::Join(mThread, NULL);
-  }
-
+  Join();
   clearCachedSizes();
 }
 
@@ -623,6 +618,7 @@ GroupBalancer::GroupBalance()
   XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
+  XrdSysThread::CancelPoint();
 
   // Loop forever until cancelled
   while (true) {
@@ -638,8 +634,6 @@ GroupBalancer::GroupBalance()
       while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
         XrdSysThread::CancelPoint();
       }
-
-      XrdSysThread::SetCancelOff();
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
         FsView::gFsView.ViewMutex.UnLockRead();
@@ -690,15 +684,15 @@ GroupBalancer::GroupBalance()
     }
 
 wait:
-    // Let some time pass or wait for a notification
-    XrdSysThread::SetCancelOn();
 
+    // Let some time pass or wait for a notification
     for (size_t i = 0; i < 10; ++i) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       XrdSysThread::CancelPoint();
     }
   }
 
+  XrdSysThread::SetCancelOn();
   return 0;
 }
 
