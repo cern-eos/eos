@@ -23,6 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -244,7 +245,7 @@ ProcCommand::Node()
 
         // set also the manager name
         if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-            FsNode::gManagerId, true, nodename, true)) {
+            gOFS->mMaster->GetMasterId(), true, nodename, true)) {
           retc = EIO;
           stdErr = "error: cannot set the manager name";
         }

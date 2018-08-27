@@ -23,6 +23,8 @@
 
 #include <cfloat>
 #include <curl/curl.h>
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
@@ -38,7 +40,6 @@ FsView FsView::gFsView;
 std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
-std::string FsNode::gManagerId;
 bool FsSpace::gDisableDefaults = false;
 IConfigEngine* FsView::sConfEngine = 0;
 
@@ -2426,6 +2427,64 @@ FsNode::~FsNode()
 }
 
 //------------------------------------------------------------------------------
+// Set the configuration default values for a node
+//------------------------------------------------------------------------------
+void
+FsNode::SetNodeConfigDefault()
+{
+  // Define the manager ID
+  if (!(GetConfigMember("manager").length())) {
+    SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true,
+                    mName.c_str(), true);
+  }
+
+  // By default set 2 balancing streams per node
+  if (!(GetConfigMember("stat.balance.ntx").length())) {
+    SetConfigMember("stat.balance.ntx", "2", true, mName.c_str(), true);
+  }
+
+  // By default set 25 MB/s stream balancing rate
+  if (!(GetConfigMember("stat.balance.rate").length())) {
+    SetConfigMember("stat.balance.rate", "25", true, mName.c_str(), true);
+  }
+
+  // Set the default sym key from the sym key store
+  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+
+  // Store the sym key as configuration member
+  if (!(GetConfigMember("symkey").length())) {
+    SetConfigMember("symkey", symkey->GetKey64(), true, mName.c_str(), true);
+  }
+
+  // Set the default debug level to notice
+  if (!(GetConfigMember("debug.level").length())) {
+    SetConfigMember("debug.level", "info", true, mName.c_str(), true);
+  }
+
+  // Set by default as no transfer gateway
+  if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
+    SetConfigMember("txgw", "off", true, mName.c_str(), true);
+  }
+
+  // set by default 10 transfers per gateway node
+  if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
+      (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
+    SetConfigMember("gw.ntx", "10", true, mName.c_str(), true);
+  }
+
+  // Set by default the gateway stream transfer speed to 120 Mb/s
+  if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
+      (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX)) {
+    SetConfigMember("gw.rate", "120", true, mName.c_str(), true);
+  }
+
+  // Set by default the MGM domain e.g. same geographical position as the MGM
+  if (!(GetConfigMember("domain").length())) {
+    SetConfigMember("domain", "MGM", true, mName.c_str(), true);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Get host snapshot
 //------------------------------------------------------------------------------
 bool
@@ -3019,6 +3078,21 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   }
 
   return success;
+}
+
+//------------------------------------------------------------------------------
+// Broadcast new manager id to all the FST nodes
+//------------------------------------------------------------------------------
+void
+FsView::BroadcastMasterId(const std::string master_id)
+{
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  for (auto it = FsView::gFsView.mNodeView.begin();
+       it != FsView::gFsView.mNodeView.end(); ++it) {
+    it->second->SetConfigMember("manager", master_id, true,
+                                it->first, true);
+  }
 }
 
 //------------------------------------------------------------------------------

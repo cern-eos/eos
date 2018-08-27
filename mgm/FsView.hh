@@ -685,32 +685,8 @@ protected:
 class FsNode : public BaseView
 {
 public:
-  static std::string gManagerId; ///< Name of the responsible manager
+  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
   eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
-
-  //----------------------------------------------------------------------------
-  //! Snapshoting
-  //----------------------------------------------------------------------------
-  bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
-
-  //----------------------------------------------------------------------------
-  //! Check heartbeat
-  //!
-  //! @param fs file system info
-  //!
-  //! @return true if successful, othewise false
-  //----------------------------------------------------------------------------
-  bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
-
-  //----------------------------------------------------------------------------
-  //! Get active status
-  //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsactive_t GetActiveStatus();
-
-  //----------------------------------------------------------------------------
-  //! Set active status
-  //----------------------------------------------------------------------------
-  bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -741,64 +717,6 @@ public:
   virtual std::string GetMember(const std::string& name) const;
 
   //----------------------------------------------------------------------------
-  //! Set the configuration default values for a node
-  //----------------------------------------------------------------------------
-  void SetNodeConfigDefault()
-  {
-    // Define the manager ID
-    if (!(GetConfigMember("manager").length())) {
-      SetConfigMember("manager", gManagerId, true, mName.c_str(), true);
-    }
-
-    // By default set 2 balancing streams per node
-    if (!(GetConfigMember("stat.balance.ntx").length())) {
-      SetConfigMember("stat.balance.ntx", "2", true, mName.c_str(), true);
-    }
-
-    // By default set 25 MB/s stream balancing rate
-    if (!(GetConfigMember("stat.balance.rate").length())) {
-      SetConfigMember("stat.balance.rate", "25", true, mName.c_str(), true);
-    }
-
-    // Set the default sym key from the sym key store
-    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-
-    // Store the sym key as configuration member
-    if (!(GetConfigMember("symkey").length())) {
-      SetConfigMember("symkey", symkey->GetKey64(), true, mName.c_str(), true);
-    }
-
-    // Set the default debug level to notice
-    if (!(GetConfigMember("debug.level").length())) {
-      SetConfigMember("debug.level", "info", true, mName.c_str(), true);
-    }
-
-    // Set by default as no transfer gateway
-    if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
-      SetConfigMember("txgw", "off", true, mName.c_str(), true);
-    }
-
-    // set by default 10 transfers per gateway node
-    if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
-      SetConfigMember("gw.ntx", "10", true, mName.c_str(), true);
-    }
-
-    // Set by default the gateway stream transfer speed to 120 Mb/s
-    if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX)) {
-      SetConfigMember("gw.rate", "120", true, mName.c_str(), true);
-    }
-
-    // Set by default the MGM domain e.g. same geographical position as the MGM
-    if (!(GetConfigMember("domain").length())) {
-      SetConfigMember("domain", "MGM", true, mName.c_str(), true);
-    }
-  }
-
-  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
-
-  //----------------------------------------------------------------------------
   //! Return the configuration queue prefix (virtual function)
   //----------------------------------------------------------------------------
   virtual const char* GetConfigQueuePrefix() const
@@ -813,6 +731,35 @@ public:
   {
     return gConfigQueuePrefix.c_str();
   }
+
+  //----------------------------------------------------------------------------
+  //! Snapshoting
+  //----------------------------------------------------------------------------
+  bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
+
+  //----------------------------------------------------------------------------
+  //! Check heartbeat
+  //!
+  //! @param fs file system info
+  //!
+  //! @return true if successful, othewise false
+  //----------------------------------------------------------------------------
+  bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
+
+  //----------------------------------------------------------------------------
+  //! Get active status
+  //----------------------------------------------------------------------------
+  eos::common::FileSystem::fsactive_t GetActiveStatus();
+
+  //----------------------------------------------------------------------------
+  //! Set active status
+  //----------------------------------------------------------------------------
+  bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
+
+  //----------------------------------------------------------------------------
+  //! Set the configuration default values for a node
+  //----------------------------------------------------------------------------
+  void SetNodeConfigDefault();
 };
 
 //------------------------------------------------------------------------------
@@ -943,7 +890,7 @@ public:
   bool UnRegisterGroup(const char* groupname);
 
   //! Mutex protecting all ...View variables
-  eos::common::RWMutexR ViewMutex;
+  mutable eos::common::RWMutexR ViewMutex;
 
   //! Map translating a space name to a set of group objects
   std::map<std::string, std::set<FsGroup*> > mSpaceGroupView;
@@ -1096,6 +1043,13 @@ public:
   //! Set the next available filesystem ID
   //----------------------------------------------------------------------------
   void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Broadcast new manager id to all the FST nodes
+  //!
+  //! @param master_id master identity <hostname>:<port>
+  //----------------------------------------------------------------------------
+  void BroadcastMasterId(const std::string master_id);
 
 private:
   pthread_t hbthread; ///< Thread ID of the heartbeat thread

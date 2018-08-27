@@ -1342,7 +1342,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   NodeConfigQueuePrefix += "/node/";
   GroupConfigQueuePrefix = configbasequeue;
   GroupConfigQueuePrefix += "/group/";
-  FsNode::gManagerId = ManagerId.c_str();
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(),
                                   NodeConfigQueuePrefix.c_str(),
                                   GroupConfigQueuePrefix.c_str(),
