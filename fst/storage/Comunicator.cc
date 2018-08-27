@@ -89,10 +89,12 @@ Storage::Communicator()
     eos_crit("error starting shared objects change notifications");
   }
 
-  while (1) {
+  XrdSysThread::SetCancelDeferred();
+
+  while (true) {
     // wait for new filesystem definitions
     gOFS.ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
-    XrdSysThread::SetCancelOff();
+    XrdSysThread::CancelPoint();
     eos_static_debug("received shared object notification ...");
     // we always take a lock to take something from the queue and then release it
     gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
@@ -107,9 +109,7 @@ Storage::Communicator()
       XrdOucString queue = event.mSubject.c_str();
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // ---------------------------------------------------------------------
-        // handle subject creation
-        // ---------------------------------------------------------------------
+        // Handle subject creation
         if (queue == Config::gConfig.FstQueueWildcard) {
           gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
@@ -161,9 +161,7 @@ Storage::Communicator()
       }
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // ---------------------------------------------------------------------
-        // handle subject deletion
-        // ---------------------------------------------------------------------
+        // Handle subject deletion
         if ((queue.find("/txqueue/") != STR_NPOS)) {
           // this is a transfer queue we, don't need to take action
           gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
@@ -186,9 +184,7 @@ Storage::Communicator()
       }
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        // ---------------------------------------------------------------------
-        // handle subject modification
-        // ---------------------------------------------------------------------
+        // Handle subject modification
         // seperate <path> from <key>
         XrdOucString key = queue;
         int dpos = 0;
@@ -493,8 +489,10 @@ Storage::Communicator()
     }
 
     gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
-    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
   }
+
+  XrdSysThread::SetCancelOn();
 }
 
 EOSFSTNAMESPACE_END

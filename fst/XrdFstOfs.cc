@@ -620,9 +620,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
     Eroute.Emsg("Config", "cannot create messaging object(thread)");
     NoGo = 1;
-  }
-
-  if (NoGo) {
     return NoGo;
   }
 
@@ -973,8 +970,6 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
       eos_notice("setting message logid filter to <%s>", filterlist.c_str());
     }
   }
-
-  fprintf(stderr, "Setting debug to %s\n", debuglevel.c_str());
 }
 
 //------------------------------------------------------------------------------

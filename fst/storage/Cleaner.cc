@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
 #include "fst/storage/FileSystem.hh"
@@ -37,7 +36,7 @@ Storage::Cleaner()
   std::string nodeconfigqueue =
     eos::fst::Config::gConfig.getFstNodeConfigQueue("Cleaner").c_str();
 
-  while (1) {
+  while (true) {
     eos_static_notice("msg=\"cleaning transactions\"");
     XrdOucString manager;
     {

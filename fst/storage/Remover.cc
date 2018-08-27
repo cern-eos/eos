@@ -44,7 +44,7 @@ Storage::Remover()
   }
 
   // Thread that unlinks stored files
-  while (1) {
+  while (true) {
     while ((to_del = GetDeletion())) {
       eos_static_debug("%u files to delete", GetNumDeletions());
 

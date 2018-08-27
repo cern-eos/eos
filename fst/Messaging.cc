@@ -39,21 +39,22 @@ EOSFSTNAMESPACE_BEGIN
 void
 Messaging::Listen()
 {
-  while (1) {
-    XrdSysThread::SetCancelOff();
-    XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
+  std::unique_ptr<XrdMqMessage> new_msg;
+  XrdSysThread::SetCancelDeferred();
 
-    if (newmessage) {
-      Process(newmessage);
-      delete newmessage;
-      XrdSysThread::SetCancelOn();
+  while (true) {
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+
+    if (new_msg) {
+      Process(new_msg.get());
     } else {
-      XrdSysThread::SetCancelOn();
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
     XrdSysThread::CancelPoint();
   }
+
+  XrdSysThread::SetCancelOn();
 }
 
 //------------------------------------------------------------------------------

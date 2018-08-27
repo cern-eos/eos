@@ -39,7 +39,8 @@ public:
   bool autoBoot; // -> indicates if the node tries to boot automatically or waits for a boot message from a master
   XrdOucString FstMetaLogDir; //  Directory containing the meta data log files
   XrdOucString FstOfsBrokerUrl; // Url of the message broker
-  XrdOucString FstDefaultReceiverQueue; // Queue where we are sending to by default
+  XrdOucString
+  FstDefaultReceiverQueue; // Queue where we are sending to by default
   XrdOucString FstQueue; // our queue name
   XrdOucString FstQueueWildcard; // our queue match name
   XrdOucString FstGwQueueWildcard; // our gateway queue match name
@@ -56,21 +57,22 @@ public:
   XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   static Config gConfig;
 
-  Config ()
+  Config()
   {
     autoBoot = false;
     PublishInterval = 10;
     Manager = "";
   }
 
-  ~Config () { }
+  ~Config() { }
 
-  XrdOucString& getFstNodeConfigQueue(const std::string &location = "");
-  void setFstNodeConfigQueue(const XrdOucString &value);
+  XrdOucString& getFstNodeConfigQueue(const std::string& location = "");
+  void setFstNodeConfigQueue(const XrdOucString& value);
 
 private:
-  XrdOucString FstNodeConfigQueue; // our queue holding this node's configuration settings
-  std::atomic<bool> configQueueInitialized = { false };
+  XrdOucString
+  FstNodeConfigQueue; // our queue holding this node's configuration settings
+  std::atomic<bool> configQueueInitialized {false};
 };
 
 EOSFSTNAMESPACE_END
