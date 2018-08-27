@@ -21,94 +21,109 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   GlobalConfig.hh
- * 
- * @brief  Class to handle a global configuration object.
- * 
- * 
- */
+//! @file   GlobalConfig.hh
+//! @brief  Class to handle a global configuration object.
 
 #ifndef __EOSCOMMON_GLOBALCONFIG_HH__
 #define __EOSCOMMON_GLOBALCONFIG_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
 #include "mq/XrdMqSharedObject.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <stdint.h>
-/*----------------------------------------------------------------------------*/
-
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class implementing a global configuration object for shared objects and queues
-/*----------------------------------------------------------------------------*/
-
-class GlobalConfig {
-private:
-  XrdMqSharedObjectManager* mSom; //< pointer to our global object manager
-  std::map<std::string, std::string> mBroadCastQueueMap; //< Hash storing which config queue get's broadcasted where ...
-
+//------------------------------------------------------------------------------
+class GlobalConfig
+{
 public:
-  /*----------------------------------------------------------------------------*/
-  //! Add a configuration queue and the queue where to broad cast changes
-  /*----------------------------------------------------------------------------*/
-  bool AddConfigQueue(const char* configqueue, const char* broadcastqueue);
+  static GlobalConfig gConfig; ///< Singleton for convenience
 
-  /*----------------------------------------------------------------------------*/\
-  //! Return the hash pointer for a configuration queue
-  /*----------------------------------------------------------------------------*/
-  XrdMqSharedHash* Get(const char* configqueue); 
-
-  /*----------------------------------------------------------------------------*/
-  //! Return the shared object manager
-  /*----------------------------------------------------------------------------*/
-  XrdMqSharedObjectManager* SOM() { return mSom;}
-
-  /*----------------------------------------------------------------------------*/
-  //! Print the mapping for broad casts
-  /*----------------------------------------------------------------------------*/
-  void PrintBroadCastMap(std::string &out);
-
-  /*----------------------------------------------------------------------------*/
-  //! Reset the global config
-  /*----------------------------------------------------------------------------*/
-  void Reset();
-
-  /*----------------------------------------------------------------------------*/
-  //! Constructor
-  /*----------------------------------------------------------------------------*/
-  GlobalConfig();
-
-  /*----------------------------------------------------------------------------*/
-  //! Destructor
-  /*----------------------------------------------------------------------------*/
-  ~GlobalConfig(){};
-
-  /*----------------------------------------------------------------------------*/
-  //! Return a queuepath for a given prefix and queue name
-  /*----------------------------------------------------------------------------*/
+  //----------------------------------------------------------------------------
+  //! Join the prefix with the hostport name extracted from the queue name.
+  //!E.g. /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
+  //!
+  //! @param prefix
+  //! @param queuename
+  //----------------------------------------------------------------------------
   static std::string QueuePrefixName(const char* prefix, const char* queuename);
 
-  /*----------------------------------------------------------------------------*/
-  //! Set the shared object manager
-  /*----------------------------------------------------------------------------*/
-  void SetSOM(XrdMqSharedObjectManager* som);
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  GlobalConfig(): mSom(nullptr) {};
 
-  /*----------------------------------------------------------------------------*/
-  //! Static singleton storing the global configuration object
-  /*----------------------------------------------------------------------------*/
-  static GlobalConfig gConfig; // singleton for convenience
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~GlobalConfig() = default;
+
+  //----------------------------------------------------------------------------
+  //! Add a configuration queue and the queue where to broad cast changes
+  //!
+  //! @param configqueue name of the configuration queue e.g. /eos/<host:port>/mgm
+  //! @param broadcastqueue name of the queue where to broadcast  e.g. /eos/'*'/mgm
+  //!
+  //! @return true if success false if failed
+  //----------------------------------------------------------------------------
+  bool AddConfigQueue(const char* configqueue, const char* broadcastqueue);
+
+  //----------------------------------------------------------------------------
+  //! Get a pointer to the hash storing a configuration queue
+  //!
+  //! @param configqueue name of the configuration queue
+  //!
+  //! @return pointer to a shared hash representing a configuration queue
+  //----------------------------------------------------------------------------
+  XrdMqSharedHash* Get(const char* configqueue);
+
+  //----------------------------------------------------------------------------
+  //! Return the shared object manager
+  //----------------------------------------------------------------------------
+  inline XrdMqSharedObjectManager* SOM()
+  {
+    return mSom;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Print the broad cast mapping to the given string
+  //!
+  //! @param out reference to a string where to print
+  //----------------------------------------------------------------------------
+  void PrintBroadCastMap(std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Reset the global config
+  //----------------------------------------------------------------------------
+  inline void Reset()
+  {
+    if (mSom) {
+      mSom->Clear();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Store the object manager in the global config
+  //!
+  //! @param som pointer to a shared object manager
+  //----------------------------------------------------------------------------
+  inline void SetSOM(XrdMqSharedObjectManager* som)
+  {
+    mSom = som;
+  }
+
+private:
+  XrdMqSharedObjectManager* mSom; ///< Pointer to the global object manager
+  //! Hash storing which config queue get's broadcasted where ...
+  std::map<std::string, std::string> mBroadCastQueueMap;
 };
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif
