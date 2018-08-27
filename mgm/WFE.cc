@@ -170,10 +170,10 @@ WFE::WFEr()
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
       if (FsView::gFsView.mSpaceView.count("default") &&
-          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "paused")) {
-        IsEnabledWFE = false;
-      } else {
+          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
         IsEnabledWFE = true;
+      } else {
+        IsEnabledWFE = false;
       }
 
       if (FsView::gFsView.mSpaceView.count("default")) {
@@ -324,7 +324,11 @@ WFE::WFEr()
       snoozetime = lWFEInterval - (lStopTime - lStartTime);
     }
 
-    eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
+    if(!IsEnabledWFE) {
+      snoozetime = 6000;
+    }
+
+    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     size_t snoozeloop = snoozetime / 1;
 
