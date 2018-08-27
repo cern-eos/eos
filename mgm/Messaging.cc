@@ -97,63 +97,61 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   }
 
   std::string nodequeue = advmsg->kQueue.c_str();
-  eos_static_debug("View Lock");
-  // new implementations uses mainly read locks
   FsView::gFsView.ViewMutex.LockRead(); // =========| LockRead
-  eos_static_debug("View Locked");
 
   if (!FsView::gFsView.mNodeView.count(nodequeue)) {
     // Rare case where a node is not yet known
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     // register the node to the global view and config
-    {
-      // =========| LockWrite
-      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+    // =========| LockWrite
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-      if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
-        std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                       gOFS->NodeConfigQueuePrefix.c_str(), advmsg->kQueue.c_str());
+    if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
+      std::string nodeconfigname =
+        eos::common::GlobalConfig::gConfig.QueuePrefixName(
+          gOFS->NodeConfigQueuePrefix.c_str(),
+          advmsg->kQueue.c_str());
 
-        if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
-          if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(),
-              advmsg->kQueue.c_str())) {
-            eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
-          }
+      if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
+        if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(),
+            advmsg->kQueue.c_str())) {
+          eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
         }
       }
+    }
 
-      if (FsView::gFsView.mNodeView.count(nodequeue)) {
-        if (advmsg->kOnline) {
-          FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
-          FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-            eos::common::FileSystem::kOnline);
-        } else {
-          FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
-          FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-            eos::common::FileSystem::kOffline);
+    if (FsView::gFsView.mNodeView.count(nodequeue)) {
+      if (advmsg->kOnline) {
+        FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
+          eos::common::FileSystem::kOnline);
+      } else {
+        FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
+          eos::common::FileSystem::kOffline);
 
-          // propagate into filesystem states
-          for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-               it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-            FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
-          }
-        }
-
-        eos_static_info("Setting heart beat to %llu\n",
-                        (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
-        FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
-          advmsg->kMessageHeader.kSenderTime_sec);
-
-        // propagate into filesystems
+        // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-          FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
-              (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
         }
       }
 
-      // =========| UnLockWrite
+      eos_static_info("Setting heart beat to %llu for node queue=%s\n",
+                      (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
+                      nodequeue.c_str());
+      FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
+        advmsg->kMessageHeader.kSenderTime_sec);
+
+      // Propagate into filesystems
+      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
+            (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+      }
     }
+
+    // =========| UnLockWrite
     return true;
   } else {
     // here we can go just with a read lock
@@ -166,20 +164,21 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
         FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
           eos::common::FileSystem::kOffline);
-        // propagate into filesystem states
 
+        // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
           FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
         }
       }
 
-      eos_static_debug("Setting heart beat to %llu\n",
-                       (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec);
+      eos_static_debug("Setting heart beat to %llu for node queue=%s\n",
+                       (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
+                       nodequeue.c_str());
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
         advmsg->kMessageHeader.kSenderTime_sec);
 
-      // propagate into filesystems
+      // Propagate into filesystems
       for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
            it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
         FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
@@ -188,7 +187,6 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
     }
 
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
-    eos_static_debug("View UnLocked");
     return true;
   }
 }

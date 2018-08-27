@@ -268,6 +268,16 @@ QdbMaster::SlaveToMaster()
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
+  // // Broadcast the new manager node variable
+  // eos_info("%s", "msg=\"broadcast new manager to nodes\""));
+  // {
+  //   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  //   for (const auto it = FsView::gFsView.mNodeView.begin();
+  //        it != FsView::gFsView.mNodeView.end(); ++it) {
+  //     it->second->SetConfigMember("manager", GetMasterId(), true,
+  //                                 it->first, true);
+  //   }
+  // }
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
   Access::SetSlaveToMasterRules();

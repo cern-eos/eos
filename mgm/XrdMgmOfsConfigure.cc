@@ -1677,7 +1677,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {
-    // create the specific listener class
+    // Create the specific listener class
     MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
                                     MgmDefaultReceiverQueue.c_str(),
                                     true, true, &ObjectManager);
@@ -1824,7 +1824,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_warning("msg=\"cannot start WFE thread\"");
   }
 
-  // start the recycler garbage collection thread on a master machine
+  // Start the recycler garbage collection thread on a master machine
   if ((mMaster->IsMaster()) && (!Recycler->Start())) {
     eos_warning("msg=\"cannot start recycle thread\"");
   }

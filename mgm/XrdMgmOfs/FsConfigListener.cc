@@ -81,14 +81,15 @@ XrdMgmOfs::FsConfigListener()
     eos_crit("error starting shared objects change notifications");
   }
 
+  XrdSysThread::SetCancelDeferred();
+
   // Thread listening on filesystem errors and configuration changes
   do {
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
-    XrdSysThread::SetCancelOff();
     // we always take a lock to take something from the queue and then release it
     gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 
-    // listens on modifications on filesystem objects
+    // Listens for modifications on filesystem objects
     while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
       XrdMqSharedObjectManager::Notification event;
       event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
@@ -183,7 +184,6 @@ XrdMgmOfs::FsConfigListener()
           // Geotag update
           eos::common::FileSystem::fsid_t fsid = 0;
           std::string newgeotag, oldgeotag;
-          FileSystem* fs = 0;
           {
             // Read the id from the hash and the new geotag
             XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
@@ -281,7 +281,6 @@ XrdMgmOfs::FsConfigListener()
         } else if (key == watch_proxygroups) {
           // This is a dataproxy / dataep status update
           std::string status;
-          eos::mgm::FsNode* node = 0;
           {
             // Read the proxygrouplist
             XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
@@ -295,7 +294,7 @@ XrdMgmOfs::FsConfigListener()
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
           if (eos::mgm::FsView::gFsView.mNodeView.count(hostport)) {
-            node = eos::mgm::FsView::gFsView.mNodeView[hostport];
+            eos::mgm::FsNode* node = eos::mgm::FsView::gFsView.mNodeView[hostport];
             eos::mgm::gGeoTreeEngine.matchHostPxyGr(node, status, false, false);
           } else {
             eos_err("could not find the FsNode object associated with queue %s  and  hostport %s",
@@ -379,6 +378,8 @@ XrdMgmOfs::FsConfigListener()
     }
 
     gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
-    XrdSysThread::SetCancelOff();
-  } while (1);
+    XrdSysThread::CancelPoint();
+  } while (true);
+
+  XrdSysThread::SetCancelOn();
 }
