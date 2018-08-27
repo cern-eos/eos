@@ -188,8 +188,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                             error,
                             *mVirtualIdentity,
                             link)) && (link != "") &&
-	        ( link.beginswith("http://") ||
-	          link.beginswith("https://") )) {
+          (link.beginswith("http://") ||
+           link.beginswith("https://"))) {
         if (gOFS->access(url.c_str(),
                          R_OK,
                          error,
@@ -533,15 +533,12 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         }
 
         char t_creat[36];
-
         char modestr[11];
         eos::modeToBuffer(buf.st_mode, modestr);
-
         {
           struct tm* t_tm;
           struct tm t_tm_local;
           t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
-
           strftime(t_creat, 36, "%b %d %Y %H:%M", t_tm);
         }
         // ---------------------------------------------------------------------

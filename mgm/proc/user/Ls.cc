@@ -179,7 +179,6 @@ ProcCommand::Ls()
               struct tm* t_tm;
               struct tm t_tm_local;
               t_tm = localtime_r(&buf.st_mtime, &t_tm_local);
-
               char modestr[11];
               eos::modeToBuffer(buf.st_mode, modestr);
 
@@ -237,7 +236,8 @@ ProcCommand::Ls()
                 char sinode[16];
                 bool isfile = (modestr[0] != 'd');
                 snprintf(sinode, 16, "%llu",
-                         (unsigned long long)(isfile ? eos::common::FileId::InodeToFid(buf.st_ino) : buf.st_ino));
+                         (unsigned long long)(isfile ? eos::common::FileId::InodeToFid(
+                                                buf.st_ino) : buf.st_ino));
                 sprintf(lsline, "%-16s", sinode);
                 stdOut += lsline;
               }
