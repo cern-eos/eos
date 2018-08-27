@@ -70,7 +70,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   tident = error.getErrUser();
   MAYREDIRECT;
   ZTRACE(open, "Connecting Queue: " << queuename);
-  XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+  XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
   mQueueName = queuename;
 
   //  printf("%s %s %s\n",mQueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
@@ -81,7 +81,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
                        "connect queue - the broker does not serve the requested queue");
   }
 
-  if (gMqFS->QueueOut.count(mQueueName)) {
+  if (gMqFS->mQueueOut.count(mQueueName)) {
     fprintf(stderr, "EBUSY: Queue %s is busy\n", mQueueName.c_str());
     // this is already open by 'someone'
     return gMqFS->Emsg(epname, error, EBUSY, "connect queue - already connected",
@@ -112,8 +112,8 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   Out->AdvisoryQuery  = advisoryquery;
   Out->AdvisoryFlushBackLog = advisoryflushbacklog;
   Out->BrokenByFlush = false;
-  gMqFS->QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(mQueueName,
-                         Out));
+  gMqFS->mQueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(mQueueName,
+                          Out));
   ZTRACE(open, "Connected Queue: " << queuename);
   IsOpen = true;
   return SFS_OK;
@@ -159,7 +159,7 @@ XrdMqOfsFile::stat(struct stat* buf)
       XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
       XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                               XrdMqMessageHeader::kQueryMessage, mQueueName.c_str());
-      XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+      XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
       if (!gMqFS->Deliver(matches)) {
         delete env;
@@ -241,15 +241,15 @@ XrdMqOfsFile::close()
   ZTRACE(close, "Disconnecting Queue: " << mQueueName.c_str());
   std::string squeue = mQueueName.c_str();
   {
-    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+    XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
-    if ((gMqFS->QueueOut.count(squeue)) && (Out = gMqFS->QueueOut[squeue])) {
+    if ((gMqFS->mQueueOut.count(squeue)) && (Out = gMqFS->mQueueOut[squeue])) {
       // hmm this could create a dead lock
       //      Out->DeletionSem.Wait();
       Out->Lock();
       // we have to take away all pending messages
       Out->RetrieveMessages();
-      gMqFS->QueueOut.erase(squeue);
+      gMqFS->mQueueOut.erase(squeue);
       delete Out;
     }
 
@@ -270,7 +270,7 @@ XrdMqOfsFile::close()
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kStatusMessage, mQueueName.c_str());
-    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+    XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -332,8 +332,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   (void) signal(SIGINT, xrdmqofs_shutdown);
   HostName = 0;
   HostPref = 0;
-  fprintf(stderr, "Addr::QueueOutMutex        0x%llx\n",
-          (unsigned long long) &gMqFS->QueueOutMutex);
+  fprintf(stderr, "Addr::mQueueOutMutex        0x%llx\n",
+          (unsigned long long) &gMqFS->mQueueOutMutex);
   fprintf(stderr, "Addr::MessageMutex         0x%llx\n",
           (unsigned long long) &gMqFS->MessagesMutex);
 }
@@ -486,54 +486,6 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 }
 
 //------------------------------------------------------------------------------
-// Error message formatting
-//------------------------------------------------------------------------------
-int XrdMqOfs::Emsg(const char*    pfx,    // Message prefix value
-                   XrdOucErrInfo& einfo,  // Place to put text & error code
-                   int            ecode,  // The error code
-                   const char*    op,     // Operation being performed
-                   const char*    target) // The target (e.g., fname)
-{
-  char* etext, buffer[4096], unkbuff[64];
-
-  // Get the reason for the error
-  if (ecode < 0) {
-    ecode = -ecode;
-  }
-
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
-  }
-
-  // Format the error message
-  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
-  gMqOfsEroute.Emsg(pfx, buffer);
-  // Place the error message in the error object and return
-  einfo.setErrInfo(ecode, buffer);
-  return SFS_ERROR;
-}
-
-//------------------------------------------------------------------------------
-// Stall method
-//------------------------------------------------------------------------------
-int XrdMqOfs::Stall(XrdOucErrInfo&   error, // Error text & code
-                    int              stime, // Seconds to stall
-                    const char*      msg)   // Message to give
-{
-  XrdOucString smessage = msg;
-  smessage += "; come back in ";
-  smessage += stime;
-  smessage += " seconds!";
-  EPNAME("Stall");
-  const char* tident = error.getErrUser();
-  ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
-  // Place the error message in the error object and return
-  error.setErrInfo(0, smessage.c_str());
-  return stime;
-}
-
-//------------------------------------------------------------------------------
 // File system stat
 //------------------------------------------------------------------------------
 int
@@ -568,9 +520,9 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   ZTRACE(stat, "stat by buf: " << queuename);
   std::string squeue = queuename;
   {
-    XrdSysMutexHelper scope_lock(QueueOutMutex);
+    XrdSysMutexHelper scope_lock(mQueueOutMutex);
 
-    if ((!gMqFS->QueueOut.count(squeue)) || (!(Out = gMqFS->QueueOut[squeue]))) {
+    if ((!gMqFS->mQueueOut.count(squeue)) || (!(Out = gMqFS->mQueueOut[squeue]))) {
       return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
     }
 
@@ -591,7 +543,7 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kQueryMessage, queuename);
-    XrdSysMutexHelper scope_lock(QueueOutMutex);
+    XrdSysMutexHelper scope_lock(mQueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -706,7 +658,7 @@ XrdMqOfs::Statistics()
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.queued                 %d\n", (int)Messages.size());
       rc = write(fd, line, strlen(line));
-      sprintf(line, "mq.nqueues                %d\n", (int)QueueOut.size());
+      sprintf(line, "mq.nqueues                %d\n", (int)mQueueOut.size());
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.backloghits            %lld\n", QueueBacklogHits);
       rc = write(fd, line, strlen(line));
@@ -752,7 +704,7 @@ XrdMqOfs::Statistics()
            DiscardedMonitoringMessages);
     ZTRACE(getstats, "No        Messages            : " << NoMessages);
     ZTRACE(getstats, "Queue     Messages            : " << Messages.size());
-    ZTRACE(getstats, "#Queues                       : " << QueueOut.size());
+    ZTRACE(getstats, "#Queues                       : " << mQueueOut.size());
     ZTRACE(getstats, "Deferred  Messages (backlog)  : " << BacklogDeferred);
     ZTRACE(getstats, "Backlog   Messages Hits       : " << QueueBacklogHits);
     char rates[4096];
@@ -904,6 +856,54 @@ bool XrdMqOfs::ResolveName(const char* inhost, XrdOucString& outhost)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Error message formatting
+//------------------------------------------------------------------------------
+int XrdMqOfs::Emsg(const char*    pfx,    // Message prefix value
+                   XrdOucErrInfo& einfo,  // Place to put text & error code
+                   int            ecode,  // The error code
+                   const char*    op,     // Operation being performed
+                   const char*    target) // The target (e.g., fname)
+{
+  char* etext, buffer[4096], unkbuff[64];
+
+  // Get the reason for the error
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
+
+  if (!(etext = strerror(ecode))) {
+    sprintf(unkbuff, "reason unknown (%d)", ecode);
+    etext = unkbuff;
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+  gMqOfsEroute.Emsg(pfx, buffer);
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Stall method
+//------------------------------------------------------------------------------
+int XrdMqOfs::Stall(XrdOucErrInfo&   error, // Error text & code
+                    int              stime, // Seconds to stall
+                    const char*      msg)   // Message to give
+{
+  XrdOucString smessage = msg;
+  smessage += "; come back in ";
+  smessage += stime;
+  smessage += " seconds!";
+  EPNAME("Stall");
+  const char* tident = error.getErrUser();
+  ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
+  // Place the error message in the error object and return
+  error.setErrInfo(0, smessage.c_str());
+  return stime;
 }
 
 //------------------------------------------------------------------------------

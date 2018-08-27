@@ -347,10 +347,6 @@ public:
   XrdOucString QueueAdvisory; ///< "<queueprefix>/*" for advisory message matches
   XrdOucString BrokerId; ///< Manger id + queue name as path
 
-  //! Hash of all output's connected
-  std::map<std::string, XrdMqMessageOut*> QueueOut;
-  XrdSysMutex QueueOutMutex;  ///< Mutex protecting the output hash
-
   std::map<std::string, XrdSmartOucEnv*> Messages; ///< Hash with all messages
   XrdSysMutex MessagesMutex;  ///< Mutex protecting the message hash
 
@@ -375,6 +371,9 @@ public:
 
 private:
   static  XrdSysError* eDest;
+  //! Hash of all output's connected
+  std::map<std::string, XrdMqMessageOut*> mQueueOut;
+  XrdSysMutex mQueueOutMutex;  ///< Mutex protecting the output hash
 
   int getStats(char* buff, int blen)
   {

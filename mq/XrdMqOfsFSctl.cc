@@ -46,7 +46,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   // If we have a status message we have to do a complete loop
   if (((Matches.messagetype) == XrdMqMessageHeader::kStatusMessage) ||
       ((Matches.messagetype) == XrdMqMessageHeader::kQueryMessage)) {
-    for (auto QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
+    for (auto QueueOutIt = mQueueOut.begin(); QueueOutIt != mQueueOut.end();
          ++QueueOutIt) {
       XrdMqMessageOut* Out = QueueOutIt->second;
 
@@ -75,7 +75,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   } else {
     // If we have a wildcard match we have to do a complete loop
     if ((Matches.queuename.find("*") != STR_NPOS)) {
-      for (auto QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
+      for (auto QueueOutIt = mQueueOut.begin(); QueueOutIt != mQueueOut.end();
            ++QueueOutIt) {
         XrdMqMessageOut* Out = QueueOutIt->second;
 
@@ -103,8 +103,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
       std::string queuename = Matches.queuename.c_str();
       XrdMqMessageOut* Out = 0;
 
-      if (QueueOut.count(queuename)) {
-        Out = QueueOut[queuename];
+      if (mQueueOut.count(queuename)) {
+        Out = mQueueOut[queuename];
       }
 
       if (Out) {
@@ -341,7 +341,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType,
                           mh.kSenderId.c_str());
   {
-    XrdSysMutexHelper scope_lock(QueueOutMutex);
+    XrdSysMutexHelper scope_lock(mQueueOutMutex);
     Deliver(matches);
   }
 
