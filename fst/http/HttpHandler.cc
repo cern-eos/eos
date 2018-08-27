@@ -583,7 +583,8 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
-      if ((!mLastChunk) && (header.count("oc-chunked"))) {
+      if ((!mLastChunk) &&
+          (header.count("oc-chunked"))) {
         // WARNING: this assumes that the last chunk is the last uploaded
         std::string cmd = "nochecksum";
 
@@ -596,59 +597,60 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           return response;
         }
       } else {
-        if (mFile->GetChecksum()) {
-          // retrieve a checksum when file is still open
-          eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
-              mFile->GetChecksum());
+        eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
+                         mFile->GetChecksum());
+      }
 
+      // retrieve a checksum when file is still open
+      eos::common::OwnCloud::checksum_t checksum;
+
+      if (mFile->GetChecksum()) {
+        if (mLastChunk || (!header.count("oc-chunked"))) {
           // Call explicitly the checksum verification
           mFile->verifychecksum();
+          std::string checksum_name = mFile->GetChecksum()->GetName();
+          std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
 
-          if (mFile->GetChecksum()) {
-            std::string checksum_name = mFile->GetChecksum()->GetName();
-            std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
+          while (checksum_val[0] == '0') {
+            checksum_val.erase(0, 1);
+          }
 
-            while (checksum_val[0] == '0') {
-              checksum_val.erase(0, 1);
-            }
+          checksum = std::make_pair(
+                       checksum_name,
+                       checksum_val);
+          // inspect if there is checksum provided
+          eos::common::OwnCloud::checksum_t client_checksum =
+            eos::common::OwnCloud::GetChecksum(request,
+                                               header.count("x-upload-checksum") ? "x-upload-checksum" : "oc-checksum");
+          eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
+                           "server-checksum-type=%s server-checksum-value=%s",
+                           client_checksum.first.c_str(),
+                           client_checksum.second.c_str(),
+                           checksum.first.c_str(),
+                           checksum.second.c_str());
 
-            eos::common::OwnCloud::checksum_t checksum = std::make_pair(
-                checksum_name,
-                checksum_val);
-            // inspect if there is checksum provided
-            eos::common::OwnCloud::checksum_t client_checksum =
-                eos::common::OwnCloud::GetChecksum(request,
-                    header.count("x-upload-checksum") ? "x-upload-checksum" : "oc-checksum");
-            eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
-                             "server-checksum-type=%s server-checksum-value=%s",
-                             client_checksum.first.c_str(),
-                             client_checksum.second.c_str(),
-                             checksum.first.c_str(),
-                             checksum.second.c_str());
+          if (client_checksum.first != "") {
+            if (client_checksum.first == checksum.first) {
+              // compare only if the algorithm is the same
+              if (client_checksum.second != checksum.second) {
+                eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s"
+                               " client-checksum-value=%s server-checksum-type=%s"
+                               " server-checksum-value=%s",
+                               client_checksum.first.c_str(),
+                               client_checksum.second.c_str(),
+                               checksum.first.c_str(), checksum.second.c_str());
+                checksumError = true;
+              }
 
-            if (client_checksum.first != "") {
-              if (client_checksum.first == checksum.first) {
-                // compare only if the algorithm is the same
-                if (client_checksum.second != checksum.second) {
-                  eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s"
-                                 " client-checksum-value=%s server-checksum-type=%s"
-                                 " server-checksum-value=%s",
+              checksumMatch = true;
+            } else {
+              eos_static_warning("msg=\"client required different checksum\" "
+                                 "client-checksum-type=%s client-checksum-value=%s "
+                                 "server-checksum-type=%s server-checksum-value=%s",
                                  client_checksum.first.c_str(),
                                  client_checksum.second.c_str(),
-                                 checksum.first.c_str(), checksum.second.c_str());
-                  checksumError = true;
-                }
-
-                checksumMatch = true;
-              } else {
-                eos_static_warning("msg=\"client required different checksum\" "
-                                   "client-checksum-type=%s client-checksum-value=%s "
-                                   "server-checksum-type=%s server-checksum-value=%s",
-                                   client_checksum.first.c_str(),
-                                   client_checksum.second.c_str(),
-                                   checksum.first.c_str(),
-                                   checksum.second.c_str());
-              }
+                                 checksum.first.c_str(),
+                                 checksum.second.c_str());
             }
           }
         }
