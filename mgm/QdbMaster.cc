@@ -268,6 +268,7 @@ QdbMaster::SlaveToMaster()
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
+  // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);

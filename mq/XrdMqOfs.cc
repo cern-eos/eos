@@ -91,16 +91,6 @@ STRINGSTORE(const char* __charptr__)
   }
 }
 
-XrdMqOfsOutMutex::XrdMqOfsOutMutex()
-{
-  gMqFS->QueueOutMutex.Lock();
-}
-
-XrdMqOfsOutMutex::~XrdMqOfsOutMutex()
-{
-  gMqFS->QueueOutMutex.UnLock();
-}
-
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -274,7 +264,7 @@ XrdMqOfs::stat(const char*                queuename,
   ZTRACE(stat, "stat by buf: " << queuename);
   std::string squeue = queuename;
   {
-    XrdMqOfsOutMutex qm;
+    XrdSysMutexHelper scope_lock(QueueOutMutex);
 
     if ((!gMqFS->QueueOut.count(squeue)) || (!(Out = gMqFS->QueueOut[squeue]))) {
       return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
@@ -297,7 +287,7 @@ XrdMqOfs::stat(const char*                queuename,
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kQueryMessage, queuename);
-    XrdMqOfsOutMutex qm;
+    XrdSysMutexHelper scope_lock(QueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -360,7 +350,7 @@ XrdMqOfsFile::open(const char*                queuename,
   tident = error.getErrUser();
   MAYREDIRECT;
   ZTRACE(open, "Connecting Queue: " << queuename);
-  XrdMqOfsOutMutex qm;
+  XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
   QueueName = queuename;
   std::string squeue = queuename;
 
@@ -421,7 +411,7 @@ XrdMqOfsFile::close()
   ZTRACE(close, "Disconnecting Queue: " << QueueName.c_str());
   std::string squeue = QueueName.c_str();
   {
-    XrdMqOfsOutMutex qm;
+    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
 
     if ((gMqFS->QueueOut.count(squeue)) && (Out = gMqFS->QueueOut[squeue])) {
       // hmm this could create a dead lock
@@ -450,7 +440,7 @@ XrdMqOfsFile::close()
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kStatusMessage, QueueName.c_str());
-    XrdMqOfsOutMutex qm;
+    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -528,7 +518,7 @@ XrdMqOfsFile::stat(struct stat* buf)
       XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
       XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                               XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
-      XrdMqOfsOutMutex qm;
+      XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
 
       if (!gMqFS->Deliver(matches)) {
         delete env;

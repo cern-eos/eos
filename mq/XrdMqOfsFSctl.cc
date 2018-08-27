@@ -346,7 +346,7 @@ XrdMqOfs::FSctl(const int               cmd,
   XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType,
                           mh.kSenderId.c_str());
   {
-    XrdMqOfsOutMutex qm;
+    XrdSysMutexHelper scope_lock(QueueOutMutex);
     Deliver(matches);
   }
 

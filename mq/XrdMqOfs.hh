@@ -164,8 +164,9 @@ public:
   size_t RetrieveMessages();
 };
 
-
-
+//------------------------------------------------------------------------------
+//! Class XrdMqOfsFile
+//------------------------------------------------------------------------------
 class XrdMqOfsFile : public XrdSfsFile
 {
 public:
@@ -259,14 +260,9 @@ private:
   const char*             tident;
 };
 
-
-class XrdMqOfsOutMutex
-{
-public:
-  XrdMqOfsOutMutex();
-  ~XrdMqOfsOutMutex();
-};
-
+//------------------------------------------------------------------------------
+//! Class XrdMqOfs
+//------------------------------------------------------------------------------
 class XrdMqOfs : public XrdSfsFileSystem
 {
 public:
@@ -321,10 +317,9 @@ public:
   QueueAdvisory;      // -> "<queueprefix>/*" for advisory message matches
   XrdOucString     BrokerId;           // -> manger id + queue name as path
 
-  std::map<std::string, XrdMqMessageOut*>
-  QueueOut;  // -> hash of all output's connected
-  XrdSysMutex
-  QueueOutMutex;  // -> mutex protecting the output hash
+  //! Hash of all output's connected
+  std::map<std::string, XrdMqMessageOut*> QueueOut;
+  XrdSysMutex QueueOutMutex;  ///< Mutex protecting the output hash
 
   bool             Deliver(XrdMqOfsMatches&
                            Match); // -> delivers a message into matching output queues
