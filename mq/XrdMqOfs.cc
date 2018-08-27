@@ -37,7 +37,6 @@
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
-
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
@@ -46,324 +45,44 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-/******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
-/******************************************************************************/
+XrdSysError gMqOfsEroute(0);
+XrdOucTrace gMqOfsTrace(&gMqOfsEroute);
+XrdMqOfs* gMqFS = 0;
 
-XrdSysError     gMqOfsEroute(0);
-XrdOucTrace     gMqOfsTrace(&gMqOfsEroute);
-
-XrdOucHash<XrdOucString>*     XrdMqOfs::stringstore;
-
-XrdMqOfs*   gMqFS = 0;
-
+//------------------------------------------------------------------------------
+// Shutdown handler
+//------------------------------------------------------------------------------
 void
 xrdmqofs_shutdown(int sig)
 {
   exit(0);
 }
 
-/******************************************************************************/
-/*                        C o n v i n i e n c e                               */
-/******************************************************************************/
-
-/*----------------------------------------------------------------------------*/
-/* this helps to avoid memory leaks by strdup                                 */
-/* we maintain a string hash to keep all used user ids/group ids etc.         */
-
-char*
-STRINGSTORE(const char* __charptr__)
-{
-  XrdOucString* yourstring;
-
-  if (!__charptr__) {
-    return (char*)"";
-  }
-
-  if ((yourstring = gMqFS->stringstore->Find(__charptr__))) {
-    return (char*)yourstring->c_str();
-  } else {
-    XrdOucString* newstring = new XrdOucString(__charptr__);
-    gMqFS->StoreMutex.Lock();
-    gMqFS->stringstore->Add(__charptr__, newstring);
-    gMqFS->StoreMutex.UnLock();
-    return (char*)newstring->c_str();
-  }
-}
-
-/******************************************************************************/
-/*                           C o n s t r u c t o r                            */
-/******************************************************************************/
-
-XrdMqOfs::XrdMqOfs(XrdSysError* ep):
-  myPort(1097)
-{
-  ConfigFN  = 0;
-  StartupTime = time(0);
-  LastOutputTime = time(0);
-  ReceivedMessages = 0;
-  FanOutMessages = 0;
-  DeliveredMessages = 0;
-  AdvisoryMessages = 0;
-  UndeliverableMessages = 0;
-  DiscardedMonitoringMessages = 0;
-  BacklogDeferred = NoMessages = QueueBacklogHits = 0;
-  MaxMessageBacklog  = MQOFSMAXMESSAGEBACKLOG;
-  MaxQueueBacklog    = MQOFSMAXQUEUEBACKLOG;
-  RejectQueueBacklog = MQOFSREJECTQUEUEBACKLOG;
-  (void) signal(SIGINT, xrdmqofs_shutdown);
-  HostName = 0;
-  HostPref = 0;
-  fprintf(stderr, "Addr::QueueOutMutex        0x%llx\n",
-          (unsigned long long) &gMqFS->QueueOutMutex);
-  fprintf(stderr, "Addr::MessageMutex         0x%llx\n",
-          (unsigned long long) &gMqFS->MessagesMutex);
-}
-
-/******************************************************************************/
-/*                           I n i t i a l i z a t i o n                      */
-/******************************************************************************/
-bool
-XrdMqOfs::Init(XrdSysError& ep)
-{
-  stringstore = new XrdOucHash<XrdOucString> ();
-  return true;
-}
-
-
-/******************************************************************************/
-/*                         G e t F i l e S y s t e m                          */
-/******************************************************************************/
-
-// Set the version information
-XrdVERSIONINFO(XrdSfsGetFileSystem, MqOfs);
-
-extern "C"
-XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
-                                      XrdSysLogger*     lp,
-                                      const char*       configfn)
-{
-  // Do the herald thing
-  //
-  gMqOfsEroute.SetPrefix("MqOfs_");
-  gMqOfsEroute.logger(lp);
-  gMqOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ",
-                   VERSION);
-  static XrdMqOfs myFS(&gMqOfsEroute);
-  lp->setRotate(0); // disable XRootD log rotation
-  gMqFS = &myFS;
-  gMqFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-
-  if (gMqFS->Configure(gMqOfsEroute)) {
-    return 0;
-  }
-
-  // All done, we can return the callout vector to these routines.
-  //
-  return gMqFS;
-}
-
-/******************************************************************************/
-/*                            g e t V e r s i o n                             */
-/******************************************************************************/
-
-const char* XrdMqOfs::getVersion()
-{
-  return XrdVERSION;
-}
-
-
-/******************************************************************************/
-/*                                 S t a l l                                  */
-/******************************************************************************/
-
-int XrdMqOfs::Emsg(const char*    pfx,    // Message prefix value
-                   XrdOucErrInfo& einfo,  // Place to put text & error code
-                   int            ecode,  // The error code
-                   const char*    op,     // Operation being performed
-                   const char*    target) // The target (e.g., fname)
-{
-  char* etext, buffer[4096], unkbuff[64];
-
-  // Get the reason for the error
-  //
-  if (ecode < 0) {
-    ecode = -ecode;
-  }
-
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
-  }
-
-  // Format the error message
-  //
-  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
-  gMqOfsEroute.Emsg(pfx, buffer);
-  // Place the error message in the error object and return
-  //
-  einfo.setErrInfo(ecode, buffer);
-  return SFS_ERROR;
-}
-
-/******************************************************************************/
-/*                                 S t a l l                                  */
-/******************************************************************************/
-
-int XrdMqOfs::Stall(XrdOucErrInfo&   error, // Error text & code
-                    int              stime, // Seconds to stall
-                    const char*      msg)   // Message to give
-{
-  XrdOucString smessage = msg;
-  smessage += "; come back in ";
-  smessage += stime;
-  smessage += " seconds!";
-  EPNAME("Stall");
-  const char* tident = error.getErrUser();
-  ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
-  // Place the error message in the error object and return
-  //
-  error.setErrInfo(0, smessage.c_str());
-  // All done
-  //
-  return stime;
-}
-
+//------------------------------------------------------------------------------
+// File open
+//------------------------------------------------------------------------------
 int
-XrdMqOfs::stat(const char*                queuename,
-               struct stat*               buf,
-               XrdOucErrInfo&             error,
-               const XrdSecEntity*        client,
-               const char*                opaque)
-{
-  EPNAME("stat");
-  const char* tident = error.getErrUser();
-
-  if (!strcmp(queuename, "/eos/")) {
-    // this is just a ping test if we are alive
-    memset(buf, 0, sizeof(struct stat));
-    buf->st_blksize = 1024;
-    buf->st_dev    = 0;
-    buf->st_rdev   = 0;
-    buf->st_nlink  = 1;
-    buf->st_uid    = 0;
-    buf->st_gid    = 0;
-    buf->st_size   = 0;
-    buf->st_atime  = 0;
-    buf->st_mtime  = 0;
-    buf->st_ctime  = 0;
-    buf->st_blocks = 1024;
-    buf->st_ino    = 0;
-    buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
-    return SFS_OK;
-  }
-
-  MAYREDIRECT;
-  XrdMqMessageOut* Out = 0;
-  Statistics();
-  ZTRACE(stat, "stat by buf: " << queuename);
-  std::string squeue = queuename;
-  {
-    XrdSysMutexHelper scope_lock(QueueOutMutex);
-
-    if ((!gMqFS->QueueOut.count(squeue)) || (!(Out = gMqFS->QueueOut[squeue]))) {
-      return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
-    }
-
-    Out->DeletionSem.Wait();
-  }
-  {
-    gMqFS->AdvisoryMessages++;
-    // submit an advisory message
-    XrdAdvisoryMqMessage amg("AdvisoryQuery", queuename, true,
-                             XrdMqMessageHeader::kQueryMessage);
-    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
-                                amg.kMessageHeader.kSenderTime_nsec);
-    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,
-                                amg.kMessageHeader.kBrokerTime_nsec);
-    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
-    amg.Encode();
-    //    amg.Print();
-    XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
-    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
-                            XrdMqMessageHeader::kQueryMessage, queuename);
-    XrdSysMutexHelper scope_lock(QueueOutMutex);
-
-    if (!gMqFS->Deliver(matches)) {
-      delete env;
-    }
-  }
-  // this should be the case always ...
-  ZTRACE(stat, "Waiting for message");
-  //  Out->MessageSem.Wait(1);
-  Out->Lock();
-  ZTRACE(stat, "Grabbing message");
-  memset(buf, 0, sizeof(struct stat));
-  buf->st_blksize = 1024;
-  buf->st_dev    = 0;
-  buf->st_rdev   = 0;
-  buf->st_nlink  = 1;
-  buf->st_uid    = 0;
-  buf->st_gid    = 0;
-  buf->st_size   = Out->RetrieveMessages();
-  buf->st_atime  = 0;
-  buf->st_mtime  = 0;
-  buf->st_ctime  = 0;
-  buf->st_blocks = 1024;
-  buf->st_ino    = 0;
-  buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
-  Out->UnLock();
-  Out->DeletionSem.Post();
-
-  if (buf->st_size == 0) {
-    gMqFS->NoMessages++;
-  }
-
-  return SFS_OK;
-}
-
-
-int
-XrdMqOfs::stat(const char*                Name,
-               mode_t&                    mode,
-               XrdOucErrInfo&             error,
-               const XrdSecEntity*        client,
-               const char*                opaque)
-{
-  EPNAME("stat");
-  const char* tident = error.getErrUser();
-  ZTRACE(stat, "stat by mode");
-  return SFS_ERROR;
-}
-
-
-
-
-int
-XrdMqOfsFile::open(const char*                queuename,
-                   XrdSfsFileOpenMode   openMode,
-                   mode_t               createMode,
-                   const XrdSecEntity*        client,
-                   const char*                opaque)
+XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
+                   mode_t createMode, const XrdSecEntity* client,
+                   const char* opaque)
 {
   EPNAME("open");
   tident = error.getErrUser();
   MAYREDIRECT;
   ZTRACE(open, "Connecting Queue: " << queuename);
   XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
-  QueueName = queuename;
-  std::string squeue = queuename;
+  mQueueName = queuename;
 
-  //  printf("%s %s %s\n",QueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
+  //  printf("%s %s %s\n",mQueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
   // check if this queue is accepted by the broker
-  if (!QueueName.beginswith(gMqFS->QueuePrefix)) {
+  if (mQueueName.find(gMqFS->QueuePrefix.c_str()) != 0) {
     // this queue is not supported by us
     return gMqFS->Emsg(epname, error, EINVAL,
                        "connect queue - the broker does not serve the requested queue");
   }
 
-  if (gMqFS->QueueOut.count(squeue)) {
-    fprintf(stderr, "EBUSY: Queue %s is busy\n", QueueName.c_str());
+  if (gMqFS->QueueOut.count(mQueueName)) {
+    fprintf(stderr, "EBUSY: Queue %s is busy\n", mQueueName.c_str());
     // this is already open by 'someone'
     return gMqFS->Emsg(epname, error, EBUSY, "connect queue - already connected",
                        queuename);
@@ -393,94 +112,16 @@ XrdMqOfsFile::open(const char*                queuename,
   Out->AdvisoryQuery  = advisoryquery;
   Out->AdvisoryFlushBackLog = advisoryflushbacklog;
   Out->BrokenByFlush = false;
-  gMqFS->QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
+  gMqFS->QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(mQueueName,
+                         Out));
   ZTRACE(open, "Connected Queue: " << queuename);
   IsOpen = true;
   return SFS_OK;
 }
 
-int
-XrdMqOfsFile::close()
-{
-  EPNAME("close");
-
-  if (!IsOpen) {
-    return SFS_OK;
-  }
-
-  ZTRACE(close, "Disconnecting Queue: " << QueueName.c_str());
-  std::string squeue = QueueName.c_str();
-  {
-    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
-
-    if ((gMqFS->QueueOut.count(squeue)) && (Out = gMqFS->QueueOut[squeue])) {
-      // hmm this could create a dead lock
-      //      Out->DeletionSem.Wait();
-      Out->Lock();
-      // we have to take away all pending messages
-      Out->RetrieveMessages();
-      gMqFS->QueueOut.erase(squeue);
-      delete Out;
-    }
-
-    Out = 0;
-  }
-  {
-    gMqFS->AdvisoryMessages++;
-    // submit an advisory message
-    XrdAdvisoryMqMessage amg("AdvisoryStatus", QueueName.c_str(), false,
-                             XrdMqMessageHeader::kStatusMessage);
-    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
-                                amg.kMessageHeader.kSenderTime_nsec);
-    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,
-                                amg.kMessageHeader.kBrokerTime_nsec);
-    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
-    amg.Encode();
-    //    amg.Print();
-    XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
-    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
-                            XrdMqMessageHeader::kStatusMessage, QueueName.c_str());
-    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
-
-    if (!gMqFS->Deliver(matches)) {
-      delete env;
-    }
-  }
-  ZTRACE(close, "Disconnected Queue: " << QueueName.c_str());
-  return SFS_OK;
-}
-
-
-XrdSfsXferSize
-XrdMqOfsFile::read(XrdSfsFileOffset  fileOffset,
-                   char*            buffer,
-                   XrdSfsXferSize   buffer_size)
-{
-  EPNAME("read");
-  ZTRACE(read, "read");
-
-  if (Out) {
-    unsigned int mlen = Out->MessageBuffer.length();
-    ZTRACE(read, "reading size:" << buffer_size);
-
-    if ((unsigned long) buffer_size < mlen) {
-      memcpy(buffer, Out->MessageBuffer.c_str(), buffer_size);
-      Out->MessageBuffer.erase(0, buffer_size);
-      return buffer_size;
-    } else {
-      memcpy(buffer, Out->MessageBuffer.c_str(), mlen);
-      Out->MessageBuffer.clear();
-      Out->MessageBuffer.reserve(0);
-      return mlen;
-    }
-  }
-
-  error.setErrInfo(-1, "");
-  return SFS_ERROR;
-}
-
-
-
+//------------------------------------------------------------------------------
+// File stat
+//------------------------------------------------------------------------------
 int
 XrdMqOfsFile::stat(struct stat* buf)
 {
@@ -506,7 +147,7 @@ XrdMqOfsFile::stat(struct stat* buf)
     {
       gMqFS->AdvisoryMessages++;
       // submit an advisory message
-      XrdAdvisoryMqMessage amg("AdvisoryQuery", QueueName.c_str(), true,
+      XrdAdvisoryMqMessage amg("AdvisoryQuery", mQueueName.c_str(), true,
                                XrdMqMessageHeader::kQueryMessage);
       XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
                                   amg.kMessageHeader.kSenderTime_nsec);
@@ -517,7 +158,7 @@ XrdMqOfsFile::stat(struct stat* buf)
       //      amg.Print();
       XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
       XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
-                              XrdMqMessageHeader::kQueryMessage, QueueName.c_str());
+                              XrdMqMessageHeader::kQueryMessage, mQueueName.c_str());
       XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
 
       if (!gMqFS->Deliver(matches)) {
@@ -555,9 +196,151 @@ XrdMqOfsFile::stat(struct stat* buf)
   return SFS_ERROR;
 }
 
+//------------------------------------------------------------------------------
+// File read
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdMqOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
+                   XrdSfsXferSize buffer_size)
+{
+  EPNAME("read");
+  ZTRACE(read, "read");
+
+  if (Out) {
+    unsigned int mlen = Out->MessageBuffer.length();
+    ZTRACE(read, "reading size:" << buffer_size);
+
+    if ((unsigned long) buffer_size < mlen) {
+      memcpy(buffer, Out->MessageBuffer.c_str(), buffer_size);
+      Out->MessageBuffer.erase(0, buffer_size);
+      return buffer_size;
+    } else {
+      memcpy(buffer, Out->MessageBuffer.c_str(), mlen);
+      Out->MessageBuffer.clear();
+      Out->MessageBuffer.reserve(0);
+      return mlen;
+    }
+  }
+
+  error.setErrInfo(-1, "");
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// File close
+//------------------------------------------------------------------------------
+int
+XrdMqOfsFile::close()
+{
+  EPNAME("close");
+
+  if (!IsOpen) {
+    return SFS_OK;
+  }
+
+  ZTRACE(close, "Disconnecting Queue: " << mQueueName.c_str());
+  std::string squeue = mQueueName.c_str();
+  {
+    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+
+    if ((gMqFS->QueueOut.count(squeue)) && (Out = gMqFS->QueueOut[squeue])) {
+      // hmm this could create a dead lock
+      //      Out->DeletionSem.Wait();
+      Out->Lock();
+      // we have to take away all pending messages
+      Out->RetrieveMessages();
+      gMqFS->QueueOut.erase(squeue);
+      delete Out;
+    }
+
+    Out = 0;
+  }
+  {
+    gMqFS->AdvisoryMessages++;
+    // submit an advisory message
+    XrdAdvisoryMqMessage amg("AdvisoryStatus", mQueueName.c_str(), false,
+                             XrdMqMessageHeader::kStatusMessage);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
+                                amg.kMessageHeader.kSenderTime_nsec);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,
+                                amg.kMessageHeader.kBrokerTime_nsec);
+    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
+    amg.Encode();
+    //    amg.Print();
+    XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
+    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
+                            XrdMqMessageHeader::kStatusMessage, mQueueName.c_str());
+    XrdSysMutexHelper scope_lock(gMqFS->QueueOutMutex);
+
+    if (!gMqFS->Deliver(matches)) {
+      delete env;
+    }
+  }
+  ZTRACE(close, "Disconnected Queue: " << mQueueName.c_str());
+  return SFS_OK;
+}
+
 /******************************************************************************/
-/*                         C o n f i g u r e                                  */
+/*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, MqOfs);
+
+extern "C"
+XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
+                                      XrdSysLogger*     lp,
+                                      const char*       configfn)
+{
+  // Do the herald thing
+  gMqOfsEroute.SetPrefix("MqOfs_");
+  gMqOfsEroute.logger(lp);
+  gMqOfsEroute.Say("++++++ (c) 2018 CERN/IT-DSS ",
+                   VERSION);
+  static XrdMqOfs myFS(&gMqOfsEroute);
+  lp->setRotate(0); // disable XRootD log rotation
+  gMqFS = &myFS;
+  gMqFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+
+  if (gMqFS->Configure(gMqOfsEroute)) {
+    return 0;
+  }
+
+  // All done, we can return the callout vector to these routines.
+  return gMqFS;
+}
+
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdMqOfs::XrdMqOfs(XrdSysError* ep):
+  myPort(1097)
+{
+  ConfigFN  = 0;
+  StartupTime = time(0);
+  LastOutputTime = time(0);
+  ReceivedMessages = 0;
+  FanOutMessages = 0;
+  DeliveredMessages = 0;
+  AdvisoryMessages = 0;
+  UndeliverableMessages = 0;
+  DiscardedMonitoringMessages = 0;
+  BacklogDeferred = NoMessages = QueueBacklogHits = 0;
+  MaxMessageBacklog  = MQOFSMAXMESSAGEBACKLOG;
+  MaxQueueBacklog    = MQOFSMAXQUEUEBACKLOG;
+  RejectQueueBacklog = MQOFSREJECTQUEUEBACKLOG;
+  (void) signal(SIGINT, xrdmqofs_shutdown);
+  HostName = 0;
+  HostPref = 0;
+  fprintf(stderr, "Addr::QueueOutMutex        0x%llx\n",
+          (unsigned long long) &gMqFS->QueueOutMutex);
+  fprintf(stderr, "Addr::MessageMutex         0x%llx\n",
+          (unsigned long long) &gMqFS->MessagesMutex);
+}
+
+//------------------------------------------------------------------------------
+// OFS plugin configure
+//------------------------------------------------------------------------------
 int XrdMqOfs::Configure(XrdSysError& Eroute)
 {
   char* var;
@@ -702,6 +485,166 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   return rc;
 }
 
+//------------------------------------------------------------------------------
+// Error message formatting
+//------------------------------------------------------------------------------
+int XrdMqOfs::Emsg(const char*    pfx,    // Message prefix value
+                   XrdOucErrInfo& einfo,  // Place to put text & error code
+                   int            ecode,  // The error code
+                   const char*    op,     // Operation being performed
+                   const char*    target) // The target (e.g., fname)
+{
+  char* etext, buffer[4096], unkbuff[64];
+
+  // Get the reason for the error
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
+
+  if (!(etext = strerror(ecode))) {
+    sprintf(unkbuff, "reason unknown (%d)", ecode);
+    etext = unkbuff;
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+  gMqOfsEroute.Emsg(pfx, buffer);
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Stall method
+//------------------------------------------------------------------------------
+int XrdMqOfs::Stall(XrdOucErrInfo&   error, // Error text & code
+                    int              stime, // Seconds to stall
+                    const char*      msg)   // Message to give
+{
+  XrdOucString smessage = msg;
+  smessage += "; come back in ";
+  smessage += stime;
+  smessage += " seconds!";
+  EPNAME("Stall");
+  const char* tident = error.getErrUser();
+  ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
+  // Place the error message in the error object and return
+  error.setErrInfo(0, smessage.c_str());
+  return stime;
+}
+
+//------------------------------------------------------------------------------
+// File system stat
+//------------------------------------------------------------------------------
+int
+XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
+               const XrdSecEntity* client, const char* opaque)
+{
+  EPNAME("stat");
+  const char* tident = error.getErrUser();
+
+  if (!strcmp(queuename, "/eos/")) {
+    // this is just a ping test if we are alive
+    memset(buf, 0, sizeof(struct stat));
+    buf->st_blksize = 1024;
+    buf->st_dev    = 0;
+    buf->st_rdev   = 0;
+    buf->st_nlink  = 1;
+    buf->st_uid    = 0;
+    buf->st_gid    = 0;
+    buf->st_size   = 0;
+    buf->st_atime  = 0;
+    buf->st_mtime  = 0;
+    buf->st_ctime  = 0;
+    buf->st_blocks = 1024;
+    buf->st_ino    = 0;
+    buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
+    return SFS_OK;
+  }
+
+  MAYREDIRECT;
+  XrdMqMessageOut* Out = 0;
+  Statistics();
+  ZTRACE(stat, "stat by buf: " << queuename);
+  std::string squeue = queuename;
+  {
+    XrdSysMutexHelper scope_lock(QueueOutMutex);
+
+    if ((!gMqFS->QueueOut.count(squeue)) || (!(Out = gMqFS->QueueOut[squeue]))) {
+      return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
+    }
+
+    Out->DeletionSem.Wait();
+  }
+  {
+    gMqFS->AdvisoryMessages++;
+    // submit an advisory message
+    XrdAdvisoryMqMessage amg("AdvisoryQuery", queuename, true,
+                             XrdMqMessageHeader::kQueryMessage);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
+                                amg.kMessageHeader.kSenderTime_nsec);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,
+                                amg.kMessageHeader.kBrokerTime_nsec);
+    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
+    amg.Encode();
+    //    amg.Print();
+    XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
+    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
+                            XrdMqMessageHeader::kQueryMessage, queuename);
+    XrdSysMutexHelper scope_lock(QueueOutMutex);
+
+    if (!gMqFS->Deliver(matches)) {
+      delete env;
+    }
+  }
+  // this should be the case always ...
+  ZTRACE(stat, "Waiting for message");
+  //  Out->MessageSem.Wait(1);
+  Out->Lock();
+  ZTRACE(stat, "Grabbing message");
+  memset(buf, 0, sizeof(struct stat));
+  buf->st_blksize = 1024;
+  buf->st_dev    = 0;
+  buf->st_rdev   = 0;
+  buf->st_nlink  = 1;
+  buf->st_uid    = 0;
+  buf->st_gid    = 0;
+  buf->st_size   = Out->RetrieveMessages();
+  buf->st_atime  = 0;
+  buf->st_mtime  = 0;
+  buf->st_ctime  = 0;
+  buf->st_blocks = 1024;
+  buf->st_ino    = 0;
+  buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
+  Out->UnLock();
+  Out->DeletionSem.Post();
+
+  if (buf->st_size == 0) {
+    gMqFS->NoMessages++;
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Stat by mode
+//------------------------------------------------------------------------------
+int
+XrdMqOfs::stat(const char*                Name,
+               mode_t&                    mode,
+               XrdOucErrInfo&             error,
+               const XrdSecEntity*        client,
+               const char*                opaque)
+{
+  EPNAME("stat");
+  const char* tident = error.getErrUser();
+  ZTRACE(stat, "stat by mode");
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Statistics
+//------------------------------------------------------------------------------
 void
 XrdMqOfs::Statistics()
 {
@@ -838,8 +781,11 @@ XrdMqOfs::Statistics()
   StatLock.UnLock();
 }
 
-bool XrdMqOfs::ShouldRedirect(XrdOucString& host,
-                              int& port)
+//------------------------------------------------------------------------------
+// Check if messages should be redirected and return the redirection host and
+// port
+//------------------------------------------------------------------------------
+bool XrdMqOfs::ShouldRedirect(XrdOucString& host, int& port)
 {
   EPNAME("ShouldRedirect");
   const char* tident = "internal";
@@ -927,7 +873,9 @@ bool XrdMqOfs::ShouldRedirect(XrdOucString& host,
   return false;
 }
 
-
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 bool XrdMqOfs::ResolveName(const char* inhost, XrdOucString& outhost)
 {
   struct hostent* hp;
@@ -958,18 +906,25 @@ bool XrdMqOfs::ResolveName(const char* inhost, XrdOucString& outhost)
   return false;
 }
 
-
-int XrdMqOfs::Redirect(XrdOucErrInfo&   error, // Error text & code
-                       XrdOucString& host,
-                       int& port)
+//------------------------------------------------------------------------------
+// Build redirect response
+//------------------------------------------------------------------------------
+int XrdMqOfs::Redirect(XrdOucErrInfo& error, XrdOucString& host, int& port)
 {
   EPNAME("Redirect");
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host.c_str() << ":" << port);
   // Place the error message in the error object and return
-  //
   error.setErrInfo(port, host.c_str());
-  // All done
-  //
   return SFS_REDIRECT;
 }
+
+//------------------------------------------------------------------------------
+// Get XRootD version
+//------------------------------------------------------------------------------
+const char*
+XrdMqOfs::getVersion()
+{
+  return XrdVERSION;
+}
+

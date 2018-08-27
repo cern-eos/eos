@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: XrdMqOfs.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -26,25 +26,14 @@
 
 #include <sys/types.h>
 #include <unistd.h>
-#include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <memory.h>
-#include <string.h>
-#include <stdio.h>
-#include <iostream>
-#include <stdlib.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <map>
 #include <string>
 #include <vector>
 #include <deque>
-
-#include <utime.h>
-#include <pwd.h>
-#include <uuid/uuid.h>
-
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -60,7 +49,7 @@ class XrdSecEntity;
 #define MQOFSMAXQUEUEBACKLOG 50000
 #define MQOFSREJECTQUEUEBACKLOG 100000
 
-#define MAYREDIRECT {                                       \
+#define MAYREDIRECT {                                         \
     int port=0;                                               \
     XrdOucString host="";                                     \
     if (gMqFS->ShouldRedirect(host,port)) {                   \
@@ -71,38 +60,60 @@ class XrdSecEntity;
 class XrdSysError;
 class XrdSysLogger;
 
+//------------------------------------------------------------------------------
+//! Class XrdSmartOucEnv
+//------------------------------------------------------------------------------
 class XrdSmartOucEnv : public XrdOucEnv
 {
-private:
-  int nref;
 public:
-  XrdSysMutex procmutex;
+  XrdSmartOucEnv(const char* vardata = 0, int vardlen = 0) :
+    XrdOucEnv(vardata, vardlen), nref(0)
+  {}
+
+  virtual ~XrdSmartOucEnv() {}
 
   int  Refs()
   {
     return nref;
   }
+
   void DecRefs()
   {
     nref--;
   }
+
   void AddRefs(int nrefs)
   {
-    ;
     nref += nrefs;
   }
-  XrdSmartOucEnv(const char* vardata = 0, int vardlen = 0) : XrdOucEnv(vardata,
-        vardlen)
-  {
-    nref = 0;
-  }
 
-  virtual ~XrdSmartOucEnv() {}
+  XrdSysMutex procmutex;
+
+private:
+  int nref;
 };
 
+//------------------------------------------------------------------------------
+//! Class XrdMqOfsMatches
+//------------------------------------------------------------------------------
 class XrdMqOfsMatches
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqOfsMatches(const char* qname, XrdSmartOucEnv* msg, const char* t,
+                  int type, const char* sender = "ignore"):
+    matches(0), messagetype(type), backlog(false), backlogrejected(false),
+    backlogqueues(""), sendername(sender), queuename(qname), message(msg),
+    tident(t)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdMqOfsMatches() = default;
+
   int matches;
   int messagetype;
   bool backlog;
@@ -112,56 +123,46 @@ public:
   XrdOucString queuename;
   XrdSmartOucEnv* message;
   const char* tident;
-  XrdMqOfsMatches(const char* qname, XrdSmartOucEnv* msg, const char* t, int type,
-                  const char* sender = "ignore")
-  {
-    matches = 0;
-    queuename = qname;
-    message = msg;
-    tident = t;
-    messagetype = type;
-    sendername = sender;
-    backlog = false;
-    backlogqueues = "";
-    backlogrejected = false;
-  }
-  ~XrdMqOfsMatches() {}
 };
 
+//------------------------------------------------------------------------------
+//! Class XrdMqMessageOut
+//------------------------------------------------------------------------------
 // TODO (esindril): This needs to be reviewd since XrdSysMutex does not have a
 // virtual destructor hence XrdMqMessageOut can not inherit it.
 class XrdMqMessageOut : public XrdSysMutex
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqMessageOut(const char* queuename):
+    AdvisoryStatus(false), AdvisoryQuery(false), AdvisoryFlushBackLog(false),
+    BrokenByFlush(false), nQueued(0), QueueName(queuename), MessageBuffer("")
+  {
+    MessageQueue.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMqMessageOut()
+  {
+    RetrieveMessages();
+  }
+
+  size_t RetrieveMessages();
+
   bool AdvisoryStatus;
   bool AdvisoryQuery;
   bool AdvisoryFlushBackLog;
   bool BrokenByFlush;
   int  nQueued;
   XrdOucString QueueName;
+  std::string MessageBuffer;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;
   std::deque<XrdSmartOucEnv*> MessageQueue;
-
-  XrdMqMessageOut(const char* queuename)
-  {
-    MessageBuffer = "";
-    AdvisoryStatus = false;
-    AdvisoryQuery = false;
-    AdvisoryFlushBackLog = false;
-    BrokenByFlush = false;
-    nQueued = 0;
-    QueueName = queuename;
-    MessageQueue.clear();
-  }
-
-  virtual ~XrdMqMessageOut()
-  {
-    RetrieveMessages();
-  }
-
-  std::string MessageBuffer;
-  size_t RetrieveMessages();
 };
 
 //------------------------------------------------------------------------------
@@ -170,94 +171,95 @@ public:
 class XrdMqOfsFile : public XrdSfsFile
 {
 public:
-
-  int open(const char*                fileName,
-           XrdSfsFileOpenMode   openMode,
-           mode_t               createMode,
-           const XrdSecEntity*        client = 0,
-           const char*                opaque = 0);
-
-  int close();
-
-
-  XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
-                      char*              buffer,
-                      XrdSfsXferSize     buffer_size);
-
-  int stat(struct stat* buf);
-
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   XrdMqOfsFile(char* user = 0) : XrdSfsFile(user)
   {
-    QueueName = "";
-    envOpaque = 0;
+    mQueueName = "";
     Out = 0;
     IsOpen = false;
     tident = "";
   }
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~XrdMqOfsFile()
   {
-    if (envOpaque) {
-      delete envOpaque;
-    }
-
     close();
   }
 
+  int open(const char* fileName, XrdSfsFileOpenMode openMode, mode_t createMode,
+           const XrdSecEntity* client = 0, const char* opaque = 0);
+
+  int close();
+
+  XrdSfsXferSize read(XrdSfsFileOffset fileOffset, char* buffer,
+                      XrdSfsXferSize buffer_size);
+
+  int stat(struct stat* buf);
 
   virtual int fctl(int, const char*, XrdOucErrInfo&)
   {
     return SFS_ERROR;
   }
+
   virtual const char* FName()
   {
     return "queue";
   }
+
   virtual int getMmap(void**, off_t&)
   {
     return SFS_ERROR;
   }
+
   virtual int read(XrdSfsFileOffset, XrdSfsXferSize)
   {
     return SFS_ERROR;
   }
+
   virtual int read(XrdSfsAio*)
   {
     return SFS_ERROR;
   }
+
   virtual XrdSfsXferSize write(XrdSfsFileOffset, const char*, XrdSfsXferSize)
   {
     return SFS_OK;
   }
+
   virtual int write(XrdSfsAio*)
   {
     return SFS_OK;
   }
+
   virtual int sync()
   {
     return SFS_OK;
   }
+
   virtual int sync(XrdSfsAio*)
   {
     return SFS_OK;
   }
+
   virtual int truncate(XrdSfsFileOffset)
   {
     return SFS_OK;
   }
+
   virtual int getCXinfo(char*, int&)
   {
     return SFS_ERROR;
   }
 
-
 private:
-  XrdOucEnv*             envOpaque;
-  XrdMqMessageOut*       Out;
-
-  XrdOucString           QueueName;
-  bool                   IsOpen;
-  const char*             tident;
+  XrdMqMessageOut* Out;
+  std::string mQueueName;
+  bool IsOpen;
+  const char* tident;
 };
 
 //------------------------------------------------------------------------------
@@ -265,14 +267,18 @@ private:
 //------------------------------------------------------------------------------
 class XrdMqOfs : public XrdSfsFileSystem
 {
-public:
   friend class XrdMqOfsFile;
 
-  // our plugin function
-  int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
-
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   XrdMqOfs(XrdSysError* lp = 0);
-  virtual              ~XrdMqOfs()
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMqOfs()
   {
     if (HostName) {
       free(HostName);
@@ -282,111 +288,71 @@ public:
       free(HostPref);
     }
   }
-  virtual bool Init(XrdSysError&);
-  const   char*          getVersion();
-  int          Stall(XrdOucErrInfo& error, int stime, const char* msg);
-  int          Redirect(XrdOucErrInfo&   error, XrdOucString& host, int& port);
-  bool         ShouldRedirect(XrdOucString& host, int& port);
-  int          Configure(XrdSysError& Eroute);
-  bool         ResolveName(const char* inname, XrdOucString& outname);
 
-  XrdSysMutex     StoreMutex;          // -> protecting the string store hash
+  virtual bool Init(XrdSysError&)
+  {
+    return true;
+  }
 
-  static  XrdOucHash<XrdOucString>* stringstore;
+  const char* getVersion();
 
-  XrdSfsFile*      newFile(char* user = 0, int MonID = 0)
+  int Stall(XrdOucErrInfo& error, int stime, const char* msg);
+
+  int Redirect(XrdOucErrInfo&   error, XrdOucString& host, int& port);
+
+  bool ShouldRedirect(XrdOucString& host, int& port);
+
+  int Configure(XrdSysError& Eroute);
+
+  bool ResolveName(const char* inname, XrdOucString& outname);
+
+  XrdSfsFile* newFile(char* user = 0, int MonID = 0)
   {
     return (XrdSfsFile*) new XrdMqOfsFile(user);
   }
-  XrdSfsDirectory*      newDir(char* user = 0, int MonID = 0)
+
+  XrdSfsDirectory* newDir(char* user = 0, int MonID = 0)
   {
     return (XrdSfsDirectory*) 0;
   }
 
-  int              Emsg(const char*, XrdOucErrInfo&, int, const char* x,
-                        const char* y = "");
-  int              myPort;
+  //----------------------------------------------------------------------------
+  //! Deliver a message into matching output queues
+  //----------------------------------------------------------------------------
+  bool Deliver(XrdMqOfsMatches& Match);
 
-  char*            HostName;           // -> our hostname as derived in XrdOfs
-  char*
-  HostPref;           // -> our hostname as derived in XrdOfs without domain
-  XrdOucString     ManagerId;          // -> manager id in <host>:<port> format
-  XrdOucString
-  QueuePrefix;        // -> prefix of the accepted queues to server
-  XrdOucString
-  QueueAdvisory;      // -> "<queueprefix>/*" for advisory message matches
-  XrdOucString     BrokerId;           // -> manger id + queue name as path
+  int stat(const char* Name, struct stat* buf, XrdOucErrInfo& error,
+           const XrdSecEntity* client = 0, const char* opaque = 0);
+
+  int stat(const char* Name, mode_t& mode, XrdOucErrInfo& error,
+           const XrdSecEntity* client = 0, const char* opaque = 0);
+
+  //----------------------------------------------------------------------------
+  //! Plugin function
+  //----------------------------------------------------------------------------
+  int FSctl(int, XrdSfsFSctl&, XrdOucErrInfo&, const XrdSecEntity*);
+
+  //----------------------------------------------------------------------------
+  //! Build error response
+  //----------------------------------------------------------------------------
+  int Emsg(const char*, XrdOucErrInfo&, int, const char* x,
+           const char* y = "");
+
+  XrdSysMutex StoreMutex; ///< Mutex protecting the string store hash
+  int myPort; ///< Port on which the MQ is running
+  char* HostName; ///< Our hostname as derived in XrdOfs
+  char* HostPref; ///< Our hostname as derived in XrdOfs without domain
+  XrdOucString ManagerId; ///< Manager id in <host>:<port> format
+  XrdOucString QueuePrefix; ///< Prefix of the accepted queues to server
+  XrdOucString QueueAdvisory; ///< "<queueprefix>/*" for advisory message matches
+  XrdOucString BrokerId; ///< Manger id + queue name as path
 
   //! Hash of all output's connected
   std::map<std::string, XrdMqMessageOut*> QueueOut;
   XrdSysMutex QueueOutMutex;  ///< Mutex protecting the output hash
 
-  bool             Deliver(XrdMqOfsMatches&
-                           Match); // -> delivers a message into matching output queues
-
-  std::map<std::string, XrdSmartOucEnv*> Messages;  // -> hash with all messages
-
-  XrdSysMutex
-  MessagesMutex;  // -> mutex protecting the message hash
-  int              stat(const char*               Name,
-                        struct stat*              buf,
-                        XrdOucErrInfo&            error,
-                        const XrdSecEntity*       client = 0,
-                        const char*               opaque = 0);
-
-  int              stat(const char*               Name,
-                        mode_t&                   mode,
-                        XrdOucErrInfo&            error,
-                        const XrdSecEntity*       client = 0,
-                        const char*               opaque = 0);
-
-  int              getStats(char* buff, int blen)
-  {
-    return 0;
-  }
-
-  virtual int chmod(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*,
-                    const char*)
-  {
-    return 0;
-  }
-  virtual int fsctl(int, const char*, XrdOucErrInfo&, const XrdSecEntity*)
-  {
-    return 0;
-  }
-  virtual int exists(const char*, XrdSfsFileExistence&, XrdOucErrInfo&,
-                     const XrdSecEntity*, const char*)
-  {
-    return 0;
-  }
-  virtual int mkdir(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*,
-                    const char*)
-  {
-    return 0;
-  }
-  virtual int prepare(XrdSfsPrep&, XrdOucErrInfo&, const XrdSecEntity*)
-  {
-    return 0;
-  }
-  virtual int rem(const char*, XrdOucErrInfo&, const XrdSecEntity*, const char*)
-  {
-    return 0;
-  }
-  virtual int remdir(const char*, XrdOucErrInfo&, const XrdSecEntity*,
-                     const char*)
-  {
-    return 0;
-  }
-  virtual int rename(const char*, const char*, XrdOucErrInfo&,
-                     const XrdSecEntity*, const char*, const char*)
-  {
-    return 0;
-  }
-  virtual int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&,
-                       const XrdSecEntity*, const char*)
-  {
-    return 0;
-  }
+  std::map<std::string, XrdSmartOucEnv*> Messages; ///< Hash with all messages
+  XrdSysMutex MessagesMutex;  ///< Mutex protecting the message hash
 
   XrdSysMutex  StatLock;
   time_t       StartupTime;
@@ -408,8 +374,63 @@ public:
   char*         ConfigFN;
 
 private:
-
   static  XrdSysError* eDest;
+
+  int getStats(char* buff, int blen)
+  {
+    return 0;
+  }
+
+  virtual int chmod(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*,
+                    const char*)
+  {
+    return 0;
+  }
+
+  virtual int fsctl(int, const char*, XrdOucErrInfo&, const XrdSecEntity*)
+  {
+    return 0;
+  }
+
+  virtual int exists(const char*, XrdSfsFileExistence&, XrdOucErrInfo&,
+                     const XrdSecEntity*, const char*)
+  {
+    return 0;
+  }
+
+  virtual int mkdir(const char*, XrdSfsMode, XrdOucErrInfo&, const XrdSecEntity*,
+                    const char*)
+  {
+    return 0;
+  }
+
+  virtual int prepare(XrdSfsPrep&, XrdOucErrInfo&, const XrdSecEntity*)
+  {
+    return 0;
+  }
+
+  virtual int rem(const char*, XrdOucErrInfo&, const XrdSecEntity*, const char*)
+  {
+    return 0;
+  }
+
+  virtual int remdir(const char*, XrdOucErrInfo&, const XrdSecEntity*,
+                     const char*)
+  {
+    return 0;
+  }
+
+  virtual int rename(const char*, const char*, XrdOucErrInfo&,
+                     const XrdSecEntity*, const char*, const char*)
+  {
+    return 0;
+  }
+
+  virtual int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&,
+                       const XrdSecEntity*, const char*)
+  {
+    return 0;
+  }
 };
 
 #endif

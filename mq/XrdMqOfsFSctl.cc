@@ -21,17 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//         $Id: XrdMqOfsFSctl.cc,v 1.00 2007/10/04 01:34:19 abh Exp $
-
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 
 #define XRDMQOFS_FSCTLPATHLEN 1024
 
 extern XrdOucTrace gMqOfsTrace;
-extern XrdMqOfs*   gMqFS;
+extern XrdMqOfs* gMqFS;
 
 //------------------------------------------------------------------------------
 // Helper Classes & Functions
@@ -49,10 +46,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   // If we have a status message we have to do a complete loop
   if (((Matches.messagetype) == XrdMqMessageHeader::kStatusMessage) ||
       ((Matches.messagetype) == XrdMqMessageHeader::kQueryMessage)) {
-    std::map<std::string, XrdMqMessageOut*>::const_iterator QueueOutIt;
-
-    for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
-         QueueOutIt++) {
+    for (auto QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
+         ++QueueOutIt) {
       XrdMqMessageOut* Out = QueueOutIt->second;
 
       // if this would be a loop back message we continue
@@ -80,10 +75,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   } else {
     // If we have a wildcard match we have to do a complete loop
     if ((Matches.queuename.find("*") != STR_NPOS)) {
-      std::map<std::string, XrdMqMessageOut*>::const_iterator QueueOutIt;
-
-      for (QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
-           QueueOutIt++) {
+      for (auto QueueOutIt = QueueOut.begin(); QueueOutIt != QueueOut.end();
+           ++QueueOutIt) {
         XrdMqMessageOut* Out = QueueOutIt->second;
 
         // fprintf(stderr,"%s <=> %s\n", sendername.c_str(), QueueOutIt->first.c_str());
@@ -222,6 +215,9 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   }
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 size_t
 XrdMqMessageOut::RetrieveMessages()
 {
@@ -243,7 +239,7 @@ XrdMqMessageOut::RetrieveMessages()
       XrdOucString msg = message->Get(XMQHEADER);
       gMqFS->Messages.erase(msg.c_str());
       message->procmutex.UnLock();
-      //      fprintf(stderr,"%s delete %llu \n", QueueName.c_str(), (unsigned long long) message);
+      // fprintf(stderr,"%s delete %llu \n", QueueName.c_str(), (unsigned long long) message);
       delete message;
       gMqFS->FanOutMessages++;
     } else {
@@ -257,23 +253,22 @@ XrdMqMessageOut::RetrieveMessages()
   return MessageBuffer.length();
 }
 
-/////////////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
+// FSctl plugin function
+//------------------------------------------------------------------------------
 int
-XrdMqOfs::FSctl(const int               cmd,
-                XrdSfsFSctl&            args,
-                XrdOucErrInfo&          error,
-                const XrdSecEntity*     client)
+XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
+                const XrdSecEntity* client)
 {
   char ipath[XRDMQOFS_FSCTLPATHLEN + 1];
   static const char* epname = "FSctl";
   const char* tident = error.getErrUser();
   MAYREDIRECT;
-  // accept only plugin calls!
+  // Accept only plugin calls!
   ZTRACE(fsctl, "Calling FSctl");
 
   if (cmd != SFS_FSCTL_PLUGIN) {
-    gMqFS->Emsg(epname, error, EINVAL, "to call FSctl function - not supported",
-                "");
+    gMqFS->Emsg(epname, error, EINVAL, "to call FSctl - not supported", "");
     return SFS_ERROR;
   }
 
