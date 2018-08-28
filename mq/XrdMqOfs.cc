@@ -24,11 +24,9 @@
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssApi.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -87,7 +85,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
                        queuename);
   }
 
-  Out = new XrdMqMessageOut(queuename);
+  mMsgOut = new XrdMqMessageOut(queuename);
   // check if advisory messages are requested
   XrdOucEnv queueenv((opaque) ? opaque : "");
   bool advisorystatus = false;
@@ -107,14 +105,14 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
     advisoryflushbacklog = atoi(val);
   }
 
-  Out->AdvisoryStatus = advisorystatus;
-  Out->AdvisoryQuery  = advisoryquery;
-  Out->AdvisoryFlushBackLog = advisoryflushbacklog;
-  Out->BrokenByFlush = false;
+  mMsgOut->AdvisoryStatus = advisorystatus;
+  mMsgOut->AdvisoryQuery  = advisoryquery;
+  mMsgOut->AdvisoryFlushBackLog = advisoryflushbacklog;
+  mMsgOut->BrokenByFlush = false;
   gMqFS->mQueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(mQueueName,
-                          Out));
+                          mMsgOut));
   ZTRACE(open, "Connected Queue: " << queuename);
-  IsOpen = true;
+  mIsOpen = true;
   return SFS_OK;
 }
 
@@ -139,8 +137,8 @@ XrdMqOfsFile::stat(struct stat* buf)
   MAYREDIRECT;
   gMqFS->Statistics();
 
-  if (Out) {
-    Out->DeletionSem.Wait();
+  if (mMsgOut) {
+    mMsgOut->DeletionSem.Wait();
     // this should be the case always ...
     ZTRACE(stat, "Waiting for message");
     {
@@ -164,8 +162,8 @@ XrdMqOfsFile::stat(struct stat* buf)
         delete env;
       }
     }
-    //    Out->MessageSem.Wait(1);
-    Out->Lock();
+    //    mMsgOut->MessageSem.Wait(1);
+    mMsgOut->Lock();
     ZTRACE(stat, "Grabbing message");
     memset(buf, 0, sizeof(struct stat));
     buf->st_blksize = 1024;
@@ -174,15 +172,15 @@ XrdMqOfsFile::stat(struct stat* buf)
     buf->st_nlink  = 1;
     buf->st_uid    = 0;
     buf->st_gid    = 0;
-    buf->st_size   = Out->RetrieveMessages();
+    buf->st_size   = mMsgOut->RetrieveMessages();
     buf->st_atime  = 0;
     buf->st_mtime  = 0;
     buf->st_ctime  = 0;
     buf->st_blocks = 1024;
     buf->st_ino    = 0;
     buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
-    Out->UnLock();
-    Out->DeletionSem.Post();
+    mMsgOut->UnLock();
+    mMsgOut->DeletionSem.Post();
 
     if (buf->st_size == 0) {
       gMqFS->NoMessages++;
@@ -205,18 +203,18 @@ XrdMqOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   EPNAME("read");
   ZTRACE(read, "read");
 
-  if (Out) {
-    unsigned int mlen = Out->MessageBuffer.length();
+  if (mMsgOut) {
+    unsigned int mlen = mMsgOut->MessageBuffer.length();
     ZTRACE(read, "reading size:" << buffer_size);
 
     if ((unsigned long) buffer_size < mlen) {
-      memcpy(buffer, Out->MessageBuffer.c_str(), buffer_size);
-      Out->MessageBuffer.erase(0, buffer_size);
+      memcpy(buffer, mMsgOut->MessageBuffer.c_str(), buffer_size);
+      mMsgOut->MessageBuffer.erase(0, buffer_size);
       return buffer_size;
     } else {
-      memcpy(buffer, Out->MessageBuffer.c_str(), mlen);
-      Out->MessageBuffer.clear();
-      Out->MessageBuffer.reserve(0);
+      memcpy(buffer, mMsgOut->MessageBuffer.c_str(), mlen);
+      mMsgOut->MessageBuffer.clear();
+      mMsgOut->MessageBuffer.reserve(0);
       return mlen;
     }
   }
@@ -233,26 +231,26 @@ XrdMqOfsFile::close()
 {
   EPNAME("close");
 
-  if (!IsOpen) {
+  if (!mIsOpen) {
     return SFS_OK;
   }
 
   ZTRACE(close, "Disconnecting Queue: " << mQueueName.c_str());
-  std::string squeue = mQueueName.c_str();
   {
     XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
-    if ((gMqFS->mQueueOut.count(squeue)) && (Out = gMqFS->mQueueOut[squeue])) {
+    if ((gMqFS->mQueueOut.count(mQueueName)) &&
+        (mMsgOut = gMqFS->mQueueOut[mQueueName])) {
       // hmm this could create a dead lock
-      //      Out->DeletionSem.Wait();
-      Out->Lock();
+      //      mMsgOut->DeletionSem.Wait();
+      mMsgOut->Lock();
       // we have to take away all pending messages
-      Out->RetrieveMessages();
-      gMqFS->mQueueOut.erase(squeue);
-      delete Out;
+      mMsgOut->RetrieveMessages();
+      gMqFS->mQueueOut.erase(mQueueName);
+      delete mMsgOut;
     }
 
-    Out = 0;
+    mMsgOut = 0;
   }
   {
     gMqFS->AdvisoryMessages++;
@@ -514,18 +512,19 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   }
 
   MAYREDIRECT;
-  XrdMqMessageOut* Out = 0;
+  XrdMqMessageOut* msg_out = 0;
   Statistics();
   ZTRACE(stat, "stat by buf: " << queuename);
   std::string squeue = queuename;
   {
     XrdSysMutexHelper scope_lock(mQueueOutMutex);
 
-    if ((!gMqFS->mQueueOut.count(squeue)) || (!(Out = gMqFS->mQueueOut[squeue]))) {
+    if ((!gMqFS->mQueueOut.count(squeue)) ||
+        (!(msg_out = gMqFS->mQueueOut[squeue]))) {
       return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
     }
 
-    Out->DeletionSem.Wait();
+    msg_out->DeletionSem.Wait();
   }
   {
     gMqFS->AdvisoryMessages++;
@@ -550,8 +549,8 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   }
   // this should be the case always ...
   ZTRACE(stat, "Waiting for message");
-  //  Out->MessageSem.Wait(1);
-  Out->Lock();
+  //  msg_out->MessageSem.Wait(1);
+  msg_out->Lock();
   ZTRACE(stat, "Grabbing message");
   memset(buf, 0, sizeof(struct stat));
   buf->st_blksize = 1024;
@@ -560,15 +559,15 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   buf->st_nlink  = 1;
   buf->st_uid    = 0;
   buf->st_gid    = 0;
-  buf->st_size   = Out->RetrieveMessages();
+  buf->st_size   = msg_out->RetrieveMessages();
   buf->st_atime  = 0;
   buf->st_mtime  = 0;
   buf->st_ctime  = 0;
   buf->st_blocks = 1024;
   buf->st_ino    = 0;
   buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
-  Out->UnLock();
-  Out->DeletionSem.Post();
+  msg_out->UnLock();
+  msg_out->DeletionSem.Post();
 
   if (buf->st_size == 0) {
     gMqFS->NoMessages++;
@@ -926,4 +925,3 @@ XrdMqOfs::getVersion()
 {
   return XrdVERSION;
 }
-

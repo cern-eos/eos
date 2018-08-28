@@ -24,6 +24,13 @@
 #ifndef __XFTSOFS_NS_H__
 #define __XFTSOFS_NS_H__
 
+#include "XrdOfs/XrdOfs.hh"
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -34,15 +41,7 @@
 #include <string>
 #include <vector>
 #include <deque>
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysSemWait.hh"
-#include "XrdOfs/XrdOfs.hh"
-
-class XrdSecEntity;
+#include <atomic>
 
 // if we have too many messages pending we don't take new ones for the moment
 #define MQOFSMAXMESSAGEBACKLOG 100000
@@ -57,6 +56,8 @@ class XrdSecEntity;
     }                                                         \
   }
 
+//! Forward declarations
+class XrdSecEntity;
 class XrdSysError;
 class XrdSysLogger;
 
@@ -72,14 +73,14 @@ public:
 
   virtual ~XrdSmartOucEnv() {}
 
-  int  Refs()
+  int Refs()
   {
     return nref;
   }
 
   void DecRefs()
   {
-    nref--;
+    --nref;
   }
 
   void AddRefs(int nrefs)
@@ -90,7 +91,7 @@ public:
   XrdSysMutex procmutex;
 
 private:
-  int nref;
+  std::atomic<int> nref;
 };
 
 //------------------------------------------------------------------------------
@@ -106,7 +107,7 @@ public:
                   int type, const char* sender = "ignore"):
     matches(0), messagetype(type), backlog(false), backlogrejected(false),
     backlogqueues(""), sendername(sender), queuename(qname), message(msg),
-    tident(t)
+    mTident(t)
   {}
 
   //----------------------------------------------------------------------------
@@ -122,15 +123,13 @@ public:
   XrdOucString sendername;
   XrdOucString queuename;
   XrdSmartOucEnv* message;
-  const char* tident;
+  const char* mTident;
 };
 
 //------------------------------------------------------------------------------
 //! Class XrdMqMessageOut
 //------------------------------------------------------------------------------
-// TODO (esindril): This needs to be reviewd since XrdSysMutex does not have a
-// virtual destructor hence XrdMqMessageOut can not inherit it.
-class XrdMqMessageOut : public XrdSysMutex
+class XrdMqMessageOut
 {
 public:
   //----------------------------------------------------------------------------
@@ -151,6 +150,22 @@ public:
     RetrieveMessages();
   }
 
+  //----------------------------------------------------------------------------
+  //! Lock current object
+  //----------------------------------------------------------------------------
+  void Lock() const
+  {
+    mMutex.Lock();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Unlock current object
+  //----------------------------------------------------------------------------
+  void UnLock() const
+  {
+    mMutex.UnLock();
+  }
+
   size_t RetrieveMessages();
 
   bool AdvisoryStatus;
@@ -162,6 +177,7 @@ public:
   std::string MessageBuffer;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;
+  mutable XrdSysMutex mMutex;
   std::deque<XrdSmartOucEnv*> MessageQueue;
 };
 
@@ -177,8 +193,8 @@ public:
   XrdMqOfsFile(char* user = 0) : XrdSfsFile(user)
   {
     mQueueName = "";
-    Out = 0;
-    IsOpen = false;
+    mMsgOut = 0;
+    mIsOpen = false;
     tident = "";
   }
 
@@ -256,9 +272,9 @@ public:
   }
 
 private:
-  XrdMqMessageOut* Out;
+  XrdMqMessageOut* mMsgOut;
   std::string mQueueName;
-  bool IsOpen;
+  bool mIsOpen;
   const char* tident;
 };
 

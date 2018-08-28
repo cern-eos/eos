@@ -37,10 +37,10 @@ bool
 XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
 {
   EPNAME("AddToMatch");
-  const char* tident = Matches.tident;
+  const char* tident = Matches.mTident;
   std::string sendername = Matches.sendername.c_str();
   // here we store all the queues where we need to deliver this message
-  std::vector<XrdMqMessageOut*> MatchedOutputQueues;
+  std::vector<XrdMqMessageOut*> matched_out_queues;
   Matches.message->procmutex.Lock();
 
   // If we have a status message we have to do a complete loop
@@ -69,7 +69,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
       } else {
         ZTRACE(fsctl, "Adding Advisory Message to Queuename: " <<
                Out->QueueName.c_str());
-        MatchedOutputQueues.push_back(Out);
+        matched_out_queues.push_back(Out);
       }
     }
   } else {
@@ -95,7 +95,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
           // this is a match
           ZTRACE(fsctl, "Adding Wildcard matched Message to Queuename: "
                  << Out->QueueName.c_str());
-          MatchedOutputQueues.push_back(Out);
+          matched_out_queues.push_back(Out);
         }
       }
     } else {
@@ -110,24 +110,24 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
       if (Out) {
         ZTRACE(fsctl, "Adding full matched Message to Queuename: " <<
                Out->QueueName.c_str());
-        MatchedOutputQueues.push_back(Out);
+        matched_out_queues.push_back(Out);
       }
     }
   }
 
   // This is a match
-  if (MatchedOutputQueues.size()) {
+  if (matched_out_queues.size()) {
     Matches.backlog = false;
     Matches.backlogrejected = false;
 
     // Lock all matched queues at once
-    for (unsigned int i = 0; i < MatchedOutputQueues.size(); ++i) {
-      XrdMqMessageOut* Out = MatchedOutputQueues[i];
+    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
+      XrdMqMessageOut* Out = matched_out_queues[i];
       Out->Lock();
     }
 
-    for (unsigned int i = 0; i < MatchedOutputQueues.size(); ++i) {
-      XrdMqMessageOut* Out = MatchedOutputQueues[i];
+    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
+      XrdMqMessageOut* Out = matched_out_queues[i];
 
       // check for backlog on this queue and set a warning flag
       if (Out->nQueued > MaxQueueBacklog) {
@@ -200,8 +200,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
     }
 
     // Unlock all matched queues at once
-    for (unsigned int i = 0; i < MatchedOutputQueues.size(); ++i) {
-      XrdMqMessageOut* Out = MatchedOutputQueues[i];
+    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
+      XrdMqMessageOut* Out = matched_out_queues[i];
       Out->UnLock();
     }
   }
