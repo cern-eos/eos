@@ -100,6 +100,15 @@ void Prefetcher::stageContainerMD(const std::string &path, bool follow) {
 }
 
 //------------------------------------------------------------------------------
+//! Declare an intent to access the given path soon. We don't know if there's
+//! a file, or directory there.
+//------------------------------------------------------------------------------
+void Prefetcher::stageItem(const std::string &path, bool follow) {
+  if(pView->inMemory()) return;
+  mItems.emplace_back(pView->getItem(path, follow));
+}
+
+//------------------------------------------------------------------------------
 // Wait until all staged requests have been loaded in cache.
 //------------------------------------------------------------------------------
 void Prefetcher::wait() {
@@ -142,6 +151,16 @@ void Prefetcher::prefetchFileMDAndWait(IView *view, IFileMD::id_t id) {
 void Prefetcher::prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow) {
   Prefetcher prefetcher(view);
   prefetcher.stageContainerMD(path, follow);
+  prefetcher.wait();
+}
+
+//------------------------------------------------------------------------------
+// Prefetch item and wait. We don't know if there's a file, or container under
+// that path.
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchItemAndWait(IView *view, const std::string &path, bool follow) {
+  Prefetcher prefetcher(view);
+  prefetcher.stageItem(path, follow);
   prefetcher.wait();
 }
 

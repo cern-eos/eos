@@ -155,10 +155,7 @@ XrdMgmOfs::_stat(const char* path,
   }
 
   // Prefetch path
-  // TODO(gbitzes): This could be more precise..
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath(),
-      follow);
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath(), follow);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {

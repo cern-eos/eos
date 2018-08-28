@@ -72,6 +72,12 @@ public:
   //----------------------------------------------------------------------------
   void stageContainerMD(const std::string &path, bool follow);
 
+  //------------------------------------------------------------------------------
+  //! Prefetch item and wait. We don't know if there's a file, or container
+  //! under that path.
+  //------------------------------------------------------------------------------
+  void stageItem(const std::string &path, bool follow);
+
   //----------------------------------------------------------------------------
   //! Wait until all staged requests have been loaded in cache.
   //----------------------------------------------------------------------------
@@ -87,6 +93,11 @@ public:
   //! Prefetch ContainerMD and wait
   //------------------------------------------------------------------------------
   static void prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow = true);
+
+  //------------------------------------------------------------------------------
+  //! Prefetch item and wait
+  //------------------------------------------------------------------------------
+  static void prefetchItemAndWait(IView *view, const std::string &path, bool follow = true);
 
   //----------------------------------------------------------------------------
   //! Prefetch ContainerMD with children and wait
@@ -138,6 +149,7 @@ private:
 
   std::vector<folly::Future<IFileMDPtr>> mFileMDs;
   std::vector<folly::Future<IContainerMDPtr>> mContainerMDs;
+  std::vector<folly::Future<FileOrContainerMD>> mItems;
   std::vector<folly::Future<std::string>> mUris;
 };
 
