@@ -147,8 +147,8 @@ DrainTransferJob::GetFileInfo() const
       fdrain.mProto.set_gid(fmd->getCGid());
       fdrain.mProto.set_size(fmd->getSize());
       fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
-      fdrain.mProto.set_checksum(fmd->getChecksum().getDataPtr(),
-                                 fmd->getChecksum().getSize());
+      auto xs = fmd->getChecksum();
+      fdrain.mProto.set_checksum(xs.getDataPtr(), xs.getSize());
       auto vect_locations = fmd->getLocations();
 
       for (const auto loc : vect_locations) {
