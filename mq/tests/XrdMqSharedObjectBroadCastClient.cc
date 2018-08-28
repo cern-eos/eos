@@ -22,12 +22,10 @@
  ************************************************************************/
 
 #define TRACE_debug 0xffff
-#include <mq/XrdMqClient.hh>
-#include <mq/XrdMqTiming.hh>
-#include <mq/XrdMqMessaging.hh>
-#include <mq/XrdMqSharedObject.hh>
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysTimer.hh>
+#include "mq/XrdMqTiming.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mq/XrdMqSharedObject.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include <stdio.h>
 
 int main(int argc, char* argv[])
@@ -70,8 +68,7 @@ int main(int argc, char* argv[])
     }
 
     ObjectManager.HashMutex.UnLockRead();
-    XrdSysTimer sleeper;
-    sleeper.Wait(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     for (int v = 0; v < nhash; v++) {
       XrdOucString str = "statistics";
@@ -86,7 +83,7 @@ int main(int argc, char* argv[])
       printf("%s", out.c_str());
     }
 
-    sleeper.Wait(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   TIMING("SEND+RECV", &mq);

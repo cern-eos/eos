@@ -26,11 +26,11 @@
 
 #define ENOTBLK 15
 
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucHash.hh>
-#include <XrdCl/XrdClFile.hh>
-#include <XrdCl/XrdClFileSystem.hh>
-#include <mq/XrdMqMessage.hh>
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+#include "mq/XrdMqMessage.hh"
 
 class XrdMqMessage;
 
@@ -39,7 +39,7 @@ class XrdMqMessage;
 //------------------------------------------------------------------------------
 class XrdMqClient
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -147,7 +147,10 @@ class XrdMqClient
 
   XrdCl::FileSystem* GetBrokerXrdClientSender(int i);
 
-  bool IsInitOK() const { return kInitOK; }
+  bool IsInitOK() const
+  {
+    return kInitOK;
+  }
 
   void ReNewBrokerXrdClientReceiver(int i);
 
@@ -176,7 +179,7 @@ class XrdMqClient
   //----------------------------------------------------------------------------
   class DiscardResponseHandler : public XrdCl::ResponseHandler
   {
-   public:
+  public:
 
     //--------------------------------------------------------------------------
     //! Constructor
@@ -196,20 +199,22 @@ class XrdMqClient
     {
       XrdSysMutexHelper vLock(Lock);
 
-      if (status)
+      if (status) {
         delete status;
+      }
 
-      if (response)
+      if (response) {
         delete response;
+      }
     }
 
-   private:
+  private:
     XrdSysMutex Lock;
   };
 
   static DiscardResponseHandler gDiscardResponseHandler;
 
- private:
+private:
   static XrdSysMutex Mutex;
   XrdOucHash <XrdOucString> kBrokerUrls;
   XrdOucHash <XrdCl::File> kBrokerXrdClientReceiver;

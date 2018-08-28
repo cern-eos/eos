@@ -22,10 +22,10 @@
  ************************************************************************/
 
 #define TRACE_debug 0xffff
-#include <mq/XrdMqClient.hh>
-#include <mq/XrdMqTiming.hh>
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
+#include "mq/XrdMqClient.hh"
+#include "mq/XrdMqTiming.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
 #include <stdio.h>
 
 //#define CRYPTO

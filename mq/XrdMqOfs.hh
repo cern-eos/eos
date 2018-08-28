@@ -166,6 +166,9 @@ public:
     mMutex.UnLock();
   }
 
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
   size_t RetrieveMessages();
 
   bool AdvisoryStatus;
@@ -177,8 +180,10 @@ public:
   std::string MessageBuffer;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;
-  mutable XrdSysMutex mMutex;
   std::deque<XrdSmartOucEnv*> MessageQueue;
+
+private:
+  mutable XrdSysMutex mMutex;
 };
 
 //------------------------------------------------------------------------------

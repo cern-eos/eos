@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #define TRACE_debug 0xffff
-#include <mq/XrdMqClient.hh>
-#include <XrdSys/XrdSysTimer.hh>
+#include "mq/XrdMqClient.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>
 
 
