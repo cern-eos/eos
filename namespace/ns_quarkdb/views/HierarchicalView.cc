@@ -177,7 +177,7 @@ static folly::Future<IContainerMDPtr> extractContainerMD(FileOrContainerMD ptr)
 // Lookup a given path.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-HierarchicalView::getPath(const std::string& uri, bool follow)
+HierarchicalView::getItem(const std::string& uri, bool follow)
 {
   //----------------------------------------------------------------------------
   // Build our deque of pending chunks...
@@ -396,7 +396,7 @@ HierarchicalView::getPathInternal(FileOrContainerMD state,
 folly::Future<IFileMDPtr>
 HierarchicalView::getFileFut(const std::string& uri, bool follow)
 {
-  return getPath(uri, follow).then(extractFileMD);
+  return getItem(uri, follow).then(extractFileMD);
 }
 
 //------------------------------------------------------------------------------
@@ -562,7 +562,7 @@ HierarchicalView::getContainerFut(const std::string& uri, bool follow)
     return std::shared_ptr<IContainerMD> {pContainerSvc->getContainerMD(1)};
   }
 
-  return getPath(uri, follow).then(extractContainerMD);
+  return getItem(uri, follow).then(extractContainerMD);
 }
 
 //------------------------------------------------------------------------------

@@ -123,6 +123,13 @@ public:
       bool follow = true,
       size_t* link_depths = 0) override;
 
+  //----------------------------------------------------------------------------
+  //! Retrieve an item for given path. Could be either file or container, we
+  //! don't know.
+  //----------------------------------------------------------------------------
+  virtual folly::Future<FileOrContainerMD>
+  getItem(const std::string& uri, bool follow = true) override;
+
   //------------------------------------------------------------------------
   //! Create a file for given uri
   //------------------------------------------------------------------------

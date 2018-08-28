@@ -112,6 +112,27 @@ void HierarchicalView::finalize()
   pQuotaStats = new QuotaStats();
 }
 
+//------------------------------------------------------------------------------
+//! Retrieve an item for given path. Could be either file or container, we
+//! don't know.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerMD>
+HierarchicalView::getItem(const std::string& uri, bool follow)
+{
+  try {
+    FileOrContainerMD item;
+    item.file = getFile(uri, follow);
+    return item;
+  }
+  catch(const eos::MDException &e) {
+    // ...
+  }
+
+  FileOrContainerMD item;
+  item.container = getContainer(uri, follow);
+  return item;
+}
+
 //------------------------------------------------------------------------
 // Retrieve a file for given uri, asynchronously
 //------------------------------------------------------------------------

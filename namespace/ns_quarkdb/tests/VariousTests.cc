@@ -85,6 +85,16 @@ TEST_F(VariousTests, BasicSanity) {
   root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
 
+  FileOrContainerMD item = view()->getItem("/").get();
+  ASSERT_TRUE(item.container);
+  ASSERT_FALSE(item.file);
+  ASSERT_EQ(item.container->getId(), 1);
+
+  item = view()->getItem("/eos/my-file.txt").get();
+  ASSERT_TRUE(item.file);
+  ASSERT_FALSE(item.container);
+  ASSERT_EQ(item.file->getId(), 1);
+
   // Ensure fsview for location 1 contains file1
   std::shared_ptr<eos::ICollectionIterator<eos::IFileMD::id_t>> it = fsview()->getFileList(1);
   ASSERT_TRUE(it->valid());

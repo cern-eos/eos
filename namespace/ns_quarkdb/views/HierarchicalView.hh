@@ -121,10 +121,11 @@ public:
   getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Lookup a given path.
+  //! Retrieve an item for given path. Could be either file or container, we
+  //! don't know.
   //----------------------------------------------------------------------------
-  folly::Future<FileOrContainerMD>
-  getPath(const std::string& uri, bool follow = true);
+  virtual folly::Future<FileOrContainerMD>
+  getItem(const std::string& uri, bool follow = true) override;
 
   //----------------------------------------------------------------------------
   //! Create a file for given uri
