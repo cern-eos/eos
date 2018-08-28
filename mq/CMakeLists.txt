@@ -98,7 +98,6 @@ set_target_properties(
 # XrdMqOfs library
 #-------------------------------------------------------------------------------
 add_library(XrdMqOfs MODULE
-  XrdMqOfsFSctl.cc
   XrdMqOfs.cc       XrdMqOfs.hh
   XrdMqMessage.cc   XrdMqMessage.hh)
 

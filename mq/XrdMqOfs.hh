@@ -139,7 +139,7 @@ public:
     AdvisoryStatus(false), AdvisoryQuery(false), AdvisoryFlushBackLog(false),
     BrokenByFlush(false), nQueued(0), QueueName(queuename), MessageBuffer("")
   {
-    MessageQueue.clear();
+    mMsgQueue.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -180,7 +180,7 @@ public:
   std::string MessageBuffer;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;
-  std::deque<XrdSmartOucEnv*> MessageQueue;
+  std::deque<XrdSmartOucEnv*> mMsgQueue;
 
 private:
   mutable XrdSysMutex mMutex;
