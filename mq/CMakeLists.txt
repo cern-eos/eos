@@ -33,13 +33,16 @@ include_directories(
 # XrdMqClient-Objects
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
-  XrdMqOfs.hh
   XrdMqRWMutex.hh
   XrdMqTiming.hh
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh
   XrdMqMessaging.cc     XrdMqMessaging.hh
   XrdMqSharedObject.cc  XrdMqSharedObject.hh
+  ${CMAKE_SOURCE_DIR}/common/RWMutex.cc
+  ${CMAKE_SOURCE_DIR}/common/SharedMutex.cc
+  ${CMAKE_SOURCE_DIR}/common/PthreadRWMutex.cc
+  ${CMAKE_SOURCE_DIR}/common/StacktraceHere.cc
   ${CMAKE_SOURCE_DIR}/common/Logging.cc
   ${CMAKE_SOURCE_DIR}/common/StringConversion.cc
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
@@ -52,9 +55,12 @@ set_target_properties(XrdMqClient-Objects PROPERTIES
 add_library(XrdMqClient SHARED
   $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
+target_include_directories(XrdMqClient PUBLIC ${CURL_INCLUDE_DIRS})
+
 target_link_libraries(
   XrdMqClient PUBLIC
   fmt
+  ${LIBBFD_LIBRARIES}
   ${UUID_LIBRARY}
   ${CURL_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -74,8 +80,10 @@ add_library(XrdMqClient-Static STATIC
 target_link_libraries(
   XrdMqClient-Static PRIVATE
   fmt
+  ${LIBBFD_LIBRARIES}
   ${UUID_LIBRARY}
   ${NCURSES_LIBRARY}
+  ${CURL_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
@@ -103,27 +111,24 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
-add_executable(xrdmqclienttest   XrdMqClientTest.cc  XrdMqSharedObject.cc)
-add_executable(xrdmqdumper       XrdMqQueueDumper.cc XrdMqSharedObject.cc)
-add_executable(xrdmqfeeder       XrdMqQueueFeeder.cc  XrdMqSharedObject.cc)
-add_executable(xrdmqinjection    XrdMqQueueInjection.cc  XrdMqSharedObject.cc)
-add_executable(xrdmqclientmaster XrdMqClientMaster.cc  XrdMqSharedObject.cc)
-add_executable(xrdmqclientworker XrdMqClientWorker.cc XrdMqSharedObject.cc)
-add_executable(xrdmqcryptotest   XrdMqCryptoTest.cc  XrdMqSharedObject.cc)
-add_executable(xrdmqsharedobjectclient          XrdMqSharedObjectClient.cc)
-add_executable(xrdmqsharedobjectqueueclient     XrdMqSharedObjectQueueClient.cc)
-add_executable(xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient.cc)
+add_executable(xrdmqclienttest   tests/XrdMqClientTest.cc)
+add_executable(xrdmqdumper       tests/XrdMqQueueDumper.cc)
+add_executable(xrdmqfeeder       tests/XrdMqQueueFeeder.cc)
+add_executable(xrdmqinjection    tests/XrdMqQueueInjection.cc)
+add_executable(xrdmqclientmaster tests/XrdMqClientMaster.cc)
+add_executable(xrdmqclientworker tests/XrdMqClientWorker.cc)
+add_executable(xrdmqcryptotest   tests/XrdMqCryptoTest.cc)
+add_executable(xrdmqsharedobjectclient          tests/XrdMqSharedObjectClient.cc)
+add_executable(xrdmqsharedobjectqueueclient     tests/XrdMqSharedObjectQueueClient.cc)
+add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCastClient.cc)
 
 #-------------------------------------------------------------------------------
 # Libraries that all the above executables are linked against
 #-------------------------------------------------------------------------------
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
-  XrdMqClient
-  eosCommon-Static
+  XrdMqClient-Static
   ${GLIBC_DL_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(xrdmqclienttest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
@@ -133,18 +138,9 @@ target_link_libraries(xrdmqinjection PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientmaster PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientworker PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqcryptotest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(
-  xrdmqsharedobjectclient PRIVATE
-  eosCommon-Static
-  ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(
-  xrdmqsharedobjectqueueclient PRIVATE
-  eosCommon-Static
-  ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(
-  xrdmqsharedobjectbroadcastclient PRIVATE
-  eosCommon-Static
-  ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 install(
   TARGETS XrdMqClient XrdMqOfs xrdmqdumper

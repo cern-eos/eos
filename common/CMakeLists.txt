@@ -69,12 +69,8 @@ set(EOSCOMMON_SRCS
   SymKeys.cc
   GlobalConfig.cc
   Report.cc
-  StacktraceHere.cc
   StringTokenizer.cc
   CommentLog.cc
-  RWMutex.cc
-  SharedMutex.cc
-  PthreadRWMutex.cc
   XrdErrorMap.cc
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
@@ -90,7 +86,6 @@ target_link_libraries(eosCommon PUBLIC
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
-  ${CURL_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -100,8 +95,6 @@ target_link_libraries(eosCommon PUBLIC
 target_compile_definitions(eosCommon PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
-
 set_target_properties(eosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
@@ -109,7 +102,6 @@ set_target_properties(eosCommon PROPERTIES
 
 if(Linux)
   target_link_libraries(eosCommon PUBLIC
-    ${LIBBFD_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${GLIBC_RT_LIBRARY})
 endif()
@@ -122,7 +114,7 @@ install(TARGETS eosCommon
 add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
 
 target_include_directories(eosCommon-Static PUBLIC
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
 target_compile_definitions(eosCommon-Static PUBLIC
@@ -138,17 +130,14 @@ target_link_libraries(eosCommon-Static PRIVATE
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
-  ${CURL_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${PROTOBUF_LIBRARY}
-  ${LIBBFD_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(Linux)
   target_link_libraries(eosCommon-Static PUBLIC
-    ${LIBBFD_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${GLIBC_RT_LIBRARY})
 endif()
@@ -185,11 +174,9 @@ if (Linux)
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
     ${LEVELDB_LIBRARIES}
-    ${CURL_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${LIBBFD_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
