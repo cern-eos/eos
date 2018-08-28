@@ -21,12 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/ZMQ.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -44,27 +41,23 @@ ProcCommand::Fusex()
     } else if (mSubCmd == "conf") {
       std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") :
                        "";
-
       std::string qc = pOpaque->Get("mgm.fusex.qc") ? pOpaque->Get("mgm.fusex.qc") :
-	               "";
-
+                       "";
       int i_hb = atoi(hb.c_str());
       int i_qc = atoi(qc.c_str());
 
-      if (!i_hb)
-      {
-	i_hb = gOFS->zMQ->gFuseServer.Client().HeartbeatInterval();
-	char shb[16];
-	snprintf(shb, sizeof(shb),"%d",i_hb);
-	hb = shb;
+      if (!i_hb) {
+        i_hb = gOFS->zMQ->gFuseServer.Client().HeartbeatInterval();
+        char shb[16];
+        snprintf(shb, sizeof(shb), "%d", i_hb);
+        hb = shb;
       }
 
-      if (!i_qc)
-      {
-	i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
-	char sqc[16];
-	snprintf(sqc, sizeof(sqc),"%d",i_qc);
-	qc = sqc;
+      if (!i_qc) {
+        i_qc = gOFS->zMQ->gFuseServer.Client().QuotaCheckInterval();
+        char sqc[16];
+        snprintf(sqc, sizeof(sqc), "%d", i_qc);
+        qc = sqc;
       }
 
       if ((i_hb > 0) && (i_hb <= 15)) {
@@ -77,6 +70,7 @@ ProcCommand::Fusex()
         stdErr += "error: hearbeat interval must be [1..15] seconds\n";
         retc = EINVAL;
       }
+
       if ((i_qc > 0) && (i_qc <= 60)) {
         gOFS->zMQ->gFuseServer.Client().SetQuotaCheckInterval(i_qc);
         stdOut += "info: configured FUSEX quota check interval is ";
@@ -84,10 +78,10 @@ ProcCommand::Fusex()
         stdOut += " seconds\n";
         retc = 0;
       } else {
-	if (i_qc < 0) {
-	  stdErr += "error: quota check interval must be [1..60] seconds\n";
-	  retc = EINVAL;
-	}
+        if (i_qc < 0) {
+          stdErr += "error: quota check interval must be [1..60] seconds\n";
+          retc = EINVAL;
+        }
       }
     } else if (mSubCmd == "evict") {
       std::string s_reason;

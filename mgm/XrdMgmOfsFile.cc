@@ -27,6 +27,7 @@
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
+#include "common/ParseUtils.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"

@@ -133,7 +133,6 @@ public:
     mBlocking = block;
   }
 
-
   //----------------------------------------------------------------------------
   //! Set the timeinterval when to stacktrace a long lasting lock
   //!
