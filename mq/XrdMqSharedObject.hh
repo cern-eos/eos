@@ -29,7 +29,7 @@
 #include "XrdSys/XrdSysSemWait.hh"
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/StringConversion.hh"
-#include "mq/XrdMqRWMutex.hh"
+#include "common/RWMutex.hh"
 #include <string>
 #include <map>
 #include <vector>
@@ -451,10 +451,10 @@ private:
   std::string mBroadcastQueue; ///< Name of the broadcast queue
   std::set<std::string> mDeletions; ///< Set of deletions
   std::set<std::string> mTransactions; ///< Set of transactions
-  std::unique_ptr<XrdSysMutex>
-  mTransactMutex; ///< Mutex protecting the set of transactions
-  std::unique_ptr<XrdMqRWMutex>
-  mStoreMutex; ///< RW Mutex protecting the mStore object
+  //1 Mutex protecting the set of transactions
+  std::unique_ptr<XrdSysMutex> mTransactMutex;
+  //! RW Mutex protecting the mStore object
+  std::unique_ptr<eos::common::RWMutex> mStoreMutex;
 
   //----------------------------------------------------------------------------
   //! Construct broadcast env header
@@ -651,7 +651,7 @@ public:
     }
   };
 
-  XrdMqRWMutex HashMutex; ///< Mutex protecting access to the subject maps
+  eos::common::RWMutex HashMutex; ///< Mutex protecting access to the subject maps
 
   //----------------------------------------------------------------------------
   //! Switch to globally en-/disable broadcasting of changes into shared queues

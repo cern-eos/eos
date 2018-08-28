@@ -43,7 +43,7 @@ Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdMqRWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
+  eos::common::RWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
   XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
                                   nodeconfigqueue.c_str());
   std::string manager = confighash ? confighash->Get("manager") : "unknown";

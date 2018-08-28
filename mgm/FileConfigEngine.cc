@@ -355,7 +355,6 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
     XrdOucString config = "";
     XrdOucEnv env("");
     InsertComment(comment);
-
     DumpConfig(config, env);
     tmp_fstream << config.c_str();
     tmp_fstream.flush();
@@ -557,7 +556,7 @@ FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 
   while (getline(infile, sline)) {
     // Filter according to user specification
-    if(CheckFilterMatch(pinfo.option, sline)) {
+    if (CheckFilterMatch(pinfo.option, sline)) {
       out += sline.c_str();
       out += "\n";
     }
@@ -622,7 +621,8 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
 
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
     // Make this value visible between MGM's
-    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    eos::common::RWMutexReadLock
+    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
 
@@ -650,7 +650,8 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
-    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    eos::common::RWMutexReadLock
+    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
 

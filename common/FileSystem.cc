@@ -464,7 +464,7 @@ void
 FileSystem::CreateConfig(std::string& key, std::string& val)
 {
   key = val = "";
-  XrdMqRWMutexReadLock lock(mSom->HashMutex);
+  RWMutexReadLock lock(mSom->HashMutex);
   key = mQueuePath;
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
   val = hash->SerializeWithFilter("stat.", true);
@@ -803,7 +803,7 @@ void
 FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
-  XrdMqRWMutexReadLock lock(mSom->HashMutex);
+  RWMutexReadLock lock(mSom->HashMutex);
   XrdMqSharedHash* hash = nullptr;
 
   if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {

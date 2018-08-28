@@ -22,6 +22,7 @@
 # ************************************************************************
 
 include_directories(
+  ${Z_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}
   ${CURL_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
@@ -33,7 +34,6 @@ include_directories(
 # XrdMqClient-Objects
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
-  XrdMqRWMutex.hh
   XrdMqTiming.hh
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh
@@ -128,6 +128,7 @@ add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCast
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient-Static
+  ${Z_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 

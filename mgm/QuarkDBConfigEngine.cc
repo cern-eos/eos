@@ -38,17 +38,16 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
-: mQcl(*client) {}
+  : mQcl(*client) {}
 
 //------------------------------------------------------------------------------
 // Add entry to the changelog
 //------------------------------------------------------------------------------
-void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
-  const std::string &key, const std::string &value) {
-
+void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
+    const std::string& key, const std::string& value)
+{
   // Add entry to the set
   std::ostringstream oss;
-
   oss << std::time(NULL) << ": " << action;
 
   if (key != "") {
@@ -68,17 +67,26 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string &action,
 //------------------------------------------------------------------------------
 bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 {
-  qclient::redisReplyPtr reply = mQcl.exec("deque-scan-back", kChangelogKey, "0", "COUNT", SSTR(nlines)).get();
-  if(reply->type != REDIS_REPLY_ARRAY) return false;
-  if(reply->elements != 2) return false;
+  qclient::redisReplyPtr reply = mQcl.exec("deque-scan-back", kChangelogKey, "0",
+                                 "COUNT", SSTR(nlines)).get();
+
+  if (reply->type != REDIS_REPLY_ARRAY) {
+    return false;
+  }
+
+  if (reply->elements != 2) {
+    return false;
+  }
 
   redisReply* array = reply->element[1];
-
   std::ostringstream oss;
   std::string stime;
 
-  for(size_t i = 0; i < array->elements; i++) {
-    if(array->element[i]->type != REDIS_REPLY_STRING) return false;
+  for (size_t i = 0; i < array->elements; i++) {
+    if (array->element[i]->type != REDIS_REPLY_STRING) {
+      return false;
+    }
+
     std::string line(array->element[i]->str, array->element[i]->len);
 
     try {
@@ -89,9 +97,9 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
       stime = "unknown_timestamp";
     }
 
-    for(size_t i = 0; i < line.size(); i++) {
-      if(line[i] == ':') {
-        line = line.substr(i+2);
+    for (size_t i = 0; i < line.size(); i++) {
+      if (line[i] == ':') {
+        line = line.substr(i + 2);
         break;
       }
     }
@@ -110,7 +118,8 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails& contactDetails)
+QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
+    contactDetails)
 {
   mQdbContactDetails = contactDetails;
   mQcl = BackendClient::getInstance(mQdbContactDetails, "config");
@@ -161,7 +170,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
   const char* comment = env.Get("mgm.config.comment");
-
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
@@ -175,7 +183,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   }
 
   InsertComment(comment);
-
   // Store a new hash
   std::string hash_key = formConfigHashKey(name);
   qclient::QHash q_hash(*mQcl, hash_key);
@@ -186,7 +193,6 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
       std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
       // Backup hash
       mQcl->exec("hclone", hash_key, hash_key_backup).get();
-
       // Clear
       mQcl->exec("del", hash_key).get();
     } else {
@@ -205,14 +211,15 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   XrdOucString stime;
   getTimeStamp(stime);
   q_hash.hset("timestamp", stime.c_str());
-
   std::ostringstream changeLogValue;
+
   if (force) {
     changeLogValue << "(force)";
   }
 
   changeLogValue << " successfully";
-  if(comment) {
+
+  if (comment) {
     changeLogValue << "[" << comment << "]";
   }
 
@@ -265,7 +272,8 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
-    qclient::QScanner confScannerBackup(*mQcl, kConfigurationBackupHashKeyPrefix + ":*");
+    qclient::QScanner confScannerBackup(*mQcl,
+                                        kConfigurationBackupHashKeyPrefix + ":*");
 
     for (; confScannerBackup.valid(); confScannerBackup.next()) {
       qclient::QHash q_hash(*mQcl, confScannerBackup.getValue());
@@ -303,10 +311,10 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
   mMutex.Lock();
   sConfigDefinitions.Purge();
 
-  for(auto it = hash.getIterator(); it.valid(); it.next()) {
+  for (auto it = hash.getIterator(); it.valid(); it.next()) {
     XrdOucString key = it.getKey().c_str();
 
-    if(key == "timestamp") {
+    if (key == "timestamp") {
       continue;
     }
 
@@ -331,7 +339,7 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 
   for (auto it = q_hash.getIterator(); it.valid(); it.next()) {
     // Filter according to user specification
-    if(CheckFilterMatch(pinfo.option, it.getKey())) {
+    if (CheckFilterMatch(pinfo.option, it.getKey())) {
       out += it.getKey().c_str();
       out += " => ";
       out += it.getValue().c_str();
@@ -372,7 +380,6 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
   XrdOucString configname = formFullKey(prefix, key).c_str();
-
   eos_static_debug("%s => %s", key, val);
   XrdOucString* sdef = new XrdOucString(val);
   {
@@ -384,7 +391,8 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   if (mBroadcast && not_bcast) {
     // Make this value visible between MGM's
     eos_notice("Setting %s", configname.c_str());
-    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    eos::common::RWMutexReadLock
+    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
 
@@ -430,7 +438,8 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   if (mBroadcast && not_bcast) {
     eos_static_info("Deleting %s", configname.c_str());
     // Make this value visible between MGM's
-    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    eos::common::RWMutexReadLock
+    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
 
@@ -527,7 +536,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
           std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
           // Backup hash
           mQcl->exec("hclone", hash_key, hash_key_backup);
-
           // Clear
           mQcl->exec("del", hash_key);
         } else {

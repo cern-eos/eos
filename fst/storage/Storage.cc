@@ -1034,7 +1034,7 @@ bool
 Storage::IsNodeActive() const
 {
   std::string cfg_node = Config::gConfig.getFstNodeConfigQueue().c_str();
-  XrdMqRWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
+  eos::common::RWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
   XrdMqSharedHash* hash = gOFS.ObjectManager.GetHash(cfg_node.c_str());
   std::string status = hash->Get("stat.active");
 

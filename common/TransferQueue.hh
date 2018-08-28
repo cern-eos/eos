@@ -35,7 +35,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/TransferJob.hh"
-#include "mq/XrdMqRWMutex.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -98,29 +97,31 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  TransferQueue (const char* queue, const char* queuepath, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm = false);
+  TransferQueue(const char* queue, const char* queuepath, const char* subqueue,
+                eos::common::FileSystem* fs, XrdMqSharedObjectManager* som,
+                bool bc2mgm = false);
 
   // ---------------------------------------------------------------------------
   //! Add a transfer job to the queue
   // ---------------------------------------------------------------------------
-  bool Add (eos::common::TransferJob* job);
+  bool Add(eos::common::TransferJob* job);
 
   // ---------------------------------------------------------------------------
   //! Get a transfer job from the queue
   // ---------------------------------------------------------------------------
-  eos::common::TransferJob* Get ();
+  eos::common::TransferJob* Get();
 
   // ---------------------------------------------------------------------------
   //! Remove a transfer job from the queue
   // ---------------------------------------------------------------------------
-  bool Remove (eos::common::TransferJob* job);
+  bool Remove(eos::common::TransferJob* job);
 
   // ---------------------------------------------------------------------------
   //! Get the count of retrieved transfers
   // ---------------------------------------------------------------------------
 
   unsigned long long
-  GetJobCount ()
+  GetJobCount()
   {
     unsigned long long count;
     {
@@ -135,7 +136,7 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  IncGetJobCount ()
+  IncGetJobCount()
   {
     XrdSysMutexHelper cLock(mJobGetCountMutex);
     mJobGetCount++;
@@ -146,16 +147,18 @@ public:
   // ---------------------------------------------------------------------------
 
   size_t
-  Size ()
+  Size()
   {
     if (mSom) {
-      XrdMqRWMutexReadLock lock(mSom->HashMutex);
+      RWMutexReadLock lock(mSom->HashMutex);
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                      mFullQueue.c_str());
 
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
       if (hashQueue) {
         return hashQueue->GetSize();
       }
     }
+
     return 0;
   }
 
@@ -164,16 +167,19 @@ public:
   // ---------------------------------------------------------------------------
 
   bool
-  Clear ()
+  Clear()
   {
     if (mSom) {
-      XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      RWMutexReadLock lock(mSom->HashMutex);
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                      mFullQueue.c_str());
+
       if (hashQueue) {
         hashQueue->Clear();
         return true;
       }
     }
+
     return false;
   };
 
@@ -182,16 +188,18 @@ public:
   // ---------------------------------------------------------------------------
 
   bool
-  OpenTransaction ()
+  OpenTransaction()
   {
     if (mSom) {
-      XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      RWMutexReadLock lock(mSom->HashMutex);
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                      mFullQueue.c_str());
 
       if (hashQueue) {
         return hashQueue->OpenTransaction();
       }
     }
+
     return false;
   }
 
@@ -200,23 +208,25 @@ public:
   // ---------------------------------------------------------------------------
 
   bool
-  CloseTransaction ()
+  CloseTransaction()
   {
     if (mSom) {
-      XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+      RWMutexReadLock lock(mSom->HashMutex);
+      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                      mFullQueue.c_str());
 
       if (hashQueue) {
         return hashQueue->CloseTransaction();
       }
     }
+
     return false;
   }
 
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  virtual ~TransferQueue ();
+  virtual ~TransferQueue();
 
 };
 

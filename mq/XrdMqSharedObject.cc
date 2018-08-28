@@ -32,12 +32,15 @@
 #include <algorithm>
 #include <curl/curl.h>
 
-std::atomic<bool> XrdMqSharedObjectManager::sDebug { false };
+using eos::common::RWMutexReadLock;
+using eos::common::RWMutexWriteLock;
+
+std::atomic<bool> XrdMqSharedObjectManager::sDebug {false};
 
 // Static counters
 std::atomic<unsigned long long> XrdMqSharedHash::sSetCounter {0};
-std::atomic<unsigned long long> XrdMqSharedHash::sSetNLCounter = {0};
-std::atomic<unsigned long long> XrdMqSharedHash::sGetCounter = {0};
+std::atomic<unsigned long long> XrdMqSharedHash::sSetNLCounter {0};
+std::atomic<unsigned long long> XrdMqSharedHash::sGetCounter {0};
 
 thread_local XrdMqSharedObjectChangeNotifier::Subscriber*
 XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
@@ -180,7 +183,7 @@ XrdMqSharedHash::XrdMqSharedHash(const char* subject, const char* bcast_queue,
                                  XrdMqSharedObjectManager* som):
   mType("hash"), mSOM(som), mSubject((subject ? subject : "")),
   mIsTransaction(false), mBroadcastQueue((bcast_queue ? bcast_queue : "")),
-  mTransactMutex(new XrdSysMutex()), mStoreMutex(new XrdMqRWMutex())
+  mTransactMutex(new XrdSysMutex()), mStoreMutex(new eos::common::RWMutex())
 {}
 
 //------------------------------------------------------------------------------
@@ -223,7 +226,7 @@ XrdMqSharedHash::operator=(XrdMqSharedHash&& other)
 unsigned int
 XrdMqSharedHash::GetSize()
 {
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
   return (unsigned int) mStore.size();
 }
 
@@ -233,7 +236,7 @@ XrdMqSharedHash::GetSize()
 unsigned long long
 XrdMqSharedHash::GetAgeInMilliSeconds(const char* key)
 {
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
   unsigned long long val  = (mStore.count(key) ?
                              mStore[key].GetAgeInMilliSeconds() : 0);
   return val;
@@ -245,7 +248,7 @@ XrdMqSharedHash::GetAgeInMilliSeconds(const char* key)
 unsigned long long
 XrdMqSharedHash::GetAgeInSeconds(const char* key)
 {
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
   unsigned long long
   val = (mStore.count(key) ? (unsigned long long)
          mStore[key].GetAgeInSeconds() : (unsigned long long) 0);
@@ -260,7 +263,7 @@ XrdMqSharedHash::Get(const std::string& key)
 {
   sGetCounter++;
   std::string value = "";
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
 
   if (mStore.count(key)) {
     value = mStore[key].GetValue();
@@ -276,7 +279,7 @@ std::vector<std::string>
 XrdMqSharedHash::GetKeys()
 {
   std::vector<std::string> keys;
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     keys.push_back(it->first);
@@ -342,7 +345,7 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix,
   std::string val {""};
   std::ostringstream oss;
   CURL* curl = curl_easy_init();
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     key = it->first.c_str();
@@ -406,7 +409,7 @@ XrdMqSharedHash::CloseTransaction()
         txmessage += "&";
         txmessage += XRDMQSHAREDHASH_PAIRS;
         txmessage += "=";
-        XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+        RWMutexReadLock rd_lock(*mStoreMutex);
 
         if ((mStore.count(it->c_str()))) {
           txmessage += "|";
@@ -531,7 +534,7 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
     mTransactions.clear();
     mIsTransaction = true;
     {
-      XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+      RWMutexReadLock rd_lock(*mStoreMutex);
 
       for (auto it = mStore.begin(); it != mStore.end(); ++it) {
         mTransactions.insert(it->first);
@@ -572,7 +575,7 @@ XrdMqSharedHash::AddTransactionsToEnvString(XrdOucString& out, bool clear_after)
   out += "&";
   out += XRDMQSHAREDHASH_PAIRS;
   out += "=";
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mTransactions.begin(); it != mTransactions.end(); ++it) {
     if ((mStore.count(it->c_str()))) {
@@ -646,7 +649,7 @@ void
 XrdMqSharedHash::Dump(XrdOucString& out)
 {
   char key_print[64];
-  XrdMqRWMutexReadLock rd_lock(*mStoreMutex);
+  RWMutexReadLock rd_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     snprintf(key_print, sizeof(key_print) - 1, "key=%-24s", it->first.c_str());
@@ -664,7 +667,7 @@ bool
 XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 {
   bool deleted = false;
-  XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
+  RWMutexWriteLock wr_lock(*mStoreMutex);
 
   if (mStore.count(key)) {
     mStore.erase(key);
@@ -715,7 +718,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 void
 XrdMqSharedHash::Clear(bool broadcast)
 {
-  XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
+  RWMutexWriteLock wr_lock(*mStoreMutex);
 
   for (auto it = mStore.begin(); it != mStore.end(); ++it) {
     if (mIsTransaction) {
@@ -738,7 +741,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
 {
   std::string skey = key;
   {
-    XrdMqRWMutexWriteLock wr_lock(*mStoreMutex);
+    RWMutexWriteLock wr_lock(*mStoreMutex);
 
     if (mStore.count(skey) == 0) {
       mStore.insert(std::make_pair(skey, XrdMqSharedHashEntry(key, value)));
@@ -2663,7 +2666,7 @@ void
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 {
   out = "";
-  XrdMqRWMutexReadLock lock(HashMutex);
+  RWMutexReadLock lock(HashMutex);
 
   for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
     out += "===================================================\n";
@@ -2941,7 +2944,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
         }
 
         {
-          XrdMqRWMutexReadLock lock(HashMutex);
+          RWMutexReadLock lock(HashMutex);
           sh = GetObject(subject.c_str(), type.c_str());
         }
       } else {
@@ -2950,7 +2953,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
     }
 
     {
-      XrdMqRWMutexReadLock lock(HashMutex);
+      RWMutexReadLock lock(HashMutex);
       // from here on we have a read lock on 'sh'
 
       if ((ftag == XRDMQSHAREDHASH_UPDATE) || (ftag == XRDMQSHAREDHASH_BCREPLY)) {
@@ -3142,7 +3145,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 void
 XrdMqSharedObjectManager::Clear()
 {
-  XrdMqRWMutexReadLock lock(HashMutex);
+  RWMutexReadLock lock(HashMutex);
 
   for (auto it  = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
     it->second->Clear();
@@ -3230,7 +3233,7 @@ XrdMqSharedObjectManager::AddMuxTransactionEnvString(XrdOucString& out)
                                       MuxTransactionType.c_str());
 
     if (hash) {
-      XrdMqRWMutexReadLock lock(*(hash->mStoreMutex));
+      RWMutexReadLock lock(*(hash->mStoreMutex));
 
       // loop over variables
       for (auto it = it_subj->second.begin(); it != it_subj->second.end(); ++it) {

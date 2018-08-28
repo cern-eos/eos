@@ -34,6 +34,8 @@
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 
+using eos::common::RWMutexReadLock;
+
 EOSMGMNAMESPACE_BEGIN
 
 FsView FsView::gFsView;
@@ -2201,7 +2203,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
   std::string ckey {""};
   {
     // We need to store this in the shared hash between MGMs
-    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
                               MgmConfigQueueName.c_str());
 
@@ -2228,7 +2230,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
 std::string
 FsView::GetGlobalConfig(std::string key)
 {
-  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
                             MgmConfigQueueName.c_str());
 
@@ -2390,8 +2392,7 @@ BaseView::GetMember(const std::string& member) const
     std::string val = "???";
     cfg_member.erase(0, tag.length());
     {
-      XrdMqRWMutexReadLock rd_lock(
-        eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+      RWMutexReadLock rd_lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
       std::string node_cfg_name =
         eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(),
             mName.c_str());
@@ -2662,7 +2663,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
 std::string
 BaseView::GetConfigMember(std::string key)
 {
-  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
                                 GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
@@ -2681,7 +2682,7 @@ BaseView::GetConfigMember(std::string key)
 bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
-  XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
                                 GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(

@@ -186,7 +186,7 @@ XrdMgmOfs::FsConfigListener()
           std::string newgeotag, oldgeotag;
           {
             // Read the id from the hash and the new geotag
-            XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
+            eos::common::RWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
             XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
             if (hash) {
@@ -283,7 +283,7 @@ XrdMgmOfs::FsConfigListener()
           std::string status;
           {
             // Read the proxygrouplist
-            XrdMqRWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
+            eos::common::RWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
             XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
             if (hash) {

@@ -303,7 +303,7 @@ public:
   bool
   OpenTransaction()
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
@@ -320,7 +320,7 @@ public:
   bool
   CloseTransaction()
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
@@ -338,7 +338,7 @@ public:
   SetId(fsid_t fsid)
   {
     XrdMqSharedHash* hash = nullptr;
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       hash->Set("id", (long long) fsid);
@@ -355,7 +355,7 @@ public:
   SetString(const char* key, const char* str, bool broadcast = true)
   {
     XrdMqSharedHash* hash = nullptr;
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       hash->Set(key, str, broadcast);
@@ -372,7 +372,7 @@ public:
   SetDouble(const char* key, double f, bool broadcast = true)
   {
     XrdMqSharedHash* hash = nullptr;
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       hash->Set(key, f, broadcast);
@@ -389,7 +389,7 @@ public:
   SetLongLong(const char* key, long long l, bool broadcast = true)
   {
     XrdMqSharedHash* hash = nullptr;
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       hash->Set(key, l, broadcast);
@@ -406,7 +406,7 @@ public:
   RemoveKey(const char* key, bool broadcast = true)
   {
     XrdMqSharedHash* hash = nullptr;
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       hash->Delete(key, broadcast);
@@ -480,8 +480,8 @@ public:
   bool
   GetKeys(std::vector<std::string>& keys)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       keys = hash->GetKeys();
@@ -503,8 +503,8 @@ public:
       return "1";
     }
 
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       return hash->Get(skey);
@@ -519,8 +519,8 @@ public:
   double
   GetAge(const char* key)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       // avoid to return a string with a 0 pointer !
@@ -542,8 +542,8 @@ public:
       return 1;
     }
 
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       return hash->GetLongLong(key);
@@ -558,8 +558,8 @@ public:
   double
   GetDouble(const char* key)
   {
-    XrdMqRWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
+    RWMutexReadLock lock(mSom->HashMutex);
 
     if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       return hash->GetDouble(key);
