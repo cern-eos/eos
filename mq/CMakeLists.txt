@@ -36,12 +36,12 @@ add_library(XrdMqClient-Objects OBJECT
   XrdMqOfs.hh
   XrdMqRWMutex.hh
   XrdMqTiming.hh
-  XrdMqStringConversion.hh
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh
   XrdMqMessaging.cc     XrdMqMessaging.hh
   XrdMqSharedObject.cc  XrdMqSharedObject.hh
   ${CMAKE_SOURCE_DIR}/common/Logging.cc
+  ${CMAKE_SOURCE_DIR}/common/StringConversion.cc
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
 target_compile_options(XrdMqClient-Objects PRIVATE "-Wno-unused-value")

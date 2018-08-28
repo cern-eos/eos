@@ -23,8 +23,8 @@
 
 #include "mq/XrdMqSharedObject.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mq/XrdMqStringConversion.hh"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <sys/stat.h>
@@ -808,18 +808,19 @@ void
 XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                        std::string format, const string& filter)
 {
+  using eos::common::StringConversion;
   std::vector<std::string> formattoken;
-  XrdMqStringConversion::Tokenize(format, formattoken, "|");
+  StringConversion::Tokenize(format, formattoken, "|");
   table_mq_data.emplace_back();
 
   for (unsigned int i = 0; i < formattoken.size(); ++i) {
     std::vector<std::string> tagtoken;
     std::map<std::string, std::string> formattags;
-    XrdMqStringConversion::Tokenize(formattoken[i], tagtoken, ":");
+    StringConversion::Tokenize(formattoken[i], tagtoken, ":");
 
     for (unsigned int j = 0; j < tagtoken.size(); ++j) {
       std::vector<std::string> keyval;
-      XrdMqStringConversion::Tokenize(tagtoken[j], keyval, "=");
+      StringConversion::Tokenize(tagtoken[j], keyval, "=");
 
       if (keyval.size() >= 2) {
         formattags[keyval[0]] = keyval[1];
@@ -2852,7 +2853,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
       } else {
         std::string delimiter = "%";
         // we support also multiplexed subject updates and split the list
-        XrdMqStringConversion::Tokenize(subject, subjectlist, delimiter);
+        eos::common::StringConversion::Tokenize(subject, subjectlist, delimiter);
       }
     }
 

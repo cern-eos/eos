@@ -71,7 +71,6 @@ set(EOSCOMMON_SRCS
   Report.cc
   StacktraceHere.cc
   StringTokenizer.cc
-  StringConversion.cc
   CommentLog.cc
   RWMutex.cc
   SharedMutex.cc

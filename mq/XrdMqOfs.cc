@@ -25,7 +25,6 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
