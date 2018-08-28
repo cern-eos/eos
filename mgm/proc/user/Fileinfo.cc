@@ -34,6 +34,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/utils/Checksum.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN

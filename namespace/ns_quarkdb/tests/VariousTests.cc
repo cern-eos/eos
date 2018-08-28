@@ -33,6 +33,7 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/common/QuotaNodeCore.hh"
+#include "namespace/utils/Checksum.hh"
 #include "namespace/PermissionHandler.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
@@ -382,6 +383,50 @@ TEST_F(VariousTests, createContainerMadness) {
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/aaaaaa");
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb");
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken");
+}
+
+TEST_F(VariousTests, ChecksumFormatting) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file1->getId(), 1);
+
+  char buff[32];
+  buff[0] = 0x12; buff[1] = 0x23; buff[2] = 0x55; buff[3] = 0x99;
+  buff[4] = 0xAA; buff[5] = 0xDD; buff[6] = 0x00; buff[7] = 0x55;
+
+  file1->setChecksum(buff, 8);
+
+  std::string out;
+  ASSERT_FALSE(eos::appendChecksumOnStringAsHex(file1.get(), out));
+
+  unsigned long layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    2,
+    eos::common::LayoutId::k4k);
+
+  file1->setLayoutId(layout);
+
+  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out));
+  ASSERT_EQ(out, "12235599aadd00550000000000000000");
+
+  layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kCRC32,
+    2,
+    eos::common::LayoutId::k4k);
+
+  file1->setLayoutId(layout);
+
+  out.clear();
+  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out));
+  ASSERT_EQ(out, "12235599");
+
+  out.clear();
+  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out, true));
+  ASSERT_EQ(out, "12 23 55 99");
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
