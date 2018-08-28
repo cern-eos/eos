@@ -56,10 +56,9 @@ add_library(XrdMqClient SHARED
 target_include_directories(XrdMqClient PUBLIC ${CURL_INCLUDE_DIRS})
 
 target_link_libraries(
-  XrdMqClient PUBLIC
-  fmt
-  ${Z_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
+  XrdMqClient
+  PUBLIC ${Z_LIBRARY} ${GLIBC_DL_LIBRARY}
+  PRIVATE fmt ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${CURL_LIBRARIES}
   ${LIBBFD_LIBRARIES}
@@ -78,10 +77,9 @@ add_library(XrdMqClient-Static STATIC
   $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(
-  XrdMqClient-Static PRIVATE
-  fmt
-  ${Z_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
+  XrdMqClient-Static
+  PUBLIC ${Z_LIBRARY} ${GLIBC_DL_LIBRARY}
+  PRIVATE fmt ${GLIBC_RT_LIBRARY}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${LIBBFD_LIBRARIES}
@@ -129,7 +127,6 @@ add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCast
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient-Static
-  ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(xrdmqclienttest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
