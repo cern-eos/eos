@@ -235,13 +235,7 @@ XrdMgmOfs::_stat(const char* path,
           *etag = setag;
         }
 
-        for (unsigned int i = 0; i < cxlen; i++) {
-          char hb[3];
-          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
-                    fmd->getChecksum().getDataPadded(i)) : 0);
-          *etag += hb;
-        }
-
+        eos::appendChecksumOnStringAsHex(fmd.get(), *etag);
         *etag += "\"";
       } else {
         // use inode + mtime

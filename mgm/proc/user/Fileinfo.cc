@@ -269,13 +269,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "\n";
             stdOut += "xs:     ";
 
-            for (unsigned int i = 0;
-                 i < eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId()); i++) {
-              char hb[3];
-              sprintf(hb, "%02x", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
-              stdOut += hb;
-            }
-
+            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             stdOut += "\n";
           } else {
             stdOut += "xstype=";
@@ -283,13 +277,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += " ";
             stdOut += "xs=";
 
-            for (unsigned int i = 0;
-                 i < eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId()); i++) {
-              char hb[3];
-              sprintf(hb, "%02x", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
-              stdOut += hb;
-            }
-
+            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             stdOut += " ";
           }
         }
@@ -316,13 +304,7 @@ ProcCommand::FileInfo(const char* path)
             snprintf(setag, sizeof(setag) - 1, "%llu:",
                      (unsigned long long)eos::common::FileId::FidToInode(fmd_copy->getId()));
             etag = setag;
-
-            for (unsigned int i = 0; i < cxlen; i++) {
-              char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
-                        fmd_copy->getChecksum().getDataPadded(i)) : 0);
-              etag += hb;
-            }
+            eos::appendChecksumOnStringAsHex(fmd_copy.get(), etag);
           } else {
             // use inode + mtime
             char setag[256];
@@ -398,13 +380,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "XStype: ";
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += "    XS: ";
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId());
-
-            for (unsigned int i = 0; i < cxlen; i++) {
-              char hb[4];
-              sprintf(hb, "%02x ", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
-              stdOut += hb;
-            }
+            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut, true);
 
             stdOut += "    ETAGs: ";
             stdOut += etag.c_str();
@@ -486,11 +462,7 @@ ProcCommand::FileInfo(const char* path)
             size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId());
 
             if (cxlen) {
-              for (unsigned int i = 0; i < cxlen; i++) {
-                char hb[3];
-                sprintf(hb, "%02x", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
-                stdOut += hb;
-              }
+              eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             } else {
               stdOut += "0";
             }
@@ -1123,13 +1095,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["checksumtype"] = eos::common::LayoutId::GetChecksumString(
                              fmd_copy->getLayoutId());
     std::string cks;
-
-    for (unsigned int i = 0;
-         i < eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId()); i++) {
-      char hb[3];
-      sprintf(hb, "%02x", (unsigned char)(fmd_copy->getChecksum().getDataPadded(i)));
-      cks += hb;
-    }
+    eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
 
     json["checksumvalue"] = cks;
     std::string etag;
@@ -1141,13 +1107,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
       snprintf(setag, sizeof(setag) - 1, "%llu:",
                (unsigned long long)eos::common::FileId::FidToInode(fmd_copy->getId()));
       etag = setag;
-
-      for (unsigned int i = 0; i < cxlen; i++) {
-        char hb[3];
-        sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)
-                (fmd_copy->getChecksum().getDataPadded(i)) : 0);
-        etag += hb;
-      }
+      eos::appendChecksumOnStringAsHex(fmd_copy.get(), etag);
     } else {
       // use inode + mtime
       char setag[256];

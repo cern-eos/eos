@@ -31,6 +31,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/BalanceCalculator.hh"
+#include "namespace/utils/Checksum.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -74,11 +75,9 @@ static void printChecksum(std::ofstream& ss, const eos::console::FindProto& req,
   if (req.checksum()) {
     ss << " checksum=";
 
-    for (unsigned int i = 0;
-         i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-      ss << eos::common::StringConversion::char_to_hex(
-           fmd->getChecksum().getDataPadded(i));
-    }
+    std::string checksum;
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
+    ss << checksum;
   }
 }
 

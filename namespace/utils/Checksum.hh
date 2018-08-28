@@ -40,6 +40,8 @@ namespace eos
   //----------------------------------------------------------------------------
   template<typename StringType>
   bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, bool space=false) {
+    if(!fmd) return false;
+
     unsigned int nominalChecksumLength = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
     Buffer buffer = fmd->getChecksum();
 

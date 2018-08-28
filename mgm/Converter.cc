@@ -29,6 +29,7 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/utils/Checksum.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -238,12 +239,7 @@ ConverterJob::DoIt()
       fmd = gOFS->eosFileService->getFileMD(mFid);
 
       // get the checksum string if defined
-      for (unsigned int i = 0;
-           i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-        char hb[3];
-        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-        sourceAfterChecksum += hb;
-      }
+      eos::appendChecksumOnStringAsHex(fmd.get(), sourceAfterChecksum);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",

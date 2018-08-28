@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/Checksum.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
@@ -370,12 +371,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
           entry += "</LastModified>";
           entry += "<ETag>\"";
 
-          for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId());
-               i++) {
-            char hb[3];
-            sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPtr()[i]));
-            entry += hb;
-          }
+          eos::appendChecksumOnStringAsHex(fmd.get(), entry);
 
           entry += "\"</ETag>";
           entry += "<Size>";

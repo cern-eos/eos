@@ -427,6 +427,8 @@ TEST_F(VariousTests, ChecksumFormatting) {
   out.clear();
   ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out, true));
   ASSERT_EQ(out, "12 23 55 99");
+
+  ASSERT_FALSE(eos::appendChecksumOnStringAsHex(nullptr, out));
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
