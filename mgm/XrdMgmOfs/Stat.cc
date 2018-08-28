@@ -371,13 +371,7 @@ XrdMgmOfs::_getchecksum(const char* Name,
 
     if (cxlen) {
       *xstype = eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
-
-      for (unsigned int i = 0; i < cxlen; i++) {
-        char hb[3];
-        sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
-                  fmd->getChecksum().getDataPadded(i)) : 0);
-        *xs += hb;
-      }
+      eos::appendChecksumOnStringAsHex(fmd.get(), *xs);
     }
   }
 

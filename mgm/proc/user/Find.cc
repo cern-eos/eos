@@ -28,6 +28,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/Checksum.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 
@@ -647,12 +648,11 @@ ProcCommand::Find()
                         if (printchecksum) {
                           if (!printcounter) {
                             fprintf(fstdout, " checksum=");
-                          }
 
-                          for (unsigned int i = 0;
-                               i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-                            if (!printcounter) {
-                              fprintf(fstdout, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+                            std::string str;
+                            eos::appendChecksumOnStringAsHex(fmd.get(), str);
+                            if(!str.empty()) {
+                              fprintf(fstdout, "%02x", str.c_str());
                             }
                           }
                         }

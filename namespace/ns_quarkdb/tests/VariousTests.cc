@@ -425,8 +425,12 @@ TEST_F(VariousTests, ChecksumFormatting) {
   ASSERT_EQ(out, "12235599");
 
   out.clear();
-  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out, true));
+  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out, ' '));
   ASSERT_EQ(out, "12 23 55 99");
+
+  out.clear();
+  ASSERT_TRUE(eos::appendChecksumOnStringAsHex(file1.get(), out, '_'));
+  ASSERT_EQ(out, "12_23_55_99");
 
   ASSERT_FALSE(eos::appendChecksumOnStringAsHex(nullptr, out));
 }

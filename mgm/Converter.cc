@@ -120,12 +120,7 @@ ConverterJob::DoIt()
                      attrmap, false, true);
 
       // Get checksum as string
-      for (unsigned int i = 0;
-           i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++) {
-        char hb[3];
-        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-        sourceChecksum += hb;
-      }
+      eos::appendChecksumOnStringAsHex(fmd.get(), sourceChecksum);
 
       // Get size
       StringConversion::GetSizeString(sourceSize,

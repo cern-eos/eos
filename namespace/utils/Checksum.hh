@@ -33,13 +33,13 @@ namespace eos
   //! Append FileMD checksum onto the given string. Return false only if we're
   //! not able to determine checksum type for given layout id.
   //!
-  //! Supply space == true to separate each two hexademical digits with a space.
+  //! Use the given separator to separate each two hexademical digits.
   //! ie "b5 e1 70 20", instead of "b5e17020"
   //!
   //! We use a template to support both std::string, and XrdOucString...
   //----------------------------------------------------------------------------
   template<typename StringType>
-  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, bool space=false) {
+  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, char separator = 0x00) {
     if(!fmd) return false;
 
     unsigned int nominalChecksumLength = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
@@ -48,8 +48,8 @@ namespace eos
     for(unsigned int i = 0; i < nominalChecksumLength; i++) {
       char hb[4];
 
-      if(space && i != (nominalChecksumLength-1)) {
-        sprintf(hb, "%02x ", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+      if(separator != 0x00 && i != (nominalChecksumLength-1)) {
+        sprintf(hb, "%02x%c", (unsigned char)(fmd->getChecksum().getDataPadded(i)), separator);
         out += hb;
       }
       else {

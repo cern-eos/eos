@@ -189,18 +189,9 @@
         } else if (key.find("eos.XS") != STR_NPOS) {
           response += "0 ";
           response += "value=";
-          char hb[4];
-          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
 
-          for (unsigned int i = 0; i < cxlen; i++) {
-            if ((i + 1) == cxlen) {
-              sprintf(hb, "%02x ", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-            } else {
-              sprintf(hb, "%02x_", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-            }
-
-            response += hb;
-          }
+          eos::appendChecksumOnStringAsHex(fmd.get(), response, '_');
+          response += " ";
         } else if (key.find("eos.lid") != STR_NPOS) {
           response += "0 ";
           response += "value=";

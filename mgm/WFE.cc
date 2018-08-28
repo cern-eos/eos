@@ -36,6 +36,7 @@
 #include "mgm/Master.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/utils/Checksum.hh"
 #include "Xrd/XrdScheduler.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
@@ -882,14 +883,7 @@ WFE::Job::DoIt(bool issync)
             cfmd->getCTime(ctime);
             cfmd->getMTime(mtime);
             std::string checksum;
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(cfmd->getLayoutId());
-
-            for (unsigned int i = 0; i < cxlen; i++) {
-              char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
-                        cfmd->getChecksum().getDataPadded(i)) : 0);
-              checksum += hb;
-            }
+            eos::appendChecksumOnStringAsHex(cfmd.get(), checksum);
 
             // translate uid/gid to username/groupname
             std::string user_name;
@@ -1894,7 +1888,7 @@ WFE::Job::DoIt(bool issync)
             return SFS_OK;
           } else {
             collectAttributes();
-            std::ostringstream checksum;
+            std::string checksum;
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
               notification->mutable_file()->mutable_owner()->set_username(GetUserName(
@@ -1905,14 +1899,9 @@ WFE::Job::DoIt(bool issync)
               notification->mutable_file()->mutable_cks()->set_type(
                 eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
 
-              for (auto i = 0u; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-                   i++) {
-                char hb[4];
-                sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
-                checksum << hb;
-              }
+              eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
             }
-            notification->mutable_file()->mutable_cks()->set_value(checksum.str());
+            notification->mutable_file()->mutable_cks()->set_value(checksum);
             notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
             notification->mutable_wf()->mutable_instance()->set_name(
               gOFS->MgmOfsInstanceName.c_str());

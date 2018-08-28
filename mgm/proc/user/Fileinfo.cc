@@ -380,7 +380,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "XStype: ";
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += "    XS: ";
-            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut, true);
+            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut, ' ');
 
             stdOut += "    ETAGs: ";
             stdOut += etag.c_str();
