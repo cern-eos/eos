@@ -26,12 +26,12 @@
 #define __EOSCOMMON__TIMING__HH
 
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "common/Namespace.hh"
 #include "common/ClockGetTime.hh"
 #include <sys/time.h>
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
 #include <string>
 
 EOSCOMMONNAMESPACE_BEGIN

@@ -62,6 +62,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);

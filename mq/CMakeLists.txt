@@ -47,8 +47,6 @@ add_library(XrdMqClient-Objects OBJECT
   ${CMAKE_SOURCE_DIR}/common/StringConversion.cc
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
-target_compile_options(XrdMqClient-Objects PRIVATE "-Wno-unused-value")
-
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -61,6 +59,7 @@ target_link_libraries(
   XrdMqClient PUBLIC
   fmt
   ${LIBBFD_LIBRARIES}
+  ${Z_LIBRARY}
   ${UUID_LIBRARY}
   ${CURL_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -81,6 +80,7 @@ target_link_libraries(
   XrdMqClient-Static PRIVATE
   fmt
   ${LIBBFD_LIBRARIES}
+  ${Z_LIBRARY}
   ${UUID_LIBRARY}
   ${NCURSES_LIBRARY}
   ${CURL_LIBRARIES}
@@ -128,7 +128,6 @@ add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCast
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient-Static
-  ${Z_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 

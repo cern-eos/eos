@@ -220,10 +220,8 @@ com_ls(char* arg1)
             fprintf(stdout, "%s\n", entry->d_name);
           } else {
             char t_creat[14];
-
             char modestr[11];
             eos::modeToBuffer(buf.st_mode, modestr);
-
             XrdOucString suid = "";
             suid += (int) buf.st_uid;
             XrdOucString sgid = "";
@@ -232,8 +230,6 @@ com_ls(char* arg1)
             struct tm* t_tm;
             struct tm t_tm_local;
             t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
-
-
             strftime(t_creat, 13, "%b %d %H:%M", t_tm);
             XrdOucString dirmarker = "";
 
