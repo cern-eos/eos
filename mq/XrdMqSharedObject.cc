@@ -844,9 +844,13 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 
         if ((format.find("S")) != std::string::npos) {
           std::string shortstring = Get(formattags["key"].c_str());
-          shortstring.erase(shortstring.find("."));
-          table_mq_data.back().push_back(
-            TableCell(shortstring, format));
+          const size_t pos = shortstring.find(".");
+
+          if (pos != std::string::npos) {
+            shortstring.erase(pos);
+          }
+
+          table_mq_data.back().push_back(TableCell(shortstring, format));
         }
 
         if ((format.find("l")) != std::string::npos) {
