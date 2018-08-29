@@ -25,7 +25,8 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${NCURSES_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS})
+  ${XROOTD_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
