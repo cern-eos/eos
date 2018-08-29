@@ -34,7 +34,7 @@
 
   gOFS->MgmStats.Add("Fuse-Checksum", vid.uid, vid.gid, 1);
 
-  // get the checksum 
+  // get the checksum
   XrdOucString checksum = "";
   std::shared_ptr<eos::IFileMD> fmd;
   int retc = 0;
@@ -43,20 +43,14 @@
   try
   {
     fmd = gOFS->eosView->getFile(spath.c_str());
-    size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-    for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
-    {
-      char hb[3];
-      sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
-      checksum += hb;
-    }
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum, 0x00, SHA_DIGEST_LENGTH);
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
     eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
-  
+
   if (!fmd)
   {
     retc = errno;
@@ -65,7 +59,7 @@
   {
     retc = 0;
   }
-  
+
   XrdOucString response = "checksum: ";
   response += checksum;
   response += " retc=";

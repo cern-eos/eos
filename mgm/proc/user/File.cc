@@ -35,6 +35,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/Checksum.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include <math.h>
 #include <memory>
@@ -1771,14 +1772,7 @@ ProcCommand::File()
                 (unsigned long long) fmd->getSize());
           stdOut += "&";
           stdOut += "mgm.checksum=";
-          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-
-          for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-            char hb[3];
-            sprintf(hb, "%02x", (i < cxlen) ?
-                    ((unsigned char)(fmd->getChecksum().getDataPadded(i))) : 0);
-            stdOut += hb;
-          }
+          eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA_DIGEST_LENGTH);
 
           stdOut += "&";
           stdOut += "mgm.stripes=";

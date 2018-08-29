@@ -39,21 +39,38 @@ namespace eos
   //! We use a template to support both std::string, and XrdOucString...
   //----------------------------------------------------------------------------
   template<typename StringType>
-  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, char separator = 0x00) {
+  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, char separator = 0x00, int overrideLength = -1) {
+    // All this is to maintain backward compatibility in all places where
+    // we print checksums.. I'm not sure if we absolutely need to pad with
+    // zeroes, for example.
     if(!fmd) return false;
 
     unsigned int nominalChecksumLength = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+    unsigned int targetChecksumLength;
+
+    if(overrideLength == -1) {
+      targetChecksumLength = nominalChecksumLength;
+    }
+    else {
+      targetChecksumLength = overrideLength;
+    }
+
     Buffer buffer = fmd->getChecksum();
 
-    for(unsigned int i = 0; i < nominalChecksumLength; i++) {
+    for(unsigned int i = 0; i < targetChecksumLength; i++) {
       char hb[4];
 
-      if(separator != 0x00 && i != (nominalChecksumLength-1)) {
-        sprintf(hb, "%02x%c", (unsigned char)(fmd->getChecksum().getDataPadded(i)), separator);
+      unsigned char targetCharacter = 0x00;
+      if(i < nominalChecksumLength) {
+        targetCharacter = buffer.getDataPadded(i);
+      }
+
+      if(separator != 0x00 && i != (targetChecksumLength-1)) {
+        sprintf(hb, "%02x%c", targetCharacter, separator);
         out += hb;
       }
       else {
-        sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+        sprintf(hb, "%02x", targetCharacter);
         out += hb;
       }
     }
