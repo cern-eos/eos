@@ -21,20 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/Macros.hh"
 #include "common/Logging.hh"
 #include "common/SecEntity.hh"
 #include "common/SymKeys.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 #include <pwd.h>
 #include <grp.h>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 

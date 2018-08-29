@@ -31,6 +31,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
+#include "common/Logging.hh"
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -137,7 +138,7 @@ public:
   //----------------------------------------------------------------------------
   XrdMqMessageOut(const char* queuename):
     AdvisoryStatus(false), AdvisoryQuery(false), AdvisoryFlushBackLog(false),
-    BrokenByFlush(false), nQueued(0), QueueName(queuename), MessageBuffer("")
+    BrokenByFlush(false), QueueName(queuename), mMsgBuffer("")
   {
     mMsgQueue.clear();
   }
@@ -175,33 +176,29 @@ public:
   bool AdvisoryQuery;
   bool AdvisoryFlushBackLog;
   bool BrokenByFlush;
-  int  nQueued;
   XrdOucString QueueName;
-  std::string MessageBuffer;
+  std::string mMsgBuffer;
   XrdSysSemWait DeletionSem;
   XrdSysSemWait MessageSem;
   std::deque<XrdSmartOucEnv*> mMsgQueue;
 
 private:
-  mutable XrdSysMutex mMutex;
+  mutable XrdSysMutex mMutex; ///< Mutex protecting access to the msg queue
 };
 
 //------------------------------------------------------------------------------
 //! Class XrdMqOfsFile
 //------------------------------------------------------------------------------
-class XrdMqOfsFile : public XrdSfsFile
+class XrdMqOfsFile : public XrdSfsFile, public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  XrdMqOfsFile(char* user = 0) : XrdSfsFile(user)
-  {
-    mQueueName = "";
-    mMsgOut = 0;
-    mIsOpen = false;
-    tident = "";
-  }
+  XrdMqOfsFile(char* user = 0):
+    XrdSfsFile(user), eos::common::LogId(),
+    mMsgOut(nullptr), mQueueName(), mIsOpen(false), tident("")
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -375,7 +372,7 @@ public:
   time_t       StartupTime;
   time_t       LastOutputTime;
   long long    ReceivedMessages;
-  long long    DeliveredMessages;
+  std::atomic<uint64_t> mDeliveredMessages;
   long long    FanOutMessages;
   long long    AdvisoryMessages;
   long long    UndeliverableMessages;
@@ -384,8 +381,8 @@ public:
   long long    BacklogDeferred;
   long long    QueueBacklogHits;
   long long    MaxMessageBacklog;
-  long long    MaxQueueBacklog;
-  long long    RejectQueueBacklog;
+  uint64_t     mMaxQueueBacklog;
+  uint64_t     mRejectQueueBacklog;
   void         Statistics();
   XrdOucString StatisticsFile;
   char*         ConfigFN;

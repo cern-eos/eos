@@ -222,7 +222,7 @@ add_library(EosFstIo-Static STATIC
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosFstIo-Static PUBLIC
-  eosCommon-Static
+  XrdMqClient-Static
   EosCrc32c-Static
   jerasure-static
   ${UUID_LIBRARIES}
@@ -345,8 +345,7 @@ add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 add_dependencies(XrdEosFst-Objects XrdSsiPbEosCta-Objects)
 
 set_target_properties(
-  XrdEosFst-Objects
-  PROPERTIES
+  XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(XrdEosFst-Objects PUBLIC

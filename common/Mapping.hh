@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File: Mapping.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file Mapping.hh
+//! @brief Class implementing virtual ID mapping.
+//! @author Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,36 +22,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   Mapping.hh
- *
- * @brief  Class implementing virtual ID mapping.
- *
- *
- */
-
 #ifndef __EOSCOMMON_MAPPING__
 #define __EOSCOMMON_MAPPING__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <set>
 #include <vector>
 #include <string>
 #include <google/dense_hash_map>
 
-/*----------------------------------------------------------------------------*/
-
+//! Forward declaration
 class XrdSecEntity;
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class Mapping
+//------------------------------------------------------------------------------
 class Mapping
 {
 private:
@@ -366,7 +358,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static const char* ReduceTident(XrdOucString& tident,
-    XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost);
+                                  XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost);
 
   // ---------------------------------------------------------------------------
   //! Convert a uid to a user name

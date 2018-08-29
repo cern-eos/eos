@@ -58,6 +58,7 @@
 #include <uuid/uuid.h>
 #include <string>
 #include <vector>
+#include <sstream>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 

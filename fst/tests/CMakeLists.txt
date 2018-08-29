@@ -44,7 +44,8 @@ add_executable(
 
 target_link_libraries(
   eos-fst-test
-  EosFstIo-Static
+  EosFstIo
+  eosCommonServer
   ${XROOTD_SERVER_LIBRARY})
 
 target_compile_definitions(

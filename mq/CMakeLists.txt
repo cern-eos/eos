@@ -22,13 +22,10 @@
 # ************************************************************************
 
 include_directories(
-  ${Z_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}
-  ${CURL_INCLUDE_DIRS}
+  ${NCURSES_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
-  ${NCURSES_INCLUDE_DIRS})
+  ${XROOTD_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
@@ -38,34 +35,22 @@ add_library(XrdMqClient-Objects OBJECT
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh
   XrdMqMessaging.cc     XrdMqMessaging.hh
-  XrdMqSharedObject.cc  XrdMqSharedObject.hh
-  ${CMAKE_SOURCE_DIR}/common/RWMutex.cc
-  ${CMAKE_SOURCE_DIR}/common/SharedMutex.cc
-  ${CMAKE_SOURCE_DIR}/common/PthreadRWMutex.cc
-  ${CMAKE_SOURCE_DIR}/common/StacktraceHere.cc
-  ${CMAKE_SOURCE_DIR}/common/Logging.cc
-  ${CMAKE_SOURCE_DIR}/common/StringConversion.cc
-  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
+  XrdMqSharedObject.cc  XrdMqSharedObject.hh)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(XrdMqClient SHARED
-  $<TARGET_OBJECTS:XrdMqClient-Objects>)
+add_library(XrdMqClient SHARED $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
-target_include_directories(XrdMqClient PUBLIC ${CURL_INCLUDE_DIRS})
-
-target_link_libraries(
-  XrdMqClient
-  PUBLIC ${Z_LIBRARY} ${GLIBC_DL_LIBRARY}
-  PRIVATE fmt ${GLIBC_RT_LIBRARY}
+set(XRD_MQ_CLIENT_LIBS
+  eosCommon
   ${UUID_LIBRARIES}
-  ${CURL_LIBRARIES}
-  ${LIBBFD_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
+
+target_link_libraries(XrdMqClient PUBLIC ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
   XrdMqClient PROPERTIES
@@ -73,20 +58,9 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-add_library(XrdMqClient-Static STATIC
-  $<TARGET_OBJECTS:XrdMqClient-Objects>)
+add_library(XrdMqClient-Static STATIC $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
-target_link_libraries(
-  XrdMqClient-Static
-  PUBLIC ${Z_LIBRARY} ${GLIBC_DL_LIBRARY}
-  PRIVATE fmt ${GLIBC_RT_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARIES}
-  ${LIBBFD_LIBRARIES}
-  ${CURL_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY})
+target_link_libraries(XrdMqClient-Static PUBLIC ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
   XrdMqClient-Static PROPERTIES
@@ -101,6 +75,7 @@ add_library(XrdMqOfs MODULE
 
 target_link_libraries(
   XrdMqOfs PRIVATE
+  eosCommon
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}

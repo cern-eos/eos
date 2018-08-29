@@ -31,8 +31,7 @@ include_directories(
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
-  ${LIBBFD_INCLUDE_DIRS}
-)
+  ${LIBBFD_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -63,10 +62,15 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 # eosCommon library
 #-------------------------------------------------------------------------------
 set(EOSCOMMON_SRCS
-  Mapping.cc
-  Statfs.cc
   SymKeys.cc
-  GlobalConfig.cc
+  Mapping.cc
+  RWMutex.cc
+  SharedMutex.cc
+  PthreadRWMutex.cc
+  StacktraceHere.cc
+  Logging.cc
+  StringConversion.cc
+  Statfs.cc
   Report.cc
   StringTokenizer.cc
   CommentLog.cc
@@ -74,14 +78,23 @@ set(EOSCOMMON_SRCS
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
-  plugin_manager/DynamicLibrary.cc)
+  plugin_manager/DynamicLibrary.cc
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
-target_link_libraries(eosCommon PUBLIC
-  XrdMqClient
+target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+
+target_compile_definitions(eosCommon PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+set(EOSCOMMON_LIBS
   fmt
   ${Z_LIBRARY}
+  ${CURL_LIBRARIES}
+  ${GLIBC_DL_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
+  ${LIBBFD_LIBRARIES}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
@@ -89,21 +102,14 @@ target_link_libraries(eosCommon PUBLIC
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-)
+  ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_definitions(eosCommon PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+target_link_libraries(eosCommon PUBLIC ${EOSCOMMON_LIBS})
 
 set_target_properties(eosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
-
-if(Linux)
-  target_link_libraries(eosCommon PUBLIC
-    ${GLIBC_DL_LIBRARY}
-    ${GLIBC_RT_LIBRARY})
-endif()
 
 install(TARGETS eosCommon
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -112,40 +118,24 @@ install(TARGETS eosCommon
 
 add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
 
+target_compile_definitions(eosCommon-Static PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
 target_include_directories(eosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_compile_definitions(eosCommon-Static PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+target_link_libraries(eosCommon-Static PRIVATE ${EOSCOMMON_LIBS})
 
 set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-target_link_libraries(eosCommon-Static PRIVATE
-  XrdMqClient-Static
-  fmt
-  ${Z_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${ATTR_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
-
-if(Linux)
-  target_link_libraries(eosCommon-Static PUBLIC
-    ${GLIBC_DL_LIBRARY}
-    ${GLIBC_RT_LIBRARY})
-endif()
 
 #-------------------------------------------------------------------------------
 # eosCommonServer and eosCommon-Static libraries
 #-------------------------------------------------------------------------------
 if (Linux)
   add_library(eosCommonServer SHARED
+    GlobalConfig.cc
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
@@ -220,8 +210,3 @@ if(NOT CLIENT AND Linux)
     eosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
-
-add_executable(threadpooltest ThreadPoolTest.cc)
-target_link_libraries(threadpooltest PRIVATE
-  eosCommon
-  ${CMAKE_THREAD_LIBS_INIT})
