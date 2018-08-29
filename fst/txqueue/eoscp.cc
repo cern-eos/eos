@@ -40,6 +40,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "common/XrdErrorMap.hh"
+#include "common/Timing.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"

@@ -28,6 +28,7 @@
 #include "misc/MacOSXHelper.hh"
 #include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
+#include "common/Timing.hh"
 
 #define CAP_EXTENSION_TIME 180
 

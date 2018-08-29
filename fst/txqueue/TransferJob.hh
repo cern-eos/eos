@@ -24,18 +24,19 @@
 #ifndef __EOSFST_TRANSFER_JOB__
 #define __EOSFST_TRANSFER_JOB__
 
-/* ------------------------------------------------------------------------- */
 #include "fst/Namespace.hh"
-/* ------------------------------------------------------------------------ */
 #include "Xrd/XrdJob.hh"
-/* ------------------------------------------------------------------------- */
+#include "XrdOuc/XrdOucString.hh"
 #include <string>
 
-/* ------------------------------------------------------------------------- */
-
-namespace eos { namespace common {
-  class TransferJob;
-} }
+//! Forward declaration
+namespace eos
+{
+namespace common
+{
+class TransferJob;
+}
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -63,21 +64,23 @@ private:
 
 public:
 
-  TransferJob (TransferQueue* queue, eos::common::TransferJob* cjob, int bw, int timeout = 7200);
-  ~TransferJob ();
+  TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob, int bw,
+              int timeout = 7200);
+  ~TransferJob();
 
-  void DoIt ();
-  std::string NewUuid ();
+  void DoIt();
+  std::string NewUuid();
 
-  const char* GetSourceUrl ();
-  const char* GetTargetUrl ();
+  const char* GetSourceUrl();
+  const char* GetTargetUrl();
 
-  XrdSysMutex SendMutex; // protecting the send state function against paralle usage
+  XrdSysMutex
+  SendMutex; // protecting the send state function against paralle usage
 
-  int SendState (int state, const char* logfile = 0, float progress = 0.0);
+  int SendState(int state, const char* logfile = 0, float progress = 0.0);
 
-  static void* StaticProgress (void*);
-  void* Progress ();
+  static void* StaticProgress(void*);
+  void* Progress();
 };
 
 EOSFSTNAMESPACE_END

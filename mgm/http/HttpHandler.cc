@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
+#include "common/Timing.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "namespace/utils/Mode.hh"

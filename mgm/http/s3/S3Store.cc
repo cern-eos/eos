@@ -32,6 +32,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/FileId.hh"
+#include "common/Timing.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -266,18 +267,19 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 
   // handle ending slash in bucket and prefix paths
   lBucket = mS3ContainerPath[bucket].c_str();
+
   if (!lBucket.endswith("/")) {
     lBucket += "/";
   }
 
   lPrefix = prefix.c_str();
+
   if (lPrefix.length() && !lPrefix.endswith("/")) {
     lPrefix += "/";
   }
 
   eos_static_info("msg=\"listing\" bucket=%s prefix=%s", bucket.c_str(),
                   lPrefix.c_str());
-
   // Construct listing response
   std::string result = XML_V1_UTF8;
   result += "<ListBucketResult xmlns=\"http://doc.s3.amazonaws.com/2006-03-01\">";
@@ -311,7 +313,6 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
   bool truncated = false;
   size_t truncate_pos = result.length() + 13;
   result += "<IsTruncated>false</IsTruncated>";
-
   // list directory
   std::string directory = lBucket.c_str();
   directory += lPrefix.c_str();
@@ -359,7 +360,6 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 
         try {
           fmd = gOFS->eosView->getFile(fullname);
-
           entry = "<Contents>";
           entry += "<Key>";
           entry += objectname.c_str();
@@ -377,7 +377,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
           entry += "<Size>";
           std::string sconv;
           entry += StringConversion::GetSizeString(sconv, (unsigned long long)
-                    fmd->getSize());
+                   fmd->getSize());
           entry += "</Size>";
           entry += "<StorageClass>STANDARD</StorageClass>";
           entry += "<Owner>";
@@ -399,9 +399,10 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
             eos_static_err("msg=\"could not open file\" ec=%d emsg=\"%s\" filepath=%s\n",
                            e.getErrno(), e.getMessage().str().c_str(),
                            fullname.c_str());
-            return S3Handler::RestErrorResponse(eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
-                                                "Internal Error", "Unable to open path",
-                                                fullname.c_str(), "");
+            return S3Handler::RestErrorResponse(
+                     eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                     "Internal Error", "Unable to open path",
+                     fullname.c_str(), "");
           }
         }
 
@@ -438,13 +439,13 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
           } catch (eos::MDException& e) {
             cmd.reset();
             errno = e.getErrno();
-
             eos_static_err("msg=\"could not open directory\" ec=%d emsg=\"%s\" dirpath=%s\n",
                            e.getErrno(), e.getMessage().str().c_str(),
                            fullname.c_str());
-            return S3Handler::RestErrorResponse(eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
-                                                "Internal Error", "Unable to open path",
-                                                fullname.c_str(), "");
+            return S3Handler::RestErrorResponse(
+                     eos::common::HttpResponse::INTERNAL_SERVER_ERROR,
+                     "Internal Error", "Unable to open path",
+                     fullname.c_str(), "");
           }
         }
       }

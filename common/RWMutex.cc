@@ -21,6 +21,7 @@
  ************************************************************************/
 
 #include "common/StacktraceHere.hh"
+#include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"

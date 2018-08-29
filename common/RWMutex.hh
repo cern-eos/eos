@@ -53,7 +53,6 @@
 #endif
 
 #include "common/Namespace.hh"
-#include "common/Timing.hh"
 #include "common/IRWMutex.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <stdio.h>

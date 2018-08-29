@@ -31,7 +31,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "llfusexx.hh"
 #include "common/Logging.hh"
-
+#include "common/Timing.hh"
 #include <memory>
 #include <map>
 #include <string>

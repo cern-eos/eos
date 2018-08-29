@@ -50,6 +50,7 @@
 #include "FuseCache/CacheEntry.hh"
 #include "ProcCache.hh"
 #include "common/XrdErrorMap.hh"
+#include "common/Timing.hh"
 #include "filesystem.hh"
 #include "GlobalInodeTranslator.hh"
 #include "xrdutils.hh"
@@ -1033,7 +1034,8 @@ filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 // Remove entry from mapping
 //------------------------------------------------------------------------------
 int
-filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid, gid_t gid,
+filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid,
+                           gid_t gid,
                            pid_t pid)
 {
   int retc = -1;
@@ -3429,7 +3431,8 @@ filesystem::open(const char* path,
       }
 
       *return_inode = new_ino;
-      eos_static_debug("path=%s opened ino=%lu", path, (unsigned long long) *return_inode);
+      eos_static_debug("path=%s opened ino=%lu", path,
+                       (unsigned long long) *return_inode);
     }
 
     retc = add_fd2file(file, *return_inode, uid, gid, pid, isRO, path, mknod);

@@ -25,6 +25,7 @@
 // Program demonstrating the timing facilities of the RWMutex class
 //----------------------------------------------------------------------------
 #include "common/RWMutex.hh"
+#include "common/Timing.hh"
 #include <iostream>
 
 using namespace eos::common;

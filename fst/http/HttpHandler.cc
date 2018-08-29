@@ -25,6 +25,7 @@
 #include "fst/http/HttpServer.hh"
 #include "fst/checksum/Adler.hh"
 #include "common/Path.hh"
+#include "common/Timing.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"

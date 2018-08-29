@@ -29,6 +29,7 @@
 #include "mgm/Stat.hh"
 #include "common/Path.hh"
 #include "common/StringUtils.hh"
+#include "common/Timing.hh"
 #include "namespace/utils/Mode.hh"
 
 EOSMGMNAMESPACE_BEGIN

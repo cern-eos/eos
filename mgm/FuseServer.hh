@@ -34,6 +34,7 @@
 #include "mgm/fusex.pb.h"
 #include "mgm/fuse-locks/LockTracker.hh"
 #include "common/Mapping.hh"
+#include "common/Timing.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/protobuf/util/json_util.h>
 

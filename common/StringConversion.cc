@@ -23,6 +23,7 @@
 
 #include "StringConversion.hh"
 #include "common/Logging.hh"
+#include "common/Timing.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
 

@@ -25,6 +25,7 @@
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
 #include "common/ShellCmd.hh"
+#include "common/Timing.hh"
 #include "fst/txqueue/TransferJob.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/Config.hh"
