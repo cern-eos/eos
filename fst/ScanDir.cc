@@ -844,7 +844,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
         }
 
         //adjust the rate according to the load information
-        load = fstLoad->GetDiskRate("sda", "millisIO") / 1000.0;
+        load = fstLoad->GetDiskRate(dirPath.c_str(), "millisIO") / 1000.0;
 
         if (load > 0.7) {
           //adjust currentRate

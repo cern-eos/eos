@@ -76,7 +76,7 @@ public:
 
   ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
           eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
-          int ratebandwidth = 100, bool setchecksum = false);
+          int ratebandwidth = 50, bool setchecksum = false);
 
   void ScanFiles();
 
