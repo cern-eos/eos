@@ -788,7 +788,7 @@ metad::get(fuse_req_t req,
 
     case 2: {
       // we make sure, that the meta data record is attached to the local parent
-      if (pmd->id()) {
+      if (pmd && pmd->id()) {
         if (!pmd->local_children().count(md->name()) && !md->deleted()) {
           eos_static_info("attaching %s [%lx] to %s [%lx]", md->name().c_str(), md->id(),
                           pmd->name().c_str(), pmd->id());
