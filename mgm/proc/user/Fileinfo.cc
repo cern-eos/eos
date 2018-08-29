@@ -60,9 +60,9 @@ ProcCommand::Fileinfo()
       (!spath.beginswith("pxid:"))) {
     if (gOFS->_stat(path, &buf, *mError, *pVid, (char*) 0, (std::string*)0,
                     false)) {
-      stdErr = "error: cannot stat ";
+      stdErr = "error: cannot stat '";
       stdErr += path;
-      stdErr += "\n";
+      stdErr += "'\n";
       retc = ENOENT;
       return SFS_OK;
     }

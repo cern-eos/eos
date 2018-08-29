@@ -1020,6 +1020,7 @@ Run(int argc, char* argv[])
   // Bind our completer
   rl_readline_name = (char*) "EOS Console";
   rl_attempted_completion_function = eos_console_completion;
+  rl_completer_quote_characters = "\"";
   rl_completion_append_character = '\0';
 
   if (getenv("EOS_HISTORY_FILE")) {

@@ -32,7 +32,7 @@
 extern int com_ls(char*);
 
 //------------------------------------------------------------------------------
-// Helper function to extact the dirname and base name from a absolute or
+// Helper function to extract the dirname and base name from a absolute or
 // relative path. For example:
 // "/a/b/c/d"  -> dirname: "/a/b/c/"   and basename: "d"
 // "/a/b/c/d/" -> dirname: "/a/b/c/d/" and basename: ""
@@ -70,7 +70,7 @@ char** eos_console_completion(const char* text, int start, int end)
 {
   char** matches;
   matches = (char**) 0;
-  // Disable filename cmopletion if our generator finds no matches
+  // Disable filename completion if our generator finds no matches
   rl_attempted_completion_over = 1;
 
   // If this word is at the start of the line, then it is a command
@@ -116,7 +116,7 @@ char* eos_entry_generator(const char* text, int state, bool only_dirs)
   static size_t index;
   static std::vector<std::string> entries;
 
-  // If this is a new word to complete, initialize now.  This includes
+  // If this is a new word to complete, initialize now. This includes
   // saving the length of TEXT for efficiency, and initializing the index
   // variable to 0.
   if (!state) {
@@ -150,8 +150,7 @@ char* eos_entry_generator(const char* text, int state, bool only_dirs)
       XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
 
       do {
-        subtokenizer.GetLine();
-        XrdOucString entry = subtokenizer.GetToken();
+        XrdOucString entry = subtokenizer.GetLine();
 
         if (entry.length()) {
           if (entry.endswith('\n')) {
@@ -163,7 +162,7 @@ char* eos_entry_generator(const char* text, int state, bool only_dirs)
           }
 
           if (rl_completion_type == 63) { // ? - list possible completions
-            // When lising completions we need to return the basename of the
+            // When listing completions we need to return the basename of the
             // candidates
             if (basename.empty() ||
                 ((strncmp(basename.c_str(), entry.c_str(), basename.length()) == 0) &&

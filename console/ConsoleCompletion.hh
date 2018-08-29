@@ -40,17 +40,17 @@ char** eos_console_completion(const char* text, int start, int end);
 //!
 //! @param text partial text to be completed
 //! @param state 0 the first time the function is called allowing the generator
-//!        to perform initialization and positive non-zeor integer for each
+//!        to perform initialization and positive non-zero integer for each
 //!        subsequent call.
-//! @param only_files if true then return only file entries, otherwise return
+//! @param only_dirs if true then return only directories, otherwise return
 //!        both files and directories
 //!
-//! @return NULL when there are no more completion possibilites left, otherwise
+//! @return NULL when there are no more completion possibilities left, otherwise
 //!        return a string that must be allocated with malloc() since readline
-//!        will free the strings when it has finised with them.
+//!        will free the strings when it has finished with them.
 //------------------------------------------------------------------------------
 char* eos_entry_generator(const char* text, int state,
-                          bool only_files = false);
+                          bool only_dirs = false);
 
 //------------------------------------------------------------------------------
 //! EOS directories generator - similar to the above
@@ -68,7 +68,7 @@ char* eos_all_generator(const char* text, int state);
 char* eos_command_generator(const char* text, int state);
 
 //------------------------------------------------------------------------------
-//! Helper function to extact the dirname and base name from a absolute or
+//! Helper function to extract the dirname and base name from a absolute or
 //! relative path. For example:
 //! "/a/b/c/d"  -> dirname: "/a/b/c/"   and basename: "d"
 //! "/a/b/c/d/" -> dirname: "/a/b/c/d/" and basename: ""

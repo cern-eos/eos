@@ -271,7 +271,7 @@ com_ls(char* arg1)
   return (0);
 com_ls_usage:
   fprintf(stdout,
-          "usage: ls [-lani] <path>                                                  :  list directory <path>\n");
+          "usage: ls [-laniyF] <path>                                             :  list directory <path>\n");
   fprintf(stdout, "                    -l : show long listing\n");
   fprintf(stdout,
           "                    -y : show long listing with backend(tape) status\n");
@@ -280,6 +280,7 @@ com_ls_usage:
   fprintf(stdout, "                    -a : show hidden files\n");
   fprintf(stdout, "                    -i : add inode information\n");
   fprintf(stdout, "                    -n : show numerical user/group ids\n");
+  fprintf(stdout, "                    -F : append indicator '/' to directories \n");
   fprintf(stdout,
           "                    -s : checks only if the directory exists without listing\n");
   fprintf(stdout, "         path=file:... : list on a local file system\n");
