@@ -622,6 +622,7 @@ public:
 
   virtual ~Proxy()
   {
+    WaitOpen();
     Collect();
     eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(),
                get_readahead_volume_efficiency());
