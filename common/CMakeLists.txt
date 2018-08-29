@@ -67,6 +67,7 @@ set(EOSCOMMON_SRCS
   RWMutex.cc
   SharedMutex.cc
   PthreadRWMutex.cc
+  ClockGetTime.cc
   StacktraceHere.cc
   Logging.cc
   StringConversion.cc
