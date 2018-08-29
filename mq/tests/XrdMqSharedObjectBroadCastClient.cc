@@ -27,6 +27,7 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include <stdio.h>
+#include <thread>
 
 int main(int argc, char* argv[])
 {
