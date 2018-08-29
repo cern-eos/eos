@@ -40,7 +40,7 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh)
 
 target_link_libraries(
-  eos-fst-test
+  eos-fst-test PRIVATE
   EosFstIo
   eosCommonServer
   ${XROOTD_SERVER_LIBRARY})
