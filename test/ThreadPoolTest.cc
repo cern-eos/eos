@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
 // File: ThreadPoolTest.cc
-// Author: root - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -26,46 +25,44 @@
 
 using namespace eos::common;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   ThreadPool pool(2, 8, 5, 5);
-
   std::vector<std::future<int>> futures;
-  for(int i = 0; i < 200000; i++) {
-    auto future = pool.PushTask<int>(
-      [i] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        cout << i << " from " << std::this_thread::get_id() << endl;
-        return i;
-      }
-    );
 
+  for (int i = 0; i < 200000; i++) {
+    auto future = pool.PushTask<int>(
+    [i] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      cout << i << " from " << std::this_thread::get_id() << endl;
+      return i;
+    }
+                  );
     futures.emplace_back(std::move(future));
   }
 
-  for(auto&& future : futures) {
+  for (auto && future : futures) {
     cout << future.get() << endl;
   }
+
   futures.clear();
-
   std::this_thread::sleep_for(std::chrono::seconds(25));
-  for(int i = 60; i < 100; i++) {
-    auto future = pool.PushTask<int>(
-      [i] {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        cout << i << " from " << std::this_thread::get_id() << endl;
-        return i;
-      }
-    );
 
+  for (int i = 60; i < 100; i++) {
+    auto future = pool.PushTask<int>(
+    [i] {
+      std::this_thread::sleep_for(std::chrono::seconds(3));
+      cout << i << " from " << std::this_thread::get_id() << endl;
+      return i;
+    }
+                  );
     futures.emplace_back(std::move(future));
   }
 
-  for(auto&& future : futures) {
+  for (auto && future : futures) {
     cout << future.get() << endl;
   }
 
   pool.Stop();
-
   return 0;
 }
-

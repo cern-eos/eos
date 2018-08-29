@@ -125,8 +125,8 @@ set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_
 
 install(
   TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
-	  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-	  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
+          xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
+          xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
@@ -135,5 +135,8 @@ install(
            eos-http-upload-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
+
+add_executable(threadpooltest ThreadPoolTest.cc)
+target_link_libraries(threadpooltest PRIVATE eosCommon)
