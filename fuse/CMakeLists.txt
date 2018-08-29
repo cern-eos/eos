@@ -51,9 +51,6 @@ add_executable(
   FuseCacheEntry.cc          FuseCacheEntry.hh
   AuthIdManager.cc           xrdutils.cc)
 
-target_compile_definitions(eosd PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
-
 if(MacOSX)
   target_link_libraries(
     eosd PRIVATE

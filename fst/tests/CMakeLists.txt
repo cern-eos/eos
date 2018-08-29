@@ -33,6 +33,9 @@ add_executable(
   TestEnv.cc
   MonitorVarPartitionTest.cc
   FstFileTest.cc
+  ${CMAKE_SOURCE_DIR}/common/FileSystem.cc
+  ${CMAKE_SOURCE_DIR}/common/TransferQueue.cc
+  ${CMAKE_SOURCE_DIR}/common/TransferJob.cc
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc
   ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
@@ -41,8 +44,7 @@ add_executable(
 
 target_link_libraries(
   eos-fst-test PRIVATE
-  EosFstIo
-  eosCommonServer
+  EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})
 
 target_compile_definitions(
