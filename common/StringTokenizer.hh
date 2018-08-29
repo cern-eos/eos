@@ -73,14 +73,14 @@ public:
   ~StringTokenizer();
 
   //----------------------------------------------------------------------------
-  //! Get next parsed line seperated by \n
+  //! Get next parsed line separated by \n
   //!
   //! @return next line
   //----------------------------------------------------------------------------
   const char* GetLine();
 
   //----------------------------------------------------------------------------
-  //! Return next parsed space seperated token taking into account escaped
+  //! Return next parsed space separated token taking into account escaped
   //! blanks and quoted strings
   //!
   //! @param escapeand if true escape & with #AND# !! UGLY!!
@@ -101,7 +101,7 @@ public:
   static C split(const std::string& str, const char delimiter);
 
   //----------------------------------------------------------------------------
-  //! Merge vector's contents using the provided delimter
+  //! Merge vector's contents using the provided delimiter
   //!
   //! @param container container of tokens
   //! @param delimiter delimiter
@@ -138,7 +138,7 @@ C StringTokenizer::split(const std::string& str, char delimiter)
 }
 
 //------------------------------------------------------------------------------
-// Merge container's contents using the provided delimter
+// Merge container's contents using the provided delimiter
 //------------------------------------------------------------------------------
 template<typename C>
 std::string

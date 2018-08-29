@@ -71,7 +71,7 @@ public:
    * Tokenize a string
    *
    * @param str string to be tokenized
-   * @param tokens  returned list of seperated string tokens
+   * @param tokens  returned list of separated string tokens
    * @param delimiters delimiter used for tokenizing
    */
   // ----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ public:
    * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
    *
    * @param str string to be tokenized
-   * @param tokens  returned list of seperated string tokens
+   * @param tokens  returned list of separated string tokens
    * @param delimiters delimiter used for tokenizing
    */
   // ---------------------------------------------------------------------------
@@ -288,12 +288,12 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * Split a comma seperated key:val list and fill it into a map
+   * Split a comma separated key:val list and fill it into a map
    *
    * @param mapstring map string to parse
    * @param map return map after parsing if ok
-   * @param split seperator used to seperate key from value default ":"
-   * @param delimiter seperator used to seperate individual key value pairs
+   * @param split separator used to separate key from value default ":"
+   * @param delimiter separator used to separate individual key value pairs
    * @param keyvector returns optional the order of the keys in a vector
    * @return true if format ok, otherwise false
    */
@@ -403,7 +403,7 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * Read a long long number as output of a shell command - this is not usefull
+   * Read a long long number as output of a shell command - this is not useful
    * in multi-threaded environments.
    *
    * @param shellcommand to execute
@@ -415,7 +415,7 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * Read a string as output of a shell command - this is not usefull in
+   * Read a string as output of a shell command - this is not useful in
    * multi-threaded environments.
    *
    * @param shellcommand to execute
@@ -533,8 +533,8 @@ public:
   /**
    * Return an octal string
    * @param number - integer
-   * @param mininum format length
-   * @return ocal number as string
+   * @param minimum format length
+   * @return octal number as string
    */
   // ---------------------------------------------------------------------------
   static std::string

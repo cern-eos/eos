@@ -50,7 +50,7 @@ com_mkdir(char* arg1)
   }
 
   do {
-    // read space seperated names as a single directory name
+    // read space separated names as a single directory name
     XrdOucString param;
     param = subtokenizer.GetToken();
 

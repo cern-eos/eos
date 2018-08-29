@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdCl/XrdClFile.hh"
+#include <iomanip>
 #include <setjmp.h>
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -844,7 +845,7 @@ Run(int argc, char* argv[])
     }
 
     if (in1.length()) {
-      // check if this is a file (workaournd for XrdOucString bug
+      // check if this is a file (workaround for XrdOucString bug
       if ((in1.length() > 5) && (in1.endswith(".eosh")) &&
           (!access(in1.c_str(), R_OK))) {
         // this is a script file
@@ -876,19 +877,17 @@ Run(int argc, char* argv[])
       } else {
         XrdOucString cmdline = "";
 
-        // this are commands
+        // enclose all arguments except first in quotes
         for (int i = argindex; i < argc; i++) {
-          if (i != argindex) {
-            cmdline += "\"";
+          if (i == argindex) {
+            cmdline += argv[i];
+          } else {
+            stringstream ss;
+            ss << std::quoted(argv[i]);
+
+            cmdline += " ";
+            cmdline += ss.str().c_str();
           }
-
-          cmdline += argv[i];
-
-          if (i != argindex) {
-            cmdline += "\"";
-          }
-
-          cmdline += " ";
         }
 
         if ((!selectedrole) && (!getuid()) &&
@@ -915,7 +914,7 @@ Run(int argc, char* argv[])
           // put the eos daemon into batch mode
           interactive = false;
           global_highlighting = false;
-          iopipe.Init(); // need to initialize for Checkproducer
+          iopipe.Init(); // need to initialize for CheckProducer
 
           if (!iopipe.CheckProducer()) {
             // We need to run a pipe daemon, so we fork here and let the fork
@@ -1139,7 +1138,7 @@ execute_line(char* line)
   }
   global_comment = comment.c_str();
 
-  // Isolate the command word and the rest of the arguments
+  // Isolate the command word from the rest of the arguments
   std::list<std::string> tokens =
     eos::common::StringTokenizer::split<std::list<std::string>>(line, ' ');
 
@@ -1157,8 +1156,8 @@ execute_line(char* line)
     return (-1);
   }
 
-  tokens.erase(tokens.begin());
-  std::string args = eos::common::StringTokenizer::merge(tokens, ' ');
+  line = stripwhite(line + tokens.begin()->size());
+  std::string args = (line)  ?  line  :  "";
   return ((*(command->func))((char*)args.c_str()));
 }
 
@@ -1205,7 +1204,7 @@ stripwhite(char* string)
 }
 
 //------------------------------------------------------------------------------
-// Parse the command line, extract the comment
+// Parse the command line, extracts the comment
 // and returns the line without the comment in it
 //------------------------------------------------------------------------------
 char*

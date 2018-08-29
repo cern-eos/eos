@@ -421,7 +421,7 @@ StringConversion::SplitKeyValue(XrdOucString keyval, XrdOucString& key,
 }
 
 //------------------------------------------------------------------------------
-// Split a comma seperated key:val list and fill it into a map
+// Split a comma separated key:val list and fill it into a map
 //------------------------------------------------------------------------------
 bool
 StringConversion::GetKeyValueMap(const char* mapstring,
@@ -975,7 +975,7 @@ StringConversion::curl_escaped(const std::string& str)
     if (output) {
       ret_str = output;
       curl_free(output);
-      // dont't escape '/'
+      // don't escape '/'
       XrdOucString no_slash = ret_str.c_str();
 
       while (no_slash.replace("%2F", "/")) {}
@@ -990,7 +990,7 @@ StringConversion::curl_escaped(const std::string& str)
 }
 
 //------------------------------------------------------------------------------
-// Unscape string using CURL
+// Unescape string using CURL
 //------------------------------------------------------------------------------
 std::string
 StringConversion::curl_unescaped(const std::string& str)

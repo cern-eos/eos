@@ -104,12 +104,6 @@ StringTokenizer::GetLine()
         }
       }
 
-      if (!inquote) {
-        if ((i < len) && (line[i] == ' ') && (line[i + 1] == ' ')) {
-          continue;
-        }
-      }
-
       if ((line[i] == ' ') || (line[i] == 0) || (line[i] == '\n')) {
         if (!inquote) {
           if ((i > 1) && (line[i - 1] == '\\')) {
@@ -156,18 +150,17 @@ StringTokenizer::GetToken(bool escapeand)
       item.erase(item.length() - 1);
     }
 
-    int pos = 0;
+    if (escapeand) {
+      int pos = 0;
 
-    while ((pos = item.find("&", pos)) != STR_NPOS) {
-      if (escapeand) {
-        if ((pos == 0) ||
-            (item[pos - 1] != '\\')) {
+      while ((pos = item.find("&", pos)) != STR_NPOS) {
+        if ((pos == 0) || (item[pos - 1] != '\\')) {
           item.erase(pos, 1);
           item.insert("#AND#", pos);
         }
-      }
 
-      pos++;
+        pos++;
+      }
     }
 
     fLineArgs[fCurrentArg] = item.c_str();
