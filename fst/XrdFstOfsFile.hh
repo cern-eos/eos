@@ -329,7 +329,7 @@ public:
 
 protected:
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
-  XrdOucEnv* mCapOpaque; ///< Capability opaque info (decrypted)
+  std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
   XrdOucString mFstPath; ///< Physical path on the FST
   off_t mBookingSize;
   off_t mTargetSize;

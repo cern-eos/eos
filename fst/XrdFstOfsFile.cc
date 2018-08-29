@@ -1548,7 +1548,7 @@ XrdFstOfsFile::close()
       rc = SFS_ERROR;
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                mCapOpaque->Get("mgm.path"), mFstPath.c_str());
-      int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque,
+      int retc = gOFS._rem(mNsPath.c_str(), error, 0, mCapOpaque.get(),
                            mFstPath.c_str(), mFileId, mFsId, true);
 
       if (retc) {
@@ -3072,7 +3072,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       gOFS.TpcMap[mIsTpcDst][tpc_key].opaque = opaque.c_str();
       // Store also the decoded capability info
       XrdOucEnv tmp_env(opaque.c_str());
-      XrdOucEnv* cap_env = 0;
+      XrdOucEnv* cap_env {nullptr};
       int caprc = gCapabilityEngine.Extract(&tmp_env, cap_env);
 
       if (caprc == ENOKEY) {
@@ -3174,11 +3174,8 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
 
     if (gOFS.TpcMap[mIsTpcDst][tpc_key].capability.length()) {
-      if (mCapOpaque) {
-        delete mCapOpaque;
-      }
-
-      mCapOpaque = new XrdOucEnv(gOFS.TpcMap[mIsTpcDst][tpc_key].capability.c_str());
+      mCapOpaque.reset(new XrdOucEnv(
+                         gOFS.TpcMap[mIsTpcDst][tpc_key].capability.c_str()));
     } else {
       return gOFS.Emsg(epname, error, EINVAL, "open - capability not found "
                        "for tpc key %s", tpc_key.c_str());
@@ -3208,15 +3205,12 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
   if ((mTpcFlag == kTpcNone) ||
       (mTpcFlag == kTpcDstSetup) ||
       (mTpcFlag == kTpcSrcCanDo)) {
-    int caprc = 0;
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
+    XrdOucEnv* ptr_opaque {nullptr};
+    int caprc = gCapabilityEngine.Extract(mOpenOpaque.get(), ptr_opaque);
+    mCapOpaque.reset(ptr_opaque);
 
-    if (mCapOpaque) {
-      delete mCapOpaque;
-      mCapOpaque = 0;
-    }
-
-    if ((caprc = gCapabilityEngine.Extract(mOpenOpaque.get(), mCapOpaque))) {
+    if (caprc) {
       // If we just miss the key, better stall thec lient
       if (caprc == ENOKEY) {
         return gOFS.Stall(error, 10, "FST still misses the required capability key");
