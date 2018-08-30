@@ -44,7 +44,7 @@ using namespace std;
 using namespace eos::common;
 
 thread_local bool DbMapT::tlIterating {false};
-thread_local DbMapT::TlogentryVec DbMapT::tlDbItList {};
+thread_local DbMapT::TlogentryVec* DbMapT::tlDbItList {new DbMapT::TlogentryVec()};
 thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
 
 bool outofcore = false;

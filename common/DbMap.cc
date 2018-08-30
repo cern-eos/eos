@@ -27,7 +27,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 thread_local bool DbMapT::tlIterating {false};
-thread_local DbMapT::TlogentryVec DbMapT::tlDbItList {};
+thread_local DbMapT::TlogentryVec* DbMapT::tlDbItList {new DbMapT::TlogentryVec()};
 thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
 /*-------------- IMPLEMENTATIONS OF STATIC MEMBER VARIABLES ------------------*/
 set<string> DbMapT::gNames;

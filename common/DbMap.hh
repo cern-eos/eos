@@ -216,7 +216,7 @@ private:
   // ------------------------------------------------------------------------
   //! this list is used to iterate through the db by block
   // ------------------------------------------------------------------------
-  static thread_local TlogentryVec tlDbItList;
+  static thread_local TlogentryVec* tlDbItList;
 
   // ------------------------------------------------------------------------
   //! these members are used for the iteration through the map
@@ -737,9 +737,9 @@ public:
     if (pUseMap) {
       pIt = pMap.begin();
     } else {
-      tlDbItList.clear();
-      pDb->getAll(&tlDbItList, pDbIterationChunkSize, NULL);
-      tlDbIt = tlDbItList.begin();
+      tlDbItList->clear();
+      pDb->getAll(tlDbItList, pDbIterationChunkSize, NULL);
+      tlDbIt = tlDbItList->begin();
     }
 
     tlIterating = true;
@@ -771,25 +771,25 @@ public:
       }
     } else {
       // iter directly from the db
-      if (tlDbIt == tlDbItList.end()) {
+      if (tlDbIt == tlDbItList->end()) {
         Tlogentry entry;
         Tlogentry* lastentry;
 
-        if (tlDbItList.empty()) {
+        if (tlDbItList->empty()) {
           lastentry = NULL;
         } else {
           entry = *--tlDbIt;
           lastentry = &entry;
         }
 
-        tlDbItList.clear();
+        tlDbItList->clear();
 
-        if (pDb->getAll(&tlDbItList, pDbIterationChunkSize, lastentry) == 0) {
+        if (pDb->getAll(tlDbItList, pDbIterationChunkSize, lastentry) == 0) {
           endIter(unlockit);
           return false;
         }
 
-        tlDbIt = tlDbItList.begin();
+        tlDbIt = tlDbItList->begin();
       }
 
       // dbit actually points to something
