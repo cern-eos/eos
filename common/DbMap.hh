@@ -68,14 +68,17 @@ public:
   typedef std::vector<Tkeyval> Tlist;
   typedef typename TDbLogInterface::Option Toption;
 
-  // ------------------------------------------------------------------------
-  /// constr , destr
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   DbLogT();
 
   DbLogT(const std::string dbfile, int volumeduration = -1, int createperm = 0,
          Toption* option = NULL);
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~DbLogT();
 
   bool setDbFile(const std::string& dbname, int volumeduration = -1,
@@ -95,7 +98,8 @@ public:
   //!                           after  execution : position at which the search has to start at the next iteration
   //! @return the number of entries appended to the result vector retvec
   // ------------------------------------------------------------------------
-  int getAll(TlogentryVec* retvec, size_t nmax = 0, Tlogentry* startafter = NULL) const;
+  int getAll(TlogentryVec* retvec, size_t nmax = 0,
+             Tlogentry* startafter = NULL) const;
 
   // ------------------------------------------------------------------------
   //! Get the latest entries of the DbLog
@@ -1124,7 +1128,7 @@ typedef DbLogT DbLog;
 //! Display helpers
 //------------------------------------------------------------------------------
 inline std::ostream& operator << (std::ostream& os,
-                           const DbMapT& map)
+                                  const DbMapT& map)
 {
   const DbMapTypes::Tkey* key;
   const DbMapTypes::Tval* val;

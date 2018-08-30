@@ -371,50 +371,8 @@ main()
   arch_loop
   delete(*it);
   cout.flush();
-  cout << "==== Compacting ===" << endl;
-  cout.flush();
-  DbMap dbm_1, dbm_2;
-  // loading the uncompacted log
-  dbm_1.loadDbLog("/tmp/testlog_no_slice.db");
-  // compacting the log
-  DbLog dbl_1("/tmp/testlog_no_slice.db");
-  // loading the compacted log
-  dbm_2.loadDbLog("/tmp/testlog_no_slice.db.compacted");
-  const DbMapTypes::Tkey* key1, *key2;
-  const DbMapTypes::Tval* val1, *val2;
-  // skip compiler warning
-  key1 = key2 = 0;
-  val1 = val2 = 0;
-  // compare size
-  assert(dbm_1.size() == dbm_1.size());
-  //compare content
-  bool ok = true;
-  dbm_2.beginIter();
-
-  for (dbm_1.beginIter(); dbm_1.iterate(&key1, &val1);) {
-    dbm_2.iterate(&key2, &val2);
-
-    if (!((*key1 == *key2) && (*val1 == *val2))) {
-      ok = false;
-      cout << "!!! non identical entry detected" << endl;
-      cout << " Not Compacted " << *key1 << " --> " << *val1 << endl;
-      cout << " Compacted " << *key2 << " --> " << *val2 << endl;
-    }
-  }
-
-  dbm_2.endIter();
-  dbm_1.endIter();
-
-  if (ok) {
-    cout << "compacted and non-compacted resulting maps are identical" << endl;
-  } else {
-    assert(false);
-  }
-
-  //  cout << " Not Compacted " << dbm_1 << endl;
-  //  cout << " Compacted " << dbm_2<< endl;
-  cout << "============================" << endl;
   {
+    bool ok = true;
     DbMap dbm2;
     cout << "==== Persistency ===" << endl;
 

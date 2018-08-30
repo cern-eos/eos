@@ -239,6 +239,5 @@ endif()
 
 add_executable(threadpooltest ThreadPoolTest.cc)
 target_link_libraries(threadpooltest PRIVATE
-  ${LIBBFD_LIBRARIES}
   eosCommon
   ${CMAKE_THREAD_LIBS_INIT})

@@ -25,9 +25,7 @@
  *
  * @brief  This program performs some intensive reading and writing operations using the DbMap class.
  *         Several access schemes are tested (concurrency, block sizes) and speed measurements are provided.
- *         Note that by defining EOS_SQLITE_DBMAP while building the common lib, the test
- *       will meter the performances of the SQLITE implementation.
- *       Before running this program it might be need to rm -rf /tmp/testlog*
+ *         Before running this program it might be need to rm -rf /tmp/testlog*
  *
  */
 
@@ -408,11 +406,9 @@ main()
 
         if (r < thresh) {
           // we call just a hundredth of the data
-          // coverity[DC.WEAK_CRYPTO]
           kk = rand() * nfill / RAND_MAX;
           kk -= kk % 100;
         } else {
-          // coverity[DC.WEAK_CRYPTO]
           kk = rand() * nfill / RAND_MAX;
         }
 
