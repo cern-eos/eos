@@ -30,7 +30,7 @@
 #include "common/ShellCmd.hh"
 #include "XrdVersion.hh"
 
-XrdVERSIONINFOREF( XrdgetProtocol );
+XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -426,9 +426,11 @@ Storage::Publish()
             {
               XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
               int pos = v.find(" ");
+
               if (pos != STR_NPOS) {
                 v.erasefromstart(pos + 1);
               }
+
               hash->Set("stat.sys.xrootd.version", v.c_str());
             }
             hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
@@ -457,8 +459,8 @@ Storage::Publish()
         }
 
         gOFS.ObjectManager.CloseMuxTransaction();
-        next_consistency_stats = last_consistency_stats +
-                                 60; // report the consistency only once per minute
+        // Report the consistency stats only once every 5 min
+        next_consistency_stats = last_consistency_stats + sConsistencyTimeout.count();
       }
     }
 
