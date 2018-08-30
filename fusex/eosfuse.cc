@@ -1537,7 +1537,8 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   fuse_id id(req);
   struct fuse_entry_param e;
   metad::shared_md md = Instance().mds.getlocal(req, ino);
-  {
+
+  if (ino != 1) {
     XrdSysMutexHelper mLock(md->Locker());
 
     if (!md->id() || (md->deleted() && !md->lookup_is())) {
@@ -1555,6 +1556,10 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         eos_static_info("%s", md->dump(e).c_str());
       }
     }
+  } else {
+    // mountpoint stat does not require a cap
+    md->convert(e);
+    eos_static_info("%s", md->dump(e).c_str());
   }
 
   if (rc) {
