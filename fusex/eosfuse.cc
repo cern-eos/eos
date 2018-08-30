@@ -437,7 +437,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("no-link")) {
-      root["options"]["no-link"] = 1;
+      root["options"]["no-link"] = 0;
     }
 
     if (!root["options"].isMember("nocache-graceperiod")) {
