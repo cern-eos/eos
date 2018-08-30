@@ -380,8 +380,6 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
            fsDBFileName);
   eos::common::RWMutexReadLock rd_lock(mMapMutex);
   FsWriteLock vlock(fsid);
-  // Store the DB file name
-  DBfilename[fsid] = fsDBFileName;
   // Create / or attach the db (try to repair if needed)
   eos::common::LvDbDbMapInterface::Option* dbopt = &lvdboption;
 

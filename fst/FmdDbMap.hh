@@ -405,7 +405,6 @@ private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
   mutable eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
   eos::common::LvDbDbMapInterface::Option lvdboption;
-  std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;
   std::map<eos::common::FileSystem::fsid_t, bool> mIsSyncing;
   ///! Map containing mutexes for each file system id
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex*>
