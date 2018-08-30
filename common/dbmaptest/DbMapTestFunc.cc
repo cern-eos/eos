@@ -27,14 +27,14 @@
  *
  */
 
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<common/DbMap.hh>
-#include<pthread.h>
+#include "common/DbMap.hh"
 #include "google/protobuf/text_format.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "test.pb.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <pthread.h>
 
 #define NUM_THREADS     5
 #define STRING(x) STRING2(x)
@@ -43,8 +43,11 @@
 using namespace std;
 using namespace eos::common;
 
-bool outofcore = false;
+thread_local bool DbMapT::tlIterating {false};
+thread_local DbMapT::TlogentryVec DbMapT::tlDbItList {};
+thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
 
+bool outofcore = false;
 DbMap dbm;
 DbMap dbm_no_slice;
 
@@ -56,10 +59,10 @@ FillTheMap(void* threadid)
   char buffer[32];
   sprintf(buffer, "/tmp/testlog_%ld.db", tid);
   DbMap dbm_local;
-  dbm_local.attachLog("/tmp/testlog.db",
-                      10); // I don't need to detach because the map is dying at the end of the function
-  dbm_local.attachLog(buffer,
-                      10); // I don't need to detach because the map is dying at the end of the function
+  // I don't need to detach because the map is dying at the end of the function
+  dbm_local.attachLog("/tmp/testlog.db", 10);
+  // I don't need to detach because the map is dying at the end of the function
+  dbm_local.attachLog(buffer, 10);
   sprintf(buffer, "thread #%ld", tid);
   dbm_local.set("Key1", "Value1", buffer);
   usleep(0 * tid * 100000);

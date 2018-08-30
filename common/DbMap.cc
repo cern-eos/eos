@@ -26,63 +26,74 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+thread_local bool DbMapT::tlIterating {false};
+thread_local DbMapT::TlogentryVec DbMapT::tlDbItList {};
+thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
 /*-------------- IMPLEMENTATIONS OF STATIC MEMBER VARIABLES ------------------*/
 set<string> DbMapT::gNames;
 eos::common::RWMutex DbMapT::gNamesMutex;
 eos::common::RWMutex DbMapT::gTimeMutex;
 bool DbMapT::gInitialized = false;
 size_t DbMapT::pDbIterationChunkSize = 10000;
-
 /*----------------------------------------------------------------------------*/
 typedef DbMapT DbMapLeveldb;
 
-DbLogT::DbLogT() {
+DbLogT::DbLogT()
+{
   pDb = new TDbLogInterface();
   pMutex.SetBlocking(true);
 }
 
 DbLogT::DbLogT(const std::string dbfile, int volumeduration, int createperm,
-         Toption* option) {
+               Toption* option)
+{
   pDb = new TDbLogInterface(dbfile, volumeduration, createperm, option);
 }
 
-DbLogT::~DbLogT() {
+DbLogT::~DbLogT()
+{
   RWMutexWriteLock lock(pMutex);
   delete pDb;
 }
 
 bool DbLogT::setDbFile(const std::string& dbname, int volumeduration,
-                 int createperm, Toption* option) {
+                       int createperm, Toption* option)
+{
   RWMutexWriteLock lock(pMutex);
   return pDb->setDbFile(dbname, volumeduration, createperm, (void*)option);
 }
 
-std::string DbLogT::getDbFile() const {
+std::string DbLogT::getDbFile() const
+{
   RWMutexWriteLock lock(pMutex);
   return pDb->getDbFile();
 }
 
-int DbLogT::getAll(TlogentryVec* retvec, size_t nmax, Tlogentry* startafter) const {
-
+int DbLogT::getAll(TlogentryVec* retvec, size_t nmax,
+                   Tlogentry* startafter) const
+{
   int startsize = retvec->size();
   RWMutexReadLock lock(pMutex);
   pDb->getAll(retvec, nmax, startafter);
   return retvec->size() - startsize;
 }
 
-int DbLogT::getTail(int nentries, TlogentryVec* retvec) const {
+int DbLogT::getTail(int nentries, TlogentryVec* retvec) const
+{
   int startsize = retvec->size();
   RWMutexReadLock lock(pMutex);
   pDb->getTail(nentries, retvec);
   return retvec->size() - startsize;
 }
 
-bool DbLogT::clear() {
+bool DbLogT::clear()
+{
   RWMutexReadLock lock(pMutex);
   return pDb->clear();
 }
 
-std::string DbLogT::getDbType() {
+std::string DbLogT::getDbType()
+{
   return TDbLogInterface::getDbType();
 }
 

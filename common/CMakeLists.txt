@@ -232,8 +232,8 @@ if(NOT CLIENT AND Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(dbmaptestfunc PRIVATE
-    eosCommonServer
     eosCommon
+    eosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

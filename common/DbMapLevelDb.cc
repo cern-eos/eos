@@ -1120,8 +1120,7 @@ size_t LvDbDbMapInterface::getAll(TlogentryVec* retvec, size_t nmax = 0,
 
     if (startafter) {
       // if a starting position is given seek to that position
-      string skey;
-      skey = startafter->key;
+      string skey = startafter->key;
       it->Seek(skey);
       it->Next();
     }

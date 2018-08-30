@@ -186,12 +186,7 @@ private:
   // ------------------------------------------------------------------------
   //! this variable shows that the instance is being iterated (const_iteration is the only available). all others threads trying to access to the instance are blocked while a thread is iterating iterating.
   // ------------------------------------------------------------------------
-  mutable bool pIterating;
-
-  // ------------------------------------------------------------------------
-  //! This is the thread id of the thread currently iterating over the DbMap (if it's being iterated). It allows to have a set sequence while iterating.
-  // ------------------------------------------------------------------------
-  mutable pthread_t pItThreadId;
+  static thread_local bool tlIterating;
 
   // ------------------------------------------------------------------------
   //! this is the map containing the data. Any read access to the instance is made to this map without accessing it. Any write access to the instance is made on both this map and the DB.
@@ -211,7 +206,7 @@ private:
   // ------------------------------------------------------------------------
   //! this is the underlying iterator to the const_iteration feature from the db
   // ------------------------------------------------------------------------
-  mutable TlogentryVec::const_iterator pDbIt;
+  static thread_local TlogentryVec::const_iterator tlDbIt;
 
   // ------------------------------------------------------------------------
   //! this list is used to accumulate pairs of key values during a "set" sequence.
@@ -221,7 +216,7 @@ private:
   // ------------------------------------------------------------------------
   //! this list is used to iterate through the db by block
   // ------------------------------------------------------------------------
-  mutable TlogentryVec pDbItList;
+  static thread_local TlogentryVec tlDbItList;
 
   // ------------------------------------------------------------------------
   //! these members are used for the iteration through the map
@@ -554,7 +549,7 @@ public:
         endSetSequence();
       }
 
-      if (pIterating) {
+      if (tlIterating) {
         endIter();
       }
 
@@ -654,7 +649,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   DbMapT():
-    pUseMap(true), pUseSeqId(true), pIterating(false), pItThreadId(0),
+    pUseMap(true), pUseSeqId(true),
     pSetSequence(false), pNestedSetSeq(0)
   {
     pDb = new TDbMapInterface();
@@ -732,7 +727,7 @@ public:
   //!
   //! @param[in] lockit should be given true (default value)
   // ------------------------------------------------------------------------
-  void beginIter(bool lockit = true) const
+  void beginIter(bool lockit = true)
   {
     if (lockit) {
       // Prevent collisions in multiple threads iterating simultaneously
@@ -742,13 +737,12 @@ public:
     if (pUseMap) {
       pIt = pMap.begin();
     } else {
-      pDbItList.clear();
-      pDb->getAll(&pDbItList, pDbIterationChunkSize, NULL);
-      pDbIt = pDbItList.begin();
+      tlDbItList.clear();
+      pDb->getAll(&tlDbItList, pDbIterationChunkSize, NULL);
+      tlDbIt = tlDbItList.begin();
     }
 
-    pIterating = true;
-    pItThreadId = pthread_self();
+    tlIterating = true;
   }
 
   // ------------------------------------------------------------------------
@@ -759,20 +753,17 @@ public:
   //! @return true if there is at least one more step in the iteration after the current one. false otherwise.
   // ------------------------------------------------------------------------
   bool iterate(const Tkey** keyOut, const Tval** valOut,
-               bool unlockit = true) const
+               bool unlockit = true)
   {
-    if (!pIterating) {
+    if (!tlIterating) {
       return false;
     }
 
     if (pUseMap) {
-      bool ret = (pIt != pMap.end());
-
-      if (ret) {
+      if (pIt != pMap.end()) {
         *keyOut = &pIt->first;
         *valOut = &pIt->second;
-        Tval valdb;
-        pIt++;
+        ++pIt;
         return true;
       } else {
         endIter(unlockit);
@@ -780,34 +771,34 @@ public:
       }
     } else {
       // iter directly from the db
-      if (pDbIt == pDbItList.end()) {
+      if (tlDbIt == tlDbItList.end()) {
         Tlogentry entry;
         Tlogentry* lastentry;
 
-        if (pDbItList.empty()) {
+        if (tlDbItList.empty()) {
           lastentry = NULL;
         } else {
-          entry = *--pDbIt;
+          entry = *--tlDbIt;
           lastentry = &entry;
         }
 
-        pDbItList.clear();
+        tlDbItList.clear();
 
-        if (pDb->getAll(&pDbItList, pDbIterationChunkSize, lastentry) == 0) {
-          endIter();
+        if (pDb->getAll(&tlDbItList, pDbIterationChunkSize, lastentry) == 0) {
+          endIter(unlockit);
           return false;
         }
 
-        pDbIt = pDbItList.begin();
+        tlDbIt = tlDbItList.begin();
       }
 
       // dbit actually points to something
       Tkeyval entry;
-      pDbItKey = pDbIt->key;
-      Tlogentry2Tval(*pDbIt, &pDbItVal);
+      pDbItKey = tlDbIt->key;
+      Tlogentry2Tval(*tlDbIt, &pDbItVal);
       *keyOut = &pDbItKey;
       *valOut = &pDbItVal;
-      pDbIt++;
+      tlDbIt++;
       return true;
     }
   }
@@ -818,10 +809,10 @@ public:
   //! can be done on the instance.
   //! @param[in] unlockit should be given true (default value)
   //----------------------------------------------------------------------------
-  void endIter(bool unlockit = true) const
+  void endIter(bool unlockit = true)
   {
-    if (pIterating) {
-      pIterating = false;
+    if (tlIterating) {
+      tlIterating = false;
 
       if (unlockit) {
         pMutex.UnLockWrite();
@@ -889,7 +880,7 @@ public:
   {
     // RWMutexWriteLock lock(mutex);
     if (pSetSequence) {
-      if (!pIterating || pItThreadId != pthread_self()) {
+      if (!tlIterating) {
         pMutex.LockWrite();  // if the current thread is iterating through the dbmap, don't lock
       }
 
@@ -900,7 +891,7 @@ public:
       pSetSeqMap[keystr] = val;
       unsigned long ret = pSetSeqList.size();
 
-      if (!pIterating || pItThreadId != pthread_self()) {
+      if (!tlIterating) {
         pMutex.UnLockWrite();
       }
 
@@ -926,8 +917,7 @@ public:
   {
     const char* tstr;
     nowStr(&tstr);
-    Tval val =
-    { tstr, 0, pName, "", "!DELETE"};
+    Tval val = { tstr, 0, pName, "", "!DELETE"};
     return remove(key, val);
   }
 
@@ -938,17 +928,14 @@ public:
   // ------------------------------------------------------------------------
   bool clear()
   {
-    pMutex.LockWrite();
+    RWMutexWriteLock scope_lock(pMutex);
 
     if (pDb->clear()) {
       pMap.clear();
+      return true;
     } else {
-      pMutex.UnLockWrite();
       return false;
     }
-
-    pMutex.UnLockWrite();
-    return true;
   }
 
   // ------------------------------------------------------------------------
@@ -960,12 +947,7 @@ public:
   bool get(const Slice& key, Tval* val) const
   {
     RWMutexReadLock lock(pMutex);
-
-    if (doGet(key, val)) {
-      return true;
-    }
-
-    return false;
+    return doGet(key, val);
   }
 
   // ------------------------------------------------------------------------
@@ -1127,8 +1109,7 @@ typedef DbLogT DbLog;
 //------------------------------------------------------------------------------
 //! Display helpers
 //------------------------------------------------------------------------------
-inline std::ostream& operator << (std::ostream& os,
-                                  const DbMapT& map)
+inline std::ostream& operator << (std::ostream& os, DbMapT& map)
 {
   const DbMapTypes::Tkey* key;
   const DbMapTypes::Tval* val;

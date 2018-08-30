@@ -35,6 +35,10 @@
 #include <sys/resource.h>
 using namespace eos::common;
 
+thread_local bool DbMapT::tlIterating {false};
+thread_local DbMapT::TlogentryVec DbMapT::tlDbItList {};
+thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
+
 const unsigned long int NNUM_THREADS = 10;
 pthread_t threads[NNUM_THREADS];
 unsigned long int NUM_THREADS = NNUM_THREADS;
