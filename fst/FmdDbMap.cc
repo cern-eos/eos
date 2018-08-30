@@ -773,7 +773,7 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
     mDbMap[fsid]->beginSetSequence();
     unsigned long cpt = 0;
 
-    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
       Fmd f;
       f.ParseFromString(v->value);
       f.set_disksize(0xfffffffffff1ULL);
@@ -817,7 +817,7 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
     mDbMap[fsid]->beginSetSequence();
     unsigned long cpt = 0;
 
-    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
       Fmd f;
       f.ParseFromString(v->value);
       f.set_mgmsize(0xfffffffffff1ULL);
@@ -1321,7 +1321,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
                       db_map->size(), fsid);
 
       // Report values only when we are not in the sync phase from disk/mgm
-      for (db_map->beginIter(); db_map->iterate(&k, &v);) {
+      for (db_map->beginIter(false); db_map->iterate(&k, &v, false);) {
         Fmd f;
         f.ParseFromString(v->value);
         (void)memcpy(&fid, (void*)k->data(), k->size());
@@ -1417,7 +1417,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     FsReadLock vlock(fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
-    for (mDbMap[fsid]->beginIter(); mDbMap[fsid]->iterate(&k, &v);) {
+    for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
       Fmd f;
       f.ParseFromString(v->value);
 
