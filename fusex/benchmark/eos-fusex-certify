@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: eos-fusex-certify
 # Author: Andreas-Joachim Peters - CERN
@@ -258,6 +258,32 @@ echo ". 6"
 ) || exit 9
 fi
 
+
+if [ "$1" = "10" ] ; then
+time (
+echo "===================================================================="
+echo "010 ... non UTF-8 files test"
+mkdir 010-eos-non-utf8-test
+cd 010-eos-non-utf8-test
+echo "010 creating funny filenames"
+touch $'\007' || exit 10
+
+touch $'\xa9' || exit 10
+
+echo "010 stat'ing funny filenames"
+stat $'\007' || exit 10
+stat $'\xa9' || exit 10
+
+echo "010 listinging funny filenames"
+ls | grep $'\007' || exit 10
+ls | grep $'\xa9' || exit 10
+
+echo "010 deleting funny filenames"
+rm $'\007' || exit 10
+rm $'\xa9' || exit 10
+echo "010 all done"
+) || exit 10
+fi
 
 echo "===================================================================="
 echo "... :-) passed !"
