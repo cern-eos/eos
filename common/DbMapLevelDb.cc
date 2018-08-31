@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/DbMapLevelDb.hh"
+#include "common/Timing.hh"
 #include <memory>
 #include <sys/stat.h>
 
