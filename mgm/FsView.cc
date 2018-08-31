@@ -2839,7 +2839,6 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   // Decoding setup
   CURL* curl = curl_easy_init();
   std::string sval;
-
   // Convert to map
   std::string key = inkey;
   std::map<std::string, std::string> configmap;
@@ -2976,6 +2975,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
 
   if (hash) {
     success = hash->Set(tokens[1].c_str(), val.c_str());
+    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
     // Here we build a set with the gw nodes for fast lookup in the TransferEngine
     if ((tokens[0].find("/node/")) != std::string::npos) {
@@ -3006,7 +3006,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     eos_static_err("there is no global config for queue <%s>", tokens[0].c_str());
   }
 
-  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
   return success;
 }
 
