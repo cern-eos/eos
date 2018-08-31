@@ -1419,7 +1419,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   ConfEngine->SetAutoSave(true);
-
   // Create comment log to save all proc commands executed with a comment
   mCommentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 
@@ -2123,6 +2122,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::BcMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::DeleteEntry", 0, 0, 0);
   MgmStats.Add("Eosxd::int::FillContainerCAP", 0, 0, 0);
   MgmStats.Add("Eosxd::int::FillContainerMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::FillFileMD", 0, 0, 0);

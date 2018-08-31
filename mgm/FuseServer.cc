@@ -213,6 +213,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
     // communicate our current heart-beat interval
     eos::fusex::config cfg;
     cfg.set_hbrate(mHeartBeatInterval);
+    cfg.set_dentrymessaging(true);
     BroadcastConfig(identity, cfg);
   }
 
@@ -647,6 +648,39 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
 //
 //------------------------------------------------------------------------------
 int
+FuseServer::Clients::DeleteEntry(uint64_t md_ino,
+                                 const std::string& uuid,
+                                 const std::string& clientid,
+                                 const std::string& name
+                                )
+{
+  gOFS->MgmStats.Add("Eosxd::int::DeleteEntry", 0, 0, 1);
+  // prepare release cap message
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.DENTRY);
+  rsp.mutable_dentry_()->set_type(eos::fusex::dentry::REMOVE);
+  rsp.mutable_dentry_()->set_name(name);
+  rsp.mutable_dentry_()->set_md_ino(md_ino);
+  rsp.mutable_dentry_()->set_clientid(clientid);
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+  eos::common::RWMutexReadLock lLock(*this);
+
+  if (!mUUIDView.count(uuid)) {
+    return ENOENT;
+  }
+
+  std::string id = mUUIDView[uuid];
+  eos_static_info("msg=\"asking dentry deletion\" uuid=%s clientid=%s id=%lx name=%s",
+                  uuid.c_str(), clientid.c_str(), md_ino, name.c_str());
+  gOFS->zMQ->task->reply(id, rspstream);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+int
 FuseServer::Clients::SendMD(const eos::fusex::md& md,
                             const std::string& uuid,
                             const std::string& clientid,
@@ -824,6 +858,7 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
     if (id.length()) {
       eos::fusex::config cfg;
       cfg.set_hbrate(interval);
+      cfg.set_dentrymessaging(true);
       BroadcastConfig(id, cfg);
     }
   }
@@ -954,6 +989,89 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
         gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
             cap->clientuuid(),
             cap->clientid());
+      }
+    }
+  }
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
+    const std::string& name)
+/*----------------------------------------------------------------------------*/
+{
+  gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
+  // broad-cast deletion for a given name in a container
+  eos::common::RWMutexReadLock lLock(*this);
+  eos_static_info("id=%lx name=%s",
+                  id,
+                  name.c_str());
+
+  if (mInodeCaps.count(id)) {
+    for (auto it = mInodeCaps[id].begin();
+         it != mInodeCaps[id].end(); ++it) {
+      shared_cap cap;
+
+      // loop over all caps for that inode
+      if (mCaps.count(*it)) {
+        cap = mCaps[*it];
+      } else {
+        continue;
+      }
+
+      if (cap->id()) {
+        gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) cap->id(),
+            cap->clientuuid(),
+            cap->clientid(),
+            name);
+        errno = 0 ; // seems that ZMQ function might set errno
+      }
+    }
+  }
+
+  return 0;
+}
+
+int
+FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
+                                    const std::string& name)
+{
+  gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  eos::common::RWMutexReadLock lLock(*this);
+  eos_static_info("id=%lx name=%s",
+                  id,
+                  name.c_str());
+
+  if (mInodeCaps.count(refcap->id())) {
+    for (auto it = mInodeCaps[refcap->id()].begin();
+         it != mInodeCaps[refcap->id()].end(); ++it) {
+      shared_cap cap;
+
+      // loop over all caps for that inode
+      if (mCaps.count(*it)) {
+        cap = mCaps[*it];
+      } else {
+        continue;
+      }
+
+      // skip our own cap!
+      if (cap->authid() == refcap->authid()) {
+        continue;
+      }
+
+      // skip identical client mounts!
+      if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
+      }
+
+      if (cap->id()) {
+        gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) cap->id(),
+            cap->clientuuid(),
+            cap->clientid(),
+            name);
       }
     }
   }
@@ -3079,6 +3197,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
+        Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName());
         Cap().Delete(md.md_ino());
         return 0;
       }
@@ -3175,6 +3294,8 @@ FuseServer::HandleMD(const std::string& id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
+        // TODO: we will add this message later because we have to remove the previous call and bump the protocol version up
+        // Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
         Cap().Delete(md.md_ino());
         return 0;
       }

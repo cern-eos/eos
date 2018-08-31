@@ -76,7 +76,7 @@ XrdMgmOfs::_rem(const char* path,
                 bool simulate,
                 bool keepversion,
                 bool no_recycling,
-		bool no_quota_enforcement)
+                bool no_quota_enforcement)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -318,6 +318,8 @@ XrdMgmOfs::_rem(const char* path,
           container->notifyMTimeChange(gOFS->eosDirectoryService);
           eosView->updateContainerStore(container.get());
           gOFS->FuseXCastContainer(container->getIdentifier());
+          // TODO: we will enable this message once we bump the EOSXD protocol version and remove the Container Cast
+          // gOFS->FuseXCastDeletion(container->getIdentifier(),fmd->getName());
         }
       }
 
@@ -337,7 +339,8 @@ XrdMgmOfs::_rem(const char* path,
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
     if (Quota::ExistsResponsible(recycle_space)) {
-      if (!no_quota_enforcement && !Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
+      if (!no_quota_enforcement &&
+          !Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
                         fmd->getSize(), fmd->getNumLocation())) {
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full

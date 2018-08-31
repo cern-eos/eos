@@ -824,6 +824,19 @@ XrdMgmOfs::FuseXCastContainer(eos::ContainerIdentifier id)
     id.getUnderlyingUInt64());
 }
 
+//------------------------------------------------------------------------------
+// Cast a change message to all fusex clients about a deletion of an entry
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::FuseXCastDeletion(eos::ContainerIdentifier id,
+                             const std::string& name)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastDeletionFromExternal(
+    id.getUnderlyingUInt64(), name);
+}
+
+
+
 //----------------------------------------------------------------------------
 // Check if name space is booted
 //----------------------------------------------------------------------------

@@ -81,6 +81,7 @@ metad::init(backend* _mdbackend)
   XrdSysMutexHelper mLock(mdmap);
   update(req, mdmap[1], "", true);
   next_ino.init(EosFuse::Instance().getKV());
+  dentrymessaging = false;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1527,18 +1528,22 @@ metad::cleanup(shared_md md)
       bool in_flush = has_flush(it->second);
 
       if (!S_ISDIR(cmd->mode())) {
+        inval_entry_name.push_back(it->first);
+
         if (!in_flush && !EosFuse::Instance().datas.has(cmd->id())) {
           // clean-only entries, which are not in the flush queue and not open
           inval_files.push_back(it->second);
         }
+      }
+
+      if (!dentrymessaging) {
+        // if the server does not provide a dentry invalidation message
+        inval_entry_name.push_back(it->first);
       } else {
-        if (!in_flush) {
-          inval_dirs.push_back(it->second);
-        }
+        // if the server provides a dentry invalidation message
+        // directories never get an inval_entry call, only when we see an explicit deletion
       }
     }
-
-    inval_entry_name.push_back(it->first);
   }
 
   md->Locker().UnLock();
@@ -1560,15 +1565,8 @@ metad::cleanup(shared_md md)
   if ((EosFuse::Instance().Config().options.data_kernelcache) ||
       (EosFuse::Instance().Config().options.md_kernelcache)) {
     for (auto it = inval_files.begin(); it != inval_files.end(); ++it) {
-      //      kernelcache::inval_inode(*it, true);
       forget(0, *it, 0);
     }
-
-    /*
-    for (auto it = inval_dirs.begin(); it != inval_dirs.end(); ++it) {
-      kernelcache::inval_inode(*it, false);
-    }
-     */
   }
 }
 
@@ -2291,6 +2289,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   eos::fusex::response rsp;
   size_t cnt = 0;
   int interval = 1;
+  bool dentrymessaging = false;
 
   while (!assistant.terminationRequested()) {
     try {
@@ -2350,9 +2349,24 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
             if (rsp.type() == rsp.CONFIG) {
               if (rsp.config_().hbrate()) {
-                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds",
-                                  rsp.config_().hbrate());
+                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds and %s dentry-messaging",
+                                  rsp.config_().hbrate(),
+                                  rsp.config_().dentrymessaging() ? "enable" : "disable");
                 interval = (int) rsp.config_().hbrate();
+                EosFuse::Instance().mds.dentrymessaging = rsp.config_().dentrymessaging();
+              }
+            }
+
+            if (rsp.type() == rsp.DENTRY) {
+              uint64_t md_ino = rsp.dentry_().md_ino();
+              std::string authid = rsp.dentry_().authid();
+              std::string name = rsp.dentry_().name();
+              uint64_t ino = inomap.forward(md_ino);
+              eos_static_notice("dentry: remote-ino=%lx ino=%lx clientid=%s authid=%s name=%s",
+                                md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str());
+
+              if (EosFuse::Instance().Config().options.md_kernelcache) {
+                kernelcache::inval_entry(ino, name);
               }
             }
 

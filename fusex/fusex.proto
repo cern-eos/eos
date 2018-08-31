@@ -165,6 +165,17 @@ message lease {
   string authid = 4; //< authid
 }
 
+message dentry {
+  enum Type { ADD = 0; REMOVE = 1; }
+
+  Type type = 1; 
+  fixed64 md_ino = 2; //< inode number
+  string name = 3; //< entry name to delete
+  string clientid = 4; //< clientid
+  string authid = 5; //< authid
+}
+
+
 message lock {
   enum Type { RDLCK = 0; WRLCK = 1; UNLCK = 2; }
   Type type = 1;   //< type of lock
@@ -176,10 +187,11 @@ message lock {
 
 message config {
   fixed32 hbrate = 1; //< heartbeat interval for this client
+  bool dentrymessaging = 2; //< enables dentry invalidation by extra message
 }
 
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7; CAP = 8;}
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7; CAP = 8; DENTRY = 9;}
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -191,4 +203,5 @@ message response {
   md md_ = 6;
   config config_ = 7;
   cap cap_ = 8;
+  dentry dentry_ = 9;
 }

@@ -1499,9 +1499,19 @@ public:
   //----------------------------------------------------------------------------
   //! Cast a change message to all fusex clients regarding a container change
   //!
-  //! @param id file identifier
+  //! @param id container identifier
   //----------------------------------------------------------------------------
   void FuseXCastContainer(eos::ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Cast a change message to all fusex clients regarding deletion of a name
+  //!
+  //! @param id container identifier
+  //! @param name directory/file name to delete
+  //!
+  //----------------------------------------------------------------------------
+  void FuseXCastDeletion(eos::ContainerIdentifier id,
+                         const std::string& name);
 
   //----------------------------------------------------------------------------
   // Class objects

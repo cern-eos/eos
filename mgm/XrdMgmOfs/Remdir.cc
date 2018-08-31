@@ -216,6 +216,7 @@ XrdMgmOfs::_remdir(const char* path,
         dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dhpar.get());
         gOFS->FuseXCastContainer(dhpar->getIdentifier());
+        gOFS->FuseXCastDeletion(dhpar->getIdentifier(), dh->getName());
       }
 
       eosView->removeContainer(path);
@@ -230,10 +231,11 @@ XrdMgmOfs::_remdir(const char* path,
   EXEC_TIMING_END("RmDir");
 
   if (errno) {
-    if (errno == ENOTEMPTY)
+    if (errno == ENOTEMPTY) {
       return Emsg(epname, error, errno, "rmdir - Directory not empty", path);
-    else
+    } else {
       return Emsg(epname, error, errno, "rmdir", path);
+    }
   } else {
     return SFS_OK;
   }

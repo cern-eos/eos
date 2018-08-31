@@ -164,8 +164,17 @@ public:
     int BroadcastCap(shared_cap cap);
     int BroadcastRelease(const eos::fusex::md&
                          md); // broad cast triggered by fuse network
+
+    int BroadcastDeletion(uint64_t inode,
+                          const eos::fusex::md& md,
+                          const std::string& name);
+
     int BroadcastReleaseFromExternal(uint64_t
                                      inode); // broad cast triggered non-fuse network
+
+    int BroadcastDeletionFromExternal(uint64_t inode,
+                                      const std::string& name);
+
     int BroadcastMD(const eos::fusex::md& md,
                     uint64_t md_ino,
                     uint64_t md_pino,
@@ -321,6 +330,12 @@ public:
                    const std::string& uuid,
                    const std::string& clientid);
 
+    // delete entry
+    int DeleteEntry(uint64_t id,
+                    const std::string& uuid,
+                    const std::string& clientid,
+                    const std::string& name);
+
     // send MD after update
     int SendMD(const eos::fusex::md& md,
                const std::string& uuid,
@@ -447,7 +462,7 @@ public:
 
     typedef struct flush_info {
 
-      flush_info() : client("") , nref(0)
+      flush_info() : client(""), nref(0)
       {
         ftime.tv_sec = 0;
         ftime.tv_nsec = 0;

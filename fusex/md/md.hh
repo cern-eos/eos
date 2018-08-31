@@ -805,6 +805,7 @@ private:
   pmap mdmap;
   vmap inomap;
   mdstat stat;
+  bool dentrymessaging;
 
   InodeGenerator next_ino;
 
