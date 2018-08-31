@@ -16,6 +16,35 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.10 Citrine``
+==================
+
+2018-08-31
+
+Bug
+---
+
+* [EOS-2138] - Handling of white spaces in eos commands
+* [EOS-2722] - filR state not propagated to parent branches in a snapshot
+* [EOS-2787] - Fix filesystem ordering for FUSE file creation by geotag, then fsid
+* [EOS-2838] - WFE background thread hammering namespace, running find at 100 Hz
+* [EOS-2839] - Central draining is active on slave MGM
+* [EOS-2843] - FUSEX crash in metad::get(), pmd=NULL.
+* [EOS-2847] - FUSEX: Race between XrdCl::Proxy destructor and OpenAsyncHandler::HandleResponseWithHosts
+* [EOS-2849] - Memeory Leaks in FST code
+
+Task
+----
+
+* [EOS-2825] - FUSEX (auto-)unmount not working?
+
+Improvement
+-----------
+
+* [EOS-2852] - MGM: hardcode RPM dependency on 'zeromq'
+* [EOS-2856] - EOSXD marks CWD deleted when invalidating a CAP subscription
+
+
 ``v4.3.9 Citrine``
 ==================
 
