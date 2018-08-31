@@ -24,8 +24,8 @@ message md {
   sfixed32 gid = 17    ; //< group id
   sfixed32 mode = 18   ; //< mode
   sfixed32 nlink = 19  ; //< nlink
-  string name = 20     ; //< name
-  string target = 21   ; //< symlink target
+  bytes name = 20     ; //< name
+  bytes target = 21   ; //< symlink target
   string authid = 22   ; //< strong security auth id
   string clientid = 23 ; //< string identifying a client
   string clientuuid = 24; //< optional string of a temporary client id

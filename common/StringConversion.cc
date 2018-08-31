@@ -303,7 +303,8 @@ StringConversion::GetDataSizeFromString(const char* instring)
   } else {
     if (sizestring.endswith("B") || sizestring.endswith("b")) {
       sizestring.erase(sizestring.length() - 1);
-    } 
+    }
+
     if (sizestring.endswith("E") || sizestring.endswith("e")) {
       convfactor = 1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll;
     } else if (sizestring.endswith("P") || sizestring.endswith("p")) {
@@ -315,7 +316,7 @@ StringConversion::GetDataSizeFromString(const char* instring)
     } else if (sizestring.endswith("M") || sizestring.endswith("m")) {
       convfactor = 1000ll * 1000ll;
     } else if (sizestring.endswith("K") || sizestring.endswith("k")) {
-    convfactor = 1000ll;
+      convfactor = 1000ll;
     }
   }
 
@@ -1112,5 +1113,63 @@ StringConversion::SortLines(XrdOucString& data)
 
   data = sorts;
 }
+
+
+//------------------------------------------------------------------------------
+// Check if a string is valid UTF
+//------------------------------------------------------------------------------
+
+bool
+StringConversion::Valid_UTF8(const string& string)
+{
+  int c, i, ix, n, j;
+
+  for (i = 0, ix = string.length(); i < ix; i++) {
+    c = (unsigned char) string[i];
+
+    //if (c==0x09 || c==0x0a || c==0x0d || (0x20 <= c && c <= 0x7e) ) n = 0; // is_printable_ascii
+    if (0x00 <= c && c <= 0x7f) {
+      n = 0;  // 0bbbbbbb
+    } else if ((c & 0xE0) == 0xC0) {
+      n = 1;  // 110bbbbb
+    } else if (c == 0xed && i < (ix - 1) &&
+               ((unsigned char)string[i + 1] & 0xa0) == 0xa0) {
+      return false;  //U+d800 to U+dfff
+    } else if ((c & 0xF0) == 0xE0) {
+      n = 2;  // 1110bbbb
+    } else if ((c & 0xF8) == 0xF0) {
+      n = 3;  // 11110bbb
+    }
+    //else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
+    //else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
+    else {
+      return false;
+    }
+
+    for (j = 0; j < n &&
+         i < ix; j++) { // n bytes matching 10bbbbbb follow ?
+      if ((++i == ix) || (((unsigned char)string[i] & 0xC0) != 0x80)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// CURL encode invalid UTF strings with SHA256
+//------------------------------------------------------------------------------
+
+std::string
+StringConversion::EncodeInvalidUTF8(const string& key)
+{
+  if (!Valid_UTF8(key)) {
+    return curl_escaped(key);
+  } else {
+    return key;
+  }
+}
+
 
 EOSCOMMONNAMESPACE_END

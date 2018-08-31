@@ -1652,12 +1652,14 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir,
       }
 
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
-        (*dir.mutable_children())[it.key()] =
+        std::string key = eos::common::StringConversion::EncodeInvalidUTF8(it.key());
+        (*dir.mutable_children())[key] =
           eos::common::FileId::FidToInode(it.value());
       }
 
       for (auto it = ContainerMapIterator(cmd); it.valid(); it.next()) {
-        (*dir.mutable_children())[it.key()] = it.value();
+        std::string key = eos::common::StringConversion::EncodeInvalidUTF8(it.key());
+        (*dir.mutable_children())[key] = it.value();
       }
 
       // indicate that this MD record contains children information

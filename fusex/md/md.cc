@@ -30,6 +30,7 @@
 #include "misc/MacOSXHelper.hh"
 #include "misc/longstring.hh"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -184,8 +185,10 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       // --------------------------------------------------
       // if we have a cap and we listed this directory, we trust the child information
       // --------------------------------------------------
-      if (pmd->local_children().count(name)) {
-        inode = pmd->local_children().at(name);
+      if (pmd->local_children().count(
+            eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+        inode = pmd->local_children().at(
+                  eos::common::StringConversion::EncodeInvalidUTF8(name));
       } else {
         // if we are still having the creator MD record, we can be sure, that we know everything about this directory
         if (pmd->creator() ||
@@ -196,7 +199,8 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
           return md;
         }
 
-        if (pmd->get_todelete().count(name)) {
+        if (pmd->get_todelete().count(eos::common::StringConversion::EncodeInvalidUTF8(
+                                        name))) {
           // if this has been deleted, we just say this
           md = std::make_shared<mdx>();
           md->set_err(pmd->err());
@@ -461,19 +465,23 @@ metad::map_children_to_local(shared_md pmd)
   // we always merge remote contents, for changes our cap will be dropped
   for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map) {
     if (EOS_LOGS_DEBUG) {
-      eos_static_debug("translate %s [%lx]", map->first.c_str(), map->second);
+      eos_static_debug("translate %s [%lx]",
+                       eos::common::StringConversion::EncodeInvalidUTF8(map->first).c_str(),
+                       map->second);
     }
 
     uint64_t remote_ino = map->second;
     uint64_t local_ino = inomap.forward(remote_ino);
 
     // skip entries we already know, if we don't have the mapping we have forgotten already this one
-    if (pmd->local_children().count(map->first) && local_ino) {
+    if (pmd->local_children().count(
+          eos::common::StringConversion::EncodeInvalidUTF8(map->first)) && local_ino) {
       continue;
     }
 
     // skip entries which are the deletion list
-    if (pmd->get_todelete().count(map->first)) {
+    if (pmd->get_todelete().count(eos::common::StringConversion::EncodeInvalidUTF8(
+                                    map->first))) {
       continue;
     }
 
@@ -490,7 +498,8 @@ metad::map_children_to_local(shared_md pmd)
       eos_static_debug("store-lookup r-ino %016lx <=> l-ino %016lx", remote_ino,
                        local_ino);
 
-    pmd->local_children()[map->first] = local_ino;
+    pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                            map->first)] = local_ino;
   }
 
   if (EOS_LOGS_DEBUG) {
@@ -790,11 +799,15 @@ metad::get(fuse_req_t req,
     case 2: {
       // we make sure, that the meta data record is attached to the local parent
       if (pmd && pmd->id()) {
-        if (!pmd->local_children().count(md->name()) && !md->deleted()) {
-          eos_static_info("attaching %s [%lx] to %s [%lx]", md->name().c_str(), md->id(),
+        if (!pmd->local_children().count(
+              eos::common::StringConversion::EncodeInvalidUTF8(md->name())) &&
+            !md->deleted()) {
+          eos_static_info("attaching %s [%lx] to %s [%lx]",
+                          eos::common::StringConversion::EncodeInvalidUTF8(md->name()).c_str(), md->id(),
                           pmd->name().c_str(), pmd->id());
           // persist this hierarchical dependency
-          pmd->local_children()[md->name()] = md->id();
+          pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                                  md->name())] = md->id();
           update(req, pmd, "", true);
         }
       }
@@ -934,10 +947,12 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
-    pmd->local_children()[md->name()] = md->id();
+    pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                            md->name())] = md->id();
     pmd->set_nlink(1);
     pmd->set_nchildren(pmd->nchildren() + 1);
-    pmd->get_todelete().erase(md->name());
+    pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                md->name()));
     pid = pmd->id();
   }
   md->Locker().Lock();
@@ -1038,13 +1053,16 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   {
     XrdSysMutexHelper mLock(pmd->Locker());
 
-    if (!pmd->local_children().count(md->name())) {
+    if (!pmd->local_children().count(
+          eos::common::StringConversion::EncodeInvalidUTF8(md->name()))) {
       pmd->set_nchildren(pmd->nchildren() + 1);
     }
 
-    pmd->local_children()[md->name()] = md->id();
+    pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                            md->name())] = md->id();
     pmd->set_nlink(1);
-    pmd->get_todelete().erase(md->name());
+    pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                md->name()));
   }
   md->Locker().Lock();
   mdflush.Lock();
@@ -1133,9 +1151,11 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   md->Locker().UnLock();
   {
     XrdSysMutexHelper mLock(pmd->Locker());
-    pmd->local_children().erase(name);
+    pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                  name));
     pmd->set_nchildren(pmd->nchildren() - 1);
-    pmd->get_todelete()[name] = md->id();
+    pmd->get_todelete()[eos::common::StringConversion::EncodeInvalidUTF8(
+                          name)] = md->id();
     pmd->set_mtime(ts.tv_sec);
     pmd->set_mtime_ns(ts.tv_nsec);
   }
@@ -1184,12 +1204,15 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     MdLocker locker(p1md, p2md, determineLockOrder(p1md, p2md));
     std::string oldname = md->name();
 
-    if (!p2md->local_children().count(newname)) {
+    if (!p2md->local_children().count(
+          eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
       p2md->set_nchildren(p2md->nchildren() + 1);
     }
 
-    p2md->local_children()[newname] = md->id();
-    p1md->local_children().erase(md->name());
+    p2md->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                             newname)] = md->id();
+    p1md->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                   md->name()));
     p1md->set_nchildren(p1md->nchildren() - 1);
     p1md->set_mtime(ts.tv_sec);
     p1md->set_mtime_ns(ts.tv_nsec);
@@ -1215,14 +1238,19 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     // move within directory
     XrdSysMutexHelper m1Lock(p1md->Locker());
 
-    if (p2md->local_children().count(newname)) {
+    if (p2md->local_children().count(
+          eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
       p2md->set_nchildren(p2md->nchildren() - 1);
     }
 
-    p2md->local_children()[newname] = md->id();
-    p1md->local_children().erase(md->name());
-    p1md->get_todelete()[md->name()] = md->id(); // make it known as deleted
-    p2md->get_todelete().erase(newname); // the new target is not deleted anymore
+    p2md->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+                             newname)] = md->id();
+    p1md->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                   md->name()));
+    p1md->get_todelete()[eos::common::StringConversion::EncodeInvalidUTF8(
+                           md->name())] = md->id(); // make it known as deleted
+    p2md->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                 newname)); // the new target is not deleted anymore
     md->set_name(newname);
     md->setop_update();
     p1md->setop_update();
@@ -1795,7 +1823,8 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
               for (auto it = map->second.children().begin();
                    it != map->second.children().end(); ++it) {
-                (*md->mutable_children())[it->first] = it->second;
+                (*md->mutable_children())[eos::common::StringConversion::EncodeInvalidUTF8(
+                                            it->first)] = it->second;
               }
 
               // keep the listing
@@ -2146,7 +2175,8 @@ metad::mdcflush(ThreadAssistant& assistant)
                 XrdSysMutexHelper mmLock(pmd->Locker());
                 // we don't remote entries from the local deletion list because there could be
                 // a race condition of a thread doing MDLS overwriting the locally deleted entry
-                pmd->get_todelete().erase(md->name());
+                pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                            md->name()));
                 pmd->Signal();
               }
             }
@@ -2289,7 +2319,6 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   eos::fusex::response rsp;
   size_t cnt = 0;
   int interval = 1;
-  bool dentrymessaging = false;
 
   while (!assistant.terminationRequested()) {
     try {

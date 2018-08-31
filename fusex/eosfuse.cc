@@ -2044,8 +2044,10 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
 
         if (pmd) {
-          pmd->local_children().erase(md->name());
-          pmd->mutable_children()->erase(md->name());
+          pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                        md->name()));
+          pmd->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                           md->name()));
         }
       }
     }
@@ -2139,7 +2141,8 @@ EBADF  Invalid directory stream descriptor fi->fh
       auto it = pmap.begin();
 
       for (; it != pmap.end(); ++it) {
-        pmd_children[it->first] = it->second;
+        pmd_children[eos::common::StringConversion::EncodeInvalidUTF8(
+                       it->first)] = it->second;
       }
 
       if (!pmd_children.size()) {
@@ -2217,7 +2220,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         continue;
       }
 
-      std::string bname = it->first;
+      std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(it->first);
       fuse_ino_t cino = it->second;
       metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
       eos_static_debug("list: %08x %s (d=%d)", cino, it->first.c_str(),
@@ -2429,7 +2432,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
         // logic avoiding a mkdir/rmdir/mkdir sync/async race
         {
           XrdSysMutexHelper pLock(pmd->Locker());
-          auto it = pmd->get_todelete().find(name);
+          auto it = pmd->get_todelete().find(
+                      eos::common::StringConversion::EncodeInvalidUTF8(name));
 
           if ((it != pmd->get_todelete().end()) && it->second) {
             del_ino = it->second;
@@ -3256,7 +3260,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
         // logic avoiding a create/unlink/create sync/async race
         {
           XrdSysMutexHelper pLock(pmd->Locker());
-          auto it = pmd->get_todelete().find(name);
+          auto it = pmd->get_todelete().find(
+                      eos::common::StringConversion::EncodeInvalidUTF8(name));
 
           if ((it != pmd->get_todelete().end()) && it->second) {
             del_ino = it->second;
