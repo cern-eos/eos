@@ -21,13 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/DbMapLevelDb.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <memory>
 #include <sys/stat.h>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -107,9 +103,10 @@ LvDbDbLogInterface::archiveThreadCleanup(void* dummy)
 void*
 LvDbDbLogInterface::archiveThread(void* dummy)
 {
+  XrdSysThread::SetCancelDeferred();
   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-  pthread_cleanup_push(LvDbDbLogInterface::archiveThreadCleanup,
-                       NULL); // this is to make sure the mutex ius unlocked before terminating the thread
+  // This is to make sure the mutex is unlocked before terminating the thread
+  pthread_cleanup_push(LvDbDbLogInterface::archiveThreadCleanup, NULL);
   gArchmutex.Lock();
 
   while (true) {
@@ -139,20 +136,20 @@ LvDbDbLogInterface::archiveThread(void* dummy)
       }
     }
 
-    // sleep untill the next archving has to happen or untill a new archive is added to the queue
-    const long int failedArchivingRetryDelay =
-      300;// retry the failed archiving operations in 5 minutes
+    // Sleep untill the next archiving has to happen or untill a new archive is
+    // added to the queue. Retry the failed archiving operations in 5 minutes
+    const long int failedArchivingRetryDelay = 300;
     int waketime;
 
     if (gArchQueue.empty()) {
       waketime = now.tv_sec + 3600;
     } else {
       if (now < gArchQueue.begin()->first) {
-        waketime =
-          gArchQueue.begin()->first.tv_sec; // the first task in the queue is in the future
+        // the first task in the queue is in the future
+        waketime = gArchQueue.begin()->first.tv_sec;
       } else {
-        if (nextinthefuture >
-            0) { // there is a task in the future and some failed tasks to run again
+        // there is a task in the future and some failed tasks to run again
+        if (nextinthefuture > 0) {
           waketime = std::min(now.tv_sec + failedArchivingRetryDelay , nextinthefuture);
         } else { // there are only failed tasks to run again
           waketime = now.tv_sec + failedArchivingRetryDelay;
@@ -162,9 +159,13 @@ LvDbDbLogInterface::archiveThread(void* dummy)
 
     int timedout = gArchmutex.Wait(waketime - time(0));
 
+    // A timeout to let the db requests started just before the deadline complete,
+    //possible cancellation point
     if (timedout) {
-      sleep(5);  // a timeout to let the db requests started just before the deadline complete, possible cancellation point
+      sleep(5);
     }
+
+    XrdSysThread::CancelPoint();
   }
 
   pthread_cleanup_pop(0);
@@ -664,9 +665,9 @@ LvDbDbMapInterface::LvDbDbMapInterface() :
 
 LvDbDbMapInterface::~LvDbDbMapInterface()
 {
-  for (map<string, tOwnedLDLIptr>::iterator it = pAttachedDbs.begin();
-       it != pAttachedDbs.end(); it = pAttachedDbs.begin()) {
-    // strange loop because DetachDbLog erase entries from the map
+  for (auto it = pAttachedDbs.begin(); it != pAttachedDbs.end();
+       it = pAttachedDbs.begin()) {
+    // Strange loop because DetachDbLog erase entries from the map
     if (it->second.second) {
       detachDbLog(it->first);
     } else {
@@ -1214,10 +1215,12 @@ bool
 LvDbDbMapInterface::detachDbLog(DbLogInterface* dblogint)
 {
   string sname = dblogint->getDbFile();
+  auto it = pAttachedDbs.find(sname);
 
-  if (pAttachedDbs.find(sname) != pAttachedDbs.end()) {
+  if (it != pAttachedDbs.end()) {
     // the ownership should be false
-    pAttachedDbs.erase(sname);
+    delete it->second.first;
+    pAttachedDbs.erase(it);
     return true;
   }
 
@@ -1240,10 +1243,12 @@ LvDbDbMapInterface::attachDbLog(const string& dbname, int volumeduration,
 bool
 LvDbDbMapInterface::detachDbLog(const string& dbname)
 {
-  if (pAttachedDbs.find(dbname) != pAttachedDbs.end()) {
-    dbClose((leveldb::DB*)
-            pAttachedDbs[dbname].first);// the ownership should be true
-    pAttachedDbs.erase(dbname);
+  auto it = pAttachedDbs.find(dbname);
+
+  if (it != pAttachedDbs.end()) {
+    dbClose((leveldb::DB*) it->second.first);// the ownership should be true
+    delete it->second.first;
+    pAttachedDbs.erase(it);
     return true;
   }
 

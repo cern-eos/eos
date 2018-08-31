@@ -322,12 +322,17 @@ main()
       cout << *it << endl;
     }
   }
-#define arch_loop for(vector<DbLog*>::const_iterator it=dblogs.begin();it!=dblogs.end();it++)
+#define arch_loop for(vector<DbLog*>::const_iterator it = dblogs.begin(); it != dblogs.end(); ++it)
 #define arch_testloop(pattern,count,detailedoutput) retvec.clear(); arch_loop { int c=(*it)->getAll(&retvec,0,NULL,pattern); if(detailedoutput) cout<<(*it)->getDbFile()<<" : "<<c<<endl; } if(detailedoutput) cout<< "total : " << retvec.size()<<endl; assert(retvec.size()==count);
+
   // the content of /tmp/testlog.db (including all the archive volumes) should be
   // writer=TestMap key=k1 value=v1 comment=r1
   // +2 for k1 and k2 +1 for the deletion +1 for the binary, +1 for the protobuf
   // at this point, we need to consider only the current dblog and its archives to check the time ranges cohenrency
+  for (auto elem : dblogs) {
+    delete elem;
+  }
+
   dblogs.clear();
   files.clear();
   {
