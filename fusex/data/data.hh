@@ -33,6 +33,7 @@
 #include "md/md.hh"
 #include "cap/cap.hh"
 #include "common/AssistedThread.hh"
+#include "common/FileId.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
@@ -77,7 +78,10 @@ public:
       mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"),
       mIsUnlinked(false) { }
 
-    virtual ~datax() = default;
+    virtual ~datax()
+    {
+      dump_recovery_stack();
+    }
 
     XrdSysMutex& Locker()
     {
@@ -208,6 +212,23 @@ public:
     static std::string kInlineMaxSize;
     static std::string kInlineCompressor;
 
+    std::string fullpath()
+    {
+      return mMd->fullpath();
+    }
+
+    std::string fid()
+    {
+      return std::to_string(eos::common::FileId::InodeToFid(mMd->md_ino()));
+    }
+
+    std::deque<std::string> recoverystack()
+    {
+      return mRecoveryStack;
+    }
+
+    void dump_recovery_stack();
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;
@@ -221,6 +242,7 @@ public:
     metad::shared_md mMd;
     XrdCl::Proxy::read_handler mPrefetchHandler;
     std::deque<std::string> mReadErrorStack;
+    std::deque<std::string> mRecoveryStack;
 
     bufferllmanager::shared_buffer buffer;
     bool mSimulateWriteErrorInFlush;
