@@ -25,6 +25,7 @@
 #define __EOSMGM_WORKFLOW__HH__
 
 #include "common/FileId.hh"
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IView.hh"
 #include <sys/types.h>
