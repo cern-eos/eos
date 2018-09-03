@@ -223,6 +223,7 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     // --------------------------------------------------
     pmd->Locker().UnLock();
     md = get(req, inode, "", false, pmd, name);
+    md->set_fullpath(pmd->fullpath() + name);
     pmd->Locker().Lock();
   } else {
     // --------------------------------------------------
@@ -2185,6 +2186,18 @@ metad::mdcflush(ThreadAssistant& assistant)
       }
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+void
+metad::mdsizeflush(ThreadAssistant& assistant)
+{
+  // TODO: implement MGM size updates while writing files
+  while (!assistant.terminationRequested()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(128));
+  }
+
+  return;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -360,6 +360,7 @@ private:
   AssistedThread tDumpStatistic;
   AssistedThread tStatCirculate;
   AssistedThread tMetaCacheFlush;
+  AssistedThread tMetaSizeFlush;
   AssistedThread tMetaCommunicate;
   AssistedThread tCapFlush;
 

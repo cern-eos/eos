@@ -1211,6 +1211,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
     tStatCirculate.reset(&EosFuse::StatCirculate, this);
     tMetaCacheFlush.reset(&metad::mdcflush, &mds);
+    tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
     tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
     tCapFlush.reset(&cap::capflush, &caps);
     eos_static_warning("********************************************************************************");
@@ -1324,6 +1325,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tDumpStatistic.join();
     tStatCirculate.join();
     tMetaCacheFlush.join();
+    tMetaSizeFlush.join();
     tMetaCommunicate.join();
     tCapFlush.join();
     Mounter().terminate();
@@ -1359,9 +1361,10 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   std::string systemline = "fusermount -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
   system(systemline.c_str());
-  eos_static_warning("executing %s", systemline.c_str());
-  eos_static_warning("sighandler received signal %d - emitting signal %d again",
-                     sig, sig);
+  fprintf(stderr, "# umounthandler: executing %s", systemline.c_str());
+  fprintf(stderr,
+          "# umounthandler: sighandler received signal %d - emitting signal %d again",
+          sig, sig);
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   kill(getpid(), sig);
@@ -3284,6 +3287,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
         md->set_err(0);
         md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
+        md->set_fullpath(pmd->fullpath() + name);
 
         if (S_ISFIFO(mode)) {
           (*md->mutable_attr())[k_fifo] = "";
