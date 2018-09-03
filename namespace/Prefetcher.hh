@@ -33,12 +33,13 @@ class IFileMDSvc;
 class IView;
 class IFsView;
 
-class Prefetcher {
+class Prefetcher
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Prefetcher(IView *view);
+  Prefetcher(IView* view);
 
   //----------------------------------------------------------------------------
   //! Declare an intent to access FileMD with the given id soon
@@ -60,7 +61,7 @@ public:
   //----------------------------------------------------------------------------
   //! Declare an intent to access FileMD with the given path soon
   //----------------------------------------------------------------------------
-  void stageFileMD(const std::string &path, bool follow);
+  void stageFileMD(const std::string& path, bool follow);
 
   //----------------------------------------------------------------------------
   //! Declare an intent to access ContainerMD with the given id soon
@@ -70,13 +71,13 @@ public:
   //----------------------------------------------------------------------------
   //! Declare an intent to access ContainerMD with the given path soon
   //----------------------------------------------------------------------------
-  void stageContainerMD(const std::string &path, bool follow);
+  void stageContainerMD(const std::string& path, bool follow);
 
   //------------------------------------------------------------------------------
   //! Prefetch item and wait. We don't know if there's a file, or container
   //! under that path.
   //------------------------------------------------------------------------------
-  void stageItem(const std::string &path, bool follow);
+  void stageItem(const std::string& path, bool follow);
 
   //----------------------------------------------------------------------------
   //! Wait until all staged requests have been loaded in cache.
@@ -86,66 +87,80 @@ public:
   //----------------------------------------------------------------------------
   //! Prefetch FileMD and wait
   //----------------------------------------------------------------------------
-  static void prefetchFileMDAndWait(IView *view, const std::string &path, bool follow = true);
-  static void prefetchFileMDAndWait(IView *view, IFileMD::id_t id);
+  static void prefetchFileMDAndWait(IView* view, const std::string& path,
+                                    bool follow = true);
+  static void prefetchFileMDAndWait(IView* view, IFileMD::id_t id);
 
   //------------------------------------------------------------------------------
   //! Prefetch ContainerMD and wait
   //------------------------------------------------------------------------------
-  static void prefetchContainerMDAndWait(IView *view, const std::string &path, bool follow = true);
+  static void prefetchContainerMDAndWait(IView* view, const std::string& path,
+                                         bool follow = true);
+  static void prefetchContainerMDAndWait(IView* view, IContainerMD::id_t id);
 
   //------------------------------------------------------------------------------
   //! Prefetch item and wait
   //------------------------------------------------------------------------------
-  static void prefetchItemAndWait(IView *view, const std::string &path, bool follow = true);
+  static void prefetchItemAndWait(IView* view, const std::string& path,
+                                  bool follow = true);
 
   //----------------------------------------------------------------------------
   //! Prefetch ContainerMD with children and wait
   //----------------------------------------------------------------------------
-  static void prefetchContainerMDWithChildrenAndWait(IView *view, const std::string &path, bool follow = true);
+  static void prefetchContainerMDWithChildrenAndWait(IView* view,
+      const std::string& path, bool follow = true);
+  static void prefetchContainerMDWithChildrenAndWait(IView* view,
+      IContainerMD::id_t id);
+
 
   //----------------------------------------------------------------------------
   //! Prefetch FileMD inode, along with all its parents, and wait
   //----------------------------------------------------------------------------
-  static void prefetchFileMDWithParentsAndWait(IView *view, IFileMD::id_t id);
+  static void prefetchFileMDWithParentsAndWait(IView* view, IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Prefetch ContainerMD inode, along with all its parents, and wait
   //----------------------------------------------------------------------------
-  static void prefetchContainerMDWithParentsAndWait(IView *view, IFileMD::id_t id);
+  static void prefetchContainerMDWithParentsAndWait(IView* view,
+      IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Prefetch FileList for the given filesystem ID
   //----------------------------------------------------------------------------
-  static void prefetchFilesystemFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+  static void prefetchFilesystemFileListAndWait(IView* view, IFsView* fsview,
+      IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Prefetch unlinked FileList for the given filesystem ID
   //----------------------------------------------------------------------------
-  static void prefetchFilesystemUnlinkedFileListAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+  static void prefetchFilesystemUnlinkedFileListAndWait(IView* view,
+      IFsView* fsview, IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Prefetch unlinked FileList for the given filesystem ID, along with all
   //! contained FileMDs.
   //----------------------------------------------------------------------------
-  static void prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+  static void prefetchFilesystemUnlinkedFileListWithFileMDsAndWait(IView* view,
+      IFsView* fsview, IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Prefetch FileList for the given filesystem ID, along with all contained
   //! FileMDs.
   //----------------------------------------------------------------------------
-  static void prefetchFilesystemFileListWithFileMDsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+  static void prefetchFilesystemFileListWithFileMDsAndWait(IView* view,
+      IFsView* fsview, IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Prefetch FileList for the given filesystem ID, along with all contained
   //! FileMDs, and all parents of those.
   //----------------------------------------------------------------------------
-  static void prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView *view, IFsView *fsview, IFileMD::location_t location);
+  static void prefetchFilesystemFileListWithFileMDsAndParentsAndWait(IView* view,
+      IFsView* fsview, IFileMD::location_t location);
 
 private:
-  IView           *pView;
-  IFileMDSvc      *pFileMDSvc;
-  IContainerMDSvc *pContainerMDSvc;
+  IView*           pView;
+  IFileMDSvc*      pFileMDSvc;
+  IContainerMDSvc* pContainerMDSvc;
 
   std::vector<folly::Future<IFileMDPtr>> mFileMDs;
   std::vector<folly::Future<IContainerMDPtr>> mContainerMDs;
