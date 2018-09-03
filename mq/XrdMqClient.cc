@@ -503,15 +503,6 @@ XrdMqClient::GetBrokerXrdClientReceiver(int i)
 }
 
 //------------------------------------------------------------------------------
-// GetBrokerXrdClientSender
-//------------------------------------------------------------------------------
-XrdCl::FileSystem*
-XrdMqClient::GetBrokerXrdClientSender(int i)
-{
-  return kBrokerXrdClientSender.Find(GetBrokerId(i).c_str());
-}
-
-//------------------------------------------------------------------------------
 // ReNewBrokerXrdClientReceiver
 //------------------------------------------------------------------------------
 void

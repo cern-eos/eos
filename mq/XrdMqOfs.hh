@@ -168,7 +168,10 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Collect all messages from the queue and append them to the internal
+  //! buffer. Also delete messages if this was the last reference towards them.
   //!
+  //! @return size of the internal buffer
   //----------------------------------------------------------------------------
   size_t RetrieveMessages();
 
@@ -179,7 +182,6 @@ public:
   XrdOucString QueueName;
   std::string mMsgBuffer;
   XrdSysSemWait DeletionSem;
-  XrdSysSemWait MessageSem;
   std::deque<XrdSmartOucEnv*> mMsgQueue;
 
 private:
@@ -283,7 +285,7 @@ private:
 //------------------------------------------------------------------------------
 //! Class XrdMqOfs
 //------------------------------------------------------------------------------
-class XrdMqOfs : public XrdSfsFileSystem
+class XrdMqOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
   friend class XrdMqOfsFile;
 
@@ -366,14 +368,14 @@ public:
   XrdOucString BrokerId; ///< Manger id + queue name as path
 
   std::map<std::string, XrdSmartOucEnv*> Messages; ///< Hash with all messages
-  XrdSysMutex MessagesMutex;  ///< Mutex protecting the message hash
+  XrdSysMutex mMsgsMutex;  ///< Mutex protecting the message hash
 
   XrdSysMutex  StatLock;
   time_t       StartupTime;
   time_t       LastOutputTime;
   long long    ReceivedMessages;
   std::atomic<uint64_t> mDeliveredMessages;
-  long long    FanOutMessages;
+  std::atomic<uint64_t> mFanOutMessages;
   long long    AdvisoryMessages;
   long long    UndeliverableMessages;
   long long    DiscardedMonitoringMessages;

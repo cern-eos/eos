@@ -145,8 +145,6 @@ public:
 
   XrdCl::File* GetBrokerXrdClientReceiver(int i);
 
-  XrdCl::FileSystem* GetBrokerXrdClientSender(int i);
-
   bool IsInitOK() const
   {
     return kInitOK;

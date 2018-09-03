@@ -68,9 +68,9 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   EPNAME("open");
   tident = error.getErrUser();
   MAYREDIRECT;
-  eos_info("connecting queue=%s", queuename);
-  XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
   mQueueName = queuename;
+  eos_info_lite("connecting queue: %s", mQueueName.c_str());
+  XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
   //  printf("%s %s %s\n",mQueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
   // check if this queue is accepted by the broker
@@ -112,7 +112,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   mMsgOut->AdvisoryFlushBackLog = advisoryflushbacklog;
   mMsgOut->BrokenByFlush = false;
   gMqFS->mQueueOut.insert(std::make_pair(mQueueName, mMsgOut));
-  ZTRACE(open, "Connected Queue: " << queuename);
+  eos_info_lite("connected queue: %s", mQueueName.c_str());
   mIsOpen = true;
   return SFS_OK;
 }
@@ -163,7 +163,6 @@ XrdMqOfsFile::stat(struct stat* buf)
         delete env;
       }
     }
-    //    mMsgOut->MessageSem.Wait(1);
     ZTRACE(stat, "Grabbing message");
     memset(buf, 0, sizeof(struct stat));
     buf->st_blksize = 1024;
@@ -228,13 +227,11 @@ XrdMqOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 int
 XrdMqOfsFile::close()
 {
-  EPNAME("close");
-
   if (!mIsOpen) {
     return SFS_OK;
   }
 
-  ZTRACE(close, "Disconnecting Queue: " << mQueueName.c_str());
+  eos_info_lite("disconnecting queue: %s", mQueueName.c_str());
   {
     XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
@@ -271,7 +268,7 @@ XrdMqOfsFile::close()
       delete env;
     }
   }
-  ZTRACE(close, "Disconnected Queue: " << mQueueName.c_str());
+  eos_info_lite("disconnected queue: %s", mQueueName.c_str());
   return SFS_OK;
 }
 
@@ -309,14 +306,14 @@ XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqOfs::XrdMqOfs(XrdSysError* ep):
-  myPort(1097), mDeliveredMessages(0ull), mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
+  myPort(1097), mDeliveredMessages(0ull), mFanOutMessages(0ull),
+  mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
   mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG)
 {
   ConfigFN  = 0;
   StartupTime = time(0);
   LastOutputTime = time(0);
   ReceivedMessages = 0;
-  FanOutMessages = 0;
   AdvisoryMessages = 0;
   UndeliverableMessages = 0;
   DiscardedMonitoringMessages = 0;
@@ -325,10 +322,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   (void) signal(SIGINT, xrdmqofs_shutdown);
   HostName = 0;
   HostPref = 0;
-  fprintf(stderr, "Addr::mQueueOutMutex        0x%llx\n",
-          (unsigned long long) &gMqFS->mQueueOutMutex);
-  fprintf(stderr, "Addr::MessageMutex         0x%llx\n",
-          (unsigned long long) &gMqFS->MessagesMutex);
+  eos_info_lite("Addr:mQueueOutMutex: 0x%llx", &mQueueOutMutex);
+  eos_info_lite("Addr:MessageMutex:   0x%llx", &mMsgsMutex);
 }
 
 //------------------------------------------------------------------------------
@@ -515,7 +510,7 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   }
 
   MAYREDIRECT;
-  XrdMqMessageOut* msg_out = 0;
+  XrdMqMessageOut* msg_out = nullptr;
   Statistics();
   ZTRACE(stat, "stat by buf: " << queuename);
   std::string squeue = queuename;
@@ -552,7 +547,6 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
   }
   // this should be the case always ...
   ZTRACE(stat, "Waiting for message");
-  //  msg_out->MessageSem.Wait(1);
   ZTRACE(stat, "Grabbing message");
   memset(buf, 0, sizeof(struct stat));
   buf->st_blksize = 1024;
@@ -606,15 +600,16 @@ XrdMqOfs::Statistics()
   static struct timeval tstop;
   static struct timezone tz;
   static uint64_t LastDeliveredMessages;
-  static long long LastReceivedMessages, LastFanOutMessages,
+  static uint64_t LastFanOutMessages;
+  static long long LastReceivedMessages,
          LastAdvisoryMessages, LastUndeliverableMessages,
          LastNoMessages, LastDiscardedMonitoringMessages;
 
   if (startup) {
     tstart.tv_sec = 0;
     tstart.tv_usec = 0;
-    LastDeliveredMessages = 0ull;
-    LastReceivedMessages =  LastFanOutMessages = LastAdvisoryMessages =
+    LastDeliveredMessages = LastFanOutMessages = 0ull;
+    LastReceivedMessages =  LastAdvisoryMessages =
                               LastUndeliverableMessages = LastNoMessages =
                                     LastDiscardedMonitoringMessages = 0;
     startup = false;
@@ -647,7 +642,7 @@ XrdMqOfs::Statistics()
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.delivered              %lu\n", mDeliveredMessages.load());
       rc = write(fd, line, strlen(line));
-      sprintf(line, "mq.fanout                 %lld\n", FanOutMessages);
+      sprintf(line, "mq.fanout                 %lu\n", mFanOutMessages.load());
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.advisory               %lld\n", AdvisoryMessages);
       rc = write(fd, line, strlen(line));
@@ -670,7 +665,7 @@ XrdMqOfs::Statistics()
               (1000.0 * (mDeliveredMessages - LastDeliveredMessages) / (tdiff)));
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.fan_rate               %f\n",
-              (1000.0 * (FanOutMessages - LastFanOutMessages) / (tdiff)));
+              (1000.0 * (mFanOutMessages - LastFanOutMessages) / (tdiff)));
       rc = write(fd, line, strlen(line));
       sprintf(line, "mq.advisory_rate          %f\n",
               (1000.0 * (AdvisoryMessages - LastAdvisoryMessages) / (tdiff)));
@@ -698,7 +693,7 @@ XrdMqOfs::Statistics()
     ZTRACE(getstats, "*****************************************************");
     ZTRACE(getstats, "Received  Messages            : " << ReceivedMessages);
     ZTRACE(getstats, "Delivered Messages            : " << mDeliveredMessages);
-    ZTRACE(getstats, "FanOut    Messages            : " << FanOutMessages);
+    ZTRACE(getstats, "FanOut    Messages            : " << mFanOutMessages);
     ZTRACE(getstats, "Advisory  Messages            : " << AdvisoryMessages);
     ZTRACE(getstats, "Undeliverable Messages        : " << UndeliverableMessages);
     ZTRACE(getstats, "Discarded Monitoring Messages : " <<
@@ -713,7 +708,7 @@ XrdMqOfs::Statistics()
             "Rates: IN: %.02f OUT: %.02f FAN: %.02f ADV: %.02f: UNDEV: %.02f DISCMON: %.02f NOMSG: %.02f"
             , (1000.0 * (ReceivedMessages - LastReceivedMessages) / (tdiff))
             , (1000.0 * (mDeliveredMessages - LastDeliveredMessages) / (tdiff))
-            , (1000.0 * (FanOutMessages - LastFanOutMessages) / (tdiff))
+            , (1000.0 * (mFanOutMessages - LastFanOutMessages) / (tdiff))
             , (1000.0 * (AdvisoryMessages - LastAdvisoryMessages) / (tdiff))
             , (1000.0 * (UndeliverableMessages - LastUndeliverableMessages) / (tdiff))
             , (1000.0 * (DiscardedMonitoringMessages - LastDiscardedMonitoringMessages) /
@@ -724,7 +719,7 @@ XrdMqOfs::Statistics()
     LastOutputTime = now;
     LastReceivedMessages = ReceivedMessages;
     LastDeliveredMessages = mDeliveredMessages;
-    LastFanOutMessages = FanOutMessages;
+    LastFanOutMessages = mFanOutMessages;
     LastAdvisoryMessages = AdvisoryMessages;
     LastUndeliverableMessages = UndeliverableMessages;
     LastNoMessages = NoMessages;
@@ -1106,24 +1101,23 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   EPNAME("AddToMatch");
   const char* tident = Matches.mTident;
   std::string sendername = Matches.sendername.c_str();
-  // here we store all the queues where we need to deliver this message
+  // Store all the queues where we need to deliver this message
   std::vector<XrdMqMessageOut*> matched_out_queues;
   Matches.message->procmutex.Lock();
 
   // If we have a status message we have to do a complete loop
   if (((Matches.messagetype) == XrdMqMessageHeader::kStatusMessage) ||
       ((Matches.messagetype) == XrdMqMessageHeader::kQueryMessage)) {
-    for (auto QueueOutIt = mQueueOut.begin(); QueueOutIt != mQueueOut.end();
-         ++QueueOutIt) {
-      XrdMqMessageOut* msg_out = QueueOutIt->second;
+    for (auto it = mQueueOut.begin(); it != mQueueOut.end(); ++it) {
+      XrdMqMessageOut* msg_out = it->second;
 
-      // if this would be a loop back message we continue
-      if (sendername == QueueOutIt->first) {
+      // If this is be a loop back message we continue
+      if (sendername == it->first) {
         // avoid feedback to the same queue
         continue;
       }
 
-      // if this queue does not take advisory status messages we continue
+      // If this queue does not take advisory status messages we continue
       if ((Matches.messagetype == XrdMqMessageHeader::kStatusMessage) &&
           (!msg_out->AdvisoryStatus)) {
         continue;
@@ -1142,18 +1136,17 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   } else {
     // If we have a wildcard match we have to do a complete loop
     if ((Matches.queuename.find("*") != STR_NPOS)) {
-      for (auto QueueOutIt = mQueueOut.begin(); QueueOutIt != mQueueOut.end();
-           ++QueueOutIt) {
-        XrdMqMessageOut* msg_out = QueueOutIt->second;
+      for (auto it = mQueueOut.begin(); it != mQueueOut.end(); ++it) {
+        XrdMqMessageOut* msg_out = it->second;
 
-        // fprintf(stderr,"%s <=> %s\n", sendername.c_str(), QueueOutIt->first.c_str());
+        // fprintf(stderr,"%s <=> %s\n", sendername.c_str(), it->first.c_str());
         // If this would be a loop back message we continue
-        if (sendername == QueueOutIt->first) {
+        if (sendername == it->first) {
           // avoid feedback to the same queue
           continue;
         }
 
-        XrdOucString Key = QueueOutIt->first.c_str();
+        XrdOucString Key = it->first.c_str();
         XrdOucString nowildcard = Matches.queuename;
         nowildcard.replace("*", "");
         int nmatch = Key.matches(Matches.queuename.c_str(), '*');
@@ -1188,17 +1181,15 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
     Matches.backlogrejected = false;
 
     // Lock all matched queues at once
-    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
-      XrdMqMessageOut* msg_out = matched_out_queues[i];
+    for (auto msg_out : matched_out_queues) {
       msg_out->Lock();
     }
 
-    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
-      XrdMqMessageOut* msg_out = matched_out_queues[i];
-
+    for (auto msg_out : matched_out_queues) {
       // check for backlog on this queue and set a warning flag
       if (msg_out->mMsgQueue.size() > mMaxQueueBacklog) {
-        // only set the backlog flag if the queue has not set the advisory flush back log flag
+        // Only set the backlog flag if the queue has not set the advisory
+        // flush back log flag
         if (!msg_out->AdvisoryFlushBackLog) {
           Matches.backlog = true;
         } else {
@@ -1214,14 +1205,16 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
         Matches.backlogqueues += ":";
         gMqFS->QueueBacklogHits++;
 
-        if (!msg_out->BrokenByFlush)
+        if (!msg_out->BrokenByFlush) {
           TRACES("warning: queue " << msg_out->QueueName
                  << " exceeds backlog of " << mMaxQueueBacklog
                  << " message!");
+        }
       }
 
       if (msg_out->mMsgQueue.size() > mRejectQueueBacklog) {
-        // only set the reject flag if the queue has not set the advisory flush back log flag
+        // Only set the reject flag if the queue has not set the advisory
+        // flush back log flag
         if (!msg_out->AdvisoryFlushBackLog) {
           Matches.backlogrejected = true;
         } else {
@@ -1249,25 +1242,23 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
 
           if (Matches.matches == 1) {
             // add to the message hash
-            gMqFS->MessagesMutex.Lock();
             std::string messageid = Matches.message->Get(XMQHEADER);
+            XrdSysMutexHelper scope_lock(gMqFS->mMsgsMutex);
             gMqFS->Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,
                                    Matches.message));
-            gMqFS->MessagesMutex.UnLock();
           }
 
           ZTRACE(fsctl, "Adding Message to Queuename: " << msg_out->QueueName.c_str());
           // fprintf(stderr, "%s adding message %llu\n",
           // msg_out->QueueName.c_str(), (unsigned long long)Matches.message);
-          msg_out->mMsgQueue.push_back((Matches.message));
+          msg_out->mMsgQueue.push_back(Matches.message);
           Matches.message->AddRefs(1);
         }
       }
     }
 
     // Unlock all matched queues at once
-    for (unsigned int i = 0; i < matched_out_queues.size(); ++i) {
-      XrdMqMessageOut* msg_out = matched_out_queues[i];
+    for (auto msg_out : matched_out_queues) {
       msg_out->UnLock();
     }
   }
@@ -1282,7 +1273,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
 }
 
 //------------------------------------------------------------------------------
-//
+// Collect all messages from the queue and append them to the internal
+// buffer. Also delete messages if this was the last reference towards them.
 //------------------------------------------------------------------------------
 size_t
 XrdMqMessageOut::RetrieveMessages()
@@ -1298,24 +1290,24 @@ XrdMqMessageOut::RetrieveMessages()
     // &mMsgQueue, QueueName.c_str(), (unsigned long long) message, message->Refs());
     int len;
     mMsgBuffer += message->Env(len);
-    gMqFS->MessagesMutex.Lock();
     ++gMqFS->mDeliveredMessages;
     message->DecRefs();
 
     if (message->Refs() <= 0) {
-      // we can delete this message from the queue!
+      // We can delete this message from the queue!
       std::string msg_id = message->Get(XMQHEADER);
-      gMqFS->Messages.erase(msg_id.c_str());
+      {
+        XrdSysMutexHelper scope_lock(gMqFS->mMsgsMutex);
+        gMqFS->Messages.erase(msg_id.c_str());
+      }
       message->procmutex.UnLock();
       // fprintf(stderr,"%s delete %llu \n", QueueName.c_str(),
       // (unsigned long long) message);
       delete message;
-      gMqFS->FanOutMessages++;
+      ++gMqFS->mFanOutMessages;
     } else {
       message->procmutex.UnLock();
     }
-
-    gMqFS->MessagesMutex.UnLock();
   }
 
   return mMsgBuffer.length();
