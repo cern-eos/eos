@@ -648,11 +648,11 @@ ProcCommand::Find()
                         if (printchecksum) {
                           if (!printcounter) {
                             fprintf(fstdout, " checksum=");
-
                             std::string str;
                             eos::appendChecksumOnStringAsHex(fmd.get(), str);
-                            if(!str.empty()) {
-                              fprintf(fstdout, "%02x", str.c_str());
+
+                            if (!str.empty()) {
+                              fprintf(fstdout, "%s", str.c_str());
                             }
                           }
                         }
