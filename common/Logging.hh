@@ -73,6 +73,7 @@ EOSCOMMONNAMESPACE_BEGIN
 #define EOS_TEXTBLUE   "\033[49;34m"
 #define EOS_TEXTBOLD   "\033[1m"
 #define EOS_TEXTUNBOLD "\033[0m"
+#define LOG_SILENT 0xffff
 
 //------------------------------------------------------------------------------
 //! Log Macros usable in objects inheriting from the logId Class
@@ -91,20 +92,25 @@ EOSCOMMONNAMESPACE_BEGIN
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                           vid, this->cident, (LOG_NOTICE), __VA_ARGS__)
 #define eos_warning(...) \
-   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
-                                           vid, this->cident, (LOG_WARNING), __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
+            vid, this->cident, (LOG_WARNING), __VA_ARGS__)
 #define eos_err(...) \
-   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
-                                           vid, this->cident, (LOG_ERR) , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
+            vid, this->cident, (LOG_ERR) , __VA_ARGS__)
 #define eos_crit(...) \
-   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
-                                           vid, this->cident, (LOG_CRIT), __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
+            vid, this->cident, (LOG_CRIT), __VA_ARGS__)
 #define eos_alert(...) \
-   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
-                                           vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
+            vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
 #define eos_emerg(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                           vid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
+#define eos_silent(...) \
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
+                                          vid, this->cident, (LOG_SILENT)  , __VA_ARGS__)
+
+
 
 //------------------------------------------------------------------------------
 //! Log Macros usable in singleton objects used by individual threads
@@ -165,6 +171,9 @@ EOSCOMMONNAMESPACE_BEGIN
 #define eos_static_emerg(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                           eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
+#define eos_static_silent(...) \
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
+                                          eos::common::Logging::gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__)
 
 //------------------------------------------------------------------------------
 //! Log Macros to check if a function would log in a certain log level
@@ -177,6 +186,7 @@ EOSCOMMONNAMESPACE_BEGIN
 #define EOS_LOGS_CRIT    eos::common::Logging::GetInstance().shouldlog(__FUNCTION__,(LOG_CRIT)   )
 #define EOS_LOGS_ALERT   eos::common::Logging::GetInstance().shouldlog(__FUNCTION__,(LOG_ALERT)  )
 #define EOS_LOGS_EMERG   eos::common::Logging::GetInstance().shouldlog(__FUNCTION__,(LOG_EMERG)  )
+#define EOS_LOGS_SILENT   eos::common::Logging::GetInstance().shouldlog(__FUNCTION__,(LOG_SILENT)  )
 
 #define EOSCOMMONLOGGING_CIRCULARINDEXSIZE 10000
 
@@ -429,6 +439,10 @@ public:
       return "NOTE ";
     }
 
+    if (pri == (LOG_SILENT)) {
+      return "";
+    }
+
     return "NONE ";
   }
 
@@ -468,6 +482,10 @@ public:
 
     if (!strcmp(pri, "notice")) {
       return LOG_NOTICE;
+    }
+
+    if (!strcmp(pri, "silent")) {
+      return LOG_SILENT;
     }
 
     return -1;

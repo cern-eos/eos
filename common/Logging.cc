@@ -65,6 +65,10 @@ Logging::Logging():
 bool
 Logging::shouldlog(const char* func, int priority)
 {
+  if (priority == LOG_SILENT) {
+    return true;
+  }
+
   // short cut if log messages are masked
   if (!((LOG_MASK(priority) & gLogMask))) {
     return false;
@@ -92,14 +96,15 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
              const char* msg, ...)
 {
   static int logmsgbuffersize = 1024 * 1024;
+  bool silent = (priority == LOG_SILENT);
 
   // short cut if log messages are masked
-  if (!((LOG_MASK(priority) & gLogMask))) {
+  if (!silent && !((LOG_MASK(priority) & gLogMask))) {
     return "";
   }
 
   // apply filter to avoid message flooding for debug messages
-  if (priority >= LOG_INFO) {
+  if (!silent && priority >= LOG_INFO) {
     if (gAllowFilter.Num()) {
       // if this is a pass-through filter e.g. we want to see exactly this messages
       if (!gAllowFilter.Find(func)) {
@@ -184,60 +189,67 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
-  if (rate_limit(tv, priority, file, line)) {
+  if (!silent && rate_limit(tv, priority, file, line)) {
     return "";
   }
 
-  if (gToSysLog) {
+  if (!silent && gToSysLog) {
     syslog(priority, "%s", ptr);
   }
 
-  if (gLogFanOut.size()) {
-    // we do log-message fanout
-    if (gLogFanOut.count("*")) {
-      fprintf(gLogFanOut["*"], "%s\n", buffer);
-      fflush(gLogFanOut["*"]);
-    }
+  if (!silent) {
+    if (gLogFanOut.size()) {
+      // we do log-message fanout
+      if (gLogFanOut.count("*")) {
+        fprintf(gLogFanOut["*"], "%s\n", buffer);
+        fflush(gLogFanOut["*"]);
+      }
 
-    if (gLogFanOut.count(File.c_str())) {
-      buffer[15] = 0;
-      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
-              buffer,
-              GetLogColour(GetPriorityString(priority)),
-              GetPriorityString(priority),
-              EOS_TEXTNORMAL,
-              sourceline,
-              ptr);
-      fflush(gLogFanOut[File.c_str()]);
-      buffer[15] = ' ';
-    } else {
-      if (gLogFanOut.count("#")) {
+      if (gLogFanOut.count(File.c_str())) {
         buffer[15] = 0;
-        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+        fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
                 buffer,
                 GetLogColour(GetPriorityString(priority)),
                 GetPriorityString(priority),
                 EOS_TEXTNORMAL,
-                vid.uid,
-                vid.gid,
-                truncname.c_str(),
-                func,
-                ptr
-               );
-        fflush(gLogFanOut["#"]);
+                sourceline,
+                ptr);
+        fflush(gLogFanOut[File.c_str()]);
         buffer[15] = ' ';
+      } else {
+        if (gLogFanOut.count("#")) {
+          buffer[15] = 0;
+          fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+                  buffer,
+                  GetLogColour(GetPriorityString(priority)),
+                  GetPriorityString(priority),
+                  EOS_TEXTNORMAL,
+                  vid.uid,
+                  vid.gid,
+                  truncname.c_str(),
+                  func,
+                  ptr
+                 );
+          fflush(gLogFanOut["#"]);
+          buffer[15] = ' ';
+        }
       }
-    }
 
-    fprintf(stderr, "%s\n", buffer);
-    fflush(stderr);
-  } else {
-    fprintf(stderr, "%s\n", buffer);
-    fflush(stderr);
+      fprintf(stderr, "%s\n", buffer);
+      fflush(stderr);
+    } else {
+      fprintf(stderr, "%s\n", buffer);
+      fflush(stderr);
+    }
   }
 
   va_end(args);
   const char* rptr;
+
+  if (silent) {
+    priority = LOG_DEBUG;
+  }
+
   // store into global log memory
   gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] =
     buffer;
