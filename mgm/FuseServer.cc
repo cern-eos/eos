@@ -2347,8 +2347,12 @@ FuseServer::HandleMD(const std::string& id,
       if (md.operation() == md.LS) {
         gOFS->MgmStats.Add("Eosxd::ext::LS", vid->uid, vid->gid, 1);
         (*parent)[md.md_ino()].set_operation(md.LS);
+        eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+            (IContainerMD::id_t)md.md_ino());
       } else {
         gOFS->MgmStats.Add("Eosxd::ext::GET", vid->uid, vid->gid, 1);
+        eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+            (IContainerMD::id_t)md.md_ino());
       }
 
       size_t n_attached = 1;
@@ -2359,7 +2363,6 @@ FuseServer::HandleMD(const std::string& id,
         // refresh the cap with the same authid
         FillContainerCAP(md.md_ino(), (*parent)[md.md_ino()], vid,
                          md.authid());
-        rd_ns_lock.Release();
 
         // store clock
         if (clock) {
@@ -2370,12 +2373,20 @@ FuseServer::HandleMD(const std::string& id,
           // attach children
           auto map = (*parent)[md.md_ino()].children();
           auto it = map.begin();
+          size_t items_per_lock_cycle = 128;
+          size_t items_cycled = 1;
 
           for (; it != map.end(); ++it) {
             // this is a map by inode
             (*parent)[it->second].set_md_ino(it->second);
             auto child_md = &((*parent)[it->second]);
-            rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+            items_cycled++;
+
+            if (!(items_cycled % items_per_lock_cycle)) {
+              // after <n> entries release the lock and grab again
+              rd_ns_lock.Release();
+              rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+            }
 
             if (eos::common::FileId::IsFileInode(it->second)) {
               // this is a file
@@ -2391,10 +2402,9 @@ FuseServer::HandleMD(const std::string& id,
               FillContainerCAP(it->second, *child_md, vid, "", true);
               child_md->clear_operation();
             }
-
-            rd_ns_lock.Release();
           }
 
+          rd_ns_lock.Release();
           n_attached ++;
 
           if (n_attached >= 128) {
@@ -2440,6 +2450,7 @@ FuseServer::HandleMD(const std::string& id,
       }
     } else {
       eos_static_info("ino=%lx get-file/link", (long) md.md_ino());
+      Prefetcher::prefetchFileMDAndWait(gOFS->eosView, (IFileMD::id_t)md.md_ino());
       cont.set_type(cont.MD);
       cont.set_ref_inode_(md.md_ino());
       FillFileMD(md.md_ino(), (*cont.mutable_md_()), vid);
