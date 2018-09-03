@@ -32,22 +32,21 @@
 
 int main(int argc, char* argv[])
 {
-  printf("Starting up ...\n");
   XrdMqMessage::Configure("");
 #ifdef CRYPTO
 
   if (!XrdMqMessage::Configure("xrd.mqclient.cf")) {
-    fprintf(stderr,
-            "error: cannot open client configuration file xrd.mqclient.cf\n");
+    fprintf(stderr, "error: cannot open client configuration file "
+            "xrd.mqclient.cf\n");
     exit(-1);
   }
 
 #endif
   XrdMqClient mqc;
 
-  if (mqc.AddBroker("root://lxbra0301.cern.ch:1097//eos/lxbra0301.cern.ch/master",
-                    true, true)) {
-    // if (mqc.AddBroker("root://localhost//xmessage/localhost/master", false, false)) {
+  //if (mqc.AddBroker("root://lxbra0301.cern.ch:1097//eos/lxbra0301.cern.ch/master",
+  //                  true, true)) {
+  if (mqc.AddBroker("root://localhost:1097//eos/localhost/master", true, true)) {
     printf("Added localhost ..\n");
   } else {
     printf("Adding localhost failed 1st time \n");
@@ -117,7 +116,7 @@ int main(int argc, char* argv[])
         }
       }
     }
-  } while (1);
+  } while (true);
 
   TIMING("SEND+RECV", &mq);
   mq.Print();

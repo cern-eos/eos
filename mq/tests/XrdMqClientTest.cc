@@ -35,13 +35,13 @@ int main(int argc, char* argv[])
   XrdMqClient mqc;
   printf("Created broker ...\n");
 
-  if (mqc.AddBroker("root://localhost//xmessage/")) {
+  if (mqc.AddBroker("root://localhost:1097//xmessage/")) {
     printf("Added localhost ..\n");
   } else {
     printf("Adding localhost failed 1st time \n");
   }
 
-  if (mqc.AddBroker("root://localhost//xmessage/")) {
+  if (mqc.AddBroker("root://localhost:1097//xmessage/")) {
     printf("Added localhsot 2nd time \n");
   } else {
     printf("Adding localhost failed 2nd time as expected\n");
@@ -56,35 +56,6 @@ int main(int argc, char* argv[])
   message.Print();
   XrdMqTiming mq("send");
   TIMING("START", &mq);
-#ifdef __BLA__
-
-  for (int i = 0; i < 1000; i++) {
-    message.NewId();
-    message.kMessageHeader.kDescription = "Test";
-    message.kMessageHeader.kDescription += i;
-    bool ret = (mqc << message);
-    //    printf("Message send gave %d\n",ret);
-  }
-
-  TIMING("SEND", &mq);
-
-  for (int i = 0; i < 1000; i++) {
-    XrdMqMessage* newmessage = mqc.RecvMessage();
-
-    if (i == 0) {
-      if (newmessage) {
-        newmessage->Print();
-      }
-    }
-
-    if (newmessage) {
-      delete newmessage;
-    }
-  }
-
-  TIMING("RECV", &mq);
-  mq.Print();
-#else
   int n = 1000;
 
   if (argc == 2) {
@@ -111,5 +82,4 @@ int main(int argc, char* argv[])
 
   TIMING("SEND+RECV", &mq);
   mq.Print();
-#endif
 }
