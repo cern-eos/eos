@@ -76,6 +76,20 @@ EOSCOMMONNAMESPACE_BEGIN
 #define EOS_TEXTUNBOLD "\033[0m"
 #define LOG_SILENT 0xffff
 
+#define eos_debug_lite(...)                                                  \
+  if ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+    eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
+                                            this->logId, vid, this->cident,  \
+                                            (LOG_DEBUG), __VA_ARGS__);       \
+  }
+
+#define eos_info_lite(...)                                                   \
+  if ((LOG_MASK(LOG_INFO) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+    eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
+                                            this->logId, vid, this->cident,  \
+                                            (LOG_INFO), __VA_ARGS__);        \
+      }
+
 //------------------------------------------------------------------------------
 //! Log Macros usable in objects inheriting from the logId Class
 //------------------------------------------------------------------------------
@@ -341,6 +355,15 @@ public:
   {
     static Logging instance;
     return instance;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current loglevel
+  //----------------------------------------------------------------------------
+  int
+  GetLogMask() const
+  {
+    return gLogMask;
   }
 
   //----------------------------------------------------------------------------
