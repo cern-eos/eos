@@ -188,17 +188,22 @@ IProcCommand::LaunchJob()
 bool
 IProcCommand::KillJob()
 {
-  if (!mDoAsync) {
-    return true;
+  bool is_killed = true;
+
+  if (mDoAsync) {
+    mForceKill.store(true);
+
+    if (mFuture.valid()) {
+      is_killed = (mFuture.wait_for(std::chrono::seconds(0)) ==
+                   std::future_status::ready);
+    }
   }
 
-  mForceKill.store(true);
-
-  if (mFuture.valid()) {
-    return (mFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
-  } else {
-    return true;
+  if (is_killed) {
+    --mCmdsExecuting[mReqProto.command_case()];
   }
+
+  return is_killed;
 }
 
 //------------------------------------------------------------------------------
@@ -439,7 +444,7 @@ IProcCommand::IsOperationForbidden(const char* inpath)
 bool
 IProcCommand::HasSlot(const eos::console::RequestProto& req_proto)
 {
-  static bool init = false;
+  static std::atomic<bool> init {false};
 
   // Initialize only once in the beginning
   if (!init) {
