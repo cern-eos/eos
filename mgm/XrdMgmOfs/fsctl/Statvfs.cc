@@ -65,44 +65,45 @@
     int spos = 0;
     int deepness = 0;
 
-    while ((spos = space.find("/", spos)) != STR_NPOS)
-    {
+    while ((spos = space.find("/", spos)) != STR_NPOS) {
       deepness++;
       spos++;
     }
 
-    if (deepness < 4)
-    {
+    if (deepness < 4) {
       statvfsmutex.Lock();
+      time_t now = time(NULL);
 
       // here we put some cache to avoid too heavy space recomputations
-      if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX)) {
+      if ((now - laststat) > (10 + (int) rand() / RAND_MAX)) {
         // take the sum's from all file systems in 'default'
         if (FsView::gFsView.mSpaceView.count("default")) {
           eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
           freebytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
-          false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
+                false);
           freefiles =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
           maxbytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
-          false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
+                false);
           maxfiles =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
         }
+
+        laststat = now;
       }
 
-      statvfsmutex.UnLock();
       l_freebytes = (long long)freebytes;
       l_freefiles = (long long)freefiles;
       l_maxbytes = (long long)maxbytes;
       l_maxfiles = (long long)maxfiles;
+      statvfsmutex.UnLock();
     } else {
       const std::string sspace = space.c_str();
-      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes, l_maxfiles, l_freefiles);
+      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes, l_maxfiles,
+                                l_freefiles);
     }
-
 
     response = "statvfs: retc=0";
     char val[1025];
@@ -120,5 +121,6 @@
     response += val;
     error.setErrInfo(response.length() + 1, response.c_str());
   }
+
   return SFS_DATA;
 }
