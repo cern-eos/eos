@@ -32,7 +32,8 @@ for arch in "el-6" "el-7" "fc-28" "fc-rawhide"; do
     # Use string substitution to get the destination path
     srpm_dst="${srpm_src/$SEARCH_PREFIX/$DEST_PREFIX}"
     cp "${srpm_src}" "${srpm_dst}"
-    YUM_REPO_DIR=$(dirname "${srpm_dst}")
+    # Drop the file name and the repodata dir from the path
+    YUM_REPO_DIR=$(dirname $(dirname "${srpm_dst}"))
   done
 
   # Rebuild the repo for SRPMS
@@ -49,7 +50,8 @@ for arch in "el-6" "el-7" "fc-28" "fc-rawhide"; do
     # Use string substitution to get the destination path
     rpm_dst="${rpm_src/$SEARCH_PREFIX/$DEST_PREFIX}"
     cp "${rpm_src}" "${rpm_dst}"
-    YUM_REPO_DIR=$(dirname "${rpm_dst}")
+    # Drop the file name and the repodata dir from the path
+    YUM_REPO_DIR=$(dirname $(dirname "${rpm_dst}"))
   done
 
   # Rebuild the yum repo for RPMS
