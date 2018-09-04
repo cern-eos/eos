@@ -16,6 +16,27 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.3.11 Citrine``
+==================
+
+2018-09-05
+
+Bug
+---
+
+* MGM: Fix slots leak of proc commands for which the initial client disconnected
+  before receiving the response
+* MGM/FUSE: Add support for all possible encodings between EOSXD and MGM
+* FUSEX: Fix stack corruption when doing recovery and remove leaking proxy object
+  after recovery
+* FUSEX: Add 'sss' as a possible authentication scheme for eosxd
+
+Improvements
+------------
+
+CI: Add script for promoting tag releases from the testing to the stable repo
+
+
 ``v4.3.10 Citrine``
 ==================
 
