@@ -51,7 +51,7 @@ IProcCommand::open(const char* path, const char* info,
   int delay = 5;
 
   if (!mExecRequest) {
-    if (HasSlot(mReqProto)) {
+    if (HasSlot()) {
       LaunchJob();
       mExecRequest = true;
     } else {
@@ -112,7 +112,6 @@ IProcCommand::open(const char* path, const char* info,
     }
   }
 
-  --mCmdsExecuting[mReqProto.command_case()];
   return SFS_OK;
 }
 
@@ -197,10 +196,6 @@ IProcCommand::KillJob()
       is_killed = (mFuture.wait_for(std::chrono::seconds(0)) ==
                    std::future_status::ready);
     }
-  }
-
-  if (is_killed) {
-    --mCmdsExecuting[mReqProto.command_case()];
   }
 
   return is_killed;
@@ -442,7 +437,7 @@ IProcCommand::IsOperationForbidden(const char* inpath)
 // Check if there is still an available slot for the current type of command
 //------------------------------------------------------------------------------
 bool
-IProcCommand::HasSlot(const eos::console::RequestProto& req_proto)
+IProcCommand::HasSlot()
 {
   static std::atomic<bool> init {false};
 
@@ -465,17 +460,19 @@ IProcCommand::HasSlot(const eos::console::RequestProto& req_proto)
   }
 
   uint64_t slot_limit {50};
-  auto it = mCmdsExecuting.find(req_proto.command_case());
+  auto it = mCmdsExecuting.find(mReqProto.command_case());
 
   if (it == mCmdsExecuting.end()) {
     // This should not happen unless you forgot to populate the map in the
     // section above
-    mCmdsExecuting[req_proto.command_case()] = 1;
+    mCmdsExecuting[mReqProto.command_case()] = 1;
+    mHasSlot = true;
   } else {
     if (it->second >= slot_limit) {
       return false;
     } else {
       ++it->second;
+      mHasSlot = true;
     }
   }
 

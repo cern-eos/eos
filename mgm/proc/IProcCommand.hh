@@ -46,8 +46,9 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   IProcCommand():
-    mExecRequest(false), mReqProto(), mDoAsync(false), mForceKill(false),
-    mVid(), mComment(), stdOut(), stdErr(), stdJson(), retc(0), mTmpResp()
+    mHasSlot(false), mExecRequest(false), mReqProto(), mDoAsync(false),
+    mForceKill(false), mVid(), mComment(), stdOut(), stdErr(), stdJson(),
+    retc(0), mTmpResp()
   {
     mTimestamp = time(NULL);
   }
@@ -87,6 +88,10 @@ public:
     }
 
     unlink(ofstderrStreamFilename.c_str());
+
+    if (mHasSlot) {
+      --mCmdsExecuting[mReqProto.command_case()];
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -231,17 +236,17 @@ protected:
   //! Check if there is still an available slot for the current type of command
   //! in the queue served by the thread pool
   //!
-  //! @param req_proto command request proto
-  //!
   //! @return true if command can be queued, otherwise false
   //----------------------------------------------------------------------------
-  static bool HasSlot(const eos::console::RequestProto& req_proto);
+  bool HasSlot();
 
   static std::atomic_uint_least64_t uuid;
   //! Map of command types to number of commands actually queued
   static std::map<eos::console::RequestProto::CommandCase,
          std::atomic<uint64_t>> mCmdsExecuting;
 
+  //! Indicate if current command has taken a slot in the queue
+  std::atomic<bool> mHasSlot;
   bool mExecRequest; ///< Indicate if request is launched asynchronously
   eos::console::RequestProto mReqProto; ///< Client request protobuf object
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
