@@ -2376,7 +2376,7 @@ data::datax::dump_recovery_stack()
     sdump << "#        fid  := " << fid() << std::endl;
 
     for (auto it : mRecoveryStack) {
-      snprintf(n, sizeof(n), "%03u", i);
+      snprintf(n, sizeof(n), "%03lu", i);
       sdump << "#        -[ " << n << " ] " << it << std::endl;
       ++i;
     }
