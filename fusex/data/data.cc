@@ -955,8 +955,15 @@ data::datax::recover_ropen(fuse_req_t req)
     newproxy->inherit_attached(proxy);
     // replace the proxy object
     mFile->set_xrdioro(req, newproxy);
+    proxy->detach();
+    // save the error status of the previous proxy object
+    status = proxy->opening_state();
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
+
+    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+      proxy->CheckSelfDestruction();
+    }
 
     if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
       eos_warning("recover reopened file successfully");
@@ -964,7 +971,6 @@ data::datax::recover_ropen(fuse_req_t req)
     }
 
     // that failed again ...
-    status = proxy->opening_state();
 
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
@@ -1084,6 +1090,12 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     newproxy->inherit_attached(proxy);
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
+    proxy->detach();
+
+    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+      proxy->CheckSelfDestruction();
+    }
+
     // replace the proxy object
     proxy = newproxy;
 
@@ -1372,6 +1384,7 @@ data::datax::recover_write(fuse_req_t req)
       // make sure the buffer size fits
       buffer->resize(mFile->file()->size());
       buffer->reserve(mFile->file()->size());
+      buf = (void*) buffer->ptr();
 
       // recover file from the local start cache
       if (mFile->file()->pread(buf, mFile->file()->size(), 0) < 0) {
@@ -1508,6 +1521,7 @@ data::datax::recover_write(fuse_req_t req)
     eos_notice("finished write recovery successfully");
     // replace the proxy object
     mFile->set_xrdiorw(req, uploadproxy);
+    proxy->detach();
 
     // re-open the file centrally for access
     if (req && end_flush(req)) {
@@ -1516,6 +1530,10 @@ data::datax::recover_write(fuse_req_t req)
 
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
+
+    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+      proxy->CheckSelfDestruction();
+    }
   } else {
     eos_crit("no local cache data for recovery");
     return EREMOTEIO;
@@ -2358,7 +2376,7 @@ data::datax::dump_recovery_stack()
     sdump << "#        fid  := " << fid() << std::endl;
 
     for (auto it : mRecoveryStack) {
-      snprintf(n, sizeof(n), "%03d", i);
+      snprintf(n, sizeof(n), "%03u", i);
       sdump << "#        -[ " << n << " ] " << it << std::endl;
       ++i;
     }
