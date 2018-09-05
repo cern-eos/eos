@@ -106,3 +106,16 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 # The SSI protocol buffer endpoint for notification messages from "proto" workflow actions
 #mgmofs.protowfendpoint HOSTNAME.2NDLEVEL.TOPLEVEL:10955
 #mgmofs.protowfresource /SSI_RESOURCE
+
+#-------------------------------------------------------------------------------
+# Configuration for the tape aware garbage collector
+#-------------------------------------------------------------------------------
+
+# Whether or not the garbage collector should be enabled.  Default is false.
+#mgmofs.tapeawaregc_enable false
+
+# Minimum number of free bytes to be available in the default EOS space.  If the
+# actual number of free bytes is less than this value then the garbage collector
+# will try to free up space by garbage collecting disk replicas.  Default is
+# 10GB.
+#mgmofs.tapeawaregc_defaultminfreebytes 10000000000

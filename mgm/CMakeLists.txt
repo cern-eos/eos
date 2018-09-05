@@ -154,6 +154,8 @@ add_library(
   Recycle.cc
   PathRouting.cc
   RouteEndpoint.cc
+  TapeAwareGc.cc
+  TapeAwareGcLru.cc
   LRU.cc
   WFE.cc
   Workflow.cc

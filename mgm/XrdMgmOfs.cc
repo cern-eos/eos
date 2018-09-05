@@ -181,6 +181,9 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
+  mTapeAwareGcEnable(false),
+  mTapeAwareGcDefaultMinFreeBytes(10000000000LL),
+  mTapeAwareGc(TapeAwareGc::instance()),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;

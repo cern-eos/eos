@@ -55,7 +55,8 @@ set(MGM_UT_SRCS
   mgm/FsViewTests.cc
   mgm/AclCmdTests.cc
   mgm/RoutingTests.cc
-  mgm/LockTrackerTests.cc)
+  mgm/LockTrackerTests.cc
+  mgm/TapeAwareGcLruTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileMapTests.cc

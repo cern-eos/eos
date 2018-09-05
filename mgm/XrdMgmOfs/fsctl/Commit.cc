@@ -302,6 +302,10 @@
                     "atomic upload [EREMCHG] - discarding atomic upload", "");
       }
     }
+
+    if(fmd) {
+      gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
+    }
   } else
   {
     int envlen = 0;

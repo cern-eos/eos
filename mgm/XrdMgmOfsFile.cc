@@ -2373,6 +2373,8 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
+  if(nullptr != fmd) gOFS->mTapeAwareGc.fileOpened(path, *fmd);
+
   // Also trigger synchronous create workflow event if it's defined
   if (isCreation) {
     errno = 0;

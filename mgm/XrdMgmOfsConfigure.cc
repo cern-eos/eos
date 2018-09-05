@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <cstring>
+#include <sstream>
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -642,6 +643,39 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
               mIsCentralDrain = true;
             }
           }
+        }
+
+        if (!strcmp("tapeawaregc_enable", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for tapeawaregc_enable illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              mTapeAwareGcEnable = true;
+            }
+          }
+
+          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ", mTapeAwareGcEnable ? "true" : "false");
+        }
+
+        if (!strcmp("tapeawaregc_defaultminfreebytes", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for tapeawaregc_defaultminfreebytes missing.");
+          } else {
+            uint64_t minFreeBytes = 0;
+            std::istringstream minFreeBytesStream(val);
+            if (!(minFreeBytesStream >> minFreeBytes)) {
+              Eroute.Emsg("Config", "argument for tapeawaregc_defaultminfreebytes illegal."
+                          "Must be an unsigned 64-bit integer!");
+            } else {
+              mTapeAwareGcDefaultMinFreeBytes = minFreeBytes;
+            }
+          }
+
+          Eroute.Say("=====> mgmofs.tapeawaregc_defaultminfreebytes : ",
+            std::to_string(mTapeAwareGcDefaultMinFreeBytes).c_str());
         }
 
         if (!strcmp("authorize", var)) {
@@ -1913,6 +1947,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   gGeoTreeEngine.StartUpdater();
   // Start the drain engine
   mDrainEngine.Start();
+
+  // Only if configured to do so, enable the tape aware garbage collector
+  if(mTapeAwareGcEnable) {
+    mTapeAwareGc.enable(mTapeAwareGcDefaultMinFreeBytes);
+  }
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

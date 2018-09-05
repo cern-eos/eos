@@ -108,6 +108,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
+#include "mgm/TapeAwareGc.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <google/sparse_hash_map>
@@ -1587,6 +1588,9 @@ public:
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
+  bool mTapeAwareGcEnable; ///< Flag to mark if tape aware garbage collection should be enabled
+  uint64_t mTapeAwareGcDefaultMinFreeBytes; ///< Minimum number of free bytes the default space should have
+  TapeAwareGc &mTapeAwareGc; ///< Tape aware garbage collector
 
 private:
   std::map<std::string, XrdMgmOfsDirectory*>
