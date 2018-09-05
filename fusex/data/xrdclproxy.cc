@@ -779,7 +779,7 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     delete status;
 
     if (proxy()) {
-      XrdSysCondVarHelper lLock(mProxy->ReadCondVar());
+      XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
 
       if ((mProxy->ChunkMap().size() > 1) ||
           (!mProxy->ChunkMap().count((uint64_t) this))) {
