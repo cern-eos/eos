@@ -4666,11 +4666,11 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         auto sAttrMap = md->mutable_attr();
         (*sAttrMap)[k_mdino] = std::to_string(tmd->md_ino());
         tmd->set_nlink(nlink + 1);
-        tmd->Locker().UnLock();
+        tmLock.UnLock();
         md->set_id(Instance().mds.insert(req, md, pcap->authid()));
         rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
         md->set_target("");
-        md->Locker().UnLock();
+        mLock.UnLock();
 
         if (!rc) {
           XrdSysMutexHelper tmLock(tmd->Locker());
