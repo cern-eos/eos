@@ -223,7 +223,9 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     // --------------------------------------------------
     pmd->Locker().UnLock();
     md = get(req, inode, "", false, pmd, name);
+    md->Locker().Lock();
     md->set_fullpath(pmd->fullpath() + name);
+    md->Locker().UnLock();
     pmd->Locker().Lock();
   } else {
     // --------------------------------------------------
