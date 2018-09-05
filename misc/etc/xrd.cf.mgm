@@ -98,3 +98,11 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 
 # Enable central draining to be use with Quarkdb namespace
 #mgmofs.centraldrain true
+
+#-------------------------------------------------------------------------------
+# Configuration for the MGM workflow engine
+#-------------------------------------------------------------------------------
+
+# The SSI protocol buffer endpoint for notification messages from "proto" workflow actions
+#mgmofs.protowfendpoint HOSTNAME.2NDLEVEL.TOPLEVEL:10955
+#mgmofs.protowfresource /SSI_RESOURCE
