@@ -41,3 +41,4 @@ kineticio-dist.tgz
 /.settings/
 .cproject
 .project
+.vscode

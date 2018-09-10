@@ -3,3 +3,4 @@ common/fmt/
 namespace/ns_quarkdb/qclient/src/fmt/
 common/sqlite/
 man/man1/
+.vscode

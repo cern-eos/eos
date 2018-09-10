@@ -424,6 +424,11 @@ XrdMgmOfs::_rename(const char* old_name,
       if (renameDir) {
         rdir = dir->findContainer(oPath.GetName());
 
+        if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+          errno = EINVAL;
+          return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
+        }
+
         if (rdir) {
           // Remove all the quota from the source node and add to the target node
           std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
@@ -574,6 +579,13 @@ XrdMgmOfs::_rename(const char* old_name,
             gOFS->FuseXCastContainer(rdir->getIdentifier());
             gOFS->FuseXCastContainer(rdir->getParentIdentifier());
           } else {
+            // Do the check once again, because we're paranoid
+            if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+              eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() << " -> " << newdir->getId() << " was prevented at the last resort check"));
+              errno = EINVAL;
+              return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path - caught by last resort check, quotanodes may have become inconsistent");
+            }
+
             // Remove from one container to another one
             unsigned long long tree_size = rdir->getTreeSize();
             {

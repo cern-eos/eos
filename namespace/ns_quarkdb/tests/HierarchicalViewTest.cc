@@ -29,6 +29,7 @@
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include "namespace/Resolver.hh"
+#include "namespace/utils/RenameSafetyCheck.hh"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -514,4 +515,17 @@ TEST_F(HierarchicalViewF, LostContainerTest)
   // Remove all containers
   // TODO(gbitzes): Something wrong is here, this should succeed, investigate.
   // eos::RmrfHelper::nukeDirectory(view(), "/test/");
+}
+
+TEST_F(HierarchicalViewF, RenameDirectoryAsSubdirOfItself)
+{
+  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/eos/dev/my-dir", true);
+  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/eos/dev/my-dir/subdir1", true);
+  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/eos/dev/my-dir/subdir1/subdir2", true);
+
+  ASSERT_TRUE(eos::isSafeToRename(view(), cont3.get(), cont1.get()));
+  ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont3.get()));
+
+  ASSERT_TRUE(eos::isSafeToRename(view(), cont2.get(), cont1.get())); // non-sensical to do, but safe (no-op)
+  ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont2.get()));
 }
