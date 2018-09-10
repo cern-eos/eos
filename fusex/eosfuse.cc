@@ -378,7 +378,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("flush-wait-open")) {
-        root["options"]["flush-wait-open"] = 1;
+        root["options"]["flush-wait-open"] = 0;
       }
 
       if (!root["options"].isMember("show-tree-size")) {
@@ -415,7 +415,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       if (!root["options"].isMember("fd-limit")) {
         if (!geteuid()) {
-          root["options"]["fd-limit"] = 65535;
+          root["options"]["fd-limit"] = 524288;
         } else {
           root["options"]["fd-limit"] = 4096;
         }
@@ -1868,11 +1868,14 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               data::data_fh* io = (data::data_fh*) fi->fh;
 
               if (io) {
-                eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
-                rc |= io->ioctx()->truncate(req, attr->st_size);
-                io->ioctx()->inline_file(attr->st_size);
-                rc |= io->ioctx()->flush(req);
-                rc = rc ? (errno ? errno : rc) : 0;
+                if (!md->creator() || (md->creator() && ((off_t)md->size() != attr->st_size))) {
+                  // no need to truncate if we still have the creator key
+                  eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
+                  rc |= io->ioctx()->truncate(req, attr->st_size);
+                  io->ioctx()->inline_file(attr->st_size);
+                  rc |= io->ioctx()->flush(req);
+                  rc = rc ? (errno ? errno : rc) : 0;
+                }
               } else {
                 rc = EIO;
               }
@@ -1881,14 +1884,17 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               eos_static_debug("truncate size=%lu", (size_t) attr->st_size);
               std::string cookie = md->Cookie();
               data::shared_data io = Instance().datas.get(req, md->id(), md);
-              rc = io->attach(req, cookie, true);
-              eos_static_debug("calling truncate");
-              rc |= io->truncate(req, attr->st_size);
-              io->inline_file(attr->st_size);
-              rc |= io->flush(req);
-              rc |= io->detach(req, cookie, true);
-              rc = rc ? (errno ? errno : rc) : 0;
-              Instance().datas.release(req, md->id());
+
+              if (!md->creator() || (md->creator() && ((off_t)md->size() != attr->st_size))) {
+                rc = io->attach(req, cookie, true);
+                eos_static_debug("calling truncate");
+                rc |= io->truncate(req, attr->st_size);
+                io->inline_file(attr->st_size);
+                rc |= io->flush(req);
+                rc |= io->detach(req, cookie, true);
+                rc = rc ? (errno ? errno : rc) : 0;
+                Instance().datas.release(req, md->id());
+              }
             }
 
             if (!rc) {
@@ -2480,6 +2486,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         /* xattr inheritance */
         auto attrMap = md->mutable_attr();
         auto pattrMap = pmd->attr();
+
         for (auto const it : pattrMap) {
           eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
           (*attrMap)[it.first] = it.second;
@@ -4208,7 +4215,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-		    dump(id, ino, 0, rc, xattr_name).c_str());
+                    dump(id, ino, 0, rc, xattr_name).c_str());
 }
 
 /* -------------------------------------------------------------------------- */

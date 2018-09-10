@@ -44,7 +44,7 @@ This
     "global-flush" : 0,
     "flush-wait-open" : 1,
     "global-locking" : 1, 
-    "fd-limit" : 65536,
+    "fd-limit" : 524288,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
     "overlay-mode" : 000, 
     "rm-rf-protect-levels" : 1,
