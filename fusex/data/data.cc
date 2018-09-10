@@ -550,8 +550,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
-  int jcache = mFile->journal() ? mFile->journal()->attach(freq, cookie,
-               isRW) : 0;
+  int jcache = mFile->journal() ? (isRW ? mFile->journal()->attach(freq, cookie,
+                                   isRW) : 0) : 0;
 
   if (bcache < 0) {
     char msg[1024];
@@ -1575,7 +1575,8 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
   int rflush = flush(req);
   XrdSysMutexHelper lLock(mLock);
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
-  int jcache = mFile->journal() ? mFile->journal()->detach(cookie) : 0;
+  int jcache = mFile->journal() ? (isRW ? mFile->journal()->detach(
+                                     cookie) : 0) : 0;
   int xio = 0;
 
   if (isRW) {
