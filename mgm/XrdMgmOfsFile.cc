@@ -1260,6 +1260,29 @@ XrdMgmOfsFile::open(const char* inpath,
     }
 
     retc = Quota::FilePlacement(&plctargs);
+
+    // reshuffle the selectedfs by returning as first entry the lowest if the sum of the fsid is odd
+    // the highest if the sum is even
+    if (selectedfs.size() > 0) {
+      std::vector<unsigned int> newselectedfs;
+      auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
+      int sum = std::accumulate(selectedfs.begin(), selectedfs.end(), 0);
+
+      if ((sum % 2) == 0) {
+        newselectedfs.push_back(*result.second);
+      } else {
+        newselectedfs.push_back(*result.first);
+      }
+
+      for (const auto& i : selectedfs) {
+        if (i != newselectedfs.front()) {
+          newselectedfs.push_back(i);
+        }
+      }
+
+      //do the swap
+      selectedfs.swap(newselectedfs);
+    }
   } else {
     // Access existing file - fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
@@ -1386,29 +1409,6 @@ XrdMgmOfsFile::open(const char* inpath,
       // Indicating that the layout requires the replacement of stripes
       retc = 0; // TODO: we currently don't support repair on the fly mode
     }
-  }
-
-  // reshuffle the selectedfs by returning as first entry the lowest if the sum of the fsid is odd
-  // the highest if the sum is even
-  if (selectedfs.size() > 0) {
-    std::vector<unsigned int> newselectedfs;
-    auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
-    int sum = std::accumulate(selectedfs.begin(), selectedfs.end(), 0);
-
-    if ((sum % 2) == 0) {
-      newselectedfs.push_back(*result.second);
-    } else {
-      newselectedfs.push_back(*result.first);
-    }
-
-    for (const auto& i : selectedfs) {
-      if (i != newselectedfs.front()) {
-        newselectedfs.push_back(i);
-      }
-    }
-
-    //do the swap
-    selectedfs.swap(newselectedfs);
   }
 
   /// ###############
