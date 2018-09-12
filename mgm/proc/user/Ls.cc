@@ -170,7 +170,6 @@ ProcCommand::Ls()
               stdErr += "\n";
               retc = errno;
             } else {
-              int i = 0;
               // TODO: convert virtual IDs back
               XrdOucString suid = "";
               suid += (int) buf.st_uid;
