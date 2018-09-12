@@ -123,6 +123,16 @@ public:
       getFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
+  //! Erase an entry from all filesystem view collections
+  //!
+  //! @param location where to remove
+  //! @param file id to remove
+  //!
+  //! @return
+  //----------------------------------------------------------------------------
+  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t) = 0;
+
+  //----------------------------------------------------------------------------
   //! Get an approximately random file residing within the given filesystem.
   //!
   //! @param location file system id
@@ -131,7 +141,7 @@ public:
   //! @return bool indicating whether the operation was successful
   //----------------------------------------------------------------------------
   virtual bool getApproximatelyRandomFileInFs(IFileMD::location_t location,
-    IFileMD::id_t &retval) = 0;
+      IFileMD::id_t& retval) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system

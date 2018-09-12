@@ -72,6 +72,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Erase an entry from all filesystem view collections
+  //!
+  //! @param file id
+  //!
+  //! @return
+  //----------------------------------------------------------------------------
+  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t);
+
+
+  //----------------------------------------------------------------------------
   //! Get iterator to list of files on a particular file system
   //!
   //! @param location file system id
@@ -90,7 +100,7 @@ public:
   //! @return bool indicating whether the operation was successful
   //----------------------------------------------------------------------------
   bool getApproximatelyRandomFileInFs(IFileMD::location_t location,
-    IFileMD::id_t &retval) override;
+                                      IFileMD::id_t& retval) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system
@@ -154,7 +164,8 @@ public:
   //! @return shard ptr to collection iterator
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-      getStreamingNoReplicasFileList() override {
+      getStreamingNoReplicasFileList() override
+  {
     return getNoReplicasFileList();
   }
 

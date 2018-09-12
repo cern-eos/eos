@@ -150,6 +150,25 @@ void FileSystemView::fileMDRead(IFileMD* obj)
 }
 
 //------------------------------------------------------------------------------
+// Erase an entry from all filesystem view collections
+//------------------------------------------------------------------------------
+
+void
+FileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t id)
+{
+  if (location < pFiles.size()) {
+    pFiles[location].erase(id);
+  }
+
+  if (location < pUnlinkedFiles.size()) {
+    pUnlinkedFiles[location].erase(id);
+  }
+
+  pNoReplicas.erase(id);
+  return ;
+}
+
+//------------------------------------------------------------------------------
 // Get iterator to list of files on a particular file system
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
@@ -166,9 +185,10 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 //------------------------------------------------------------------------------
 // Get an approximately random file residing within the given filesystem.
 //------------------------------------------------------------------------------
-bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t location,
-    IFileMD::id_t &retval) {
-
+bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t
+    location,
+    IFileMD::id_t& retval)
+{
   if (pFiles.size() <= location) {
     return false;
   }

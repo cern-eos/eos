@@ -203,6 +203,15 @@ public:
   virtual bool fileMDCheck(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
+  //! Erase an entry from all filesystem view collections
+  //!
+  //! @param file id
+  //!
+  //! @return
+  //----------------------------------------------------------------------------
+  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t);
+
+  //----------------------------------------------------------------------------
   //! Get iterator to list of files on a particular file system
   //!
   //! @param location file system id
@@ -221,7 +230,7 @@ public:
   //! @return bool indicating whether the operation was successful
   //----------------------------------------------------------------------------
   bool getApproximatelyRandomFileInFs(IFileMD::location_t location,
-    IFileMD::id_t &retval) override;
+                                      IFileMD::id_t& retval) override;
 
   //----------------------------------------------------------------------------
   //! Get number of files on the given file system
@@ -386,7 +395,8 @@ private:
   ///! Regular filelists
   std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mFiles;
   ///! Unlinked filelists
-  std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mUnlinkedFiles;
+  std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>>
+      mUnlinkedFiles;
   ///! Mutex protecting access to the maps. Not the contents of the maps,
   ///! though.
   std::mutex mMutex;
