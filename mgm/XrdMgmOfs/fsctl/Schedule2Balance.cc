@@ -185,6 +185,12 @@
         break;
       }
 
+      if(!gOFS->eosView->inMemory()) {
+        lock.Release();
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+        lock.Grab(gOFS->eosViewRWMutex);
+      }
+
       // check that the target does not have this file
       if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
         // Iterate to the next file, we have this file already
@@ -236,7 +242,6 @@
             while (savepath.replace("&", "#AND#")) {}
 
             fullpath = savepath.c_str();
-            fmd = gOFS->eosFileService->getFileMD(fid);
             lid = fmd->getLayoutId();
             cid = fmd->getContainerId();
             size = fmd->getSize();
