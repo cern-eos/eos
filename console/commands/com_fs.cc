@@ -356,6 +356,32 @@ com_fs(char* arg1)
     return (0);
   }
 
+  if (subcommand == "dropghosts") {
+    XrdOucString arg = subtokenizer.GetToken();
+
+    if (!arg.c_str()) {
+      goto com_fs_usage;
+    }
+
+    XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dropghosts";
+    int fsid = atoi(arg.c_str());
+    char r1fsid[128];
+    sprintf(r1fsid, "%d", fsid);
+    char r2fsid[128];
+    sprintf(r2fsid, "%04d", fsid);
+
+    if ((arg == r1fsid) || (arg == r2fsid)) {
+      // boot by fsid
+      in += "&mgm.fs.id=";
+      in += arg;
+    } else {
+      goto com_fs_usage;
+    }
+
+    global_retc = output_result(client_command(in, true));
+    return (0);
+  }
+
   if (subcommand == "boot") {
     XrdOucString arg = subtokenizer.GetToken();
     XrdOucString option = subtokenizer.GetToken();
@@ -832,7 +858,7 @@ com_fs(char* arg1)
 com_fs_usage:
   fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
   fprintf(stdout,
-          "Usage: fs add|boot|config|dropdeletion|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
+          "Usage: fs add|boot|config|dropdeletion|dropghosts|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout,
           "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [--brief|-b] [ [matchlist] ] :\n");
@@ -956,6 +982,9 @@ com_fs_usage:
   fprintf(stdout, "fs dropdeletion <fs-id> :\n");
   fprintf(stdout,
           "                                                  allows to drop all pending deletions on <fs-id> \n");
+  fprintf(stdout, "fs dropghosts <fs-id> :\n");
+  fprintf(stdout,
+          "                                                  allows to drop all filesystem view ghost entries (ids without meta data objects in the namespace) on <fs-id> \n");
   fprintf(stdout, "fs dropfiles <fs-id> [-f] :\n");
   fprintf(stdout,
           "                                                  allows to drop all files on <fs-id> - force\n");

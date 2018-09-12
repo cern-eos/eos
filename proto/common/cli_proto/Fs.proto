@@ -47,6 +47,10 @@ message FsProto {
     uint64 Fsid = 1;
   }
 
+  message DropGhostsProto {
+    uint64 Fsid = 1;
+  }
+
   message DropFilesProto {
     uint64 Fsid = 1;
     bool Force = 2;
@@ -116,5 +120,6 @@ message FsProto {
     LsProto ls = 10;
     RmProto rm = 11;
     StatusProto status = 12;
+    DropGhostsProto dropghosts = 13;
   }
 }

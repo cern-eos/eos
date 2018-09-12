@@ -141,6 +141,21 @@ int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
+//! Drop ghost entries from a filesystem view (file ids without meta data objects)
+//!
+//! @param id id of the filesystem
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//! @param vid_in virtual identify of the client
+//!
+//! @return 0 if successful, otherwise error code value
+//------------------------------------------------------------------------------
+int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
+                       XrdOucString& stdErr,
+                       eos::common::Mapping::VirtualIdentity& vid_in);
+
+
+//------------------------------------------------------------------------------
 //! Get type of entity. It can either be a filesystem, an eos group or an eos
 //! space.
 //!

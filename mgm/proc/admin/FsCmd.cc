@@ -60,6 +60,8 @@ eos::mgm::FsCmd::ProcessRequest()
     reply.set_retc(Config(fs.config()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropdel) {
     reply.set_retc(DropDeletion(fs.dropdel()));
+  } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropghosts) {
+    reply.set_retc(DropGhosts(fs.dropghosts()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDropfiles) {
     reply.set_retc(DropFiles(fs.dropfiles()));
   } else if (subCmdCase == eos::console::FsProto::SubcmdCase::kDumpmd) {
@@ -152,10 +154,9 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         for (const auto id : FsView::gFsView.mIdView) {
           if ((id.second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
             eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-                    ? eos::common::FileSystem::kBootResync  // MGM resync
-                    : eos::common::FileSystem::kBootForced; // local resync
+                ? eos::common::FileSystem::kBootResync  // MGM resync
+                : eos::common::FileSystem::kBootForced; // local resync
             auto now = time(nullptr);
-
             id.second->SetLongLong("bootcheck", bootConfig);
             id.second->SetLongLong("bootsenttime", (unsigned long long) now);
             outStream << " ";
@@ -189,10 +190,9 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
           if (fs != nullptr) {
             eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-                    ? eos::common::FileSystem::kBootResync  // MGM resync
-                    : eos::common::FileSystem::kBootForced; // local resync
+                ? eos::common::FileSystem::kBootResync  // MGM resync
+                : eos::common::FileSystem::kBootForced; // local resync
             auto now = time(nullptr);
-
             fs->SetLongLong("bootcheck", bootConfig);
             fs->SetLongLong("bootsenttime", ((now > 0) ? now : 0));
             outStream << " ";
@@ -204,10 +204,11 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
       }
     } else {
       // boot filesystem by fsid or uuid
-      FileSystem *fs = nullptr;
+      FileSystem* fs = nullptr;
 
       if (fsid) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
         if (FsView::gFsView.mIdView.count(fsid)) {
           fs = FsView::gFsView.mIdView[fsid];
         } else {
@@ -217,6 +218,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         }
       } else if (fsuuid.length()) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
         if (FsView::gFsView.GetMapping(fsuuid)
             && FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(fsuuid))) {
           fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(fsuuid)];
@@ -229,12 +231,10 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
       if (fs != nullptr) {
         eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
-                ? eos::common::FileSystem::kBootResync  // MGM resync
-                : eos::common::FileSystem::kBootForced; // local resync
-
+            ? eos::common::FileSystem::kBootResync  // MGM resync
+            : eos::common::FileSystem::kBootForced; // local resync
         fs->SetLongLong("bootcheck", bootConfig);
         fs->SetLongLong("bootsenttime", (unsigned long long) time(nullptr));
-
         outStream << "success: boot message sent to ";
         outStream << fs->GetString("host").c_str();
         outStream << ":";
@@ -248,7 +248,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
   } else {
     retc = EPERM;
     errStream << "error: you have to take role 'root' or connect via 'sss' "
-                 "to execute this command";
+              "to execute this command";
   }
 
   mOut = outStream.str();
@@ -302,6 +302,23 @@ FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
   retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal,
                               errLocal, mVid);
+  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
+// DropGhosts subcommand
+//------------------------------------------------------------------------------
+int
+FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto&
+                  dropghostsProto)
+{
+  XrdOucString outLocal, errLocal;
+  eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+  retc = proc_fs_dropghosts(std::to_string(dropghostsProto.fsid()), outLocal,
+                            errLocal, mVid);
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   return retc;

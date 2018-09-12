@@ -155,6 +155,12 @@ ProcCommand::Fs()
       eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
       retc = proc_fs_dropdeletion(id, stdOut, stdErr, *pVid);
     }
+
+    if (mSubCmd == "dropghosts") {
+      std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
+      eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
+      retc = proc_fs_dropghosts(id, stdOut, stdErr, *pVid);
+    }
   }
 
   if (mSubCmd == "boot") {

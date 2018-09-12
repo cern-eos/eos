@@ -67,6 +67,8 @@ private:
 
   int DropDeletion(const eos::console::FsProto::DropDeletionProto& dropdelProto);
 
+  int DropGhosts(const eos::console::FsProto::DropGhostsProto& dropghostsProto);
+
   int Add(const eos::console::FsProto::AddProto& addProto);
 
   int Boot(const eos::console::FsProto::BootProto& bootProto);
@@ -84,12 +86,13 @@ private:
   std::string DisplayModeToString(eos::console::FsProto::LsProto::DisplayMode
                                   mode);
 
-  int SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option, XrdOucString& dp,
+  int SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
+                                   XrdOucString& dp,
                                    XrdOucString& df, XrdOucString& ds, XrdOucString& out,
                                    XrdOucString& err, size_t& entries);
 
   template <class T, std::size_t N>
-  static constexpr std::size_t SizeOfArray(const T (&array)[N]) noexcept
+  static constexpr std::size_t SizeOfArray(const T(&array)[N]) noexcept
   {
     return N;
   }

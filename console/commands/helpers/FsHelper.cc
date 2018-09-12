@@ -135,7 +135,7 @@ FsHelper::ParseCommand(const char* arg)
       } else {
         // Parse <fsid> or <uuid>
         bool isUuid =
-            soption.find_first_not_of("0123456789") != std::string::npos;
+          soption.find_first_not_of("0123456789") != std::string::npos;
 
         if (isUuid) {
           boot->set_uuid(soption);
@@ -143,7 +143,7 @@ FsHelper::ParseCommand(const char* arg)
           try {
             uint64_t fsid = std::stoull(soption);
             boot->set_fsid(fsid);
-          } catch (const std::exception &e) {
+          } catch (const std::exception& e) {
             std::cerr << "error: fsid needs to be numeric" << std::endl;
             return false;
           }
@@ -237,7 +237,7 @@ FsHelper::ParseCommand(const char* arg)
       } else {
         // Parse <fsid> or <uuid>
         bool isUuid =
-            soption.find_first_not_of("0123456789") != std::string::npos;
+          soption.find_first_not_of("0123456789") != std::string::npos;
 
         if (isUuid) {
           config->set_uuid(soption);
@@ -245,7 +245,7 @@ FsHelper::ParseCommand(const char* arg)
           try {
             uint64_t fsid = std::stoull(soption);
             config->set_fsid(fsid);
-          } catch (const std::exception &e) {
+          } catch (const std::exception& e) {
             std::cerr << "error: fsid needs to be numeric" << std::endl;
             return false;
           }
@@ -283,6 +283,23 @@ FsHelper::ParseCommand(const char* arg)
       try {
         uint64_t fsid = std::stoull(soption);
         dropdel->set_fsid(fsid);
+      } catch (const std::exception& e) {
+        std::cerr << "error: fsid needs to be numeric" << std::endl;
+        return false;
+      }
+    }
+  } else if (cmd == "dropghosts") {
+    using eos::console::FsProto_DropGhostsProto;
+    FsProto_DropGhostsProto* dropghosts = fs->mutable_dropghosts();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+
+      try {
+        uint64_t fsid = std::stoull(soption);
+        dropghosts->set_fsid(fsid);
       } catch (const std::exception& e) {
         std::cerr << "error: fsid needs to be numeric" << std::endl;
         return false;
@@ -515,8 +532,7 @@ FsHelper::ParseCommand(const char* arg)
 
           oss << "/fst" << mountpoint;
           rm->set_nodequeue(oss.str());
-        }
-        else {
+        } else {
           // This needs to be an fsid
           try {
             uint64_t fsid = std::stoull(soption);

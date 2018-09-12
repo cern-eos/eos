@@ -62,7 +62,7 @@ int com_protofs(char* arg)
 void com_fs_help()
 {
   std::ostringstream oss;
-  oss << "Usage: fs add|boot|config|dropdeletion|dropfiles|dumpmd|ls|mv|rm|status [OPTIONS]"
+  oss << "Usage: fs add|boot|config|dropdeletion|dropghosts|dropfiles|dumpmd|ls|mv|rm|status [OPTIONS]"
       << std::endl
       << "  Options:" << std::endl
       << "  fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] "
@@ -91,7 +91,8 @@ void com_fs_help()
       << std::endl
       << "  fs boot <fsid>|<uuid>|<node-queue>|* [--syncmgm]" << std::endl
       << "    boot - filesystem identified by <fsid> or <uuid>" << std::endl
-      << "         - all filesystems on a node identified by <node-queue>" << std::endl
+      << "         - all filesystems on a node identified by <node-queue>" <<
+      std::endl
       << "         - all filesystems registered" << std::endl
       << "    --syncmgm    : for MGM resynchronization during the booting"
       << std::endl
@@ -163,6 +164,10 @@ void com_fs_help()
       << std::endl
       << "  fs dropdeletion <fsid> " << std::endl
       << "    drop all pending deletions on the filesystem" << std::endl
+      << std::endl
+      << "  fs dropghosts <fsid> " << std::endl
+      << "     drop all filesystem view ghost entries (ids without meta data objects in the namespace) on the filesystem"
+      << std::endl
       << std::endl
       << "  fs dropfiles <fsid> [-f]" << std::endl
       << "    drop all files on the filesystem" << std::endl

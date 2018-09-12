@@ -151,7 +151,6 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
     retc = EINVAL;
   } else {
     int fsid = atoi(sfsid.c_str());
-    std::shared_ptr<eos::IFileMD> fmd;
     eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
       gOFS->eosView, gOFS->eosFsView, fsid);
 
@@ -165,6 +164,8 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
+      std::shared_ptr<eos::IFileMD> fmd;
+
       try {
         fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
 
@@ -234,12 +235,21 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                        "code: %d, message: %s", it_fid->getElement(),
                        e.getErrno(), e.getMessage().str().c_str());
       }
+
+      if (!fmd) {
+        char sfid[1024];
+        snprintf(sfid, 1024, "# warning: ghost entry fid=%llu",
+                 (unsigned long long) it_fid->getElement());
+        stdOut += sfid;
+      }
     }
 
     if (monitor) {
       // Also add files which have yet to be unlinked
       for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fsid);
            (it_fid && it_fid->valid()); it_fid->next()) {
+        std::shared_ptr<eos::IFileMD> fmd;
+
         try {
           fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
 
@@ -1023,7 +1033,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
   // without any file systems i.e highest priority
   std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
-  for (auto && grp : grps) {
+  for (auto&& grp : grps) {
     ret_grps.push_back(grp->mName);
   }
 
@@ -1066,7 +1076,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1129,7 +1139,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1258,7 +1268,7 @@ proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
 
   if (fsid) {
     if ((vid_in.uid != 0)) {
-      stdErr = "error: filesystems can only be removed as 'root'\n";
+      stdErr = "error: filesystem deletions can oly be dropped as 'root'\n";
       retc = EPERM;
     } else {
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
@@ -1270,6 +1280,61 @@ proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
         stdErr = "error: there is no deletion list for fsid=";
         stdErr += id.c_str();
       }
+    }
+  } else {
+    stdErr = "error: there is no filesystem defined with fsid=";
+    stdErr += id.c_str();
+    stdErr += " ";
+    retc = EINVAL;
+  }
+
+  return retc;
+}
+
+//-------------------------------------------------------------------------------
+// Clean ghost entries in a filesystem view
+//-------------------------------------------------------------------------------
+int
+proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
+                   XrdOucString& stdErr,
+                   eos::common::Mapping::VirtualIdentity& vid_in)
+{
+  int retc = 0;
+  eos::common::FileSystem::fsid_t fsid = 0;
+
+  if (id.length()) {
+    fsid = atoi(id.c_str());
+  }
+
+  if (fsid) {
+    if ((vid_in.uid != 0)) {
+      stdErr = "error: filesystems view ghosts can only be removed as 'root'\n";
+      retc = EPERM;
+    } else {
+      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+      std::vector<uint64_t> todelete;
+      std::shared_ptr<eos::IFileMD> fmd;
+
+      for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+           (it_fid && it_fid->valid()); it_fid->next()) {
+        try {
+          fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+        } catch (eos::MDException& e) {
+          if (e.getErrno() == ENOENT) {
+            stdOut += "# removing id: ";
+            stdOut += std::to_string(it_fid->getElement()).c_str();
+            stdOut += "\n";
+            todelete.push_back(it_fid->getElement());
+          }
+        }
+      }
+
+      for (auto it : todelete) {
+        gOFS->eosFsView->eraseEntry(fsid, it);
+      }
+
+      stdOut += "success: dropped ghost entries from fsid=";
+      stdOut += id.c_str();
     }
   } else {
     stdErr = "error: there is no filesystem defined with fsid=";
