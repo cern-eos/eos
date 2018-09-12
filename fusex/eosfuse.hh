@@ -361,6 +361,7 @@ private:
   AssistedThread tStatCirculate;
   AssistedThread tMetaCacheFlush;
   AssistedThread tMetaSizeFlush;
+  AssistedThread tMetaStackFree;
   AssistedThread tMetaCommunicate;
   AssistedThread tCapFlush;
 

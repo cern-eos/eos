@@ -1217,6 +1217,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tStatCirculate.reset(&EosFuse::StatCirculate, this);
     tMetaCacheFlush.reset(&metad::mdcflush, &mds);
     tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
+    tMetaStackFree.reset(&metad::mdstackfree, &mds);
     tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
     tCapFlush.reset(&cap::capflush, &caps);
     eos_static_warning("********************************************************************************");
@@ -1331,6 +1332,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tStatCirculate.join();
     tMetaCacheFlush.join();
     tMetaSizeFlush.join();
+    tMetaStackFree.join();
     tMetaCommunicate.join();
     tCapFlush.join();
     Mounter().terminate();
@@ -1560,7 +1562,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if (pcap->errc()) {
         rc = pcap->errc();
       } else {
-        md->convert(e);
+        md->convert(e, pcap->lifetime());
         eos_static_info("%s", md->dump(e).c_str());
       }
     }
@@ -1922,7 +1924,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
   } else {
     struct fuse_entry_param e;
     memset(&e, 0, sizeof(e));
-    md->convert(e);
+    md->convert(e, pcap->lifetime());
     eos_static_info("%s", md->dump(e).c_str());
     Instance().mds.update(req, md, pcap->authid());
     md->Locker().UnLock();
@@ -1954,11 +1956,11 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     if (md->id() && !md->deleted()) {
       XrdSysMutexHelper mLock(md->Locker());
       md->set_pid(parent);
-      md->convert(e);
       eos_static_info("%s", md->dump(e).c_str());
       md->lookup_inc();
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                              R_OK);
+      md->convert(e, pcap->lifetime());
     } else {
       // negative cache entry
       e.ino = 0;
@@ -2515,7 +2517,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
         if (!rc) {
           memset(&e, 0, sizeof(e));
-          md->convert(e);
+          md->convert(e, pcap->lifetime());
           md->lookup_inc();
           eos_static_info("%s", md->dump(e).c_str());
         } else {
@@ -3086,7 +3088,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           capLock.UnLock();
           struct fuse_entry_param e;
           memset(&e, 0, sizeof(e));
-          md->convert(e);
+          md->convert(e, pcap->lifetime());
           mLock.UnLock();
           data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
                               md), md, (mode == W_OK));
@@ -3380,7 +3382,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
         if (!rc) {
           Instance().caps.book_inode(pcap);
-          md->convert(e);
+          md->convert(e, pcap->lifetime());
           md->lookup_inc();
 
           if (fi) {
@@ -4569,7 +4571,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       }
 
       memset(&e, 0, sizeof(e));
-      md->convert(e);
+      md->convert(e, pcap->lifetime());
     }
   }
 
@@ -4682,7 +4684,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         if (!rc) {
           XrdSysMutexHelper tmLock(tmd->Locker());
           memset(&e, 0, sizeof(e));
-          tmd->convert(e);
+          tmd->convert(e, pcap->lifetime());
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("hlnk tmd %s %s", tmd->name().c_str(), tmd->dump(e).c_str());

@@ -305,12 +305,8 @@ metad::forget_all()
 
   for (auto it = mdmap.begin(); it != mdmap.end();) {
     if (it->first != 1) {
-      if (!S_ISDIR(it->second->mode()) || it->second->deleted()) {
-        it = mdmap.erase(it);
-        stat.inodes_dec();
-      } else {
-        it++;
-      }
+      it = mdmap.erase(it);
+      stat.inodes_dec();
     } else {
       it++;
     }
@@ -319,7 +315,7 @@ metad::forget_all()
 
 /* -------------------------------------------------------------------------- */
 void
-metad::mdx::convert(struct fuse_entry_param& e)
+metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
 {
   const char* k_mdino = "sys.eos.mdino";
   const char* k_fifo = "sys.eos.fifo";
@@ -372,8 +368,8 @@ metad::mdx::convert(struct fuse_entry_param& e)
   e.attr.CTIMESPEC.tv_nsec = ctime_ns();
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
-    e.attr_timeout = 180.0;
-    e.entry_timeout = 180.0;
+    e.attr_timeout = lifetime;
+    e.entry_timeout = lifetime;;
   } else {
     e.attr_timeout = 0;
     e.entry_timeout = 0;
@@ -2197,6 +2193,50 @@ metad::mdsizeflush(ThreadAssistant& assistant)
   // TODO: implement MGM size updates while writing files
   while (!assistant.terminationRequested()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(128));
+  }
+
+  return;
+}
+
+
+/* -------------------------------------------------------------------------- */
+void
+metad::mdstackfree(ThreadAssistant& assistant)
+{
+  size_t cnt = 0;
+
+  while (!assistant.terminationRequested()) {
+    cnt++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // do this ~every 128 seconds
+    if (!cnt % 256) {
+      XrdSysMutexHelper mLock(mdmap);
+
+      for (auto it = mdmap.begin(); it != mdmap.end();) {
+        // if the parent is gone, we can remove the child
+        if ((!mdmap.count(it->second->pid())) &&
+            (!S_ISDIR(it->second->mode()) || it->second->deleted())) {
+          eos_static_warning("removing orphaned inode from mdmap ino=%016x path=%s",
+                             it->first, it->second->fullpath().c_str());
+          it = mdmap.erase(it);
+          stat.inodes_dec();
+        } else {
+          if (it->second->deleted()) {
+            if (!has_flush(it->first)) {
+              eos_static_warning("removing deleted inode from mdmap ino=%016x path=%s",
+                                 it->first, it->second->fullpath().c_str());
+              it = mdmap.erase(it);
+              stat.inodes_dec();
+            } else {
+              it++;
+            }
+          } else {
+            it++;
+          }
+        }
+      }
+    }
   }
 
   return;

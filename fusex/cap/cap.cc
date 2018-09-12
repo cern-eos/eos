@@ -473,6 +473,27 @@ cap::capx::valid(bool debug)
 }
 
 /* -------------------------------------------------------------------------- */
+double
+/* -------------------------------------------------------------------------- */
+cap::capx::lifetime()
+/* -------------------------------------------------------------------------- */
+{
+  struct timespec ts;
+  ts.tv_sec = vtime();
+  ts.tv_nsec = vtime_ns();
+  double lifetime = 1.0 * (eos::common::Timing::GetCoarseAgeInNs(&ts,
+                           0)) / 1000000000.0;
+  eos_static_debug("inode=%08lx client-id=%s lifetime=%.02f",
+                   id(), clientid().c_str(), lifetime);
+
+  if (lifetime < 0) {
+    lifetime = 0.000000001;
+  }
+
+  return lifetime;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 cap::capflush(ThreadAssistant& assistant)
@@ -482,11 +503,22 @@ cap::capflush(ThreadAssistant& assistant)
     {
       cmap capdelmap;
       cinodes capdelinodes;
+      static time_t capemptytime = 0;
       capmap.Lock();
+      time_t now = time(NULL);
 
       if (!capmap.size()) {
-        eos_static_debug("forgetting all md from mdmap");
-        mds->forget_all();
+        if (!capemptytime) {
+          capemptytime = now;
+        }
+
+        if ((now - capemptytime) > CAP_EXTENSION_TIME) {
+          eos_static_crit("forgetting all md from mdmap");
+          mds->forget_all();
+          capemptytime = now;
+        }
+      } else {
+        capemptytime = 0;
       }
 
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {

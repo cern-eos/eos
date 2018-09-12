@@ -111,6 +111,8 @@ public:
 
     bool valid(bool debug = true);
 
+    double lifetime();
+
     void use()
     {
       lastusage = time(NULL);

@@ -97,7 +97,7 @@ public:
       return mLock;
     }
 
-    void convert(fuse_entry_param& e);
+    void convert(fuse_entry_param& e, double lifetime = 180.0);
     std::string dump();
     static std::string dump(struct fuse_entry_param& e);
 
@@ -508,6 +508,9 @@ public:
 
   void mdsizeflush(ThreadAssistant&
                    assistant); // thread updating filesize during long lasting writes
+
+  void mdstackfree(ThreadAssistant&
+                   assistant); // thread removing stacked inodes
 
   int connect(std::string zmqtarget, std::string zmqidentity = "",
               std::string zmqname = "", std::string zmqclienthost = "",
