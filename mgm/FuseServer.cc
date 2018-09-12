@@ -2625,10 +2625,10 @@ FuseServer::HandleMD(const std::string& id,
           }
 
           eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
-          if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
-            return EPERM;
-          }
-
+          // test to verify this is the culprit of failing all eosxd system tests in the CI
+          // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
+          // return EPERM;
+          // }
           cmd = gOFS->eosDirectoryService->createContainer();
           cmd->setName(md.name());
           md_ino = cmd->getId();
@@ -2673,11 +2673,15 @@ FuseServer::HandleMD(const std::string& id,
         }
 
         size_t numAttr = cmd->numAttributes();
-        if (op != CREATE && numAttr != md.attr().size()) {		/* an attribute got removed */
+
+        if (op != CREATE &&
+            numAttr != md.attr().size()) {    /* an attribute got removed */
           eos::IContainerMD::XAttrMap cmap = cmd->getAttributes();
+
           for (auto it = cmap.begin(); it != cmap.end(); ++it) {
             if (md.attr().find(it->first) == md.attr().end()) {
-              eos_static_debug("attr %s=%s has been removed", it->first.c_str(), it->second.c_str());
+              eos_static_debug("attr %s=%s has been removed", it->first.c_str(),
+                               it->second.c_str());
               cmd->removeAttribute(it->first);
               /* if ((--numAttr) == md.attr().size()) break;   would be possible - under a lock! */
             }
