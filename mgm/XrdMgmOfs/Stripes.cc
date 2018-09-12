@@ -83,8 +83,9 @@ XrdMgmOfs::_verifystripe(const char* path,
     }
   } else {
     // only root can delete a detached replica
-    if (vid.uid)
+    if (vid.uid) {
       errno = EPERM;
+    }
   }
 
   if (errno) {
@@ -146,7 +147,11 @@ XrdMgmOfs::_verifystripe(const char* path,
     opaquestring += "&mgm.cid=";
     opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
     opaquestring += "&mgm.path=";
-    opaquestring += path;
+    XrdOucString safepath = path;
+
+    while (safepath.replace("&", "#AND#")) {}
+
+    opaquestring += safepath;
     opaquestring += "&mgm.lid=";
     opaquestring += lid;
 
@@ -179,7 +184,7 @@ XrdMgmOfs::_verifystripe(const char* path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_dropstripe(const char* path,
-		       eos::common::FileId::fileid_t fid,
+                       eos::common::FileId::fileid_t fid,
                        XrdOucErrInfo& error,
                        eos::common::Mapping::VirtualIdentity& vid,
                        unsigned long fsid,
@@ -229,8 +234,9 @@ XrdMgmOfs::_dropstripe(const char* path,
     }
   } else {
     // only root can drop by file id
-    if (vid.uid)
+    if (vid.uid) {
       errno = EPERM;
+    }
   }
 
   if (errno) {
@@ -338,7 +344,8 @@ XrdMgmOfs::_dropallstripes(const char* path,
       fmd = gOFS->eosView->getFile(path);
 
       // only on tape, we don't touch this file here
-      if (fmd && fmd->getLocations().size() == 1 && fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+      if (fmd && fmd->getLocations().size() == 1 &&
+          fmd->hasLocation(eos::common::TAPE_FS_ID)) {
         return SFS_OK;
       }
     } catch (eos::MDException& e) {
@@ -353,6 +360,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   try {
     // only write lock at this point
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+
     for (auto location : fmd->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
         continue;
@@ -646,7 +654,11 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   source_capability += "&mgm.gid=";
   source_capability += (int) 1;
   source_capability += "&mgm.path=";
-  source_capability += path;
+  XrdOucString safepath = path;
+
+  while (safepath.replace("&", "#AND#")) {}
+
+  source_capability += safepath;
   source_capability += "&mgm.manager=";
   source_capability += gOFS->ManagerId.c_str();
   source_capability += "&mgm.fid=";
@@ -688,7 +700,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   target_capability += "&mgm.gid=";
   target_capability += (int) 1;
   target_capability += "&mgm.path=";
-  target_capability += path;
+  target_capability += safepath;
   target_capability += "&mgm.manager=";
   target_capability += gOFS->ManagerId.c_str();
   target_capability += "&mgm.fid=";
