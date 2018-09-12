@@ -540,7 +540,6 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         {
           struct tm* t_tm;
           struct tm t_tm_local;
-          int i;
           t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
 
           strftime(t_creat, 36, "%b %d %Y %H:%M", t_tm);
