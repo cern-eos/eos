@@ -1687,6 +1687,15 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
         ADD_FUSE_STAT("setattr:chmod", req);
         EXEC_TIMING_BEGIN("setattr:chmod");
         md->set_mode(attr->st_mode);
+
+        if (S_ISDIR(md->mode())) {
+          // if this is a directory we have to revoke a potential existing cap for that directory
+          cap::shared_cap cap = Instance().caps.get(req, md->id());
+          cap->invalidate();
+          // we have also to wait for the upstream flush
+          Instance().mds.wait_flush(req, md);
+        }
+
         EXEC_TIMING_END("setattr:chmod");
       }
 
@@ -1734,6 +1743,14 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
         if (op & FUSE_SET_ATTR_GID) {
           md->set_gid(attr->st_gid);
+        }
+
+        if (S_ISDIR(md->mode())) {
+          // if this is a directory we have to revoke a potential existing cap for that directory
+          cap::shared_cap cap = Instance().caps.get(req, md->id());
+          cap->invalidate();
+          // we have also to wait for the upstream flush
+          Instance().mds.wait_flush(req, md);
         }
 
         EXEC_TIMING_END("setattr:chown");

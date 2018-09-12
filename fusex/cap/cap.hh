@@ -113,6 +113,8 @@ public:
 
     double lifetime();
 
+    void invalidate();
+
     void use()
     {
       lastusage = time(NULL);

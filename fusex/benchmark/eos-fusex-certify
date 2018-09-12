@@ -285,6 +285,24 @@ echo "010 all done"
 ) || exit 10
 fi
 
+if [ "$1" = "11" ] ; then
+time (
+echo "===================================================================="
+echo "011 ... chmod test"
+mkdir 011-eos-chmod-test
+cd 011-eos-chmod-test
+mkdir newdir || exit 11
+chmod a-w newdir || exit 11
+mkdir newdir/forbidden >& /dev/null
+if [ $? -ne 0 ] ; then echo OK > /dev/null; else exit 11; fi
+chmod a+w newdir || exit 11
+mkdir newdir/forbidden >& /dev/null
+if [ $? -ne 0 ] ; then exit 11; else echo OK > /dev/null; fi
+rmdir newdir/forbidden || exit 11;
+rmdir newdir || exit 11;
+) || exit 11
+fi
+
 echo "===================================================================="
 echo "... :-) passed !"
 echo "===================================================================="
