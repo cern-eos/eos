@@ -2474,6 +2474,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     eos_static_info("lease: delaying cap-release remote-ino=%lx ino=%lx clientid=%s authid=%s",
                                     md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
                     std::this_thread::sleep_for(std::chrono::milliseconds(25));
+
+                    if (assistant.terminationRequested()) {
+                      return;
+                    }
                   } else {
                     mdflush.UnLock();
                     break;
