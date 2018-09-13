@@ -26,6 +26,7 @@ Bug
 * [EOS-2793] - removexattr fails to remove attribute from mgm metadata
 * [EOS-2800] - Relocate check for sys.eval.useracl from fuse client to the Fuseserver
 * [EOS-2850] - avoid directory move into itself when going via symlinks
+* [EOS-2870] - faulty scheduling on offline machine (regression) 
 * [EOS-2873] - fix chmod/chown behaviour on executing EOSXD client
 * [EOS-2874] - fix 'adjustreplica' for files continaing an '&' sign
 * Thread sanitizer fixes in EOSXD
