@@ -329,7 +329,7 @@ WFE::WFEr()
       snoozetime = 6000;
     }
 
-    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
+    eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     size_t snoozeloop = snoozetime * 10;
 
