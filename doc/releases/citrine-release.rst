@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.3.12 Citrine``
+==================
+
+2018-09-13
+
+Bug
+---
+
+* [EOS-2793] - removexattr fails to remove attribute from mgm metadata
+* [EOS-2800] - Relocate check for sys.eval.useracl from fuse client to the Fuseserver
+* [EOS-2850] - avoid directory move into itself when going via symlinks
+* [EOS-2873] - fix chmod/chown behaviour on executing EOSXD client
+* [EOS-2874] - fix 'adjustreplica' for files continaing an '&' sign
+* Thread sanitizer fixes in EOSXD
+* Fix snooze time in WFE 
+
+Improvements
+------------
+
+* Default fd limit for shared EOSXD mounts is now 512k 
+* Don't open journals for file reads in EOSXD ( divides by 2 number of fds)
+* Add 'fs dropghosts <fsid>' call to get rid of illegal entries in filesystem view without any corresponding meta data object (undrainable filesystems)
+* Use filesystem name as default cache subdirectory in EOSXD (not default)
+* Improve locking in EOSXD notification path - release ns mutex in most places before notifying - add timing counters to all EOSXD counters
 
 ``v4.3.11 Citrine``
 ==================
