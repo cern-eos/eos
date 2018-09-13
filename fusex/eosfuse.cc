@@ -298,7 +298,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     // apply some default settings for undefined entries.
     {
       if (!root.isMember("name")) {
-        root["name"] = "";
+        root["name"] = fsname;
       }
 
       if (!root.isMember("hostport")) {
@@ -992,6 +992,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
+
+    /* disabled for the time being, since not used
     eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
     eos::common::cmd_status st = cmd.wait(5);
     int rc = st.exit_code;
@@ -1001,6 +1003,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
               "error: failed to run shell command\n");
       exit(-1);
     }
+
+    */
 
     if (!geteuid()) {
       // change the priority of this process to maximum

@@ -58,12 +58,6 @@ const char* k_nlink = "sys.eos.nlink";
 //------------------------------------------------------------------------------
 FuseServer::FuseServer()
 {
-  eos_static_info("msg=\"starting fuse server\"");
-  std::thread monitorthread(&FuseServer::Clients::MonitorHeartBeat,
-                            &(this->mClients));
-  monitorthread.detach();
-  std::thread capthread(&FuseServer::MonitorCaps, this);
-  capthread.detach();
 }
 
 //------------------------------------------------------------------------------
@@ -72,6 +66,20 @@ FuseServer::FuseServer()
 FuseServer::~FuseServer()
 {
   shutdown();
+}
+
+//------------------------------------------------------------------------------
+// Start method
+//------------------------------------------------------------------------------
+void
+FuseServer::start()
+{
+  eos_static_info("msg=\"starting fuse server\"");
+  std::thread monitorthread(&FuseServer::Clients::MonitorHeartBeat,
+                            &(this->mClients));
+  monitorthread.detach();
+  std::thread capthread(&FuseServer::MonitorCaps, this);
+  capthread.detach();
 }
 
 //------------------------------------------------------------------------------
@@ -182,6 +190,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
                               eos::fusex::heartbeat& hb)
 {
   gOFS->MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::Heartbeat");
   bool rc = true;
   eos::common::RWMutexWriteLock lLock(*this);
 
@@ -217,6 +226,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
     BroadcastConfig(identity, cfg);
   }
 
+  EXEC_TIMING_END("Eosxd::int::Heartbeat");
   return rc;
 }
 
@@ -232,6 +242,8 @@ FuseServer::MonitorCaps() noexcept
   size_t cnt = 0;
 
   while (1) {
+    EXEC_TIMING_BEGIN("Eosxd::int::MonitorCaps");
+
     // expire caps
     do {
       if (Cap().expire()) {
@@ -356,6 +368,7 @@ FuseServer::MonitorCaps() noexcept
       }
     }
 
+    EXEC_TIMING_END("Eosxd::int::MonitorCaps");
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (should_terminate()) {
@@ -623,6 +636,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
                                )
 {
   gOFS->MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::ReleaseCap");
   // prepare release cap message
   eos::fusex::response rsp;
   rsp.set_type(rsp.LEASE);
@@ -641,6 +655,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
   eos_static_info("msg=\"asking cap release\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->task->reply(id, rspstream);
+  EXEC_TIMING_END("Eosxd::int::ReleaseCap");
   return 0;
 }
 
@@ -655,6 +670,7 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
                                 )
 {
   gOFS->MgmStats.Add("Eosxd::int::DeleteEntry", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::DeleteEntry");
   // prepare release cap message
   eos::fusex::response rsp;
   rsp.set_type(rsp.DENTRY);
@@ -674,6 +690,7 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
   eos_static_info("msg=\"asking dentry deletion\" uuid=%s clientid=%s id=%lx name=%s",
                   uuid.c_str(), clientid.c_str(), md_ino, name.c_str());
   gOFS->zMQ->task->reply(id, rspstream);
+  EXEC_TIMING_END("Eosxd::int::DeleteEntry");
   return 0;
 }
 
@@ -693,6 +710,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
 
 {
   gOFS->MgmStats.Add("Eosxd::int::SendMD", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::SendMD");
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.MD);
@@ -722,6 +740,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
   eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md.md_ino());
   gOFS->zMQ->task->reply(id, rspstream);
+  EXEC_TIMING_END("Eosxd::int::SendMD");
   return 0;
 }
 
@@ -733,6 +752,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::SendCAP");
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CAP);
@@ -750,6 +770,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
                   uuid.c_str(), clientid.c_str(), cap->id());
   gOFS->zMQ->task->reply(clientid, rspstream);
+  EXEC_TIMING_END("Eosxd::int::SendCAP");
   return 0;
 }
 
@@ -775,6 +796,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                         eos::common::Mapping::VirtualIdentity* vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::Store");
   eos::common::RWMutexWriteLock lLock(*this);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
@@ -789,6 +811,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
   cap->set_vid(vid);
   mCaps[ecap.authid()] = cap;
   mInodeCaps[ecap.id()].insert(ecap.authid());
+  EXEC_TIMING_END("Eosxd::int::Store");
 }
 
 //------------------------------------------------------------------------------
@@ -885,6 +908,7 @@ FuseServer::Clients::BroadcastConfig(const std::string& identity,
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcConfig", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcConfig");
   // prepare new heartbeat interval message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CONFIG);
@@ -894,6 +918,7 @@ FuseServer::Clients::BroadcastConfig(const std::string& identity,
   eos_static_info("msg=\"broadcast config to client\" name=%s heartbeat-rate=%d",
                   identity.c_str(), cfg.hbrate());
   gOFS->zMQ->task->reply(identity, rspstream);
+  EXEC_TIMING_END("Eosxd::int::BcConfig");
   return 0;
 }
 
@@ -904,6 +929,7 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDropAll", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcDropAll");
   // prepare drop all caps message
   eos::fusex::response rsp;
   rsp.set_type(rsp.DROPCAPS);
@@ -912,6 +938,7 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
   eos_static_info("msg=\"broadcast drop-all-caps to  client\" uuid=%s name=%s",
                   hb.uuid().c_str(), identity.c_str());
   gOFS->zMQ->task->reply(identity, rspstream);
+  EXEC_TIMING_END("Eosxd::int::BcDropAll");
   return 0;
 }
 
@@ -922,6 +949,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
   // broad-cast release for a given inode
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx ",
@@ -948,6 +976,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
     }
   }
 
+  EXEC_TIMING_END("Eosxd::int::BcReleaseExt");
   return 0;
 }
 
@@ -955,6 +984,7 @@ int
 FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -993,6 +1023,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
     }
   }
 
+  EXEC_TIMING_END("Eosxd::int::BcRelease");
   return 0;
 }
 
@@ -1003,6 +1034,7 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
 /*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcDeletionExt");
   // broad-cast deletion for a given name in a container
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx name=%s",
@@ -1031,6 +1063,7 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
     }
   }
 
+  EXEC_TIMING_END("Eosxd::int::BcDeletionExt");
   return 0;
 }
 
@@ -1039,6 +1072,7 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
                                     const std::string& name)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx name=%s",
@@ -1076,6 +1110,7 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
     }
   }
 
+  EXEC_TIMING_END("Eosxd::int::BcDeletion");
   return 0;
 }
 
@@ -1097,6 +1132,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               struct timespec& p_mtime)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcMD");
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
@@ -1143,6 +1179,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     }
   }
 
+  EXEC_TIMING_END("Eosxd::int::BcMD");
   return 0;
 }
 
@@ -1599,6 +1636,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir,
                             eos::common::Mapping::VirtualIdentity* vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid->uid, vid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::FillContainerMD");
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::ctime_t ctime;
   eos::IContainerMD::ctime_t mtime;
@@ -1675,6 +1713,7 @@ FuseServer::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
     dir.set_clock(clock);
     dir.clear_err();
+    EXEC_TIMING_END("Eosxd::int::FillContainerMD");
     return 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -1693,6 +1732,7 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file,
                        eos::common::Mapping::VirtualIdentity* vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid->uid, vid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::FillFileMD");
   // fills file meta data by inode number
   std::shared_ptr<eos::IFileMD> fmd, gmd;
   eos::IFileMD::ctime_t ctime;
@@ -1779,6 +1819,7 @@ FuseServer::FillFileMD(uint64_t inode, eos::fusex::md& file,
     }
 
     file.clear_err();
+    EXEC_TIMING_END("Eosxd::int::FillFileMD");
     return true;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -1800,6 +1841,7 @@ FuseServer::FillContainerCAP(uint64_t id,
                              bool issue_only_one)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillContainerCAP", vid->uid, vid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::FillContainerCAP");
 
   if (issue_only_one) {
     if (EOS_LOGS_DEBUG) {
@@ -2047,6 +2089,7 @@ FuseServer::FillContainerCAP(uint64_t id,
       dir.mutable_capability()->mutable__quota()->clear_quota_inode();
     }
   }
+  EXEC_TIMING_END("Eosxd::int::FillContainerCAP");
   Cap().Store(dir.capability(), vid);
   return true;
 }
@@ -2138,6 +2181,7 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
                          bool take_lock)
 {
   gOFS->MgmStats.Add("Eosxd::int::ValidatePERM", vid->uid, vid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::ValidatePERM");
   // -------------------------------------------------------------------------------------------------------------
   // - when an MGM was restarted it does not know anymore any client CAPs, but we can fallback to validate
   //   permissions on the fly again
@@ -2243,6 +2287,8 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     accperm += "D";
   }
 
+  EXEC_TIMING_END("Eosxd::int::ValidatePERM");
+
   if (accperm.find(mode) != std::string::npos) {
     eos_static_info("allow access to ino=%16x request-mode=%s granted-mode=%s",
                     md.md_pino(),
@@ -2307,20 +2353,24 @@ FuseServer::HandleMD(const std::string& id,
 
   if (md.operation() == md.BEGINFLUSH) {
     gOFS->MgmStats.Add("Eosxd::ext::BEGINFLUSH", vid->uid, vid->gid, 1);
+    EXEC_TIMING_BEGIN("Eosxd::ext::BEGINFLUSH");
     // this is a flush begin/end indicator
     Flushs().beginFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
     resp.set_type(resp.NONE);
     resp.SerializeToString(response);
+    EXEC_TIMING_END("Eosxd::ext::BEGINFLUSH");
     return 0;
   }
 
   if (md.operation() == md.ENDFLUSH) {
     gOFS->MgmStats.Add("Eosxd::ext::ENDFLUSH", vid->uid, vid->gid, 1);
+    EXEC_TIMING_BEGIN("Eosxd::ext::ENDFLUSH");
     Flushs().endFlush(md.md_ino(), md.clientuuid());
     eos::fusex::response resp;
     resp.set_type(resp.NONE);
     resp.SerializeToString(response);
+    EXEC_TIMING_END("Eosxd::ext::ENDFLUSH");
     return 0;
   }
 
@@ -2343,6 +2393,8 @@ FuseServer::HandleMD(const std::string& id,
       (*parent)[md.md_ino()].set_md_ino(md.md_ino());
       (*parent)[md.md_ino()].set_clientuuid(md.clientuuid());
       (*parent)[md.md_ino()].set_clientid(md.clientid());
+      EXEC_TIMING_BEGIN((md.operation() == md.LS) ? "Eosxd::ext::LS" :
+                        "Eosxd::ext::GET");
 
       if (md.operation() == md.LS) {
         gOFS->MgmStats.Add("Eosxd::ext::LS", vid->uid, vid->gid, 1);
@@ -2448,7 +2500,11 @@ FuseServer::HandleMD(const std::string& id,
           response->append(rspstream.c_str(), rspstream.size());
         }
       }
+
+      EXEC_TIMING_END((md.operation() == md.LS) ? "Eosxd::ext::LS" :
+                      "Eosxd::ext::GET");
     } else {
+      EXEC_TIMING_BEGIN("Eosxd::ext::GET");
       eos_static_info("ino=%lx get-file/link", (long) md.md_ino());
       Prefetcher::prefetchFileMDAndWait(gOFS->eosView, (IFileMD::id_t)md.md_ino());
       cont.set_type(cont.MD);
@@ -2469,6 +2525,8 @@ FuseServer::HandleMD(const std::string& id,
         *response += Header(rspstream);
         *response += rspstream;
       }
+
+      EXEC_TIMING_END("Eosxd::ext::GET");
     }
 
     return 0;
@@ -2476,6 +2534,7 @@ FuseServer::HandleMD(const std::string& id,
 
   if (md.operation() == md.SET) {
     gOFS->MgmStats.Add("Eosxd::ext::SET", vid->uid, vid->gid, 1);
+    EXEC_TIMING_BEGIN("Eosxd::ext::SET");
     uint64_t md_pino = md.md_pino();
 
     if (!md_pino) {
@@ -2754,10 +2813,12 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
       }
 
+      EXEC_TIMING_END("Eosxd::ext::SET");
       return 0;
     }
 
     if (S_ISREG(md.mode()) || S_ISFIFO(md.mode())) {
+      EXEC_TIMING_BEGIN("Eosxd::ext::SET");
       eos_static_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
                       (long) md.md_pino(),
                       md.authid().c_str());
@@ -3052,10 +3113,12 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
       }
 
+      EXEC_TIMING_END("Eosxd::ext::SET");
       return 0;
     }
 
     if (S_ISLNK(md.mode()) || S_ISFIFO(md.mode())) {
+      EXEC_TIMING_BEGIN("Eosxd::ext::SET");
       uint64_t clock = 0;
       eos_static_info("ino=%#lx set-link/fifo %s", (long) md.md_ino(),
                       md.name().c_str());
@@ -3164,11 +3227,14 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
       }
 
+      EXEC_TIMING_END("Eosxd::ext::SET");
       return 0;
     }
   }
 
   if (md.operation() == md.DELETE) {
+    EXEC_TIMING_BEGIN("Eosxd::ext::RMDIR");
+
     if (!ValidateCAP(md, D_OK)) {
       std::string perm = "D";
 
@@ -3218,6 +3284,7 @@ FuseServer::HandleMD(const std::string& id,
           resp.mutable_ack_()->set_err_msg("directory not empty");
           resp.mutable_ack_()->set_transactionid(md.reqid());
           resp.SerializeToString(response);
+          EXEC_TIMING_END("Eosxd::ext::RMDIR");
           return 0;
         }
 
@@ -3232,6 +3299,7 @@ FuseServer::HandleMD(const std::string& id,
         Cap().BroadcastRelease(md);
         Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName());
         Cap().Delete(md.md_ino());
+        EXEC_TIMING_END("Eosxd::ext::RMDIR");
         return 0;
       }
 
@@ -3330,11 +3398,13 @@ FuseServer::HandleMD(const std::string& id,
         // TODO: we will add this message later because we have to remove the previous call and bump the protocol version up
         // Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
         Cap().Delete(md.md_ino());
+        EXEC_TIMING_END("Eosxd::ext::RMDIR");
         return 0;
       }
 
       if (S_ISLNK(md.mode())) {
         gOFS->MgmStats.Add("Eosxd::ext::DELETELNK", vid->uid, vid->gid, 1);
+        EXEC_TIMING_BEGIN("Eosxd::ext::DELETELNK");
         eos_static_info("ino=%lx delete-link", (long) md.md_ino());
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
@@ -3347,6 +3417,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
         Cap().Delete(md.md_ino());
+        EXEC_TIMING_END("Eosxd::ext::DELETELNK");
         return 0;
       }
     } catch (eos::MDException& e) {
@@ -3364,6 +3435,7 @@ FuseServer::HandleMD(const std::string& id,
 
   if (md.operation() == md.GETCAP) {
     gOFS->MgmStats.Add("Eosxd::ext::GETCAP", vid->uid, vid->gid, 1);
+    EXEC_TIMING_BEGIN("Eosxd::ext::GETCAP");
     eos::fusex::container cont;
     cont.set_type(cont.CAP);
     eos::fusex::md lmd;
@@ -3391,11 +3463,13 @@ FuseServer::HandleMD(const std::string& id,
                     cont.cap_().vtime_ns(), cont.cap_().uid(), cont.cap_().gid(),
                     cont.cap_().clientid().c_str(), cont.cap_().authid().c_str(),
                     cont.cap_().errc());
+    EXEC_TIMING_END("Eosxd::ext::GETCAP");
     return 0;
   }
 
   if (md.operation() == md.GETLK) {
     gOFS->MgmStats.Add("Eosxd::ext::GETLK", vid->uid, vid->gid, 1);
+    EXEC_TIMING_BEGIN("Eosxd::ext::GETLK");
     eos::fusex::response resp;
     resp.set_type(resp.LOCK);
     struct flock lock;
@@ -3423,10 +3497,14 @@ FuseServer::HandleMD(const std::string& id,
       resp.mutable_lock_()->set_type(md.flock().UNLCK);
       break;
     }
+
+    EXEC_TIMING_END("Eosxd::ext::GETLK");
   }
 
   if ((md.operation() == md.SETLK) ||
       (md.operation() == md.SETLKW)) {
+    EXEC_TIMING_BEGIN((md.operation() == md.SETLKW) ? "Eosxd::ext::SETLKW" :
+                      "Eosxd::ext::SETLK");
     eos::fusex::response resp;
     resp.set_type(resp.LOCK);
     int sleep = 0;
@@ -3488,6 +3566,8 @@ FuseServer::HandleMD(const std::string& id,
     }
 
     resp.SerializeToString(response);
+    EXEC_TIMING_END((md.operation() == md.SETLKW) ? "Eosxd::ext::SETLKW" :
+                    "Eosxd::ext::SETLK");
     return 0;
   }
 
