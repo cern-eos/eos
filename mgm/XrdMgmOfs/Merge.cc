@@ -68,7 +68,9 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       src_fmd->setMTime(mtime);
       src_fmd->setFlags(dst_fmd->getFlags());
       eosView->updateFileStore(src_fmd.get());
-      gOFS->FuseXCastFile(src_fmd->getIdentifier());
+      eos::FileIdentifier f_id = src_fmd->getIdentifier();
+      viewLock.Release();
+      gOFS->FuseXCastFile(f_id);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("caught exception %d %s\n", e.getErrno(),

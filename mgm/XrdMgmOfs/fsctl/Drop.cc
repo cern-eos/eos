@@ -125,8 +125,10 @@
           if (container) {
             container->setMTimeNow();
             gOFS->eosView->updateContainerStore(container.get());
-            gOFS->FuseXCastContainer(container->getIdentifier());
             container->notifyMTimeChange(gOFS->eosDirectoryService);
+            eos::ContainerIdentifier container_id = container->getIdentifier();
+            lock.Release();
+            gOFS->FuseXCastContainer(container_id);
           }
         }
       } catch (...) {

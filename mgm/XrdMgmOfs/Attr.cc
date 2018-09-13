@@ -68,7 +68,6 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
   eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
-
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   if (take_lock) {
@@ -194,7 +193,6 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::RWMutexWriteLock ns_wr_lock;
-
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   if (take_lock) {
@@ -232,11 +230,19 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
 
       dh->setAttribute(key, val.c_str());
+
       if (Key != "sys.tmp.etag") {
-	dh->setCTimeNow();
+        dh->setCTimeNow();
       }
+
       eosView->updateContainerStore(dh.get());
-      gOFS->FuseXCastContainer(dh->getIdentifier());
+      eos::ContainerIdentifier d_id = dh->getIdentifier();
+
+      if (take_lock) {
+        ns_wr_lock.Release();
+      }
+
+      gOFS->FuseXCastContainer(d_id);
       errno = 0;
     }
   } catch (eos::MDException& e) {
@@ -261,11 +267,19 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
         fmd->setAttribute(key, val.c_str());
-	if (Key != "sys.tmp.etag") {
-	  fmd->setCTimeNow();
-	}
+
+        if (Key != "sys.tmp.etag") {
+          fmd->setCTimeNow();
+        }
+
         eosView->updateFileStore(fmd.get());
-        gOFS->FuseXCastFile(fmd->getIdentifier());
+        eos::FileIdentifier f_id = fmd->getIdentifier();
+
+        if (take_lock) {
+          ns_wr_lock.Release();
+        }
+
+        gOFS->FuseXCastFile(f_id);
         errno = 0;
       }
     } catch (eos::MDException& e) {
@@ -342,8 +356,8 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-
   eos::common::RWMutexReadLock viewReadLock;
+
   if (take_lock) {
     viewReadLock.Grab(gOFS->eosViewRWMutex);
   }
@@ -388,7 +402,6 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   }
 
   viewReadLock.Release();
-
   // we always decode attributes here, even if they are stored as base64:
   XrdOucString val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
@@ -615,7 +628,9 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
         if (dh->hasAttribute(key)) {
           dh->removeAttribute(key);
           eosView->updateContainerStore(dh.get());
-          gOFS->FuseXCastContainer(dh->getIdentifier());
+          eos::ContainerIdentifier d_id = dh->getIdentifier();
+          lock.Release();
+          gOFS->FuseXCastContainer(d_id);
         } else {
           errno = ENODATA;
         }
@@ -644,7 +659,9 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           if (fmd->hasAttribute(key)) {
             fmd->removeAttribute(key);
             eosView->updateFileStore(fmd.get());
-	          gOFS->FuseXCastFile(fmd->getIdentifier());
+            eos::FileIdentifier f_id = fmd->getIdentifier();
+            lock.Release();
+            gOFS->FuseXCastFile(f_id);
             errno = 0;
           } else {
             errno = ENODATA;

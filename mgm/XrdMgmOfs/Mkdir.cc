@@ -354,10 +354,13 @@ XrdMgmOfs::_mkdir(const char* path,
           // commit
           eosView->updateContainerStore(newdir.get());
           eosView->updateContainerStore(dir.get());
-          gOFS->FuseXCastContainer(newdir->getIdentifier());
-          gOFS->FuseXCastContainer(dir->getIdentifier());
           dir->notifyMTimeChange(gOFS->eosDirectoryService);
           newdir->notifyMTimeChange(gOFS->eosDirectoryService);
+          eos::ContainerIdentifier nd_id = newdir->getIdentifier();
+          eos::ContainerIdentifier d_id = dir->getIdentifier();
+          lock.Release();
+          gOFS->FuseXCastContainer(nd_id);
+          gOFS->FuseXCastContainer(d_id);
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -414,11 +417,14 @@ XrdMgmOfs::_mkdir(const char* path,
     // Commit to backend
     eosView->updateContainerStore(newdir.get());
     eosView->updateContainerStore(dir.get());
-    gOFS->FuseXCastContainer(newdir->getIdentifier());
-    gOFS->FuseXCastContainer(dir->getIdentifier());
     // Notify after attribute inheritance
     newdir->notifyMTimeChange(gOFS->eosDirectoryService);
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
+    eos::ContainerIdentifier nd_id = newdir->getIdentifier();
+    eos::ContainerIdentifier d_id = dir->getIdentifier();
+    lock.Release();
+    gOFS->FuseXCastContainer(nd_id);
+    gOFS->FuseXCastContainer(d_id);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",

@@ -954,6 +954,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("id=%lx ",
                   id);
+  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(id)) {
     for (auto it = mInodeCaps[id].begin();
@@ -968,12 +969,18 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
       }
 
       if (cap->id()) {
-        gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
-            cap->clientuuid(),
-            cap->clientid());
-        errno = 0 ; // seems that ZMQ function might set errno
+        bccaps.push_back(cap);
       }
     }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
+        it->clientuuid(),
+        it->clientid());
+    errno = 0 ; // seems that ZMQ function might set errno
   }
 
   EXEC_TIMING_END("Eosxd::int::BcReleaseExt");
@@ -992,6 +999,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
                   refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
+  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(refcap->id())) {
     for (auto it = mInodeCaps[refcap->id()].begin();
@@ -1016,11 +1024,18 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
       }
 
       if (cap->id()) {
-        gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) cap->id(),
-            cap->clientuuid(),
-            cap->clientid());
+        bccaps.push_back(cap);
       }
     }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
+        it->clientuuid(),
+        it->clientid());
+    errno = 0 ;
   }
 
   EXEC_TIMING_END("Eosxd::int::BcRelease");
@@ -1040,6 +1055,7 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
   eos_static_info("id=%lx name=%s",
                   id,
                   name.c_str());
+  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(id)) {
     for (auto it = mInodeCaps[id].begin();
@@ -1054,13 +1070,19 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
       }
 
       if (cap->id()) {
-        gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) cap->id(),
-            cap->clientuuid(),
-            cap->clientid(),
-            name);
-        errno = 0 ; // seems that ZMQ function might set errno
+        bccaps.push_back(cap);
       }
     }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
+        it->clientuuid(),
+        it->clientid(),
+        name);
+    errno = 0 ; // seems that ZMQ function might set errno
   }
 
   EXEC_TIMING_END("Eosxd::int::BcDeletionExt");
@@ -1078,6 +1100,7 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   eos_static_info("id=%lx name=%s",
                   id,
                   name.c_str());
+  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(refcap->id())) {
     for (auto it = mInodeCaps[refcap->id()].begin();
@@ -1102,12 +1125,19 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
       }
 
       if (cap->id()) {
-        gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) cap->id(),
-            cap->clientuuid(),
-            cap->clientid(),
-            name);
+        bccaps.push_back(cap);
       }
     }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
+        it->clientuuid(),
+        it->clientid(),
+        name);
+    errno = 0;
   }
 
   EXEC_TIMING_END("Eosxd::int::BcDeletion");
@@ -1141,6 +1171,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
   std::set<std::string> clients_sent;
+  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(refcap->id())) {
     for (auto it = mInodeCaps[refcap->id()].begin();
@@ -1165,18 +1196,25 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       }
 
       if (cap->id() && !clients_sent.count(cap->clientuuid())) {
-        gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                               cap->clientuuid(),
-                                               cap->clientid(),
-                                               md_ino,
-                                               md_pino,
-                                               clock,
-                                               p_mtime);
+        bccaps.push_back(cap);
         // make sure we sent the update only once to each client, eveh if this
         // one has many caps
         clients_sent.insert(cap->clientuuid());
       }
     }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().SendMD(md,
+                                           it->clientuuid(),
+                                           it->clientid(),
+                                           md_ino,
+                                           md_pino,
+                                           clock,
+                                           p_mtime);
+    errno = 0;
   }
 
   EXEC_TIMING_END("Eosxd::int::BcMD");

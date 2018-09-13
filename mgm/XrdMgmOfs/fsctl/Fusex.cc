@@ -33,7 +33,7 @@
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("Eosxd::ext::0-HANDLE", vid.uid, vid.gid, 1);
-
+  EXEC_TIMING_BEGIN("Eosxd::ext::0-HANDLE");
   // receive a protocol buffer and apply to the namespace
 
   std::string id = std::string("Fusex::sync:") + vid.tident.c_str();
@@ -67,7 +67,7 @@
   std::string response = "Fusex:";
   response += b64response;
 
-
   error.setErrInfo(response.length(), response.c_str());
+  EXEC_TIMING_END("Eosxd::ext::0-HANDLE");
   return SFS_DATA;
 }

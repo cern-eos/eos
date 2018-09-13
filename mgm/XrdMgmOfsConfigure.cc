@@ -1989,6 +1989,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_static_info(ss.str().c_str());
   // add all stat entries with 0
   InitStats();
+  // start the fuse server
+  gOFS->zMQ->gFuseServer.start();
   // set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";

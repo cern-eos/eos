@@ -866,8 +866,11 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->setMTimeNow();
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
-            gOFS->FuseXCastContainer(cmd->getIdentifier());
-            gOFS->FuseXCastContainer(cmd->getParentIdentifier());
+            eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+            eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+            lock.Release();
+            gOFS->FuseXCastContainer(cmd_id);
+            gOFS->FuseXCastContainer(pcmd_id);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1096,15 +1099,15 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       try {
+        eos::FileIdentifier fmd_id = fmd->getIdentifier();
         gOFS->eosView->updateFileStore(fmd.get());
-        gOFS->FuseXCastFile(fmd->getIdentifier());
         std::shared_ptr<eos::IContainerMD> cmd =
           gOFS->eosDirectoryService->getContainerMD(cid);
         cmd->setMTimeNow();
         cmd->notifyMTimeChange(gOFS->eosDirectoryService);
         gOFS->eosView->updateContainerStore(cmd.get());
-        gOFS->FuseXCastContainer(cmd->getIdentifier());
-        gOFS->FuseXCastContainer(cmd->getParentIdentifier());
+        eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+        eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
 
         if (isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
@@ -1113,6 +1116,11 @@ XrdMgmOfsFile::open(const char* inpath,
             ns_quota->addFile(fmd.get());
           }
         }
+
+        lock.Release();
+        gOFS->FuseXCastFile(fmd_id);
+        gOFS->FuseXCastContainer(cmd_id);
+        gOFS->FuseXCastContainer(pcmd_id);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         std::string errmsg = e.getMessage().str();
@@ -1780,7 +1788,8 @@ XrdMgmOfsFile::open(const char* inpath,
           if (std::find(unavailfs.begin(), unavailfs.end(),
                         selectedfs[k]) == unavailfs.end()) {
             // take the highest fsid with the same geotag if possible
-            if ((vid.geolocation.empty() || (fsgeotag.find(vid.geolocation) != std::string::npos)) &&
+            if ((vid.geolocation.empty() ||
+                 (fsgeotag.find(vid.geolocation) != std::string::npos)) &&
                 (selectedfs[k] > fsid)) {
               fsIndex = k;
               fsid = selectedfs[k];
@@ -1798,20 +1807,22 @@ XrdMgmOfsFile::open(const char* inpath,
               fsid = selectedfs[k];
             }
         }
+
         // EOS-2787
-        // reshuffle the selectedfs to set if available the highest with matching geotag in front 
+        // reshuffle the selectedfs to set if available the highest with matching geotag in front
         if (fsid) {
           std::vector<unsigned int> newselectedfs;
           newselectedfs.push_back(fsid);
-          
+
           for (const auto& i : selectedfs) {
             if (i != newselectedfs.front()) {
               newselectedfs.push_back(i);
             }
-          }                                                                  
+          }
+
           selectedfs.swap(newselectedfs);
           fsIndex = 0;
-        }                                                                             
+        }
       }
     } else {
       if (!fmd->getSize()) {
@@ -2454,12 +2465,13 @@ XrdMgmOfsFile::open(const char* inpath,
   } else {
     if (!isRW)  {
       eos::IFileMD::ctime_t mtime;
+
       try {
-	fmd->getMTime(mtime);
-	redirectionhost += "&mgm.mtime=";
-	std::string smtime;
-	smtime += std::to_string(mtime.tv_sec);
-	redirectionhost += smtime.c_str();
+        fmd->getMTime(mtime);
+        redirectionhost += "&mgm.mtime=";
+        std::string smtime;
+        smtime += std::to_string(mtime.tv_sec);
+        redirectionhost += smtime.c_str();
       } catch (eos::MDException& ex) {
       }
     }
@@ -2570,7 +2582,9 @@ XrdMgmOfsFile::open(const char* inpath,
           // only update within the resolution of the access tracking
           fmd->setCTimeNow();
           gOFS->eosView->updateFileStore(fmd.get());
-          gOFS->FuseXCastFile(fmd->getIdentifier());
+          eos::FileIdentifier fmd_id = fmd->getIdentifier();
+          lock.Release();
+          gOFS->FuseXCastFile(fmd_id);
         }
 
         errno = 0;

@@ -40,6 +40,7 @@ int
 ProcCommand::FuseX()
 {
   gOFS->MgmStats.Add("Eosxd::ext::0-STREAM", pVid->uid, pVid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::ext::0-STREAM");
   // -------------------------------------------------------------------------------------------------------
   // This function returns meta data by inode or if provided first translates a path into an inode.
   // The client can provide the meta-data clock. If it is equivalent to the stored clock, this function
@@ -151,16 +152,14 @@ ProcCommand::FuseX()
     }
 
     if (errno) {
-      if (errno != ENOENT) 
-      {
-	eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
-		errno, emsg.c_str());
+      if (errno != ENOENT) {
+        eos_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                errno, emsg.c_str());
+      } else {
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                  errno, emsg.c_str());
       }
-      else
-      {
-	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-		errno, emsg.c_str());
-      }
+
       return gOFS->Emsg("FuseX", *mError, errno, "get-if-clock",
                         emsg.c_str());
     }
@@ -208,7 +207,9 @@ ProcCommand::FuseX()
     } else {
     }
 
-    eos_debug("c1=%llu c2=%llu", md_clock, clock);
+    if (EOS_LOGS_DEBUG) {
+      eos_debug("c1=%llu c2=%llu", md_clock, clock);
+    }
 
     if ((sop == "GET") || (sop == "LS")) {
       if (md_clock == clock) {
@@ -228,7 +229,9 @@ ProcCommand::FuseX()
     return gOFS->Emsg("FuseX", *mError, rc, "handle request", "");
   }
 
-  eos_debug("c1=%llu c2=%llu", md_clock, clock);
+  if (EOS_LOGS_DEBUG) {
+    eos_debug("c1=%llu c2=%llu", md_clock, clock);
+  }
 
   if (sop == "GETCAP") {
     // check clock synchronization
@@ -236,18 +239,25 @@ ProcCommand::FuseX()
     time_t now = time(NULL);
 
     if ((uint64_t)now > clock + 2) {
-      eos_err("client-clock %lu %s server-clock %lu", clock, sclock.c_str() , now);
+      eos_err("client-clock %lu %s server-clock %lu", clock, sclock.c_str(), now);
       return gOFS->Emsg("FuseX", *mError, EL2NSYNC, "get-cap-clock-out-of-sync",
                         inpath);
     }
   }
 
   mResultStream = result;
-  eos_debug("returning resultstream len=%u %s", mResultStream.size(),
-            mResultStream.c_str());
+
+  if (EOS_LOGS_DEBUG)
+    eos_debug("returning resultstream len=%u %s", mResultStream.size(),
+              mResultStream.c_str());
+
   mLen = mResultStream.size();
-  eos_debug("result-dump=%s",
-            eos::common::StringConversion::string_to_hex(result).c_str());
+
+  if (EOS_LOGS_DEBUG)
+    eos_debug("result-dump=%s",
+              eos::common::StringConversion::string_to_hex(result).c_str());
+
+  EXEC_TIMING_END("Eosxd::ext::0-STREAM");
   return SFS_OK;
 }
 

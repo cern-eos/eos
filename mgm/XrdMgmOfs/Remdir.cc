@@ -210,16 +210,24 @@ XrdMgmOfs::_remdir(const char* path,
 
   if (!simulate) {
     try {
+      eos::ContainerIdentifier dhpar_id;
+      std::string dh_name;
+
       // update the in-memory modification time of the parent directory
       if (dhpar) {
         dhpar->setMTimeNow();
         dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dhpar.get());
-        gOFS->FuseXCastContainer(dhpar->getIdentifier());
-        gOFS->FuseXCastDeletion(dhpar->getIdentifier(), dh->getName());
+        dhpar_id = dhpar->getIdentifier();
+        dh_name = dh->getName();
       }
 
       eosView->removeContainer(path);
+
+      if (dhpar) {
+        gOFS->FuseXCastContainer(dhpar_id);
+        gOFS->FuseXCastDeletion(dhpar_id, dh_name);
+      }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",

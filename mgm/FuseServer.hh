@@ -49,6 +49,7 @@ public:
 
   ~FuseServer();
 
+  void start();
   void shutdown();
 
   std::string dump_message(const google::protobuf::Message& message);
