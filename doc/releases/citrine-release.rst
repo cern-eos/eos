@@ -40,6 +40,7 @@ Improvements
 * Use filesystem name as default cache subdirectory in EOSXD (not default)
 * Improve locking in EOSXD notification path - release ns mutex in most places before notifying - add timing counters to all EOSXD counters
 
+
 ``v4.3.11 Citrine``
 ==================
 
