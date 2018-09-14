@@ -87,7 +87,7 @@ SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
   std::string resolvedPath;
   // is "path" a symlink?
   char buffer[1024];
-  size_t retsize = readlink(path.c_str(), buffer, 1023);
+  const ssize_t retsize = readlink(path.c_str(), buffer, 1023);
   if(retsize != -1) {
     resolvedPath = std::string(buffer, retsize);
   }
