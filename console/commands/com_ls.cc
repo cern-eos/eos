@@ -224,7 +224,6 @@ com_ls(char* arg1)
             char modestr[11];
             eos::modeToBuffer(buf.st_mode, modestr);
 
-            int i;
             XrdOucString suid = "";
             suid += (int) buf.st_uid;
             XrdOucString sgid = "";
