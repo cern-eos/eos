@@ -1713,78 +1713,78 @@ XrdFstOfsFile::close()
       eos_warning("executed 'adjustreplica' for path=%s - file is at low risk "
                   "due to missing replica's", mCapOpaque->Get("mgm.path"));
     }
-  }
 
-  if (!rc && (mEventOnClose || mSyncEventOnClose) && layOut->IsEntryServer()) {
-    //trigger an MGM event if asked from the entry point
-    XrdOucString capOpaqueFile = "";
-    XrdOucString eventType = "";
-    capOpaqueFile += "/?";
-    int envlen = 0;
-    capOpaqueFile += mCapOpaque->Env(envlen);
-    capOpaqueFile += "&mgm.pcmd=event";
+    if (!rc && (mEventOnClose || mSyncEventOnClose) && layOut->IsEntryServer()) {
+      //trigger an MGM event if asked from the entry point
+      XrdOucString capOpaqueFile = "";
+      XrdOucString eventType = "";
+      capOpaqueFile += "/?";
+      int envlen = 0;
+      capOpaqueFile += mCapOpaque->Env(envlen);
+      capOpaqueFile += "&mgm.pcmd=event";
 
-    // Set default workflow if nothing is specified
-    if (mEventWorkflow.length() == 0) {
-      mEventWorkflow = "default";
-    }
-
-    if (isRW) {
-      eventType = mSyncEventOnClose ? "sync::closew" : "closew";
-    } else {
-      eventType = "closer";
-    }
-
-    if (mSyncEventOnClose) {
-      std::string decodedAttributes;
-      eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
-      std::map<std::string, std::string> attributes;
-      eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(),
-          attributes,
-          eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
-          eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-      std::string errMsgBackFromWfEndpoint;
-      rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
-                                       mEventRequestor, mEventRequestorGroup,
-                                       mEventInstance, mCapOpaque->Get("mgm.path"),
-                                       mCapOpaque->Get("mgm.manager"), attributes,
-                                       errMsgBackFromWfEndpoint);
-
-      if (rc == SFS_OK) {
-        return rc;
-      } else {
-        if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(),
-                                       errMsgBackFromWfEndpoint)) {
-          eos_crit("msg=\"Failed to send archive failed event to manager\" errMsgBackFromWfEndpoint=\"%s\"",
-                   errMsgBackFromWfEndpoint.c_str());
-        }
-
-        return ECANCELED;
+      // Set default workflow if nothing is specified
+      if (mEventWorkflow.length() == 0) {
+        mEventWorkflow = "default";
       }
+
+      if (isRW) {
+        eventType = mSyncEventOnClose ? "sync::closew" : "closew";
+      } else {
+        eventType = "closer";
+      }
+
+      if (mSyncEventOnClose) {
+        std::string decodedAttributes;
+        eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
+        std::map<std::string, std::string> attributes;
+        eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(),
+            attributes,
+            eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
+            eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
+        std::string errMsgBackFromWfEndpoint;
+        rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
+                                         mEventRequestor, mEventRequestorGroup,
+                                         mEventInstance, mCapOpaque->Get("mgm.path"),
+                                         mCapOpaque->Get("mgm.manager"), attributes,
+                                         errMsgBackFromWfEndpoint);
+
+        if (rc == SFS_OK) {
+          return rc;
+        } else {
+          if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(),
+                                         errMsgBackFromWfEndpoint)) {
+            eos_crit("msg=\"Failed to send archive failed event to manager\" errMsgBackFromWfEndpoint=\"%s\"",
+                     errMsgBackFromWfEndpoint.c_str());
+          }
+
+          return ECANCELED;
+        }
+      }
+
+      capOpaqueFile += "&mgm.event=";
+      capOpaqueFile += eventType;
+      // The log ID to the commit
+      capOpaqueFile += "&mgm.logid=";
+      capOpaqueFile += logId;
+      capOpaqueFile += "&mgm.ruid=";
+      capOpaqueFile += mCapOpaque->Get("mgm.ruid");
+      capOpaqueFile += "&mgm.rgid=";
+      capOpaqueFile += mCapOpaque->Get("mgm.rgid");
+      capOpaqueFile += "&mgm.sec=";
+      capOpaqueFile += mCapOpaque->Get("mgm.sec");
+
+      if (mEventWorkflow.length()) {
+        capOpaqueFile += "&mgm.workflow=";
+        capOpaqueFile += mEventWorkflow.c_str();
+      }
+
+      eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
+               mEventWorkflow.c_str());
+      rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                            mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
+                            false);
     }
-
-    capOpaqueFile += "&mgm.event=";
-    capOpaqueFile += eventType;
-    // The log ID to the commit
-    capOpaqueFile += "&mgm.logid=";
-    capOpaqueFile += logId;
-    capOpaqueFile += "&mgm.ruid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.ruid");
-    capOpaqueFile += "&mgm.rgid=";
-    capOpaqueFile += mCapOpaque->Get("mgm.rgid");
-    capOpaqueFile += "&mgm.sec=";
-    capOpaqueFile += mCapOpaque->Get("mgm.sec");
-
-    if (mEventWorkflow.length()) {
-      capOpaqueFile += "&mgm.workflow=";
-      capOpaqueFile += mEventWorkflow.c_str();
-    }
-
-    eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
-             mEventWorkflow.c_str());
-    rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                          mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
-                          false);
   }
 
   if (mFusexIsUnlinked &&
