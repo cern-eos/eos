@@ -753,27 +753,21 @@ FileSystem::fsstatus_t
 FileSystem::GetConfigStatus(bool cached)
 {
   fsstatus_t rConfigStatus = 0;
+  XrdSysMutexHelper lock(cConfigLock);
 
   if (cached) {
     time_t now = time(NULL);
-    cConfigLock.Lock();
 
     if (now - cConfigTime) {
       cConfigTime = now;
     } else {
       rConfigStatus = cConfigStatus;
-      cConfigLock.UnLock();
       return rConfigStatus;
     }
   }
 
   cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
   rConfigStatus = cConfigStatus;
-
-  if (cached) {
-    cConfigLock.UnLock();
-  }
-
   return rConfigStatus;
 }
 
@@ -784,27 +778,21 @@ FileSystem::fsstatus_t
 FileSystem::GetStatus(bool cached)
 {
   fsstatus_t rStatus = 0;
+  XrdSysMutexHelper lock(cStatusLock);
 
   if (cached) {
     time_t now = time(NULL);
-    cStatusLock.Lock();
 
     if (now - cStatusTime) {
       cStatusTime = now;
     } else {
       rStatus = cStatus;
-      cStatusLock.UnLock();
       return rStatus;
     }
   }
 
   cStatus = GetStatusFromString(GetString("stat.boot").c_str());
   rStatus = cStatus;
-
-  if (cached) {
-    cStatusLock.UnLock();
-  }
-
   return rStatus;
 }
 
@@ -833,15 +821,15 @@ FileSystem::GetActiveStatus(bool cached)
 {
   fsactive_t rActive = 0;
 
+  XrdSysMutexHelper lock(cActiveLock);
+
   if (cached) {
     time_t now = time(NULL);
-    cActiveLock.Lock();
 
     if (now - cActiveTime) {
       cActiveTime = now;
     } else {
       rActive = cActive;
-      cActiveLock.UnLock();
       return rActive;
     }
   }
@@ -850,27 +838,12 @@ FileSystem::GetActiveStatus(bool cached)
 
   if (active == "online") {
     cActive = kOnline;
-
-    if (cached) {
-      cActiveLock.UnLock();
-    }
-
     return kOnline;
   } else if (active == "offline") {
     cActive = kOffline;
-
-    if (cached) {
-      cActiveLock.UnLock();
-    }
-
     return kOffline;
   } else {
     cActive = kUndefined;
-
-    if (cached) {
-      cActiveLock.UnLock();
-    }
-
     return kUndefined;
   }
 }
