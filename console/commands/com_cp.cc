@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <iomanip>
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
@@ -32,15 +33,13 @@
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 
-//extern XrdOucString serveruri;
-//extern char* com_fileinfo (char* arg1);
 extern int com_transfer(char* argin);
 
 int
 com_cp_usage()
 {
   fprintf(stdout,
-          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>\n");
+          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>\n");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
   fprintf(stdout, "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
   fprintf(stdout, "Options:\n");
@@ -50,18 +49,20 @@ com_cp_usage()
           "       --atomic        : run an atomic upload where files are only visible with the target name when their are completely uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
   fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n");
+  fprintf(stdout, "       --depth         : depth for recursive copy\n");
   fprintf(stdout, "       --checksum      : output the checksums\n");
-  fprintf(stdout,
-          "       -a              : append to the target, don't truncate\n");
+  fprintf(stdout, "       -a              : append to the target, don't truncate\n");
+  fprintf(stdout, "       -p              : create destination directory\n");
   fprintf(stdout, "       -n              : hide progress bar\n");
   fprintf(stdout, "       -S              : print summary\n");
-  fprintf(stdout, "       -d              : enable debug information\n");
+  fprintf(stdout,
+          "   -d | --debug          : enable debug information\n");
   fprintf(stdout,
           "   -s | --silent         : no output outside error messages\n");
   fprintf(stdout,
           "   -k | --no-overwrite   : disable overwriting of files\n");
   fprintf(stdout,
-          "   -p | --preserve       : preserves file creation and modification time from the source\n");
+          "   -P | --preserve       : preserves file creation and modification time from the source\n");
   fprintf(stdout,
           "   -r | -R | --recursive : copy source location recursively\n");
   fprintf(stdout, "\n");
@@ -75,7 +76,7 @@ com_cp_usage()
   fprintf(stdout,
           "       eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/\n");
   fprintf(stdout,
-          "       eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won't show up on the target!\n");
+          "       eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /eos/foo/user/data/ => empty directories won't show up on the target!\n");
   fprintf(stdout,
           "       eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  : copy the full hierarchy and just printout the checksum information for each file copied!\n");
   fprintf(stdout, "\nS3:\n");
@@ -106,57 +107,87 @@ com_cp_usage()
   return (EINVAL);
 }
 
-/* Cp Interface */
+/* Helper types */
+enum Protocol {
+  HTTP, HTTPS, GSIFTP,
+  S3, AS3, XROOT,
+  EOS, LOCAL, UNKNOWN
+};
+
+struct File_t {
+    XrdOucString name;
+    XrdOucString opaque;
+    Protocol protocol;
+    timespec atime;
+    timespec mtime;
+    unsigned long long size;
+
+    File_t() : name(""), opaque(""), protocol(Protocol::UNKNOWN), size(0) { }
+};
+
+/* Helper functions */
+int run_eos_command(const char* cmdline, std::vector<XrdOucString>& result);
+int run_command(const char* cmdline, std::vector<XrdOucString>& result);
+const char* absolute_path(const char* path);
+bool is_dir(const char* path, Protocol protocol, struct stat* buf = NULL);
+const char* setup_s3_environment(XrdOucString path, XrdOucString opaque);
+const char* eos_roles_opaque();
+int do_stat(const char* path, Protocol protocol, struct stat& buf);
+void check_protocol_tool(const char* path);
+Protocol get_protocol(XrdOucString path);
+const char* protocol_to_string(Protocol protocol);
+
+/* eos cp command */
 int
 com_cp(char* argin)
 {
-  char fullcmd[4096];
-  XrdOucString sarg = argin;
-  // split subcommands
-  eos::common::StringTokenizer subtokenizer(argin);
-  subtokenizer.GetLine();
   XrdOucString rate = "0";
   XrdOucString streams = "0";
-  XrdOucString option = "";
-  XrdOucString arg1 = "";
-  XrdOucString arg2 = "";
-  XrdOucString upload_target = "";
-  XrdOucString cmdline;
-  std::vector<XrdOucString> source_list;
-  std::vector<unsigned long long> source_size;
-  std::vector < std::pair<timespec, timespec >> source_utime;
-  std::vector<XrdOucString> source_base_list;
+  XrdOucString atomic = "";
   std::vector<XrdOucString> source_find_list;
-  XrdOucString target;
-  XrdOucString nextarg = "";
-  XrdOucString lastarg = "";
+  std::vector<XrdOucString> source_basepath_list;
+  std::vector<File_t> source_list;
+  File_t target;
+  bool target_is_stdout;
+  bool target_is_dir = false;
   bool recursive = false;
   bool summary = false;
   bool noprogress = false;
   bool append = false;
+  bool makeparent = false;
   bool debug = false;
   bool checksums = false;
   bool silent = false;
   bool nooverwrite = false;
   bool preserve = false;
-  XrdOucString atomic = "";
   unsigned long long copysize = 0;
-  int retc = 0;
-  int copiedok = 0;
   unsigned long long copiedsize = 0;
-  struct timeval tv1, tv2;
+  unsigned long depth = 0;
+  struct timeval start_time, end_time;
   struct timezone tz;
+  int files_copied = 0;
+  int retc = 0;
 
-  // check if this is an 'async' command
+
+  // Check if this is an 'async' command
+  XrdOucString sarg = argin;
   if ((sarg.find("--async")) != STR_NPOS) {
+    char fullcmd[4096];
+
     sarg.replace("--async", "submit --sync");
     snprintf(fullcmd, sizeof(fullcmd) - 1, "%s", sarg.c_str());
     return com_transfer(fullcmd);
   }
 
-  do {
-    option = subtokenizer.GetToken();
+  // ----------------------------------------------------------------------------
+  // Parse arguments
+  // ----------------------------------------------------------------------------
 
+  eos::common::StringTokenizer subtokenizer(argin);
+  subtokenizer.GetLine();
+
+  do {
+    XrdOucString option = subtokenizer.GetToken();
     if (!option.length()) {
       break;
     }
@@ -164,1313 +195,1278 @@ com_cp(char* argin)
     if (option.beginswith("--rate=")) {
       rate = option;
       rate.replace("--rate=", "");
-    } else {
-      if (option.beginswith("--streams=")) {
-        streams = option;
-        streams.replace("--streams=", "");
-      } else {
-        if ((option == "--recursive") ||
-            (option == "-R") ||
-            (option == "-r")) {
-          recursive = true;
-        } else {
-          if (option == "-n") {
-            noprogress = true;
-          } else {
-            if (option == "-a") {
-              append = true;
-            } else {
-              if (option == "-S") {
-                summary = true;
-              } else {
-                if ((option == "-s") || (option == "--silent")) {
-                  silent = true;
-                } else {
-                  if ((option == "-k") || (option == "--no-overwrite")) {
-                    nooverwrite = true;
-                  } else {
-                    if (option == "--checksum") {
-                      checksums = true;
-                    } else {
-                      if (option == "-d") {
-                        debug = true;
-                      } else {
-                        if ((option == "--preserve") || (option == "-p")) {
-                          preserve = true;
-                        } else {
-                          if (option == "--atomic") {
-                            atomic = "&eos.atomic=1";
-                          } else {
-                            if (option.beginswith("-")) {
-                              return com_cp_usage();
-                            } else {
-                              if (!option.beginswith("/eos")) {
-                                while (option.replace("#AND#", "&")) {}
-                              }
-
-                              source_list.emplace_back(option.c_str());
-                              break;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    } else if (option.beginswith("--streams=")) {
+      streams = option;
+      streams.replace("--streams=", "");
+    } else if ((option == "--recursive") ||
+               (option == "-R") || (option == "-r")) {
+      recursive = true;
+    } else if (option == "-n") {
+      noprogress = true;
+    } else if (option == "-a") {
+      append = true;
+    } else if (option == "-p") {
+      makeparent = true;
+    } else if (option == "-S") {
+      summary = true;
+    } else if ((option == "-s") || (option == "--silent")) {
+      silent = true;
+    } else if ((option == "-k") || (option == "--no-overwrite")) {
+      nooverwrite = true;
+    } else if (option == "--checksum") {
+      checksums = true;
+    } else if ((option == "-d") || (option == "--debug")) {
+      debug = true;
+    } else if ((option == "--preserve") || (option == "-P")) {
+      preserve = true;
+    } else if (option == "--atomic") {
+      atomic = "&eos.atomic=1";
+    } else if (option.beginswith("--depth=")) {
+      option.replace("--depth=", "");
+      try {
+        depth = std::stoul(option.c_str());
+      } catch(...) {
+        fprintf(stderr, "error: invalid value for <depth>=%s", option.c_str());
+        return com_cp_usage();
       }
-    }
-  } while (true);
-
-  if (silent) {
-    noprogress = true;
-  }
-
-  if (!hasterminal) {
-    noprogress = true;
-  }
-
-  nextarg = subtokenizer.GetToken();
-  lastarg = subtokenizer.GetToken();
-
-  do {
-    if (lastarg.length()) {
-      source_list.emplace_back(nextarg.c_str());
-      nextarg = lastarg;
-      lastarg = subtokenizer.GetToken();
+    } else if (option.beginswith("-")) {
+      return com_cp_usage();
     } else {
-      target = nextarg;
-
-      if (debug) {
-        fprintf(stderr, "[eos-cp] Setting target %s\n", target.c_str());
+      if ((!option.beginswith("/eos/")) || (!option.beginswith("root:/"))) {
+        while (option.replace("#AND#", "&")) {}
       }
 
+      source_find_list.emplace_back(option.c_str());
       break;
     }
   } while (true);
 
-  if (debug) {
-    for (size_t l = 0; l < source_list.size(); l++) {
-      fprintf(stderr, "[eos-cp] Copylist: %s\n", source_list[l].c_str());
-    }
+  if (silent || !hasterminal) {
+    noprogress = true;
   }
 
-  if (target == ".") {
-    target = "./";
+  // Store list of source locations + target destination
+  XrdOucString nextarg = subtokenizer.GetToken();
+  XrdOucString lastarg = subtokenizer.GetToken();
+
+  while (lastarg.length()) {
+    source_find_list.emplace_back(nextarg.c_str());
+    nextarg = lastarg;
+    lastarg = subtokenizer.GetToken();
   }
+  target.name = nextarg;
 
-  if ((!target.length())) {
-    return com_cp_usage();
-  }
-
-  if ((source_list.size() > 1) && (!target.endswith("/"))) {
-    return com_cp_usage();
-  }
-
-  if (!recursive) {
-    source_find_list = source_list;
-    source_list.clear();
-
-    for (size_t l = 0; l < source_find_list.size(); l++) {
-      XrdOucString source_opaque;
-      int opos = source_find_list[l].find("?");
-
-      if (opos != STR_NPOS) {
-        source_opaque = source_find_list[l];
-        source_opaque.erase(0, opos + 1);
-        source_find_list[l].erase(opos);
-      }
-
-      if (((source_find_list[l].beginswith("http:")) ||
-           (source_find_list[l].beginswith("gsiftp:"))) &&
-          (source_find_list[l].endswith("/"))) {
-        fprintf(stderr, "error: directory copy not implemented for that protocol\n");
-        continue;
-      }
-
-      // one wildcard file or directory
-      if (((source_find_list[l].find("*") != STR_NPOS) ||
-           (source_find_list[l].endswith("/")))) {
-        arg1 = source_find_list[l];
-        eos::common::Path cPath(arg1.c_str());
-        std::string dname;
-        XrdOucString l = "eos -b ";
-
-        if (user_role.length() && group_role.length()) {
-          l += "--role ";
-          l += user_role;
-          l += " ";
-          l += group_role;
-          l += " ";
-        }
-
-        l += "ls -l ";
-
-        if (!arg1.endswith("/")) {
-          dname = cPath.GetParentPath();
-        } else {
-          dname = arg1.c_str();
-        }
-
-        l += dname.c_str();
-        l += " | grep -v ^d | awk '{print $9}'";
-
-        if (!arg1.endswith("/")) {
-          XrdOucString match = cPath.GetName();
-
-          if (match.endswith("*")) {
-            match.erase(match.length() - 1);
-            match.insert("^", 0);
-          }
-
-          if (match.beginswith("*")) {
-            match.erase(0, 1);
-            match += "$";
-          }
-
-          if (match.length()) {
-            l += " | egrep \"";
-            l += match.c_str();
-            l += "\"";
-          }
-        }
-
-        l += " 2>/dev/null";
-
-        if (debug) {
-          fprintf(stderr, "[eos-cp] running %s\n", l.c_str());
-        }
-
-        FILE* fp = popen(l.c_str(), "r");
-
-        if (!fp) {
-          fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
-          exit(-1);
-        }
-
-        int item;
-        char f2c[4096];
-
-        while ((item = fscanf(fp, "%4095s", f2c) == 1)) {
-          std::string fullpath = dname;
-          fullpath += f2c;
-
-          if (source_opaque.length()) {
-            fullpath += "?";
-            fullpath += source_opaque.c_str();
-          }
-
-          if (debug) {
-            fprintf(stdout, "[eos-cp] add file %s\n", fullpath.c_str());
-          }
-
-          source_list.emplace_back(fullpath.c_str());
-        }
-
-        pclose(fp);
-      } else {
-        if (source_opaque.length()) {
-          source_find_list[l] += "?";
-          source_find_list[l] += source_opaque;
-        }
-
-        source_list.emplace_back(source_find_list[l].c_str());
-      }
-    }
-  } else {
-    // use find to get a file list
-    source_find_list = source_list;
-    source_list.clear();
-
-    for (size_t nfile = 0; nfile < source_find_list.size(); nfile++) {
-      XrdOucString source_opaque;
-      int opos = source_find_list[nfile].find("?");
-
-      if (opos != STR_NPOS) {
-        source_opaque = source_find_list[nfile];
-        source_opaque.erase(0, opos + 1);
-        source_find_list[nfile].erase(opos);
-      }
-
-      if (!source_find_list[nfile].beginswith("as3:")) {
-        if (!source_find_list[nfile].endswith("/")) {
-          fprintf(stderr,
-                  "error: for recursive copy you have to give a directory name ending with '/'\n");
-          return com_cp_usage();
-        }
-      }
-
-      if ((source_find_list[nfile].beginswith("http:")) ||
-          (source_find_list[nfile].beginswith("gsiftp:"))) {
-        fprintf(stderr, "error: recursive copy not implemented for that protocol\n");
-        continue;
-      }
-
-      XrdOucString l = "";
-      XrdOucString sourceprefix =
-        ""; // this is the URL part of root://<host>/ for XRootD or as3://<hostname>/
-      l += "eos -b ";
-
-      if (user_role.length() && group_role.length()) {
-        l += "--role ";
-        l += user_role;
-        l += " ";
-        l += group_role;
-        l += " ";
-      }
-
-      l += "find -f ";
-
-      if (source_find_list[nfile].beginswith("/") &&
-          (!source_find_list[nfile].beginswith("/eos"))) {
-        l += "\"file:";
-      } else {
-        l += "\"";
-      }
-
-      l += source_find_list[nfile];
-      l += "\" 2> /dev/null";
-
-      if (debug) {
-        fprintf(stderr, "[eos-cp] running %s\n", l.c_str());
-      }
-
-      FILE* fp = popen(l.c_str(), "r");
-
-      if (!fp) {
-        fprintf(stderr, "error; unable to run 'eos' - I need it in the path");
-        exit(-1);
-      }
-
-      if (l.length()) {
-        char* f2c = nullptr;
-        size_t len = 4096;
-
-        while ((getline(&f2c, &len, fp)) != -1) {
-          // this gives us a line including '\n'
-          if (debug) {
-            fprintf(stdout, "[eos-cp] add file %s\n", f2c);
-          }
-
-          XrdOucString sf2c = f2c;
-          sf2c.erase(sf2c.length() - 1);
-          sf2c.insert(sourceprefix, 0);
-
-          if (source_opaque.length()) {
-            sf2c += "?";
-            sf2c += source_opaque;
-          }
-
-          source_list.emplace_back(sf2c.c_str());
-          source_base_list.push_back(source_find_list[nfile]);
-
-          if (f2c) {
-            free(f2c);
-          }
-
-          f2c = nullptr;
-        }
-      }
-
-      if (fp) {
-        fclose(fp);
-      }
-    }
-  }
-
-  // check if there is any file in the list
-  if (source_list.empty()) {
-    fprintf(stderr, "warning: there is no file to copy!\n");
-    //    fprintf(stderr,"error: your source seems not to exist or does not match any file!\n");
+  if (!target.name.length()) {
+    fprintf(stderr, "warning: no target specified. Please view 'eos cp --help'.\n");
     global_retc = 0;
     exit(0);
   }
 
-  // create the target directory if it is a local one
-  if ((!target.beginswith("/eos"))) {
-    while (target.replace("#AND#", "&")) {}
+  // --------------------------------------------------------------------------
+  // Expand source list into final list to copy.
+  // This means interpreting the '*' character in file names
+  // and traversing directories for the recursive flag.
+  // Every source path also has an associated base path,
+  // which will get appended to the target.
+  // --------------------------------------------------------------------------
 
-    if ((target.find(":/") == STR_NPOS) && (!target.beginswith("as3:"))) {
-      if (!target.beginswith("/")) {
-        // assume this is a relative local path
-        target.insert("/", 0);
-        target.insert(getenv("PWD"), 0);
-        struct stat buf;
+  for (size_t i = 0; i < source_find_list.size(); i++) {
+    std::vector<XrdOucString> files;
+    XrdOucString source = source_find_list[i];
+    XrdOucString source_opaque;
+    XrdOucString basepath = "";
+    Protocol protocol;
+    std::string sprotocol = "";
+    int opos = source.find("?");
+    bool wildcard = false;
+    files.clear();
 
-        if (!stat(target.c_str(), &buf)) {
-          if (S_ISDIR(buf.st_mode))
-            if (!target.endswith("/")) {
-              target += "/";
-            }
+    // Extract opaque info
+    if (opos != STR_NPOS) {
+      source_opaque = source;
+      source_opaque.erase(0, opos + 1);
+      source.erase(opos);
+    }
+
+    // Identify protocol
+    protocol = get_protocol(source.c_str());
+    if (protocol == Protocol::UNKNOWN) {
+      fprintf(stderr, "warning: %s -- protocol not recognized. Skipping path..",
+              source.c_str());
+      continue;
+    }
+
+    // Convert local to absolute path
+    source = absolute_path(source.c_str());
+
+    // Check if source is a directory
+    if (!source.endswith("/") && is_dir(source.c_str(), protocol, NULL)) {
+      source.append("/");
+    }
+
+    eos::common::Path cPath(source.c_str());
+    basepath = cPath.GetParentPath();
+
+    if ((source.find("*") != STR_NPOS) || (source.endswith("/"))) {
+      std::string cmdtext;
+
+      if ((protocol != Protocol::EOS) && (protocol != Protocol::LOCAL)) {
+        fprintf(stderr, "error: %s -- path expansion not implemented for %s protocol."
+                        " Skipping path..\n", source.c_str(), protocol_to_string(protocol));
+        continue;
+      }
+
+      // Get all paths matching wildcard
+      if (source.find("*") != STR_NPOS) {
+        // Will use 'ls -lF' combined with grep to identify matches
+        // ls -l[F|p] <path> | awk 'NF == 9 {print $9}' [ | egrep "<match>" ]
+
+        // Note: eos::common::Path removes trailing '/'!
+        XrdOucString basename = cPath.GetName();
+        if (source.endswith("/")) { basename.append("/"); }
+
+        // Wildcards are supported only in the basename
+        if (basename.find("*") == STR_NPOS) {
+          fprintf(stderr, "warning: %s -- wildcards not supported outside basename."
+                          " Skipping path..\n", source.c_str());
+          continue;
+        }
+
+        XrdOucString match = basename.c_str();
+        wildcard = true;
+
+        if (!match.beginswith("*")) { match.insert("^", 0); }
+        if (!match.endswith("*"))   { match.append("$");    }
+        match.replace("*", ".*");
+
+        // Construct command text
+        cmdtext = "ls -l";
+        cmdtext += (protocol == Protocol::EOS) ? "F " : "p ";
+        cmdtext += basepath.c_str();
+        cmdtext += " | awk 'NF == 9 {print $9}' | egrep \"";
+        cmdtext += match.c_str();
+        cmdtext += "\"";
+      } else if (source.endswith("/")) {
+        // Get all files within directory
+
+        // Will use 'find' to identify files
+        // local file: find <path> [-maxdepth <depth>] -follow -type f
+        // eos file:   find -f [--maxdepth <depth>] <path>
+
+        if (!recursive) {
+          fprintf(stderr,"warning: omitting directory %s\n", source.c_str());
+          continue;
+        }
+
+        // Enclose source path in quotes, as the path may contain whitespace
+        stringstream ss;
+        ss.clear();
+        ss << std::quoted(source.c_str());
+        source = ss.str().c_str();
+
+        // Capture only last directory
+        // This will end up appended to the target
+
+
+        std::string smaxdepth = " ";
+        if (depth != 0) {
+          smaxdepth = " -maxdepth ";
+          smaxdepth += std::to_string(depth);
+          smaxdepth += " ";
+          if (protocol == Protocol::EOS) { smaxdepth.insert(1, "-"); }
+        }
+        cmdtext = "find ";
+
+        if (protocol == Protocol::EOS) {
+          cmdtext += "-f";
+          cmdtext += smaxdepth.c_str();
+          cmdtext += source.c_str();
+        } else {
+          cmdtext += source.c_str();
+          cmdtext += smaxdepth.c_str();
+          cmdtext += "-follow -type f";
         }
       }
 
-      if (target.endswith("/")) {
-        XrdOucString mktarget = "mkdir --mode 755 -p ";
-        mktarget += target.c_str();
-        int rc = system(mktarget.c_str());
+      cmdtext += " 2> /dev/null";
 
-        if (WEXITSTATUS(rc)) {
-          // we check with access if it worked
-          rc = 0;
-        }
-
-        if (access(target.c_str(), R_OK | W_OK)) {
-          fprintf(stderr, "error: cannot create/access your target directory!\n");
-          exit(0);
-        }
-      } else {
-        eos::common::Path cTarget(target.c_str());
-        XrdOucString mktarget = "mkdir --mode 755 -p ";
-        mktarget += cTarget.GetParentPath();
-        int rc = system(mktarget.c_str());
-
-        if (WEXITSTATUS(rc)) {
-          // we check with access if it worked
-          rc = 0;
-        }
-
-        if (access(cTarget.GetParentPath(), R_OK | W_OK)) {
-          fprintf(stderr, "error: cannot create/access your target directory!\n");
-          exit(0);
-        }
+      if (debug) {
+        fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
       }
+
+      int rc = (protocol == Protocol::EOS)  ?
+               run_eos_command(cmdtext.c_str(), files) :
+               run_command(cmdtext.c_str(), files);
+      if (rc && !files.size()) {
+        fprintf(stderr, "warning: could not expand source: %s\n", source.c_str());
+        exit(1);
+      }
+    } else {
+      files.emplace_back(source.c_str());
+    }
+
+    for (auto& file: files) {
+      if (wildcard) {
+        file.insert(basepath.c_str(), 0);
+        source_find_list.emplace_back(file.c_str());
+        continue;
+      }
+
+      if (debug) {
+        fprintf(stderr, "[eos-cp] Copy list: %s\n", file.c_str());
+      }
+
+      File_t source_file;
+      source_file.name = file.c_str();
+      source_file.opaque = source_opaque.c_str();
+      source_file.protocol = protocol;
+
+      source_list.emplace_back(source_file);
+      source_basepath_list.emplace_back(basepath.c_str());
     }
   }
 
-  // compute the size to copy
-  std::vector<std::string> file_info;
+  // Check if there is any file in the list
+  if (source_list.empty()) {
+    fprintf(stderr, "warning: found zero files to copy!\n");
+    global_retc = 0;
+    exit(0);
+  }
 
-  for (size_t nfile = 0; nfile < source_list.size(); nfile++) {
-    bool statok = false;
-    bool protok = false;
-    // ------------------------------------------
-    // EOS file
-    // ------------------------------------------
+  // --------------------------------------------------------------------------
+  // Process target path
+  // --------------------------------------------------------------------------
 
-    if (source_list[nfile].beginswith("/eos/")) {
-      protok = true;
-      struct stat buf;
-      XrdOucString url = serveruri.c_str();
-      url += "/";
-      url += source_list[nfile];
+  bool target_exists;
+  struct stat target_stat;
+  target.protocol = get_protocol(target.name.c_str());
 
-      if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
-        if (S_ISDIR(buf.st_mode)) {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories!\n",
-                  source_list[nfile].c_str());
-          return com_cp_usage();
+  // Make sure executable to reach target exists
+  check_protocol_tool(target.name.c_str());
+
+  // Handle opaque information for target
+  if (target.protocol != Protocol::LOCAL) {
+    int qpos = target.name.find("?");
+
+    if (qpos != STR_NPOS) {
+      target.opaque = target.name.c_str();
+      target.opaque.keep(qpos + 1);
+      target.name.erase(qpos);
+    }
+
+    // Replace '&' with '#AND#' for EOS target
+    if (target.protocol == Protocol::EOS) {
+      target.name.replace("&", "#AND");
+    }
+  }
+
+  // Detect whether target is stdout
+  target.name = absolute_path(target.name.c_str());
+  target_is_stdout = (target.name == "-");
+
+  if (!target_is_stdout) {
+    // Detect whether target is a directory
+    int stat_rc = do_stat(target.name.c_str(), target.protocol, target_stat);
+    target_exists = (stat_rc == 0);
+    target_is_dir = is_dir(target.name.c_str(), target.protocol, &target_stat);
+    if (!target.name.endswith("/") && target_is_dir) {
+      target.name.append("/");
+    }
+
+    // If multiple source files, target should be directory
+    if (source_list.size() > 1 ) {
+      // Target must be created
+      if ((target.protocol == Protocol::EOS ||
+           target.protocol == Protocol::LOCAL) && (!target_exists)) {
+        if (!makeparent) {
+          fprintf(stderr, "error: target must be created. Please try with "
+                          "create flag or see 'eos cp --help' for more info.\n");
+          exit(1);
         }
 
-        if (debug) {
-          fprintf(stderr, "[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
-                  (unsigned long long) buf.st_size);
+        if (!target.name.endswith("/")) {
+          target.name.append("/");
         }
 
-        if (!silent) {
-          fprintf(stderr, "[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
-                  (unsigned long long) buf.st_size);
-        }
+        target_is_dir = true;
+      }
 
-        copysize += buf.st_size;
-        source_size.push_back((unsigned long long) buf.st_size);
-        timespec atime;
-        timespec mtime;
-        atime.tv_sec = time(NULL);
-        atime.tv_nsec = 0;
-        mtime.tv_sec = buf.st_mtime;
-        mtime.tv_nsec = 0;
-        // store the a/m-time
-        source_utime.emplace_back(std::make_pair(atime, mtime));
-        statok = true;
+      if (!target_is_dir) {
+        fprintf(stderr, "error: target must be a directory\n");
+        exit(1);
       }
     }
 
-    XrdOucString s3env = "";
+    // Create target directory tree for EOS or local path
+    if (makeparent) {
+      if ((target.protocol == Protocol::EOS) ||
+          (target.protocol == Protocol::LOCAL)) {
+        XrdOucString mktarget;
+
+        if (target.name.endswith("/")) {
+          mktarget = target.name.c_str();
+        } else {
+          eos::common::Path cTarget(target.name.c_str());
+          mktarget = cTarget.GetParentPath();
+        }
+
+        std::string cmdtext = "mkdir -p ";
+        if (target.protocol == Protocol::LOCAL) { cmdtext += "--mode 755 "; }
+        cmdtext += mktarget.c_str();
+
+        std::vector<XrdOucString> tmp;
+        int rc = (target.protocol == Protocol::EOS) ?
+                 run_eos_command(cmdtext.c_str(), tmp) :
+                 run_command(cmdtext.c_str(), tmp);
+        if (rc) {
+          fprintf(stderr, "error: failed to create target directory : %s\n",
+                  mktarget.c_str());
+          exit(1);
+        }
+      }
+    }
+  } else {
+    // Disable all output for stdout target
+    silent = true;
+    noprogress = true;
+  }
+
+  // Set up environment for S3 target
+  if ((target.protocol == Protocol::AS3) ||
+      (target.protocol == Protocol::S3)) {
+    target.name = setup_s3_environment(target.name, target.opaque);
+  }
+
+  // Expand '/eos/' shortcut for EOS protocol
+  if ((target.protocol == Protocol::EOS) &&
+      (target.name.beginswith("/eos/"))) {
+    if (!serveruri.endswith("/")) { target.name.insert("/", 0); }
+    target.name.insert(serveruri.c_str(), 0);
+  }
+
+  if (debug) {
+    fprintf(stderr, "[eos-cp] # of source files: %lu\n", source_list.size());
+    fprintf(stderr, "[eos-cp] Setting target %s [protocol=%s]\n",
+            target.name.c_str(), protocol_to_string(target.protocol));
+  }
+
+  // --------------------------------------------------------------------------
+  // Compute size for each source path
+  // --------------------------------------------------------------------------
+
+  // As needed, check whether tools to access these protocols can be found
+  bool s3_tool = false;
+  bool http_tool = false;
+  bool gsiftp_tool = false;
+
+  for (auto& source: source_list) {
+    bool statok = false;
+
+    struct stat buf;
+    source.atime.tv_nsec = source.mtime.tv_nsec = 0;
+
+    switch (source.protocol) {
+    // ------------------------------------------
+    // EOS, XRoot or local file
+    // ------------------------------------------
+    case Protocol::EOS:
+    case Protocol::XROOT:
+    case Protocol::LOCAL:
+      if (!do_stat(source.name.c_str(), source.protocol, buf)) {
+        copysize += buf.st_size;
+        source.size = (unsigned long long) buf.st_size;
+
+        // store the a/m-time
+        source.atime.tv_sec = buf.st_atime;
+        source.mtime.tv_sec = buf.st_mtime;
+
+        statok = true;
+      }
+      break;
 
     // ------------------------------------------
     // S3 file
     // ------------------------------------------
-    if (source_list[nfile].beginswith("as3:")) {
-      protok = true;
-      // extract evt. the hostname
-      // the hostname is part of the URL like in ROOT
-      XrdOucString hostport;
-      XrdOucString protocol;
-      XrdOucString sPath;
-      const char* v = nullptr;
-
-      if (!(v = eos::common::StringConversion::ParseUrl(source_list[nfile].c_str(),
-                protocol, hostport))) {
-        fprintf(stderr, "error: illegal url <%s>\n", source_list[nfile].c_str());
-        global_retc = EINVAL;
-        return (0);
+    case Protocol::AS3:
+    case Protocol::S3:
+    {
+      if (!s3_tool) {
+        check_protocol_tool(source.name.c_str());
+        s3_tool = true;
       }
 
-      sPath = v;
+      const char* url = setup_s3_environment(source.name, source.opaque);
 
-      if (hostport.length()) {
-        setenv("S3_HOSTNAME", hostport.c_str(), 1);
-      }
-
-      XrdOucString envString = source_list[nfile];
-      int qpos = 0;
-
-      if ((qpos = envString.find("?")) != STR_NPOS) {
-        envString.erase(0, qpos + 1);
-        XrdOucEnv env(envString.c_str());
-
-        // extract opaque S3 tags if present
-        if (env.Get("s3.key")) {
-          setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
-        }
-
-        if (env.Get("s3.id")) {
-          setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
-        }
-
-        source_list[nfile].erase(source_list[nfile].find("?"));
-        sPath.erase(sPath.find("?"));
-      }
-
-      // apply the ROOT compatibility environment variables
-      if (getenv("S3_ACCESS_KEY")) {
-        setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
-      }
-
-      if (getenv("S3_ACESSS_ID")) {
-        setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"), 1);
-      }
-
-      // check that the environment is set
-      if (!getenv("S3_ACCESS_KEY_ID") ||
-          !getenv("S3_HOSTNAME") ||
-          !getenv("S3_SECRET_ACCESS_KEY")) {
-        fprintf(stderr, "error: you have to set the S3 environment variables "
-                "S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), "
-                "S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
-        exit(-1);
-      }
-
-      s3env = "env S3_ACCESS_KEY_ID=";
+      XrdOucString s3env = "env S3_ACCESS_KEY_ID=";
       s3env += getenv("S3_ACCESS_KEY_ID");
       s3env += " S3_HOSTNAME=";
       s3env += getenv("S3_HOSTNAME");
       s3env += " S3_SECRET_ACCESS_KEY=";
       s3env += getenv("S3_SECRET_ACCESS_KEY");
-      XrdOucString s3arg = sPath.c_str();
-      // do some bash magic ... sigh
-      XrdOucString sizecmd = "bash -c \"";
-      sizecmd += s3env;
-      sizecmd += " s3 head ";
-      sizecmd += s3arg;
-      sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null";
-      sizecmd += "\"";
+
+      // Execute 's3' command to retrieve size
+      XrdOucString cmdtext = "bash -c \"";
+      cmdtext += s3env;
+      cmdtext += " s3 head ";
+      cmdtext += url;
+      cmdtext += " | grep Content-Length | awk '{print \\$2}' 2> /dev/null\"";
 
       if (debug) {
-        fprintf(stderr, "[eos-cp] running %s\n", sizecmd.c_str());
+        fprintf(stderr, "[eos-cp] running %s\n", cmdtext.c_str());
       }
 
       long long size = eos::common::StringConversion::LongLongFromShellCmd(
-                         sizecmd.c_str());
+                         cmdtext.c_str());
 
       if ((!size) || (size == LLONG_MAX)) {
-        fprintf(stderr,
-                "error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
-        exit(-1);
-      }
-
-      if (debug) {
-        fprintf(stderr, "[eos-cp] path=%s size=%lld\n", source_list[nfile].c_str(),
-                size);
+        fprintf(stderr, "error: path=%s cannot obtain size of S3 source file "
+                        "or file size is 0!\n", source.name.c_str());
+        exit(1);
       }
 
       copysize += size;
-      source_size.push_back(size);
+      source.size = (unsigned long long) size;
+      source.atime.tv_sec = source.mtime.tv_sec = 0;
+
       statok = true;
+      break;
     }
 
-    if (source_list[nfile].beginswith("http:") ||
-        source_list[nfile].beginswith("https://") ||
-        source_list[nfile].beginswith("gsiftp://")) {
-      protok = true;
-      fprintf(stderr, "warning: disabling size check for http/https/gsidftp\n");
+    // ------------------------------------------
+    // HTTP(S) & GSIFTP file
+    // ------------------------------------------
+    case Protocol::GSIFTP:
+    case Protocol::HTTP:
+    case Protocol::HTTPS:
+      if ((source.protocol == Protocol::HTTP ||
+           source.protocol == Protocol::HTTPS) && (!http_tool)) {
+        check_protocol_tool(source.name.c_str());
+        http_tool = true;
+      } else if ((source.protocol == Protocol::GSIFTP) && (!gsiftp_tool)) {
+        check_protocol_tool(source.name.c_str());
+        gsiftp_tool = true;
+      }
+
+      source.size = 0;
+      source.atime.tv_sec = source.mtime.tv_sec = 0;
+
+      fprintf(stderr, "warning: disabling size check for path=%s [protocol=%s]\n",
+              source.name.c_str(), protocol_to_string(source.protocol));
+
       statok = true;
-      source_size.push_back(0);
-    }
+      break;
 
-    if ((source_list[nfile].beginswith("root:"))) {
-      protok = true;
-      // ------------------------------------------
-      // XRootD file
-      // ------------------------------------------
-      struct stat buf;
-
-      if (!XrdPosixXrootd::Stat(source_list[nfile].c_str(), &buf)) {
-        if (S_ISDIR(buf.st_mode)) {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories\n",
-                  source_list[nfile].c_str());
-          return com_cp_usage();
-        }
-
-        if (debug) {
-          fprintf(stderr, "[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
-                  (unsigned long long) buf.st_size);
-        }
-
-        copysize += buf.st_size;
-        source_size.push_back((unsigned long long) buf.st_size);
-        timespec atime;
-        timespec mtime;
-        atime.tv_sec = time(NULL);
-        atime.tv_nsec = 0;
-        mtime.tv_sec = buf.st_mtime;
-        mtime.tv_nsec = 0;
-        // store the a/m-time
-        source_utime.emplace_back(std::make_pair(atime, mtime));
-        statok = true;
-      }
-    }
-
-    if ((source_list[nfile].find(":/") == STR_NPOS) &&
-        (!source_list[nfile].beginswith("/eos"))) {
-      protok = true;
-      // ------------------------------------------
-      // local file
-      // ------------------------------------------
-      struct stat buf;
-
-      if (!stat(source_list[nfile].c_str(), &buf)) {
-        if (S_ISDIR(buf.st_mode)) {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories\n",
-                  source_list[nfile].c_str());
-          return com_cp_usage();
-        }
-
-        if (debug) {
-          fprintf(stderr, "[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
-                  (unsigned long long) buf.st_size);
-        }
-
-        copysize += buf.st_size;
-        source_size.push_back((unsigned long long) buf.st_size);
-        timespec atime;
-        timespec mtime;
-        atime.tv_sec = buf.st_atime;
-        atime.tv_nsec = 0;
-        mtime.tv_sec = buf.st_mtime;
-        mtime.tv_nsec = 0;
-        // store the a/m-time
-        source_utime.emplace_back(std::make_pair(atime, mtime));
-        statok = true;
-      }
+    default:
+      break;
     }
 
     if (!statok) {
-      if (!protok) {
-        fprintf(stderr, "error: we don't support this protocol : %s\n",
-                source_list[nfile].c_str());
-      } else {
-        fprintf(stderr, "error: cannot get the file size of source file : %s\n",
-                source_list[nfile].c_str());
-      }
+      fprintf(stderr, "error: cannot get file size of path=%s [protocol=%s]\n",
+              source.name.c_str(), protocol_to_string(source.protocol));
+      exit(1);
+    }
 
-      exit(-1);
+    if (debug) {
+      fprintf(stderr, "[eos-cp] path=%s size=%llu [protocol=%s]\n",
+              source.name.c_str(), source.size,
+              protocol_to_string(source.protocol));
     }
   }
 
-  XrdOucString sizestring1;
-
-  if (!silent) {
-    fprintf(stderr, "[eos-cp] going to copy %d files and %s\n",
-            (int) source_list.size(),
-            eos::common::StringConversion::GetReadableSizeString(sizestring1, copysize,
-                "B"));
+  if (debug || !silent) {
+    XrdOucString ssize;
+    fprintf(stderr, "[eos-cp] going to copy %lu files and %s\n", source_list.size(),
+            eos::common::StringConversion::GetReadableSizeString(ssize, copysize, "B"));
   }
 
-  gettimeofday(&tv1, &tz);
+  // Mark start timestamp
+  gettimeofday(&start_time, &tz);
 
-  // process the file list for wildcards
-  for (size_t nfile = 0; nfile < source_list.size(); nfile++) {
-    XrdOucString targetfile = "";
-    XrdOucString transfersize =
-      ""; // used for STDIN pipes to specify the target size to eoscp
-    cmdline = "";
-    XrdOucString prot;
-    XrdOucString hostport;
-    const char* urlpath = (eos::common::StringConversion::ParseUrl(
-                             source_list[nfile].c_str(), prot, hostport));
-    eos::common::Path cPath(urlpath ? urlpath : source_list[nfile].c_str());
-    arg1 = source_list[nfile];
+  // --------------------------------------------------------------------------
+  // Create 'eoscp' command for each source path
+  // and effectively perform the copy operation
+  // --------------------------------------------------------------------------
 
-    if (arg1.beginswith("./")) {
-      arg1.erase(0, 2);
-    }
+  int file_idx = -1;
 
-    arg2 = target;
+  for (auto& source: source_list) {
+    XrdOucString dest = target.name.c_str();
 
-    if (arg2 == "-") {
-      // if we have stdout as target we disable all output
-      silent = true;
-      noprogress = true;
-    }
+    // Processed target path + original target opaque info
+    XrdOucString target_path = "";
+    // Temporary file upload flag
+    bool temporary_file = false;
+    file_idx++;
 
-    if (arg2.beginswith("as3://")) {
-      // apply the ROOT compatibility environment variables
-      if (getenv("S3_ACCESS_KEY")) {
-        setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
+    //------------------------------------
+    // Process destination path
+    //------------------------------------
+
+    // Append source suffix to destination
+    // The source suffix: <source_path> = <source_basepath/><source_suffix>
+    if (target_is_dir) {
+      XrdOucString source_suffix = source.name.c_str();
+      int pos = source_suffix.find(source_basepath_list[file_idx].c_str());
+
+      if (pos == STR_NPOS) {
+        fprintf(stderr, "error: could not identify source suffix for path=%s\n",
+                source.name.c_str());
+        exit(1);
       }
 
-      if (getenv("S3_ACCESS_ID")) {
-        setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"), 1);
-      }
+      pos += source_basepath_list[file_idx].length();
+      source_suffix.keep(pos);
+      dest += source_suffix.c_str();
+    }
 
-      // extract opaque S3 tags if present
-      XrdOucString envString = arg2;
-      int qpos = 0;
+    // Check that source and destination are different
+    if (!strcmp(source.name.c_str(), dest.c_str())) {
+      fprintf(stderr, "warning: source and target are the same path=%s. Skipping path..\n",
+              source.name.c_str());
+      continue;
+    }
 
-      if ((qpos = envString.find("?")) != STR_NPOS) {
-        envString.erase(0, qpos + 1);
-        XrdOucEnv env(envString.c_str());
+    // Check if destination exists
+    if (nooverwrite) {
+      if ((target.protocol == Protocol::LOCAL) ||
+          (target.protocol == Protocol::EOS)) {
+        struct stat tmp;
 
-        // extract opaque S3 tags if present
-        if (env.Get("s3.key")) {
-          setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
+        if (!do_stat(dest.c_str(), target.protocol, tmp)) {
+          fprintf(stderr, "warning: target=%s exists, but --no-overwrite flag specified",
+                  dest.c_str());
+          retc |= EEXIST;
+          continue;
         }
-
-        if (env.Get("s3.id")) {
-          setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
-        }
-
-        arg2.erase(source_list[nfile].find("?"));
-      }
-
-      // the hostname is part of the URL like in ROOT
-      int spos = arg2.find("/", 6);
-
-      if (spos != STR_NPOS) {
-        XrdOucString hname;
-        hname.assign(arg2, 6, spos - 1);
-        setenv("S3_HOSTNAME", hname.c_str(), 1);
-        arg2.erase(4, spos - 3);
       }
     }
 
-    if (arg2.beginswith(".")) {
-      arg2.erase(0, 2);
+    // Add opaque info to destination
+    if (target.opaque.length()) {
+      dest += "?";
+      dest += target.opaque.c_str();
     }
 
-    if (arg1.beginswith("/eos")) {
-      arg1.insert("/", 0);
-      arg1.insert(serveruri.c_str(), 0);
+    target_path = dest.c_str();
+
+    if (debug) {
+      fprintf(stderr, "[eos-cp] copying %s to %s\n",
+              source.name.c_str(), target_path.c_str());
     }
 
-    if (arg2.endswith("/")) {
-      if (recursive) {
-        // append the source directory structure
-        XrdOucString targetname = source_list[nfile];
-        std::string prefix = source_base_list[nfile].c_str();
-        prefix.erase(prefix.rfind('/', prefix.length() - 2));
-        targetname.replace(prefix.c_str(), "");
+    // Handle EOS specific opaque info
+    if ((target.protocol == Protocol::EOS) ||
+        (target.protocol == Protocol::XROOT)) {
+      char opaque[1024];
+      const char* roles = eos_roles_opaque();
 
-        if (targetname[0] == '/') {
-          targetname.erase(0, 1);
-        }
+      snprintf(opaque, sizeof(opaque) - 1,
+               "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s%s%s",
+               (target.opaque.length())  ?  '&'  :  '?',
+               source.size, source.size, atomic.c_str(),
+               (roles)  ?  "&"  :  "",
+               (roles)  ?  roles : "");
 
-        arg2.append(targetname.c_str());
-      } else {
-        if (debug) {
-          fprintf(stderr, "[eos-cp] appending %s to target %s\n",
-                  cPath.GetName(), arg2.c_str());
-        }
-
-        arg2.append(cPath.GetName());
-      }
+      dest.append(opaque);
     }
 
-    if (arg2.beginswith("/") && !arg2.beginswith("/eos/")) {
-      // remove the opaque info for local files
-      arg2.erase(arg2.find("?"));
-    }
-
-    targetfile = arg2;
-
-    if (arg2.beginswith("/eos") || arg2.beginswith("root://")) {
-      if (arg2.beginswith("/eos")) {
-        int qpos = arg2.find("?");
-
-        while (((arg2.find("&") != STR_NPOS) && (arg2.find("&") < qpos)) &&
-               (arg2.replace("&", "#AND#"))) {
-          fprintf(stderr, "replace\n");
-        }
-
-        arg2.insert("/", 0);
-        arg2.insert(serveruri.c_str(), 0);
-      }
-
-      char targetadd[1024];
-
-      if ((arg2.find("?") == STR_NPOS)) {
-        arg2 += "?";
-      } else {
-        arg2 += "&";
-      }
-
-      snprintf(targetadd, sizeof(targetadd) - 1,
-               "eos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s", source_size[nfile],
-               source_size[nfile], atomic.c_str());
-      arg2.append(targetadd);
-
-      // put the proper role switches
-      if (user_role.length() && group_role.length()) {
-        arg2 += "&eos.ruid=";
-        arg2 += user_role;
-        arg2 += "&eos.rgid=";
-        arg2 += group_role;
-      }
-    } else {
-      while (arg2.replace("#AND#", "&")) {}
-
-      while (targetfile.replace("#AND#", "&")) {}
-    }
-
-    // ------------------------------
-    // check for external copy tools
-    // ------------------------------
-    if (arg1.beginswith("http:") || arg2.beginswith("https:")) {
-      int rc = system("which curl >&/dev/null");
-
-      if (WEXITSTATUS(rc)) {
-        fprintf(stderr, "error: you miss the <curl> executable in your PATH\n");
-        exit(-1);
-      }
-    }
-
-    if (arg1.beginswith("as3:") || (arg2.beginswith("as3:"))) {
-      int rc = system("which s3 >&/dev/null");
-
-      if (WEXITSTATUS(rc)) {
-        fprintf(stderr,
-                "error: you miss the <s3> executable provided by libs3 in your PATH\n");
-        exit(-1);
-      }
-    }
-
-    if (arg1.beginswith("gsiftp:") || arg2.beginswith("gsiftp:")) {
-      int rc = system("which globus-url-copy >&/dev/null");
-
-      if (WEXITSTATUS(rc)) {
-        fprintf(stderr,
-                "error: you miss the <globus-url-copy> executable in your PATH\n");
-        exit(-1);
-      }
-    }
-
-    if (((arg2.find(":/") != STR_NPOS) && (!arg2.beginswith("root:")))) {
-      // if the target is any other protocol than root: we download to a temporary file
-      upload_target = arg2;
+    // Protocols for EOS, XRoot and local targets are supported directly
+    // S3 targets will be uploaded via STDIN & STDOUT pipes
+    // Remaining protocols will be copied to a temporary file
+    if ((target.protocol == Protocol::HTTP) ||
+        (target.protocol == Protocol::HTTPS) ||
+        (target.protocol == Protocol::GSIFTP)) {
       char tmp_name[] = "/tmp/com_cp.XXXXXX";
       int tmp_fd = mkstemp(tmp_name);
 
       if (tmp_fd == -1) {
-        fprintf(stderr, "error: failed to create temporary file\n");
-        exit(-1);
+        fprintf(stderr, "error: failed to create temporary file "
+                "while preparing copy for path=%s [protocol=%s]\n",
+                dest.c_str(), protocol_to_string(target.protocol));
+        exit(1);
       }
 
-      (void) close(tmp_fd);
-      arg2 = tmp_name;
-      targetfile = arg2;
+      close(tmp_fd);
+      temporary_file = true;
+      dest = tmp_name;
     }
 
-    if (nooverwrite) {
-      struct stat buf;
+    //------------------------------------
+    // Process source path
+    //------------------------------------
 
-      // check if target exists
-      if (targetfile.beginswith("/eos/")) {
-        XrdOucString url = serveruri.c_str();
-        url += "/";
-        url += targetfile;
-
-        if ((url.find("?") == STR_NPOS)) {
-          url += "?";
-        } else {
-          url += "&";
-        }
-
-        url += "eos.app=eoscp";
-
-        // add the 'role' switches to the URL
-        if (user_role.length() && group_role.length()) {
-          url += "&eos.ruid=";
-          url += user_role;
-          url += "&eos.rgid=";
-          url += group_role;
-        }
-
-        if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
-          fprintf(stderr,
-                  "warning: target file %s exists and you specified no overwrite!\n",
-                  targetfile.c_str());
-          retc |= EEXIST;
-          continue;
-        }
-      } else {
-        if (targetfile.beginswith("/")) {
-          if (!stat(targetfile.c_str(), &buf)) {
-            fprintf(stderr,
-                    "warning: target file %s exists and you specified no overwrite!\n",
-                    targetfile.c_str());
-            retc |= EEXIST;
-            continue;
-          }
-        }
-      }
+    // Expand '/eos/' shortcut for EOS protocol
+    if ((source.protocol == Protocol::EOS) &&
+        (source.name.beginswith("/eos/"))) {
+      if (!serveruri.endswith("/")) { source.name.insert("/", 0); }
+      source.name.insert(serveruri.c_str(), 0);
     }
 
-    if (interactive) {
-      if (!arg1.beginswith("/")) {
-        arg1.insert(gPwd.c_str(), 0);
-      }
-
-      if (!arg2.beginswith("/")) {
-        arg2.insert(gPwd.c_str(), 0);
-      }
+    XrdOucString prot, hostport;
+    const char* source_url = eos::common::StringConversion::ParseUrl(
+                               source.name.c_str(), prot, hostport);
+    if (source_url) {
+      source.name = source_url;
     }
 
+    // Add opaque info to source
+    if (source.opaque.length()) {
+      source.name += "?";
+      source.name += source.opaque.c_str();
+    }
+
+    //------------------------------------
+    // Prepare STDIN and STDOUT pipes
+    //------------------------------------
+
+    XrdOucString transfersize = ""; // used for STDIN pipes to specify the target size to eoscp
+    XrdOucString cmdtext = "";
     bool rstdin = false;
     bool rstdout = false;
 
-    if ((arg1.beginswith("http:")) || (arg1.beginswith("https:"))) {
-      cmdline += "curl ";
+    if ((source.protocol == Protocol::EOS) ||
+        (source.protocol == Protocol::XROOT)) {
+      const char* roles = eos_roles_opaque();
 
-      if (arg1.beginswith("https:")) {
-        cmdline += "-k ";
+      source.name += (source.opaque.length())  ?  "&"  :  "?";
+      source.name += "eos.app=eoscp";
+      source.name += (roles)  ?  "&"  :  "";
+      source.name += (roles)  ?  roles  : "";
+    }
+    else if ((source.protocol != Protocol::LOCAL) &&
+             (source.protocol != Protocol::UNKNOWN)) {
+      bool old_noprogress = noprogress;
+      noprogress = true;
+
+      XrdOucString safesource = source.name.c_str();
+      while (safesource.replace("'", "\\'")) {}
+      safesource.replace("as3:", "", 0, 3);
+
+      XrdOucString tool = "";
+      if (source.protocol == Protocol::HTTP)    { tool = "curl "; }
+      if (source.protocol == Protocol::HTTPS)   { tool = "curl -k "; }
+      if (source.protocol == Protocol::GSIFTP)  { tool = "globus-url-copy "; }
+
+      if ((source.protocol == Protocol::AS3) ||
+          (source.protocol == Protocol::S3)) {
+        tool = "s3 get ";
+        noprogress = old_noprogress;
       }
 
-      cmdline += "'";
-      cmdline += arg1;
-      cmdline += "'";
-      cmdline += " |";
+      cmdtext += tool;
+      cmdtext += "$'";
+      cmdtext += safesource;
+      cmdtext += "'";
+      if (source.protocol == Protocol::GSIFTP) { cmdtext += " -"; }
+      cmdtext += " | ";
+
       rstdin = true;
-      noprogress = true;
     }
 
-    if (arg1.beginswith("as3:") || arg2.beginswith("as3:")) {
+    if ((source.protocol == Protocol::AS3) ||
+        (source.protocol == Protocol::S3)  ||
+        (target.protocol == Protocol::AS3) ||
+        (target.protocol == Protocol::S3)) {
       char ts[1024];
-      snprintf(ts, sizeof(ts) - 1, "%llu", source_size[nfile]);
+      snprintf(ts, sizeof(ts) - 1, "%llu ", source.size);
       transfersize = ts;
     }
 
-    if (arg1.beginswith("as3:")) {
-      XrdOucString s3arg = arg1;
-      s3arg.replace("as3:", "");
-      cmdline += "s3 get ";
-      cmdline += "'";
-      cmdline += s3arg;
-      cmdline += "'";
-      cmdline += " |";
-      rstdin = true;
-    }
-
-    if (arg1.beginswith("gsiftp:")) {
-      cmdline += "globus-url-copy ";
-      cmdline += "'";
-      cmdline += arg1;
-      cmdline += "'";
-      cmdline += " - |";
-      rstdin = true;
-      noprogress = true;
-    }
-
-    if (arg2.beginswith("as3:")) {
+    if ((target.protocol == Protocol::AS3) ||
+        (target.protocol == Protocol::S3)) {
       rstdout = true;
     }
 
-    if (arg1.beginswith("root:")) {
-      if ((arg1.find("?") == STR_NPOS)) {
-        arg1 += "?";
-      } else {
-        arg1 += "&";
-      }
+    //------------------------------------
+    // Construct 'eoscp' command
+    //------------------------------------
 
-      arg1 += "eos.app=eoscp";
+    cmdtext += "eoscp -p ";
 
-      // add the 'role' switches to the URL
-      if (user_role.length() && group_role.length()) {
-        arg1 += "&eos.ruid=";
-        arg1 += user_role;
-        arg1 += "&eos.rgid=";
-        arg1 += group_role;
-      }
-    }
+    if (append)                 { cmdtext += "-a "; }
+    if (!summary)               { cmdtext += "-s "; }
+    if (noprogress)             { cmdtext += "-n "; }
+    if (nooverwrite)            { cmdtext += "-x "; }
+    if (transfersize.length())  { cmdtext += "-T "; }
 
-    // everything goes either via a stage file or direct
-    cmdline += "eoscp -p ";
+    XrdOucString safename = eos::common::Path(source.name.c_str()).GetName();;
+    while (safename.replace("&", "#AND#")) {}
+    while (safename.replace("'", "\\'")) {}
 
-    if (append) {
-      cmdline += "-a ";
-    }
-
-    if (!summary) {
-      cmdline += "-s ";
-    }
-
-    if (noprogress) {
-      cmdline += "-n ";
-    }
-
-    if (nooverwrite) {
-      cmdline += "-x ";
-    }
-
-    if (transfersize.length()) {
-      cmdline += "-T ";
-    }
-
-    cmdline += transfersize;
-    cmdline += " ";
-    cmdline += "-N $'";
-    XrdOucString safepath = cPath.GetName();
-
-    while (safepath.replace("&", "#AND#")) {}
-
-    // Preprocess single quotes
-    int qpos = safepath.length() - 1;
-    while ((qpos = safepath.rfind("'", qpos)) != STR_NPOS) {
-       safepath.replace("'", "\\'", qpos, qpos);
-     }
-
-    cmdline += safepath.c_str();
-    cmdline += "' ";
+    cmdtext += transfersize;
+    cmdtext += "-N $'";
+    cmdtext += safename.c_str();
+    cmdtext += "' ";
 
     if (rstdin) {
-      cmdline += "- ";
+      cmdtext += "- ";
     } else {
-      XrdOucString safearg1 = arg1;
+      XrdOucString safesource = source.name.c_str();
+      while (safesource.replace("'", "\\'")) {}
 
-      // Preprocess single quotes
-      qpos = safearg1.length() - 1;
-      while ((qpos = safearg1.rfind("'", qpos)) != STR_NPOS) {
-        safearg1.replace("'", "\\'", qpos, qpos);
-      }
-
-      cmdline += "$'";
-      cmdline += safearg1;
-      cmdline += "'";
-      cmdline += " ";
+      cmdtext += "$'";
+      cmdtext += safesource;
+      cmdtext += "' ";
     }
 
     if (rstdout) {
-      cmdline += "- ";
+      cmdtext += "-";
     } else {
-      XrdOucString safearg2 = arg2;
+      XrdOucString safedest = dest.c_str();
+      while (safedest.replace("'", "\\'")) {}
 
-      // Preprocess single quotes
-      qpos = safearg2.length() - 1;
-      while ((qpos = safearg2.rfind("'", qpos)) != STR_NPOS) {
-        safearg2.replace("'", "\\'", qpos, qpos);
-      }
-
-      cmdline += "$'";
-      cmdline += safearg2;
-      cmdline += "'";
+      cmdtext += "$'";
+      cmdtext += safedest;
+      cmdtext += "'";
     }
 
-    if (arg2.beginswith("as3:")) {
-      // s3 can upload via STDIN setting the upload size externally - yeah!
-      cmdline += "| s3 put ";
-      XrdOucString s3arg = arg2;
-      s3arg.replace("as3:", "");
-      cmdline += s3arg;
-      cmdline += " contentLength=";
-      cmdline += transfersize.c_str();
-      cmdline += " > /dev/null";
+    if ((target.protocol == Protocol::AS3) ||
+        (target.protocol == Protocol::S3)) {
+      // s3 can upload via STDIN
+      XrdOucString s3dest = dest.c_str();
+      s3dest.replace("as3:", "", 0, 3);
+
+      cmdtext += " | s3 put ";
+      cmdtext += s3dest.c_str();
+      cmdtext += " contentLength=";
+      cmdtext += transfersize.c_str();
+      cmdtext += " > /dev/null";
     }
 
     if (debug) {
-      fprintf(stderr, "[eos-cp] running: %s\n", cmdline.c_str());
+      fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
     }
 
-    int lrc = system(cmdline.c_str());
-    int erc = lrc ; // the original return code
-    // check the target size
-    struct stat buf;
+    int lrc = system(cmdtext.c_str());
 
-    if ((targetfile.beginswith("/eos/") || (targetfile.beginswith("root://")))) {
-      buf.st_size = 0;
-      XrdOucString url = serveruri.c_str();
-      url += "/";
-
-      if (targetfile.beginswith("root://")) {
-        url = targetfile;
-      } else {
-        url += targetfile;
-      }
-
-      if ((url.find("?") == STR_NPOS)) {
-        url += "?";
-      } else {
-        url += "&";
-      }
-
-      url += "eos.app=eoscp";
-
-      // add the 'role' switches to the URL
-      if (user_role.length() && group_role.length()) {
-        url += "&eos.ruid=";
-        url += user_role;
-        url += "&eos.rgid=";
-        url += group_role;
-      }
-
-      if ((!WEXITSTATUS(lrc)) && (!XrdPosixXrootd::Stat(url.c_str(), &buf))) {
-        if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile])) {
-          fprintf(stderr, "error: file size difference between source and target file!\n");
-          lrc = 0xffff00;
-        } else {
-          if (preserve && (source_size.size() == source_utime.size())) {
-            char value[4096];
-            value[0] = 0;
-            XrdOucString request;
-            request = url.c_str();
-
-            if ((request.find("?") == STR_NPOS)) {
-              request += "?";
-            } else {
-              request += "&";
-            }
-
-            request += "mgm.pcmd=utimes&tv1_sec=";
-            char lltime[1024];
-            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].first.tv_sec);
-            request += lltime;
-            request += "&tv1_nsec=";
-            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].first.tv_nsec);
-            request += lltime;
-            request += "&tv2_sec=";
-            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].second.tv_sec);
-            request += lltime;
-            request += "&tv2_nsec=";
-            sprintf(lltime, "%llu", (unsigned long long)
-                    source_utime[nfile].second.tv_nsec);
-            request += lltime;
-            long long doutimes = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
-
-            if (doutimes >= 0) {
-              char tag[1024];
-              int retc;
-              // parse the stat output
-              int items = sscanf(value, "%1023s retc=%d", tag, &retc);
-
-              if ((items != 2) || (strcmp(tag, "utimes:"))) {
-                fprintf(stderr,
-                        "warning: creation/modification time could not be preserved for %s\n",
-                        targetfile.c_str());
-              }
-            } else {
-              fprintf(stderr,
-                      "warning: creation/modification time could not be preserved for %s\n",
-                      targetfile.c_str());
-            }
-          }
-        }
-      } else {
-        fprintf(stderr, "error: target file was not created!\n");
-        lrc = 0xffff00;
-      }
+    // Check if we got a CONTROL-C
+    if (lrc == EINTR) {
+      fprintf(stderr, "<Control-C>\n");
+      break;
     }
 
-    if (((arg2.find(":/") == STR_NPOS) && (!arg2.beginswith("as3:")))) {
-      // exclude STDOUT
-      if (arg2 != "-") {
-        // this is a local file
-        buf.st_size = 0;
+    if (WEXITSTATUS(lrc)) {
+      fprintf(stderr, "error: failed copying path=%s\n", target_path.c_str());
+      retc |= lrc;
+      continue;
+    }
 
-        if (!stat(targetfile.c_str(), &buf)) {
-          if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile])) {
-            fprintf(stderr, "error: file size difference between source and target file!\n");
-            lrc = 0xffff00;
-          } else {
-            if (preserve && (source_size.size() == source_utime.size())) {
+    //------------------------------------
+    // Check target size
+    //------------------------------------
+
+    if (((target.protocol == Protocol::EOS)    ||
+         (target.protocol == Protocol::XROOT)  ||
+         (target.protocol == Protocol::LOCAL)) && (!target_is_stdout)) {
+
+      struct stat buf;
+
+      if (!do_stat(target_path.c_str(), target.protocol, buf)) {
+        if ((!source.size) || (buf.st_size == (off_t) source.size)) {
+
+          // Preserve creation and modification timestamps
+          if ((preserve) && (source.atime.tv_sec > 0) && (source.mtime.tv_sec > 0)) {
+            bool updateok;
+
+            if (target.protocol == Protocol::LOCAL) {
               struct timeval times[2];
-              times[0].tv_sec = source_utime[nfile].first.tv_sec;
-              times[0].tv_usec = source_utime[nfile].first.tv_nsec / 1000;
-              times[1].tv_sec = source_utime[nfile].second.tv_sec;
-              times[1].tv_usec = source_utime[nfile].second.tv_nsec / 1000;
 
-              if (utimes(targetfile.c_str(), times)) {
-                fprintf(stderr,
-                        "warning: creation/modification time could not be preserved for %s\n",
-                        targetfile.c_str());
+              times[0].tv_sec = source.atime.tv_sec;
+              times[0].tv_usec = source.atime.tv_nsec / 1000;
+              times[1].tv_sec = source.mtime.tv_sec;
+              times[1].tv_usec = source.mtime.tv_nsec / 1000;
+
+              updateok = (utimes(target_path.c_str(), times) == 0);
+            } else {
+              char update[1024];
+              const char *roles = eos_roles_opaque();
+
+              sprintf(update, "%ceos.app=eoscp%s%s&mgm.pcmd=utimes"
+                              "&tv1_sec=%llu&tv1_nsec=%llu"
+                              "&tv2_sec=%llu&tv2_nsec=%llu",
+                      (target.opaque.length()) ? '&' : '?',
+                      (roles) ? "&" : "",
+                      (roles) ? roles : "",
+                      (unsigned long long) source.atime.tv_sec,
+                      (unsigned long long) source.atime.tv_nsec,
+                      (unsigned long long) source.mtime.tv_sec,
+                      (unsigned long long) source.mtime.tv_nsec);
+
+              XrdOucString request = target_path.c_str();
+              request += update;
+
+              char value[4096];
+              value[0] = 0;
+              long long update_rc = XrdPosixXrootd::QueryOpaque(request.c_str(),
+                                                                value, 4096);
+              updateok = (update_rc >= 0);
+
+              // Parse the stat output
+              if (updateok) {
+                char tag[1024];
+                int tmp_retc;
+
+                int items = sscanf(value, "%1023s retc=%d", tag, &tmp_retc);
+                updateok = ((items == 2) && (strcmp(tag, "utimes:") == 0));
               }
             }
+
+            if (!updateok) {
+              fprintf(stderr, "warning: creation/modification time "
+                              "could not be preserved for path=%s\n",
+                              target_path.c_str());
+            }
+          }
+
+          // Verify checksum
+          if ((checksums) && (target.protocol != Protocol::LOCAL)) {
+            XrdOucString address = serveruri.c_str();
+            address += "//dummy";
+            XrdCl::URL url(address.c_str());
+
+            if (!url.IsValid()) {
+              fprintf(stderr, "error: invalid file system URL=%s "
+                              "[attempting checksum]\n",
+                      url.GetURL().c_str());
+              exit(1);
+            }
+
+            auto* fs = new XrdCl::FileSystem(url);
+
+            if (!fs) {
+              fprintf(stderr, "error: failed to get new FS object "
+                              "[attempting checksum]\n");
+              exit(1);
+            }
+
+            XrdCl::Buffer arg;
+            XrdCl::Buffer* response = nullptr;
+            XrdCl::XRootDStatus status;
+            arg.FromString(dest.c_str());
+            status = fs->Query(XrdCl::QueryCode::Checksum, arg, response);
+
+            if (status.IsOK()) {
+              XrdOucString xsum = response->GetBuffer();
+              xsum.replace("eos ", "");
+
+              fprintf(stdout, "path=%s size=%llu checksum=%s\n",
+                      source.name.c_str(), source.size, xsum.c_str());
+            } else {
+              fprintf(stdout, "warning: failed getting checksum for path=%s size=%llu\n",
+                      source.name.c_str(), source.size);
+            }
+
+            delete response;
+            delete fs;
           }
         } else {
-          fprintf(stderr, "error: target file was not created!\n");
-          lrc = 0xffff00;
+          XrdOucString ssize1, ssize2;
+          fprintf(stderr, "error: file size difference between source and target file "
+                          "source=%s [%s] target=%s [%s]\n",
+                  source.name.c_str(),
+                  eos::common::StringConversion::GetReadableSizeString(ssize1,
+                      source.size, "B"),
+                  target_path.c_str(),
+                  eos::common::StringConversion::GetReadableSizeString(ssize2,
+                      (unsigned long long) buf.st_size, "B"));
+          lrc |= 0xffff00;
+        }
+      } else {
+        fprintf(stderr, "error: target file not created source=%s target=%s\n",
+                source.name.c_str(), target_path.c_str());
+        lrc |= 0xffff00;
+      }
+    }
+
+    // Attempt to upload temporary file
+    if (temporary_file) {
+      if (target.protocol == Protocol::GSIFTP) {
+        cmdtext = "globus-url-copy file://";
+        cmdtext += dest.c_str();
+        cmdtext += " ";
+        cmdtext += target_path.c_str();
+        if (silent || noprogress) { cmdtext += " >& /dev/null"; }
+
+        if (debug) {
+          fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
+        }
+
+        int rc = system(cmdtext.c_str());
+
+        if (WEXITSTATUS(rc)) {
+          fprintf(stderr, "error: failed to upload %s [protocol=gsiftp]\n",
+                  target_path.c_str());
+          lrc |= 0xffff00;
         }
       }
+
+      if ((target.protocol == Protocol::HTTP) ||
+          (target.protocol == Protocol::HTTPS)) {
+        fprintf(stderr, "error: file uploads not supported for %s protocol [path=%s]\n",
+                protocol_to_string(target.protocol), target_path.c_str());
+        lrc |= 0xffff00;
+      }
+
+      // Clean-up the temporary file
+      unlink(dest.c_str());
     }
 
     if (!WEXITSTATUS(lrc)) {
-      if (target.beginswith("/eos")) {
-        if (checksums) {
-          XrdOucString address = serveruri.c_str();
-          address += "//dummy";
-          XrdCl::URL url(address.c_str());
-
-          if (!url.IsValid()) {
-            fprintf(stderr, "error: the file system URL is not valid.\n");
-            return (0);
-          }
-
-          auto* fs = new XrdCl::FileSystem(url);
-
-          if (!fs) {
-            fprintf(stderr, "error: failed to get new FS object. \n");
-            return (0);
-          }
-
-          XrdCl::Buffer arg;
-          XrdCl::Buffer* response = nullptr;
-          XrdCl::XRootDStatus status;
-          arg.FromString(targetfile.c_str());
-          status = fs->Query(XrdCl::QueryCode::Checksum, arg, response);
-
-          if (status.IsOK()) {
-            XrdOucString sanswer = response->GetBuffer();
-            sanswer.replace("eos ", "");
-            fprintf(stdout, "path=%s size=%llu checksum=%s\n",
-                    source_list[nfile].c_str(), source_size[nfile], sanswer.c_str());
-          } else {
-            fprintf(stdout, "error: getting checksum for path=%s size=%llu\n",
-                    source_list[nfile].c_str(), source_size[nfile]);
-          }
-
-          delete response;
-          delete fs;
-        }
-      }
-
-      if (upload_target.length()) {
-        bool uploadok = false;
-
-        if (upload_target.beginswith("as3:")) {
-          XrdOucString s3arg = upload_target;
-          s3arg.replace("as3:", "");
-          cmdline = "s3 put ";
-          cmdline += s3arg;
-          cmdline += " filename=";
-          cmdline += arg2;
-
-          if (noprogress || silent) {
-            cmdline += " >& /dev/null";
-          }
-
-          if (debug) {
-            fprintf(stderr, "[eos-cp] running: %s\n", cmdline.c_str());
-          }
-
-          int rc = system(cmdline.c_str());
-
-          if (WEXITSTATUS(rc)) {
-            fprintf(stderr, "error: failed to upload to <s3>\n");
-            uploadok = false;
-          } else {
-            uploadok = true;
-          }
-        }
-
-        if (upload_target.beginswith("http:")) {
-          fprintf(stderr,
-                  "error: we don't support file uploads with http/https protocol\n");
-          uploadok = false;
-        }
-
-        if (upload_target.beginswith("https:")) {
-          fprintf(stderr,
-                  "error: we don't support file uploads with http/https protocol\n");
-          uploadok = false;
-        }
-
-        if (upload_target.beginswith("gsiftp:")) {
-          cmdline = "globus-url-copy file://";
-          cmdline += arg2;
-          cmdline += " ";
-          cmdline += upload_target;
-
-          if (silent) {
-            cmdline += " >&/dev/null";
-          }
-
-          if (debug) {
-            fprintf(stderr, "[eos-cp] running: %s\n", cmdline.c_str());
-          }
-
-          int rc = system(cmdline.c_str());
-
-          if (WEXITSTATUS(rc)) {
-            fprintf(stderr, "error: failed to upload to <gsiftp>\n");
-            uploadok = false;
-          } else {
-            uploadok = true;
-          }
-
-          uploadok = true;
-        }
-
-        // clean-up the tmp file in any case
-        unlink(arg2.c_str());
-
-        if (!uploadok) {
-          lrc |= 0xffff00;
-        } else {
-          copiedok++;
-          copiedsize += source_size[nfile];
-        }
-      } else {
-        copiedok++;
-        copiedsize += source_size[nfile];
-      }
-    }
-
-    // check if we got a CONTROL-C
-    if (erc == EINTR) {
-      fprintf(stderr, "<Control-C>\n");
-      retc |= lrc;
-      break;
+      files_copied++;
+      copiedsize += source.size;
     }
 
     retc |= lrc;
   }
 
-  gettimeofday(&tv2, &tz);
-  float passed = (float)(((tv2.tv_sec - tv1.tv_sec) * 1000000 +
-                          (tv2.tv_usec - tv1.tv_usec)) / 1000000.0);
-  float crate = (copiedsize * 1.0 / passed);
-  XrdOucString sizestring = "";
-  XrdOucString sizestring2 = "";
-  XrdOucString warningtag = "";
+  // Mark end timestamp
+  gettimeofday(&end_time, &tz);
 
-  if (retc) {
-    warningtag = "#WARNING ";
-  }
+  if (debug || !silent) {
+    float time_elapsed = (float) (((end_time.tv_sec - start_time.tv_sec) * 1000000 +
+                                   (end_time.tv_usec - start_time.tv_usec)) / 1000000.0);
+    unsigned long long copyrate = (copiedsize / time_elapsed);
+    XrdOucString ssize1, ssize2;
 
-  if (!silent) {
-    fprintf(stderr,
-            "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
-            warningtag.c_str(),
-            copiedok,
+    fprintf(stderr, "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
+            (retc) ? "#WARNING " : "",
+            files_copied,
             (int) source_list.size(),
-            eos::common::StringConversion::GetReadableSizeString(sizestring, copiedsize,
-                "B"),
-            passed,
-            eos::common::StringConversion::GetReadableSizeString(sizestring2,
-                (unsigned long long) crate, "B/s"));
+            eos::common::StringConversion::GetReadableSizeString(ssize1, copiedsize, "B"),
+            time_elapsed,
+            eos::common::StringConversion::GetReadableSizeString(ssize2, copyrate, "B/s"));
   }
 
   exit(WEXITSTATUS(retc));
+}
+
+
+// ----------------------------------------------------------------------------
+// Helper functions implementation
+// ----------------------------------------------------------------------------
+
+/**
+ * Convenience function to be used by 'eos cp' to query EOS for file names.
+ * The output of the command is placed into the result vector.
+ * @param cmdline the eos command to be executed
+ * @param result reference to the result vector
+ * @return error code of the command
+ */
+int run_eos_command(const char* cmdline, std::vector<XrdOucString>& result)
+{
+  XrdOucString cmd = "eos -b ";
+
+  if (user_role.length() && group_role.length()) {
+    cmd += "--role ";
+    cmd += user_role;
+    cmd += " ";
+    cmd += group_role;
+    cmd += " ";
+  }
+
+  cmd += cmdline;
+
+  return run_command(cmd.c_str(), result);
+}
+
+/**
+ * Convenience function to be used by 'eos cp' to execute a command.
+ * The output of the command is placed into the result vector.
+ * @param cmdline the bash command to be executed
+ * @param result reference to the result vector
+ * @return error code of the command
+ */
+int run_command(const char* cmdline, std::vector<XrdOucString>& result)
+{
+  FILE* fp = popen(cmdline, "r");
+  char line[4096];
+  int rc;
+
+  if (!fp) {
+    fprintf(stderr, "error: failed executing command %s\n", (debug) ? cmdline : "");
+    exit(-1);
+  }
+
+  while (fgets(line, sizeof(line), fp)) {
+    int size = strlen(line);
+    if (line[size - 1] == '\n') {
+      line[size - 1] = '\0';
+    }
+
+    result.emplace_back(line);
+  }
+
+  rc = pclose(fp);
+  return WEXITSTATUS(rc);
+}
+
+/**
+ * Converts from local to absolute path.
+ * This function makes the distinction between local or EOS paths.
+ * Any other protocol will be left untouched.
+ * Function is aware of interactive eos shell environment.
+ * Local files will have the 'file:' prefix removed.
+ * @param path the given path
+ * @return abspath the absolute path
+ */
+const char* absolute_path(const char* path)
+{
+  Protocol protocol = get_protocol(path);
+  if (protocol != Protocol::EOS && protocol != Protocol::LOCAL) {
+    return path;
+  }
+
+  if (strcmp(path, "-") == 0) { return path; }
+
+  XrdOucString spath = path;
+
+  if (protocol == Protocol::LOCAL && spath.beginswith("file:")) {
+    spath.erase(0, 5);
+  }
+
+  if (!spath.beginswith("/")) {
+    XrdOucString abspath = "";
+
+    if (interactive) {
+      // Construct absolute path within eos shell
+      abspath.insert(gPwd.c_str(), 0);
+    } else {
+      // Construct absolute path within regular shell
+      abspath.insert("/", 0);
+      abspath.insert(getenv("PWD"), 0);
+    }
+
+    spath.insert(abspath.c_str(), 0);
+  }
+
+  // Note: eos::common::Path expects an absolute path!
+  // Note: eos::common::Path removes trailing '/'!
+  std::string trailing_slash = "";
+  if ((spath.endswith("/")) && (!spath.endswith("/./")) &&
+      (!spath.endswith("/../"))) {
+    trailing_slash = "/";
+  }
+
+  // Sanitize '.' and '..' entries
+  spath = eos::common::Path(spath.c_str()).GetFullPath().c_str();
+
+  spath += trailing_slash.c_str();
+  return strdup(spath.c_str());
+}
+
+/**
+ * Will check whether the given path is a directory or not.
+ * For local and EOS protocols, stat information is used.
+ * The stat structure may be passed, otherwise it is constructed.
+ * Function is aware of interactive eos shell environment.
+ * @param path the path to check
+ * @param protocol the protocol to access the path
+ * @param buf stat structure
+ * @return true if directory, false otherwise
+ */
+bool is_dir(const char* path, Protocol protocol, struct stat* buf)
+{
+  if (protocol != Protocol::EOS && protocol != Protocol::LOCAL) {
+    XrdOucString spath = path;
+    return spath.endswith("/");
+  }
+
+  int rc = 0;
+
+  if (buf == NULL) {
+    struct stat tmpbuf;
+    buf = &tmpbuf;
+    rc = do_stat(absolute_path(path), protocol, *buf);
+  }
+
+  return (rc == 0)  ?  S_ISDIR(buf->st_mode)  :  false;
+}
+
+/**
+ * Returns eos roles opaque info from the global user variables.
+ * @return roles opaque info containing eos roles
+ */
+const char* eos_roles_opaque()
+{
+  if (user_role.length() && group_role.length()) {
+    XrdOucString roles = "eos.ruid=";
+    roles += user_role;
+    roles += "&eos.guid=";
+    roles += group_role;
+
+    return strdup(roles.c_str());
+  }
+
+  return NULL;
+}
+
+/**
+ * Perform stat on a given path.
+ * Function makes the distinction between local or EOS paths.
+ * @param path the path to stat
+ * @param protocol the protocol to access the path
+ * @param buf stat structure to fill
+ * @return rc stat error code
+ */
+int do_stat(const char* path, Protocol protocol, struct stat& buf)
+{
+  path = absolute_path(path);
+  int rc = -1;
+
+  if (protocol == Protocol::EOS || protocol == Protocol::XROOT) {
+    // Stat EOS file
+    XrdOucString url = path;
+    const char* roles = eos_roles_opaque();
+
+    // Expand '/eos/' shortcut for EOS protocol
+    if (url.beginswith("/eos/")) {
+      url = serveruri.c_str();
+      url += (!url.endswith("/"))  ?  "/"  :  "";
+      url += path;
+    }
+
+    if (roles) {
+      url += (url.find("?") == STR_NPOS)  ?  "?"  :  "&";
+      url += eos_roles_opaque();
+    }
+
+    rc = XrdPosixXrootd::Stat(url.c_str(), &buf);
+  } else if (protocol == Protocol::LOCAL) {
+    // Stat local file
+    rc = stat(path, &buf);
+  }
+
+  return rc;
+}
+
+/**
+ * Given an S3 path, will parse and remove the opaque info.
+ * The following environment variables are set:
+ * S3_ACCESS_KEY_ID <br/>
+ * S3_SECRET_ACCESS_KEY <br/>
+ * S3_HOSTNAME <br/>
+ * @param path the S3 path
+ * @param opaque the opaque info to parse for S3 info
+ * @return url the S3 url
+ */
+const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
+{
+  XrdOucString sprot, hostport;
+  XrdOucString url = eos::common::StringConversion::ParseUrl(path.c_str(),
+                                                             sprot, hostport);
+  if (!url.length()) {
+    fprintf(stderr, "error: could not parse S3 url=%s", path.c_str());
+    exit(1);
+  }
+
+  if (opaque.length()) {
+    XrdOucEnv env(opaque.c_str());
+
+    // Extract opaque S3 tags if present
+    if (env.Get("s3.id"))  { setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);      }
+    if (env.Get("s3.key")) { setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1); }
+  }
+
+  if (hostport.length()) {
+    setenv("S3_HOSTNAME", hostport.c_str(), 1);
+  }
+
+  // Apply the ROOT compatibility environment variables
+  if (getenv("S3_ACCESS_ID")) {
+    setenv("S3_ACCESS_KEY_ID", getenv("S3_ACCESS_ID"), 1);
+  }
+
+  if (getenv("S3_ACCESS_KEY")) {
+    setenv("S3_SECRET_ACCESS_KEY", getenv("S3_ACCESS_KEY"), 1);
+  }
+
+  // Check S3 environment
+  if ((!getenv("S3_HOSTNAME")) || (!getenv("S3_ACCESS_KEY_ID")) ||
+      (!getenv("S3_SECRET_ACCESS_KEY"))) {
+    fprintf(stderr, "error: S3 environment not set up for %s\n", path.c_str());
+    fprintf(stderr, "You have to set the following environment variables: "
+                    "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
+                    "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
+                    "S3_HOSTNAME (or use path with URI)");
+    exit(1);
+  }
+
+  return url.c_str();
+}
+
+/**
+ * Check if required tools are available to access the given path.
+ * @param path the path to access
+ */
+void check_protocol_tool(const char* path)
+{
+  Protocol protocol = get_protocol(path);
+  std::string tool = "";
+  char cmd[128];
+
+  if (protocol == Protocol::HTTP || protocol == Protocol::HTTPS) {
+    tool = "curl";
+  } else if (protocol == Protocol::AS3 || protocol == Protocol::S3) {
+    tool = "s3";
+  } else if (protocol == Protocol::GSIFTP) {
+    tool = "globus-url-copy";
+  } else {
+    return;
+  }
+
+  sprintf(cmd, "which %s >& /dev/null", tool.c_str());
+  int rc = system(cmd);
+  if (WEXITSTATUS(rc)) {
+    fprintf(stderr, "error: %s executable not found in PATH\n", tool.c_str());
+    if (tool == "s3") {
+      fprintf (stderr," error: please install S3 executable from libs3\n");
+    }
+    exit(1);
+  }
+}
+
+/**
+ * Returns the protocol for a given path.
+ * Function is aware of interactive eos shell environment.
+ */
+Protocol get_protocol(XrdOucString path)
+{
+  if (path.beginswith("/eos/")) {
+    return Protocol::EOS;
+  } else if (path.beginswith("http://")) {
+    return Protocol::HTTP;
+  } else if (path.beginswith("https://")) {
+    return Protocol::HTTPS;
+  } else if (path.beginswith("gsiftp://")) {
+    return Protocol::GSIFTP;
+  } else if (path.beginswith("root://")) {
+    return Protocol::XROOT;
+  } else if (path.beginswith("as3:")) {
+    return Protocol::AS3;
+  } else if (path.beginswith("s3://")) {
+    return Protocol::S3;
+  } else if (path.beginswith("file:")) {
+    return Protocol::LOCAL;
+  } else if (path.beginswith("/") || (path.find(":/") == STR_NPOS)) {
+    return (interactive)  ?  Protocol::EOS  :  Protocol::LOCAL;
+  }
+
+  return Protocol::UNKNOWN;
+}
+
+/**
+ * Returns a string representation of the protocol.
+ */
+const char* protocol_to_string(Protocol protocol)
+{
+  if      (protocol == Protocol::EOS)       { return "eos";    }
+  else if (protocol == Protocol::HTTP)      { return "http";   }
+  else if (protocol == Protocol::HTTPS)     { return "https";  }
+  else if (protocol == Protocol::GSIFTP)    { return "gsiftp"; }
+  else if (protocol == Protocol::XROOT)     { return "root";   }
+  else if (protocol == Protocol::AS3)       { return "as3";    }
+  else if (protocol == Protocol::S3)        { return "s3";     }
+  else if (protocol == Protocol::LOCAL)     { return "local";  }
+
+  return "unknown";
 }
