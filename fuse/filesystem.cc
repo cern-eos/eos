@@ -4453,6 +4453,7 @@ bool filesystem::get_features(const std::string& url,
   std::string request = "/?mgm.pcmd=version&mgm.version.features=1&eos.app=fuse";
   arg.FromString(request.c_str());
   XrdCl::URL Url(url.c_str());
+  Url.SetUserName("init");
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                         response);
@@ -4548,6 +4549,7 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
       timeout = (uint16_t) strtol(getenv("EOS_FUSE_PING_TIMEOUT"), 0, 10);
     }
 
+    url.SetUserName("init");
     XrdCl::FileSystem fs(url);
     XrdCl::XRootDStatus st = fs.Ping(timeout);
 
@@ -4690,6 +4692,24 @@ filesystem::init(int argc, char* argv[], void* userdata,
   XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
   setenv("XRD_REDIRECTLIMIT", "1", 1);
 #endif
+
+  // Get parameters about strong authentication
+  credConfig.use_user_krb5cc = getenv_boolean_flag("EOS_FUSE_USER_KRB5CC", false);
+  credConfig.use_user_gsiproxy = getenv_boolean_flag("EOS_FUSE_USER_GSIPROXY",
+                                 false);
+  credConfig.use_unsafe_krk5 = getenv_boolean_flag("EOS_FUSE_USER_UNSAFEKRB5",
+                               false);
+  credConfig.fallback2nobody = getenv_boolean_flag("EOS_FUSE_FALLBACKTONOBODY",
+                               false);
+  credConfig.tryKrb5First = getenv_boolean_flag("EOS_FUSE_USER_KRB5FIRST", false);
+
+  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy) {
+    if (getenv("EOS_FUSE_SSS_KEYTAB")) {
+      setenv("XrdSecPROTOCOL", "sss,krb5,gsi,unix", 1);
+    } else {
+      setenv("XrdSecPROTOCOL", "krb5,gsi,unix", 1);
+    }
+  }
 
   // Extract MGM endpoint and check availability
   if (!check_mgm(features)) {
@@ -4923,24 +4943,6 @@ filesystem::init(int argc, char* argv[], void* userdata,
           free(line);
         }
       }
-    }
-  }
-
-  // Get parameters about strong authentication
-  credConfig.use_user_krb5cc = getenv_boolean_flag("EOS_FUSE_USER_KRB5CC", false);
-  credConfig.use_user_gsiproxy = getenv_boolean_flag("EOS_FUSE_USER_GSIPROXY",
-                                 false);
-  credConfig.use_unsafe_krk5 = getenv_boolean_flag("EOS_FUSE_USER_UNSAFEKRB5",
-                               false);
-  credConfig.fallback2nobody = getenv_boolean_flag("EOS_FUSE_FALLBACKTONOBODY",
-                               false);
-  credConfig.tryKrb5First = getenv_boolean_flag("EOS_FUSE_USER_KRB5FIRST", false);
-
-  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy) {
-    if (getenv("EOS_FUSE_SSS_KEYTAB")) {
-      setenv("XrdSecPROTOCOL", "sss,unix", 1);
-    } else {
-      setenv("XrdSecPROTOCOL", "unix", 1);
     }
   }
 
