@@ -17,6 +17,7 @@
  ************************************************************************/
 
 #include <sstream>
+#include "common/StacktraceHere.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -75,6 +76,20 @@ FileMD::operator = (const FileMD& other)
   mClock = other.mClock;
   pFileMDSvc   = 0;
   return *this;
+}
+
+//------------------------------------------------------------------------------
+// Set name
+//------------------------------------------------------------------------------
+void FileMD::setName(const std::string& name)
+{
+  if(name.find('/') != std::string::npos) {
+    eos_static_crit("Detected slashes in filename: %s", eos::common::getStacktrace().c_str());
+    throw_mdexception(EINVAL, "Bug, detected slashes in file name: " << name);
+  }
+
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  mFile.set_name(name);
 }
 
 //------------------------------------------------------------------------------

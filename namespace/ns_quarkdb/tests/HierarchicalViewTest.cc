@@ -52,6 +52,8 @@ TEST_F(HierarchicalViewF, LoadTest)
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   std::shared_ptr<eos::IContainerMD> test = view()->getContainer("/test");
   std::shared_ptr<eos::IContainerMD> embed = view()->getContainer("/test/embed");
+
+  ASSERT_THROW(embed->setName("with/slashes"), eos::MDException);
   ASSERT_TRUE(root != nullptr);
   ASSERT_TRUE(root->getId() == root->getParentId());
   ASSERT_TRUE(test != nullptr);
@@ -77,6 +79,8 @@ TEST_F(HierarchicalViewF, LoadTest)
   view()->createFile("/test/embed/embed1/file2");
   view()->createFile("/test/embed/embed1/file3");
   std::shared_ptr<eos::IFileMD> fileR = view()->createFile("/test/embed/embed1/fileR");
+
+  ASSERT_THROW(fileR->setName("has/slashes"), eos::MDException);
   ASSERT_TRUE(view()->getFile("/test/embed/file1"));
   ASSERT_TRUE(view()->getFile("/test/embed/file2"));
   ASSERT_TRUE(view()->getFile("/test/embed/embed1/file1"));

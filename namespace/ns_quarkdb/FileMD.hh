@@ -232,11 +232,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  inline void setName(const std::string& name) override
-  {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    mFile.set_name(name);
-  }
+  inline void setName(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Add location

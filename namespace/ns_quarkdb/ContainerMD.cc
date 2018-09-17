@@ -432,6 +432,11 @@ void
 ContainerMD::setName(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  if(mCont.id() != 1 && name.find('/') != std::string::npos) {
+    eos_static_crit("Detected slashes in container name: %s", eos::common::getStacktrace().c_str());
+    throw_mdexception(EINVAL, "Bug, detected slashes in container name: " << name);
+  }
+
   // // Check that there is no clash with other subcontainers having the same name
   // if (mCont.parent_id() != 0u) {
   //   auto parent = pContSvc->getContainerMD(mCont.parent_id());
