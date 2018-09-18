@@ -336,9 +336,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     {
       // Stall if the namespace is still booting
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-      while (gOFS->Initialized != gOFS->kBooted) {
+      while (!gOFS->IsNsBooted()) {
         std::this_thread::sleep_for(std::chrono::seconds(2));
       }
     }
