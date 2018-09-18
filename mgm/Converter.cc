@@ -352,23 +352,9 @@ Converter::Convert(void)
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  XrdSysThread::SetCancelOn();
+
   // Wait that the namespace is initialized
-  bool go = false;
-
-  do {
-    XrdSysThread::SetCancelOff();
-    {
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-      if (gOFS->Initialized == gOFS->kBooted) {
-        go = true;
-      }
-    }
-    XrdSysThread::SetCancelOn();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  } while (!go);
-
+  gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Reset old jobs pending from service restart/crash

@@ -628,22 +628,7 @@ Master::Compacting()
       }
     } while (isBlocked);
 
-    bool go = false;
-
-    do {
-      // Wait that the namespace is booted
-      {
-        XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-        if (gOFS->Initialized == gOFS->kBooted) {
-          go = true;
-        }
-      }
-
-      if (!go) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-      }
-    } while (!go);
+    gOFS->WaitUntilNamespaceIsBooted();
 
     if (!gOFS->eosFileService || !gOFS->eosDirectoryService) {
       eos_notice("file/directory metadata service is not available");

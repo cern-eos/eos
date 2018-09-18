@@ -1288,6 +1288,11 @@ public:
   void WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd);
 
   //----------------------------------------------------------------------------
+  //! Wait until namespace is initialized - thread cancellation point
+  //----------------------------------------------------------------------------
+  void WaitUntilNamespaceIsBooted();
+
+  //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file

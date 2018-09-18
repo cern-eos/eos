@@ -621,23 +621,8 @@ GroupBalancer::GroupBalance()
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  XrdSysThread::SetCancelOn();
-  bool go = false;
 
-  // Wait for the namespace to boot
-  do {
-    XrdSysThread::SetCancelOff();
-    {
-      XrdSysMutexHelper lock(gOFS->InitializationMutex);
-
-      if (gOFS->Initialized == gOFS->kBooted) {
-        go = true;
-      }
-    }
-    XrdSysThread::SetCancelOn();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  } while (!go);
-
+  gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   // Loop forever until cancelled

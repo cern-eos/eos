@@ -902,3 +902,23 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   std::string record = report;
   gOFS->IoStats->WriteRecord(record);
 }
+
+//------------------------------------------------------------------------------
+// Wait until namespace is booted - thread cancellation point
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::WaitUntilNamespaceIsBooted()
+{
+  while(true) {
+    XrdSysThread::SetCancelOff();
+
+    XrdSysMutexHelper lock(gOFS->InitializationMutex);
+    if(gOFS->Initialized == gOFS->kBooted) {
+      return;
+    }
+
+    lock.UnLock();
+    XrdSysThread::SetCancelOn();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
