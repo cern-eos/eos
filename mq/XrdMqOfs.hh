@@ -32,6 +32,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 #include "common/Logging.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -61,6 +62,11 @@
 class XrdSecEntity;
 class XrdSysError;
 class XrdSysLogger;
+
+namespace qclient
+{
+class QClient;
+}
 
 //------------------------------------------------------------------------------
 //! Class XrdSmartOucEnv
@@ -320,6 +326,15 @@ public:
 
   int Redirect(XrdOucErrInfo&   error, XrdOucString& host, int& port);
 
+  //----------------------------------------------------------------------------
+  //! Decide if client should be redirected to a different host based on the
+  //! current master-slave status
+  //!
+  //! @param host redirection host
+  //! @param port redirection port
+  //!
+  //! @return true if client should be redirected, otherwise false
+  //----------------------------------------------------------------------------
   bool ShouldRedirect(XrdOucString& host, int& port);
 
   int Configure(XrdSysError& Eroute);
@@ -360,7 +375,6 @@ public:
   XrdOucString QueuePrefix; ///< Prefix of the accepted queues to server
   XrdOucString QueueAdvisory; ///< "<queueprefix>/*" for advisory message matches
   XrdOucString BrokerId; ///< Manger id + queue name as path
-
   std::map<std::string, XrdSmartOucEnv*> Messages; ///< Hash with all messages
   XrdSysMutex mMsgsMutex;  ///< Mutex protecting the message hash
 
@@ -384,10 +398,47 @@ public:
   char*         ConfigFN;
 
 private:
-  static  XrdSysError* eDest;
+  static XrdSysError* eDest;
+  static std::string sLeaseKey;
   //! Hash of all output's connected
   std::map<std::string, XrdMqMessageOut*> mQueueOut;
   XrdSysMutex mQueueOutMutex;  ///< Mutex protecting the output hash
+  std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
+  std::string mQdbPassword; ///< Quarkdb cluster password
+  eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
+  qclient::QClient* mQcl; ///< qclient for talking to the QDB cluster
+  std::string mMasterId; ///< Current master id in <fqdn>:<port> format
+  std::string mMgmId; ///< MGM id <host>:1094 format
+
+  //----------------------------------------------------------------------------
+  //! Decide if client should be redirected to a different host based on the
+  //! current master-slave status. Used for the in-memory namespace.
+  //!
+  //! @param host redirection host
+  //! @param port redirection port
+  //!
+  //! @return true if client should be redirected, otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldRedirectInMem(XrdOucString& host, int& port);
+
+  //----------------------------------------------------------------------------
+  //! Decide if client should be redirected to a different host based on the
+  //! current master-slave status. Used for the QuarkDB namespace.
+  //!
+  //! @param host redirection host
+  //! @param port redirection port
+  //!
+  //! @return true if client should be redirected, otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldRedirectQdb(XrdOucString& host, int& port);
+
+  //----------------------------------------------------------------------------
+  //! Get the identity of the current lease holder
+  //!
+  //! @return identity (fqdn:port) string or empty string if none holds the
+  //!         lease
+  //----------------------------------------------------------------------------
+  std::string GetLeaseHolder();
 
   int stat(const char* Name, struct stat* buf, XrdOucErrInfo& error,
            const XrdSecEntity* client = 0, const char* opaque = 0)

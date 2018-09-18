@@ -34,6 +34,8 @@
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
+#include "common/PasswordHandler.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
@@ -44,6 +46,7 @@
 
 #define XRDMQOFS_FSCTLPATHLEN 1024
 
+std::string XrdMqOfs::sLeaseKey {"master_lease"};
 XrdSysError gMqOfsEroute(0);
 XrdOucTrace gMqOfsTrace(&gMqOfsEroute);
 XrdMqOfs* gMqFS = 0;
@@ -308,7 +311,8 @@ XrdSfsFileSystem* XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   myPort(1097), mDeliveredMessages(0ull), mFanOutMessages(0ull),
   mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
-  mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG)
+  mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG), mQdbCluster(), mQdbPassword(),
+  mQdbContactDetails(), mQcl(nullptr), mMasterId(), mMgmId()
 {
   ConfigFN  = 0;
   StartupTime = time(0);
@@ -331,6 +335,7 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
 //------------------------------------------------------------------------------
 int XrdMqOfs::Configure(XrdSysError& Eroute)
 {
+  int rc = 0;
   char* var;
   const char* val;
   int  cfgFD;
@@ -376,6 +381,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     ManagerId += ":";
     ManagerId += (int)myPort;
     Eroute.Say("=====> mq.managerid: ", ManagerId.c_str(), "");
+    mMgmId = SSTR(HostName << ":1094").c_str();
   }
   gMqOfsTrace.What = TRACE_getstats | TRACE_close | TRACE_open;
 
@@ -453,10 +459,65 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
             StatisticsFile = val;
           }
         }
+
+        if (!strcmp("qdbcluster", var)) {
+          while ((val = Config.GetWord())) {
+            mQdbCluster += val;
+            mQdbCluster += " ";
+          }
+
+          Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
+          mQdbContactDetails.members.parse(mQdbCluster);
+        }
+
+        if (!strcmp("qdbpassword", var)) {
+          while ((val = Config.GetWord())) {
+            mQdbPassword += val;
+          }
+
+          // Trim whitespace at the end
+          mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
+          std::string pwlen = std::to_string(mQdbPassword.size());
+          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          mQdbContactDetails.password = mQdbPassword;
+        }
+
+        if (!strcmp("qdbpassword_file", var)) {
+          std::string path;
+
+          while ((val = Config.GetWord())) {
+            path += val;
+          }
+
+          if (!eos::common::PasswordHandler::readPasswordFile(path, mQdbPassword)) {
+            Eroute.Emsg("Config", "failed to open path pointed by qdbpassword_file");
+            rc = 1;
+          }
+
+          std::string pwlen = std::to_string(mQdbPassword.size());
+          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          mQdbContactDetails.password = mQdbPassword;
+        }
       }
     }
 
     Config.Close();
+  }
+
+  if (rc) {
+    eos_err("msg=\"failed while parsing the configuration file\"");
+    return rc;
+  }
+
+  // Create a qclient object if cluster information provided
+  if (!mQdbCluster.empty()) {
+    mQcl = eos::BackendClient::getInstance(mQdbContactDetails, "MQ_HA");
+
+    if (mQcl == nullptr) {
+      eos_err("msg=\"failed to qclient object\"");
+      rc = 1;
+      return rc;
+    }
   }
 
   XrdOucString basestats = StatisticsFile;
@@ -464,7 +525,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucString mkdirbasestats = "mkdir -p ";
   mkdirbasestats += basestats;
   mkdirbasestats += " 2>/dev/null";
-  int rc = system(mkdirbasestats.c_str());
+  rc = system(mkdirbasestats.c_str());
 
   if (rc) {
     fprintf(stderr, "error {%s/%s/%d}: system command failed;retc=%d", __FUNCTION__,
@@ -623,10 +684,96 @@ XrdMqOfs::Statistics()
 }
 
 //------------------------------------------------------------------------------
-// Check if messages should be redirected and return the redirection host and
-// port
+// Get the identity of the current lease holder
+//------------------------------------------------------------------------------
+std::string
+XrdMqOfs::GetLeaseHolder()
+{
+  std::string holder;
+  std::future<qclient::redisReplyPtr> f = mQcl->exec("lease-get", sLeaseKey);
+  qclient::redisReplyPtr reply = f.get();
+
+  if ((reply == nullptr) || (reply->type == REDIS_REPLY_NIL)) {
+    eos_debug("%s", "msg=\"lease-get is NULL\"");
+    return holder;
+  }
+
+  std::string reply_msg = std::string(reply->element[0]->str,
+                                      reply->element[0]->len);
+  eos_debug("lease-get reply: %s", reply_msg.c_str());
+  std::string tag {"HOLDER: "};
+  size_t pos = reply_msg.find(tag);
+
+  if (pos == std::string::npos) {
+    return holder;
+  }
+
+  pos += tag.length();
+  size_t pos_end = reply_msg.find('\n', pos);
+
+  if (pos_end == std::string::npos) {
+    holder = reply_msg.substr(pos);
+  } else {
+    holder = reply_msg.substr(pos, pos_end - pos + 1);
+  }
+
+  return holder;
+}
+
+//------------------------------------------------------------------------------
+// Decide if client should be redirected to a different host based on the
+// current master-slave status.
 //------------------------------------------------------------------------------
 bool XrdMqOfs::ShouldRedirect(XrdOucString& host, int& port)
+{
+  if (mQcl) {
+    return ShouldRedirectQdb(host, port);
+  } else {
+    return ShouldRedirectInMem(host, port);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Decide if client should be redirected to a different host based on the
+// current master-slave status. Used for QuarkDB namespace.
+//------------------------------------------------------------------------------
+bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
+{
+  static time_t last_check = 0;
+  time_t now = time(nullptr);
+
+  // The master lease is taken for 10 seconds so we can check every 5 seconds
+  if (now - last_check > 5) {
+    last_check = now;
+    mMasterId = GetLeaseHolder();
+  }
+
+  if (mMasterId == mMgmId) {
+    // We are the current master no need to redirect
+    return false;
+  } else {
+    size_t pos = mMasterId.find(':');
+
+    try {
+      host = mMasterId.substr(0, pos).c_str();
+      port = myPort; // 1097
+    } catch (const std::exception& e) {
+      eos_notice("msg=\"unset or unexpected master identity format\" "
+                 "mMasterId=\"%s\"", mMasterId.c_str());
+      return false;
+    }
+
+    eos_info_lite("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
+                  port);
+    return true;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Decide if client should be redirected to a different host based on the
+// current master-slave status. Used for in-memory namespace.
+//------------------------------------------------------------------------------
+bool XrdMqOfs::ShouldRedirectInMem(XrdOucString& host, int& port)
 {
   EPNAME("ShouldRedirect");
   const char* tident = "internal";

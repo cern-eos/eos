@@ -43,7 +43,7 @@ QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
   mIsMaster(false),  mConfigLoaded(false),
   mAcquireDelay(0)
 {
-  mQcl = eos::BackendClient::getInstance(qdb_info, "HA");
+  mQcl = eos::BackendClient::getInstance(qdb_info, "MGM_HA");
 }
 
 //------------------------------------------------------------------------------

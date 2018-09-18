@@ -26,7 +26,10 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS})
+  ${FOLLY_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
@@ -72,11 +75,13 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_library(XrdMqOfs MODULE
   XrdMqOfs.cc       XrdMqOfs.hh
-  XrdMqMessage.cc   XrdMqMessage.hh)
+  XrdMqMessage.cc   XrdMqMessage.hh
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(
   XrdMqOfs PRIVATE
   eosCommon
+  qclient
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
@@ -100,8 +105,7 @@ add_executable(xrdmqsharedobjectbroadcastclient tests/XrdMqSharedObjectBroadCast
 #-------------------------------------------------------------------------------
 # Libraries that all the above executables are linked against
 #-------------------------------------------------------------------------------
-set(
-  XRDMQ_OTHER_LINK_LIBRARIES
+set(XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
