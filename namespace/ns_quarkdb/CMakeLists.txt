@@ -29,10 +29,8 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
- ${FOLLY_INCLUDE_DIRS}
  ${XROOTD_INCLUDE_DIR}
- ${FOLLY_INCLUDE_DIRS}
-)
+ ${FOLLY_INCLUDE_DIRS})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

@@ -27,9 +27,9 @@
 
 #include <chrono>
 
-#include <qclient/Members.hh>
-#include <qclient/Options.hh>
-#include <qclient/Handshake.hh>
+#include "qclient/Members.hh"
+#include "qclient/Options.hh"
+#include "qclient/Handshake.hh"
 #include "namespace/Namespace.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -44,15 +44,12 @@ public:
   //----------------------------------------------------------------------------
   //! Empty constructor
   //----------------------------------------------------------------------------
-  QdbContactDetails()
-  {
-
-  }
+  QdbContactDetails() = default;
 
   //----------------------------------------------------------------------------
   //! Constructor taking qclient::Members and password
   //----------------------------------------------------------------------------
-  QdbContactDetails(const qclient::Members& memb, const std::string &pw)
+  QdbContactDetails(const qclient::Members& memb, const std::string& pw)
   {
     members = memb;
     password = pw;
@@ -78,11 +75,12 @@ public:
     qclient::Options opts;
     opts.transparentRedirects = true;
     opts.retryStrategy = qclient::RetryStrategy::WithTimeout(
-      std::chrono::minutes(2));
+                           std::chrono::minutes(2));
 
-    if(!password.empty()) {
+    if (!password.empty()) {
       opts.handshake.reset(new qclient::HmacAuthHandshake(password));
     }
+
     return opts;
   }
 
