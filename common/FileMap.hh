@@ -35,6 +35,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -57,7 +58,6 @@ class FileMap
 {
 private:
   std::map<std::string, std::string> mMap;
-  std::string mBlob;
   XrdSysMutex mMutex;
 
 public:
@@ -106,20 +106,10 @@ public:
   //! Set a Key-Val pair, returns append string
   // ---------------------------------------------------------------------------
 
-  std::string Set(std::string key, std::string val)
+  void Set(std::string key, std::string val)
   {
     XrdSysMutexHelper mLock(mMutex);
     mMap[key] = val;
-    XrdOucString key64;
-    XrdOucString val64;
-    eos::common::SymKey::Base64Encode((char*) key.c_str(), key.length(), key64);
-    eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
-    std::string append_string = "+ ";
-    append_string += key64.c_str();
-    append_string += " ";
-    append_string += val64.c_str();
-    append_string += "\n";
-    return append_string;
   }
 
   // ---------------------------------------------------------------------------
@@ -141,20 +131,10 @@ public:
   //! Delete a Key, returns append string
   // ---------------------------------------------------------------------------
 
-  std::string Delete(std::string key)
+  void Delete(std::string key)
   {
     XrdSysMutexHelper mLock(mMutex);
     mMap.erase(key);
-    XrdOucString key64;
-    XrdOucString val64;
-    eos::common::SymKey::Base64Encode((char*) key.c_str(), key.length(), key64);
-    eos::common::SymKey::Base64Encode((char*) ":", 1, val64);
-    std::string append_string = "- ";
-    append_string += key64.c_str();
-    append_string += " ";
-    append_string += val64.c_str();
-    append_string += "\n";
-    return append_string;
   }
 
   // ---------------------------------------------------------------------------
@@ -164,9 +144,8 @@ public:
   bool Load(std::string blob)
   {
     XrdSysMutexHelper mLock(mMutex);
-    mBlob = blob;
     mMap.clear();
-    std::istringstream mapStream(mBlob);
+    std::istringstream mapStream(blob);
 
     if (!blob.length()) {
       return true;
@@ -224,7 +203,7 @@ public:
   std::string Trim()
   {
     XrdSysMutexHelper mLock(mMutex);
-    mBlob = "";
+    std::string retval;
 
     for (auto it = mMap.begin(); it != mMap.end(); ++it) {
       XrdOucString key64;
@@ -238,10 +217,10 @@ public:
       append_string += " ";
       append_string += val64.c_str();
       append_string += "\n";
-      mBlob += append_string;
+      retval += append_string;
     }
 
-    return mBlob;
+    return retval;
   }
 };
 /*----------------------------------------------------------------------------*/

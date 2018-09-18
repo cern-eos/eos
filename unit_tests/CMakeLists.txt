@@ -51,6 +51,7 @@ set(MGM_UT_SRCS
   mgm/LockTrackerTests.cc)
 
 set(COMMON_UT_SRCS
+  common/FileMapTests.cc
   common/FutureWrapperTests.cc
   common/InodeTests.cc
   common/TimingTests.cc
