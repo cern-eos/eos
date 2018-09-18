@@ -38,7 +38,6 @@
 #include "XrdMgmOfs.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
-#include "common/ZMQ.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN

@@ -31,7 +31,6 @@
 #include "common/SymKeys.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/plugin_manager/Plugin.hh"
-#include "common/ZMQ.hh"
 #include "common/JeMallocHandler.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"

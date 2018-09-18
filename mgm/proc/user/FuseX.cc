@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "XrdOuc/XrdOucEnv.hh"
-#include "common/ZMQ.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/FuseServer.hh"
 #include "mgm/XrdMgmOfs.hh"

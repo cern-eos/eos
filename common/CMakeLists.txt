@@ -164,7 +164,6 @@ if (Linux)
     FileSystem.cc
     TransferQueue.cc
     TransferJob.cc
-#    ZMQ.cc
     sqlite/sqlite3.c
     DbMap.cc
     DbMapLevelDb.cc

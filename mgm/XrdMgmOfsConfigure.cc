@@ -52,7 +52,6 @@
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
-#include "common/ZMQ.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/PasswordHandler.hh"
