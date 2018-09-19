@@ -625,6 +625,7 @@ Stat::Clear()
     StatAvgUid[ittag->first].resize(1000);
     StatAvgGid[ittag->first].clear();
     StatAvgGid[ittag->first].resize(1000);
+    StatExec[ittag->first].clear();
     StatExec[ittag->first].resize(1000);
   }
 
