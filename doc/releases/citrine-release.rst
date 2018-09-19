@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.3.13 Citrine``
+==================
+
+2018-09-19
+
+Bug
+---
+
+* [EOS-2892] - FUSE: Initialize XrdSecPROTOCOL before issuing kXR_query to check MGM features
+* [EOS-2895] - MGM: fix locking when waiting for a booted namespace 
+* [EOS-2989] - MGM: Fix queueing logic in Egroup class
+* fix wrong checksum validation for chunked OC uploads from the secondary replicas
+* let FUSEX writes fail after 60s otherwise we can get stuck pwrite calls/hanging forever
+
 ``v4.3.12 Citrine``
 ==================
 
