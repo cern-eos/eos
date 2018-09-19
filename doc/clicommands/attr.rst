@@ -63,8 +63,6 @@ attr
     sys.lru.convert.match=[match1:<age1>,match2:<age2>...]
     defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>.
     sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable
-    sys.heal.unavailable=<tries>          : try to heal an unavailable file for atleast <tries> times - must be >= 3 !!
-    - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!
     sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>
     => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public
     sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>

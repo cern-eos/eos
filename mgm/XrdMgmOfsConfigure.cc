@@ -404,7 +404,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmTxDir = "";
   MgmAuthDir = "";
   MgmArchiveDir = "";
-  MgmHealMap.set_deleted_key(0);
   IoReportStorePath = "/var/tmp/eos/report";
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
@@ -2179,7 +2178,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("OpenFailedCreate", 0, 0, 0);
   MgmStats.Add("OpenFailedENOENT", 0, 0, 0);
   MgmStats.Add("OpenFailedExists", 0, 0, 0);
-  MgmStats.Add("OpenFailedHeal", 0, 0, 0);
   MgmStats.Add("OpenFailedPermission", 0, 0, 0);
   MgmStats.Add("OpenFailedQuota", 0, 0, 0);
   MgmStats.Add("OpenFailedNoUpdate", 0, 0, 0);
@@ -2188,7 +2186,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("OpenProc", 0, 0, 0);
   MgmStats.Add("OpenRead", 0, 0, 0);
   MgmStats.Add("OpenShared", 0, 0, 0);
-  MgmStats.Add("OpenStalledHeal", 0, 0, 0);
   MgmStats.Add("OpenStalled", 0, 0, 0);
   MgmStats.Add("OpenStalled", 0, 0, 0);
   MgmStats.Add("Open", 0, 0, 0);

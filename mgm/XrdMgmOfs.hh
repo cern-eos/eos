@@ -1539,10 +1539,6 @@ public:
   std::unique_ptr<Fsck> FsckPtr;
   Fsck& FsCheck;
 
-  //! Map remembering 'healing' inodes
-  google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
-  XrdSysMutex MgmHealMapMutex; ///< mutex protecting the heal map
-
   //! Master/Slave configuration/failover class
   std::unique_ptr<Master> MasterPtr;
   Master& MgmMaster;

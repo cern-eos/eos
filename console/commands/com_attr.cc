@@ -445,10 +445,6 @@ com_attr_usage:
   // ---------------------------------------------------------------------------
   fprintf(stdout,
           "         sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable\n");
-  fprintf(stdout,
-          "         sys.heal.unavailable=<tries>          : try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
-  fprintf(stdout,
-          "                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout,
           "         sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>\n");
