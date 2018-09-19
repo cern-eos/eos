@@ -55,6 +55,7 @@ Egroup::Start()
 /*----------------------------------------------------------------------------*/
 {
   // run an asynchronous refresh thread
+  PendingQueue.setBlockingMode(true);
   mThread.reset(&Egroup::Refresh, this);
   return true;
 }
