@@ -266,8 +266,8 @@ QdbMaster::SlaveToMaster()
   // ******
   // @todo (esindril): reapply the configuration
   // ******
+  EnableNsCaching();
   // Load all the quota nodes from the namespace
-  DisableNsCaching();
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
@@ -292,6 +292,7 @@ QdbMaster::MasterToSlave()
     new_master_id.clear();
   }
 
+  DisableNsCaching();
   Access::SetMasterToSlaveRules(new_master_id);
 }
 
@@ -497,6 +498,17 @@ QdbMaster::DisableNsCaching()
   map_cfg[constants::sMaxSizeCacheFiles] = "0";
   map_cfg[constants::sMaxNumCacheDirs] = "0";
   map_cfg[constants::sMaxSizeCacheDirs] = "0";
+  gOFS->eosFileService->configure(map_cfg);
+  gOFS->eosDirectoryService->configure(map_cfg);
+}
+
+//------------------------------------------------------------------------------
+// Enable namespace caching with default values
+//------------------------------------------------------------------------------
+void
+QdbMaster::EnableNsCaching()
+{
+  std::map<std::string, std::string> map_cfg;
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }
