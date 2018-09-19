@@ -1874,9 +1874,9 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                                               status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
           XrdCl::XRootDStatus status =
-            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler, 60);
+            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
         }
       }
 
