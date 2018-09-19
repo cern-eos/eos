@@ -1493,7 +1493,7 @@ data::datax::recover_write(fuse_req_t req)
       if (nr) {
         // send asynchronous upstream writes
         XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr,
-                                              upload_offset, 0);
+                                              upload_offset, 60);
         uploadproxy->ScheduleWriteAsync(buf, handler);
         upload_offset += nr;
       }
@@ -1828,7 +1828,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
     // send an asynchronous upstream write, which does not wait for the file open to be done
     XrdCl::Proxy::write_handler handler =
-      mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+      mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
     XrdCl::XRootDStatus status =
       mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
     // test if we switch to xoff mode, where we only write into the journal
@@ -1876,7 +1876,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
           XrdCl::Proxy::write_handler handler =
             mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
           XrdCl::XRootDStatus status =
-            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
+            mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler, 60);
         }
       }
 
@@ -1900,7 +1900,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                                               status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
-            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 0);
+            mFile->xrdiorw(req)->WriteAsyncPrepare(count, offset, 60);
           XrdCl::XRootDStatus status =
             mFile->xrdiorw(req)->ScheduleWriteAsync(buf, handler);
           status = mFile->xrdiorw(req)->WaitWrite();
