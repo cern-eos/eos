@@ -262,6 +262,10 @@ ProcCommand::Find()
 
   if (maxdepth.length()) {
     finddepth = atoi(maxdepth.c_str());
+
+    if (finddepth > 0) {
+      deepquery = false;
+    }
   }
 
   if (!spath.length()) {
