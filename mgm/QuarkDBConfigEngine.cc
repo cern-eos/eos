@@ -136,7 +136,7 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
   eos_notice("loading name=%s ", name);
 
   if (!name) {
-    err = "error: you have to specify a configuration  name";
+    err = "error: you have to specify a configuration name";
     return false;
   }
 

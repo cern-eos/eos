@@ -752,6 +752,12 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
     // We are the current master no need to redirect
     return false;
   } else {
+    if (mMasterId.empty()) {
+      eos_notice("msg=\"unset or unexpected master identity format\" "
+                 "mMasterId=\"%s\"", mMasterId.c_str());
+      return false;
+    }
+
     size_t pos = mMasterId.find(':');
 
     try {
