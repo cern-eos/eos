@@ -32,8 +32,10 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 #include "namespace/PermissionHandler.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
@@ -437,6 +439,77 @@ TEST_F(VariousTests, ChecksumFormatting) {
   ASSERT_EQ(out, "12_23_55_99_00_00_00_00_00_00_00_00_00_00_00_00_00_00_00_00");
 
   ASSERT_FALSE(eos::appendChecksumOnStringAsHex(nullptr, out));
+}
+
+namespace eos {
+
+TEST_F(VariousTests, EtagFormatting) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  // Create a test file.
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file1->getId(), 1);
+
+  eos::IFileMD::ctime_t mtime;
+  mtime.tv_sec = 1537360812;
+  mtime.tv_nsec = 0;
+  file1->setCTime(mtime);
+
+  eos::FileMD *file1f = reinterpret_cast<FileMD*>(file1.get());
+  file1f->mFile.set_id(4697755903ull);
+
+  // File has no checksum, using inode + modification time.
+  std::string outcome;
+  eos::calculateEtag(file1.get(), outcome);
+  ASSERT_EQ(outcome, "\"1261044247998496768:1537360812\"");
+
+  // Force temporary etag
+  file1->setAttribute("sys.tmp.etag", "lmao");
+  eos::calculateEtag(file1.get(), outcome);
+  ASSERT_EQ(outcome, "lmao");
+
+  // Remove temporary etag
+  file1->removeAttribute("sys.tmp.etag");
+
+  // etag based on inode + mtime
+  char buff[4];
+  buff[0] = 0xa7; buff[1] = 0x25; buff[2] = 0x99; buff[3] = 0x97;
+  file1->setChecksum(buff, 4);
+  file1f->mFile.set_id(4697755939ull);
+
+  unsigned long layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kAdler,
+    2,
+    eos::common::LayoutId::k4k);
+
+  file1->setLayoutId(layout);
+
+  eos::calculateEtag(file1.get(), outcome);
+  ASSERT_EQ(outcome, "\"1261044257662173184:a7259997\"");
+
+
+  char buff2[32];
+  buff2[0] = 0x65; buff2[1] = 0x01; buff2[2] = 0xe9; buff2[3] = 0xc7;
+  buff2[4] = 0xbf; buff2[5] = 0x20; buff2[6] = 0xb1; buff2[7] = 0xdc;
+  buff2[8] = 0x56; buff2[9] = 0xf0; buff2[10] = 0x15; buff2[11] = 0xe3;
+  buff2[12] = 0x41; buff2[13] = 0xf7; buff2[14] = 0x98; buff2[15] = 0x33;
+
+  file1->setChecksum(buff2, 16);
+
+  layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    2,
+    eos::common::LayoutId::k4k);
+
+  file1->setLayoutId(layout);
+
+  eos::calculateEtag(file1.get(), outcome);
+  ASSERT_EQ(outcome, "\"6501e9c7bf20b1dc56f015e341f79833\"");
+}
+
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
