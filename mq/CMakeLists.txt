@@ -73,6 +73,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # XrdMqOfs library
 #-------------------------------------------------------------------------------
+if (NOT CLIENT)
 add_library(XrdMqOfs MODULE
   XrdMqOfs.cc       XrdMqOfs.hh
   XrdMqMessage.cc   XrdMqMessage.hh
@@ -87,6 +88,13 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
+
+install(
+  TARGETS XrdMqOfs
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+endif ()
 
 #-------------------------------------------------------------------------------
 # Other executables
@@ -121,7 +129,7 @@ target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE ${XRDMQ_OTHER_LINK_LI
 target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 install(
-  TARGETS XrdMqClient XrdMqOfs xrdmqdumper
+  TARGETS XrdMqClient xrdmqdumper
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
