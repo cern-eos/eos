@@ -495,9 +495,7 @@ QdbMaster::DisableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
   map_cfg[constants::sMaxNumCacheFiles] = "0";
-  map_cfg[constants::sMaxSizeCacheFiles] = "0";
   map_cfg[constants::sMaxNumCacheDirs] = "0";
-  map_cfg[constants::sMaxSizeCacheDirs] = "0";
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }
@@ -509,6 +507,8 @@ void
 QdbMaster::EnableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
+  map_cfg[constants::sMaxNumCacheFiles] = std::to_string(3e7);
+  map_cfg[constants::sMaxNumCacheDirs] = std::to_string(3e6);
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }
