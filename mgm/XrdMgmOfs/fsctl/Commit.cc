@@ -183,7 +183,8 @@
             }
 
             // validate the correct checksum parameters
-            if (!CommitHelper::validate_checksum(vid, ThreadLogId, fmd, checksumbuffer,
+            if (option["verifychecksum"] &&
+                !CommitHelper::validate_checksum(vid, ThreadLogId, fmd, checksumbuffer,
                                                  fsid)) {
               return Emsg(epname, error, EBADR,
                           "commit replica - file checksum is wrong [EBADR]", "");
@@ -199,8 +200,10 @@
           }
         }
 
-        CommitHelper::log_verifychecksum(vid, ThreadLogId, fmd, checksumbuffer, fsid,
-                                         cgi, option);
+        if (option["verifychecksum"]) {
+          CommitHelper::log_verifychecksum(vid, ThreadLogId, fmd, checksumbuffer, fsid,
+                                           cgi, option);
+        }
 
         if (!CommitHelper::handle_location(vid, ThreadLogId, cid, fmd, fsid, size,
                                            cgi, option)) {
