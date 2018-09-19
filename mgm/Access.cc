@@ -112,16 +112,13 @@ const char* Access::gStallKey = "Stall";
 //! constant used in the configuration store
 const char* Access::gRedirectionKey = "Redirection";
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Static function to reset all singleton objects defining access rules.
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Static function to reset all singleton objects defining access rules.
+//------------------------------------------------------------------------------
 void
-Access::Reset()
-
+Access::Reset(bool skip_stall_redirect)
 {
+  eos_static_info("%s", "msg=\"reset all access rules\"");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gBannedUsers.clear();
   Access::gBannedGroups.clear();
@@ -131,13 +128,16 @@ Access::Reset()
   Access::gAllowedGroups.clear();
   Access::gAllowedHosts.clear();
   Access::gAllowedDomains.clear();
-  Access::gRedirectionRules.clear();
-  Access::gStallRules.clear();
-  Access::gStallComment.clear();
-  Access::gUserRedirection.clear();
-  Access::gGroupRedirection.clear();
-  Access::gStallGlobal = Access::gStallRead = \
-                         Access::gStallWrite = Access::gStallUserGroup = false;
+
+  if (skip_stall_redirect == false) {
+    Access::gRedirectionRules.clear();
+    Access::gStallRules.clear();
+    Access::gStallComment.clear();
+    Access::gUserRedirection.clear();
+    Access::gGroupRedirection.clear();
+    Access::gStallGlobal = Access::gStallRead =
+                             Access::gStallWrite = Access::gStallUserGroup = false;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -149,7 +149,7 @@ Access::Reset()
 void
 Access::ApplyAccessConfig(bool applyredirectandstall)
 {
-  Access::Reset();
+  Access::Reset(!applyredirectandstall);
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   std::string userval = FsView::gFsView.GetGlobalConfig(gUserKey);
   std::string groupval = FsView::gFsView.GetGlobalConfig(gGroupKey);

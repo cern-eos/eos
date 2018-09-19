@@ -172,10 +172,13 @@ public:
     {}
   };
 
-  // ---------------------------------------------------------------------------
-  // reset/cleear all access rules
-  // ---------------------------------------------------------------------------
-  static void Reset();
+  //----------------------------------------------------------------------------
+  //! Reset/clear all access rules
+  //!
+  //! @param skip_stall_redirect if true don't reset the global stall and
+  //!        redirect rules
+  //----------------------------------------------------------------------------
+  static void Reset(bool skip_stall_redirect = false);
 
   // ---------------------------------------------------------------------------
   // retrieve the access configuration from the global shared
