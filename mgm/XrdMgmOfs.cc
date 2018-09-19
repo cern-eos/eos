@@ -910,11 +910,12 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 void
 XrdMgmOfs::WaitUntilNamespaceIsBooted()
 {
-  while(true) {
+  while (true) {
     XrdSysThread::SetCancelOff();
-
     XrdSysMutexHelper lock(gOFS->InitializationMutex);
-    if(gOFS->Initialized == gOFS->kBooted) {
+
+    if (gOFS->Initialized == gOFS->kBooted) {
+      XrdSysThread::SetCancelOn();
       return;
     }
 
