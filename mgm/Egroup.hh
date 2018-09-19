@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include <qclient/WaitableQueue.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
@@ -76,7 +77,8 @@ private:
 
 public:
   /// static queue with pairs of egroup/username
-  static std::deque <std::pair<std::string, std::string > > LdapQueue;
+  static qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
+    PendingQueue;
 
   /// static mutex protecting static Egroup objects
   static XrdSysMutex Mutex;
@@ -86,10 +88,6 @@ public:
 
   /// static map storing the validity of egroup/username pairs in Map
   static std::map < std::string, std::map <std::string, time_t > > LifeTime;
-
-  /// static condition variable to notify the asynchronous update thread about
-  /// a new egroup request
-  static XrdSysCondVar mCond;
 
   // ---------------------------------------------------------------------------
   // Constructor

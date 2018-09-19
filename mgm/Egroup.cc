@@ -34,8 +34,8 @@ EOSMGMNAMESPACE_BEGIN
 XrdSysMutex Egroup::Mutex;
 std::map < std::string, std::map < std::string, bool > > Egroup::Map;
 std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
-std::deque <std::pair<std::string, std::string > > Egroup::LdapQueue;
-XrdSysCondVar Egroup::mCond;
+qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
+  Egroup::PendingQueue;
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -76,6 +76,7 @@ Egroup::Stop()
 /*----------------------------------------------------------------------------*/
 {
   // cancel the asynchronous resfresh thread
+  PendingQueue.setBlockingMode(false);
   if (mThread) {
     XrdSysThread::Cancel(mThread);
     XrdSysThread::Join(mThread, 0);
@@ -267,27 +268,18 @@ Egroup::Refresh()
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
 
-  // infinite loop waiting to run refresh requests indicated by conditions
-  // variable
-  while (1) {
-    // wait for anything to do ...
-    mCond.Wait();
-    XrdSysThread::SetCancelOff();
-    std::pair<std::string, std::string> resolve;
-    {
-      XrdSysMutexHelper lLock(Mutex);
+  // infinite loop waiting to run refresh requests
+  auto iterator = PendingQueue.begin();
 
-      if (LdapQueue.size()) {
-        resolve = LdapQueue.front();
-        LdapQueue.pop_front();
-      }
+  while(true) {
+    std::pair<std::string, std::string> *resolve = iterator.getItemBlockOrNull();
+    if(!resolve) break;
+
+    if (!resolve->first.empty()) {
+      DoRefresh(resolve->first, resolve->second);
     }
 
-    if (resolve.first.length()) {
-      DoRefresh(resolve.first, resolve.second);
-    }
-
-    XrdSysThread::SetCancelOn();
+    iterator.next();
   }
 
   return 0;
@@ -302,14 +294,7 @@ Egroup::AsyncRefresh(std::string& egroupname, std::string& username)
 /*----------------------------------------------------------------------------*/
 {
   // push a egroup/username pair into the async refresh queue
-  {
-    XrdSysMutexHelper qMutex(Mutex);
-    LdapQueue.push_back(std::make_pair(egroupname, username));
-  }
-  {
-    // signal to async thread
-    mCond.Signal();
-  }
+  PendingQueue.emplace_back(std::make_pair(egroupname, username));
 }
 
 /*----------------------------------------------------------------------------*/
