@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "common/AssistedThread.hh"
 #include <qclient/WaitableQueue.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
@@ -67,8 +68,8 @@ EOSMGMNAMESPACE_BEGIN
 class Egroup
 {
 private:
-  /// thread id of the async refresh thread
-  pthread_t mThread;
+  /// async refresh thread
+  AssistedThread mThread;
 
   // ---------------------------------------------------------------------------
   // Synchronous refresh function doing an LDAP query for a given Egroup/user
@@ -143,12 +144,8 @@ public:
   // ---------------------------------------------------------------------------
   // asynchronous thread loop doing egroup/username fetching
   // ---------------------------------------------------------------------------
-  void* Refresh ();
+  void Refresh(ThreadAssistant &assistant);
 
-  // ---------------------------------------------------------------------------
-  // static thread startup function
-  // ---------------------------------------------------------------------------
-  static void* StaticRefresh (void* arg);
 };
 
 EOSMGMNAMESPACE_END

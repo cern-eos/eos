@@ -42,8 +42,7 @@ qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
  * @brief Constructor
  */
 /*----------------------------------------------------------------------------*/
-Egroup::Egroup():
-  mThread(0)
+Egroup::Egroup()
 {}
 
 bool
@@ -56,13 +55,8 @@ Egroup::Start()
 /*----------------------------------------------------------------------------*/
 {
   // run an asynchronous refresh thread
-  eos_static_info("Start");
-  mThread = 0;
-  XrdSysThread::Run(&mThread, Egroup::StaticRefresh,
-                    static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD,
-                    "Egroup refresh Thread");
-  return (mThread ? true : false);
+  mThread.reset(&Egroup::Refresh, this);
+  return true;
 }
 
 void
@@ -77,11 +71,7 @@ Egroup::Stop()
 {
   // cancel the asynchronous resfresh thread
   PendingQueue.setBlockingMode(false);
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, 0);
-    mThread = 0;
-  }
+  mThread.join();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -238,21 +228,7 @@ Egroup::Member(std::string& username, std::string& egroupname)
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-Egroup::StaticRefresh(void* arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Thread startup function
- * @param arg Egroup object
- * @return Should never return until cancelled.
- */
-/*----------------------------------------------------------------------------*/
-{
-  return reinterpret_cast<Egroup*>(arg)->Refresh();
-}
-
-/*----------------------------------------------------------------------------*/
-void*
+void
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Asynchronous refresh loop
@@ -260,18 +236,16 @@ void*
  * The looping thread takes Egroup requests and run's LDAP queries pushing
  * results into the Egroup membership map and updates the lifetime of the
  * resolved entry.
- *
- * @return Should never return until cancelled.
  */
 /*----------------------------------------------------------------------------*/
-Egroup::Refresh()
+Egroup::Refresh(ThreadAssistant &assistant)
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
 
   // infinite loop waiting to run refresh requests
   auto iterator = PendingQueue.begin();
 
-  while(true) {
+  while(!assistant.terminationRequested()) {
     std::pair<std::string, std::string> *resolve = iterator.getItemBlockOrNull();
     if(!resolve) break;
 
@@ -281,8 +255,6 @@ Egroup::Refresh()
 
     iterator.next();
   }
-
-  return 0;
 }
 
 void
