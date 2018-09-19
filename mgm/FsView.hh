@@ -798,7 +798,6 @@ public:
     hbthread(), mIsHeartbeatOn(false), NextFsId(0)
   {
     MgmConfigQueueName = "";
-    sConfEngine = nullptr;
 
     if (start_heartbeat) {
       mIsHeartbeatOn = true;

@@ -481,16 +481,27 @@ bool
 QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 
 {
-  const char* name = env.Get("mgm.config.file");
+  const char* cstr = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
 
-  if (!name) {
-    err = "error: you have to specify a configuration file name";
+  if (!cstr || (strstr(cstr, EOSMGMCONFIGENGINE_EOS_SUFFIX) == nullptr)) {
+    err = "error: please give the full path to the config file";
     return false;
   }
 
-  eos_notice("loading name=%s ", name);
-  std::string fullpath = SSTR(name << EOSMGMCONFIGENGINE_EOS_SUFFIX);
+  // Extract name of the config
+  std::string fullpath = cstr;
+  size_t pos1 = fullpath.rfind('/');
+  size_t pos2 = fullpath.rfind('.');
+
+  if ((pos1 == std::string::npos) || (pos2 == std::string::npos) ||
+      (pos1 >= pos2)) {
+    err = "error: please give full path to file ending in .eoscf";
+    return false;
+  }
+
+  std::string name = fullpath.substr(pos1 + 1, pos2 - pos1 - 1);
+  eos_notice("loading from path=%s, name=%s ", fullpath.c_str(), name.c_str());
 
   if (::access(fullpath.c_str(), R_OK)) {
     err = "error: unable to open config file ";
@@ -524,16 +535,17 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
     }
 
     if (!ApplyConfig(err)) {
-      mChangelog->AddEntry("exported config", name, SSTR("with failure : " << err));
+      mChangelog->AddEntry("exported config", name.c_str(),
+                           SSTR("with failure : " << err));
       return false;
     } else {
-      std::string hash_key = formConfigHashKey(name);
+      std::string hash_key = formConfigHashKey(name.c_str());
       qclient::QHash q_hash(*mQcl, hash_key);
 
       if (q_hash.hlen() > 0) {
         if (force) {
           // Create backup
-          std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
+          std::string hash_key_backup = formBackupConfigHashKey(name.c_str(), time(NULL));
           // Backup hash
           mQcl->exec("hclone", hash_key, hash_key_backup);
           // Clear
@@ -541,7 +553,7 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
         } else {
           errno = EEXIST;
           err = "error: a configuration with name \"";
-          err += name;
+          err += name.c_str();
           err += "\" exists already on QuarkDB!";
           return false;
         }
@@ -554,13 +566,13 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       XrdOucString stime;
       getTimeStamp(stime);
       q_hash.hset("timestamp", stime.c_str());
-      mChangelog->AddEntry("exported config", name, "successfully");
-      mConfigFile = name;
+      mChangelog->AddEntry("exported config", name.c_str(), "successfully");
+      mConfigFile = name.c_str();
       return true;
     }
   } else {
     err = "error: failed to open configuration file with name \"";
-    err += name;
+    err += name.c_str();
     err += "\"!";
     return false;
   }

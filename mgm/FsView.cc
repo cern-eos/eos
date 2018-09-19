@@ -43,7 +43,7 @@ std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
 bool FsSpace::gDisableDefaults = false;
-IConfigEngine* FsView::sConfEngine = 0;
+IConfigEngine* FsView::sConfEngine {nullptr};
 
 //------------------------------------------------------------------------------
 // Destructor - destructs all the branches starting at this node
@@ -2646,7 +2646,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
   // Register in the configuration engine
-  if ((!isstatus) && (FsView::sConfEngine)) {
+  if ((!isstatus) && FsView::sConfEngine) {
     node_cfg_name += "#";
     node_cfg_name += key;
     std::string confval = value;
@@ -2948,7 +2948,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   FileSystem* fs = nullptr;
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
 
-  // Apply only the registration fo a new filesystem if it does not exist
+  // Apply only the registration for a new filesystem if it does not exist
   if (!FsView::gFsView.mIdView.count(fsid)) {
     fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(),
                         eos::common::GlobalConfig::gConfig.SOM());

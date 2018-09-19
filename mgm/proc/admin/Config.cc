@@ -23,6 +23,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/FsView.hh"
 #include "mgm/IConfigEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -66,12 +67,18 @@ ProcCommand::Config()
       stdErr = "error: this command is available only with ConfigEngine type 'quarkdb'";
     } else if (pVid->uid == 0) {
       eos_notice("config export: %s", pOpaque->Env(envlen));
+      // Need to set the FsView config engine to null since PushToQuarkDB calls
+      // ApplyConfig and this leads to a deadlock if the config engine is set.
+      // The same happens in XrdMgmOfsConfigure when loading initially the config.
+      eos::mgm::FsView::gFsView.SetConfigEngine(nullptr);
 
       if (!gOFS->ConfEngine->PushToQuarkDB(*pOpaque, stdErr)) {
         retc = errno;
       } else {
         stdOut = "success: configuration successfully loaded!";
       }
+
+      eos::mgm::FsView::gFsView.SetConfigEngine(gOFS->ConfEngine);
     } else {
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";

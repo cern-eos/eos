@@ -56,8 +56,8 @@ public:
   //! @param value    entry key
   //! @param comment  entry value
   //----------------------------------------------------------------------------
-  void AddEntry(const std::string &action, const std::string &key,
-    const std::string &value);
+  void AddEntry(const std::string& action, const std::string& key,
+                const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -184,7 +184,6 @@ private:
   static const std::string sAutosaveTag;
   static const std::string sBackupTag;
   std::mutex sMutex;
-
   XrdOucString mConfigDir; ///< Path where configuration files are stored
 
   //----------------------------------------------------------------------------
