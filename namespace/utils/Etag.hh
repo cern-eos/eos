@@ -23,6 +23,7 @@
 
 #include "namespace/interface/IFileMD.hh"
 #include "common/FileId.hh"
+#include "namespace/utils/Checksum.hh"
 
 #ifndef EOS_NS_ETAG_HH
 #define EOS_NS_ETAG_HH
@@ -33,7 +34,7 @@ namespace eos
   //----------------------------------------------------------------------------
   //! Calculate etag for the given FileMD.
   //----------------------------------------------------------------------------
-  void calculateEtag(IFileMD *fmd, std::string &out) {
+  inline void calculateEtag(const IFileMD *const fmd, std::string &out) {
     //----------------------------------------------------------------------------
     // Forced etag?
     //----------------------------------------------------------------------------

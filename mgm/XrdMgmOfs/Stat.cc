@@ -219,39 +219,7 @@ XrdMgmOfs::_stat(const char* path,
 #endif
 
     if (etag) {
-      // if there is a checksum we use the checksum, otherwise we return inode+mtime
-      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-
-      if (cxlen) {
-        // use inode + checksum
-        char setag[256];
-        snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
-
-        // if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
-        if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) ==
-            eos::common::LayoutId::kMD5) {
-          *etag = "\"";
-        } else {
-          *etag = setag;
-        }
-
-        eos::appendChecksumOnStringAsHex(fmd.get(), *etag);
-        *etag += "\"";
-      } else {
-        // use inode + mtime
-        char setag[256];
-        snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-                 (unsigned long long) buf->st_ino,
-                 (unsigned long long) buf->st_mtime);
-        *etag = setag;
-      }
-
-      // check for a forced etag
-      std::string tmpEtag = "sys.tmp.etag";
-
-      if (fmd->hasAttribute(tmpEtag)) {
-        *etag = fmd->getAttribute(tmpEtag);
-      }
+      eos::calculateEtag(fmd.get(), *etag);
     }
 
     EXEC_TIMING_END("Stat");

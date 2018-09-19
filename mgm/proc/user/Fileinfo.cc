@@ -34,7 +34,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
-#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -294,32 +294,9 @@ ProcCommand::FileInfo(const char* path)
           time_t filemtime = (time_t) mtime.tv_sec;
           char fid[32];
           snprintf(fid, 32, "%llu", (unsigned long long) fmd_copy->getId());
+
           std::string etag;
-          // if there is a checksum we use the checksum, otherwise we return inode+mtime
-          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId());
-
-          if (cxlen) {
-            // use inode + checksum
-            char setag[256];
-            snprintf(setag, sizeof(setag) - 1, "%llu:",
-                     (unsigned long long)eos::common::FileId::FidToInode(fmd_copy->getId()));
-            etag = setag;
-            eos::appendChecksumOnStringAsHex(fmd_copy.get(), etag);
-          } else {
-            // use inode + mtime
-            char setag[256];
-            eos::IFileMD::ctime_t mtime;
-            fmd_copy->getMTime(mtime);
-            time_t filemtime = (time_t) mtime.tv_sec;
-            snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-                     (unsigned long long) eos::common::FileId::FidToInode(fmd_copy->getId()),
-                     (unsigned long long) filemtime);
-            etag = setag;
-          }
-
-          if (fmd_copy->hasAttribute("sys.tmp.etag")) {
-            etag = fmd_copy->getAttribute("sys.tmp.etag");
-          }
+          eos::calculateEtag(fmd_copy.get(), etag);
 
           if (!Monitoring) {
             stdOut = "  File: '";
@@ -1099,30 +1076,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     json["checksumvalue"] = cks;
     std::string etag;
-    size_t cxlen = 0;
-
-    if ((cxlen = eos::common::LayoutId::GetChecksumLen(fmd_copy->getLayoutId()))) {
-      // use inode + checksum
-      char setag[256];
-      snprintf(setag, sizeof(setag) - 1, "%llu:",
-               (unsigned long long)eos::common::FileId::FidToInode(fmd_copy->getId()));
-      etag = setag;
-      eos::appendChecksumOnStringAsHex(fmd_copy.get(), etag);
-    } else {
-      // use inode + mtime
-      char setag[256];
-      eos::IFileMD::ctime_t mtime;
-      fmd_copy->getMTime(mtime);
-      time_t filemtime = (time_t) mtime.tv_sec;
-      snprintf(setag, sizeof(setag) - 1, "%llu:%llu",
-               (unsigned long long) eos::common::FileId::FidToInode(fmd_copy->getId()),
-               (unsigned long long) filemtime);
-      etag = setag;
-    }
-
-    if (fmd_copy->hasAttribute("sys.tmp.etag")) {
-      etag = fmd_copy->getAttribute("sys.tmp.etag");
-    }
+    eos::calculateEtag(fmd_copy.get(), etag);
 
     json["etag"] = etag;
     json["path"] = fullpath;
