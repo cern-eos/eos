@@ -212,6 +212,11 @@ private:
   //----------------------------------------------------------------------------
   void MasterToSlave();
 
+  //----------------------------------------------------------------------------
+  //! Disable namespace caching
+  //----------------------------------------------------------------------------
+  void DisableNsCaching();
+
   std::string mIdentity; ///< MGM identity hostname:port
   mutable std::mutex mMutexId; ///< Mutex for the master identity
   std::string mMasterIdentity; ///< Current master host

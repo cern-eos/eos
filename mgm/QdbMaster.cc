@@ -27,6 +27,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "common/plugin_manager/PluginManager.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -266,6 +267,7 @@ QdbMaster::SlaveToMaster()
   // @todo (esindril): reapply the configuration
   // ******
   // Load all the quota nodes from the namespace
+  DisableNsCaching();
   Quota::LoadNodes();
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
@@ -482,6 +484,21 @@ QdbMaster::PrintOut()
   oss << "is_master=" << (mIsMaster ? "true" : "false")
       << " master_id=" << GetMasterId();
   return oss.str();
+}
+
+//------------------------------------------------------------------------------
+// Disable namespace caching
+//------------------------------------------------------------------------------
+void
+QdbMaster::DisableNsCaching()
+{
+  std::map<std::string, std::string> map_cfg;
+  map_cfg[constants::sMaxNumCacheFiles] = "0";
+  map_cfg[constants::sMaxSizeCacheFiles] = "0";
+  map_cfg[constants::sMaxNumCacheDirs] = "0";
+  map_cfg[constants::sMaxSizeCacheDirs] = "0";
+  gOFS->eosFileService->configure(map_cfg);
+  gOFS->eosDirectoryService->configure(map_cfg);
 }
 
 EOSMGMNAMESPACE_END

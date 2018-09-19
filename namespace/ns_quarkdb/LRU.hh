@@ -151,7 +151,11 @@ public:
     eos::common::RWMutexWriteLock lock_w(mMutex);
 
     if (max_num == 0ull) {
-      Purge(0.0); // empty cache
+      // Flush and disable cache
+      Purge(0.0);
+      mMaxNum = 0ull;
+    } else if (max_num == UINT64_MAX) {
+      Purge(0.0); // Flush cache
     } else {
       mMaxNum = max_num;
     }
@@ -261,6 +265,11 @@ typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
     LRU<IdT, EntryT>::put(IdT id, std::shared_ptr<EntryT> obj)
 {
   eos::common::RWMutexWriteLock lock_w(mMutex);
+
+  if (mMaxNum == 0ull) {
+    return obj;
+  }
+
   auto iter_map = mMap.find(id);
 
   if (iter_map != mMap.end()) {

@@ -771,18 +771,18 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
     map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
     gOFS->eosDirectoryService->configure(map_cfg);
   } else if (cache.op() == NsProto_CacheProto::DROP_FILE) {
-    map_cfg[sMaxNumCacheFiles] = "0";
-    map_cfg[sMaxSizeCacheFiles] = "0";
+    map_cfg[sMaxNumCacheFiles] = std::to_string(UINT64_MAX);
+    map_cfg[sMaxSizeCacheFiles] = std::to_string(UINT64_MAX);
     gOFS->eosFileService->configure(map_cfg);
   } else if (cache.op() == NsProto_CacheProto::DROP_DIR) {
-    map_cfg[sMaxNumCacheDirs] = "0";
-    map_cfg[sMaxSizeCacheDirs] = "0";
+    map_cfg[sMaxNumCacheDirs] = std::to_string(UINT64_MAX);
+    map_cfg[sMaxSizeCacheDirs] = std::to_string(UINT64_MAX);
     gOFS->eosDirectoryService->configure(map_cfg);
   } else if (cache.op() == NsProto_CacheProto::DROP_ALL) {
-    map_cfg[sMaxNumCacheFiles] = "0";
-    map_cfg[sMaxSizeCacheFiles] = "0";
-    map_cfg[sMaxNumCacheDirs] = "0";
-    map_cfg[sMaxSizeCacheDirs] = "0";
+    map_cfg[sMaxNumCacheFiles] = std::to_string(UINT64_MAX);
+    map_cfg[sMaxSizeCacheFiles] = std::to_string(UINT64_MAX);
+    map_cfg[sMaxNumCacheDirs] = std::to_string(UINT64_MAX);
+    map_cfg[sMaxSizeCacheDirs] = std::to_string(UINT64_MAX);
     gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
   }
