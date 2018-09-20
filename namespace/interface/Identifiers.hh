@@ -187,6 +187,20 @@ namespace std {
       return Murmur3::MurmurHasher<argument_type>{}(fid);
     }
   };
+
+  //--------------------------------------------------------------------------
+  // ! Specialization of std::hash for ContainerIdentifier
+  //--------------------------------------------------------------------------
+  template<> struct hash<eos::ContainerIdentifier>
+  {
+    typedef eos::ContainerIdentifier argument_type;
+    typedef std::size_t result_type;
+
+    result_type operator()(argument_type const& cid) const noexcept
+    {
+      return Murmur3::MurmurHasher<argument_type>{}(cid);
+    }
+  };
 } // namespace std
 
 #endif
