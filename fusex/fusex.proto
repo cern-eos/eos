@@ -36,7 +36,7 @@ message md {
   OP operation = 29    ; //< indicates operations to execute
   TYPE type = 30       ; //< indicates the content of this recored, just MD or MD+children
   sfixed32 err = 31  ; //< errno concerning md record
-  map<string, string> attr = 32; //< xattribute map
+  map<string, bytes> attr = 32; //< xattribute map
   map<string, fixed64> children = 33; //< children's name and id 
   // children id is a virtual inode on when stored FUSE client side
   // children id is the physical inode when created on server side 
