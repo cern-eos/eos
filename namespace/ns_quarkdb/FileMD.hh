@@ -235,7 +235,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  inline void setName(const std::string& name) override;
+  void setName(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Add location
@@ -259,6 +259,7 @@ public:
   getLocation(unsigned int index) override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
     if (index < (unsigned int)mFile.locations_size()) {
       return mFile.locations(index);
     }
@@ -465,6 +466,7 @@ public:
   setFlag(uint8_t n, bool flag) override
   {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
     if (flag) {
       mFile.set_flags(mFile.flags() | (1 << n));
     } else {
