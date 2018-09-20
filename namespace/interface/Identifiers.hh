@@ -171,11 +171,9 @@ namespace Murmur3 {
   //----------------------------------------------------------------------------
   template<>
   struct MurmurHasher<eos::FileIdentifier> {
-    MurmurHasher<uint64_t> hasher;
-
     size_t operator()(const eos::FileIdentifier &key) const
     {
-      return hasher(key.getUnderlyingUInt64());
+      return MurmurHasher<uint64_t>{}(key.getUnderlyingUInt64());
     }
   };
 
@@ -184,11 +182,9 @@ namespace Murmur3 {
   //----------------------------------------------------------------------------
   template<>
   struct MurmurHasher<eos::ContainerIdentifier> {
-    MurmurHasher<uint64_t> hasher;
-
     size_t operator()(const eos::ContainerIdentifier &key) const
     {
-      return hasher(key.getUnderlyingUInt64());
+      return MurmurHasher<uint64_t>{}(key.getUnderlyingUInt64());
     }
   };
 }
