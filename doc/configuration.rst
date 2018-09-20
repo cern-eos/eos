@@ -29,6 +29,7 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/kinetic
    configuration/lru
    configuration/master
+   configuration/master_quarkdb
    configuration/namespace
    configuration/permission
    configuration/proxys
