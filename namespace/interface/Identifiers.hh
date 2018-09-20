@@ -148,6 +148,22 @@ private:
 
 EOSNSNAMESPACE_END
 
+namespace std {
+  //--------------------------------------------------------------------------
+  // ! Specialization of std::hash for Identifier
+  //--------------------------------------------------------------------------
+  template<> struct hash<eos::FileIdentifier>
+  {
+    typedef eos::FileIdentifier argument_type;
+    typedef std::size_t result_type;
+
+    result_type operator()(argument_type const& fid) const noexcept
+    {
+      return hash<uint64_t>{}(fid.getUnderlyingUInt64());
+    }
+  };
+} // namespace std
+
 namespace Murmur3 {
 
   //----------------------------------------------------------------------------
