@@ -118,7 +118,7 @@ const char* Access::gRedirectionKey = "Redirection";
 void
 Access::Reset(bool skip_stall_redirect)
 {
-  eos_static_info("%s", "msg=\"reset all access rules\"");
+  eos_static_debug("%s", "msg=\"reset all access rules\"");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gBannedUsers.clear();
   Access::gBannedGroups.clear();
