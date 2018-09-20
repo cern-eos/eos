@@ -263,12 +263,15 @@ void
 QdbMaster::SlaveToMaster()
 {
   eos_info("%s", "msg=\"slave to master transition\"");
-  // ******
-  // @todo (esindril): reapply the configuration
-  // ******
-  EnableNsCaching();
-  // Load all the quota nodes from the namespace
+  std::string std_out, std_err;
+
+  if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
+    eos_err("msg=\"failed to apply master configuration\"");
+    std::abort(); // @todo(esindril): may take a different action ?!
+  }
+
   Quota::LoadNodes();
+  EnableNsCaching();
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
@@ -303,6 +306,7 @@ bool
 QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
                              Transition::Type transitiontype)
 {
+  eos::mgm::FsView::gFsView.SetConfigEngine(nullptr);
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
 
   if (gOFS->MgmConfigAutoLoad.length()) {
@@ -313,14 +317,17 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     XrdOucString stdErr = "";
 
     if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("msg=\"failed config autoload, fix the configuration file!\" "
-               "config=\"%s\"", gOFS->MgmConfigAutoLoad.c_str());
-      eos_crit("%s", stdErr.c_str());
+      eos_crit("msg=\"failed config autoload\" config=\"%s\" err=\"%s\"",
+               gOFS->MgmConfigAutoLoad.c_str(), stdErr.c_str());
     } else {
       mConfigLoaded = true;
       eos_static_info("msg=\"successful config autoload\" config=\"%s\"",
                       gOFS->MgmConfigAutoLoad.c_str());
     }
+  }
+
+  if (mConfigLoaded) {
+    eos::mgm::FsView::gFsView.SetConfigEngine(gOFS->ConfEngine);
   }
 
   return mConfigLoaded;
