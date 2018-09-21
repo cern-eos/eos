@@ -155,9 +155,11 @@ namespace Murmur3 {
   //----------------------------------------------------------------------------
   template<>
   struct MurmurHasher<eos::FileIdentifier> {
+    MurmurHasher<uint64_t> hasher;
+
     size_t operator()(const eos::FileIdentifier &key) const
     {
-      return MurmurHasher<uint64_t>{}(key.getUnderlyingUInt64());
+      return hasher(key.getUnderlyingUInt64());
     }
   };
 
@@ -166,41 +168,13 @@ namespace Murmur3 {
   //----------------------------------------------------------------------------
   template<>
   struct MurmurHasher<eos::ContainerIdentifier> {
+    MurmurHasher<uint64_t> hasher;
+
     size_t operator()(const eos::ContainerIdentifier &key) const
     {
-      return MurmurHasher<uint64_t>{}(key.getUnderlyingUInt64());
+      return hasher(key.getUnderlyingUInt64());
     }
   };
 }
-
-namespace std {
-  //--------------------------------------------------------------------------
-  // ! Specialization of std::hash for FileIdentifier
-  //--------------------------------------------------------------------------
-  template<> struct hash<eos::FileIdentifier>
-  {
-    typedef eos::FileIdentifier argument_type;
-    typedef std::size_t result_type;
-
-    result_type operator()(argument_type const& fid) const noexcept
-    {
-      return Murmur3::MurmurHasher<argument_type>{}(fid);
-    }
-  };
-
-  //--------------------------------------------------------------------------
-  // ! Specialization of std::hash for ContainerIdentifier
-  //--------------------------------------------------------------------------
-  template<> struct hash<eos::ContainerIdentifier>
-  {
-    typedef eos::ContainerIdentifier argument_type;
-    typedef std::size_t result_type;
-
-    result_type operator()(argument_type const& cid) const noexcept
-    {
-      return Murmur3::MurmurHasher<argument_type>{}(cid);
-    }
-  };
-} // namespace std
 
 #endif
