@@ -1412,7 +1412,6 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
-    FsReadLock vlock(fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
