@@ -2126,7 +2126,7 @@ main(int argc, char* argv[])
       offsetXS += nread;
     }
 
-    int nwrite = 0;
+    int64_t nwrite = 0;
 
     for (int i = 0; i < ndst; i++) {
       switch (dst_type[i]) {
@@ -2147,16 +2147,15 @@ main(int argc, char* argv[])
       case XRD_ACCESS: {
         // Do writes in async mode
         eos::common::Timing::GetTimeSpec(start);
-        status = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileWriteAsync(
+        nwrite = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileWriteAsync(
                    stopwritebyte, ptr_buffer, nread);
-        nwrite = nread;
         eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double>((end.tv_sec * 1000 + end.tv_nsec / 1000000) -
                                         (start.tv_sec * 1000 + start.tv_nsec / 1000000));
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%d\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
         }
       }
       break;
@@ -2179,7 +2178,7 @@ main(int argc, char* argv[])
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%d\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
         }
       }
       break;
