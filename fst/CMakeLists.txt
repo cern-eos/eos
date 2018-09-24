@@ -359,7 +359,7 @@ add_library(XrdEosFst MODULE
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst-Static SHARED
+add_library(XrdEosFst-Static STATIC
   $<TARGET_OBJECTS:XrdEosFst-Objects>
   $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
