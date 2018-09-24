@@ -110,3 +110,7 @@ target_link_libraries(
   gmock
   XrdEosFst-Shared
   ${XROOTD_SERVER_LIBRARY})
+
+install(TARGETS
+  eos-unit-tests eos-fst-unit-tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

@@ -740,6 +740,8 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/xrdstress.exe
 %{_sbindir}/eos-io-test
 %{_sbindir}/eos-io-tool
+%{_sbindir}/eos-unit-tests
+%{_sbindir}/eos-fst-unit-tests
 %attr(444,daemon,daemon) /var/eos/test/fuse/untar/untar.tgz
 %attr(444,daemon,daemon) /var/eos/test/fuse/untar/xrootd.tgz
 
