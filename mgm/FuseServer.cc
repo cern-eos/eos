@@ -2921,6 +2921,7 @@ FuseServer::HandleMD(const std::string& id,
             }
 
             pcmd->addFile(fmd.get());
+            gOFS->eosView->updateFileStore(fmd.get());
             gOFS->eosView->updateContainerStore(pcmd.get());
           } else {
             if (fmd->getName() != md.name()) {
@@ -2987,7 +2988,6 @@ FuseServer::HandleMD(const std::string& id,
           gOFS->eosFileService->updateStore(fmd.get());
           gmd->setAttribute(k_mdino, std::to_string(tgt_md_ino));
           gmd->setName(md.name());
-          gOFS->eosFileService->updateStore(gmd.get());
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("hlnk %s mdino %s %s nlink %s",
@@ -2998,6 +2998,7 @@ FuseServer::HandleMD(const std::string& id,
           }
 
           pcmd->addFile(gmd.get());
+          gOFS->eosFileService->updateStore(gmd.get());
           gOFS->eosView->updateContainerStore(pcmd.get());
           eos::fusex::response resp;
           resp.set_type(resp.ACK);
