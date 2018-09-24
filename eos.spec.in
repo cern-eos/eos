@@ -205,6 +205,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %files -n eos-server
 %defattr(-, root, root, -)
 %{_bindir}/xrdmqdumper
+%{_bindir}/eos-dump-proto-md
 %{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
 %{_sbindir}/eosfilesync
