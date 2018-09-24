@@ -264,18 +264,17 @@ target_link_libraries(
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------
 if(Linux)
-  add_library(XrdEosMgm-Shared SHARED
+  add_library(XrdEosMgm-Static STATIC
     $<TARGET_OBJECTS:EosAuthProto-Objects>
     $<TARGET_OBJECTS:XrdEosMgm-Objects>
     $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
   target_compile_definitions(
-    XrdEosMgm-Shared PUBLIC
+    XrdEosMgm-Static PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
-    XrdEosMgm-Shared PUBLIC
-    #EosNsCommon-Static
+    XrdEosMgm-Static PUBLIC
     # @todo (esindril) Move the fetcher and flusher functionality in the
     # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
     EosNsQuarkdb-Shared

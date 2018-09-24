@@ -82,8 +82,7 @@ target_link_libraries(
   eos-unit-tests
   gtest_main
   gmock
-  eosCommonServer
-  XrdEosMgm-Shared
+  XrdEosMgm-Static
   EosFstIo-Static
   ${READLINE_LIBRARY}
   ${XROOTD_SERVER_LIBRARY})
