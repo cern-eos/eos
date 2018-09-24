@@ -25,7 +25,9 @@ mkdir man1
 
 # create eos command include file
 $(dirname $0)/create_eos_cmds.pl ${excluded[*]} > eos.cmds
-help2man --include eos.cmds --no-discard-stderr --help-option="-h " --no-info eos > man1/eos.1
+# @todo: On the SLC6 help2man version there is no "--no-discard-stderr" option.
+# Add it back once we drop SLC6 support.
+help2man --include eos.cmds --help-option="-h " --no-info eos > man1/eos.1
 gzip man1/eos.1
 unlink eos.cmds
 
@@ -39,8 +41,9 @@ echo "Generating man pages:"
 for (( i=0; i<${#commands[@]}; i++ )); do
     name="${commands[$i]}"
     printf "  [%2s/%2s] Processing command %s\n" $((${i} + 1)) ${#commands[@]} ${name}
-
-    help2man --name "eos $name" --no-discard-stderr --help-option="$name -h " --no-info "eos " > man1/eos-${name}.1 \
+    # @todo: On the SLC6 help2man version there is no "--no-discard-stderr" option.
+    # Add it back once we drop SLC6 support.
+    help2man --name "eos $name"  --help-option="$name -h " --no-info "eos " > man1/eos-${name}.1 \
         && gzip man1/eos-${name}.1 &
 done
 
