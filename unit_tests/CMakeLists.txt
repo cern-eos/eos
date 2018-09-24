@@ -35,6 +35,12 @@ include_directories(
   "${gtest_SOURCE_DIR}/include"
   "${gmock_SOURCE_DIR}/include")
 
+set(EOS_UT_RPATH
+  "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
+  "${CMAKE_BINARY_DIR}/common/;${CMAKE_BINARY_DIR}/mq/;"
+  "${CMAKE_BINARY_DIR}/auth_plugin/;${CMAKE_BINARY_DIR}/namespace/ns_quarkdb/;"
+  "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
+
 set(MQ_UT_SRCS
   mq/XrdMqMessageTests.cc)
 
@@ -71,11 +77,18 @@ add_executable(eos-unit-tests ${UT_SRCS})
 set(UT_FST_SRCS ${FST_UT_SRCS})
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
-set(EOS_UT_RPATH
-  "${CMAKE_BINARY_DIR}/fst/;${CMAKE_BINARY_DIR}/mgm/;"
-  "${CMAKE_BINARY_DIR}/common/;${CMAKE_BINARY_DIR}/mq/;"
-  "${CMAKE_BINARY_DIR}/auth_plugin/;${CMAKE_BINARY_DIR}/namespace/ns_quarkdb/;"
-  "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
+add_dependencies(eos-unit-tests EosConsoleCommands-Objects)
+
+target_link_libraries(
+  eos-unit-tests
+  gtest_main
+  gmock
+  eosCommonServer
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
+  XrdEosMgm-Shared
+  EosFstIo-Static
+  ${READLINE_LIBRARY}
+  ${XROOTD_SERVER_LIBRARY})
 
 set_target_properties(
   eos-unit-tests PROPERTIES
@@ -92,19 +105,6 @@ set_target_properties(
   SKIP_BUILD_RPATH  FALSE
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-add_dependencies(eos-unit-tests EosConsoleCommands-Objects)
-
-target_link_libraries(
-  eos-unit-tests
-  gtest_main
-  gmock
-  eosCommonServer
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
-  XrdEosMgm-Shared
-  EosFstIo-Static
-  ${READLINE_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY})
 
 target_link_libraries(
   eos-fst-unit-tests

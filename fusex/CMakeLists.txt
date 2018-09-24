@@ -37,8 +37,7 @@ include_directories(
   ${LIBEVENT_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
   ${RICHACL_INCLUDE_DIRS}
-  ${LIBBFD_INCLUDE_DIRS}
-  ./)
+  ${LIBBFD_INCLUDE_DIRS})
 
 find_package(RocksDB)
 
@@ -73,8 +72,7 @@ PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER fusex.proto )
 
 set_source_files_properties(
 	${PROTO_SRC} ${PROTO_HEADER}
-	PROPERTIES GENERATED 1
-)
+	PROPERTIES GENERATED 1)
 
 set(PROTO_SRC ${PROTO_SRC} PARENT_SCOPE)
 set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
@@ -130,14 +128,12 @@ add_library(eosxd-objects OBJECT
   ../common/ShellExecutor.cc
   ../common/ShellExecutor.hh
   submount/SubMount.cc submount/SubMount.hh
-  ${PROTO_SRC} ${PROTO_HEADER}
-)
+  ${PROTO_SRC} ${PROTO_HEADER})
 
 set_target_properties(
   eosxd-objects
   PROPERTIES
-  COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
-)
+  COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 #-------------------------------------------------------------------------------
 # eosxd common sources for all executables. We have to do this to combine
@@ -146,8 +142,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 set(EOSXD_COMMON_SOURCES
   $<TARGET_OBJECTS:EosFuseAuth>
-  $<TARGET_OBJECTS:eosxd-objects>
-)
+  $<TARGET_OBJECTS:eosxd-objects>)
 
 #-------------------------------------------------------------------------------
 # eosxd executables
@@ -155,58 +150,49 @@ set(EOSXD_COMMON_SOURCES
 add_executable(
   eosxd
   main.cc
-  ${EOSXD_COMMON_SOURCES}
-)
+  ${EOSXD_COMMON_SOURCES})
 
 if(MacOSX)
   target_link_libraries(
     eosxd
-    ${EOSXD_COMMON_LINK_LIBRARIES}
-  )
+    ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(
     eosxd
     PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
-  )
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 else()
 
   target_link_libraries(
     eosxd
     ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc
-)
+    jemalloc)
 
   set_target_properties(
     eosxd
     PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
-  )
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 endif()
 
 install(
   TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
-
 if (FUSE3_FOUND)
 add_executable(
   eosxd3
   main.cc
-  ${EOSXD_COMMON_SOURCES}
-)
+  ${EOSXD_COMMON_SOURCES})
 
   target_link_libraries(
     eosxd3
     ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc
-  )
+    jemalloc)
 
   set_target_properties(
     eosxd3
     PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS}
-  )
+    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 install(
   TARGETS eosxd3
