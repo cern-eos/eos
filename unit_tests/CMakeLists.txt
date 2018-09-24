@@ -72,7 +72,8 @@ set(FST_UT_SRCS
   fst/HealthTest.cc)
 
 set(UT_SRCS ${MQ_UT_SRCS} ${CONSOLE_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
-add_executable(eos-unit-tests ${UT_SRCS})
+add_executable(eos-unit-tests ${UT_SRCS}
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 set(UT_FST_SRCS ${FST_UT_SRCS})
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
@@ -82,7 +83,6 @@ target_link_libraries(
   gtest_main
   gmock
   eosCommonServer
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>
   XrdEosMgm-Shared
   EosFstIo-Static
   ${READLINE_LIBRARY}
