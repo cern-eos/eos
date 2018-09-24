@@ -356,14 +356,14 @@ add_library(XrdEosFst MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
   $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
-add_library(XrdEosFst-Shared SHARED
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
-
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_compile_definitions(XrdEosFst-Shared PUBLIC
+add_library(XrdEosFst-Static SHARED
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+
+target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst PRIVATE
@@ -385,7 +385,7 @@ target_link_libraries(XrdEosFst PRIVATE
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(XrdEosFst-Shared PUBLIC
+target_link_libraries(XrdEosFst-Static PUBLIC
   eosCommonServer
   EosFstIo
   eosCapability-Static

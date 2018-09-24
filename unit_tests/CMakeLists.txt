@@ -107,8 +107,7 @@ target_link_libraries(
   eos-fst-unit-tests
   gtest_main
   gmock
-  XrdEosFst-Shared
-  ${XROOTD_SERVER_LIBRARY})
+  XrdEosFst-Static)
 
 install(TARGETS
   eos-unit-tests eos-fst-unit-tests
