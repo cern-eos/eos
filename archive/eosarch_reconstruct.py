@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python2
 # ------------------------------------------------------------------------------
 # File: eosarch_reconstruct.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>

@@ -1,4 +1,5 @@
-#! /usr/bin/python
+#!/usr/bin/python2
+
 # ------------------------------------------------------------------------------
 # File: eosarchived.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>

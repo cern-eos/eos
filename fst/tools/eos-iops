@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/bash
 # ----------------------------------------------------------------------
 # File: eos-iops
 # Author: Andreas-Joachim Peters - CERN
