@@ -102,7 +102,7 @@ public:
 
 private:
 
-  void monitor();
+  void monitor() noexcept;
 
   std::string cmd;
   ShellExecutor::fifo_uuid_t uuid;

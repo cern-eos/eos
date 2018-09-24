@@ -63,10 +63,21 @@ ShellCmd::ShellCmd(std::string const& cmd):
   // create a 'fifo' for 'stdin'
   stdin_name = ShellExecutor::fifo_name(uuid, ShellExecutor::stdin);
   (void) mkfifo(stdin_name.c_str(), 0666);
+
   // execute the command
-  pid = ShellExecutor::instance().execute(cmd, uuid);
-  // start the monitor thread
-  monitor_thread = std::thread(&ShellCmd::monitor, this);
+  try {
+    pid = ShellExecutor::instance().execute(cmd, uuid);
+    // Start the monitor thread
+    monitor_thread = std::thread(&ShellCmd::monitor, this);
+  } catch (const eos::common::ShellException& e) {
+    // There was an exception thrown while executing the command
+    cmd_stat.exited = true;
+    cmd_stat.exit_code = ESRCH;
+    cmd_stat.signaled = false;
+    cmd_stat.signo = 0;
+    cmd_stat.status = ESRCH;;
+  }
+
   //----------------------------------------------------------------------------
   // open the 'fifos'
   // (the order is not random: it has to match the order in
@@ -105,7 +116,7 @@ ShellCmd::~ShellCmd()
 
 /*----------------------------------------------------------------------------*/
 void
-ShellCmd::monitor()
+ShellCmd::monitor() noexcept
 {
   // set the active flag
   monitor_active = true;
