@@ -382,7 +382,6 @@ public:
   int mHttpdPort; ///< listening port of the http server
 private:
   HttpServer* mHttpd; ///< Embedded http server
-
   bool Simulate_IO_read_error; ///< simulate an IO error on read
   bool Simulate_IO_write_error; ///< simulate an IO error on write
   bool Simulate_XS_read_error; ///< simulate a checksum error on read
@@ -408,6 +407,16 @@ private:
   //! are readers [1] are writers
   std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap;
   XrdSysMutex TpcMapMutex; ///< Mutex protecting the Tpc map
+
+  //----------------------------------------------------------------------------
+  //! Compute adler checksum of given keytab file
+  //!
+  //! @param kt_path absolute path to keytab file
+  //!
+  //! @return string representing the checksum or "unaccessible" if keytab
+  //!         is unavailable
+  //----------------------------------------------------------------------------
+  std::string GetKeytabChecksum(const std::string& kt_path) const;
 };
 
 //------------------------------------------------------------------------------

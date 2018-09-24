@@ -582,6 +582,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
+  // Compute checkusm of the keytab file
+  std::string kt_cks = GetKeytabChecksum("/etc/eos.keytab");
+  eos::fst::Config::gConfig.KeyTabAdler = kt_cks.c_str();
   // Create the messaging object(recv thread)
   eos::fst::Config::gConfig.FstDefaultReceiverQueue += "*/mgm";
   int pos1 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//");
@@ -696,7 +699,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   dumperfile += "so.fst.dump.";
   dumperfile += eos::fst::Config::gConfig.FstHostPort;
   ObjectManager.StartDumper(dumperfile.c_str());
-  XrdOucString keytabcks = "unaccessible";
   // Start the embedded HTTP server
   mHttpdPort = 8001;
 
@@ -710,30 +712,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpd->Start();
   }
 
-  // Build the adler checksum of the default keytab file
-  int fd = ::open("/etc/eos.keytab", O_RDONLY);
-
-  if (fd >= 0) {
-    char buffer[65535];
-    size_t nread = ::read(fd, buffer, sizeof(buffer));
-
-    if (nread > 0) {
-      CheckSum* KeyCKS = ChecksumPlugins::GetChecksumObject(
-                           eos::common::LayoutId::kAdler);
-
-      if (KeyCKS) {
-        KeyCKS->Add(buffer, nread, 0);
-        keytabcks = KeyCKS->GetHexChecksum();
-        delete KeyCKS;
-      }
-    }
-
-    close(fd);
-  }
-
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s",
-             mHostName, myPort, mHttpdPort, VERSION, RELEASE, keytabcks.c_str());
-  eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
+             mHostName, myPort, mHttpdPort, VERSION, RELEASE, kt_cks.c_str());
   return 0;
 }
 
@@ -1648,4 +1628,35 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   gOFS.ReportQueue.push(reportString);
   gOFS.ReportQueueMutex.UnLock();
 }
+
+//------------------------------------------------------------------------------
+// Compute adler checksum of given keytab file
+//------------------------------------------------------------------------------
+std::string
+XrdFstOfs::GetKeytabChecksum(const std::string& kt_path) const
+{
+  std::string kt_cks = "unaccessible";
+  int fd = ::open(kt_path.c_str(), O_RDONLY);
+
+  if (fd >= 0) {
+    char buffer[65535];
+    size_t nread = ::read(fd, buffer, sizeof(buffer));
+
+    if (nread > 0) {
+      CheckSum* KeyCKS = ChecksumPlugins::GetChecksumObject(
+                           eos::common::LayoutId::kAdler);
+
+      if (KeyCKS) {
+        KeyCKS->Add(buffer, nread, 0);
+        kt_cks = KeyCKS->GetHexChecksum();
+        delete KeyCKS;
+      }
+    }
+
+    close(fd);
+  }
+
+  return kt_cks;
+}
+
 EOSFSTNAMESPACE_END
