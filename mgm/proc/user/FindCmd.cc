@@ -74,7 +74,6 @@ static void printChecksum(std::ofstream& ss, const eos::console::FindProto& req,
 {
   if (req.checksum()) {
     ss << " checksum=";
-
     std::string checksum;
     eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
     ss << checksum;
@@ -848,10 +847,10 @@ eos::mgm::FindCmd::ProcessRequest()
         if (!findRequest.files() && !nodirs) {
           if (!printcounter) {
             printPath(ofstdoutStream, findResult.path, printxurl);
+            ofstdoutStream << std::endl;
           }
 
           dircounter++;
-          ofstdoutStream << std::endl;
         }
       } else {
         cnt++;
