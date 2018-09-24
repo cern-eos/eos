@@ -131,6 +131,9 @@ TEST(Routing, StallRedirect)
                             port, stat_info));
   ASSERT_TRUE(host == "eos_dummy3.cern.ch");
   ASSERT_TRUE(port == 3094);
+  ASSERT_TRUE(PathRouting::Status::NOROUTING == route.Reroute("/",
+              "&mgm.fsid=3452&mgm.fid=0e98cc49&mgm.localprefix=/data13",
+              vid, host, port, stat_info));
 
   // Put all endpoints as not online and not master to trigger stall response
   for (const auto& input : inputs) {

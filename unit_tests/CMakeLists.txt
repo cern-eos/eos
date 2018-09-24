@@ -77,8 +77,6 @@ add_executable(eos-unit-tests ${UT_SRCS})
 set(UT_FST_SRCS ${FST_UT_SRCS})
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
-add_dependencies(eos-unit-tests EosConsoleCommands-Objects)
-
 target_link_libraries(
   eos-unit-tests
   gtest_main
