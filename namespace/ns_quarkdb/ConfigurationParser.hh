@@ -32,6 +32,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include <map>
 
 EOSNSNAMESPACE_BEGIN
 
