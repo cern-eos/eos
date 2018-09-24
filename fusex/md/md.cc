@@ -1587,6 +1587,7 @@ metad::cleanup(shared_md md)
   md->cap_count_reset();
   md->set_nchildren(md->local_children().size());
   md->get_todelete().clear();
+  md->setop_none();     /* so that wait_flush() returns */
   md->Locker().UnLock();
 
   if ((EosFuse::Instance().Config().options.data_kernelcache) ||
