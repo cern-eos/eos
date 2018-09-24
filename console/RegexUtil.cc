@@ -24,7 +24,7 @@
 #include "RegexUtil.hh"
 
 RegexUtil::RegexUtil()
-  : m_regex(), m_tokenize(false), m_origin("")
+  : m_regex(), m_tokenize(false), m_origin(""), mInitialized(false)
 {
   for (unsigned i = 0; i < max_num_of_matches; ++i) {
     m_matches[i].rm_so = 0;
@@ -34,6 +34,12 @@ RegexUtil::RegexUtil()
 
 void RegexUtil::SetRegex(std::string regex_txt, int flags)
 {
+  if (mInitialized) {
+    regfree(&m_regex);
+  } else {
+    mInitialized = true;
+  }
+
   int status = regcomp(&(m_regex), regex_txt.c_str(),
                        flags ? flags : REG_EXTENDED | REG_NEWLINE);
 

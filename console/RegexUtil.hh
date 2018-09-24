@@ -37,14 +37,15 @@
 //------------------------------------------------------------------------------
 class RegexUtil
 {
-  static const unsigned max_num_of_matches = 128; //< Length of matched regex arr
-  //< Enum containing signal values if smth gone wrong
+  static const unsigned max_num_of_matches = 128; ///< Length of matched regex arr
+  ///< Enum containing signal values if smth gone wrong
   enum RegexErr {NOTOKENMODEON = -1, NOMOREMATCHES = -2};
-  regex_t m_regex; //< Posix regex object
-  regmatch_t m_matches[max_num_of_matches]; //< Matches from regex_t
-  bool m_tokenize; //< Tokenizer mode indicator
-  std::string m_origin; //< pointer to source string
-  std::string m_regex_string; //< Regex string
+  regex_t m_regex; ///< Posix regex object
+  regmatch_t m_matches[max_num_of_matches]; ///< Matches from regex_t
+  bool m_tokenize; ///< Tokenizer mode indicator
+  std::string m_origin; ///< pointer to source string
+  std::string m_regex_string; ///< Regex string
+  bool mInitialized; ///< True if regex obj is initialized
 
 public:
   //------------------------------------------------------------------------------
@@ -52,13 +53,23 @@ public:
   //------------------------------------------------------------------------------
   RegexUtil();
 
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
+  ~RegexUtil()
+  {
+    if (mInitialized) {
+      regfree(&m_regex);
+    }
+  }
+
   //----------------------------------------------------------------------------
   //! Setting regex string and flags
   //!
   //! @param in regex string
   //! @param flags int
   //----------------------------------------------------------------------------
-  void SetRegex(std::string regex, int flags = 0); /*throw (std::string)*/
+  void SetRegex(std::string regex, int flags = 0);
 
   //----------------------------------------------------------------------------
   //! Setting origin pointer to string

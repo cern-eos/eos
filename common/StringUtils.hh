@@ -26,13 +26,48 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-inline bool startsWith(const std::string& str, const std::string &prefix) {
-  if(prefix.size() > str.size()) return false;
-
-  for(size_t i = 0; i < prefix.size(); i++) {
-    if(str[i] != prefix[i]) return false;
+inline bool startsWith(const std::string& str, const std::string& prefix)
+{
+  if (prefix.size() > str.size()) {
+    return false;
   }
+
+  for (size_t i = 0; i < prefix.size(); i++) {
+    if (str[i] != prefix[i]) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+//------------------------------------------------------------------------------
+//! Left trim string in-place
+//------------------------------------------------------------------------------
+static inline void ltrim(std::string& s)
+{
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+    return !std::isspace(ch);
+  }));
+}
+
+//------------------------------------------------------------------------------
+//! Rigth trim string in-place
+//------------------------------------------------------------------------------
+static inline void rtrim(std::string& s)
+{
+  s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+    return !std::isspace(ch);
+  }).base(), s.end());
+}
+
+//------------------------------------------------------------------------------
+//! Trim from both ends in-place
+//------------------------------------------------------------------------------
+static inline void trim(std::string& s)
+{
+  ltrim(s);
+  rtrim(s);
 }
 
 EOSCOMMONNAMESPACE_END

@@ -173,8 +173,8 @@ com_config(char* arg1)
         XrdOucString line = arg1;
         int pos = line.find("-c");
         line.replace("-c", "--comment", pos, pos + 1);
+        std::string cmd = parse_comment(line.c_str(), comment);
 
-        parse_comment((char *) line.c_str(), comment);
         if (comment.length()) {
           in += "&mgm.config.comment=";
           in += comment.c_str();
@@ -260,7 +260,8 @@ com_config_usage:
       << "       -v|--vid      : " << "dump only virtual id config" << std::endl
       << std::endl
       << "config export [-f] [<name>]" << std::endl
-      << "       export a configuration stored on file to QuarkDB - you need to specify the full path" << std::endl
+      << "       export a configuration stored on file to QuarkDB - you need to specify the full path"
+      << std::endl
       << "       -f : " <<
       "overwrite existing config name and create a timestamped backup"
       << std::endl

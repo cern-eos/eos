@@ -33,6 +33,7 @@
 #include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
+#include "common/StringUtils.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqTiming.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -271,13 +272,15 @@ abspath(const char* in)
   if (gPwd == "/") {
     // check if we are in a /eos/ mountpoint
     char pwd[4096];
+
     if (getcwd(pwd, sizeof(pwd))) {
       XrdOucString lpwd = pwd;
+
       if (lpwd.beginswith("/eos")) {
-	      inpath = pwd;
-	      inpath += "/";
+        inpath = pwd;
+        inpath += "/";
       } else {
-	      inpath = gPwd;
+        inpath = gPwd;
       }
     } else {
       inpath = gPwd;
@@ -285,6 +288,7 @@ abspath(const char* in)
   } else {
     inpath = gPwd;
   }
+
   inpath += in;
   eos::common::Path cPath(inpath.c_str());
   inpath = cPath.GetPath();
@@ -884,7 +888,6 @@ Run(int argc, char* argv[])
           } else {
             stringstream ss;
             ss << std::quoted(argv[i]);
-
             cmdline += " ";
             cmdline += ss.str().c_str();
           }
@@ -1131,17 +1134,19 @@ int
 execute_line(char* line)
 {
   std::string comment;
-  if (!(line = parse_comment(line, comment))) {
-    fprintf(stderr,
-            "error: syntax for comment is '<command> <args> --comment \"<comment>\"'\n");
+  std::string line_without_comment = parse_comment(line, comment);
+
+  if (line_without_comment.empty()) {
+    fprintf(stderr, "error: syntax for comment is '<command> <args> "
+            "--comment \"<comment>\"'\n");
     global_retc = -1;
     return (-1);
   }
-  global_comment = comment.c_str();
 
+  global_comment = comment.c_str();
   // Isolate the command word from the rest of the arguments
-  std::list<std::string> tokens =
-    eos::common::StringTokenizer::split<std::list<std::string>>(line, ' ');
+  std::list<std::string> tokens = eos::common::StringTokenizer::split
+                                  <std::list<std::string>>(line_without_comment.c_str(), ' ');
 
   if (!tokens.size()) {
     global_retc = -1;
@@ -1157,8 +1162,9 @@ execute_line(char* line)
     return (-1);
   }
 
-  line = stripwhite(line + tokens.begin()->size());
-  std::string args = (line)  ?  line  :  "";
+  line_without_comment = line_without_comment.substr(tokens.begin()->size());
+  eos::common::trim(line_without_comment);
+  std::string args = line_without_comment;
   return ((*(command->func))((char*)args.c_str()));
 }
 
@@ -1208,11 +1214,10 @@ stripwhite(char* string)
 // Parse the command line, extracts the comment
 // and returns the line without the comment in it
 //------------------------------------------------------------------------------
-char*
-parse_comment(char* line, std::string& comment)
+std::string
+parse_comment(const char* line, std::string& comment)
 {
   std::string exec_line = line;
-
   // Commands issued from the EOS shell do not encase arguments in quotes
   // whereas commands issued from the terminal do
   size_t cbpos = exec_line.find("\"--comment\"");
@@ -1226,14 +1231,14 @@ parse_comment(char* line, std::string& comment)
   if (cbpos != std::string::npos) {
     // Check that line doesn't end with comment flag
     if (cbpos + size == exec_line.length()) {
-      return 0;
+      return std::string();
     }
 
     // Check we found a complete word
     if (exec_line[cbpos + size] == ' ') {
       // Check we have comment text
       if (cbpos + size + 3 >= exec_line.length()) {
-        return 0;
+        return std::string();
       }
 
       // Comment text should always start with quotes: --comment "<comment>"
@@ -1242,20 +1247,19 @@ parse_comment(char* line, std::string& comment)
 
         // Comment text should always end with quotes: --comment "<comment>"
         if (cepos != std::string::npos) {
-          comment =
-              exec_line.substr(cbpos + size + 1, cepos - (cbpos + size)).c_str();
+          comment = exec_line.substr(cbpos + size + 1, cepos -
+                                     (cbpos + size)).c_str();
           exec_line.erase(cbpos, cepos - cbpos + 1);
-          line = (char *) exec_line.c_str();
         } else {
-          return 0;
+          return std::string();
         }
       } else {
-        return 0;
+        return std::string();
       }
     }
   }
 
-  return line;
+  return exec_line;
 }
 
 //------------------------------------------------------------------------------

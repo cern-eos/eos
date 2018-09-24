@@ -184,4 +184,5 @@ TEST(XrdMqMessage, RSATest)
   ASSERT_TRUE(decrypted_length == data_length);
   free(encrypted_data);
   free(decrypted_data);
+  BIO_free(bio);
 }

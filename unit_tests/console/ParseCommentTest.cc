@@ -31,17 +31,15 @@ TEST(ParseComment, ValidSyntax)
 {
   std::string comment;
   char* line;
-
   // Arguments as they are
   line = (char*) "eos version --comment \"Hello Comment\"";
-  line = parse_comment(line, comment);
+  std::string cmd = parse_comment(line, comment);
   ASSERT_STRNE(line, 0);
   ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
-
   // Arguments quote-encased
   line = (char*) "eos \"version\" \"--comment\" \"Hello Comment\"";
-  line = parse_comment(line, comment);
-  ASSERT_STRNE(line, 0);
+  cmd = parse_comment(line, comment);
+  ASSERT_FALSE(cmd.empty());
   ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
 }
 
@@ -52,29 +50,25 @@ TEST(ParseComment, InvalidSyntax)
 {
   std::string comment;
   char* line;
-
   // Missing comment text
   line = (char*) "eos version --comment";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, 0);
+  std::string cmd = parse_comment(line, comment);
+  ASSERT_TRUE(cmd.empty());
   ASSERT_TRUE(comment.empty());
-
   // Empty comment text
   line = (char*) "eos version --comment \"\"";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, 0);
+  cmd = parse_comment(line, comment);
+  ASSERT_TRUE(cmd.empty());
   ASSERT_TRUE(comment.empty());
-
   // Missing starting quote for comment text
   line = (char*) "eos version --comment Hello Comment\"";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, 0);
+  cmd = parse_comment(line, comment);
+  ASSERT_TRUE(cmd.empty());
   ASSERT_TRUE(comment.empty());
-
   // Missing ending quote for comment text
   line = (char*) "eos version --comment \"Hello Comment";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, 0);
+  cmd = parse_comment(line, comment);
+  ASSERT_TRUE(cmd.empty());
   ASSERT_TRUE(comment.empty());
 }
 
@@ -85,8 +79,8 @@ TEST(ParseComment, CommentExtraction)
 {
   std::string comment;
   char* line = (char*) "eos --comment \"Hello Comment\" version";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, "eos  version");
+  std::string cmd = parse_comment(line, comment);
+  ASSERT_STREQ(cmd.c_str(), "eos  version");
   ASSERT_STREQ(comment.c_str(), "\"Hello Comment\"");
 }
 
@@ -97,16 +91,14 @@ TEST(ParseComment, NoCommentPresent)
 {
   std::string comment;
   char* line;
-
   // Comment flag missing completely
   line = (char*) "eos version";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, "eos version");
+  std::string cmd = parse_comment(line, comment);
+  ASSERT_STREQ(cmd.c_str(), "eos version");
   ASSERT_TRUE(comment.empty());
-
   // Similar flag containing --comment text
   line = (char*) "eos config dump --comments";
-  line = parse_comment(line, comment);
-  ASSERT_STREQ(line, "eos config dump --comments");
+  cmd = parse_comment(line, comment);
+  ASSERT_STREQ(cmd.c_str(), "eos config dump --comments");
   ASSERT_TRUE(comment.empty());
 }
