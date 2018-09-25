@@ -2043,6 +2043,7 @@ Quota::QuotaBySpace(const eos::IContainerMD::id_t qino, uid_t uid, gid_t gid,
 
 //------------------------------------------------------------------------------
 // Private method to collect desired info from a quota node
+// returns std::numeric_limits<long>::max() / 2; in avail_files or avail_bytes if not quota is set
 //------------------------------------------------------------------------------
 int
 Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
@@ -2090,6 +2091,11 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
     maxbytes = maxbytes_project;
   }
 
+  if (!freebytes && (maxbytes == 0)) {
+    // this is no quota set
+    freebytes = std::numeric_limits<long>::max() / 2;
+  }
+
   long long maxfiles_user, maxfiles_group, maxfiles_project;
   long long freefiles_user, freefiles_group, freefiles_project;
   long long freefiles = 0;
@@ -2129,6 +2135,11 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
 
   if (maxfiles_project > maxfiles) {
     maxfiles = maxfiles_project;
+  }
+
+  if (!freefiles && (maxfiles == 0)) {
+    // this is no quota set
+    freefiles = std::numeric_limits<long>::max() / 2;
   }
 
   avail_files = freefiles;
