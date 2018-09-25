@@ -523,7 +523,7 @@ cap::capflush(ThreadAssistant& assistant)
         }
 
         if ((now - capemptytime) > CAP_EXTENSION_TIME) {
-          eos_static_crit("forgetting all md from mdmap");
+          eos_static_notice("forgetting all md from mdmap");
           mds->forget_all();
           capemptytime = now;
         }
