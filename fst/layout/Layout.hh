@@ -74,7 +74,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~Layout();
+  virtual ~Layout() = default;
 
   //----------------------------------------------------------------------------
   //! Get the name of the layout
@@ -305,7 +305,7 @@ public:
   //--------------------------------------------------------------------------
   FileIo* GetFileIo()
   {
-    return mFileIO;
+    return mFileIO.get();
   }
 
   //--------------------------------------------------------------------------
@@ -313,11 +313,7 @@ public:
   //--------------------------------------------------------------------------
   virtual void Redirect(const char* path)
   {
-    if (mFileIO) {
-      delete mFileIO;
-    }
-
-    mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+    mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
   }
 
 protected:
@@ -335,7 +331,7 @@ protected:
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
-  FileIo* mFileIO; //< IO object as entry server
+  std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
 };
 
 EOSFSTNAMESPACE_END

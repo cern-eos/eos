@@ -79,7 +79,7 @@ public:
   //! @return status of the operation
   //!
   //----------------------------------------------------------------------------
-  bool WriteToFile(FileIo*& pFile, uint16_t timeout);
+  bool WriteToFile(FileIo* pFile, uint16_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -91,7 +91,7 @@ public:
   //! @return status of the operation
   //!
   //----------------------------------------------------------------------------
-  bool ReadFromFile(FileIo*& pFile, uint16_t timeout);
+  bool ReadFromFile(FileIo* pFile, uint16_t timeout);
 
 
   //----------------------------------------------------------------------------

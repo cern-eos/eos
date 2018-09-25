@@ -97,8 +97,8 @@ RaidMetaLayout::~RaidMetaLayout()
     FileIo* file = mStripe.back();
     mStripe.pop_back();
 
-    if (file == mFileIO) {
-      mFileIO = NULL;
+    if (file == mFileIO.get()) {
+      continue; // this is deleted when mFileIO is destroyed
     }
 
     delete file;
@@ -116,11 +116,7 @@ RaidMetaLayout::~RaidMetaLayout()
 //------------------------------------------------------------------------------
 void RaidMetaLayout::Redirect(const char* path)
 {
-  if (mFileIO) {
-    delete mFileIO;
-  }
-
-  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
 }
 
 //------------------------------------------------------------------------------
@@ -216,12 +212,12 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     return SFS_ERROR;
   }
 
-  mStripe.push_back(mFileIO);
+  mStripe.push_back(mFileIO.get());
   mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
   // Read header information for the local file
   HeaderCRC* hd = mHdrInfo.back();
 
-  if (!hd->ReadFromFile(mFileIO, mTimeout)) {
+  if (!hd->ReadFromFile(mFileIO.get(), mTimeout)) {
     eos_warning("reading header failed for local stripe - will try to recover");
   }
 

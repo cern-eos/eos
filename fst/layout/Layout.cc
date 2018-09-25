@@ -21,11 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -33,13 +30,10 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Layout::Layout(XrdFstOfsFile* file) :
-  mIsEntryServer(false), mLayoutId(0), mLastErrCode(0),
+  mIsEntryServer(false), mLayoutId(0), mName(""), mLastErrCode(0),
   mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
-  mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(0)
-{
-  mName = "";
-}
-
+  mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(nullptr)
+{}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -64,18 +58,8 @@ Layout::Layout(XrdFstOfsFile* file,
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
   mLocalPath = (path ? path : "");
-  mFileIO = FileIoPlugin::GetIoObject((path ? path : ""), mOfsFile, mSecEntity);
-}
-
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-Layout::~Layout()
-{
-  if (mFileIO) {
-    delete mFileIO;
-  }
+  mFileIO.reset(FileIoPlugin::GetIoObject((path ? path : ""), mOfsFile,
+                                          mSecEntity));
 }
 
 EOSFSTNAMESPACE_END

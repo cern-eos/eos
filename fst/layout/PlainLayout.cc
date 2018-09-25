@@ -109,15 +109,11 @@ PlainLayout::~PlainLayout()
 }
 
 //------------------------------------------------------------------------------
-// Redirect toa new target
+// Redirect to a new target
 //------------------------------------------------------------------------------
 void PlainLayout::Redirect(const char* path)
 {
-  if (mFileIO) {
-    delete mFileIO;
-  }
-
-  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
   mLocalPath = path;
 }
 
@@ -159,7 +155,7 @@ PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
                        const char* opaque)
 {
   mFlags = flags;
-  eos::fst::XrdIo* io_file = dynamic_cast<eos::fst::XrdIo*>(mFileIO);
+  eos::fst::XrdIo* io_file = dynamic_cast<eos::fst::XrdIo*>(mFileIO.get());
 
   if (!io_file) {
     eos_err("failed dynamic cast to XrdIo object");
@@ -228,13 +224,9 @@ PlainLayout::CleanReadCache()
   }
 }
 
-
-
-
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
-
 int64_t
 PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
                   XrdSfsXferSize length, bool readahead)

@@ -48,11 +48,7 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 void ReplicaParLayout::Redirect(const char* path)
 {
-  if (mFileIO) {
-    delete mFileIO;
-  }
-
-  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
   mLocalPath = path;
 }
 

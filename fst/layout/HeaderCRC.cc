@@ -74,7 +74,7 @@ HeaderCRC::~HeaderCRC()
 // Read header from generic file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::ReadFromFile(FileIo*& pFile, uint16_t timeout)
+HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 {
   long int offset = 0;
   size_t read_sizeblock = 0;
@@ -120,7 +120,7 @@ HeaderCRC::ReadFromFile(FileIo*& pFile, uint16_t timeout)
 // Write header to generic file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::WriteToFile(FileIo*& pFile, uint16_t timeout)
+HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
   int offset = 0;
   char* buff = new char[mSizeHeader];
