@@ -3011,7 +3011,8 @@ FuseServer::HandleMD(const std::string& id,
 
           if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
               EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
-            eos_static_err("ino=%lx name=%s atomic path is forbidden as a filename");
+            eos_static_err("name=%s atomic path is forbidden as a filename",
+                           md.name().c_str());
             return EPERM;
           }
 
@@ -3024,6 +3025,32 @@ FuseServer::HandleMD(const std::string& id,
           // retrieve the layout
           Policy::GetLayoutAndSpace("fusex", attrmap, *vid, layoutId, space, env,
                                     forcedFsId, forcedGroup);
+
+          if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {
+            // check inode quota here
+            long long avail_bytes = 0;
+            long long avail_files = 0;
+
+            try {
+              eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+              if (!Quota::QuotaBySpace(quotanode->getId(),
+                                       vid->uid,
+                                       vid->gid,
+                                       avail_files,
+                                       avail_bytes)) {
+                if (!avail_files) {
+                  eos_static_err("name=%s out-of-inode-quota uid=%u gid=%u",
+                                 md.name().c_str(),
+                                 vid->uid,
+                                 vid->gid);
+                  return EDQUOT;
+                }
+              }
+            } catch (eos::MDException& e) {
+            }
+          }
+
           fmd = gOFS->eosFileService->createFile();
           fmd->setName(md.name());
           fmd->setLayoutId(layoutId);

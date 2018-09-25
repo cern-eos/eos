@@ -154,6 +154,10 @@ backend::mapErrCode(int retc)
     retc = EAGAIN;
     break;
 
+  case kXR_overQuota:
+    retc = EDQUOT;
+    break;
+
   default:
     retc = EIO;
   }

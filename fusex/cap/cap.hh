@@ -255,7 +255,8 @@ public:
     XrdSysMutexHelper qLock(q->Locker());
 
     if ((q->volume_quota() > size) &&
-        (q->inode_quota() > 0)) {
+        ((q->inode_quota() > 0) || (!size))) {
+      // it size is 0, we should not check for inodes
       return q->volume_quota();
     }
 
