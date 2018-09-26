@@ -298,7 +298,13 @@ public:
     return extensionLock;
   }
 
+  XrdSysMutex& get_revocationLock()
+  {
+    return revocationLock;
+  }
+
   typedef std::map<std::string, size_t> extension_map_t;
+  typedef std::set<std::string> revocation_set_t;;
 
   extension_map_t& get_extensionmap()
   {
@@ -311,6 +317,10 @@ public:
     return capmap.size();
   }
 
+  revocation_set_t& get_revocationmap()
+  {
+    return revocationset;
+  }
 
   forgotten forgetlist;
 
@@ -324,8 +334,11 @@ private:
   metad* mds;
 
   XrdSysMutex extensionLock;
-  extension_map_t extensionmap; // map containing all authids
+  extension_map_t extensionmap; // map containing all authids to extend
   // with their lifetime increment to be sent by the heartbeat
+
+  XrdSysMutex revocationLock;
+  revocation_set_t revocationset; // set containing all authids to revoke
 
 };
 #endif /* FUSE_CAP_HH_ */

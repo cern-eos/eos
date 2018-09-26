@@ -91,6 +91,12 @@ cap::reset()
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(capmap);
+  XrdSysMutexHelper rLock(revocationLock);
+
+  for (auto it : capmap) {
+    revocationset.insert(it.second->authid());
+  }
+
   capmap.clear();
 }
 
@@ -269,6 +275,8 @@ cap::forget(const std::string& cid)
       shared_cap cap = capmap[cid];
       inode = cap->id();
       capmap.erase(cid);
+      XrdSysMutexHelper rLock(revocationLock);
+      revocationset.insert(cap->authid());
     } else {
       eos_static_debug("forget capid=%s cap: ENOENT", cid.c_str());
     }
@@ -296,7 +304,8 @@ cap::imply(shared_cap cap,
   *implied_cap = *cap;
   implied_cap->set_authid(imply_authid);
   implied_cap->set_id(ino);
-  implied_cap->set_vtime(cap->vtime() + 300);
+  implied_cap->set_vtime(cap->vtime() +
+                         EosFuse::Instance().Config().options.leasetime);
   std::string clientid = cap->clientid();
   std::string cid = capx::capid(ino, clientid);
   XrdSysMutexHelper mLock(capmap);

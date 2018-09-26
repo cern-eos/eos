@@ -231,6 +231,7 @@ public:
       int no_xattr;
       int no_hardlinks;
       uint32_t nocache_graceperiod;
+      int leasetime;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 

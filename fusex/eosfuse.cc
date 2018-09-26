@@ -333,6 +333,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["md-kernelcache"] = 1;
       }
 
+      if (!root["options"].isMember("leasetime")) {
+        root["options"]["leasetime"] = 300;
+      }
+
       if (!root["options"].isMember("md-kernelcache.enoent.timeout")) {
         root["options"]["md-kernelcache.enoent.timeout"] = 0.01;
       }
@@ -574,6 +578,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     config.options.nocache_graceperiod =
       root["options"]["nocache-graceperiod"].asInt();
+    config.options.leasetime = root["options"]["leasetime"].asInt();
     config.recovery.read = root["recovery"]["read"].asInt();
     config.recovery.read_open = root["recovery"]["read-open"].asInt();
     config.recovery.read_open_noserver =
@@ -1233,7 +1238,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1257,7 +1262,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.no_hardlinks,
                        config.options.nocache_graceperiod,
                        config.options.rm_rf_protect_levels,
-                       config.options.rm_rf_bulk
+                       config.options.rm_rf_bulk,
+                       config.options.leasetime
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
@@ -3336,7 +3342,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
         md->set_err(0);
         md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
-        md->set_fullpath(pmd->fullpath() + name);
+        md->set_fullpath(pmd->fullpath() + "/" + name);
 
         if (S_ISFIFO(mode)) {
           (*md->mutable_attr())[k_fifo] = "";
@@ -4087,6 +4093,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     static std::string s_debug = "system.eos.debug";
     static std::string s_dropcap = "system.eos.dropcap";
     static std::string s_dropallcap = "system.eos.dropallcap";
+    static std::string s_resetstat = "system.eos.resetstat";
 
     if (key.substr(0, s_debug.length()) == s_debug) {
       local_setxattr = true;
@@ -4151,6 +4158,15 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       } else {
         rc = EPERM;
       }
+    }
+
+    if (fuse_req_ctx(req)->uid == 0) {
+      if (key.substr(0, s_resetstat.length()) == s_resetstat) {
+        local_setxattr = true;
+        Instance().getFuseStat().Clear();
+      }
+    } else {
+      rc = EPERM;
     }
   }
 

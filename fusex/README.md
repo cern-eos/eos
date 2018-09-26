@@ -55,6 +55,7 @@ This
     "no-xattr" : 1,
     "no-link" : 0,
     "nocache-graceperiod" : 5
+    "leasetime" : 300
   },
   "auth" : {
     "shared-mount" : 1,
@@ -342,6 +343,10 @@ Show all hidden system attributes on a given path
 ```
 # getfattr -d -m - <path>
 ```
+
+Reset the statis counters on a mount as root
+
+# setfattr -n system.eos.resetstat <any-path>
 
 Server Interaction with a FUSE mount
 ------------------------------------

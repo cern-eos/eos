@@ -2371,12 +2371,15 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV3);
   hb.mutable_heartbeat_()->set_pid((int32_t) getpid());
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
+  hb.mutable_heartbeat_()->set_leasetime(
+    EosFuse::Instance().Config().options.leasetime);
   hb.set_type(hb.HEARTBEAT);
   eos::fusex::response rsp;
   size_t cnt = 0;
   int interval = 1;
+  bool shutdown = false;
 
-  while (!assistant.terminationRequested()) {
+  while (!assistant.terminationRequested() || shutdown == false) {
     try {
       std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
       eos_static_debug("");
@@ -2395,6 +2398,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
         if (assistant.terminationRequested()) {
           return;
+        }
+
+        if (assistant.terminationRequested()) {
+          shutdown = true;
+          eos_static_notice("sending shutdown heartbeat message");
+          hb.mutable_heartbeat_()->set_shutdown(true);
         }
 
         if (items[0].revents & ZMQ_POLLIN) {
@@ -2692,8 +2701,20 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           ;
         }
 
-        extmap.clear();
-        eos_static_debug("cap-extension: map-size=%u", extmap.size());
+        // add caps to be revoked
+        XrdSysMutexHelper rLock(EosFuse::Instance().getCap().get_revocationLock());
+        auto rmap = hb.mutable_heartbeat_()->mutable_authrevocation();
+        cap::revocation_set_t revocationset =
+          EosFuse::Instance().getCap().get_revocationmap();
+
+        for (auto it = revocationset.begin(); it != revocationset.end(); ++it) {
+          (*rmap)[*it] = 0;
+          eos_static_notice("cap-revocation: authid=%s", it->c_str());
+        }
+
+        revocationset.clear();
+        eos_static_debug("cap-extension: map-size=%u cap-revocation: map-size=%u",
+                         extmap.size(), revocationset.size());
       }
 
       std::string hbstream;

@@ -111,7 +111,10 @@ message heartbeat {
   double delta = 9; //< client delta after arrival
   ProtVersion protversion = 10;
   map<string, fixed32> authextension = 11; // < map of authids to extend lifetime by seconds 
-  
+  map<string, fixed32> authrevocation = 12; // < map of authids to revoke - pair of authid/unused
+  fixed32 leasetime = 13; 
+  bool shutdown = 14;
+
 }
 
 message statistics {

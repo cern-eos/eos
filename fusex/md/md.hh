@@ -832,7 +832,6 @@ private:
   std::string zmq_clientuuid;
   std::mutex zmq_socket_mutex;
   std::atomic<int> want_zmq_connect;
-
   backend* mdbackend;
 };
 
