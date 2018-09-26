@@ -158,6 +158,22 @@ public:
                authid_t authid,
                authid_t implied_authid);
 
+    bool Remove(shared_cap cap)
+    {
+      // you have to have a write lock for the caps
+      if (mCaps.count(cap->authid())) {
+        mCaps.erase(cap->authid());
+        mInodeCaps[cap->id()].erase(cap->authid());
+
+        if (!mInodeCaps[cap->id()].size()) {
+          mInodeCaps.erase(cap->id());
+        }
+
+        return true;
+      } else {
+        return false;
+      }
+    }
 
     int Delete(uint64_t id);
 
@@ -226,9 +242,9 @@ public:
   {
   public:
     Clients():
-      mHeartBeatWindow(15), mHeartBeatOfflineWindow(60),
-      mHeartBeatRemoveWindow(900), mHeartBeatInterval(1),
-      mQuotaCheckInterval(1)
+      mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
+      mHeartBeatRemoveWindow(120), mHeartBeatInterval(1),
+      mQuotaCheckInterval(10)
     {}
 
     virtual ~Clients() = default;
@@ -308,6 +324,8 @@ public:
     {
       return mUUIDView;
     }
+
+    size_t leasetime(const std::string& uuid);
 
     void
     MonitorHeartBeat();

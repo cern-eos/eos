@@ -126,24 +126,30 @@ FuseServer::Clients::MonitorHeartBeat()
                                   int64_t) tsnow.tv_nsec - (int64_t) it->second.heartbeat().clock_ns()) * 1.0 /
                                 1000000000.0);
 
-        if (last_heartbeat > mHeartBeatWindow) {
-          if (last_heartbeat > mHeartBeatOfflineWindow) {
-            if (last_heartbeat > mHeartBeatRemoveWindow) {
-              evictmap[it->second.heartbeat().uuid()] = it->first;
-              it->second.set_state(Client::EVICTED);
-            } else {
-              // drop locks once
-              if (it->second.state() != Client::OFFLINE) {
-                gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
-              }
+        if (it->second.heartbeat().shutdown()) {
+          evictmap[it->second.heartbeat().uuid()] = it->first;
+          it->second.set_state(Client::EVICTED);
+          eos_static_info("client='%s' shutdown", it->first.c_str());
+        } else {
+          if (last_heartbeat > mHeartBeatWindow) {
+            if (last_heartbeat > mHeartBeatOfflineWindow) {
+              if (last_heartbeat > mHeartBeatRemoveWindow) {
+                evictmap[it->second.heartbeat().uuid()] = it->first;
+                it->second.set_state(Client::EVICTED);
+              } else {
+                // drop locks once
+                if (it->second.state() != Client::OFFLINE) {
+                  gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+                }
 
-              it->second.set_state(Client::OFFLINE);
+                it->second.set_state(Client::OFFLINE);
+              }
+            } else {
+              it->second.set_state(Client::VOLATILE);
             }
           } else {
-            it->second.set_state(Client::VOLATILE);
+            it->second.set_state(Client::ONLINE);
           }
-        } else {
-          it->second.set_state(Client::ONLINE);
         }
 
         if (it->second.heartbeat().protversion() < it->second.heartbeat().PROTOCOLV2) {
@@ -192,6 +198,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
   EXEC_TIMING_BEGIN("Eosxd::int::Heartbeat");
   bool rc = true;
   eos::common::RWMutexWriteLock lLock(*this);
+  std::set<Caps::shared_cap> caps_to_revoke;
 
   if (this->map().count(identity)) {
     rc = false;
@@ -214,6 +221,21 @@ FuseServer::Clients::Dispatch(const std::string identity,
       }
     }
   }
+  {
+    // apply auth revocation requested by the client
+    auto map = hb.mutable_authrevocation();
+
+    for (auto it = map->begin(); it != map->end(); ++it) {
+      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().Get(it->first);
+
+      if (cap) {
+        caps_to_revoke.insert(cap);
+        eos_static_info("cap-revocation: authid=%s vtime:= %u",
+                        it->first.c_str(),
+                        cap->vtime());
+      }
+    }
+  }
 
   if (rc) {
     // ask a client to drop all caps when we see him the first time because we might have lost our caps due to a restart/failover
@@ -223,6 +245,15 @@ FuseServer::Clients::Dispatch(const std::string identity,
     cfg.set_hbrate(mHeartBeatInterval);
     cfg.set_dentrymessaging(true);
     BroadcastConfig(identity, cfg);
+  } else {
+    // revoke LEASES by cap
+    for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
+      eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
+      gOFS->zMQ->gFuseServer.Cap().Remove(*it);
+      //      gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)((*it)->id()),
+      //             (*it)->clientuuid(),
+      //             (*it)->clientid());
+    }
   }
 
   EXEC_TIMING_END("Eosxd::int::Heartbeat");
@@ -459,7 +490,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "......   ino-ever-del : %ld\n"
                  "......   threads      : %d\n"
                  "......   vsize        : %.03f GB\n"
-                 "......   rsize        : %.03f GB\n",
+                 "......   rsize        : %.03f GB\n"
+                 "......   leasetime    : %u s\n",
                  it->second.statistics().inodes(),
                  it->second.statistics().inodes_todelete(),
                  it->second.statistics().inodes_backlog(),
@@ -467,7 +499,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.statistics().inodes_ever_deleted(),
                  it->second.statistics().threads(),
                  it->second.statistics().vsize_mb() / 1024.0,
-                 it->second.statistics().rss_mb() / 1024.0);
+                 it->second.statistics().rss_mb() / 1024.0,
+                 it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300);
         out += formatline;
       }
 
@@ -524,6 +557,24 @@ FuseServer::Clients::Print(std::string& out, std::string options,
     }
   }
 }
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+size_t
+FuseServer::Clients::leasetime(const std::string& uuid)
+{
+  // requires a Client read lock
+  size_t leasetime = 0;
+
+  if (this->uuidview().count(uuid) &&
+      this->map().count(this->uuidview()[uuid])) {
+    leasetime = this->map()[this->uuidview()[uuid]].heartbeat().leasetime();
+  }
+
+  return leasetime;
+}
+
 
 //------------------------------------------------------------------------------
 //
@@ -838,14 +889,22 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   implied_cap->set_vid(cap->vid());
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
-  implied_cap->set_vtime(ts.tv_sec + 300);
-  implied_cap->set_vtime_ns(ts.tv_nsec);
-  // fill the three views on caps
-  mTimeOrderedCap.push_back(implied_authid);
-  mClientCaps[cap->clientid()].insert(implied_authid);
-  mClientInoCaps[cap->clientid()].insert(md_ino);
-  mCaps[implied_authid] = implied_cap;
-  mInodeCaps[md_ino].insert(implied_authid);
+  {
+    size_t leasetime = 0;
+    {
+      eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Client());
+      leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(cap->clientuuid());
+    }
+    eos::common::RWMutexWriteLock lock(*this);
+    implied_cap->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
+    implied_cap->set_vtime_ns(ts.tv_nsec);
+    // fill the three views on caps
+    mTimeOrderedCap.push_back(implied_authid);
+    mClientCaps[cap->clientid()].insert(implied_authid);
+    mClientInoCaps[cap->clientid()].insert(md_ino);
+    mCaps[implied_authid] = implied_cap;
+    mInodeCaps[md_ino].insert(implied_authid);
+  }
   return true;
 }
 
@@ -1902,12 +1961,18 @@ FuseServer::FillContainerCAP(uint64_t id,
 
   eos::common::Timing::GetTimeSpec(ts, true);
 
-  dir.mutable_capability()->set_vtime(ts.tv_sec + 300);
+  size_t leasetime = 0;
 
+  {
+    eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Client());
+    leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
+    eos_static_debug("checking client %s leastime=%d", dir.clientid().c_str(),
+                     leasetime);
+  }
+
+  dir.mutable_capability()->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
   dir.mutable_capability()->set_vtime_ns(ts.tv_nsec);
-
   std::string sysmask = (*(dir.mutable_attr()))["sys.mask"];
-
   long mask = 0777;
 
   if (sysmask.length()) {
@@ -3500,7 +3565,7 @@ FuseServer::HandleMD(const std::string& id,
       lmd.set_clientuuid(md.clientuuid());
       lmd.set_clientid(md.clientid());
       // get the capability
-      FillContainerCAP(md.md_ino(), lmd, vid);
+      FillContainerCAP(md.md_ino(), lmd, vid, "");
     }
     // this cap only provides the permissions, but it is not a cap which
     // synchronized the meta data atomically, the client marks a cap locally
