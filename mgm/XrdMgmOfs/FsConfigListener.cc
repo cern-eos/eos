@@ -203,7 +203,7 @@ XrdMgmOfs::FsConfigListener()
             auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
             if (it_fs != FsView::gFsView.mIdView.end()) {
-              fs = it_fs->second;
+              FileSystem* fs = it_fs->second;
 
               if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
                 // check if the change notification is an actual change in the geotag
