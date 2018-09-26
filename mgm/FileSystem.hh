@@ -75,14 +75,12 @@ public:
   //----------------------------------------------------------------------------
   virtual ~FileSystem()
   {
-    mDrainJobMutex.Lock();
+    XrdSysMutexHelper lock(mDrainJobMutex);
 
     if (mDrainJob) {
       delete mDrainJob;
       mDrainJob = 0;
     }
-
-    mDrainJobMutex.UnLock();
   }
 
   //----------------------------------------------------------------------------

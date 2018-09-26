@@ -554,13 +554,6 @@ public:
   ConsiderCount(bool lock,
                 const std::set<eos::common::FileSystem::fsid_t>* subset);
 
-  //----------------------------------------------------------------------------
-  //! Calculate the number of fsid regardless of being considered for
-  //! averages or not.
-  //----------------------------------------------------------------------------
-  long long TotalCount(bool lock,
-                       const std::set<eos::common::FileSystem::fsid_t>* subset);
-
 private:
   time_t mHeartBeat; ///< Last heartbeat time
   std::string mStatus; ///< Status (meaning depends on inheritor)
@@ -967,9 +960,6 @@ public:
   //! Map translating a filesystem ID to a file system object
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
 
-  //! Map translating a filesystem object pointer to a filesystem ID
-  std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
-
   //! Mutex protecting the set of gateway nodes mGwNodes
   eos::common::RWMutex GwMutex;
 
@@ -1125,6 +1115,8 @@ private:
   //! Map translating a unique ID to a filesystem ID
   std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
+  //! Map translating a filesystem object pointer to a filesystem ID
+  std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
 };
 
 //------------------------------------------------------------------------------

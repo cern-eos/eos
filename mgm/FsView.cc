@@ -1561,7 +1561,7 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
     if (mNodeView.count(snapshot.mQueue)) {
       // Loop over all attached filesystems and compare the queue path
       for (auto it = mNodeView[snapshot.mQueue]->begin();
-           it != mNodeView[snapshot.mQueue]->end(); it++) {
+           it != mNodeView[snapshot.mQueue]->end(); ++it) {
         if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
           // This queuepath already exists, we cannot register
           return false;
@@ -1965,13 +1965,17 @@ FsView::UnRegisterNode(const char* nodename)
     while (mNodeView.count(nodename) &&
            (mNodeView[nodename]->begin() != mNodeView[nodename]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
-      FileSystem* fs = mIdView[fsid];
+      auto it_fs = mIdView.find(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
-                         (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (it_fs != mIdView.end()) {
+        FileSystem* fs = it_fs->second;
+
+        if (fs) {
+          has_fs = true;
+          eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
+                           (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
+          retc |= UnRegister(fs);
+        }
       }
     }
 
@@ -2019,13 +2023,17 @@ FsView::UnRegisterSpace(const char* spacename)
     while (mSpaceView.count(spacename) &&
            (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
-      FileSystem* fs = mIdView[fsid];
+      auto it_fs = mIdView.find(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
-                         (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (it_fs != mIdView.end()) {
+        FileSystem* fs = it_fs->second;
+
+        if (fs) {
+          has_fs = true;
+          eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
+                           (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
+          retc |= UnRegister(fs);
+        }
       }
     }
 
@@ -2074,13 +2082,17 @@ FsView::UnRegisterGroup(const char* groupname)
     while (mGroupView.count(groupname) &&
            (mGroupView[groupname]->begin() != mGroupView[groupname]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
-      FileSystem* fs = mIdView[fsid];
+      auto it_fs = mIdView.find(fsid);
 
-      if (fs) {
-        has_fs = true;
-        eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
-                         (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
-        retc |= UnRegister(fs);
+      if (it_fs != mIdView.end()) {
+        FileSystem* fs = it_fs->second;
+
+        if (fs) {
+          has_fs = true;
+          eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
+                           (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
+          retc |= UnRegister(fs);
+        }
       }
     }
 
@@ -2170,7 +2182,7 @@ FileSystem*
 FsView::FindByQueuePath(std::string& queuepath)
 {
   // Needs an external ViewMutex lock !!!!
-  for (auto it = mIdView.begin(); it != mIdView.end(); it++) {
+  for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
     if (it->second->GetQueuePath() == queuepath) {
       return it->second;
     }
@@ -2248,9 +2260,8 @@ FsView::HeartBeatCheck()
       // quickly go through all heartbeats
       eos::common::RWMutexReadLock lock(ViewMutex);
 
-      // iterator over all filesystems
       for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
-        if (!it->second) {
+        if (it->second == nullptr) {
           continue;
         }
 
@@ -3076,7 +3087,7 @@ BaseView::SumLongLong(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       eos::common::FileSystem::fs_snapshot snapshot;
 
       // for query sum's we always fold in that a group and host has to be enabled
@@ -3149,11 +3160,11 @@ BaseView::SumDouble(const char* param, bool lock,
   double sum = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   }
@@ -3182,7 +3193,7 @@ BaseView::AverageDouble(const char* param, bool lock,
   int cnt = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3203,7 +3214,7 @@ BaseView::AverageDouble(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3248,15 +3259,15 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
   double dev = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
-            ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() !=
+             eos::common::FileSystem::kBooted) ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
           consider = false;
@@ -3272,7 +3283,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3321,7 +3332,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
   double dev = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3345,7 +3356,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3393,7 +3404,7 @@ BaseView::MinDeviation(const char* param, bool lock,
   double dev = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3417,7 +3428,7 @@ BaseView::MinDeviation(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3465,7 +3476,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
   int cnt = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3486,7 +3497,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3531,7 +3542,7 @@ BaseView::ConsiderCount(bool lock,
   long long cnt = 0;
 
   if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
+    for (auto it = subset->begin(); it != subset->end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3551,7 +3562,7 @@ BaseView::ConsiderCount(bool lock,
       }
     }
   } else {
-    for (auto it = begin(); it != end(); it++) {
+    for (auto it = begin(); it != end(); ++it) {
       bool consider = true;
 
       if (mType == "groupview") {
@@ -3570,32 +3581,6 @@ BaseView::ConsiderCount(bool lock,
         cnt++;
       }
     }
-  }
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
-  return cnt;
-}
-
-//------------------------------------------------------------------------------
-// Computes the considered count
-//------------------------------------------------------------------------------
-long long
-BaseView::TotalCount(bool lock,
-                     const std::set<eos::common::FileSystem::fsid_t>* subset)
-{
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
-  long long cnt = 0;
-
-  if (subset) {
-    cnt = subset->size();
-  } else {
-    cnt = size();
   }
 
   if (lock) {

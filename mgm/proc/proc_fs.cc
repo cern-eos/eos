@@ -1033,7 +1033,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
   // without any file systems i.e highest priority
   std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
-  for (auto&& grp : grps) {
+  for (auto && grp : grps) {
     ret_grps.push_back(grp->mName);
   }
 
@@ -1076,7 +1076,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto&& elem : failed_fs) {
+    for (auto && elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1139,7 +1139,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto&& elem : failed_fs) {
+    for (auto && elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1178,6 +1178,10 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
     // find by id
     if (FsView::gFsView.mIdView.count(fsid)) {
       fs = FsView::gFsView.mIdView[fsid];
+
+      if (fs == nullptr) {
+        FsView::gFsView.mIdView.erase(fsid);
+      }
     }
   } else {
     if (mountpoint.length() && nodename.length()) {
@@ -1189,8 +1193,8 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
   if (fs) {
     std::string nodename = fs->GetString("host");
-    size_t dpos = 0;
     std::string cstate = fs->GetString("configstatus");
+    size_t dpos = 0;
 
     if ((dpos = nodename.find('.')) != std::string::npos) {
       nodename.erase(dpos);

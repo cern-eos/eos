@@ -200,9 +200,10 @@ XrdMgmOfs::FsConfigListener()
                       "queue %s which is not registered ", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
+            auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-            if (FsView::gFsView.mIdView.count(fsid)) {
-              fs = FsView::gFsView.mIdView[fsid];
+            if (it_fs != FsView::gFsView.mIdView.end()) {
+              fs = it_fs->second;
 
               if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
                 // check if the change notification is an actual change in the geotag
@@ -330,20 +331,20 @@ XrdMgmOfs::FsConfigListener()
                 (bstatus == eos::common::FileSystem::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+              auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-              if (FsView::gFsView.mIdView.count(fsid)) {
-                FileSystem* fs = FsView::gFsView.mIdView[fsid];
-                fs->SetConfigStatus(eos::common::FileSystem::kDrain);
+              if (it_fs != FsView::gFsView.mIdView.end()) {
+                it_fs->second->SetConfigStatus(eos::common::FileSystem::kDrain);
               }
             }
 
             if (fsid && (!errc)) {
               // Make sure there is no drain job triggered by a previous filesystem errc!=0
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+              auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-              if (FsView::gFsView.mIdView.count(fsid)) {
-                FileSystem* fs = FsView::gFsView.mIdView[fsid];
-                fs->StopDrainJob();
+              if (it_fs != FsView::gFsView.mIdView.end()) {
+                it_fs->second->StopDrainJob();
               }
             }
           }

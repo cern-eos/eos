@@ -72,17 +72,15 @@ FileSystem::StopDrainJob()
     return false;
   }
 
-  mDrainJobMutex.Lock();
+  XrdSysMutexHelper lock(mDrainJobMutex);
 
   if (mDrainJob) {
     delete mDrainJob;
     mDrainJob = 0;
     SetDrainStatus(eos::common::FileSystem::kNoDrain);
-    mDrainJobMutex.UnLock();
     return true;
   }
 
-  mDrainJobMutex.UnLock();
   return false;
 }
 
