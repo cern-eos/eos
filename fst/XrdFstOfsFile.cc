@@ -728,7 +728,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
     }
 
     snprintf(report, sizeof(report) - 1,
-             "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&"
+             "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
              "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
              "ots=%lu&otms=%lu&"
              "cts=%lu&ctms=%lu&"
@@ -743,6 +743,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
+             , mFstPath.c_str()
              , this->vid.uid, this->vid.gid, tIdent.c_str()
              , gOFS.mHostName, mLid, mFileId, mFsId
              , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
