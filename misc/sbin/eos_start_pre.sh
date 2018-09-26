@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: eos_start_pre.sh
 # Author: Ivan Arizanovic - ComTrade Solutions Engineering
