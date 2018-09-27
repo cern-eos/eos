@@ -40,6 +40,7 @@ Storage::Communicator()
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
   std::string watch_scaninterval = "scaninterval";
+  std::string watch_scanrate = "scanrate";
   std::string watch_symkey = "symkey";
   std::string watch_manager = "manager";
   std::string watch_publishinterval = "publish.interval";
@@ -54,6 +55,8 @@ Storage::Communicator()
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_id,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_bootsenttime,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scaninterval,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
@@ -425,10 +428,10 @@ Storage::Communicator()
                   RunBootThread(mQueue2FsMap[queue.c_str()]);
                 }
               } else {
-                if (key == "bootsenttime") {
-                  gOFS.ObjectManager.HashMutex.UnLockRead();
+                gOFS.ObjectManager.HashMutex.UnLockRead();
 
-                  // this is a request to (re-)boot a filesystem
+                if (key == "bootsenttime") {
+                  // Request to (re-)boot a filesystem
                   if (mQueue2FsMap.count(queue.c_str())) {
                     if ((mQueue2FsMap[queue.c_str()]->GetInternalBootStatus() ==
                          eos::common::FileSystem::kBooted)) {
@@ -455,19 +458,17 @@ Storage::Communicator()
                                    queue.c_str());
                   }
                 } else {
-                  if (key == "scaninterval") {
-                    gOFS.ObjectManager.HashMutex.UnLockRead();
+                  if ((key == "scaninterval") || (key == "scanrate")) {
+                    auto it_fs = mQueue2FsMap.find(queue.c_str());
 
-                    if (mQueue2FsMap.count(queue.c_str())) {
-                      time_t interval = (time_t)
-                                        mQueue2FsMap[queue.c_str()]->GetLongLong("scaninterval");
+                    if (it_fs != mQueue2FsMap.end()) {
+                      FileSystem* fs = it_fs->second;
+                      long long value = fs->GetLongLong(key.c_str());
 
-                      if (interval > 0) {
-                        mQueue2FsMap[queue.c_str()]->RunScanner(&mFstLoad, interval);
+                      if (value > 0) {
+                        fs->ConfigScanner(&mFstLoad, key.c_str(), value);
                       }
                     }
-                  } else {
-                    gOFS.ObjectManager.HashMutex.UnLockRead();
                   }
                 }
               }

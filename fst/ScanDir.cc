@@ -42,10 +42,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-// ---------------------------------------------------------------------------
-// - we miss ioprio.h and gettid
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// We're missing ioprio.h and gettid
+//------------------------------------------------------------------------------
 static int
 ioprio_set(int which, int who, int ioprio)
 {
@@ -91,7 +90,7 @@ enum {
 /*
  * 8 best effort priority levels are supported
  */
-#define IOPRIO_BE_NR    (8)
+#define IOPRIO_BE_NR (8)
 
 enum {
   IOPRIO_WHO_PROCESS = 1,
@@ -101,14 +100,14 @@ enum {
 
 EOSFSTNAMESPACE_BEGIN
 
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
                  eos::fst::Load* fstload, bool bgthread, long int testinterval,
                  int ratebandwidth, bool setchecksum) :
-
-  fstLoad(fstload), fsId(fsid), dirPath(dirpath), testInterval(testinterval),
-  setChecksum(setchecksum), rateBandwidth(ratebandwidth), forcedScan(false)
+  fstLoad(fstload), fsId(fsid), dirPath(dirpath), mTestInterval(testinterval),
+  mRateBandwidth(ratebandwidth), setChecksum(setchecksum), forcedScan(false)
 {
   thread = 0;
   noNoChecksumFiles = noScanFiles = 0;
@@ -151,7 +150,9 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 ScanDir::~ScanDir()
 {
   if ((bgThread && thread)) {
@@ -162,6 +163,22 @@ ScanDir::~ScanDir()
 
   if (buffer) {
     free(buffer);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Update scanner configuration
+//------------------------------------------------------------------------------
+void
+ScanDir::SetConfig(const std::string& key, long long value)
+{
+  eos_info("msg=\"update scanner configuration\" key=\"%s\" value=\"%s\"",
+           key.c_str(), std::to_string(value).c_str());
+
+  if (key == "scaninterval") {
+    mTestInterval = value;
+  } else if (key == "scanrate") {
+    mRateBandwidth = (int) value;
   }
 }
 
@@ -593,9 +610,9 @@ ScanDir::GetTimestampSmeared()
   struct timeval tv;
   gettimeofday(&tv, NULL);
   timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
-  // smear +- 20% of testInterval around the value
-  long int smearing = (long int)((0.2 * 2 * testInterval * random() / RAND_MAX))
-                      - ((long int)(0.2 * testInterval));
+  // smear +- 20% of mTestInterval around the value
+  long int smearing = (long int)((0.2 * 2 * mTestInterval * random() / RAND_MAX))
+                      - ((long int)(0.2 * mTestInterval));
   snprintf(buffer, size, "%lli", timestamp + smearing);
   return std::string(buffer);
 }
@@ -611,7 +628,7 @@ ScanDir::RescanFile(std::string fileTimestamp)
   long long oldTime = atoll(fileTimestamp.c_str());
   long long newTime = atoll(GetTimestamp().c_str());
 
-  if (((newTime - oldTime) / 1000000) < testInterval) {
+  if (((newTime - oldTime) / 1000000) < mTestInterval) {
     return false;
   } else {
     return true;
@@ -768,7 +785,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 {
   double load;
   bool retVal, corruptBlockXS = false;
-  int currentRate = rateBandwidth;
+  int currentRate = mRateBandwidth;
   std::string filePath, fileXSPath;
   struct timezone tz;
   struct timeval opentime;
@@ -852,7 +869,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
             currentRate = 0.9 * currentRate;
           }
         } else {
-          currentRate = rateBandwidth;
+          currentRate = mRateBandwidth;
         }
       }
     }

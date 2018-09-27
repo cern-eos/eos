@@ -156,6 +156,7 @@ public:
     long mDiskNameLen;
     long mDiskRopen;
     long mDiskWopen;
+    long mScanRate; ///< Maximum scan rate in MB/s
     time_t mScanInterval;
     time_t mGracePeriod;
     time_t mDrainPeriod;

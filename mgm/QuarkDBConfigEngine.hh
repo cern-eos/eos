@@ -50,7 +50,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~QuarkDBCfgEngineChangelog() {};
+  virtual ~QuarkDBCfgEngineChangelog() = default;
 
   //----------------------------------------------------------------------------
   //! Add entry to the changelog
@@ -59,8 +59,8 @@ public:
   //! @param value    entry key
   //! @param comment  entry value
   //----------------------------------------------------------------------------
-  void AddEntry(const std::string &action, const std::string &key,
-    const std::string &value);
+  void AddEntry(const std::string& action, const std::string& key,
+                const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -74,7 +74,7 @@ public:
 
 private:
   const std::string kChangelogKey = "eos-config-changelog"; ///< Changelog key
-  qclient::QClient &mQcl;
+  qclient::QClient& mQcl;
 };
 
 
@@ -105,7 +105,7 @@ public:
   //! @param configdir
   //! @param quarkDBcluster
   //----------------------------------------------------------------------------
-  QuarkDBConfigEngine(const QdbContactDetails &contactDetails);
+  QuarkDBConfigEngine(const QdbContactDetails& contactDetails);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -215,18 +215,19 @@ private:
   //----------------------------------------------------------------------------
   //! Form configuration hash key
   //----------------------------------------------------------------------------
-  std::string formConfigHashKey(const std::string &name) {
+  std::string formConfigHashKey(const std::string& name)
+  {
     return SSTR(kConfigurationHashKeyPrefix << ":" << name);
   }
 
   //----------------------------------------------------------------------------
   //! Form backup configuration hash key
   //----------------------------------------------------------------------------
-  std::string formBackupConfigHashKey(const std::string &name, time_t timestamp) {
+  std::string formBackupConfigHashKey(const std::string& name, time_t timestamp)
+  {
     char buff[128];
     time_t now = time(NULL);
     strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&now));
-
     return SSTR(kConfigurationBackupHashKeyPrefix << ":" << name << "-" << buff);
   }
 

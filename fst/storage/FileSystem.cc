@@ -33,10 +33,13 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FileSystem::FileSystem(const char* queuepath,
                        const char* queue, XrdMqSharedObjectManager* som):
-  eos::common::FileSystem(queuepath, queue, som, true)
+  eos::common::FileSystem(queuepath, queue, som, true),
+  mScanDir()
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
@@ -44,7 +47,6 @@ FileSystem::FileSystem(const char* queuepath,
   IOPS = 0;
   transactionDirectory = "";
   statFs = 0;
-  scanDir = 0;
   std::string n1 = queuepath;
   n1 += "/drain";
   std::string n2 = queuepath;
@@ -60,17 +62,14 @@ FileSystem::FileSystem(const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
   mRecoverable = false;
-  mFileIO = FileIoPlugin::GetIoObject(mPath);
+  mFileIO.reset(FileIoPlugin::GetIoObject(mPath));
 }
 
 /*----------------------------------------------------------------------------*/
 FileSystem::~FileSystem()
 {
-  delete scanDir;
-  delete mFileIO;
-  // ----------------------------------------------------------------------------
-  // we call the FmdSqliteHandler shutdown function for this filesystem
-  // ----------------------------------------------------------------------------
+  mScanDir.release();
+  mFileIO.release();
   gFmdDbMapHandler.ShutdownDB(GetId());
   // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running
@@ -131,7 +130,7 @@ FileSystem::GetStatfs()
   eos::common::Statfs::Callback::callback_data_t lData;
   std::string path = GetPath();
   lData.path = path.c_str();
-  lData.caller = (void*) mFileIO;
+  lData.caller = (void*) mFileIO.get();
   // lData.statfs is set in DoStatfs
   eos::common::Statfs::Callback::callback_t lCallback = FileIo::StatfsCB;
   statFs = eos::common::Statfs::DoStatfs(GetPath().c_str(), lCallback, &lData);
@@ -298,23 +297,25 @@ FileSystem::SyncTransactions(const char* manager)
   return ok;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Configure scanner thread - possibly start the scanner
+//------------------------------------------------------------------------------
 void
-FileSystem::RunScanner(Load* fstLoad, time_t interval)
+FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
+                          long long value)
 {
-  // don't scan filesystems which are 'remote'
+  // Don't scan filesystems which are 'remote'
   if (GetPath()[0] != '/') {
     return;
   }
 
-  if (scanDir) {
-    delete scanDir;
+  // If not running then create scanner thread with default parameters
+  if (mScanDir == nullptr) {
+    mScanDir.reset(new ScanDir(GetPath().c_str(), GetId(), fst_load, true));
+    eos_info("msg=\"%s\"", "started 'ScanDir' thread with default parameters");
   }
 
-  // create the object running the scanner thread
-  scanDir = new ScanDir(GetPath().c_str(), GetId(), fstLoad, true, interval);
-  eos_info("Started 'ScanDir' thread with interval time of %u seconds",
-           (unsigned long) interval);
+  mScanDir->SetConfig(key, value);
 }
 
 /*----------------------------------------------------------------------------*/

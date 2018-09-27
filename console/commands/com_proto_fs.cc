@@ -132,8 +132,10 @@ void com_fs_help()
       << std::endl
       << "    scaninterval=<seconds>" << std::endl
       << "      configure a scanner thread to recheck the file & block checksum"
-      << std::endl
       << "      of all stored files every <seconds>. 0 disables scanning"
+      << std::endl
+      << "    scanrate=<MB/s>" << std::endl
+      << "      configure the maximum scan rate"
       << std::endl
       << "    graceperiod=<seconds>" << std::endl
       << "      grace period before a filesystem with an operation error gets"

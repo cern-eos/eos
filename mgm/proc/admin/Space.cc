@@ -116,7 +116,8 @@ ProcCommand::Space()
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mSpaceView.count(spacename)) {
-          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          stdErr = "error: no such space - define one using 'space define' or "
+                   "add a filesystem under that space!";
           retc = EINVAL;
         } else {
           std::string key = "status";
@@ -172,7 +173,8 @@ ProcCommand::Space()
         eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mSpaceView.count(spacename)) {
-          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          stdErr = "error: no such space - define one using 'space define' or "
+                   "add a filesystem under that space!";
           retc = EINVAL;
         } else {
           {
@@ -248,7 +250,8 @@ ProcCommand::Space()
         eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mSpaceView.count(spacename)) {
-          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          stdErr = "error: no such space - define one using 'space define' or "
+                   "add a filesystem under that space!";
           retc = EINVAL;
         } else {
           {
@@ -293,7 +296,8 @@ ProcCommand::Space()
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (!FsView::gFsView.mSpaceView.count(spacename)) {
-          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          stdErr = "error: no such space - define one using 'space define' or "
+                   "add a filesystem under that space!";
           retc = EINVAL;
         } else {
           {
@@ -515,6 +519,7 @@ ProcCommand::Space()
             if ((key == "nominalsize") ||
                 (key == "headroom") ||
                 (key == "scaninterval") ||
+                (key == "scanrate") ||
                 (key == "graceperiod") ||
                 (key == "drainperiod") ||
                 (key == "balancer") ||
@@ -667,16 +672,17 @@ ProcCommand::Space()
             }
           }
 
-          // set a filesystem related parameter
+          // Set a filesystem related parameter
           if (!key.compare(0, 3, "fs.")) {
             key.erase(0, 3);
             // we disable the autosave, do all the updates and then switch back
             // to autosave and evt. save all changes
             gOFS->ConfEngine->SetAutoSave(false);
 
-            // store these as a global parameter of the space
+            // Store these as a global parameters of the space
             if (((key == "headroom") || (key == "scaninterval") ||
-                 (key == "graceperiod") || (key == "drainperiod"))) {
+                 (key == "scanrate") || (key == "graceperiod") ||
+                 (key == "drainperiod"))) {
               unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                           value.c_str());
               char ssize[1024];
@@ -699,9 +705,11 @@ ProcCommand::Space()
             }
 
             for (auto it = FsView::gFsView.mSpaceView[identifier]->begin();
-                 it != FsView::gFsView.mSpaceView[identifier]->end(); it++) {
-              if (FsView::gFsView.mIdView.count(*it)) {
-                fs = FsView::gFsView.mIdView[*it];
+                 it != FsView::gFsView.mSpaceView[identifier]->end(); ++it) {
+              auto it_fs = FsView::gFsView.mIdView.find(*it);
+
+              if (it_fs != FsView::gFsView.mIdView.end()) {
+                fs = it_fs->second;
 
                 if (fs) {
                   // check the allowed strings
@@ -722,8 +730,8 @@ ProcCommand::Space()
                     eos::common::StringConversion::GetSizeFromString(value.c_str());
 
                     if (((key == "headroom") || (key == "scaninterval") ||
-                         (key == "graceperiod") || (key == "drainperiod"))
-                        && (!errno)) {
+                         (key == "scanrate") || (key == "graceperiod") ||
+                         (key == "drainperiod"))  && (!errno)) {
                       fs->SetLongLong(key.c_str(),
                                       eos::common::StringConversion::GetSizeFromString(value.c_str()));
                       FsView::gFsView.StoreFsConfig(fs);

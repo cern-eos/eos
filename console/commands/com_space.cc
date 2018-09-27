@@ -522,6 +522,8 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout,
+          "       space config <space-name> space.scanrate=<MB/S>               : configure the default scan rate if not defined on a filesystem (see fs for details)\n");
+  fprintf(stdout,
           "       space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout,
           "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");

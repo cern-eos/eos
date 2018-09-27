@@ -348,9 +348,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
             eos::common::FileSystem::kUnknown)) ||
           (((key == "headroom") || (key == "scaninterval") ||
-            (key == "graceperiod") || (key == "drainperiod") ||
-            (key == "proxygroup") || (key == "filestickyproxydepth") ||
-            (key == "forcegeotag") || (key == "s3credentials")))) {
+            (key == "scanrate") || (key == "graceperiod") ||
+            (key == "drainperiod") || (key == "proxygroup") ||
+            (key == "filestickyproxydepth") || (key == "forcegeotag") ||
+            (key == "s3credentials")))) {
         // Check permissions
         size_t dpos = 0;
         std::string nodename = fs->GetString("host");
@@ -370,7 +371,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         }
 
         if ((key == "headroom") || (key == "scaninterval") ||
-            (key == "graceperiod") || (key == "drainperiod")) {
+            (key == "scanrate") || (key == "graceperiod") ||
+            (key == "drainperiod")) {
           fs->SetLongLong(key.c_str(),
                           eos::common::StringConversion::GetSizeFromString(value.c_str()));
           FsView::gFsView.StoreFsConfig(fs);

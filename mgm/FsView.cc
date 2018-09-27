@@ -900,6 +900,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("drainperiod", "86400", true, "/eos/*/mgm");
     }
 
+    // Set the scan rate by default to 100 MB/s
+    if (GetConfigMember("scanrate").empty()) {
+      SetConfigMember("scanrate", "100", true, "/eos/*/mgm");
+    }
+
     // Set the scan interval by default to 1 week
     if (GetConfigMember("scaninterval").empty()) {
       SetConfigMember("scaninterval", "604800", true, "/eos/*/mgm");
@@ -2939,8 +2944,9 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     configmap[keyval[0]] = keyval[1];
   }
 
-  if ((!configmap.count("queuepath")) || (!configmap.count("queue"))
-      || (!configmap.count("id"))) {
+  if ((!configmap.count("queuepath")) ||
+      (!configmap.count("queue")) ||
+      (!configmap.count("id"))) {
     eos_static_err("config definitions missing ...");
     return false;
   }
@@ -4092,6 +4098,13 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
       // try to apply the default
       if (GetConfigMember("scaninterval").length()) {
         fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
+        modified = true;
+      }
+    }
+
+    if (force || (!snapshot.mScanRate)) {
+      if (GetConfigMember("scanrate").length()) {
+        fs->SetString("scanrate", GetConfigMember("scanrate").c_str());
         modified = true;
       }
     }

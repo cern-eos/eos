@@ -568,6 +568,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mDiskWopen = (long) hash->GetLongLong("stat.wopen");
     fs.mWeightRead = 1.0;
     fs.mWeightWrite = 1.0;
+    fs.mScanRate = (time_t) hash->GetLongLong("scanrate");
     fs.mScanInterval = (time_t) hash->GetLongLong("scaninterval");
     fs.mGracePeriod = (time_t) hash->GetLongLong("graceperiod");
     fs.mDrainPeriod = (time_t) hash->GetLongLong("drainperiod");
@@ -626,6 +627,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mDiskNameLen = 0;
     fs.mDiskRopen = 0;
     fs.mDiskWopen = 0;
+    fs.mScanRate = 0;
     fs.mDrainerOn = false;
     fs.mBalThresh = 0.0;
     return false;
@@ -820,7 +822,6 @@ FileSystem::fsactive_t
 FileSystem::GetActiveStatus(bool cached)
 {
   fsactive_t rActive = 0;
-
   XrdSysMutexHelper lock(cActiveLock);
 
   if (cached) {

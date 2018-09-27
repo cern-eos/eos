@@ -23,7 +23,7 @@
 
 #ifndef __EOSFST_FILESYSTEM_HH__
 #define __EOSFST_FILESYSTEM_HH__
-/*----------------------------------------------------------------------------*/
+
 #include "fst/Namespace.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
@@ -33,19 +33,18 @@
 #include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
-
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <list>
 #include <queue>
 #include <map>
 
-/*----------------------------------------------------------------------------*/
-
-namespace eos { namespace common {
-  class Statfs;
-} }
+namespace eos
+{
+namespace common
+{
+class Statfs;
+}
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -53,39 +52,21 @@ class TransferQueue;
 class ScanDir;
 class Load;
 
-/*----------------------------------------------------------------------------*/
+//-------------------------------------------------------------------------------
+//! Class FileSystem
+//-------------------------------------------------------------------------------
 class FileSystem : public eos::common::FileSystem, eos::common::LogId
 {
-private:
-  XrdOucString transactionDirectory;
-
-  eos::common::Statfs*
-  statFs; // the owner of the object is a global hash in eos::common::Statfs - this are just references
-  eos::fst::ScanDir* scanDir; // the class scanning checksum on a filesystem
-  unsigned long last_blocks_free;
-  time_t last_status_broadcast;
-  std::atomic<eos::common::FileSystem::fsstatus_t>
-  mLocalBootStatus; // the internal boot state not stored in the shared hash
-
-  TransferQueue* mTxDrainQueue;
-  TransferQueue* mTxBalanceQueue;
-  TransferQueue* mTxExternQueue;
-
-  TransferMultiplexer mTxMultiplexer;
-
-  std::map<std::string, size_t> inconsistency_stats;
-  std::map<std::string, std::set<eos::common::FileId::fileid_t> >
-  inconsistency_sets;
-
-  long long seqBandwidth; // measurement of sequential bandwidth
-  int IOPS; // measurement of IOPS
-  FileIo* mFileIO; // file io plugin used for statfs calls
-  bool mRecoverable; // true if a filesystem was booted and then set to ops error
-
 public:
+  //-----------------------------------------------------------------------------
+  //! Constructor
+  //-----------------------------------------------------------------------------
   FileSystem(const char* queuepath, const char* queue,
              XrdMqSharedObjectManager* som);
 
+  //-----------------------------------------------------------------------------
+  //! Destructor
+  //-----------------------------------------------------------------------------
   ~FileSystem();
 
   void
@@ -93,13 +74,24 @@ public:
   {
     transactionDirectory = tx;
   }
+
   void CleanTransactions();
+
   bool SyncTransactions(const char* manager);
 
-  void RunScanner(Load* fstLoad, time_t interval);
+  //-----------------------------------------------------------------------------
+  //! Configure scanner thread - possibly start the scanner
+  //!
+  //! @param fst_load file system IO load monitoring object
+  //! @param key configuration key
+  //! @param value configuration value
+  //-----------------------------------------------------------------------------
+  void ConfigScanner(Load* fst_load, const std::string& key, long long value);
 
-  std::string
-  GetPath()
+  //-----------------------------------------------------------------------------
+  //! Get file system mount path
+  //-----------------------------------------------------------------------------
+  inline std::string GetPath()
   {
     return GetString("path");
   }
@@ -214,9 +206,7 @@ public:
       return false;
     }
 
-    delete mFileIO;
-    mFileIO = NULL;
-    mFileIO = FileIoPlugin::GetIoObject(GetPath().c_str());
+    mFileIO.reset(FileIoPlugin::GetIoObject(GetPath().c_str()));
     return true;
   }
 
@@ -241,11 +231,8 @@ public:
     std::string iostats;
     mFileIO->attrGet("sys.iostats", iostats);
     return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(),
-           map,
-           "=",
-           ",");
+           map, "=", ",");
   }
-
 
   bool getHealth(std::map<std::string, std::string>& map)
   {
@@ -268,10 +255,34 @@ public:
     std::string health;
     mFileIO->attrGet("sys.health", health);
     return eos::common::StringConversion::GetKeyValueMap(health.c_str(),
-           map,
-           "=",
-           ",");
+           map, "=", ",");
   }
+
+private:
+  std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
+  std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
+  XrdOucString transactionDirectory;
+  //! Owner of the object is a global hash in eos::common::Statfs - these
+  //! are just references
+  eos::common::Statfs* statFs;
+
+  unsigned long last_blocks_free;
+  time_t last_status_broadcast;
+  //! Internal boot state not stored in the shared hash
+  std::atomic<eos::common::FileSystem::fsstatus_t> mLocalBootStatus;
+
+  TransferQueue* mTxDrainQueue;
+  TransferQueue* mTxBalanceQueue;
+  TransferQueue* mTxExternQueue;
+  TransferMultiplexer mTxMultiplexer;
+  std::map<std::string, size_t> inconsistency_stats;
+  std::map<std::string, std::set<eos::common::FileId::fileid_t> >
+  inconsistency_sets;
+
+  long long seqBandwidth; // measurement of sequential bandwidth
+  int IOPS; // measurement of IOPS
+
+  bool mRecoverable; // true if a filesystem was booted and then set to ops error
 };
 
 EOSFSTNAMESPACE_END

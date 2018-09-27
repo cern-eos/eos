@@ -41,17 +41,61 @@ class Load;
 class FileIo;
 class CheckSum;
 
+//------------------------------------------------------------------------------
+//! Class ScanDir
+//! @brief Scan a directory tree and checks checksums (and blockchecksums if
+//! present) on a regular interval with limited bandwidth
+//------------------------------------------------------------------------------
 class ScanDir : eos::common::LogId
 {
+public:
+  static void* StaticThreadProc(void*);
+
   //----------------------------------------------------------------------------
-  //! This class scan's a directory tree and checks checksums (and
-  //! blockchecksums if present) in a defined interval with limited bandwidth.
+  //! Constructor
   //----------------------------------------------------------------------------
+  ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
+          eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
+          int ratebandwidth = 50, bool setchecksum = false);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ScanDir();
+
+  //----------------------------------------------------------------------------
+  //! Update scanner configuration
+  //!
+  //! @param key configuration type
+  //! @param value configuration value
+  //----------------------------------------------------------------------------
+  void SetConfig(const std::string&, long long value);
+
+  void* ThreadProc();
+
+  void ScanFiles();
+
+  void CheckFile(const char*);
+
+  eos::fst::CheckSum* GetBlockXS(const char*, unsigned long long maxfilesize);
+
+  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
+                         unsigned long long&, float&, const char*,
+                         unsigned long, const char* lfn,
+                         bool& filecxerror, bool& blockxserror);
+
+  std::string GetTimestamp();
+
+  std::string GetTimestampSmeared();
+
+  bool RescanFile(std::string);
+
 private:
   eos::fst::Load* fstLoad;
   eos::common::FileSystem::fsid_t fsId;
   XrdOucString dirPath;
-  long int testInterval; // in seconds
+  std::atomic<long long> mTestInterval; ///< Test interval in seconds
+  std::atomic<int> mRateBandwidth; ///< Max scan rate in MB/s
 
   // Statistics
   long int noScanFiles;
@@ -65,36 +109,12 @@ private:
   long int SkippedFiles;
 
   bool setChecksum;
-  int rateBandwidth; // MB/s
+
   long alignment;
   char* buffer;
   pthread_t thread;
   bool bgThread;
   bool forcedScan;
-
-public:
-
-  ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
-          eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
-          int ratebandwidth = 50, bool setchecksum = false);
-
-  void ScanFiles();
-
-  void CheckFile(const char*);
-  eos::fst::CheckSum* GetBlockXS(const char*, unsigned long long maxfilesize);
-  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
-                         unsigned long long&, float&, const char*, unsigned long, const char* lfn,
-                         bool& filecxerror, bool& blockxserror);
-
-  std::string GetTimestamp();
-  std::string GetTimestampSmeared();
-  bool RescanFile(std::string);
-
-  static void* StaticThreadProc(void*);
-  void* ThreadProc();
-
-  virtual ~ScanDir();
-
 };
 
 EOSFSTNAMESPACE_END

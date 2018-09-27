@@ -380,7 +380,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
   XrdOucString configname = formFullKey(prefix, key).c_str();
-  eos_static_debug("%s => %s", key, val);
+  eos_debug("%s => %s", key, val);
   XrdOucString* sdef = new XrdOucString(val);
   {
     XrdSysMutexHelper lock(mMutex);
