@@ -300,10 +300,11 @@ protected:
     }
   }
 
-  // ------------------------------------------------------------------------
-  //! this function is used when closing a set sequence it flushes setseqlist to 'db' and to 'db' if necessary
-  //! it returns the number of processed elements in the list
-  // ------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Function is used when closing a set sequence. Flushes setseqlist to
+  //! to 'db'. If necessary! it returns the number of processed elements in
+  //! the list.
+  //----------------------------------------------------------------------------
   int processSetSeqList()
   {
     unsigned long rc = (unsigned long)pSetSeqList.size();
@@ -873,19 +874,22 @@ public:
   //! Set a Key / full Value
   //! @param[in] key the key
   //! @param[in] val the full value struct
-  //! @return the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  //! @return the number of entries buffered in the seqlist. It means 0 the
+  //!          set sequence is not enabled.
   //!         -1 if an error occurs
   // ------------------------------------------------------------------------
   int set(const Slice& key, const TvalSlice& val)
   {
     // RWMutexWriteLock lock(mutex);
     if (pSetSequence) {
+      // If the current thread is iterating through the dbmap, don't lock
       if (!tlIterating) {
-        pMutex.LockWrite();  // if the current thread is iterating through the dbmap, don't lock
+        pMutex.LockWrite();
       }
 
-      // On the other hand, it allows to do some set inside an iteration by using a setsequence
-      // then endSetSequence should be called after Enditerate
+      // On the other hand, it allows to do some set inside an iteration
+      // by using a setsequence then endSetSequence should be called after
+      // endIter
       std::string keystr(key.ToString());
       pSetSeqList.push_back(Tkeyval(keystr, val));
       pSetSeqMap[keystr] = val;
