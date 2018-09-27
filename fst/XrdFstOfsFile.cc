@@ -185,8 +185,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
-  eos_info("path=%s info=%s isRW=%d open_mode=%x", mNsPath.c_str(),
-           maskOpaque.c_str(), isRW, open_mode);
+  eos_info("path=%s info=%s open_mode=%x", mNsPath.c_str(),
+           maskOpaque.c_str(), open_mode);
   // Process and filter open opaque information
   std::string in_opaque = (opaque ? opaque : "");
   in_opaque += "&mgm.path=";

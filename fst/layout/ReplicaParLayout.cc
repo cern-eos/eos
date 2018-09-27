@@ -165,10 +165,10 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   // Open all the replicas needed
-  for (int i = 0; i < (int)mReplicaUrl.size(); i++) {
+  for (int i = 0; i < mNumReplicas; i++) {
     if ((ioLocal) && (i == replica_index)) {
       // Only the referenced entry URL does local IO
-      mReplicaUrl[i] = mLocalPath;
+      // mReplicaUrl.push_back(mLocalPath);
       FileIo* file = FileIoPlugin::GetIoObject(mLocalPath, mOfsFile,
                      mSecEntity);
 
