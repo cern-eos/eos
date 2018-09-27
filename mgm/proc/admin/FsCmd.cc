@@ -644,7 +644,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 }
 
 //------------------------------------------------------------------------------
-// Drop files attached to a file system but file id
+// Drop files attached to a file system by file id
 //------------------------------------------------------------------------------
 int
 FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)

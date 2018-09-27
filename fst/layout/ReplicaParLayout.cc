@@ -100,18 +100,14 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                      "open replica - no replica head defined");
   }
 
-  //............................................................................
   // Define the replication head
-  //............................................................................
-  eos_info("replica_head=%i, replica_index = %i.", replica_head, replica_index);
+  eos_info("replica_head=%i, replica_index = %i", replica_head, replica_index);
 
   if (replica_index == replica_head) {
     is_head_server = true;
   }
 
-  //............................................................................
   // Define if this is the first client contact point
-  //............................................................................
   if (is_gateway || is_head_server) {
     mIsEntryServer = true;
   }
@@ -125,17 +121,22 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     // Assign stripe URLs
     std::string replica_url;
 
-    for (int i = 0; i < mNumReplicas; i++) {
+    for (int i = 0; i < mNumReplicas; ++i) {
       XrdOucString reptag = "mgm.url";
       reptag += i;
       const char* rep = mOfsFile->mCapOpaque->Get(reptag.c_str());
 
       if (!rep) {
-        eos_err("Failed to open replica - missing url for replica %s",
-                reptag.c_str());
-        return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
-                         "open stripes - missing url for replica ",
-                         reptag.c_str());
+        if (mOfsFile->isRW) {
+          eos_err("Failed to open replica - missing url for replica %s",
+                  reptag.c_str());
+          return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
+                           "open stripes - missing url for replica ",
+                           reptag.c_str());
+        } else {
+          // For read we can handle one of the replicas missing
+          continue;
+        }
       }
 
       // Check if the first replica is remote
@@ -164,10 +165,10 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   // Open all the replicas needed
-  for (int i = 0; i < mNumReplicas; i++) {
+  for (int i = 0; i < (int)mReplicaUrl.size(); i++) {
     if ((ioLocal) && (i == replica_index)) {
       // Only the referenced entry URL does local IO
-      mReplicaUrl.push_back(mLocalPath);
+      mReplicaUrl[i] = mLocalPath;
       FileIo* file = FileIoPlugin::GetIoObject(mLocalPath, mOfsFile,
                      mSecEntity);
 

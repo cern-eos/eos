@@ -251,7 +251,6 @@ XrdFstOss::xprerd(XrdOucStream& Config, XrdSysError& Eroute)
 XrdOssDF*
 XrdFstOss::newFile(const char* tident)
 {
-  eos_debug("Calling XrdFstOss::newFile");
   return (XrdOssDF*) new XrdFstOssFile(tident);
 }
 
