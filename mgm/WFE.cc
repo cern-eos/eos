@@ -2043,8 +2043,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   try {
     auto sentAt = std::chrono::steady_clock::now();
-    auto future = service.Send(request, response);
-    future.get();
+    service.Send(request, response);
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                      (receivedAt - sentAt);
