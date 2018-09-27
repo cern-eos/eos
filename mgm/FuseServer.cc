@@ -1406,10 +1406,6 @@ FuseServer::Caps::Delete(uint64_t md_ino)
     for (auto it = mClientCaps.begin(); it != mClientCaps.end(); it++) {
       // erase authid from the client set
       it->second.erase(*sit);
-      // erase authid from the time ordered list
-      mTimeOrderedCap.erase(std::remove(mTimeOrderedCap.begin(),
-                                        mTimeOrderedCap.end(),
-                                        *sit), mTimeOrderedCap.end());
     }
 
     if (mCaps.count(*sit)) {
