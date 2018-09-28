@@ -62,7 +62,6 @@ add_library(
   commands/com_console.cc
   commands/com_cp.cc
   commands/com_debug.cc
-  commands/com_dropbox.cc
   commands/com_file.cc
   commands/com_find.cc
   commands/com_fs.cc
@@ -162,32 +161,10 @@ set_target_properties(
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-add_executable(eosdropboxd dropbox/eosdropboxd.cc)
-
-if(Linux)
-  target_link_libraries(
-    eosdropboxd PRIVATE
-    eosCommon-Static
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${XROOTD_POSIX_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
-else()
-  target_link_libraries(
-    eosdropboxd PRIVATE
-    eosCommon
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${XROOTD_POSIX_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
-endif()
-
-install(
-  PROGRAMS eosadmin
+install(PROGRAMS eosadmin
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install(
-  TARGETS eos eosdropboxd
+install(TARGETS eos
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

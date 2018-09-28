@@ -348,7 +348,6 @@ The EOS shell client.
 %files -n eos-client
 %defattr(-, root, root, -)
 %{_bindir}/eos
-%{_bindir}/eosdropboxd
 %{_bindir}/eoscp
 %{_libdir}/libXrdMqClient.so.%{version}
 %{_libdir}/libXrdMqClient.so.%{major_version}

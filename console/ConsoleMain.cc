@@ -64,7 +64,6 @@ extern int com_config(char*);
 extern int com_console(char*);
 extern int com_cp(char*);
 extern int com_debug(char*);
-extern int com_dropbox(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
@@ -137,7 +136,6 @@ COMMAND commands[] = {
   { (char*) "console", com_console, (char*) "Run Error Console"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "debug", com_debug, (char*) "Set debug level"},
-  { (char*) "dropbox", com_dropbox, (char*) "Drop box"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
