@@ -287,7 +287,7 @@ public:
             // -------------------------------------------------------------
             itP->second.ptr->removeContainer(it->second.ptr->getName());
             // copy the meta data
-            mem_found_cont = mem_current_cont;
+            *mem_found_cont = *mem_current_cont;
             it.value().logOffset = itU->second.logOffset;
             // -------------------------------------------------------------
             // add to the new parent container
