@@ -2107,9 +2107,9 @@ metad::mdcflush(ThreadAssistant& assistant)
               // push to backend
               if ((rc = mdbackend->putMD(f_id, &(*md), authid, &(md->Locker())))) {
                 eos_static_err("metacache::flush backend::putMD failed rc=%d", rc);
-                // in this case we always clean this MD record to force a refresh
-                inomap.erase_bwd(md->id());
-                //removeentry=md->id();
+                // we just set an error code
+                //! inomap.erase_bwd(md->id());
+                //! removeentry=md->id();
                 md->set_err(rc);
               } else {
                 inomap.insert(md->md_ino(), md->id());
