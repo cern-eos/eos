@@ -221,7 +221,6 @@ To speed up the initial import, QuarkDB has a special **bulkload** configuration
     xrd.protocol redis:7777 /usr/lib64/libXrdQuarkDB.so
     redis.mode bulkload
     redis.database /var/lib/quarkdb/convert/
-    redis.password_file /etc/eos.keytab
 
 After starting the QuarkDB service, we can use the **eos-ns-convert** tool to perform the actual conversion of the namespace.
 
