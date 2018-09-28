@@ -17,8 +17,7 @@ before_script:
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - if [ "$CI_JOB_NAME" == "system_test_with_quarkdb" ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
-    - docker exec -i eos-mgm-test /bin/bash -c 'eos chmod 2777 /eos/dockertest; eos vid enable krb5;'
-    - docker exec -i eos-mgm-test /bin/bash -c 'eos quota set -u eos-user -v 10T -i 10M /eos/dockertest/'
+    - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5;'
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
@@ -41,8 +40,7 @@ before_script:
     - docker pull gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     # Run the following tests only on the NS in QuarkDB
     - sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID} -u gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG-$CI_PIPELINE_ID};
-    - docker exec -i eos-mgm-test /bin/bash -c 'eos chmod 2777 /eos/dockertest; eos vid enable krb5'
-    - docker exec -i eos-mgm-test /bin/bash -c 'eos quota set -u eos-user -v 10T -i 10M /eos/dockertest/'
+    - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5'
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
