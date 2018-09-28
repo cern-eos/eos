@@ -2855,6 +2855,8 @@ FuseServer::HandleMD(const std::string& id,
         }
 
         gOFS->eosDirectoryService->updateStore(cmd.get());
+        // release the namespace lock before seralization/broadcasting
+        lock.Release();
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -3058,6 +3060,8 @@ FuseServer::HandleMD(const std::string& id,
           resp.mutable_ack_()->set_code(resp.ack_().OK);
           resp.mutable_ack_()->set_transactionid(md.reqid());
           resp.mutable_ack_()->set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
+          // release the namespace lock before serialization/broadcasting
+          lock.Release();
           resp.SerializeToString(response);
           struct timespec pt_mtime;
           pt_mtime.tv_sec = md.mtime();
@@ -3184,6 +3188,8 @@ FuseServer::HandleMD(const std::string& id,
         fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md_ino),
                                               &clock);
         eos_static_info("ino=%llx clock=%llx", md_ino, clock);
+        // release the namespace lock before serialization/broadcasting
+        lock.Release();
         eos::fusex::response resp;
         resp.set_type(resp.ACK);
         resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -3319,6 +3325,9 @@ FuseServer::HandleMD(const std::string& id,
 
         gOFS->eosDirectoryService->updateStore(pcmd.get());
 
+        // release the namespace lock before serialization/broadcasting
+        lock.Release();
+
         eos::fusex::response resp;
 
         resp.set_type(resp.ACK);
@@ -3411,6 +3420,8 @@ FuseServer::HandleMD(const std::string& id,
         gOFS->eosDirectoryService->removeContainer(cmd.get());
         gOFS->eosDirectoryService->updateStore(pcmd.get());
         pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        // release the namespace lock before serialization/broadcasting
+        lock.Release();
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
@@ -3509,6 +3520,8 @@ FuseServer::HandleMD(const std::string& id,
           pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
         }
 
+        // release the namespace lock before serialization/broadcasting
+        lock.Release();
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
@@ -3516,7 +3529,7 @@ FuseServer::HandleMD(const std::string& id,
         // TODO: we will add this message later because we have to remove the previous call and bump the protocol version up
         // Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
         Cap().Delete(md.md_ino());
-        EXEC_TIMING_END("Eosxd::ext::RMDIR");
+        EXEC_TIMING_END("Eosxd::ext::DELETE");
         return 0;
       }
 
@@ -3530,6 +3543,8 @@ FuseServer::HandleMD(const std::string& id,
         gOFS->eosFileService->updateStore(fmd.get());
         gOFS->eosDirectoryService->updateStore(pcmd.get());
         pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        // release the namespace lock before serialization/broadcasting
+        lock.Release();
         resp.mutable_ack_()->set_code(resp.ack_().OK);
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
