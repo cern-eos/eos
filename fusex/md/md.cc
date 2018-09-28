@@ -289,8 +289,11 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 
   eos_static_debug("delete md object - ino=%016x name=%s", ino,
                    md->name().c_str());
-  mdmap.eraseTS(ino);
-  stat.inodes_dec();
+
+  if (mdmap.eraseTS(ino)) {
+    stat.inodes_dec();
+  }
+
   // - we currently don't forget old mappings, because it creates race conditions with overlaying caps
   //  PUTMEBACK-LATER: inomap.erase_bwd(ino);
   return 0;
@@ -368,6 +371,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
   e.attr.CTIMESPEC.tv_nsec = ctime_ns();
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
+    fprintf(stderr, "adding lifetime %f\n", lifetime);
     e.attr_timeout = lifetime;
     e.entry_timeout = lifetime;;
   } else {
@@ -1025,9 +1029,10 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     md->setop_none();
     md->set_err(rc);
     {
-      mdmap.eraseTS(md->id());
-      stat.inodes_dec();
-      stat.inodes_ever_inc();
+      if (mdmap.eraseTS(md->id())) {
+        stat.inodes_dec();
+        stat.inodes_ever_inc();
+      }
     }
     return rc;
   } else {
@@ -2136,7 +2141,6 @@ metad::mdcflush(ThreadAssistant& assistant)
               md->Locker().UnLock();
 
               if (op == metad::mdx::RM) {
-                EosFuse::Instance().getKV()->erase(ino);
                 // this step is coupled to the forget function, since we cannot
                 // forget an entry if we didn't process the outstanding KV changes
                 stat.inodes_deleted_dec();

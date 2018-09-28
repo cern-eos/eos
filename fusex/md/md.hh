@@ -389,10 +389,10 @@ public:
 
     // TS stands for "thread-safe"
 
-    void eraseTS(fuse_ino_t ino)
+    bool eraseTS(fuse_ino_t ino)
     {
       XrdSysMutexHelper mLock(this);
-      this->erase(ino);
+      return this->erase(ino) ? true : false;
     }
 
     void retrieveWithParentTS(fuse_ino_t ino, shared_md& md, shared_md& pmd)
