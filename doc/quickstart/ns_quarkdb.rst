@@ -12,7 +12,7 @@ Namespace in QuarkDB configuration
 
 The following steps assume we are configuring an MGM node together with a QuarkDB cluster on the same machine. The QuarkDB cluster will consist of three instances running on different ports. The operating system is **CentOS7**.
 
-| 
+|
 
 Installing packages
 --------------------
@@ -189,7 +189,7 @@ At this point you should have the following processes running on the local machi
 
  .. code-block:: bash
 
-    ps aux | grep xrootd 
+    ps aux | grep xrootd
     daemon    3658  0.5  0.3 1920252 28028 ?       Ssl  Mar15  30:25 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb1.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb1.pid -n quarkdb1
     daemon    4369  0.1  0.2 1067196 21688 ?       Ssl  Mar15  10:10 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb2.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb2.pid -n quarkdb2
     daemon    4409  0.1  0.2 1133760 17600 ?       Ssl  Mar15  10:01 /usr/bin/xrootd -l /var/log/quarkdb/xrootd.log -c /etc/xrootd/xrootd-quarkdb3.cfg -k fifo -s /var/run/quarkdb/xrootd-quarkdb3.pid -n quarkdb3
@@ -198,6 +198,44 @@ At this point you should have the following processes running on the local machi
     daemon    5146  0.0  0.3 340884 22972 ?        S    Mar15   0:00 /usr/bin/xrootd -n mgm -c /etc/xrd.cf.mgm -l /var/log/eos/xrdlog.mgm -s /tmp/xrootd.mgm.pid -Rdaemon
 
 
-In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Furthermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition. 
+In a production environment the MGM daemon and each of the QuarkDB instances of the cluster should run on different machines. Furthermore, for optimal performance of the **QuarkDB** backend, at least the QuarkDB master should have the ``/var/lib/quarkdb/`` directory stored on an **SSD** partition.
+
+
+Conversion of in-memory namespace to QuarkDB namespace
+------------------------------------------------------
+
+The first step in converting an in-memory namespace to QuarkDB is to compact the file and directory changelog files using the eos-log-compact tool:
+
+ .. code-block:: bash
+
+  eos-log-compact /var/eos/md/file.mdlog /var/eos/md/compacted_file.mdlog
+  eos-log-compact /var/eos/md/directory.mdlog /var/eos/md/compacted_directory.mdlog
+
+The conversion process requires that the entire namespace is loaded into memory just like the normal booting of the namespace. Therefore, one must ensure that the machine used for the conversion has enough RAM to hold the namespace data structures. To achive optimum performance, it is recommended that both the changelog files and the ``/var/lib/quarkdb/`` directory are stored on an **SSD** backed partition.
+
+To speed up the initial import, QuarkDB has a special **bulkload** configuration mode in which we're expected to do only write operations towards the backend. In this case the compaction of the data stored in QuarkDB happends only at the end, therefore minimising the number of I/O operations and thus speeding up the entire process. Create the usual QuarkDB directory structure by using the **quarkdb-create** tool. Below is an example of a QurkDB configuration file that uses the **bulkload** mode:
+
+  .. code-block:: bash
+
+    xrd.port 7777
+    xrd.protocol redis:7777 /usr/lib64/libXrdQuarkDB.so
+    redis.mode bulkload
+    redis.database /var/lib/quarkdb/convert/
+    redis.password_file /etc/eos.keytab
+
+After starting the QuarkDB service, we can use the **eos-ns-convert** tool to perform the actual conversion of the namespace.
+
+ .. code-block:: bash
+
+   eos-ns-convert /var/eos/md/compacted_file.mdlog /var/eos/md/compacted_directory localhost 7777
+
+ .. note::
+
+   The **eos-ns-convert** tool must use as input the **compacted** changelog files.
+
+
+Once the bulkload is done, shut down the instance and create a brand new QuarkDB folder using **quarkdb-create** in a different location, listing the nodes that will make up the new cluster. Further details on how to configure a new QuarkDB cluster can be found here :ref:`QuarkDB`.
+
+ The newly created QuarkDB raft-journal directory for each of the instances can be deleted. The raft journal stored in ``/var/lib/quarkdb/convert/`` needs to be copied to the QuarkDB directory of the new instances in the cluster. For this operation, one can use simple *cp/scp*. Make sure that the configuration for all of the new QuarkDB instances is in **raft** mode and **NOT bulkmode**. At this point all the instances in the cluster can be started and the system should rapidly reach a stable configuration with one master and several slaves.
 
 For further information see :ref:`quarkdbconf`.

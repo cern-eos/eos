@@ -1066,7 +1066,7 @@ void
 usage()
 {
   std::cerr << "Usage:                                            " << std::endl
-            << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <bknd_host> "
+            << "  ./eos-ns-convert <file_chlog> <dir_chlog> <bknd_host> "
             << "<bknd_port>" << std::endl
             << "    file_chlog - file changelog                   " << std::endl
             << "    dir_chlog  - directory changelog              " << std::endl
