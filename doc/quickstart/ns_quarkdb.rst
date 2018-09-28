@@ -1,3 +1,5 @@
+.. highlight:: rst
+
 .. index::
    single: Namespace in QuarkDB Configuration
 
@@ -204,14 +206,14 @@ In a production environment the MGM daemon and each of the QuarkDB instances of 
 Conversion of in-memory namespace to QuarkDB namespace
 ------------------------------------------------------
 
-The first step in converting an in-memory namespace to QuarkDB is to compact the file and directory changelog files using the eos-log-compact tool:
+The first step in converting an in-memory namespace to QuarkDB is to compact the file and directory changelog files using the **eos-log-compact** tool:
 
  .. code-block:: bash
 
   eos-log-compact /var/eos/md/file.mdlog /var/eos/md/compacted_file.mdlog
   eos-log-compact /var/eos/md/directory.mdlog /var/eos/md/compacted_directory.mdlog
 
-The conversion process requires that the entire namespace is loaded into memory just like the normal booting of the namespace. Therefore, one must ensure that the machine used for the conversion has enough RAM to hold the namespace data structures. To achive optimum performance, it is recommended that both the changelog files and the ``/var/lib/quarkdb/`` directory are stored on an **SSD** backed partition.
+The conversion process requires that the entire namespace is loaded into memory, just like the normal booting of the namespace. Therefore, one must ensure that the machine used for the conversion has enough RAM to hold the namespace data structures. To achive optimum performance, it is recommended that both the changelog files and the ``/var/lib/quarkdb/`` directory are stored on an **SSD** backed partition.
 
 To speed up the initial import, QuarkDB has a special **bulkload** configuration mode in which we're expected to do only write operations towards the backend. In this case the compaction of the data stored in QuarkDB happends only at the end, therefore minimising the number of I/O operations and thus speeding up the entire process. Create the usual QuarkDB directory structure by using the **quarkdb-create** tool. Below is an example of a QurkDB configuration file that uses the **bulkload** mode:
 
@@ -233,8 +235,8 @@ After starting the QuarkDB service, we can use the **eos-ns-convert** tool to pe
    The **eos-ns-convert** tool must use as input the **compacted** changelog files.
 
 
-Once the bulkload is done, shut down the instance and create a brand new QuarkDB folder using **quarkdb-create** in a different location, listing the nodes that will make up the new cluster. Further details on how to configure a new QuarkDB cluster can be found here :ref:`QuarkDB`.
+Once the bulkload is done, shut down the instance and create a brand new QuarkDB folder using **quarkdb-create** in a different location, listing the nodes that will make up the new cluster. Further details on how to configure a new QuarkDB cluster can be found here :ref:`quarkdbconf`.
 
- The newly created QuarkDB raft-journal directory for each of the instances can be deleted. The raft journal stored in ``/var/lib/quarkdb/convert/`` needs to be copied to the QuarkDB directory of the new instances in the cluster. For this operation, one can use simple *cp/scp*. Make sure that the configuration for all of the new QuarkDB instances is in **raft** mode and **NOT bulkmode**. At this point all the instances in the cluster can be started and the system should rapidly reach a stable configuration with one master and several slaves.
+The newly created QuarkDB raft-journal directory for each of the instances can be deleted. The raft journal stored in ``/var/lib/quarkdb/convert/`` needs to be copied to the QuarkDB directory of the new instances in the cluster. For this operation, one can use simple *cp/scp*. Make sure that the configuration for all of the new QuarkDB instances is in **raft** mode and **NOT bulkmode**. At this point all the instances in the cluster can be started and the system should rapidly reach a stable configuration with one master and several slaves.
 
 For further information see :ref:`quarkdbconf`.

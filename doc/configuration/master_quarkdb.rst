@@ -3,8 +3,8 @@
 .. index::
    single: Master/Slave QuarkDB Configuration
 
-Master/Slave Configuration
-==========================
+Master/Slave QuarkDB Configuration
+===================================
 
 The Citrine release starting with version (4.4.0) adds support for single master,
 multiple slave setup when used with a QuarkDB backend. The master election happens
