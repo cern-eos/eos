@@ -1038,7 +1038,6 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   eos_static_info("metad::add_sync backend::putMD - stop");
   std::string mdstream;
   md->SerializeToString(&mdstream);
-  EosFuse::Instance().getKV()->put(md->id(), mdstream);
   stat.inodes_inc();
   stat.inodes_ever_inc();
 
@@ -2128,10 +2127,11 @@ metad::mdcflush(ThreadAssistant& assistant)
 
             if ((op == metad::mdx::ADD) || (op == metad::mdx::UPDATE) ||
                 (op == metad::mdx::LSTORE)) {
-              std::string mdstream;
-              md->SerializeToString(&mdstream);
+              // TODO: local MD store is now disabled - delete this code
+              //! std::string mdstream;
+              //! md->SerializeToString(&mdstream);
+              //! EosFuse::Instance().getKV()->put(ino, mdstream);
               md->Locker().UnLock();
-              EosFuse::Instance().getKV()->put(ino, mdstream);
             } else {
               md->Locker().UnLock();
 
