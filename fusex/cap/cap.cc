@@ -490,8 +490,8 @@ cap::capx::lifetime()
   struct timespec ts;
   ts.tv_sec = vtime();
   ts.tv_nsec = vtime_ns();
-  double lifetime = 1.0 * (eos::common::Timing::GetCoarseAgeInNs(&ts,
-                           0)) / 1000000000.0;
+  double lifetime = -1.0 * (eos::common::Timing::GetCoarseAgeInNs(&ts,
+                            0)) / 1000000000.0;
   eos_static_debug("inode=%08lx client-id=%s lifetime=%.02f",
                    id(), clientid().c_str(), lifetime);
 
