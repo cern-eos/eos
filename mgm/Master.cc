@@ -394,8 +394,8 @@ Master::Supervisor()
 
             // only set an ENOENT redirection, if there isn't already one
             if (!Access::gRedirectionRules.count(std::string("ENOENT:*")) ||
-                (Access::gRedirectionRules[std::string("ENOENT:*")] != fRemoteHost.c_str()) &&
-                (Access::gRedirectionRules[std::string("ENOENT:*")] != fThisHost.c_str())) {
+                ((Access::gRedirectionRules[std::string("ENOENT:*")] != fRemoteHost.c_str()) &&
+                 (Access::gRedirectionRules[std::string("ENOENT:*")] != fThisHost.c_str()))) {
               // Set the redirect for ENOENT to the remote master
               Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
             }
@@ -404,9 +404,15 @@ Master::Supervisor()
             Access::gStallRules.erase(std::string("w:*"));
             Access::gStallWrite = false;
           } else {
-            // Remove the redirect for writes and ENOENT
+            // Remove the redirect for writes and ENOENT, if there is no external redirect
             Access::gRedirectionRules.erase(std::string("w:*"));
-            Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+
+            if (!Access::gRedirectionRules.count(std::string("ENOENT:*")) ||
+                ((Access::gRedirectionRules[std::string("ENOENT:*")] != fRemoteHost.c_str()) &&
+                 (Access::gRedirectionRules[std::string("ENOENT:*")] != fThisHost.c_str()))) {
+              Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+            }
+
             // Put stall for writes
             Access::gStallRules[std::string("w:*")] = "60";
             Access::gStallWrite = true;
