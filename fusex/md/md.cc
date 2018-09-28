@@ -371,7 +371,6 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
   e.attr.CTIMESPEC.tv_nsec = ctime_ns();
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
-    fprintf(stderr, "adding lifetime %f\n", lifetime);
     e.attr_timeout = lifetime;
     e.entry_timeout = lifetime;;
   } else {
