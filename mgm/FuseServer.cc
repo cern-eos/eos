@@ -2080,7 +2080,8 @@ FuseServer::FillContainerCAP(uint64_t id,
           mode |= U_OK | SA_OK;
         }
 
-        if (acl.CanNotDelete()) {
+        // the owner can always delete
+        if ((vid->uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
         }
       }
