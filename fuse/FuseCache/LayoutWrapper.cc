@@ -125,7 +125,6 @@ LayoutWrapper::~LayoutWrapper()
 //------------------------------------------------------------------------------
 int LayoutWrapper::MakeOpen()
 {
-  XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("file path=\"%s\"", mPath.c_str());
 
   if (mClose) {
@@ -161,6 +160,7 @@ const char*
 LayoutWrapper::GetName()
 {
   MakeOpen();
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->GetName();
 }
 
@@ -171,6 +171,7 @@ const char*
 LayoutWrapper::GetLocalReplicaPath()
 {
   MakeOpen();
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->GetLocalReplicaPath();
 }
 
@@ -180,6 +181,7 @@ LayoutWrapper::GetLocalReplicaPath()
 unsigned int LayoutWrapper::GetLayoutId()
 {
   MakeOpen();
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->GetLayoutId();
 }
 
@@ -193,6 +195,7 @@ LayoutWrapper::GetLastUrl()
     return mLazyUrl;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->GetLastUrl();
 }
 
@@ -206,6 +209,7 @@ LayoutWrapper::GetLastTriedUrl()
     return mLazyUrl;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->GetLastTriedUrl();
 }
 
@@ -215,6 +219,7 @@ LayoutWrapper::GetLastTriedUrl()
 bool LayoutWrapper::IsEntryServer()
 {
   MakeOpen();
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->IsEntryServer();
 }
 
@@ -544,6 +549,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
                         mode_t mode, const char* opaque, const struct stat* buf,
                         bool asyncOpen, bool doOpen, size_t owner_lifetime, bool inlineRepair)
 {
+  eos::common::RWMutexWriteLock wr_lock(mMakeOpenMutex);
   int retc = 0;
 
   if (inlineRepair) {
@@ -771,6 +777,7 @@ int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
     return -1;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->Read(offset, buffer, length, readahead);
 }
 
@@ -785,6 +792,7 @@ int64_t LayoutWrapper::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
     return -1;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->ReadV(chunkList, len);
 }
 #endif
@@ -862,6 +870,8 @@ int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
   int retc = 0;
 
   if (length > 0) {
+    eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
+
     if ((retc = mFile->Write(offset, buffer, length)) < 0) {
       eos_static_err("Error writing from wrapper : file %s  opaque %s",
                      mPath.c_str(), mOpaque.c_str());
@@ -882,8 +892,12 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
     return -1;
   }
 
-  if (mFile->Truncate(offset)) {
-    return -1;
+  {
+    eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
+
+    if (mFile->Truncate(offset)) {
+      return -1;
+    }
   }
 
   XrdSysMutexHelper l(gCacheAuthorityMutex);
@@ -905,6 +919,7 @@ int LayoutWrapper::Sync()
     return -1;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
   return mFile->Sync();
 }
 
@@ -919,10 +934,10 @@ int LayoutWrapper::Close()
     mDoneAsyncOpen = false;
   }
 
-  XrdSysMutexHelper mLock(mMakeOpenMutex);
+  eos::common::RWMutexWriteLock wr_lock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
 
-  // for latency simulation purposes
+  // For latency simulation purposes
   if (getenv("EOS_FUSE_LAZY_LAG_CLOSE") && mFlags) {
     eos_static_warning("lazy-lag configured - delay by %s ms",
                        getenv("EOS_FUSE_LAZY_LAG_CLOSE"));
@@ -990,6 +1005,8 @@ int LayoutWrapper::Stat(struct stat* buf)
     return -1;
   }
 
+  eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
+
   if (mFile->Stat(buf)) {
     return -1;
   } else {
@@ -1018,16 +1035,6 @@ std::string LayoutWrapper::GetLastPath()
 {
   return mPath;
 }
-
-//------------------------------------------------------------------------------
-// Is the file Opened
-//------------------------------------------------------------------------------
-bool LayoutWrapper::IsOpen()
-{
-  XrdSysMutexHelper mLock(mMakeOpenMutex);
-  return mOpen;
-}
-
 
 //------------------------------------------------------------------------------
 // Return last known size of a file we had a caps for

@@ -50,8 +50,8 @@ class LayoutWrapper
   friend class FileAbstraction;
 
   eos::fst::Layout* mFile;
-  bool mOpen;
-  bool mClose;
+  std::atomic<bool> mOpen;
+  std::atomic<bool> mClose;
   std::string mPath;
   unsigned long long mInode;
   XrdSfsFileOpenMode mFlags;
@@ -60,7 +60,7 @@ class LayoutWrapper
   std::string mLazyUrl;
   FileAbstraction* mFabs;
   timespec mLocalUtime[2];
-  XrdSysMutex mMakeOpenMutex;
+  eos::common::RWMutex mMakeOpenMutex;
   std::shared_ptr<Bufferll> mCache;
 
   struct CacheEntry {
@@ -115,6 +115,8 @@ public:
   //----------------------------------------------------------------------------
   void CleanReadCache()
   {
+    eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
+
     if (mFile) {
       mFile->CleanReadCache();
     }
@@ -205,6 +207,8 @@ public:
   //----------------------------------------------------------------------------
   int WaitAsyncIO()
   {
+    eos::common::RWMutexReadLock rd_lock(mMakeOpenMutex);
+
     if (mFile) {
       return mFile->WaitAsyncIO();
     } else {
@@ -259,7 +263,10 @@ public:
   //----------------------------------------------------------------------------
   //! Is the file Opened
   //----------------------------------------------------------------------------
-  bool IsOpen();
+  inline bool IsOpen()
+  {
+    return mOpen;
+  }
 
   //----------------------------------------------------------------------------
   //! Repair a partially unavailable flie
