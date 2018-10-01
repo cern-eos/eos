@@ -115,7 +115,10 @@ public:
     void pop()
     {
       eos::common::RWMutexWriteLock lock(*this);
-      mTimeOrderedCap.pop_front();
+
+      if (!mTimeOrderedCap.empty()) {
+        mTimeOrderedCap.erase(mTimeOrderedCap.begin());
+      }
     }
 
     bool expire()
@@ -124,7 +127,7 @@ public:
       authid_t id;
 
       if (!mTimeOrderedCap.empty()) {
-        id = mTimeOrderedCap.front();
+        id = mTimeOrderedCap.begin()->second;
       } else {
         return false;
       }
@@ -222,8 +225,8 @@ public:
     }
 
   protected:
-    // a time ordered list pointing to caps
-    std::deque< authid_t > mTimeOrderedCap;
+    // a time ordered multimap pointing to caps
+    std::multimap< time_t, authid_t > mTimeOrderedCap;
     // authid=>cap lookup map
     std::map<authid_t, shared_cap> mCaps;
     // clientid=>list of authid

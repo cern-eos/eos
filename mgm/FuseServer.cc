@@ -572,6 +572,11 @@ FuseServer::Clients::leasetime(const std::string& uuid)
     leasetime = this->map()[this->uuidview()[uuid]].heartbeat().leasetime();
   }
 
+  if (leasetime > (7 * 86400)) {
+    // don't allow longer lease times as a week
+    leasetime = 7 * 86400;
+  }
+
   return leasetime;
 }
 
@@ -852,8 +857,14 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                   ecap.id(),
                   ecap.clientid().c_str(),
                   ecap.authid().c_str());
-  // fill the three views on caps
-  mTimeOrderedCap.push_back(ecap.authid());
+
+  // avoid to have multiple time entries for the same cap
+  if (!mCaps.count(ecap.authid())) {
+    // fill the three views on caps
+    mTimeOrderedCap.insert(std::pair<time_t, authid_t>(ecap.vtime(),
+                           ecap.authid()));
+  }
+
   mClientCaps[ecap.clientid()].insert(ecap.authid());
   mClientInoCaps[ecap.clientid()].insert(ecap.id());
   shared_cap cap = std::make_shared<capx>();
@@ -899,7 +910,8 @@ FuseServer::Caps::Imply(uint64_t md_ino,
     implied_cap->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
     implied_cap->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
-    mTimeOrderedCap.push_back(implied_authid);
+    mTimeOrderedCap.insert(std::pair<time_t, authid_t>(implied_cap->vtime(),
+                           implied_authid));
     mClientCaps[cap->clientid()].insert(implied_authid);
     mClientInoCaps[cap->clientid()].insert(md_ino);
     mCaps[implied_authid] = implied_cap;
@@ -1308,13 +1320,14 @@ FuseServer::Caps::Print(std::string option, std::string filter)
 
   if (option == "t") {
     // print by time order
-    for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end(); ++it) {
-      if (!mCaps.count(*it)) {
+    for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end();) {
+      if (!mCaps.count(it->second)) {
+        it = mTimeOrderedCap.erase(it);
         continue;
       }
 
       char ahex[256];
-      shared_cap cap = mCaps[*it];
+      shared_cap cap = mCaps[it->second];
       snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->id());
       std::string match = "";
       match += "# i:";
@@ -1342,10 +1355,12 @@ FuseServer::Caps::Print(std::string option, std::string filter)
 
       if (filter.size() &&
           (regexec(&regex, match.c_str(), 0, NULL, 0) == REG_NOMATCH)) {
+        it++;
         continue;
       }
 
       out += match.c_str();
+      ++it;
     }
   }
 
