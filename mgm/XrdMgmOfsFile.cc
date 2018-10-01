@@ -1776,6 +1776,15 @@ XrdMgmOfsFile::open(const char* inpath,
         targethost  = filesystem->GetString("host").c_str();
         targetport  = atoi(filesystem->GetString("port").c_str());
         targethttpport  = atoi(filesystem->GetString("stat.http.port").c_str());
+
+        // default xrootd & http port
+        if (!targetport) {
+          targetport = 1095;
+        }
+
+        if (targethttpport) {
+          targethttpport = 8001;
+        }
       } else { // we have a proxy to use
         auto idx = proxys[fsIndex].rfind(':');
 
