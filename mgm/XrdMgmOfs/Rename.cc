@@ -424,7 +424,7 @@ XrdMgmOfs::_rename(const char* old_name,
       if (renameDir) {
         rdir = dir->findContainer(oPath.GetName());
 
-        if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+        if(rdir && !eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
           errno = EINVAL;
           return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
         }
