@@ -50,4 +50,16 @@ if(PYTHONSITEPKG_FOUND)
 	  PERMISSIONS OWNER_READ OWNER_WRITE
 		      GROUP_READ
 		      WORLD_READ)
+
+# Installing files depending on service manager (systemd or sysVinit)
+set(SYSTEMD_DIR /usr/lib/systemd/)
+
+if(EXISTS ${SYSTEMD_DIR})
+  install(FILES eosarchived_env.sysconfig
+    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
+    RENAME eosarchived_env)
+
+ install(FILES eosarchived.service
+   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
+endif()
 endif()

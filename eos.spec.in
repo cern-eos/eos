@@ -659,11 +659,16 @@ The EOS archive daemon.
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py
 %{_bindir}/eosarch_reconstruct.py
-%config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %config(noreplace) %{_sysconfdir}/eosarchived.conf
+%if %{use_systemd}
+%{_prefix}/lib/systemd/system/eosarchived.service
+%config(noreplace) %{_sysconfdir}/sysconfig/eosarchived_env
+%else
 %{_sysconfdir}/rc.d/init.d/eosarchived
-%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/archive/
-%dir %attr(755,daemon,daemon) %{_localstatedir}/eos/archive/
+%config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
+%endif
+%dir %attr(755,eosarchi,c3) %{_localstatedir}/log/eos/archive/
+%dir %attr(755,eosarchi,c3) %{_localstatedir}/eos/archive/
 
 %post -n eos-archive
 case "$1" in
