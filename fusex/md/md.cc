@@ -2406,11 +2406,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         zmq_poll(items, 1, 10);
 
         if (assistant.terminationRequested()) {
-          return;
-        }
-
-        if (assistant.terminationRequested()) {
           shutdown = true;
+          EosFuse::Instance().caps.reset();
           eos_static_notice("sending shutdown heartbeat message");
           hb.mutable_heartbeat_()->set_shutdown(true);
         }
@@ -2715,13 +2712,20 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         auto rmap = hb.mutable_heartbeat_()->mutable_authrevocation();
         cap::revocation_set_t revocationset =
           EosFuse::Instance().getCap().get_revocationmap();
+        size_t n_revocations = 0;
 
-        for (auto it = revocationset.begin(); it != revocationset.end(); ++it) {
+        for (auto it = revocationset.begin(); it != revocationset.end();) {
           (*rmap)[*it] = 0;
           eos_static_notice("cap-revocation: authid=%s", it->c_str());
+          it = revocationset.erase(it);
+          n_revocations++;
+
+          if (n_revocations > 32 * 1024) {
+            eos_static_notice("stopped revocations after 32k entries");
+            break;
+          }
         }
 
-        revocationset.clear();
         eos_static_debug("cap-extension: map-size=%u cap-revocation: map-size=%u",
                          extmap.size(), revocationset.size());
       }
