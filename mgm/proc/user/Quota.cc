@@ -121,6 +121,13 @@ ProcCommand::Quota()
     if (space[0] != '/') {
       // take the proc directory
       space = gOFS->MgmProcPath.c_str();
+    } else {
+      // effectively check ACLs on the quota node directory if it can be retrieved
+      std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
+      if (quota_node_path.length()) {
+        space = quota_node_path;
+      }
     }
 
     // ACL and permission check

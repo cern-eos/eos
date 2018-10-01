@@ -1314,6 +1314,24 @@ Quota::GetResponsibleSpaceQuota(const std::string& path)
   return squota;
 }
 
+//----------------------------------------------------------------------------
+//  Get space quota node path
+//----------------------------------------------------------------------------
+std::string
+Quota::GetResponsibleSpaceQuotaPath(const std::string& path)
+{
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+
+  if (squota) {
+    return squota->GetSpaceName();
+  } else {
+    return "";
+  }
+}
+
+
+
 //------------------------------------------------------------------------------
 // Check if space quota exists
 //------------------------------------------------------------------------------

@@ -617,6 +617,16 @@ public:
   static int QuotaBySpace(const eos::IContainerMD::id_t, uid_t uid, gid_t gid,
                           long long& avail_files, long long& avail_bytes);
 
+  //----------------------------------------------------------------------------
+  //! Get space quota node path looking for the most specific
+  //! match.
+  //!
+  //! @param path path for which we search for a responsible space quota
+  //!
+  //! @return path name to space quota
+  //----------------------------------------------------------------------------
+  static std::string GetResponsibleSpaceQuotaPath(const std::string& path);
+
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< Protect access to pMapQuota
 
@@ -655,6 +665,7 @@ private:
   //! @return SpaceQuota object
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
+
 
   //----------------------------------------------------------------------------
   //! Make sure the path ends with a /
