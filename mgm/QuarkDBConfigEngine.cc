@@ -204,9 +204,11 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     }
   }
 
-  mMutex.Lock();
-  sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
-  mMutex.UnLock();
+  {
+    XrdSysMutexHelper lock(mMutex);
+    sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
+  }
+
   // Adding  timestamp
   XrdOucString stime;
   getTimeStamp(stime);
@@ -444,13 +446,15 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
 
     if (hash) {
-      eos_static_info("Deleting on hash %s", configname.c_str());
+      eos_static_info("Deleting on hash %s", gOFS->MgmConfigQueue.c_str());
       hash->Delete(configname.c_str());
     }
   }
 
-  mMutex.Lock();
-  sConfigDefinitions.Del(configname.c_str());
+  {
+    XrdSysMutexHelper lock(mMutex);
+    sConfigDefinitions.Del(configname.c_str());
+  }
 
   // In case is not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
@@ -470,7 +474,6 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     }
   }
 
-  mMutex.UnLock();
   eos_static_debug("%s", key);
 }
 
