@@ -3995,7 +3995,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 } else {
                   const char* eosacl = map["user.acl"].c_str();
                   eos_static_debug("eosacl '%s'", eosacl);
-                  struct richacl* a = eos2racl(eosacl, md->mode());
+                  struct richacl* a = eos2racl(eosacl, md);
 
                   if (a != NULL) {
                     size_t sz = richacl_xattr_size(a);
@@ -4244,7 +4244,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               eos_static_debug("acl a_t '%s'", a_t);
               free(a_t);
               char eosAcl[512];
-              racl2eos(a, eosAcl, sizeof(eosAcl));
+              racl2eos(a, eosAcl, sizeof(eosAcl), md);
               eos_static_debug("acl eosacl '%s'", eosAcl);
               auto map = md->mutable_attr();
 

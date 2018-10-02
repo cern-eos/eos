@@ -44,13 +44,13 @@ class Acl
 {
 public:
   static constexpr auto sRegexUsrGenericAcl =
-    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))):"
+    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
-    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))):"
+    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
@@ -62,7 +62,7 @@ public:
   //! @param value value to check
   //! @param error error datastructure
   //! @param is_sys_acl boolean indicating a sys acl entry which might have a
-  //!        z: rule
+  //!        p: rule
   //! @param check_numeric if true use numeric format of the regex
   //!
   //! return boolean indicating validity
