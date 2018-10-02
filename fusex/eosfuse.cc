@@ -3834,10 +3834,9 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   std::string key = xattr_name;
   std::string value;
   bool local_getxattr = false;
-
   // the root user has a bypass to be able to retrieve information in
   // realtime
-  if (fuse_req_ctx(req)->uid == 0) {
+  {
     static std::string s_md = "system.eos.md";
     static std::string s_cap = "system.eos.cap";
     static std::string s_ls_caps = "system.eos.caps";
@@ -3861,14 +3860,16 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       }
     }
 
-    if (key.substr(0, s_ls_caps.length()) == s_ls_caps) {
-      local_getxattr = true;
-      value = Instance().caps.ls();
-    }
+    if (fuse_req_ctx(req)->uid == 0) {
+      if (key.substr(0, s_ls_caps.length()) == s_ls_caps) {
+        local_getxattr = true;
+        value = Instance().caps.ls();
+      }
 
-    if (key.substr(0, s_ls_vmap.length()) == s_ls_vmap) {
-      local_getxattr = true;
-      value = Instance().mds.vmaps().dump();
+      if (key.substr(0, s_ls_vmap.length()) == s_ls_vmap) {
+        local_getxattr = true;
+        value = Instance().mds.vmaps().dump();
+      }
     }
 
     if ((size) && (value.size() > size)) {
