@@ -16,6 +16,49 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.0 Citrine``
+==================
+
+2018-10-02
+
+Bug
+----
+
+* [EOS-1952] - eosd crash in FileAbstraction::WaitFinishWrites
+* [EOS-2743] - "eosd" segfault .. error 4 in libpthread-2.17.so[...+17000]
+* [EOS-2801] - Heap-use-after-free in LayoutWrapper::WaitAsyncIO
+* [EOS-2836] - Sain file cannot be downloaded when one FS is not present
+* [EOS-2914] - git repo on EOS corruption
+* [EOS-2922] - eos-server.el6 package requires /usr/bin/bash (not provided by any package in SLC6)
+* [EOS-2926] - MGM deadlock due to fusex capability delete operation
+* [EOS-2930] - Core dump in rename path sanity check
+* [EOS-2933] - createrepo fails on large repo
+
+New Feature
+------------
+
+* [EOS-2928] - FUSEX interference from user deletion and generic removal protection (g:z5:!d)
+
+Task
+----
+
+* [EOS-2721] - UNIX permissions not propagated to the slave (until a slave restart or failover)
+
+Improvement
+------------
+
+* [EOS-2696] - eosarchived systemd configuration
+* [EOS-2799] - eosdropboxd: document, add "--help", "-h" options -- or hide outside of default path
+* [EOS-2853] - Make background scan rate configurable like scaninterval
+* [EOS-2906] - Add "fstpath" to the message written in MGM's report log
+* [EOS-2921] - Support client defined LEASE times
+
+User Documentation
+-------------------
+
+* [EOS-1723] - Instruction how to migrate to quarkdb namespace
+
+
 ``v4.3.14 Citrine``
 ==================
 
