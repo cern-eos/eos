@@ -1708,7 +1708,7 @@ XrdFstOfsFile::close()
       }
 
       eos_warning("executed 'adjustreplica' for path=%s - file is at low risk "
-                  "due to missing replica's", mCapOpaque->Get("mgm.path"));
+                  "due to missing replicas", mCapOpaque->Get("mgm.path"));
     }
 
     if (!rc && (mEventOnClose || mSyncEventOnClose) && layOut->IsEntryServer()) {
