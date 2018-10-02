@@ -1840,6 +1840,16 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       }
 
       mXoff = true;
+      std::string msg;
+
+      if (mFile->xrdiorw(req)->HadFailures(msg)) {
+        eos_err("file state failure during xoff - switching to sync mode msg='%s'",
+                msg.c_str());
+        // if we had failures we change into synchronous mode to be able to trigger appropriate recovery
+        mFlags |= O_SYNC;
+        break;
+      }
+
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
       cnt++;
     }
