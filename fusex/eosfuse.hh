@@ -193,6 +193,7 @@ public:
     std::string localmountdir;
     std::string statfilesuffix;
     std::string statfilepath;
+    std::string logfilepath;
     std::string mdcachehost;
     int mdcacheport;
     std::string mdcachedir;

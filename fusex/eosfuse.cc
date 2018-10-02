@@ -1053,6 +1053,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                  getuid());
       }
 
+      config.logfilepath = logfile;
+
       if (!config.statfilepath.length()) {
         config.statfilepath = logfile;
         config.statfilepath += ".";
@@ -1092,6 +1094,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       eos::common::Path cPath(log_path.c_str());
       cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
+      config.logfilepath = log_path;;
 
       if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
         fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
@@ -3935,6 +3938,11 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               value = Instance().Config().hostport;
             }
 
+            if (key == "eos.stacktrace") {
+              setenv("EOS_ENABLE_BACKWARD_STACKTRACE", "1", 1);
+              value = getStacktrace();
+            }
+
             if (key == "eos.mgmurl") {
               std::string mgmurl = "root://";
               mgmurl += Instance().Config().hostport;
@@ -4094,6 +4102,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     static std::string s_dropcap = "system.eos.dropcap";
     static std::string s_dropallcap = "system.eos.dropallcap";
     static std::string s_resetstat = "system.eos.resetstat";
+    static std::string s_log = "system.eos.log";
 
     if (key.substr(0, s_debug.length()) == s_debug) {
       local_setxattr = true;
@@ -4167,6 +4176,19 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       }
     } else {
       rc = EPERM;
+    }
+
+    if (key.substr(0, s_log.length()) == s_log) {
+      local_setxattr = true;
+
+      if (value == "public") {
+        ::chmod(Instance().Config().logfilepath.c_str(),
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      }
+
+      if (value == "private") {
+        ::chmod(Instance().Config().logfilepath.c_str(), S_IRUSR | S_IWUSR);
+      }
     }
   }
 
