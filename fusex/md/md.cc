@@ -1575,7 +1575,7 @@ metad::cleanup(shared_md md)
         inval_entry_name.push_back(it->first);
       } else {
         // if the server provides a dentry invalidation message
-        // directories never get an inval_entry call, only when we see an explicit deletion
+        // files and directories never get an inval_entry call, only when we see an explicit deletion
       }
     }
   }
