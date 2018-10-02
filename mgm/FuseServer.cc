@@ -3542,8 +3542,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
-        // TODO: we will add this message later because we have to remove the previous call and bump the protocol version up
-        // Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
+        Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
         Cap().Delete(md.md_ino());
         EXEC_TIMING_END("Eosxd::ext::DELETE");
         return 0;
@@ -3565,6 +3564,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
+        Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
         Cap().Delete(md.md_ino());
         EXEC_TIMING_END("Eosxd::ext::DELETELNK");
         return 0;

@@ -318,8 +318,7 @@ XrdMgmOfs::_rem(const char* path,
           container->notifyMTimeChange(gOFS->eosDirectoryService);
           eosView->updateContainerStore(container.get());
           gOFS->FuseXCastContainer(container->getIdentifier());
-          // TODO: we will enable this message once we bump the EOSXD protocol version and remove the Container Cast
-          // gOFS->FuseXCastDeletion(container->getIdentifier(),fmd->getName());
+          gOFS->FuseXCastDeletion(container->getIdentifier(), fmd->getName());
         }
       }
 

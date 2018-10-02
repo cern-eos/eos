@@ -378,7 +378,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
     e.attr_timeout = lifetime;
-    e.entry_timeout = lifetime;;
+    e.entry_timeout = (lifetime > 30) ? 30 : lifetime;
   } else {
     e.attr_timeout = 0;
     e.entry_timeout = 0;
@@ -1564,8 +1564,6 @@ metad::cleanup(shared_md md)
       bool in_flush = has_flush(it->second);
 
       if (!S_ISDIR(cmd->mode())) {
-        inval_entry_name.push_back(it->first);
-
         if (!in_flush && !EosFuse::Instance().datas.has(cmd->id())) {
           // clean-only entries, which are not in the flush queue and not open
           inval_files.push_back(it->second);
