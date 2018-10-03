@@ -160,7 +160,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
 
       replica_url += remoteOpenOpaque.c_str();
       mReplicaUrl.push_back(replica_url);
-      eos_debug("added replica_url = %s, index = %i", replica_url.c_str(), i);
+      eos_debug("added replica_url=%s, index=%i", replica_url.c_str(), i);
     }
   }
 
@@ -168,7 +168,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   for (int i = 0; i < mNumReplicas; i++) {
     if ((ioLocal) && (i == replica_index)) {
       // Only the referenced entry URL does local IO
-      // mReplicaUrl.push_back(mLocalPath);
+      mReplicaUrl.push_back(mLocalPath);
       FileIo* file = FileIoPlugin::GetIoObject(mLocalPath, mOfsFile,
                      mSecEntity);
 
@@ -446,7 +446,7 @@ ReplicaParLayout::Remove()
     rc = mReplicaFile[i]->fileRemove();
 
     if (rc != SFS_OK) {
-      XrdOucString maskUrl = mReplicaUrl[0].c_str() ? mReplicaUrl[i].c_str() : "";
+      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
       eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
