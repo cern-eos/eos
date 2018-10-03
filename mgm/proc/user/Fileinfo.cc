@@ -268,7 +268,6 @@ ProcCommand::FileInfo(const char* path)
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += "\n";
             stdOut += "xs:     ";
-
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             stdOut += "\n";
           } else {
@@ -276,7 +275,6 @@ ProcCommand::FileInfo(const char* path)
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += " ";
             stdOut += "xs=";
-
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             stdOut += " ";
           }
@@ -294,7 +292,6 @@ ProcCommand::FileInfo(const char* path)
           time_t filemtime = (time_t) mtime.tv_sec;
           char fid[32];
           snprintf(fid, 32, "%llu", (unsigned long long) fmd_copy->getId());
-
           std::string etag;
           eos::calculateEtag(fmd_copy.get(), etag);
 
@@ -358,7 +355,6 @@ ProcCommand::FileInfo(const char* path)
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += "    XS: ";
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut, ' ');
-
             stdOut += "    ETAGs: ";
             stdOut += etag.c_str();
             stdOut += "\n";
@@ -652,6 +648,10 @@ ProcCommand::FileInfo(const char* path)
           if (!Monitoring) {
             stdOut += "*******";
           }
+        } else {
+          stdOut = "";
+          stdErr = SSTR("error: unkown option - " << option.c_str()).c_str();
+          retc = EINVAL;
         }
       }
     }
@@ -1073,11 +1073,9 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                              fmd_copy->getLayoutId());
     std::string cks;
     eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
-
     json["checksumvalue"] = cks;
     std::string etag;
     eos::calculateEtag(fmd_copy.get(), etag);
-
     json["etag"] = etag;
     json["path"] = fullpath;
   } catch (eos::MDException& e) {
