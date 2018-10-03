@@ -77,7 +77,7 @@ XrdMgmOfs::fsctl(const int cmd,
     if (FsView::gFsView.mSpaceView.count("default")) {
       std::string path = args;
 
-      if ((path == "/") || (path == "")) {
+      if (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == ""))) {
         space = "default";
         freebytes =
           FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",

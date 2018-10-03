@@ -98,6 +98,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # enable.
 # EOS_USE_SHARED_MUTEX=1
 
+# By default statvfs reports the total space if the path deepness is < 4
+# If you want to report only quota accouting you can define 
+# EOS_MGM_STATVFS_ONLY_QUOTA=1
+
 #-------------------------------------------------------------------------------
 # FST Configuration
 #-------------------------------------------------------------------------------

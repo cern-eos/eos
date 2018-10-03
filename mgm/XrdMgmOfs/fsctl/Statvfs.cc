@@ -70,7 +70,7 @@
       spos++;
     }
 
-    if (deepness < 4) {
+    if (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && (deepness < 4)) {
       statvfsmutex.Lock();
       time_t now = time(NULL);
 
