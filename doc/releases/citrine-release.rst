@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.2 Citrine``
+==================
+
+2018-10-03
+
+Bug
+----
+
+* FST: Fix populating the vector of replica URL which can lead to a crash
+
+
 ``v4.4.1 Citrine``
 ==================
 
@@ -25,7 +37,7 @@ Bug
 
 * [EOS-2936] - configuration file location change
 * [EOS-2937] - eossync does not cope with the change in the config path
-* Fix http port used for redirection to the FSTs
+* MGM: Fix http port used for redirection to the FSTs
 
 
 ``v4.4.0 Citrine``
