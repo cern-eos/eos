@@ -400,6 +400,7 @@ DrainFs::UpdateProgress()
     }
 
     if (is_expired) {
+      fs->SetLongLong("stat.timeleft", 0, false);
       fs->SetLongLong("stat.drainfiles", num_to_drain, false);
       mStatus = eos::common::FileSystem::kDrainExpired;
       fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
