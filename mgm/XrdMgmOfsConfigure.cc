@@ -2089,56 +2089,25 @@ XrdMgmOfs::SetupConfigDir()
     return false;
   }
 
-  bool has_legacy_dir = false;
-  bool copy_config = false;
-  // Check if legacy config path (only with hostname) exists
+  // Check if config path (only with hostname) exists
   struct stat buf;
-  std::string legacy_path = SSTR(MgmConfigDir << HostName << "/");
+  std::string dir_path = SSTR(MgmConfigDir << HostName << "/");
+  MgmConfigDir = dir_path.c_str();
 
-  if (::stat(legacy_path.c_str(), &buf) == 0) {
-    has_legacy_dir = true;
-  }
+  if (::stat(dir_path.c_str(), &buf) != 0) {
+    eos::common::ShellCmd scmd1(SSTR("mkdir -p " << dir_path).c_str());
 
-  // Check if new config dir path (with hostname and port) exists
-  MgmConfigDir = SSTR(MgmConfigDir << ManagerId << "/").c_str();
-
-  if (::stat(MgmConfigDir.c_str(), &buf)) {
-    copy_config = true;
-  }
-
-  eos::common::ShellCmd scmd1(SSTR("mkdir -p " << MgmConfigDir).c_str());
-
-  if (scmd1.wait(10).exit_code) {
-    eos_err("faile to create dir: %s", MgmConfigDir.c_str());
-    return false;
-  }
-
-  eos::common::ShellCmd scmd2(SSTR("chown -R daemon " << MgmConfigDir).c_str());
-
-  if (scmd2.wait(10).exit_code) {
-    eos_err("failed to chown dir: %s", MgmConfigDir.c_str());
-    return false;
-  }
-
-  // Check config directory access
-  if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK)) {
-    eos_err("cannot acccess the configuration directory %s for r/w!",
-            MgmConfigDir.c_str());
-    return false;
-  }
-
-  if (has_legacy_dir && copy_config) {
-    eos_info("copy configuration from legacy location :%s to:%s",
-             legacy_path.c_str(), MgmConfigDir.c_str());
-    eos::common::ShellCmd
-    scmd3(SSTR("cp " << legacy_path << "/default.eoscf " << MgmConfigDir
-               << "/default.eoscf").c_str());
-
-    if (scmd3.wait(10).exit_code) {
-      eos_err("failed copy from: %s to: %s", legacy_path.c_str(),
-              MgmConfigDir.c_str());
+    if (scmd1.wait(10).exit_code) {
+      eos_err("msg=\"failed to create directory %s\"", MgmConfigDir.c_str());
       return false;
     }
+  }
+
+  eos::common::ShellCmd scmd2(SSTR("chown -R daemon " << dir_path).c_str());
+
+  if (scmd2.wait(10).exit_code) {
+    eos_err("msg=\"failed to chown directory %s\"", MgmConfigDir.c_str());
+    return false;
   }
 
   return true;
