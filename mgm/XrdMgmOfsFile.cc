@@ -1782,7 +1782,7 @@ XrdMgmOfsFile::open(const char* inpath,
           targetport = 1095;
         }
 
-        if (targethttpport) {
+        if (!targethttpport) {
           targethttpport = 8001;
         }
       } else { // we have a proxy to use
