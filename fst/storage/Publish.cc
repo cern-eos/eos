@@ -34,6 +34,8 @@ XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
 
+constexpr std::chrono::seconds Storage::sConsistencyTimeout;
+
 //------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------

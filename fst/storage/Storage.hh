@@ -144,7 +144,7 @@ public:
   void PushVerification(eos::fst::Verify* entry);
 
 protected:
-  eos::common::RWMutex mFsMutex; ///< Mutex protecting acccess to the fs map
+  eos::common::RWMutex mFsMutex; ///< Mutex protecting access to the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFileSystemsMap;
@@ -361,7 +361,7 @@ private:
                                 unsigned long long ratetx);
 
   //----------------------------------------------------------------------------
-  //! Get drain job for the reuqested filesystem
+  //! Get drain job for the requested filesystem
   //!
   //! @param index index in the filesystem vector
   //!
