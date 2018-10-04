@@ -72,7 +72,7 @@ CommitHelper::check_filesystem(eos::common::Mapping::VirtualIdentity_t& vid,
     fs = FsView::gFsView.mIdView[fsid];
   }
 
-  if ((!fs) || (fs->GetConfigStatus() <= eos::common::FileSystem::kDrain)) {
+  if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain)) {
     eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
                    "path=%s size=%s fid=%s fsid=%s dropfsid=%s checksum=%s"
                    " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
@@ -330,8 +330,7 @@ CommitHelper::validate_size(eos::common::Mapping::VirtualIdentity_t& vid,
 {
   if (fmd->getSize() != size) {
     eos_thread_err("replication for fid=%lu resulted in a different file "
-                   "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid,
-                   fmd->getSize(), size);
+                   "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid, fmd->getSize(), size);
     gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
 
     // -----------------------------------------------------------
