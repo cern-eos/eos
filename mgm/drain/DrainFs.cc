@@ -181,7 +181,7 @@ DrainFs::CompleteDrain()
     if (fs) {
       mStatus = eos::common::FileSystem::kDrained;
       fs->OpenTransaction();
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
+      fs->SetDrainStatus(mStatus, false);
       fs->SetLongLong("stat.drainbytesleft", 0, false);
       fs->SetLongLong("stat.timeleft", 0, false);
 
@@ -308,6 +308,7 @@ DrainFs::CollectDrainJobs()
   eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
       gOFS->eosFsView, mFsId);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  mTotalFiles = 0ull;
 
   for (auto it_fid = gOFS->eosFsView->getFileList(mFsId);
        (it_fid && it_fid->valid()); it_fid->next()) {
@@ -473,8 +474,14 @@ DrainFs::UpdateProgress()
   }
 
   if (num_to_drain == 0) {
-    CompleteDrain();
-    return State::Done;
+    // Check one more time if there are any files left on the file system -
+    // these could be files being written while draining was started
+    mJobsPending.clear();
+
+    if (CollectDrainJobs() == 0) {
+      CompleteDrain();
+      return State::Done;
+    }
   }
 
   return State::Running;
