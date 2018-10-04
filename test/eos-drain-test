@@ -78,6 +78,25 @@ if [[ $? -ne 0 ]]; then
       exit 1
 fi
 
+# Set all file systems in RO mode except for fsid 1 and 2 - then start a long
+# running process which writes a file. The purpose is to test the draining of
+# files being written when the draining is started.
+for i in {3..7}; do
+    eos fs config $i confistatus=ro
+done
+
+# Start long running write operation which should select fsts 1 and 2 as destination
+xrdcpslowwriter root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/slow_writer.dat &
+sleep 2
+
+# Put back the rest of the file systems in rw mode so that the draining can
+# select them as destination.
+for i in {3..7}; do
+    eos fs config $i confistatus=rw
+done
+
+eos file info /eos/dockertest/drain_test/replica/slow_writer.dat
+
 # Start draining and wait for it to finish
 eos fs config 1 configstatus=drain
 eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
@@ -87,7 +106,7 @@ while [[ $? -eq 0 ]]; do
       eos fs ls | grep " 1 " | grep "drain" | grep "prepare\|draining"
 done
 
-eos fs ls | grep " 1 " | grep "empty" | grep "nodrain"
+eos fs ls | grep " 1 " | grep "empty" | grep "drained"
 
 if [[ $? -ne 0 ]]; then
       echo "error: file system 1 is not drained"
@@ -115,7 +134,7 @@ while [[ $? -eq 0 ]]; do
       eos fs ls | grep " 4 " | grep "draindead" | grep "prepare\|draining"
 done
 
-eos fs ls | grep " 4 " | grep "empty" | grep "nodrain"
+eos fs ls | grep " 4 " | grep "empty" | grep "drained"
 
 if [[ $? -ne 0 ]]; then
       echo "error: file system 4 is not drained"
