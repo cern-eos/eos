@@ -238,7 +238,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
       if (!fmd) {
         char sfid[1024];
-        snprintf(sfid, 1024, "# warning: ghost entry fid=%llu",
+        snprintf(sfid, 1024, "# warning: ghost entry fid=%llu\n",
                  (unsigned long long) it_fid->getElement());
         stdOut += sfid;
       }
