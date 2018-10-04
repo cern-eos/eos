@@ -128,7 +128,7 @@ set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_
 install(
   TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
           xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-          xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
+          xrdcpposixcache xrdcpslowwriter eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
