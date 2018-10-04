@@ -45,7 +45,7 @@
 #include <deque>
 #include <atomic>
 
-// When we have too many messages pending we don't take new ones for the moment
+// if we have too many messages pending we don't take new ones for the moment
 #define MQOFSMAXMESSAGEBACKLOG 100000
 #define MQOFSMAXQUEUEBACKLOG 50000
 #define MQOFSREJECTQUEUEBACKLOG 100000
@@ -356,6 +356,12 @@ public:
   //----------------------------------------------------------------------------
   bool Deliver(XrdMqOfsMatches& Match);
 
+  int stat(const char* Name, struct stat* buf, XrdOucErrInfo& error,
+           const XrdSecEntity* client = 0, const char* opaque = 0);
+
+  int stat(const char* Name, mode_t& mode, XrdOucErrInfo& error,
+           const XrdSecEntity* client = 0, const char* opaque = 0);
+
   //----------------------------------------------------------------------------
   //! Plugin function
   //----------------------------------------------------------------------------
@@ -439,21 +445,6 @@ private:
   //!         lease
   //----------------------------------------------------------------------------
   std::string GetLeaseHolder();
-
-  int stat(const char* Name, struct stat* buf, XrdOucErrInfo& error,
-           const XrdSecEntity* client = 0, const char* opaque = 0)
-  {
-    error.setErrInfo(ENOTSUP, "operation not supported");
-    return SFS_ERROR;
-  }
-
-  int stat(const char* Name, mode_t& mode, XrdOucErrInfo& error,
-           const XrdSecEntity* client = 0, const char* opaque = 0)
-  {
-    error.setErrInfo(ENOTSUP, "operation not supported");
-    return SFS_ERROR;
-  }
-
 
   int getStats(char* buff, int blen)
   {

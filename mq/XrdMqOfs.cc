@@ -542,6 +542,113 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 }
 
 //------------------------------------------------------------------------------
+// File system stat
+//------------------------------------------------------------------------------
+int
+XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
+               const XrdSecEntity* client, const char* opaque)
+{
+  EPNAME("stat");
+  const char* tident = error.getErrUser();
+
+  if (!strcmp(queuename, "/eos/")) {
+    // this is just a ping test if we are alive
+    memset(buf, 0, sizeof(struct stat));
+    buf->st_blksize = 1024;
+    buf->st_dev    = 0;
+    buf->st_rdev   = 0;
+    buf->st_nlink  = 1;
+    buf->st_uid    = 0;
+    buf->st_gid    = 0;
+    buf->st_size   = 0;
+    buf->st_atime  = 0;
+    buf->st_mtime  = 0;
+    buf->st_ctime  = 0;
+    buf->st_blocks = 1024;
+    buf->st_ino    = 0;
+    buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
+    return SFS_OK;
+  }
+
+  MAYREDIRECT;
+  XrdMqMessageOut* msg_out = nullptr;
+  Statistics();
+  ZTRACE(stat, "stat by buf: " << queuename);
+  std::string squeue = queuename;
+  {
+    XrdSysMutexHelper scope_lock(mQueueOutMutex);
+
+    if ((!gMqFS->mQueueOut.count(squeue)) ||
+        (!(msg_out = gMqFS->mQueueOut[squeue]))) {
+      return gMqFS->Emsg(epname, error, EINVAL, "check queue - no such queue");
+    }
+
+    msg_out->DeletionSem.Wait();
+  }
+  {
+    gMqFS->AdvisoryMessages++;
+    // submit an advisory message
+    XrdAdvisoryMqMessage amg("AdvisoryQuery", queuename, true,
+                             XrdMqMessageHeader::kQueryMessage);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kSenderTime_sec,
+                                amg.kMessageHeader.kSenderTime_nsec);
+    XrdMqMessageHeader::GetTime(amg.kMessageHeader.kBrokerTime_sec,
+                                amg.kMessageHeader.kBrokerTime_nsec);
+    amg.kMessageHeader.kSenderId = gMqFS->BrokerId;
+    amg.Encode();
+    //    amg.Print();
+    XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
+    XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
+                            XrdMqMessageHeader::kQueryMessage, queuename);
+    XrdSysMutexHelper scope_lock(mQueueOutMutex);
+
+    if (!gMqFS->Deliver(matches)) {
+      delete env;
+    }
+  }
+  // this should be the case always ...
+  ZTRACE(stat, "Waiting for message");
+  ZTRACE(stat, "Grabbing message");
+  memset(buf, 0, sizeof(struct stat));
+  buf->st_blksize = 1024;
+  buf->st_dev    = 0;
+  buf->st_rdev   = 0;
+  buf->st_nlink  = 1;
+  buf->st_uid    = 0;
+  buf->st_gid    = 0;
+  buf->st_size   = msg_out->RetrieveMessages();
+  buf->st_atime  = 0;
+  buf->st_mtime  = 0;
+  buf->st_ctime  = 0;
+  buf->st_blocks = 1024;
+  buf->st_ino    = 0;
+  buf->st_mode   = S_IXUSR | S_IRUSR | S_IWUSR | S_IFREG;
+  msg_out->DeletionSem.Post();
+
+  if (buf->st_size == 0) {
+    gMqFS->NoMessages++;
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Stat by mode
+//------------------------------------------------------------------------------
+int
+XrdMqOfs::stat(const char*                Name,
+               mode_t&                    mode,
+               XrdOucErrInfo&             error,
+               const XrdSecEntity*        client,
+               const char*                opaque)
+{
+  EPNAME("stat");
+  const char* tident = error.getErrUser();
+  ZTRACE(stat, "stat by mode");
+  return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
 // Statistics
 //------------------------------------------------------------------------------
 void
