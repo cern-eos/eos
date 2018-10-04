@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.3 Citrine``
+==================
+
+2018-10-04
+
+Bug
+----
+
+* [EOS-2944] - Central Drain Flaws
+* [EOS-2945] - Disks ends up in wrong state with leftover files when central drain is active
+* [EOS-2946] - slave mq seen as down by the master MGM
+
+Improvement
+-----------
+
+* [EOS-2940] - Error message if wrong params for 'eos file info'
+
+
 ``v4.4.2 Citrine``
 ==================
 
