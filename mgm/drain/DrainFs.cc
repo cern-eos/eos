@@ -481,6 +481,9 @@ DrainFs::UpdateProgress()
     if (CollectDrainJobs() == 0) {
       CompleteDrain();
       return State::Done;
+    } else {
+      eos_info("msg=\"still %llu files to drain before declaring the file "
+               "system empty\" fsid=%lu", mTotalFiles, mFsId);
     }
   }
 

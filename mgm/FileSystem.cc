@@ -98,10 +98,11 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
     eos_static_info("fsid=%d, centralized drain type", GetId());
     int drain_tx = IsDrainTransition(old_status, new_status);
 
-    if (drain_tx) {
-      std::string out_msg;
-      
-      if (ShouldBroadCast()) {
+    // Only master drains
+    if (ShouldBroadCast()) {
+      if (drain_tx) {
+        std::string out_msg;
+
         if (drain_tx > 0) {
           if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
             eos_static_err("%s", out_msg.c_str());
@@ -112,6 +113,8 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
             eos_static_err("%s", out_msg.c_str());
           }
         }
+      } else {
+        SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
       }
     }
   } else {
