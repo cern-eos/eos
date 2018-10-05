@@ -82,7 +82,7 @@ fi
 # running process which writes a file. The purpose is to test the draining of
 # files being written when the draining is started.
 for i in {3..7}; do
-    eos fs config $i confistatus=ro
+    eos fs config $i configstatus=ro
 done
 
 # Start long running write operation which should select fsts 1 and 2 as destination
@@ -92,7 +92,7 @@ sleep 2
 # Put back the rest of the file systems in rw mode so that the draining can
 # select them as destination.
 for i in {3..7}; do
-    eos fs config $i confistatus=rw
+    eos fs config $i configstatus=rw
 done
 
 eos file info /eos/dockertest/drain_test/replica/slow_writer.dat
