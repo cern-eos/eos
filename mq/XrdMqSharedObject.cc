@@ -2474,7 +2474,8 @@ XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
     HashMutex.UnLockWrite();
     return false;
   } else {
-    XrdMqSharedHash* newhash = new XrdMqSharedHash(subject, broadcastqueue, som);
+    XrdMqSharedHash* newhash = new XrdMqSharedHash(subject, broadcastqueue,
+        som ? som : this);
     mHashSubjects.insert(std::pair<std::string, XrdMqSharedHash*> (ss, newhash));
     HashMutex.UnLockWrite();
 
@@ -2505,7 +2506,8 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
     HashMutex.UnLockWrite();
     return false;
   } else {
-    mQueueSubjects.emplace(ss, XrdMqSharedQueue(subject, broadcastqueue, som));
+    mQueueSubjects.emplace(ss, XrdMqSharedQueue(subject, broadcastqueue,
+                           som ? som : this));
     HashMutex.UnLockWrite();
 
     if (mEnableQueue) {
