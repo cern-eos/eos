@@ -178,6 +178,9 @@ Acl::Set(std::string sysacl, std::string useracl,
                      usr_name_tag.c_str(), grp_name_tag.c_str());
 
     // Rule interpretation logic
+    char denials[256];
+    memset(denials, 0, sizeof(denials));        /* start with no denials */
+
     for (it = rules.begin(); it != rules.end(); it++) {
       bool egroupmatch = false;
 
@@ -218,107 +221,122 @@ Acl::Set(std::string sysacl, std::string useracl,
           entry[2] = entry[1];
         }
 
-        // 'a' defines archiving permission
-        if ((entry[2].find('a')) != std::string::npos) {
-          mCanArchive = true;
-          mHasAcl = true;
-        }
+        if (EOS_LOGS_DEBUG) eos_static_debug("parsing permissions '%s'", entry[2].c_str());
+        bool deny = false, reallow = false;
+        for (char *s=(char *) entry[2].c_str(); s[0] != 0; s++) {
 
-        // 'r' defines read permission
-        if ((entry[2].find('r')) != std::string::npos) {
-          mCanRead = true;
-          mHasAcl = true;
-        }
+          int c = s[0];            /* need a copy in case of an "s++" later */
+          if (EOS_LOGS_DEBUG) eos_static_debug("c=%c deny=%d reallow=%d", c, deny, reallow);
+          if (reallow && !(c == 'u' || c== 'd'))
+            eos_static_debug("'+' Acl flag ignored for '%c'", c);
+          switch(c) {
+            case '!':
+              deny = true;
+              continue;
 
-        // 'x' defines browsing permission
-        if ((entry[2].find('x')) != std::string::npos) {
-          mCanBrowse = true;
-          mHasAcl = true;
-        }
+            case '+':
+              reallow = true;
+              continue;
 
-        // 'p' defines workflow permission
-        if ((entry[2].find('p')) != std::string::npos) {
-          mCanPrepare = true;
-          mHasAcl = true;
-        }
+            case 'a': // 'a' defines archiving permission
+              mCanArchive = !deny;
+              break;
 
-        // 'm' defines mode change permission
-        if ((entry[2].find('m')) != std::string::npos) {
-          if ((entry[2].find("!m")) != std::string::npos) {
-            mCanNotChmod = true;
-          } else {
-            mCanChmod = true;
+            case 'r': // 'r' defines read permission
+              mCanRead = !deny;
+              break;
+
+            case 'x': // 'x' defines browsing permission
+              mCanBrowse = !deny;
+              break;
+
+            case 'p': // 'p' defines workflow permission
+              mCanPrepare = !deny;
+              break;
+
+            case 'm': // 'm' defines mode change permission
+              if (deny) {
+                mCanNotChmod = true;
+              } else {
+                mCanChmod = true;
+              }
+              break;
+
+            case 'c': // 'c' defines owner change permission (for directories)
+              if (sysacl.find(*it) != std::string::npos) { // this is only valid if specified as a sysacl
+                mCanChown = true;
+              }
+              else {
+                  eos_static_debug("'%c' right ignored on user.acl", c);
+              }
+              break;
+
+            case 'd': // '!d' forbids deletion
+              if (deny && !mCanDelete)
+                  mCanNotDelete = true;
+              else if (reallow) {
+                mCanDelete = true;
+                mCanNotDelete = false;
+                mCanWriteOnce = false;
+                denials['d'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
+              }
+              break;
+
+
+            case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
+              mCanUpdate = !deny;
+              if (mCanUpdate && reallow)
+                denials['u'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
+              break;
+
+            case 'w': // 'wo' defines write once permissions, 'w' defines write permissions if 'wo' is not granted
+              if ((s+1)[0] == 'o') {    /* this is a 'wo' */
+                s++;
+                c = 'W';        /* for the denial entry */
+                mCanWriteOnce = !deny;
+              } else {
+                if (!mCanWriteOnce) {
+                  mCanWrite = !deny;
+                }
+              }
+              break;
+
+            case 'q':
+              if (sysacl.find(*it) != std::string::npos) {
+                mCanSetQuota = !deny;
+              }
+              break;
+
+            case 'i': // 'i' makes directories immutable
+              mIsMutable = deny;
+              break;
           }
 
           mHasAcl = true;
-        }
-
-        // 'c' defines owner change permission (for directories)
-        if ((sysacl.find(*it) != std::string::npos) &&
-            ((entry[2].find('c')) != std::string::npos)) {
-          // this is only valid if it is specified as a sysacl
-          mCanChown = true;
-          mHasAcl = true;
-        }
-
-        // '!d' forbids deletion
-        if ((entry[2].find("!d")) != std::string::npos) {
-          // canDelete is true, if deletion has been explicitly allowed by a rule
-          // and in this case we don't forbid deletion even if another rule
-          // says that
-          if (!mCanDelete) {
-            mCanNotDelete = true;
-          }
-
-          mHasAcl = true;
-        }
-
-        // '+d' adds deletion
-        if ((entry[2].find("+d")) != std::string::npos) {
-          mCanDelete = true;
-          mCanNotDelete = false;
-          mCanWriteOnce = false;
-          mHasAcl = true;
-        }
-
-        // '!u' removes update
-        if ((entry[2].find("!u")) != std::string::npos) {
-          mCanUpdate = false;
-          mHasAcl = true;
-        }
-
-        // '+u' adds update
-        if ((entry[2].find("+u")) != std::string::npos) {
-          mCanUpdate = true;
-          mHasAcl = true;
-        }
-
-        // 'wo' defines write once permissions
-        if (((entry[2].find("wo")) != std::string::npos)) {
-          mCanWriteOnce = true;
-          mHasAcl = true;
-        }
-
-        // 'w' defines write permissions if 'wo' is not granted
-        if ((!mCanWriteOnce) && (entry[2].find('w')) != std::string::npos) {
-          mCanWrite = true;
-          mHasAcl = true;
-        }
-
-        // 'q' defines quota set permission
-        if (((sysacl.find(*it) != std::string::npos)) &&
-            ((entry[2].find('q')) != std::string::npos)) {
-          // this is only valid if it is specified as a sysacl
-          mCanSetQuota = true;
-          mHasAcl = true;
-        }
-
-        // 'i' makes directories immutable
-        if ((entry[2].find('i')) != std::string::npos) {
-          mIsMutable = false;
-          mHasAcl = true;
+          if (deny) denials[c] = 1;         /* remember the denials */
+          deny = reallow = false;           /* reset for next permission char */
         }
       }
+    }
+
+    /* Finally, process denials: they take precedence over turn-off/turn-on in other ACL entries */
+    if (denials['a']) { mCanArchive = false; eos_static_debug("deny a"); }
+    if (denials['r']) { mCanRead = false; eos_static_debug("deny r"); }
+    if (denials['x']) { mCanBrowse = false; eos_static_debug("deny x"); }
+    if (denials['p']) { mCanPrepare = false; eos_static_debug("deny p"); }
+    if (denials['m']) { mCanNotChmod = true; eos_static_debug("deny m"); }
+    if (denials['c']) { mCanChown = false; eos_static_debug("deny c"); }
+    if (denials['W']) { mCanWriteOnce = false; eos_static_debug("deny writeonce"); }
+    if (denials['w']) { mCanWrite = false; eos_static_debug("deny w"); }
+    if (denials['d']) { mCanNotDelete = true; eos_static_debug("deny w"); }
+    if (denials['u']) { mCanUpdate = false; eos_static_debug("deny u"); }
+    if (denials['i']) { mIsMutable = true; eos_static_debug("deny i"); }
+
+    if (EOS_LOGS_DEBUG) { eos_static_debug(
+       "mCanRead %d mCanWrite %d mCanWriteOnce %d mCanUpdate %d mCanBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d"
+       "mCanNotChmod %d mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
+       mCanRead, mCanWrite, mCanWriteOnce, mCanUpdate, mCanBrowse, mCanChmod, mCanChown, mCanNotDelete,
+       mCanNotChmod, mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive, mCanPrepare);
     }
   }
 }

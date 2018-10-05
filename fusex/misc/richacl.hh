@@ -23,15 +23,15 @@
  ************************************************************************/
 
 struct {
-  int raclBit;
+  int raclBits;
   char eosChr;
 } raclEosPerms[] = {
   {RICHACE_READ_DATA, 'r'},
   {RICHACE_WRITE_DATA, 'w'},
   {RICHACE_EXECUTE, 'x'},
-  {RICHACE_WRITE_ACL, 'm'},
+  {RICHACE_WRITE_ACL|RICHACE_WRITE_ATTRIBUTES|RICHACE_WRITE_NAMED_ATTRS, 'm'},
   {RICHACE_APPEND_DATA, 'u'},
-  {RICHACE_DELETE, 'd'},
+  {RICHACE_DELETE_CHILD, 'd'},
   {RICHACE_WRITE_OWNER, 'c'}
 };
 const unsigned int raclEosPermsLen = sizeof(raclEosPerms) / sizeof(
@@ -116,7 +116,7 @@ static racl2eos(struct richacl* acl, char* buf, int bufsz, metad::shared_md md)
   }
 
   for (auto map = ace_mask.begin(); map != ace_mask.end(); ++map) {
-    char allowed[64];
+    char perms[64];
     int pos = 0;
     struct masks allowdeny = map->second;
     unsigned int e_mask = allowdeny.allow & ~allowdeny.deny;
@@ -125,20 +125,20 @@ static racl2eos(struct richacl* acl, char* buf, int bufsz, metad::shared_md md)
             allowdeny.allow, allowdeny.deny, e_mask);
 
     for (unsigned int j = 0; j < raclEosPermsLen; j++) {
-      if (e_mask & raclEosPerms[j].raclBit) {
-        if (raclEosPerms[j].eosChr == 'u') {
-          allowed[pos++] = '+';
-        }
-
-        allowed[pos++] = raclEosPerms[j].eosChr;
+      if (allowdeny.deny & raclEosPerms[j].raclBits) {
+          perms[pos++] = '!';
       }
+      else if (!(e_mask & raclEosPerms[j].raclBits)) {
+          continue;                 /* not allowed, no need to mention it */
+      }
+      // with denials, 'u' should no longer automatically disable them depending on position!
+      // if (raclEosPerms[j].eosChr == 'u' && !allowdeny.deny) perms[pos++] = '+';
+
+      eos_static_debug("racl2eos %c for %#x @%d", raclEosPerms[j].eosChr, raclEosPerms[j].raclBits, pos);
+      perms[pos++] = raclEosPerms[j].eosChr;
     }
 
-    if (e_mask & RICHACE_DELETE_CHILD && !(e_mask & RICHACE_DELETE)) {
-      allowed[pos++] = 'd';
-    }
-
-    allowed[pos] = '\0'; /* terminate string */
+    perms[pos] = '\0'; /* terminate string */
     char* b = buf;
 
     if ((end_buf - b) < 10) { /* don't take chances */
@@ -150,15 +150,14 @@ static racl2eos(struct richacl* acl, char* buf, int bufsz, metad::shared_md md)
       *b++ = ',';
     }
 
-    if (EOS_LOGS_DEBUG) eos_static_debug("racl2eos %s allowed %s", map->first.c_str(), allowed);
-    int l = snprintf(b, end_buf - b, "%s:%s", map->first.c_str(), allowed);
+    if (EOS_LOGS_DEBUG) eos_static_debug("racl2eos %s perm %s", map->first.c_str(), perms);
+    int l = snprintf(b, end_buf - b, "%s:%s", map->first.c_str(), perms);
 
     if (b + l >= end_buf) {
       *b = '\0';
       return E2BIG;
     }
 
-    // eos_static_debug("racl2eos: l=%d %s", l, b);
     buf = b + l;
     add_comma = true;
   }
@@ -185,6 +184,8 @@ eos2racl(const char* eosacl, metad::shared_md md)
   }
 
   struct richacl* acl = richacl_alloc(numace);
+  if (acl == NULL) return NULL;
+
   acl->a_count = 0;
   struct richace *ace;
   int idx_everyone=-1, idx_owner=-1, idx_group=-1;
@@ -218,7 +219,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
         qlf = NULL;
     }
 
-    /* check all eos chars have an entry in raclEosPerms! */
+    /* verify all eos chars have an entry in raclEosPerms! */
     for (char* s = perm; *s != '\0'; s++) {
       if (s[0] == '+' || s[0] == '!') {
         continue;
@@ -250,7 +251,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
         qlf_num = -1;  /* not a number */
       }
 
-      if (EOS_LOGS_DEBUG) eos_static_debug("qlf='%s' qlf_num=%d qlf_end='%s'", qlf, qlf_num, qlf_end);
+      /* if (EOS_LOGS_DEBUG) eos_static_debug("qlf='%s' qlf_num=%d qlf_end='%s'", qlf, qlf_num, qlf_end); */
     }
 
     switch (uge[0]) { /* qualifier type, just check first char */
@@ -327,32 +328,30 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
     /* interpret mask characters */
     unsigned int deny = 0;
+    if (EOS_LOGS_DEBUG) eos_static_debug("eos2racl perm=%s", perm);
     for (unsigned int j = 0; j < raclEosPermsLen; j++) {
       char* s = strchr(perm, raclEosPerms[j].eosChr);
 
       if (s != NULL) {
-        bool has_not = (s > perm) && (s[0] == '!');
+        bool has_not = (s > perm) && (s[-1] == '!');
 
         if (has_not) {
-          if (acl->a_other_mask & raclEosPerms[j].raclBit) {
-            /* eos_static_err("eos2racl need a deny entry for '%c' in '%s'", s[0], perm); */
-            deny |= raclEosPerms[j].raclBit;
-          }
-
-          ace->e_mask &= ~raclEosPerms[j].raclBit;
+          if (EOS_LOGS_DEBUG) eos_static_debug("eos2racl need a deny entry for '%c' in '%s'", s[0], perm);
+          deny |= raclEosPerms[j].raclBits;
+          ace->e_mask &= ~raclEosPerms[j].raclBits;
         } else {
-          ace->e_mask |= raclEosPerms[j].raclBit;
+          ace->e_mask |= raclEosPerms[j].raclBits;
         }
-      } else if (acl->a_other_mask & raclEosPerms[j].raclBit) {
+      } else if (acl->a_other_mask & raclEosPerms[j].raclBits) {
         eos_static_err("eos2racl need a deny entry for '%c' in '%s'",
                        raclEosPerms[j].eosChr, perm);
-        deny |= raclEosPerms[j].raclBit;
+        deny |= raclEosPerms[j].raclBits;
       }
     }
 
     if (deny != 0) {
         struct richace *dace = &denials->a_entries[denials->a_count];
-        richace_copy(dace, ace);
+        richace_copy(dace, ace);        /* denials has been cleared upon alloc, good for richace_copy */
         dace->e_mask = deny;
         dace->e_type = RICHACE_ACCESS_DENIED_ACE_TYPE;
         denials->a_count++;
@@ -365,7 +364,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
   /* if needed, create a new ACL with denials first */
   if (denials->a_count > 0) {
-      struct richacl *acl2 = richacl_alloc(denials->a_count + acl->a_count);
+      struct richacl *acl2 = richacl_alloc(denials->a_count + acl->a_count);    /* alloc and clear */
       if (EOS_LOGS_DEBUG) eos_static_debug("allocated new acl for %d entries", acl2->a_count);
       /*int sz = (void *) (acl->a_entries) - (void *) acl; ...this does not compile ?? */
       int sz = (char *) (acl->a_entries) - (char *) acl;
@@ -375,19 +374,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
       /* copy all useful deny entries */
       struct richace *ace;
       richacl_for_each_entry(ace, denials) {
-        unsigned int deny = ace->e_mask;
-
-        if ( ! (acl->a_other_mask & deny) &&        /* other_mask does not add rights */
-             ! ( (acl->a_group_mask & deny) ||      /* group mask does not add rights... */
-                 ( (ace->e_flags & RICHACE_IDENTIFIER_GROUP) && /* this is a group entry... */
-                   (ace->e_flags & RICHACE_SPECIAL_WHO) &&
-                   (ace->e_id == RICHACE_GROUP_SPECIAL_ID)
-                 ) ) ) { 
-            if (EOS_LOGS_DEBUG) eos_static_debug("deny mask %#x for id %d ignored", deny, ace->e_id);
-            continue;
-        }
-
-        richace_copy(&acl2->a_entries[acl2->a_count++], ace);
+        richace_copy(&acl2->a_entries[acl2->a_count++], ace);       /* acl2 had been cleared upon alloc */
         if (EOS_LOGS_DEBUG) eos_static_debug("copied mask %#x for id %d count %d", ace->e_mask, ace->e_id, acl2->a_count);
       }
 
@@ -408,6 +395,91 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
   richacl_free(acl);
   return NULL;
+}
+
+
+/* normalize e_id to (idType, id) for easy comparisons */
+id_t
+richacl_normalize_special_id(struct richace *ace, metad::shared_md md, int *idType) {
+  id_t id = 0;
+
+  if (ace->e_flags & RICHACE_SPECIAL_WHO) {
+    *idType = (int) ace->e_id;
+
+    if (*idType == RICHACE_OWNER_SPECIAL_ID) {
+      id = md->uid();
+    } else if (*idType == RICHACE_GROUP_SPECIAL_ID) {
+      id = md->gid();
+    }
+  } else { 
+    *idType = 0x800;    /* any "free" bit that does not clash with RICHACE_IDENTIFIER_GROUP */
+    id = ace->e_id;
+      
+    if (ace->e_flags & RICHACE_IDENTIFIER_GROUP)
+        *idType |= RICHACE_IDENTIFIER_GROUP;
+  }
+
+  return id;
+}
+
+static richace *
+richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
+                          struct richacl *acl, metad::shared_md md) {
+  struct richace *ace;
+
+  int idType1;
+  id_t id1 = richacl_normalize_special_id(e, pmd, &idType1);
+
+  richacl_for_each_entry(ace, acl) {
+      if (ace->e_type==RICHACE_ACCESS_ALLOWED_ACE_TYPE) {
+
+        if (richace_is_same_identifier(e, ace)) return ace;
+
+        int idType2;
+        id_t id2 = richacl_normalize_special_id(ace, md, &idType2);
+
+        if ((idType1 != idType2) || (id1 != id2)) continue;
+
+        return ace;
+      }
+  }
+  return NULL;
+}
+
+/* merge "D" privileges (RICHACE_DELETE) from parent's 'd' (RICHACE_DELETE_CHILD) into ACL */
+struct richacl *
+richacl_DELETE_from_parent(struct richacl *acl, metad::shared_md md,
+                           struct richacl *pacl, metad::shared_md pmd) {
+  struct richace *ace, *pace;
+
+  /* Loop over all entries in parent ACL which have DELETE_CHILD on */
+  richacl_for_each_entry(pace, pacl) {
+    if ( (pace->e_type != RICHACE_ACCESS_ALLOWED_ACE_TYPE) ||
+            (pace->e_mask & RICHACE_DELETE_CHILD) == 0 )
+        continue;
+
+    ace = richacl_find_matching_ace(pace, pmd, acl, md);
+    if (ace == NULL) {
+      size_t newsz = sizeof(struct richacl) + (acl->a_count + 1) * sizeof(struct richace);
+      struct richacl *newacl = (struct richacl *) realloc(acl, newsz);
+      eos_static_debug("richacl realloced %d bytes for parent DELETE_CHILD old=%#p new=%#p, e_id=%d", newsz, acl, newacl, pace->e_id);
+      if (newacl == NULL) {         /* running out of memory */
+          richacl_free(acl);        /* complete, high-level free */
+          return NULL;
+      }
+          
+      acl = newacl;
+      ace = &(acl->a_entries[acl->a_count]);
+      memset(ace, 0, sizeof(*ace));     /* richace_copy needs a clean entry */
+      richace_copy(ace, pace);
+      ace->e_mask = 0;
+      acl->a_count++;
+    }
+    ace->e_mask |= RICHACE_DELETE;
+    eos_static_debug("richacl allowing DELETE for %d, mask %#x", ace->e_id, ace->e_mask);
+  }
+
+  return acl;
 }
 
 std::string escape(std::string src)

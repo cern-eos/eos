@@ -42,9 +42,8 @@ ACLs are defined only on the directory level via the extended attribute
 
    user.acl=<acllist>
 
-The system attribute can only be defined by SUDO members. 
-If  sys.acl is defined user.acl is ignored. 
-The user attribute can be defined by the **owner** or SUDO members.
+The sys.acl attribute can only be defined by SUDO members. 
+The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
 
 <acllist> is defined as a comma separated list of rules:
 
@@ -84,6 +83,13 @@ The following tags compose a rule:
    i   set the immutable flag    
    === =========================================================================
 
+Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r'.
+Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
+is denied reading and writing although the group he is in has read+write access.
+Only 'd' and 'u' can be re-granted even when previously (!) denied by specyfing  '+d' and '+u',
+which makes sense for example when sys.acl and then user.acl are evaluated: sys.acl='u:fred:!d' and user.acl='u:fred:+d'
+means the user "fred" is granted the 'd' right anyway.
+
 A complex example is shown here:
 
 .. code-block:: bash
@@ -107,6 +113,7 @@ A complex example is shown here:
    Write-once and '!d' or '!u' rules remove permissions which can only be regained 
    by a second rule adding the '+u' or '+d' flag e.g. if the matching user ACL 
    forbids deletion it is not granted if a group rule does not forbid deletion!
+
 
 It is possible to write rules, which apply to everyone:
 
@@ -239,6 +246,22 @@ Quota Permission
 
 A user can do 'quota set' if he is a sudoer, has the 'q' ACL permission set on 
 the quota node or on the proc directory ``/eos/<instance>/proc``.
+
+Richacl Support
++++++++++++++++
+
+On systems where "richacl"s (a more sophisticated ACL model derived from NFS4 ACLs) are supported, e.g. CC7,
+the translation between EOS ACLs and richacls is by nature incomplete and not always two-ways:
+
+an effort is made for example to derive a file's or directory's RICHACL_DELETE right from the parent's 'd' right,
+whereas the RICHACL_DELETE_CHILD right translates to the directory's own 'd'. 
+This helps samba, for example. However, setting
+RICHACL_DELETE on a directory does not affect the directory's parent: permissions for individual
+objects cannot be expressed in EOS ACLs.
+
+Richacls are created and retrieved using the {get,set}richacl commands and the relevant richacl library functions
+on the fusex-mounted EOS tree. Those utilities act on the user.acl attribute and ignore sys.acl.
+
 
 How to setup a shared scratch directory
 +++++++++++++++++++++++++++++++++++++++

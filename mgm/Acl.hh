@@ -45,13 +45,13 @@ class Acl
 public:
   static constexpr auto sRegexUsrGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";

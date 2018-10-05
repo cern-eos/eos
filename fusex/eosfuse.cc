@@ -3914,14 +3914,14 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  std::string key = xattr_name;
+  eos_static_debug(key.c_str());        /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino);
   int rc = 0;
   fuse_id id(req);
   cap::shared_cap pcap;
-  std::string key = xattr_name;
   std::string value;
   bool local_getxattr = false;
   // the root user has a bypass to be able to retrieve information in
@@ -4075,44 +4075,60 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             if (pcap->errc()) {
               rc = pcap->errc();
             } else {
-#ifdef RICHACL_FOUND
 
+#ifdef RICHACL_FOUND
               if (key == s_racl) {
-                if (map.count("sys.eval.useracl") == 0 || map.count("user.acl") == 0 ||
-                    map["user.acl"].length() == 0) {
-                  rc = ENOATTR;
-                } else {
-                  const char* eosacl = map["user.acl"].c_str();
-                  eos_static_debug("eosacl '%s'", eosacl);
-                  struct richacl* a = eos2racl(eosacl, md);
+                  struct richacl *a;
+                  if (map.count("sys.eval.useracl") == 0 ||
+                          map.count("user.acl") == 0 || map["user.acl"].length() == 0) {
+                    a = richacl_from_mode(md->mode());          /* Always returns an ACL */
+                  } else {
+                    const char* eosacl = map["user.acl"].c_str();
+                    eos_static_debug("eosacl '%s'", eosacl);
+                    a = eos2racl(eosacl, md);
+                  }
 
                   if (a != NULL) {
-                    size_t sz = richacl_xattr_size(a);
-#if 1
-                    value.assign(sz, '\0'); /* allocate and clear result buffer */
-                    richacl_to_xattr(a, (void*) value.c_str());
-#else
-                    //void *a_x = (void *) alloca(sz);
-                    //richacl_to_xattr(a, a_x);
-                    //value.assign((char *)a_x, sz);
-                    //free(a_x);
-#endif
-                    char* a_t = richacl_to_text(a, 0);
-                    eos_static_debug("eos2racl returned raw size %d, decoded: %s", sz, a_t);
-                    free(a_t);
-                    richacl_free(a);
+                    /* decode parent ACL to determine 'D' right */
+                    metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+                    if (pmd) {
+                      auto pmap = pmd->attr();
+
+                      if (pmap.count("sys.eval.useracl") > 0 && pmap.count("user.acl") > 0) {
+                        const char *peosacl = pmap["user.acl"].c_str();
+                        struct richacl *pa = eos2racl(peosacl, pmd);
+                        if (pa != NULL) {
+                          a = richacl_DELETE_from_parent(a, md, pa, pmd);
+                          richacl_free(pa);
+                        }
+
+                        if (a == NULL)              /* a has been freed */
+                          rc = ENOMEM;
+                        else
+                          eos_static_debug("merged D right into acl");
+                      }
+                    }
+
+                    if (rc == 0) {
+                      size_t sz = richacl_xattr_size(a);
+                      value.assign(sz, '\0'); /* allocate and clear result buffer */
+                      richacl_to_xattr(a, (void*) value.c_str());
+                      char* a_t = richacl_to_text(a, 0);
+                      eos_static_debug("eos2racl returned raw size %d, decoded: %s", sz, a_t);
+                      free(a_t);
+                      richacl_free(a);
+                    }
                   } else { /* unsupported EOS Acl */
                     size_t xx = 0;
                     value.assign((char*) &xx, sizeof(xx));  /* Invalid xattr */
                   }
 
                   if (EOS_LOGS_DEBUG) {
-                    eos_static_debug("racl getxattr %d: %s", value.length(),
-                                     escape(value).c_str());
+                    eos_static_debug("racl getxattr %d", value.length());
                   }
-                }
               } else
 #endif /*RICHACL_FOUND*/
+
                 if (!map.count(key)) {
                   rc = ENOATTR;
                 } else {
@@ -4167,7 +4183,8 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("key=%s", xattr_name);
+  std::string key = xattr_name;
+  eos_static_debug(key.c_str());            /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino, true);
@@ -4176,7 +4193,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   cap::shared_cap pcap;
   std::string value;
   bool local_setxattr = false;
-  std::string key = xattr_name;
   value.assign(xattr_value, size);
 #ifdef RICHACL_FOUND
 
@@ -4326,6 +4342,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             }
 
 #endif
+
 #ifdef RICHACL_FOUND
             else if (key == s_racl) {
               struct richacl* a = richacl_from_xattr(xattr_value, size);
@@ -4339,14 +4356,18 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
               if (!map->count("sys.eval.useracl")) {
                 // in case user acls are disabled
-                rc = EPERM;
+                if (S_ISDIR(md->mode()))
+                  rc = EPERM;
+                else
+                  rc = 0;       /* silently ignore setting ACL on file */
               } else {
                 (*map)["user.acl"] = std::string(eosAcl);
                 Instance().mds.update(req, md, pcap->authid());
+                rc = 0;
               }
             }
-
 #endif /*RICHACL_FOUND*/
+
             else {
               auto map = md->mutable_attr();
               bool exists = false;
