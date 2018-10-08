@@ -51,6 +51,47 @@ ZMQ::ServeFuse()
 //
 //------------------------------------------------------------------------------
 void
+ZMQ::Task::run() noexcept
+{
+  int enable_ipv6 = 1;
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
+  frontend_.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
+#else
+  enable_ipv6 = 0;
+  frontend_.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
+#endif
+  frontend_.bind(bindUrl.c_str());
+  backend_.bind("inproc://backend");
+  injector_.connect("inproc://backend");
+
+  for (int i = 0; i < kMaxThread; ++i) {
+    mWorkerThreads.push_back(new std::thread(&Worker::work,
+                             new Worker(ctx_, ZMQ_DEALER)));
+    mWorkerThreads.back()->detach();
+  }
+
+  try {
+    zmq::proxy(static_cast<void*>(frontend_), static_cast<void*>(backend_),
+               (void*)nullptr);
+  } catch (const zmq::error_t& e) {
+    if (e.num() == ETERM) {
+      // Shutdown
+      for (const auto th : mWorkerThreads) {
+        delete th;
+      }
+
+      mWorkerThreads.clear();
+      delete this;
+    }
+  }
+
+  delete this;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+void
 ZMQ::Worker::work()
 {
   worker_.connect("inproc://backend");
@@ -78,13 +119,13 @@ ZMQ::Worker::work()
                                               1000000000.0));
 
           if (gFuseServer.Client().Dispatch(id, *(hb.mutable_heartbeat_()))) {
-	    if (EOS_LOGS_DEBUG)
-	      eos_static_debug("msg=\"received new heartbeat\" identity=%s type=%d",
-                             (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+            if (EOS_LOGS_DEBUG)
+              eos_static_debug("msg=\"received new heartbeat\" identity=%s type=%d",
+                               (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           } else {
-	    if (EOS_LOGS_DEBUG)
-	      eos_static_debug("msg=\"received heartbeat\" identity=%s type=%d",
-			       (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+            if (EOS_LOGS_DEBUG)
+              eos_static_debug("msg=\"received heartbeat\" identity=%s type=%d",
+                               (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
           }
 
           if (hb.statistics_().vsize_mb()) {
@@ -104,13 +145,18 @@ ZMQ::Worker::work()
         break;
 
         default:
-          eos_static_err("msg=\"message type unknown");
+          eos_static_err("%s", "msg=\"message type unknown");
         }
       } else {
-        eos_static_err("msg=\"unable to parse message\"");
+        eos_static_err("%s", "msg=\"unable to parse message\"");
       }
     }
-  } catch (std::exception& e) {
+  } catch (const zmq::error_t& e) {
+    // Shutdown
+    if (e.num() == ETERM) {
+      eos_static_debug("%s", "msg=\"shutdown ZMQ worker ...\"");
+      delete this;
+    }
   }
 }
 

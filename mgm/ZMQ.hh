@@ -33,7 +33,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-
+//------------------------------------------------------------------------------
+//! Class ZMQ
+//------------------------------------------------------------------------------
 class ZMQ
 {
 public:
@@ -41,6 +43,9 @@ public:
 
   ~ZMQ() = default;
 
+  //----------------------------------------------------------------------------
+  //! Class Worker
+  //----------------------------------------------------------------------------
   class Worker
   {
   public:
@@ -54,50 +59,24 @@ public:
     zmq::socket_t worker_;
   };
 
+  //----------------------------------------------------------------------------
+  //! Class Task
+  //----------------------------------------------------------------------------
   class Task
   {
   public:
-
     Task(std::string url_)
-      : ctx_(1),
-        frontend_(ctx_, ZMQ_ROUTER),
-        backend_(ctx_, ZMQ_DEALER),
-        injector_(ctx_, ZMQ_DEALER)
+      : ctx_(1), frontend_(ctx_, ZMQ_ROUTER),
+        backend_(ctx_, ZMQ_DEALER), injector_(ctx_, ZMQ_DEALER)
     {
       bindUrl = url_;
     }
 
     enum {
       kMaxThread = 16
-    } ;
+    };
 
-    void run() noexcept
-    {
-      int enable_ipv6 = 1;
-#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
-      frontend_.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
-#else
-      enable_ipv6 = 0;
-      frontend_.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
-#endif
-      frontend_.bind(bindUrl.c_str());
-      backend_.bind("inproc://backend");
-      injector_.connect("inproc://backend");
-      Worker* worker;
-      std::thread* worker_thread;
-
-      for (int i = 0; i < kMaxThread; ++i) {
-        // @todo (esindril): Fix worker leak
-        worker = new Worker(ctx_, ZMQ_DEALER);
-        worker_thread = new std::thread(&Worker::work, worker);
-        worker_thread->detach();
-      }
-
-      try {
-        zmq::proxy(static_cast<void*>(frontend_), static_cast<void*>(backend_),
-                   (void*)nullptr);
-      } catch (std::exception& e) {}
-    }
+    void run() noexcept;
 
     void reply(const std::string& id, const std::string& data)
     {
@@ -114,9 +93,9 @@ public:
     zmq::socket_t frontend_;
     zmq::socket_t backend_;
     zmq::socket_t injector_;
-
     std::string bindUrl;
-  } ;
+    std::list<std::thread*> mWorkerThreads;
+  };
 
   void ServeFuse();
   Task* task;
