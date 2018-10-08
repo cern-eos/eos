@@ -27,10 +27,7 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-void
-xrdmgmofs_shutdown(int sig)
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 /*
  * @brief shutdown function cleaning up running threads/objects for a clean exit
  *
@@ -42,14 +39,17 @@ xrdmgmofs_shutdown(int sig)
  * Depending on the role of the MGM it stop's the running namespace follower
  * and in all cases running sub-services of the MGM.
  */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+void
+xrdmgmofs_shutdown(int sig)
+
 {
   (void) signal(SIGINT, SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
   eos_static_alert("msg=\"shutdown sequence started\'");
 
-  // avoid shutdown recursions
+  // Avoid shutdown recursions
   if (gOFS->Shutdown) {
     return;
   }
@@ -59,14 +59,14 @@ xrdmgmofs_shutdown(int sig)
   // handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let's time to finish write operations)
   // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop vst ... ");
 
   if (gOFS->MgmOfsVstMessaging) {
     delete gOFS->MgmOfsVstMessaging;
   }
 
-  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop recycler thread ... ");
+  gOFS->Recycler->Stop();
   eos_static_warning("Shutdown:: stop deletion thread ... ");
 
   if (gOFS->deletion_tid) {
@@ -74,10 +74,8 @@ xrdmgmofs_shutdown(int sig)
     XrdSysThread::Join(gOFS->deletion_tid, 0);
   }
 
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop transfer engine thread ... ");
   gTransferEngine.Stop();
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop statistics thread ... ");
 
   if (gOFS->mStatsTid) {
@@ -85,7 +83,6 @@ xrdmgmofs_shutdown(int sig)
     XrdSysThread::Join(gOFS->mStatsTid, 0);
   }
 
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop fs listener thread ... ");
 
   if (gOFS->mFsConfigTid) {
@@ -93,29 +90,50 @@ xrdmgmofs_shutdown(int sig)
     XrdSysThread::Join(gOFS->mFsConfigTid, 0);
   }
 
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh->Stop();
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop LRU thread ... ");
   gOFS->LRUd.Stop();
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
 
   if (gOFS->MgmOfsMessaging) {
     gOFS->MgmOfsMessaging->StopListener();
   }
 
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop fusex server ... ");
+  eos_static_warning("Shutdown:: stop fusex server ...");
   gOFS->zMQ->gFuseServer.shutdown();
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: remove messaging ... ");
+  eos_static_warning("Shutdown:: remove messaging ...");
 
   if (gOFS->MgmOfsMessaging) {
     delete gOFS->MgmOfsMessaging;
   }
 
+  gOFS->ConfEngine->SetAutoSave(false);
+  eos_static_warning("Shutdown:: stop GeoTree engine ... ");
+
+  if (!gGeoTreeEngine.StopUpdater()) {
+    eos_static_crit("error Stopping the GeoTree engine");
+  }
+
+  eos_static_warning("Shutdown:: cleanup quota...");
+  (void) Quota::CleanUp();
+  eos_static_warning("Shutdown:: stop shared object modification notifier ... ");
+
+  if (!gOFS->ObjectNotifier.Stop()) {
+    eos_static_crit("error Stopping the shared object change notifier");
+  }
+
+  eos_static_warning("Shutdown:: stop config engine ... ");
+
+  if (gOFS->ConfEngine) {
+    delete gOFS->ConfEngine;
+    gOFS->ConfEngine = nullptr;
+    FsView::sConfEngine = nullptr;
+  }
+
+  eos_static_warning("Shutdown:: attempt graceful shutdown of FsView ...");
+  FsView::gFsView.StopHeartBeat();
+  FsView::gFsView.Clear();
   eos_static_warning("Shutdown:: grab write mutex");
   uint64_t timeout_ns = 3 * 1e9;
 
@@ -123,7 +141,6 @@ xrdmgmofs_shutdown(int sig)
     eos_static_warning("Trying to get the wr lock on eosViewRWMutex");
   }
 
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: set stall rule");
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gStallRules[std::string("*")] = "300";
@@ -180,42 +197,10 @@ xrdmgmofs_shutdown(int sig)
     }
   }
 
-  gOFS->ConfEngine->SetAutoSave(false);
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop GeoTree engine ... ");
-
-  if (!gGeoTreeEngine.StopUpdater()) {
-    eos_static_crit("error Stopping the GeoTree engine");
-  }
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: cleanup quota...");
-  (void) Quota::CleanUp();
-  // ----------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop shared object modification notifier ... ");
-
-  if (!gOFS->ObjectNotifier.Stop()) {
-    eos_static_crit("error Stopping the shared object change notifier");
-  }
-
-  // ----------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop config engine ... ");
-
-  if (gOFS->ConfEngine) {
-    delete gOFS->ConfEngine;
-    gOFS->ConfEngine = nullptr;
-    FsView::sConfEngine = nullptr;
-  }
-
   gOFS->eosViewRWMutex.UnLockWrite();
+  eos_static_warning("Shutdown:: stop master supervisor thread ...");
+  gOFS->mMaster.reset();
   eos_static_warning("Shutdown complete");
   eos_static_alert("msg=\"shutdown complete\'");
-
-  if (getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
-    eos_static_crit("msg=\"attempting graceful shutdown, expect SEGV\'");
-    FsView::gFsView.Reset();
-    exit(9);
-  } else {
-    kill(getpid(), 9);
-  }
+  exit(9);
 }
