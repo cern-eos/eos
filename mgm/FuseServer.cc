@@ -230,9 +230,9 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
       if (cap) {
         caps_to_revoke.insert(cap);
-        eos_static_info("cap-revocation: authid=%s vtime:= %u",
-                        it->first.c_str(),
-                        cap->vtime());
+        eos_static_debug("cap-revocation: authid=%s vtime:= %u",
+                         it->first.c_str(),
+                         cap->vtime());
       }
     }
   }
