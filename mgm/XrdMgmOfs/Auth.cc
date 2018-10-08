@@ -75,10 +75,19 @@ XrdMgmOfs::AuthMasterThread()
 #if ZMQ_VERSION_MAJOR == 2
   zmq_device(ZMQ_QUEUE, &frontend, &backend);
 #else
-  zmq::proxy(static_cast<void*>(frontend), static_cast<void*>(backend),
-             static_cast<void*>(0));
+
+  try {
+    zmq::proxy(static_cast<void*>(frontend), static_cast<void*>(backend),
+               static_cast<void*>(0));
+  } catch (const zmq::error_t& e) {
+    if (e.num() == ETERM) {
+      eos_crit("msg=\"master termination requested\" tid=%08x",
+               XrdSysThread::ID());
+      return;
+    }
+  }
+
 #endif
-  eos_static_info("successfully started auth master thread");
 }
 
 
@@ -149,7 +158,7 @@ XrdMgmOfs::AuthWorkerThread()
   std::chrono::steady_clock::time_point time_start, time_end;
 
   // Main loop of the worker thread
-  while (1) {
+  while (true) {
     zmq::message_t request;
 
     // Wait for next request
@@ -157,7 +166,13 @@ XrdMgmOfs::AuthWorkerThread()
       do {
         done = responder->recv(&request);
       } while (!done);
-    } catch (zmq::error_t& e) {
+    } catch (const zmq::error_t& e) {
+      if (e.num() == ETERM) {
+        eos_crit("msg=\"worker termination requested\" tid=%08x",
+                 XrdSysThread::ID());
+        return;
+      }
+
       eos_err("socket recv error: %s, trying to reset the socket", e.what());
 
       if (!ConnectToBackend(responder)) {

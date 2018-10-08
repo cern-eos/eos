@@ -1879,7 +1879,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (mNumAuthThreads && mFrontendPort) {
     eos_info("starting the authentication master thread");
 
-    if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthMasterThread,
+    if ((XrdSysThread::Run(&mAuthMasterTid, XrdMgmOfs::StartAuthMasterThread,
                            static_cast<void*>(this), 0, "Auth Master Thread"))) {
       eos_crit("cannot start the authentication master thread");
       NoGo = 1;

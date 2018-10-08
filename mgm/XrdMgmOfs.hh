@@ -1424,7 +1424,7 @@ public:
   pthread_t deletion_tid; ///< Thead Id of the deletion thread
   pthread_t mStatsTid; ///< Thread Id of the stats thread
   pthread_t mFsConfigTid; ///< Thread ID of the fs listener/config change thread
-  pthread_t auth_tid; ///< Thread Id of the authentication thread
+  pthread_t mAuthMasterTid; ///< Thread Id of the authentication thread
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
   //----------------------------------------------------------------------------
@@ -1538,8 +1538,6 @@ public:
 
   //! Master/Slave configuration/failover class
   std::unique_ptr<IMaster> mMaster;
-  //std::unique_ptr<Master> MasterPtr;
-  //Master& MgmMaster;
 
   //! Map storing the last time of a filesystem dump, this information is used
   //! to track filesystems which have not been checked decentral by an FST.
