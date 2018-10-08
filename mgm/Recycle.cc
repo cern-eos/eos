@@ -46,11 +46,13 @@ int Recycle::gRecyclingPollTime = 30;
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Run asynchronous recyling thread
+//------------------------------------------------------------------------------
 bool
 Recycle::Start()
 {
-  // run an asynchronous recyling thread
   eos_static_info("constructor");
   mThread = 0;
   XrdSysThread::Run(&mThread, Recycle::StartRecycleThread,
@@ -59,13 +61,12 @@ Recycle::Start()
   return (mThread ? true : false);
 }
 
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Cancel the asynchronous recycle thread
+//------------------------------------------------------------------------------
 void
 Recycle::Stop()
 {
-  // cancel the asynchronous recycle thread
   if (mThread) {
     XrdSysThread::Cancel(mThread);
     XrdSysThread::Join(mThread, 0);
@@ -102,6 +103,7 @@ Recycle::Recycler()
   eos_static_info("msg=\"async recycling thread started\"");
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));
+  XrdSysThread::CancelPoint();
 
   while (true) {
     // Every now and then we wake up

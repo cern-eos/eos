@@ -118,10 +118,8 @@ ConverterJob::DoIt()
       // Load the attributes
       gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error, rootvid, 0,
                      attrmap, false, true);
-
       // Get checksum as string
       eos::appendChecksumOnStringAsHex(fmd.get(), sourceChecksum);
-
       // Get size
       StringConversion::GetSizeString(sourceSize,
                                       (unsigned long long) fmd->getSize());
@@ -232,7 +230,6 @@ ConverterJob::DoIt()
 
     try {
       fmd = gOFS->eosFileService->getFileMD(mFid);
-
       // get the checksum string if defined
       eos::appendChecksumOnStringAsHex(fmd.get(), sourceAfterChecksum);
     } catch (eos::MDException& e) {
@@ -512,8 +509,10 @@ Converter::Convert(void)
     }
 
     // Let some time pass or wait for a notification
-    mDoneSignal.Wait(10);
-    XrdSysThread::CancelPoint();
+    for (int i = 0; i < 10; i++) {
+      mDoneSignal.Wait(1);
+      XrdSysThread::CancelPoint();
+    }
   }
 
   return 0;
