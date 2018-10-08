@@ -210,6 +210,17 @@ XrdMgmOfs::~XrdMgmOfs()
 {
   StopArchiveSubmitter();
   delete mZmqContext;
+
+  if (mAuthMasterTid) {
+    XrdSysThread::Join(mAuthMasterTid, nullptr);
+    mAuthMasterTid = 0;
+  }
+
+  for (const auto& auth_tid : mVectTid) {
+    XrdSysThread::Join(auth_tid, nullptr);
+  }
+
+  mVectTid.clear();
 }
 
 //------------------------------------------------------------------------------

@@ -201,6 +201,6 @@ xrdmgmofs_shutdown(int sig)
   eos_static_warning("Shutdown:: stop master supervisor thread ...");
   gOFS->mMaster.reset();
   eos_static_warning("Shutdown complete");
-  eos_static_alert("msg=\"shutdown complete\'");
+  eos_static_alert("msg=\"shutdown complete\"");
   exit(9);
 }

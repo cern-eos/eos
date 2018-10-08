@@ -55,12 +55,12 @@ EOSMGMNAMESPACE_BEGIN
 using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/
-WFE::WFE()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief Constructor of the work flow engine
  */
 /*----------------------------------------------------------------------------*/
+WFE::WFE()
+
 {
   mThread = 0;
   mMs = 0;
@@ -1621,7 +1621,7 @@ WFE::Job::DoIt(bool issync)
           for (const auto& attribute : CollectAttributes(fullPath))
           {
             google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-                attribute.second);
+            attribute.second);
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };

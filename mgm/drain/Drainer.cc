@@ -64,7 +64,7 @@ Drainer::~Drainer()
 {
   Stop();
 
-  if (mThread && !gOFS->Shutdown) {
+  if (mThread) {
     XrdSysThread::Join(mThread, NULL);
   }
 }
