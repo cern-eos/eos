@@ -138,11 +138,10 @@ public:
     std::string proxygroup;
     int8_t fileStickyProxyDepth;
     eos::common::FileSystem::fsid_t fsId;
-    float netSpeedClass;
+    float netSpeedClass = 0.0;
 
     std::ostream&
     display(std::ostream& os) const;
-
   };
 
   // the data in that structure is included in the FastTree

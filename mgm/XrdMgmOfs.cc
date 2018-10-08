@@ -411,7 +411,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   while (pptr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
-    XrdSfsFileExistence check;
     {
       const char* inpath = prep_path.c_str();
       const char* ininfo = "";
@@ -423,6 +422,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       const char* ininfo = "";
       MAYREDIRECT;
     }
+    XrdSfsFileExistence check;
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
