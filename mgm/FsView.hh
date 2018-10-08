@@ -981,6 +981,11 @@ public:
   void Reset();
 
   //----------------------------------------------------------------------------
+  //! Clear all maps and delete all filesystem/group/space objects
+  //----------------------------------------------------------------------------
+  void Clear();
+
+  //----------------------------------------------------------------------------
   //! Thread loop function checking heartbeats
   //----------------------------------------------------------------------------
   void* HeartBeatCheck();
@@ -993,6 +998,7 @@ public:
     if (mIsHeartbeatOn) {
       XrdSysThread::Cancel(hbthread);
       XrdSysThread::Join(hbthread, 0);
+      mIsHeartbeatOn = false;
     }
   }
 

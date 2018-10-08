@@ -1691,7 +1691,7 @@ FsView::StoreFsConfig(FileSystem* fs)
     std::string key, val;
     fs->CreateConfig(key, val);
 
-    if (FsView::sConfEngine) {
+    if (FsView::sConfEngine && !key.empty() && !val.empty()) {
       FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
     }
   }
@@ -2166,6 +2166,51 @@ FsView::Reset()
   mFileSystemView.clear();
 }
 
+
+//------------------------------------------------------------------------------
+// Clear all maps and delete all filesystem/group/space objects
+//------------------------------------------------------------------------------
+void
+FsView::Clear()
+{
+  {
+    eos::common::RWMutexReadLock rd_view_lock(ViewMutex);
+
+    // stop all the threads having only a read-lock
+    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
+      it->second->Stop();
+
+      if (getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
+        it->second->Join();
+      }
+    }
+  }
+  eos::common::RWMutexWriteLock wr_view_lock(ViewMutex);
+
+  while (mSpaceView.size()) {
+    UnRegisterSpace(mSpaceView.begin()->first.c_str());
+  }
+
+  {
+    // Remove all mappins
+    eos::common::RWMutexWriteLock wr_map_lock(MapMutex);
+    Fs2UuidMap.clear();
+    Uuid2FsMap.clear();
+  }
+
+  {
+    // Remove all gateway nodes
+    eos::common::RWMutexWriteLock wr_gw_lock(GwMutex);
+    mGwNodes.clear();
+  }
+
+  mSpaceView.clear();
+  mGroupView.clear();
+  mNodeView.clear();
+  mIdView.clear();
+  mFileSystemView.clear();
+}
+
 //------------------------------------------------------------------------------
 // Stores the next fsid into the global config
 //------------------------------------------------------------------------------
@@ -2261,8 +2306,6 @@ FsView::StaticHeartBeatCheck(void* arg)
 void*
 FsView::HeartBeatCheck()
 {
-  XrdSysThread::SetCancelOn();
-
   while (true) {
     {
       // quickly go through all heartbeats
@@ -2332,8 +2375,11 @@ FsView::HeartBeatCheck()
         }
       }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    XrdSysThread::CancelPoint();
+
+    for (int i = 0; i < 10; ++i) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      XrdSysThread::CancelPoint();
+    }
   }
 
   XrdSysThread::SetCancelOn();
