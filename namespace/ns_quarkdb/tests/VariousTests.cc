@@ -146,6 +146,19 @@ TEST_F(VariousTests, FileMDGetEnv) {
   DBG(output);
 }
 
+TEST_F(VariousTests, MkdirOnBrokenSymlink) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  IFileMDPtr file1 = view()->createFile("/file1", true);
+  file1->setLink("/not-existing");
+
+  fileSvc()->updateStore(file1.get());
+  containerSvc()->updateStore(root.get());
+
+  ASSERT_THROW(view()->createContainer("/file1", true), eos::MDException);
+}
+
 TEST_F(VariousTests, SymlinkExtravaganza) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

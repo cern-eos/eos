@@ -652,6 +652,15 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
         throw_mdexception(ENOENT, uri << ": No such file or directory");
       }
 
+      // Wait.. what if "ENOENT" is actually due to failed symlink lookup?
+      // We'd screw up namespace consistency if we attempt to add a container
+      // with the same name as the broken symlink.
+      FileOrContainerMD item = state.container->findItem(nextChunk).get();
+
+      if(item.file || item.container) {
+        throw_mdexception(EEXIST, uri << ": File exists");
+      }
+
       IContainerMDPtr newContainer = pContainerSvc->createContainer();
       newContainer->setName(nextChunk);
       newContainer->setCTimeNow();
