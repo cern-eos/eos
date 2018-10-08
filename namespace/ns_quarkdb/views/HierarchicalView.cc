@@ -658,7 +658,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
       FileOrContainerMD item = state.container->findItem(nextChunk).get();
 
       if(item.file || item.container) {
-        throw_mdexception(EEXIST, uri << ": File exists");
+        throw_mdexception(ENOTDIR, uri << ": Not a directory");
       }
 
       IContainerMDPtr newContainer = pContainerSvc->createContainer();
