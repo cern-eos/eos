@@ -66,8 +66,8 @@ public:
   //!
   //! @return qclient object
   //----------------------------------------------------------------------------
-  static qclient::QClient* getInstance(const QdbContactDetails &contactDetails,
-                                       const std::string &tag = "default");
+  static qclient::QClient* getInstance(const QdbContactDetails& contactDetails,
+                                       const std::string& tag = "default");
 private:
   static std::atomic<qclient::QClient*> sQdbClient;
   static std::string sQdbHost; ///< quarkdb instance host
@@ -75,5 +75,34 @@ private:
   static std::map<std::string, qclient::QClient*> pMapClients;
   static std::mutex pMutexMap; ///< Mutex to protect the access to the map
 };
+
+
+//------------------------------------------------------------------------------
+//! Initialization and finalization
+//------------------------------------------------------------------------------
+static struct Initializer {
+  static std::atomic<int> mCounter;
+  //----------------------------------------------------------------------------
+  //! Constructor will be invoked in every translation unit that includes the
+  //! current header file, but the BackendClient will be initialized only once
+  //----------------------------------------------------------------------------
+  Initializer() noexcept
+  {
+    if (mCounter++ == 0) {
+      eos::BackendClient::Initialize();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor will be invoked in every translation unit that includes the
+  //! current header file, but the BackendClient will be finalized only once
+  //----------------------------------------------------------------------------
+  ~Initializer()
+  {
+    if (--mCounter == 0) {
+      eos::BackendClient::Finalize();
+    }
+  }
+} finalizer;
 
 EOSNSNAMESPACE_END

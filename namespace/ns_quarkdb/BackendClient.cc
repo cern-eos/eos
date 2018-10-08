@@ -21,6 +21,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
+std::atomic<int> Initializer::mCounter {0};
 // Static variables
 std::atomic<qclient::QClient*> BackendClient::sQdbClient(nullptr);
 std::string BackendClient::sQdbHost("localhost");
@@ -74,7 +75,7 @@ BackendClient::getInstance(const QdbContactDetails& contactDetails,
 
   if (pMapClients.find(qdb_id) == pMapClients.end()) {
     instance = new qclient::QClient(contactDetails.members,
-      contactDetails.constructOptions());
+                                    contactDetails.constructOptions());
     pMapClients.insert(std::make_pair(qdb_id, instance));
   } else {
     instance = pMapClients[qdb_id];
@@ -82,25 +83,5 @@ BackendClient::getInstance(const QdbContactDetails& contactDetails,
 
   return instance;
 }
-
-//------------------------------------------------------------------------------
-// Initialization and finalization
-//------------------------------------------------------------------------------
-namespace
-{
-struct RedisInitializer {
-  // Initializer
-  RedisInitializer() noexcept
-  {
-    BackendClient::Initialize();
-  }
-
-  // Finalizer
-  ~RedisInitializer()
-  {
-    BackendClient::Finalize();
-  }
-} finalizer;
-} // namespace
 
 EOSNSNAMESPACE_END
