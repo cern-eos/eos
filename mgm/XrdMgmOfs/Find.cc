@@ -185,41 +185,43 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             fname = fit.key();
             fmd = cmd->findFile(fname);
 
-            // Skip symbolic links
-            if (fmd->isLink()) {
-              link = fmd->getLink();
-            } else {
-              link.clear();
-            }
-
-            if (limitresult) {
-              // Apply user limits for non root/admin/sudoers
-              if (filesfound >= file_limit) {
-                stdErr += "warning: find results are limited for you to nfiles=";
-                stdErr += (int) file_limit;
-                stdErr += " -  result is truncated!\n";
-                limited = true;
-                break;
-              }
-            }
-
-            if (!filematch) {
-              if (link.length()) {
-                std::string ip = fname;
-                ip += " -> ";
-                ip += link;
-                found[Path].insert(ip);
+            if (fmd) {
+              // Skip symbolic links
+              if (fmd->isLink()) {
+                link = fmd->getLink();
               } else {
-                found[Path].insert(fname);
+                link.clear();
               }
 
-              filesfound++;
-            } else {
-              XrdOucString name = fname.c_str();
+              if (limitresult) {
+                // Apply user limits for non root/admin/sudoers
+                if (filesfound >= file_limit) {
+                  stdErr += "warning: find results are limited for you to nfiles=";
+                  stdErr += (int) file_limit;
+                  stdErr += " -  result is truncated!\n";
+                  limited = true;
+                  break;
+                }
+              }
 
-              if (name.matches(filematch)) {
-                found[Path].insert(fname);
+              if (!filematch) {
+                if (link.length()) {
+                  std::string ip = fname;
+                  ip += " -> ";
+                  ip += link;
+                  found[Path].insert(ip);
+                } else {
+                  found[Path].insert(fname);
+                }
+
                 filesfound++;
+              } else {
+                XrdOucString name = fname.c_str();
+
+                if (name.matches(filematch)) {
+                  found[Path].insert(fname);
+                  filesfound++;
+                }
               }
             }
           }
