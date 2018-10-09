@@ -2960,40 +2960,47 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   }
 
   // Decoding setup
-  CURL* curl = curl_easy_init();
   std::string sval;
   // Convert to map
   std::string key = inkey;
   std::map<std::string, std::string> configmap;
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(val, tokens);
+  CURL* curl = curl_easy_init();
 
-  for (size_t i = 0; i < tokens.size(); i++) {
-    std::vector<std::string> keyval;
-    std::string delimiter = "=";
-    eos::common::StringConversion::Tokenize(tokens[i], keyval, delimiter);
-    sval = keyval[1].c_str();
+  if (curl) {
+    for (size_t i = 0; i < tokens.size(); i++) {
+      std::vector<std::string> keyval;
+      std::string delimiter = "=";
+      eos::common::StringConversion::Tokenize(tokens[i], keyval, delimiter);
+      sval = keyval[1].c_str();
 
-    // Curl decode string literal value
-    if (sval[0] == '"' && sval[sval.length() - 1] == '"') {
-      std::string to_decode = sval.substr(1, sval.length() - 2);
-      char* decoded = curl_easy_unescape(curl, to_decode.c_str(), 0, 0);
+      // Curl decode string literal value
+      if (sval[0] == '"' && sval[sval.length() - 1] == '"') {
+        std::string to_decode = sval.substr(1, sval.length() - 2);
+        char* decoded = curl_easy_unescape(curl, to_decode.c_str(), 0, 0);
 
-      if (decoded) {
-        keyval[1] = '"';
-        keyval[1] += decoded;
-        keyval[1] += '"';
-        curl_free(decoded);
+        if (decoded) {
+          keyval[1] = '"';
+          keyval[1] += decoded;
+          keyval[1] += '"';
+          curl_free(decoded);
+        }
       }
+
+      configmap[keyval[0]] = keyval[1];
     }
 
-    configmap[keyval[0]] = keyval[1];
+    curl_easy_cleanup(curl);
+  } else {
+    eos_err("%s", "msg=\"failed to initialize CURL handle");
+    return false;
   }
 
   if ((!configmap.count("queuepath")) ||
       (!configmap.count("queue")) ||
       (!configmap.count("id"))) {
-    eos_static_err("config definitions missing ...");
+    eos_err("%s", "msg=\"config definitions missing\"");
     return false;
   }
 
@@ -3022,8 +3029,8 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     fs->CloseTransaction();
 
     if (!FsView::gFsView.Register(fs)) {
-      eos_static_err("cannot register filesystem name=%s from configuration",
-                     configmap["queuepath"].c_str());
+      eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
+              configmap["queuepath"].c_str());
       return false;
     }
 
