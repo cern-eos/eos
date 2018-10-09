@@ -548,6 +548,11 @@ Requires: jemalloc
 %if %{use_richacl}
 Requires: librichacl, richacl >= 1.12
 %endif
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+Requires: zeromq3
+%else
+Requires: zeromq
+%endif
 
 %description -n eos-fusex-core
 The new EOS fuse core containing eosxd.
