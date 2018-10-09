@@ -32,7 +32,7 @@ Bug
 Improvement
 -----------
 
-* MGM: Improve shutdown of the MGM and cleanu of threads and resources
+* MGM: Improve shutdown of the MGM and cleanup of threads and resources
 
 
 ``v4.4.3 Citrine``
