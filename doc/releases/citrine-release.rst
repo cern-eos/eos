@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.4 Citrine``
+==================
+
+2018-10-09
+
+Bug
+----
+
+* [EOS-2951] - FST crashes while MGM is down
+* MGM: Fix find crash when a borken symlink exists along side a directory with
+  the same name
+* MGM: Fix creation of directories that have the same name as a broken link
+
+Improvement
+-----------
+
+* MGM: Improve shutdown of the MGM and cleanu of threads and resources
+
+
 ``v4.4.3 Citrine``
 ==================
 
