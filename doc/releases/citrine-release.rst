@@ -25,7 +25,7 @@ Bug
 ----
 
 * [EOS-2951] - FST crashes while MGM is down
-* MGM: Fix find crash when a borken symlink exists along side a directory with
+* MGM: Fix find crash when a broken symlink exists along side a directory with
   the same name
 * MGM: Fix creation of directories that have the same name as a broken link
 
