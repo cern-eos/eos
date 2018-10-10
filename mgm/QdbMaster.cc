@@ -266,14 +266,14 @@ QdbMaster::SlaveToMaster()
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
-  // Notify all the nodes about the new master identity
-  FsView::gFsView.BroadcastMasterId(GetMasterId());
 
   if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
     eos_err("msg=\"failed to apply master configuration\"");
     std::abort(); // @todo(esindril): may take a different action ?!
   }
 
+  // Notify all the nodes about the new master identity
+  FsView::gFsView.BroadcastMasterId(GetMasterId());
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
