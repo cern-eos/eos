@@ -66,7 +66,6 @@ Fsck::~Fsck()
 //------------------------------------------------------------------------------
 bool
 Fsck::Start(int interval)
-
 {
   if (interval) {
     mInterval = interval;
@@ -92,8 +91,6 @@ Fsck::Stop(bool store)
   if (mRunning) {
     eos_static_info("cancel fsck thread");
     XrdSysThread::Cancel(mThread);
-    // Join the master thread
-    XrdSysThread::Detach(mThread);
     XrdSysThread::Join(mThread, NULL);
     eos_static_info("joined fsck thread");
     mRunning = false;
@@ -171,19 +168,9 @@ Fsck::StaticCheck(void* arg)
 void*
 Fsck::Check(void)
 {
-  XrdSysThread::SetCancelOn();
-  XrdSysThread::SetCancelDeferred();
   int bccount = 0;
   ClearLog();
-
-  // Wait that the namespace is booted
-  while (true) {
-    if (!gOFS->IsNsBooted()) {
-      std::this_thread::sleep_for(std::chrono::seconds(10));
-    } else {
-      break;
-    }
-  }
+  gOFS->WaitUntilNamespaceIsBooted();
 
   while (true) {
     XrdSysThread::SetCancelOff();
@@ -199,7 +186,11 @@ Fsck::Check(void)
 
       if (!IsMaster) {
         XrdSysThread::SetCancelOn();
-        std::this_thread::sleep_for(std::chrono::seconds(60));
+
+        for (int i = 0; i < 60; ++i) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          XrdSysThread::CancelPoint();
+        }
       }
     }
 
@@ -487,7 +478,14 @@ Fsck::Check(void)
     Log(false, "=> next run in %d minutes", mInterval);
     XrdSysThread::SetCancelOn();
     // Wait for next FSCK round ...
-    std::this_thread::sleep_for(std::chrono::minutes(mInterval));
+    int timeout_sec = 5;
+    int count = 0;
+
+    while (count < mInterval * 60) {
+      count += timeout_sec;
+      std::this_thread::sleep_for(std::chrono::seconds(timeout_sec));
+      XrdSysThread::CancelPoint();
+    }
   }
 
   return 0;
