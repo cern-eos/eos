@@ -3027,11 +3027,21 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     std::map<std::string, std::string>::iterator it;
 
     for (it = configmap.begin(); it != configmap.end(); it++) {
-      // set config parameters
-      fs->SetString(it->first.c_str(), it->second.c_str());
+      // Set config parameters except for the "configstatus" which can trigger a
+      // drain job. This in turn could try to update the status of the file
+      // system and will deadlock trying to get the transaction mutex. Therefore,
+      // we update the configstatus outside this transaction.
+      if (it->first != "configstatus") {
+        fs->SetString(it->first.c_str(), it->second.c_str());
+      }
     }
 
     fs->CloseTransaction();
+    auto it_cfg = configmap.find("configstatus");
+
+    if (it_cfg != configmap.end()) {
+      fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
+    }
 
     if (!FsView::gFsView.Register(fs)) {
       eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
