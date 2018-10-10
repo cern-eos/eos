@@ -44,7 +44,10 @@ std::string getStacktrace()
 #else
 std::string getStacktrace()
 {
-  if (getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
+  if (getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+    return "backward disabled";
+  }
+  else {
     std::lock_guard<std::mutex> lock(mtx);
     std::ostringstream ss;
     backward::StackTrace st;
@@ -54,8 +57,6 @@ std::string getStacktrace()
     p.address = true;
     p.print(st, ss);
     return ss.str();
-  } else {
-    return "backward disabled";
   }
 }
 #endif
