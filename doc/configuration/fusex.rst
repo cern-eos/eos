@@ -18,7 +18,7 @@ There a two FUSEx client modes available:
    ========= ===== ===================================================================
    eosxd     !root An end-user private mount which is not shared between users 
    eosxd     root  A system-wide mount shared between users
-   ========= ===================================================================
+   ========= ===== ===================================================================
 
 
 **eosd** End-User mount

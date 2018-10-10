@@ -82,7 +82,7 @@ The following tags compose a rule:
    q   grant 'set quota' permissions on a quota node
    c   grant 'change owner' permission on directory children
    i   set the immutable flag    
-   =============================================================================
+   === =========================================================================
 
 A complex example is shown here:
 

@@ -15,13 +15,18 @@ File creation/update records
 
 Each FST sends for each file replica or piece it writes a record which looks like this:
 
-``log=cb9ae364-4f7c-11e8-8a9a-02163e009ce2&path=/eos/testfile&ruid=0&rgid=0&td=root.13142:52@slc7&host=test.cern.ch&lid=1048578&fid=1056332&fsid=1&ots=1525425804&otms=531&cts=1525425804&ctms=533&nrc=0&nwc=1&rb=0&rb_min=0&rb_max=0&rb_sigma=0.00&rv_op=0&rvb_min=0&rvb_max=0&rvb_sum=0&rvb_sigma=0.00&rs_op=0&rsb_min=0&rsb_max=0&rsb_sum=0&rsb_sigma=0.00&rc_min=0&rc_max=0&rc_sum=0&rc_sigma=0.00&wb=2202&wb_min=2202&wb_max=2202&wb_sigma=0.00&sfwdb=0&sbwdb=0&sxlfwdb=0&sxlbwdb=0&nfwds=0&nbwds=0&nxlfwds=0&nxlbwds=0&rt=0.00&rvt=0.00&wt=0.01&osize=0&csize=2202&sec.prot=sss&sec.name=daemon&sec.host=localhost&sec.vorg=&sec.grps=daemon&sec.role=&sec.info=&sec.app=eoscp``
+``log=cb9ae364-4f7c-11e8-8a9a-02163e009ce2&path=/eos/testfile&ruid=0&rgid=0&td=root.13142:52@slc7&host=test.cern.ch
+&lid=1048578&fid=1056332&fsid=1&ots=1525425804&otms=531&cts=1525425804&ctms=533&nrc=0&nwc=1&rb=0&rb_min=0&rb_max=0
+&rb_sigma=0.00&rv_op=0&rvb_min=0&rvb_max=0&rvb_sum=0&rvb_sigma=0.00&rs_op=0&rsb_min=0&rsb_max=0&rsb_sum=0&rsb_sigma=0.00
+&rc_min=0&rc_max=0&rc_sum=0&rc_sigma=0.00&wb=2202&wb_min=2202&wb_max=2202&wb_sigma=0.00&sfwdb=0&sbwdb=0&sxlfwdb=0
+&sxlbwdb=0&nfwds=0&nbwds=0&nxlfwds=0&nxlbwds=0&rt=0.00&rvt=0.00&wt=0.01&osize=0&csize=2202&sec.prot=sss&sec.name=daemon
+&sec.host=localhost&sec.vorg=&sec.grps=daemon&sec.role=&sec.info=&sec.app=eoscp``
 
 .. epigraph::
 
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    TAG                  Description
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    log                  uuid to correlate log entries
    path                 logical path
    ruid                 mapped user id
@@ -79,7 +84,7 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    sec.role             virtual role (only VOMS)
    sec.info             security information e.g. DN
    sec.app              application responsible for record e.g. balancing,gridftp,eoscp,fuse
-   ==============       ==================================================================================================
+   ==================== ==================================================================================================
 
 
 FST deletion records
@@ -90,9 +95,9 @@ Each FST sends for a deletion on disk a record which is tagged with application 
 
 .. epigraph::
 
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    TAG                  Description
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    log                  uuid to correlate log entries
    host                 fst host name
    fid                  file id of the file deleted
@@ -105,6 +110,7 @@ Each FST sends for a deletion on disk a record which is tagged with application 
    da_nts               access timestamp on local disk in ns of the deleted file
    dsize                size of the file before deletion
    sec.app              always: deletion
+   ==================== ==================================================================================================
 
 MGM deletion records
 ----------------------------
@@ -116,9 +122,9 @@ The MGM sends for each deletion moving a file into the recycle bin a record tagg
 
 .. epigraph::
 
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    TAG                  Description
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    log                  always: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
    host                 mgm host name
    fid                  file id
@@ -128,4 +134,4 @@ The MGM sends for each deletion moving a file into the recycle bin a record tagg
    dm_nts               modification timestamp in ns of the deleted file
    dsize                size of the file before deletion
    sec.app              rm,recycle (see above)
-
+   ==================== ==================================================================================================

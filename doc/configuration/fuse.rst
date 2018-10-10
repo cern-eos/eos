@@ -18,7 +18,7 @@ There a two FUSE client modes available:
    ========= ===== ===================================================================
    eosd      !root An end-user private mount which is not shared between users 
    eosd      root  A system-wide mount shared between users
-   ========= =========================================================================
+   ========= ===== ===================================================================
 
 
 **eosd** End-User mount

@@ -77,9 +77,9 @@ The possible configuration states are self explaining:
 
 .. epigraph::
 
-   ============  ======================================================================================
+   ============= ======================================================================================
    state          definition
-   ============  ======================================================================================
+   ============= ======================================================================================
    rw            filesystem set in read write mode 
    wo            filesystem set in write-once mode 
    ro            filesystem set in read-only mode 
@@ -87,7 +87,7 @@ The possible configuration states are self explaining:
    draindead     filesystem set in drain mode and the filesystem is considered as unusable for any read 
    off           filesystem set disabled 
    empty         filesystem is empty e.g. contains no files any more
-   ====================================================================================================
+   ============= ======================================================================================
 
 File systems involved in any kind of IO need to be in boot state booted.
 
@@ -110,17 +110,17 @@ As shown each file system has also a drain state. Drain states can be:
 
 .. epigraph::
 
-   ===============  ==============================================================================================================================================================================
+   ================ ==============================================================================================================================================================================
    state            definition
-   ===============  ============================================================================================================================================================================== 
-   nodrain          file system is currently not drainig
+   ================ ==============================================================================================================================================================================
+   nodrain          file system is currently not draining
    prepare          the drain process is prepared - this phase lasts 60 seconds 
    wait             the drain process either waits for the namespace to be booted or it is waiting that the graceperiod has passed (see below) 
    draining         the drain process is enabled - nodes inside the scheduling group start to pull transfers to drop replicas from the filesystem to drain 
    stalling         in the last 5 minutes there was noprogress of the drain procedure. This happens if the files to transfer are very huge or there are only files left which cannot be replicated. 
-   expired          the time defined by the drainperiod veriable has passed and the drain process is stopped. There are files left on the disk which couldn't be drained. 
+   expired          the time defined by the drainperiod variable has passed and the drain process is stopped. There are files left on the disk which couldn't be drained.
    drained          all files have been drained from the filesystem.
-   ===============  ==============================================================================================================================================================================
+   ================ ==============================================================================================================================================================================
   
 Finale states are expired or drained.
 

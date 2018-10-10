@@ -7,14 +7,15 @@ WFE Engine
 ==========
 The workflow engine is a versatile event triggered storage process chain. Currently all events are created by file operations.
 The policy to emit events is described as extended attributes of a parent directory. Each workflow is named. The default workflow
-is named 'default' and used if no workflow name is provided in an URL as `?eos.workflow=default`. 
-The workflow engine allows to create chained workflows e.g. one workflow can trigger an event emission to run the next workflow in the chain aso.
+is named 'default' and used if no workflow name is provided in an URL as `?eos.workflow=default`.
+
+The workflow engine allows to create chained workflows: E.g. one workflow can trigger an event emission to run the next workflow in the chain and so on...
 
 .. epigraph::
 
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    Event                Description
-   ===================  ==================================================================================================
+   ==================== ==================================================================================================
    sync::create         event is triggered at the MGM when a file is being created (synchronous event)
    open                 event is triggered at the MGM when a 'file open'
                         - if the return of an open call is ENONET a workflow defined stall time is returned
@@ -26,7 +27,7 @@ The workflow engine allows to create chained workflows e.g. one workflow can tri
    sync::closew         event is triggered via the FST when a write-open file is closed (it has priority over the asynchronous one)
    closew               event is triggered via the MGM when a write-open file is closed on an FST
    sync::delete         event is triggered at the MGM when a file has been deleted (synchronous event)
-   ==============       ==================================================================================================
+   ==================== ==================================================================================================
 
 Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
 It allows you to execute any shell command as a workflow. This target provides a large set of template parameters
