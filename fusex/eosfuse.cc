@@ -3940,7 +3940,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             }
 
             if (key == "eos.stacktrace") {
-              setenv("EOS_ENABLE_BACKWARD_STACKTRACE", "1", 1);
               value = getStacktrace();
             }
 
