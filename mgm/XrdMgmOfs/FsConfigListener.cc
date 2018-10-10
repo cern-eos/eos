@@ -195,7 +195,7 @@ XrdMgmOfs::FsConfigListener()
             }
           }
 
-          if (!fsid) {
+          if (fsid == 0) {
             eos_debug("Received a geotag modification (might be no change) for "
                       "queue %s which is not registered ", queue.c_str());
           } else {

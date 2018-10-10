@@ -81,8 +81,8 @@ XrdMgmOfs::AuthMasterThread()
                static_cast<void*>(0));
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
-      eos_crit("msg=\"master termination requested\" tid=%08x",
-               XrdSysThread::ID());
+      eos_warning("msg=\"master termination requested\" tid=%08x",
+                  XrdSysThread::ID());
       return;
     }
   }
@@ -122,7 +122,13 @@ XrdMgmOfs::ConnectToBackend(zmq::socket_t*& socket)
   while (tries <= 5) {
     try {
       socket->connect("inproc://authbackend");
-    } catch (zmq::error_t& err) {
+    } catch (const zmq::error_t& e) {
+      if (e.num() == ETERM) {
+        eos_warning("msg=\"worker termination requested\" tid=%08x",
+                    XrdSysThread::ID());
+        return connected;
+      }
+
       eos_debug("auth worker connection failed - retry");
       tries++;
       sleep(1);
@@ -168,8 +174,9 @@ XrdMgmOfs::AuthWorkerThread()
       } while (!done);
     } catch (const zmq::error_t& e) {
       if (e.num() == ETERM) {
-        eos_crit("msg=\"worker termination requested\" tid=%08x",
-                 XrdSysThread::ID());
+        eos_warning("msg=\"worker termination requested\" tid=%08x",
+                    XrdSysThread::ID());
+        delete responder;
         return;
       }
 
@@ -566,6 +573,13 @@ XrdMgmOfs::AuthWorkerThread()
         num_retries--;
       } while (!done && (num_retries > 0));
     } catch (zmq::error_t& e) {
+      if (e.num() == ETERM) {
+        eos_warning("msg=\"worker termination requested\" tid=%08x",
+                    XrdSysThread::ID());
+        delete responder;
+        return;
+      }
+
       eos_err("socket error: %s", e.what());
       reset_socket = true;
     }

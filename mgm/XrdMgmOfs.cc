@@ -209,7 +209,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 XrdMgmOfs::~XrdMgmOfs()
 {
   StopArchiveSubmitter();
-  delete mZmqContext;
+  mZmqContext->close();
 
   if (mAuthMasterTid) {
     XrdSysThread::Join(mAuthMasterTid, nullptr);
@@ -221,6 +221,7 @@ XrdMgmOfs::~XrdMgmOfs()
   }
 
   mVectTid.clear();
+  delete mZmqContext;
 }
 
 //------------------------------------------------------------------------------
