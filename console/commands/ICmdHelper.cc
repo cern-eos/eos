@@ -112,14 +112,16 @@ bool
 ICmdHelper::ConfirmOperation()
 {
   std::ostringstream out;
-  out << "Confirm operation by typing => ";
   std::string confirmation;
+  srand(time(NULL));
 
   for (int i = 0; i < 10; i++) {
     confirmation += std::to_string((int)(9.0 * rand() / RAND_MAX));
   }
 
-  out << confirmation << std::endl << "                               => ";
+  out << "Confirm operation by typing => " << confirmation << std::endl;
+  out << "                            => ";
+
   std::string userInput;
   std::cout << out.str();
   getline(std::cin, userInput);
