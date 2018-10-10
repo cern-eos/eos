@@ -86,7 +86,7 @@ void*
 XrdMgmOfs::InitializeFileView()
 {
   // For the namespace in QDB all the initialization is done in QdbMaster
-  if (NsInQDB) {
+  if ((getenv("EOS_USE_QDB_MASTER") != 0) && NsInQDB) {
     return nullptr;
   }
 
