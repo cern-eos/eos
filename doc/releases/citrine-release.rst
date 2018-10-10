@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.5 Citrine``
+==================
+
+2018-10-10
+
+Bug
+---
+
+* MGM: Enable broadcast before loading the configuration in the QdbMaster so
+    that the MGM collects broadcast replies from the file systems
+* MGM: Fix possible deadlock at startup when a file system needs to be put
+    in kDrainWait state during configuration loading
+* MGM: Various improvements to the shutdown procedure for a clean exit
+* [EOS-2962] - table in documentation badly displayed on generated website
+* [EOS-2964] - Heap-use-after-free on new master / slave when booting
+* MQ: Fix memory leak of RSA Objects
+* FUSEX: Add zeromq package dependency
+
+
 ``v4.4.4 Citrine``
 ==================
 
