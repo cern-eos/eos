@@ -4,12 +4,12 @@
    pair: Storage and Client geo tagging; GEOTAG
 
 
-GeoTag Configuration 
-====================
+GeoTags
+=======
 
 In a geographically distributed storage system it is important to tag each storage server with a geographical location.
 You should group servers into LAN groups e.g. all servers which are close in term of network latency shared a GeoTag.
-GeoTags are just arbitrary strings (for the time beeing). Each FST defines in ``/etc/sysconfig/eos`` a GeoTag:
+GeoTags are just arbitrary strings (for the time being). Each FST defines in ``/etc/sysconfig/eos`` a GeoTag:
 
 Storage Node Tagging
 --------------------

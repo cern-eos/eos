@@ -22,9 +22,11 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/converter	
    configuration/draining      
    configuration/fuse
-   configuration/groupbalancer   
+   configuration/fusex
    configuration/geobalancer
    configuration/geoscheduling
+   configuration/geotags
+   configuration/groupbalancer
    configuration/http
    configuration/kinetic
    configuration/lru
