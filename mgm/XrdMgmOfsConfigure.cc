@@ -1409,9 +1409,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize user mapping
   eos::common::Mapping::Init();
 
-  // Create different type of master object depending on the ns implementation
   if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
     NsInQDB = true;
+  }
+
+  // Create different type of master object depending on the ns implementation
+  if ((getenv("EOS_USE_QDB_MASTER") != 0) && NsInQDB) {
     mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
   } else {
     mMaster.reset(new eos::mgm::Master());
