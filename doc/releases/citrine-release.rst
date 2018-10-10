@@ -24,15 +24,24 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
+* [EOS-2931] - Operation confirmation value isn't random
+* [EOS-2962] - table in documentation badly displayed on generated website
+* [EOS-2964] - Heap-use-after-free on new master / slave when booting
+* [EOS-2970] - "fs mv" not persisted in config file
+* MGM: Disable by default the QdbMaster implementation and use the env variable
+    EOS_USE_QDB_MASTER to enable it when the QDB namespace is used
 * MGM: Enable broadcast before loading the configuration in the QdbMaster so
     that the MGM collects broadcast replies from the file systems
 * MGM: Fix possible deadlock at startup when a file system needs to be put
     in kDrainWait state during configuration loading
 * MGM: Various improvements to the shutdown procedure for a clean exit
-* [EOS-2962] - table in documentation badly displayed on generated website
-* [EOS-2964] - Heap-use-after-free on new master / slave when booting
 * MQ: Fix memory leak of RSA Objects
-* FUSEX: Add zeromq package dependency
+
+Improvement
+------------
+
+* [EOS-2901] - RFE: "slow" lock debug - print more info on single line, or disable printing?
+* [EOS-2966] - FUSEX: hardcode RPM dependency on 'zeromq'
 
 
 ``v4.4.4 Citrine``
