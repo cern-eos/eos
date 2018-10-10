@@ -1759,6 +1759,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
 
+  // For the legacy master-slave setup:
+  // It's safe to set the config engine for the FsView after the
+  // ApplyMasterConfig otherwise any update that comes will be the only one
+  // recorded in the config file. This leads to a corruption of the
+  // default.eoscf in which it only holds a few entries.
+  FsView::gFsView.SetConfigEngine(ConfEngine);
   eos_info("starting statistics thread");
 
   if ((XrdSysThread::Run(&mStatsTid, XrdMgmOfs::StartMgmStats,
