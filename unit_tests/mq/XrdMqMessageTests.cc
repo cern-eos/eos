@@ -161,6 +161,7 @@ TEST(XrdMqMessage, RSATest)
   ASSERT_TRUE(XrdMqMessage::PrivateKey != NULL);
   RSA* rsa_key = EVP_PKEY_get1_RSA(XrdMqMessage::PrivateKey);
   ASSERT_TRUE(RSA_check_key(rsa_key) == 1);
+  RSA_free(rsa_key);
   // Read in EVP_PKEY structure the public key
   bio = BIO_new_mem_buf((void*)rsa_public_key.c_str(), -1);
   ASSERT_TRUE(bio != nullptr);

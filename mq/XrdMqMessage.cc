@@ -815,6 +815,24 @@ XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
 }
 
 //------------------------------------------------------------------------------
+// RSA key wrapper
+//------------------------------------------------------------------------------
+class RSAWrapper {
+public:
+  RSAWrapper(RSA *r) : rsa(r) {}
+
+  ~RSAWrapper() {
+    RSA_free(rsa);
+  }
+
+  RSA* get() {
+    return rsa;
+  }
+private:
+  RSA* rsa = nullptr;
+};
+
+//------------------------------------------------------------------------------
 // RSA Decrypt
 //------------------------------------------------------------------------------
 bool
@@ -831,13 +849,15 @@ XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
     return false;
   }
 
-  if ((encrypted_length != (unsigned int)RSA_size(EVP_PKEY_get1_RSA(pkey)))) {
+  RSAWrapper rsaKey(EVP_PKEY_get1_RSA(pkey));
+
+  if ((encrypted_length != (unsigned int)RSA_size(rsaKey.get()))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt - keylength/encryption buffer"
                 " mismatch");
     return false;
   }
 
-  data = (char*)malloc(RSA_size(EVP_PKEY_get1_RSA(pkey)));
+  data = (char*)malloc(RSA_size(rsaKey.get()));
 
   if (!data) {
     return false;
@@ -845,7 +865,7 @@ XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
 
   data_length = RSA_public_decrypt(encrypted_length,
                                    (uint_fast8_t*)encrypted_data,
-                                   (uint_fast8_t*)data, EVP_PKEY_get1_RSA(pkey),
+                                   (uint_fast8_t*)data, rsaKey.get(),
                                    RSA_PKCS1_PADDING);
 
   if (data_length < 0) {
