@@ -63,6 +63,11 @@ public:
     }
   }
 
+  RegexUtil(const RegexUtil &other) = delete;
+  RegexUtil(RegexUtil &&other) = delete;
+  RegexUtil& operator=(RegexUtil &other) = delete;
+  RegexUtil& operator=(RegexUtil &&other) = delete;
+
   //----------------------------------------------------------------------------
   //! Setting regex string and flags
   //!

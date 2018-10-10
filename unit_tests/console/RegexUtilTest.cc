@@ -24,7 +24,7 @@
 #include "gtest/gtest.h"
 #include "console/RegexUtil.hh"
 
-TEST(RegexUtil, TestUtility)
+TEST(RegexUtil, BasicSanity)
 {
   RegexUtil test;
   std::string origin("asdfasfsssstest12kksdjftestossskso");
@@ -37,11 +37,16 @@ TEST(RegexUtil, TestUtility)
   ASSERT_EQ(temp, "test12");
   temp = test.Match();
   ASSERT_EQ(temp, "test12");
-  // Few fail cases
-  test = RegexUtil();
+}
+
+TEST(RegexUtil, FailCases)
+{
+  std::string origin("asdfasfsssstest12kksdjftestossskso");
+  RegexUtil test;
   (test.SetOrigin(origin));
   ASSERT_THROW(test.SetRegex("test[0-9"),  std::string);
-  test = RegexUtil();
-  ASSERT_THROW(test.SetRegex("test[0-9"),  std::string);
-  ASSERT_THROW(test.initTokenizerMode(),  std::string);
+
+  RegexUtil test2;
+  ASSERT_THROW(test2.SetRegex("test[0-9"),  std::string);
+  ASSERT_THROW(test2.initTokenizerMode(),  std::string);
 }
