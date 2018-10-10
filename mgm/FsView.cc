@@ -2023,7 +2023,7 @@ bool
 FsView::UnRegisterSpace(const char* spacename)
 {
   // We have to remove all the connected filesystems via UnRegister(fs) to keep
-  // space, group, space view in sync
+  // space, group and fs views in sync
   bool retc = true;
   bool has_fs = false;
 
@@ -2042,6 +2042,10 @@ FsView::UnRegisterSpace(const char* spacename)
                            (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
           retc |= UnRegister(fs);
         }
+      }
+
+      if (mSpaceView.count(spacename) == 0) {
+        return true;
       }
     }
 
@@ -2146,7 +2150,8 @@ FsView::Reset()
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
 
   while (mSpaceView.size()) {
-    UnRegisterSpace(mSpaceView.begin()->first.c_str());
+    std::string name = mSpaceView.begin()->first;
+    UnRegisterSpace(name.c_str());
   }
 
   eos::common::RWMutexWriteLock maplock(MapMutex);
