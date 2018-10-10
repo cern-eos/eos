@@ -264,6 +264,10 @@ QdbMaster::SlaveToMaster()
 {
   eos_info("%s", "msg=\"slave to master transition\"");
   std::string std_out, std_err;
+  // We are the master and we broadcast every configuration change
+  gOFS->ObjectManager.EnableBroadCast(true);
+  // Notify all the nodes about the new master identity
+  FsView::gFsView.BroadcastMasterId(GetMasterId());
 
   if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
     eos_err("msg=\"failed to apply master configuration\"");
@@ -273,10 +277,6 @@ QdbMaster::SlaveToMaster()
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
-  // Notify all the nodes about the new master identity
-  FsView::gFsView.BroadcastMasterId(GetMasterId());
-  // We are the master and we broadcast every configuration change
-  gOFS->ObjectManager.EnableBroadCast(true);
   Access::SetSlaveToMasterRules();
 }
 
