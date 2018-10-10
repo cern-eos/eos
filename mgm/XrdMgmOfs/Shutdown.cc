@@ -63,8 +63,13 @@ xrdmgmofs_shutdown(int sig)
 
   if (gOFS->MgmOfsVstMessaging) {
     delete gOFS->MgmOfsVstMessaging;
+    gOFS->MgmOfsVstMessaging = nullptr;
   }
 
+  // Fsck service needs to be stopped among the first since it uses all the
+  // view and FsView class
+  eos_static_warning("Shutdown:: stop the FSCK service ...");
+  gOFS->FsckPtr.reset();
   eos_static_warning("Shutdown:: stop recycler thread ... ");
   gOFS->Recycler->Stop();
   eos_static_warning("Shutdown:: stop deletion thread ... ");
@@ -106,6 +111,7 @@ xrdmgmofs_shutdown(int sig)
 
   if (gOFS->MgmOfsMessaging) {
     delete gOFS->MgmOfsMessaging;
+    gOFS->MgmOfsMessaging = nullptr;
   }
 
   gOFS->ConfEngine->SetAutoSave(false);
@@ -165,10 +171,12 @@ xrdmgmofs_shutdown(int sig)
 
       if (gOFS->eosSyncTimeAccounting) {
         delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = nullptr;
       }
 
       if (gOFS->eosContainerAccounting) {
         delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = nullptr;
       }
 
       while (!gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
@@ -177,20 +185,24 @@ xrdmgmofs_shutdown(int sig)
 
       if (gOFS->eosFsView) {
         delete gOFS->eosFsView;
+        gOFS->eosFsView = nullptr;
       }
 
       if (gOFS->eosView) {
         delete gOFS->eosView;
+        gOFS->eosView = nullptr;
       }
 
       if (gOFS->eosDirectoryService) {
         gOFS->eosDirectoryService->finalize();
         delete gOFS->eosDirectoryService;
+        gOFS->eosDirectoryService = nullptr;
       }
 
       if (gOFS->eosFileService) {
         gOFS->eosFileService->finalize();
         delete gOFS->eosFileService;
+        gOFS->eosFileService = nullptr;
       }
     } catch (eos::MDException& e) {
       // we don't really care about any exception here!
@@ -202,5 +214,7 @@ xrdmgmofs_shutdown(int sig)
   gOFS->mMaster.reset();
   eos_static_warning("Shutdown complete");
   eos_static_alert("msg=\"shutdown complete\"");
+  // @todo(esindril) this should be droppend when the MGM cleanly shuts down
+  kill(getpid(), 9);
   exit(9);
 }

@@ -39,9 +39,26 @@ EOSMGMNAMESPACE_BEGIN
 class ZMQ
 {
 public:
-  ZMQ(const char* URL);
+  class Task;
+  static FuseServer gFuseServer; ///< Fuse server object
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ZMQ(const char* URL): mBindUrl(URL)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~ZMQ() = default;
+
+  //----------------------------------------------------------------------------
+  //! KStart thread handling fuse server proxying
+  //----------------------------------------------------------------------------
+  void ServeFuse();
+
+  std::unique_ptr<Task> mTask; ///< Task associated to the ZMQ object
 
   //----------------------------------------------------------------------------
   //! Class Worker
@@ -50,12 +67,12 @@ public:
   {
   public:
     Worker(zmq::context_t& ctx, int sock_type)
-      : ctx_(ctx), worker_(ctx_, sock_type) {}
+      : mZmqCtx(ctx), worker_(mZmqCtx, sock_type) {}
 
     void work();
 
   private:
-    zmq::context_t& ctx_;
+    zmq::context_t& mZmqCtx;
     zmq::socket_t worker_;
   };
 
@@ -65,42 +82,46 @@ public:
   class Task
   {
   public:
-    Task(std::string url_)
-      : ctx_(1), frontend_(ctx_, ZMQ_ROUTER),
-        backend_(ctx_, ZMQ_DEALER), injector_(ctx_, ZMQ_DEALER)
-    {
-      bindUrl = url_;
-    }
+    static int sMaxThreads; ///< Max number of worker threads
 
-    enum {
-      kMaxThread = 16
-    };
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+    Task(const std::string& url)
+      : mZmqCtx(1), mFrontend(mZmqCtx, ZMQ_ROUTER),
+        mBackend(mZmqCtx, ZMQ_DEALER), mInjector(mZmqCtx, ZMQ_DEALER),
+        mBindUrl(url)
+    {}
 
+    //----------------------------------------------------------------------------
+    //! Destructor
+    //----------------------------------------------------------------------------
+    ~Task();
+
+    //----------------------------------------------------------------------------
+    //! Start proxy service
+    //----------------------------------------------------------------------------
     void run() noexcept;
 
-    void reply(const std::string& id, const std::string& data)
-    {
-      static XrdSysMutex sMutex;
-      XrdSysMutexHelper lLock(sMutex);
-      zmq::message_t id_msg(id.c_str(), id.size());
-      zmq::message_t data_msg(data.c_str(), data.size());
-      injector_.send(id_msg, ZMQ_SNDMORE);
-      injector_.send(data_msg);
-    }
+    //----------------------------------------------------------------------------
+    //! Reply to a client identifier which a pice of data
+    //!
+    //! @param id cilent idnetifier
+    //! @param data data buffer
+    //----------------------------------------------------------------------------
+    void reply(const std::string& id, const std::string& data);
 
   private:
-    zmq::context_t ctx_;
-    zmq::socket_t frontend_;
-    zmq::socket_t backend_;
-    zmq::socket_t injector_;
-    std::string bindUrl;
-    std::list<std::thread*> mWorkerThreads;
+    zmq::context_t mZmqCtx; ///< ZMQ context for task
+    zmq::socket_t mFrontend; ///< Frontend socket
+    zmq::socket_t mBackend; ///< Backend socket
+    zmq::socket_t mInjector; ///< Injector socket connected to the backedn
+    std::string mBindUrl; ///< URL
+    std::list<std::thread*> mWorkerThreads; ///< List of worker threads
   };
 
-  void ServeFuse();
-  Task* task;
-  std::string bindUrl;
-  static FuseServer gFuseServer;
+private:
+  std::string mBindUrl; ///< URL
 };
 
 EOSMGMNAMESPACE_END

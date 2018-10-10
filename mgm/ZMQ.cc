@@ -29,63 +29,89 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+int ZMQ::Task::sMaxThreads = 16;
 FuseServer ZMQ::gFuseServer;
 
 //------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-ZMQ::ZMQ(const char* URL) : task(0), bindUrl(URL) {}
-
-//------------------------------------------------------------------------------
-//
+// Start thread handling fuse server proxying
 //------------------------------------------------------------------------------
 void
 ZMQ::ServeFuse()
 {
-  task = new Task(bindUrl);
-  std::thread t1(&Task::run, task);
+  mTask.reset(new Task(mBindUrl));
+  std::thread t1(&Task::run, mTask.get());
   t1.detach();
 }
 
 //------------------------------------------------------------------------------
-//
+// Task destructor
+//------------------------------------------------------------------------------
+ZMQ::Task::~Task()
+{
+  // Closing the ZMQ context will cause an execption to be thrown in the worker
+  // thread with ETERM as the error number
+  mZmqCtx.close();
+
+  for (const auto& th : mWorkerThreads) {
+    delete th;
+  }
+
+  mWorkerThreads.clear();
+}
+
+//------------------------------------------------------------------------------
+// Start proxy service
 //------------------------------------------------------------------------------
 void
 ZMQ::Task::run() noexcept
 {
   int enable_ipv6 = 1;
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
-  frontend_.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
+  mFrontend.setsockopt(ZMQ_IPV6, &enable_ipv6, sizeof(enable_ipv6));
 #else
   enable_ipv6 = 0;
-  frontend_.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
+  mFrontend.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
 #endif
-  frontend_.bind(bindUrl.c_str());
-  backend_.bind("inproc://backend");
-  injector_.connect("inproc://backend");
+  mFrontend.bind(mBindUrl.c_str());
+  mBackend.bind("inproc://backend");
+  mInjector.connect("inproc://backend");
 
-  for (int i = 0; i < kMaxThread; ++i) {
+  for (int i = 0; i < sMaxThreads; ++i) {
     mWorkerThreads.push_back(new std::thread(&Worker::work,
-                             new Worker(ctx_, ZMQ_DEALER)));
+                             new Worker(mZmqCtx, ZMQ_DEALER)));
     mWorkerThreads.back()->detach();
   }
 
   try {
-    zmq::proxy(static_cast<void*>(frontend_), static_cast<void*>(backend_),
+    zmq::proxy(static_cast<void*>(mFrontend), static_cast<void*>(mBackend),
                (void*)nullptr);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       // Shutdown
-      for (const auto th : mWorkerThreads) {
-        delete th;
-      }
-
-      mWorkerThreads.clear();
-      delete this;
+      return;
     }
   }
+}
 
-  delete this;
+//------------------------------------------------------------------------------
+//  Reply to a client identifier which a pice of data
+//------------------------------------------------------------------------------
+void
+ZMQ::Task::reply(const std::string& id, const std::string& data)
+{
+  static XrdSysMutex sMutex;
+  XrdSysMutexHelper lLock(sMutex);
+  zmq::message_t id_msg(id.c_str(), id.size());
+  zmq::message_t data_msg(data.c_str(), data.size());
+
+  try {
+    mInjector.send(id_msg, ZMQ_SNDMORE);
+    mInjector.send(data_msg);
+  } catch (const zmq::error_t& e) {
+    if (e.num() == ETERM) {
+      return;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

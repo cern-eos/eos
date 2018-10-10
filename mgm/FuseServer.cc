@@ -602,7 +602,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason)
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"evicting client\" uuid=%s name=%s",
                   uuid.c_str(), id.c_str());
-  gOFS->zMQ->task->reply(id, rspstream);
+  gOFS->zMQ->mTask->reply(id, rspstream);
   return 0;
 }
 
@@ -709,7 +709,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"asking cap release\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md_ino);
-  gOFS->zMQ->task->reply(id, rspstream);
+  gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::ReleaseCap");
   return 0;
 }
@@ -744,7 +744,7 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"asking dentry deletion\" uuid=%s clientid=%s id=%lx name=%s",
                   uuid.c_str(), clientid.c_str(), md_ino, name.c_str());
-  gOFS->zMQ->task->reply(id, rspstream);
+  gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::DeleteEntry");
   return 0;
 }
@@ -794,7 +794,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md.md_ino());
-  gOFS->zMQ->task->reply(id, rspstream);
+  gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendMD");
   return 0;
 }
@@ -824,7 +824,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   const std::string& clientid = mUUIDView[uuid];
   eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
                   uuid.c_str(), clientid.c_str(), cap->id());
-  gOFS->zMQ->task->reply(clientid, rspstream);
+  gOFS->zMQ->mTask->reply(clientid, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendCAP");
   return 0;
 }
@@ -987,7 +987,7 @@ FuseServer::Clients::BroadcastConfig(const std::string& identity,
   rsp.SerializeToString(&rspstream);
   eos_static_info("msg=\"broadcast config to client\" name=%s heartbeat-rate=%d",
                   identity.c_str(), cfg.hbrate());
-  gOFS->zMQ->task->reply(identity, rspstream);
+  gOFS->zMQ->mTask->reply(identity, rspstream);
   EXEC_TIMING_END("Eosxd::int::BcConfig");
   return 0;
 }
@@ -1007,7 +1007,7 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
   rsp.SerializeToString(&rspstream);
   eos_static_info("msg=\"broadcast drop-all-caps to  client\" uuid=%s name=%s",
                   hb.uuid().c_str(), identity.c_str());
-  gOFS->zMQ->task->reply(identity, rspstream);
+  gOFS->zMQ->mTask->reply(identity, rspstream);
   EXEC_TIMING_END("Eosxd::int::BcDropAll");
   return 0;
 }
@@ -2571,7 +2571,7 @@ FuseServer::HandleMD(const std::string& id,
 
             if (!response) {
               // send parent + first 128 children
-              gOFS->zMQ->task->reply(id, rspstream);
+              gOFS->zMQ->mTask->reply(id, rspstream);
             } else {
               *response += Header(rspstream);
               response->append(rspstream.c_str(), rspstream.size());
@@ -2600,7 +2600,7 @@ FuseServer::HandleMD(const std::string& id,
         cont.SerializeToString(&rspstream);
 
         if (!response) {
-          gOFS->zMQ->task->reply(id, rspstream);
+          gOFS->zMQ->mTask->reply(id, rspstream);
         } else {
           *response += Header(rspstream);
           response->append(rspstream.c_str(), rspstream.size());
@@ -2626,7 +2626,7 @@ FuseServer::HandleMD(const std::string& id,
 
       if (!response) {
         // send file meta data
-        gOFS->zMQ->task->reply(id, rspstream);
+        gOFS->zMQ->mTask->reply(id, rspstream);
       } else {
         *response += Header(rspstream);
         *response += rspstream;
