@@ -3210,6 +3210,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     if (caprc) {
       // If we just miss the key, better stall thec lient
       if (caprc == ENOKEY) {
+        eos_err("msg=\"FST still misses the required capability key\"");
         return gOFS.Stall(error, 10, "FST still misses the required capability key");
       }
 
