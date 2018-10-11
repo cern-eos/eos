@@ -551,7 +551,7 @@ ProcCommand::Space()
                   (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
                   (key == "geo.access.policy.read.exact") ||
-                  (key == "geo.access.policy.write.exact")) }
+                  (key == "geo.access.policy.write.exact")) {
                 if ((value != "on") && (value != "off")) {
                   retc = EINVAL;
                   stdErr = "error: value has to either on or off";
