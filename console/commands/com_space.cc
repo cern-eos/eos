@@ -512,8 +512,6 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.drainer.fs.ntx=<#>            : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5   ]\n");
   fprintf(stdout,
-          "       space config <space-name> space.drainer.central=on|off        : enable/disable the centralized draining [default=off]\n");
-  fprintf(stdout,
           "       space config <space-name> space.lru=on|off                    : enable/disable the LRU policy engine [default=off]\n");
   fprintf(stdout,
           "       space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval\n");
