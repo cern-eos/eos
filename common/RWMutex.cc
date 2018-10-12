@@ -380,6 +380,7 @@ RWMutex::LockWrite()
 #endif
   }
 
+  // mLastWriteLock should be updated _after_ we acquire the lock!
   mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>
                    (std::chrono::steady_clock::now().time_since_epoch()).count();
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mWr);
@@ -401,28 +402,15 @@ RWMutex::UnLockWrite()
 #endif
   int retc = 0;
 
+  // mLastWriteLock must be checked _before_ we release the lock!
+  int64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>
+                       (std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
+
   if ((retc = mMutexImpl->UnLockWrite())) {
     fprintf(stderr, "%s Failed to write-unlock: %s\n", __FUNCTION__,
             strerror(retc));
     std::terminate();
   }
-
-  // fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",
-  // (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-
-  if (!sEnableGlobalDeadlockCheck) {
-    mTransientDeadlockCheck = false;
-
-    if (!mEnableDeadlockCheck) {
-      DropDeadlockCheck();
-    }
-  }
-
-#endif
-  // ATTENTION: this mechanism is not reliable because another thread can update mLastWriteLock by taking a new lock and update mLastWriteLock leading to negative blockedFor values
-  int64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>
-                       (std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
 
   if (blockedFor >= mBlockedForInterval) {
     std::ostringstream ss;
@@ -435,6 +423,18 @@ RWMutex::UnLockWrite()
 
     eos_static_warning("%s", ss.str().c_str());
   }
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+
+  if (!sEnableGlobalDeadlockCheck) {
+    mTransientDeadlockCheck = false;
+
+    if (!mEnableDeadlockCheck) {
+      DropDeadlockCheck();
+    }
+  }
+
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -465,6 +465,7 @@ RWMutex::TimedWrLock(uint64_t timeout_ns)
 #endif
 
   if (retc == 0) {
+    // mLastWriteLock should be updated _after_ we acquire the lock!
     mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>
                      (std::chrono::steady_clock::now().time_since_epoch()).count();
   }
@@ -1341,6 +1342,9 @@ RWMutexReadLock::Grab(RWMutex& mutex)
 
   mRdMutex = &mutex;
   mRdMutex->LockRead();
+
+  // acquiredAt must be updated _after_ we get the lock, since LockRead
+  // may take a long time to complete
   mAcquiredAt = std::chrono::steady_clock::now();
 }
 
