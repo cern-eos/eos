@@ -21,7 +21,6 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::atomic<int> Initializer::mCounter {0};
 // Static variables
 std::atomic<qclient::QClient*> BackendClient::sQdbClient(nullptr);
 std::string BackendClient::sQdbHost("localhost");
@@ -83,5 +82,34 @@ BackendClient::getInstance(const QdbContactDetails& contactDetails,
 
   return instance;
 }
+
+//------------------------------------------------------------------------------
+//! Initialization and finalization
+//------------------------------------------------------------------------------
+static struct Initializer {
+  std::atomic<int> mCounter;
+
+  //----------------------------------------------------------------------------
+  //! Constructor will be invoked in every translation unit that includes the
+  //! current header file, but the BackendClient will be initialized only once
+  //----------------------------------------------------------------------------
+  Initializer() noexcept
+  {
+    if (mCounter++ == 0) {
+      eos::BackendClient::Initialize();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor will be invoked in every translation unit that includes the
+  //! current header file, but the BackendClient will be finalized only once
+  //----------------------------------------------------------------------------
+  ~Initializer()
+  {
+    if (--mCounter == 0) {
+      eos::BackendClient::Finalize();
+    }
+  }
+} finalizer;
 
 EOSNSNAMESPACE_END
