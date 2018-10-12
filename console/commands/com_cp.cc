@@ -732,21 +732,6 @@ com_cp(char* argin)
       continue;
     }
 
-    // Check if destination exists
-    if (nooverwrite) {
-      if ((target.protocol == Protocol::LOCAL) ||
-          (target.protocol == Protocol::EOS)) {
-        struct stat tmp;
-
-        if (!do_stat(dest.c_str(), target.protocol, tmp)) {
-          fprintf(stderr, "warning: target=%s exists, but --no-overwrite flag specified",
-                  dest.c_str());
-          retc |= EEXIST;
-          continue;
-        }
-      }
-    }
-
     // Add opaque info to destination
     if (target.opaque.length()) {
       dest += "?";
@@ -755,46 +740,59 @@ com_cp(char* argin)
 
     target_path = dest.c_str();
 
-    if (debug) {
-      fprintf(stderr, "[eos-cp] copying %s to %s\n",
-              source.name.c_str(), target_path.c_str());
-    }
+    // Continue processing for non STDOUT targets
+    if (!target_is_stdout) {
+      // Check if destination exists
+      if (nooverwrite) {
+        if ((target.protocol == Protocol::LOCAL) ||
+            (target.protocol == Protocol::EOS)) {
+          struct stat tmp;
 
-    // Handle EOS specific opaque info
-    if ((target.protocol == Protocol::EOS) ||
-        (target.protocol == Protocol::XROOT)) {
-      char opaque[1024];
-      const char* roles = eos_roles_opaque();
-
-      snprintf(opaque, sizeof(opaque) - 1,
-               "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s%s%s",
-               (target.opaque.length())  ?  '&'  :  '?',
-               source.size, source.size, atomic.c_str(),
-               (roles)  ?  "&"  :  "",
-               (roles)  ?  roles : "");
-
-      dest.append(opaque);
-    }
-
-    // Protocols for EOS, XRoot and local targets are supported directly
-    // S3 targets will be uploaded via STDIN & STDOUT pipes
-    // Remaining protocols will be copied to a temporary file
-    if ((target.protocol == Protocol::HTTP) ||
-        (target.protocol == Protocol::HTTPS) ||
-        (target.protocol == Protocol::GSIFTP)) {
-      char tmp_name[] = "/tmp/com_cp.XXXXXX";
-      int tmp_fd = mkstemp(tmp_name);
-
-      if (tmp_fd == -1) {
-        fprintf(stderr, "error: failed to create temporary file "
-                "while preparing copy for path=%s [protocol=%s]\n",
-                dest.c_str(), protocol_to_string(target.protocol));
-        exit(1);
+          if (!do_stat(dest.c_str(), target.protocol, tmp)) {
+            fprintf(stderr, "warning: target=%s exists, but --no-overwrite "
+                            "flag specified\n", dest.c_str());
+            retc |= EEXIST;
+            continue;
+          }
+        }
       }
 
-      close(tmp_fd);
-      temporary_file = true;
-      dest = tmp_name;
+      // Handle EOS specific opaque info
+      if ((target.protocol == Protocol::EOS) ||
+          (target.protocol == Protocol::XROOT)) {
+        char opaque[1024];
+        const char *roles = eos_roles_opaque();
+
+        snprintf(opaque, sizeof(opaque) - 1,
+                 "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s%s%s",
+                 (target.opaque.length()) ? '&' : '?',
+                 source.size, source.size, atomic.c_str(),
+                 (roles) ? "&" : "",
+                 (roles) ? roles : "");
+
+        dest.append(opaque);
+      }
+
+      // Protocols for EOS, XRoot and local targets are supported directly
+      // S3 targets will be uploaded via STDIN & STDOUT pipes
+      // Remaining protocols will be copied to a temporary file
+      if ((target.protocol == Protocol::HTTP) ||
+          (target.protocol == Protocol::HTTPS) ||
+          (target.protocol == Protocol::GSIFTP)) {
+        char tmp_name[] = "/tmp/com_cp.XXXXXX";
+        int tmp_fd = mkstemp(tmp_name);
+
+        if (tmp_fd == -1) {
+          fprintf(stderr, "error: failed to create temporary file "
+                          "while preparing copy for path=%s [protocol=%s]\n",
+                  dest.c_str(), protocol_to_string(target.protocol));
+          exit(1);
+        }
+
+        close(tmp_fd);
+        temporary_file = true;
+        dest = tmp_name;
+      }
     }
 
     //------------------------------------
@@ -808,17 +806,15 @@ com_cp(char* argin)
       source.name.insert(serveruri.c_str(), 0);
     }
 
-    XrdOucString prot, hostport;
-    const char* source_url = eos::common::StringConversion::ParseUrl(
-                               source.name.c_str(), prot, hostport);
-    if (source_url) {
-      source.name = source_url;
-    }
-
     // Add opaque info to source
     if (source.opaque.length()) {
       source.name += "?";
       source.name += source.opaque.c_str();
+    }
+
+    if (debug) {
+      fprintf(stderr, "[eos-cp] copying %s to %s\n",
+              source.name.c_str(), target_path.c_str());
     }
 
     //------------------------------------
