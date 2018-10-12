@@ -253,15 +253,15 @@ PluginManager::LoadByPath(const std::string& lib_path)
 
   // Expected entry point missing from dynamic library
   if (!initFunc) {
-    eos_static_err("expected entry point PF_initPlugin missing from plugin "
-                   "library");
+    eos_err("expected entry point PF_initPlugin missing from plugin "
+            "library");
     return -1;
   }
 
   int32_t res = InitializePlugin(initFunc);
 
   if (res < 0) {
-    eos_static_err("failed initialization of plugin library=%s", lib_path.c_str());
+    eos_err("failed initialization of plugin library=%s", lib_path.c_str());
     return res;
   }
 
@@ -282,12 +282,12 @@ PluginManager::CreateObject(const std::string& obj_type)
 
     // Register the new plugin object
     if (object) {
-      eos_static_info("created plugin object type=%s", obj_type.c_str());
+      eos_info("created plugin object type=%s", obj_type.c_str());
       return object;
     }
   }
 
-  eos_static_err("failed creating plugin object type=%s", obj_type.c_str());
+  eos_err("failed creating plugin object type=%s", obj_type.c_str());
   return NULL;
 }
 
