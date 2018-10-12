@@ -181,7 +181,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
-  mSubmitterTid(0),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
@@ -209,7 +208,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 XrdMgmOfs::~XrdMgmOfs()
 {
   std::cerr << "Shutdown:: Calling XrdMgmOfs destructor ... " << std::endl;
-  StopArchiveSubmitter();
+  mSubmitterTid.join();
   mZmqContext->close();
 
   if (mAuthMasterTid) {
@@ -687,34 +686,11 @@ XrdMgmOfs::StartMgmFsConfigListener(void* pp)
 }
 
 //------------------------------------------------------------------------------
-// Static method to start a thread that will queue, build and submit backup
-// operations to the archiver daemon.
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::StartArchiveSubmitter(void* arg)
-{
-  return reinterpret_cast<XrdMgmOfs*>(arg)->ArchiveSubmitter();
-}
-
-//------------------------------------------------------------------------------
-// Method to stop the submitter thread
+// Start a thread that will queue, build and submit backup operations to the
+// archiver daemon.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::StopArchiveSubmitter()
-{
-  if (mSubmitterTid) {
-    XrdSysThread::Cancel(mSubmitterTid);
-    XrdSysThread::Join(mSubmitterTid, NULL);
-  }
-
-  eos_info("%s", "msg=\"stopped archive submitter\"");
-}
-
-//------------------------------------------------------------------------------
-// Implementation of the archive/backup sumitter thread
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::ArchiveSubmitter()
+XrdMgmOfs::StartArchiveSubmitter(ThreadAssistant& assistant) noexcept
 {
   ProcCommand pcmd;
   std::string job_opaque;
@@ -728,42 +704,41 @@ XrdMgmOfs::ArchiveSubmitter()
            << "\"opt\": \"\", "
            << "\"uid\": \"0\", "
            << "\"gid\": \"0\" }";
-  XrdSysThread::SetCancelDeferred();
 
-  while (true) {
-    XrdSysMutexHelper lock(mJobsQMutex);
+  while (!assistant.terminationRequested()) {
+    {
+      XrdSysMutexHelper lock(mJobsQMutex);
 
-    if (!mPendingBkps.empty()) {
-      // Check if archiver has slots available
-      if (!pcmd.ArchiveExecuteCmd(cmd_json.str())) {
-        std_out.resize(0);
-        std_err.resize(0);
-        pcmd.AddOutput(std_out, std_err);
+      if (!mPendingBkps.empty()) {
+        // Check if archiver has slots available
+        if (!pcmd.ArchiveExecuteCmd(cmd_json.str())) {
+          std_out.resize(0);
+          std_err.resize(0);
+          pcmd.AddOutput(std_out, std_err);
 
-        if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
-                    &max, &running, &pending) == 3)) {
-          while ((running + pending < max) && !mPendingBkps.empty()) {
-            running++;
-            job_opaque = mPendingBkps.back();
-            mPendingBkps.pop_back();
-            job_opaque += "&mgm.backup.create=1";
+          if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
+                      &max, &running, &pending) == 3)) {
+            while ((running + pending < max) && !mPendingBkps.empty()) {
+              running++;
+              job_opaque = mPendingBkps.back();
+              mPendingBkps.pop_back();
+              job_opaque += "&mgm.backup.create=1";
 
-            if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0)) {
-              pcmd.AddOutput(std_out, std_err);
-              eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0)) {
+                pcmd.AddOutput(std_out, std_err);
+                eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+              }
             }
           }
+        } else {
+          eos_err("failed to send stats command to archive daemon");
         }
-      } else {
-        eos_err("failed to send stats command to archive daemon");
       }
     }
-
-    XrdSysThread::CancelPoint();
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
-  return 0;
+  eos_warning("%s", "msg=\"shutdown archive submitter\"");
 }
 
 //------------------------------------------------------------------------------

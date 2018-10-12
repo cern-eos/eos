@@ -104,6 +104,7 @@
 #include "common/LinuxStat.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/AssistedThread.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
@@ -1593,7 +1594,7 @@ private:
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
   XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
-  pthread_t mSubmitterTid; ///< Archive submitter thread
+  AssistedThread mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
 
@@ -1615,22 +1616,12 @@ private:
   void InitStats();
 
   //----------------------------------------------------------------------------
-  //! Static method to start a thread that will queue, build and submit backup
-  //! operations to the archiver daemon.
+  //! Start a thread that will queue, build and submit backup operations to
+  //! the archiver daemon.
   //!
   //! @param arg mgm object
   //----------------------------------------------------------------------------
-  static void* StartArchiveSubmitter(void* arg);
-
-  //----------------------------------------------------------------------------
-  //! Implementation of the archive/backup submitter thread
-  //----------------------------------------------------------------------------
-  void* ArchiveSubmitter();
-
-  //----------------------------------------------------------------------------
-  //! Stop the submitted thread and join
-  //----------------------------------------------------------------------------
-  void StopArchiveSubmitter();
+  void StartArchiveSubmitter(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Setup MGM configuration directory

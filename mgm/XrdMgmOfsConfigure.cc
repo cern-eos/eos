@@ -1777,13 +1777,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   eos_info("starting archive submitter thread");
-
-  if (XrdSysThread::Run(&mSubmitterTid, XrdMgmOfs::StartArchiveSubmitter,
-                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                        "Archive/backup submitter thread")) {
-    eos_crit("cannot start archive/backup submitter thread");
-    NoGo = 1;
-  }
+  mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);
 
   if (!MgmRedirector) {
     eos_info("starting fs listener thread");
