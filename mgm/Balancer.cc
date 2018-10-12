@@ -45,10 +45,7 @@ Balancer::Balancer(const char* space_name):
 Balancer::~Balancer()
 {
   Stop();
-
-  if (!gOFS->Shutdown) {
-    XrdSysThread::Join(mThread, NULL);
-  }
+  XrdSysThread::Join(mThread, NULL);
 }
 
 //------------------------------------------------------------------------------
@@ -76,7 +73,6 @@ void*
 Balancer::Balance(void)
 {
   gOFS->WaitUntilNamespaceIsBooted();
-
   std::this_thread::sleep_for(std::chrono::seconds(10));
   eos_static_info("%s", "msg=\"starting balancer thread\"");
 

@@ -563,6 +563,11 @@ public:
                      bool monitoring = false, bool numerical = false);
 
   void Circulate();
+
+  ~Stat()
+  {
+    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+  }
 };
 
 EOSMGMNAMESPACE_END

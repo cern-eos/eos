@@ -59,6 +59,8 @@ Fsck::~Fsck()
   if (mRunning) {
     Stop(false);
   }
+  
+  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------

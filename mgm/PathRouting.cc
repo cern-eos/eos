@@ -34,6 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 PathRouting::~PathRouting()
 {
   mThread.join();
+  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------

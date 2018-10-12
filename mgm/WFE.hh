@@ -114,7 +114,9 @@ public:
     if (mThread) {
       Stop();
     }
-  };
+
+    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+  }
 
   class Job : XrdJob
   {
@@ -136,8 +138,10 @@ public:
         mDay = eos::common::Timing::UnixTimstamp_to_Day(when);
       }
 
-      Action(std::string a, std::string e, time_t when, std::string savedOnDay, std::string workflow,
-             std::string queue) : Action (std::move(a), std::move(e), when, std::move(workflow), std::move(queue))
+      Action(std::string a, std::string e, time_t when, std::string savedOnDay,
+             std::string workflow,
+             std::string queue) : Action(std::move(a), std::move(e), when,
+                                           std::move(workflow), std::move(queue))
       {
         mSavedOnDay = std::move(savedOnDay);
       }
@@ -159,7 +163,8 @@ public:
     }
 
     Job(eos::common::FileId::fileid_t fid,
-        eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "")
+        eos::common::Mapping::VirtualIdentity& vid,
+        const std::string& errorMessage = "")
     {
       mFid = fid;
       mRetry = 0;
@@ -180,9 +185,12 @@ public:
     // ---------------------------------------------------------------------------
     // Job execution function
     // ---------------------------------------------------------------------------
-    void DoIt() override { DoIt(false); }
+    void DoIt() override
+    {
+      DoIt(false);
+    }
 
-    int  DoIt(bool issync=false);
+    int  DoIt(bool issync = false);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
@@ -246,7 +254,11 @@ public:
       mActions[mActions.size() - 1].mSavedOnDay = savedOnDay;
     }
 
-    bool IsSync(const std::string& event="" ) {return (event.length()?event.substr(0,6):mActions[0].mEvent.substr(0,6)) == "sync::";}
+    bool IsSync(const std::string& event = "")
+    {
+      return (event.length() ? event.substr(0, 6) : mActions[0].mEvent.substr(0,
+              6)) == "sync::";
+    }
 
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;

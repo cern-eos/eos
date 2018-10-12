@@ -208,6 +208,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 //------------------------------------------------------------------------------
 XrdMgmOfs::~XrdMgmOfs()
 {
+  std::cerr << "Shutdown:: Calling XrdMgmOfs destructor ... " << std::endl;
   StopArchiveSubmitter();
   mZmqContext->close();
 
@@ -221,7 +222,12 @@ XrdMgmOfs::~XrdMgmOfs()
   }
 
   mVectTid.clear();
+  std::cerr << "Shutdown:: XrdMgmOfs destructor deleting zmq context ... "
+            << std::endl;
   delete mZmqContext;
+  delete zMQ;
+  mRouting.reset();
+  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -700,6 +706,8 @@ XrdMgmOfs::StopArchiveSubmitter()
     XrdSysThread::Cancel(mSubmitterTid);
     XrdSysThread::Join(mSubmitterTid, NULL);
   }
+
+  eos_info("%s", "msg=\"stopped archive submitter\"");
 }
 
 //------------------------------------------------------------------------------
@@ -720,39 +728,38 @@ XrdMgmOfs::ArchiveSubmitter()
            << "\"opt\": \"\", "
            << "\"uid\": \"0\", "
            << "\"gid\": \"0\" }";
+  XrdSysThread::SetCancelDeferred();
 
-  while (1) {
-    XrdSysThread::SetCancelOff();
-    {
-      XrdSysMutexHelper lock(mJobsQMutex);
+  while (true) {
+    XrdSysMutexHelper lock(mJobsQMutex);
 
-      if (!mPendingBkps.empty()) {
-        // Check if archiver has slots available
-        if (!pcmd.ArchiveExecuteCmd(cmd_json.str())) {
-          std_out.resize(0);
-          std_err.resize(0);
-          pcmd.AddOutput(std_out, std_err);
+    if (!mPendingBkps.empty()) {
+      // Check if archiver has slots available
+      if (!pcmd.ArchiveExecuteCmd(cmd_json.str())) {
+        std_out.resize(0);
+        std_err.resize(0);
+        pcmd.AddOutput(std_out, std_err);
 
-          if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
-                      &max, &running, &pending) == 3)) {
-            while ((running + pending < max) && !mPendingBkps.empty()) {
-              running++;
-              job_opaque = mPendingBkps.back();
-              mPendingBkps.pop_back();
-              job_opaque += "&mgm.backup.create=1";
+        if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
+                    &max, &running, &pending) == 3)) {
+          while ((running + pending < max) && !mPendingBkps.empty()) {
+            running++;
+            job_opaque = mPendingBkps.back();
+            mPendingBkps.pop_back();
+            job_opaque += "&mgm.backup.create=1";
 
-              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0)) {
-                pcmd.AddOutput(std_out, std_err);
-                eos_err("failed backup, msg=\"%s\"", std_err.c_str());
-              }
+            if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0)) {
+              pcmd.AddOutput(std_out, std_err);
+              eos_err("failed backup, msg=\"%s\"", std_err.c_str());
             }
           }
-        } else {
-          eos_err("failed to send stats command to archive daemon");
         }
+      } else {
+        eos_err("failed to send stats command to archive daemon");
       }
     }
-    XrdSysThread::SetCancelOn();
+
+    XrdSysThread::CancelPoint();
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 

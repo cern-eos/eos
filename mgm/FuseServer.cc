@@ -65,6 +65,7 @@ FuseServer::FuseServer()
 FuseServer::~FuseServer()
 {
   shutdown();
+  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------

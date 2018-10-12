@@ -59,7 +59,7 @@ public:
 
   /* Default Constructor - use it to run the LRU thread by calling Start
    */
-  LRU ()
+  LRU()
   {
     mThread = 0;
     mMs = 0;
@@ -70,38 +70,48 @@ public:
    * @brief get the millisecond sleep time for find
    * @return configured sleep time
    */
-  time_t GetMs() { return mMs; }
+  time_t GetMs()
+  {
+    return mMs;
+  }
 
   /**
    * @brief set the millisecond sleep time for find
    * @param ms sleep time in milliseconds to enforce
    */
-  void SetMs(time_t ms) { mMs = ms; }
+  void SetMs(time_t ms)
+  {
+    mMs = ms;
+  }
 
   /* Start the LRU thread engine
    */
-  bool Start ();
+  bool Start();
 
   /* Stop the LRU thread engine
    */
-  void Stop ();
+  void Stop();
 
   /* Thread start function for LRU thread
    */
-  static void* StartLRUThread (void*);
+  static void* StartLRUThread(void*);
 
   /* LRU method doing the actual policy scrubbing
    */
-  void* LRUr ();
+  void* LRUr();
 
   /**
    * @brief Destructor
    *
    */
-  ~LRU ()
+  ~LRU()
   {
-    if (mThread) Stop ();
-  };
+    if (mThread) {
+      Stop();
+    }
+
+    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+  }
 
   /* expire by age if empty
    */
@@ -117,17 +127,17 @@ public:
 
   /* convert by match
    */
-  void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap &map);
+  void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap& map);
 
   static const char* gLRUPolicyPrefix;
 
-  struct lru_entry
-  {
+  struct lru_entry {
     // compare operator to use struct in a map
     bool operator< (lru_entry const& lhs) const
     {
-      if (lhs.getCTime() == getCTime())
+      if (lhs.getCTime() == getCTime()) {
         return (getPath() < lhs.getPath());
+      }
 
       return getCTime() < lhs.getCTime();
     }
