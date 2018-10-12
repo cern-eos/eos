@@ -549,3 +549,17 @@ TEST_F(HierarchicalViewF, AddFileWithConflicts)
 
   cont1->addFile(file1.get()); // conflicts with itself, thus, no conflict
 }
+
+TEST_F(HierarchicalViewF, AddContainerWithConflicts)
+{
+  eos::IContainerMDPtr cont1 = view()->createContainer("/test/", true);
+  eos::IContainerMDPtr cont4 = view()->createContainer("/test/dir1", true);
+  eos::IContainerMDPtr cont2 = view()->createContainer("/dir1", true);
+  ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException); // conflicts with container
+
+  view()->createFile("/test/file1", true);
+  eos::IContainerMDPtr cont3 = view()->createContainer("/file1", true);
+  ASSERT_THROW(cont1->addContainer(cont3.get()), eos::MDException); // conflicts with file
+
+  cont1->addContainer(cont4.get()); // conflicts with itself, thus, no conflict
+}

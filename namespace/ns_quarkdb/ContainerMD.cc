@@ -246,20 +246,23 @@ ContainerMD::addContainer(IContainerMD* container)
                       ", target container ID: " << mCont.id());
   }
 
+  auto containerConflict = mSubcontainers->find(container->getName());
+  if(containerConflict != mSubcontainers->end() && containerConflict->second != container->getId()) {
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EEXIST, "Attempted to add container with name " << container->getName() <<
+                      " while a different subcontainer exists already there.");
+  }
+
+  auto fileConflict = mFiles->find(container->getName());
+  if(fileConflict != mFiles->end()) {
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EEXIST, "Attempted to add container with name " << container->getName() <<
+                      " while a file exists already there.");
+  }
+
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                     container->getId()));
-
-  // @todo (esindril): Here we (should ?!) follow the behaviour of the namespace
-  // in memory and don't do any extra checks but this can lead to multiple
-  // accounting of this file in the quota view since the listeners are notified
-  // every time we call this ....
-  if (!ret.second) {
-    eos::MDException e(EINVAL);
-    e.getMessage()  << __FUNCTION__ << " Container with name \""
-                    << container->getName() << "\" already exists";
-    throw e;
-  }
 
   // Add to new container to KV backend
   pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
