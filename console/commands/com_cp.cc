@@ -133,7 +133,7 @@ bool is_dir(const char* path, Protocol protocol, struct stat* buf = NULL);
 const char* setup_s3_environment(XrdOucString path, XrdOucString opaque);
 const char* eos_roles_opaque();
 int do_stat(const char* path, Protocol protocol, struct stat& buf);
-void check_protocol_tool(const char* path);
+int check_protocol_tool(const char* path);
 Protocol get_protocol(XrdOucString path);
 const char* protocol_to_string(Protocol protocol);
 
@@ -259,7 +259,7 @@ com_cp(char* argin)
   if (!target.name.length()) {
     fprintf(stderr, "warning: no target specified. Please view 'eos cp --help'.\n");
     global_retc = 0;
-    exit(0);
+    return 0;
   }
 
   // --------------------------------------------------------------------------
@@ -399,7 +399,8 @@ com_cp(char* argin)
                run_command(cmdtext.c_str(), files);
       if (rc && !files.size()) {
         fprintf(stderr, "warning: could not expand source: %s\n", source.c_str());
-        exit(1);
+        global_retc = rc;
+        return -1;
       }
     } else {
       files.emplace_back(source.c_str());
@@ -430,7 +431,7 @@ com_cp(char* argin)
   if (source_list.empty()) {
     fprintf(stderr, "warning: found zero files to copy!\n");
     global_retc = 0;
-    exit(0);
+    return 0;
   }
 
   // --------------------------------------------------------------------------
@@ -442,7 +443,7 @@ com_cp(char* argin)
   target.protocol = get_protocol(target.name.c_str());
 
   // Make sure executable to reach target exists
-  check_protocol_tool(target.name.c_str());
+  if (check_protocol_tool(target.name.c_str())) { return -1; }
 
   // Handle opaque information for target
   if (target.protocol != Protocol::LOCAL) {
@@ -480,7 +481,8 @@ com_cp(char* argin)
       // Target is not a directory
       if (!target_is_dir) {
         fprintf(stderr, "error: target must be a directory\n");
-        exit(1);
+        global_retc = EINVAL;
+        return -1;
       }
     }
 
@@ -498,8 +500,9 @@ com_cp(char* argin)
     if (target_is_dir && !target_exists) {
       if (!makeparent) {
         fprintf(stderr, "error: target must be created. Please try with "
-                        "create flag or see 'eos cp --help' for more info.\n");
-        exit(1);
+                        "create flag '-p' or see 'eos cp --help' for more info.\n");
+        global_retc = EINVAL;
+        return -1;
       }
     }
 
@@ -527,7 +530,8 @@ com_cp(char* argin)
         if (rc) {
           fprintf(stderr, "error: failed to create target directory : %s\n",
                   mktarget.c_str());
-          exit(1);
+          global_retc = rc;
+          return -1;
         }
       }
     }
@@ -540,7 +544,9 @@ com_cp(char* argin)
   // Set up environment for S3 target
   if ((target.protocol == Protocol::AS3) ||
       (target.protocol == Protocol::S3)) {
-    target.name = setup_s3_environment(target.name, target.opaque);
+    const char* url = setup_s3_environment(target.name, target.opaque);
+    if (url == NULL) { return -1; }
+    target.name = url;
   }
 
   // Expand '/eos/' shortcut for EOS protocol
@@ -597,11 +603,12 @@ com_cp(char* argin)
     case Protocol::S3:
     {
       if (!s3_tool) {
-        check_protocol_tool(source.name.c_str());
+        if (check_protocol_tool(source.name.c_str())) { return -1; }
         s3_tool = true;
       }
 
       const char* url = setup_s3_environment(source.name, source.opaque);
+      if (url == NULL) { return -1; }
 
       XrdOucString s3env = "env S3_ACCESS_KEY_ID=";
       s3env += getenv("S3_ACCESS_KEY_ID");
@@ -627,7 +634,8 @@ com_cp(char* argin)
       if ((!size) || (size == LLONG_MAX)) {
         fprintf(stderr, "error: path=%s cannot obtain size of S3 source file "
                         "or file size is 0!\n", source.name.c_str());
-        exit(1);
+        global_retc = EIO;
+        return -1;
       }
 
       copysize += size;
@@ -646,10 +654,10 @@ com_cp(char* argin)
     case Protocol::HTTPS:
       if ((source.protocol == Protocol::HTTP ||
            source.protocol == Protocol::HTTPS) && (!http_tool)) {
-        check_protocol_tool(source.name.c_str());
+        if (check_protocol_tool(source.name.c_str())) { return -1; }
         http_tool = true;
       } else if ((source.protocol == Protocol::GSIFTP) && (!gsiftp_tool)) {
-        check_protocol_tool(source.name.c_str());
+        if (check_protocol_tool(source.name.c_str())) { return -1; }
         gsiftp_tool = true;
       }
 
@@ -669,7 +677,8 @@ com_cp(char* argin)
     if (!statok) {
       fprintf(stderr, "error: cannot get file size of path=%s [protocol=%s]\n",
               source.name.c_str(), protocol_to_string(source.protocol));
-      exit(1);
+      global_retc = EINVAL;
+      return -1;
     }
 
     if (debug) {
@@ -694,6 +703,7 @@ com_cp(char* argin)
   // --------------------------------------------------------------------------
 
   int file_idx = -1;
+  retc = 0;
 
   for (auto& source: source_list) {
     XrdOucString dest = target.name.c_str();
@@ -717,7 +727,8 @@ com_cp(char* argin)
       if (pos == STR_NPOS) {
         fprintf(stderr, "error: could not identify source suffix for path=%s\n",
                 source.name.c_str());
-        exit(1);
+        global_retc = EINVAL;
+        return -1;
       }
 
       pos += source_basepath_list[file_idx].length();
@@ -786,7 +797,8 @@ com_cp(char* argin)
           fprintf(stderr, "error: failed to create temporary file "
                           "while preparing copy for path=%s [protocol=%s]\n",
                   dest.c_str(), protocol_to_string(target.protocol));
-          exit(1);
+          global_retc = errno;
+          return -1;
         }
 
         close(tmp_fd);
@@ -1031,7 +1043,8 @@ com_cp(char* argin)
               fprintf(stderr, "error: invalid file system URL=%s "
                               "[attempting checksum]\n",
                       url.GetURL().c_str());
-              exit(1);
+              global_retc = EINVAL;
+              return -1;
             }
 
             auto* fs = new XrdCl::FileSystem(url);
@@ -1039,7 +1052,8 @@ com_cp(char* argin)
             if (!fs) {
               fprintf(stderr, "error: failed to get new FS object "
                               "[attempting checksum]\n");
-              exit(1);
+              global_retc = EINVAL;
+              return -1;
             }
 
             XrdCl::Buffer arg;
@@ -1140,7 +1154,8 @@ com_cp(char* argin)
             eos::common::StringConversion::GetReadableSizeString(ssize2, copyrate, "B/s"));
   }
 
-  exit(WEXITSTATUS(retc));
+  global_retc = WEXITSTATUS(retc);
+  return global_retc;
 }
 
 
@@ -1187,7 +1202,7 @@ int run_command(const char* cmdline, std::vector<XrdOucString>& result)
 
   if (!fp) {
     fprintf(stderr, "error: failed executing command %s\n", (debug) ? cmdline : "");
-    exit(-1);
+    return errno;
   }
 
   while (fgets(line, sizeof(line), fp)) {
@@ -1359,7 +1374,8 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
                                                              sprot, hostport);
   if (!url.length()) {
     fprintf(stderr, "error: could not parse S3 url=%s", path.c_str());
-    exit(1);
+    global_retc = EINVAL;
+    return 0;
   }
 
   if (opaque.length()) {
@@ -1391,7 +1407,8 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
                     "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
                     "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
                     "S3_HOSTNAME (or use path with URI)");
-    exit(1);
+    global_retc = EINVAL;
+    return 0;
   }
 
   return url.c_str();
@@ -1401,7 +1418,7 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
  * Check if required tools are available to access the given path.
  * @param path the path to access
  */
-void check_protocol_tool(const char* path)
+int check_protocol_tool(const char* path)
 {
   Protocol protocol = get_protocol(path);
   std::string tool = "";
@@ -1414,7 +1431,7 @@ void check_protocol_tool(const char* path)
   } else if (protocol == Protocol::GSIFTP) {
     tool = "globus-url-copy";
   } else {
-    return;
+    return 0;
   }
 
   sprintf(cmd, "which %s >& /dev/null", tool.c_str());
@@ -1424,8 +1441,11 @@ void check_protocol_tool(const char* path)
     if (tool == "s3") {
       fprintf (stderr," error: please install S3 executable from libs3\n");
     }
-    exit(1);
+
+    global_retc = WEXITSTATUS(rc);
   }
+
+  return WEXITSTATUS(rc);
 }
 
 /**
