@@ -693,7 +693,7 @@ public:
   //!
   //! @param name nodeview name
   //----------------------------------------------------------------------------
-  FsNode(const char* name)
+  explicit FsNode(const char* name)
   {
     mName = name;
     mType = "nodesview";

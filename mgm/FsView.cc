@@ -1927,7 +1927,7 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
 {
   if (mNodeView.count(queue)) {
     // Loop over all attached filesystems and compare the queue path
-    for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++) {
+    for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); ++it) {
       if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath) {
         // This queuepath exists already, we cannot register
         return true;
@@ -2139,7 +2139,7 @@ FsView::Reset()
     eos::common::RWMutexReadLock viewlock(ViewMutex);
 
     // stop all the threads having only a read-lock
-    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
+    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
       it->second->Stop();
 
       if (getenv("EOS_MGM_GRACEFUL_SHUTDOWN")) {
