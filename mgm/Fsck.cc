@@ -48,7 +48,7 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mEnabled(false), mInterval(30), mThread(0), mRunning(false), eTimeStamp(0)
+  mEnabled(false), mInterval(30), mRunning(false), eTimeStamp(0)
 {}
 
 //------------------------------------------------------------------------------
@@ -56,10 +56,7 @@ Fsck::Fsck():
 //------------------------------------------------------------------------------
 Fsck::~Fsck()
 {
-  if (mRunning) {
-    Stop(false);
-  }
-  
+  (void) Stop(false);
   std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
@@ -74,8 +71,7 @@ Fsck::Start(int interval)
   }
 
   if (!mRunning) {
-    XrdSysThread::Run(&mThread, Fsck::StaticCheck, static_cast<void*>(this),
-                      XRDSYSTHREAD_HOLD, "Fsck Thread");
+    mThread.reset(&Fsck::Check, this);
     mRunning = true;
     mEnabled = "true";
     return StoreFsckConfig();
@@ -91,10 +87,8 @@ bool
 Fsck::Stop(bool store)
 {
   if (mRunning) {
-    eos_static_info("cancel fsck thread");
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, NULL);
-    eos_static_info("joined fsck thread");
+    eos_static_info("%s", "msg=\"join FSCK thread");
+    mThread.join();
     mRunning = false;
     mEnabled = false;
     Log(false, "disabled check");
@@ -156,26 +150,16 @@ Fsck::StoreFsckConfig()
 }
 
 //------------------------------------------------------------------------------
-// Static thread-startup function
-//------------------------------------------------------------------------------
-void*
-Fsck::StaticCheck(void* arg)
-{
-  return reinterpret_cast<Fsck*>(arg)->Check();
-}
-
-//------------------------------------------------------------------------------
 // Looping thread function collecting FSCK results
 //------------------------------------------------------------------------------
-void*
-Fsck::Check(void)
+void
+Fsck::Check(ThreadAssistant& assistant) noexcept
 {
   int bccount = 0;
   ClearLog();
   gOFS->WaitUntilNamespaceIsBooted();
 
-  while (true) {
-    XrdSysThread::SetCancelOff();
+  while (!assistant.terminationRequested()) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     eos_static_debug("Started consistency checker thread");
     ClearLog();
@@ -187,22 +171,23 @@ Fsck::Check(void)
       IsMaster = gOFS->mMaster->IsMaster();
 
       if (!IsMaster) {
-        XrdSysThread::SetCancelOn();
-
         for (int i = 0; i < 60; ++i) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
-          XrdSysThread::CancelPoint();
+
+          if (assistant.terminationRequested()) {
+            return;
+          }
         }
       }
     }
 
-    XrdSysThread::SetCancelOff();
     {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       size_t max  = FsView::gFsView.mIdView.size();
       Log(false, "Filesystems to check: %lu", max);
       eos_static_debug("filesystems to check: %lu", max);
     }
+
     XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
     broadcastresponsequeue += "-fsck-";
     broadcastresponsequeue += bccount;
@@ -478,7 +463,6 @@ Fsck::Check(void)
 
     Log(false, "stopping check");
     Log(false, "=> next run in %d minutes", mInterval);
-    XrdSysThread::SetCancelOn();
     // Wait for next FSCK round ...
     int timeout_sec = 5;
     int count = 0;
@@ -486,11 +470,12 @@ Fsck::Check(void)
     while (count < mInterval * 60) {
       count += timeout_sec;
       std::this_thread::sleep_for(std::chrono::seconds(timeout_sec));
-      XrdSysThread::CancelPoint();
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
   }
-
-  return 0;
 }
 
 //------------------------------------------------------------------------------

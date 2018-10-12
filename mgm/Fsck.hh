@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
+#include "common/AssistedThread.hh"
 #include <sys/types.h>
 #include <string>
 #include <stdarg.h>
@@ -55,11 +56,6 @@ public:
   static const char* gFsckEnabled;
   //! Key used in the configuration engine to store the check interval
   static const char* gFsckInterval;
-
-  //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticCheck(void*);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -134,14 +130,14 @@ public:
   //----------------------------------------------------------------------------
   //! FSCK thread loop function
   //----------------------------------------------------------------------------
-  void* Check();
+  void Check(ThreadAssistant& assistant) noexcept;
 
 private:
   XrdOucString mLog; ///< In-memory FSCK log
   XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
   int mInterval; ///< Interval in min between two FSCK collection loops
-  pthread_t mThread; ///< Collection thread id
+  AssistedThread mThread; ///< Collection thread id
   bool mRunning; ///< True if collection thread is currently running
   XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
