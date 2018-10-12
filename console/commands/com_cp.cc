@@ -469,30 +469,36 @@ com_cp(char* argin)
     int stat_rc = do_stat(target.name.c_str(), target.protocol, target_stat);
     target_exists = (stat_rc == 0);
     target_is_dir = is_dir(target.name.c_str(), target.protocol, &target_stat);
-    if (!target.name.endswith("/") && target_is_dir) {
-      target.name.append("/");
-    }
 
-    // If multiple source files, target should be directory
+    // If multiple source files target must be a directory
     if (source_list.size() > 1 ) {
-      // Target must be created
-      if ((target.protocol == Protocol::EOS ||
-           target.protocol == Protocol::LOCAL) && (!target_exists)) {
-        if (!makeparent) {
-          fprintf(stderr, "error: target must be created. Please try with "
-                          "create flag or see 'eos cp --help' for more info.\n");
-          exit(1);
-        }
-
-        if (!target.name.endswith("/")) {
-          target.name.append("/");
-        }
-
+      // Target doesn't exist, mark it as directory
+      if (!target_exists) {
         target_is_dir = true;
       }
 
+      // Target is not a directory
       if (!target_is_dir) {
         fprintf(stderr, "error: target must be a directory\n");
+        exit(1);
+      }
+    }
+
+    // Target doesn't exist but name suggests should be a directory
+    if (!target_exists && target.name.endswith("/")) {
+      target_is_dir = true;
+    }
+
+    // If target is a directory then the name should also reflect this
+    if (target_is_dir && !target.name.endswith("/")) {
+      target.name.append("/");
+    }
+
+    // Check rights to create target directory
+    if (target_is_dir && !target_exists) {
+      if (!makeparent) {
+        fprintf(stderr, "error: target must be created. Please try with "
+                        "create flag or see 'eos cp --help' for more info.\n");
         exit(1);
       }
     }
@@ -881,10 +887,11 @@ com_cp(char* argin)
     // Construct 'eoscp' command
     //------------------------------------
 
-    cmdtext += "eoscp -p ";
+    cmdtext += "eoscp ";
 
     if (append)                 { cmdtext += "-a "; }
     if (!summary)               { cmdtext += "-s "; }
+    if (makeparent)             { cmdtext += "-p "; }
     if (noprogress)             { cmdtext += "-n "; }
     if (nooverwrite)            { cmdtext += "-x "; }
     if (transfersize.length())  { cmdtext += "-T "; }
