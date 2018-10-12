@@ -1516,6 +1516,11 @@ public:
                          const std::string& name);
 
   //----------------------------------------------------------------------------
+  //! Setup /eos/<instance>/proc files
+  //----------------------------------------------------------------------------
+  void SetupProcFiles();
+
+  //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
   XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
@@ -1633,11 +1638,6 @@ private:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool SetupConfigDir();
-
-  //----------------------------------------------------------------------------
-  //! Setup /eos/<instance>/proc files
-  //----------------------------------------------------------------------------
-  void SetupProcFiles();
 
   static std::string MacroStringError(int errcode);
 };

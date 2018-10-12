@@ -181,6 +181,7 @@ QdbMaster::BootNamespace()
     eos_err("msg=\"failed to grab /proc/self/stat information\"");
   }
 
+  gOFS->SetupProcFiles();
   return true;
 }
 

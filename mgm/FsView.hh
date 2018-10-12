@@ -569,7 +569,7 @@ class FsSpace: public BaseView
 public:
   //! Set when a configuration gets loaded to avoid overwriting of the loaded
   //! values by default values
-  static bool gDisableDefaults;
+  static std::atomic<bool> gDisableDefaults;
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
 
   //----------------------------------------------------------------------------

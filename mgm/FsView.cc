@@ -42,7 +42,7 @@ FsView FsView::gFsView;
 std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
-bool FsSpace::gDisableDefaults = false;
+std::atomic<bool> FsSpace::gDisableDefaults {false};
 IConfigEngine* FsView::sConfEngine {nullptr};
 
 //------------------------------------------------------------------------------
