@@ -2531,6 +2531,7 @@ FuseServer::HandleMD(const std::string& id,
           // attach children
           auto map = (*parent)[md.md_ino()].children();
           auto it = map.begin();
+          size_t n_caps = 0;
           size_t items_per_lock_cycle = 128;
           size_t items_cycled = 1;
 
@@ -2554,10 +2555,14 @@ FuseServer::HandleMD(const std::string& id,
               child_md->set_operation(md.GET);
               child_md->set_clientuuid(md.clientuuid());
               child_md->set_clientid(md.clientid());
-              // this is a directory
               FillContainerMD(it->second, *child_md, vid);
-              // get the capability
-              FillContainerCAP(it->second, *child_md, vid, "", true);
+
+              if (n_caps < 16) {
+                // add maximum 16 caps for a listing
+                FillContainerCAP(it->second, *child_md, vid, "", true);
+                n_caps++;
+              }
+
               child_md->clear_operation();
             }
           }
