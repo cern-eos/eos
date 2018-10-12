@@ -99,7 +99,8 @@ char** eos_console_completion(const char* text, int start, int end)
 
   if (cmd.beginswith("rm ") ||
       cmd.beginswith("ls ") ||
-      cmd.beginswith("fileinfo ")) {
+      cmd.beginswith("fileinfo ") ||
+      cmd.beginswith("cp ")) {
     // dir/file completion
     rl_completion_append_character = '\0';
     matches = rl_completion_matches(text, eos_all_generator);
