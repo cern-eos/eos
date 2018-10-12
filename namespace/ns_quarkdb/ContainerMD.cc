@@ -316,17 +316,22 @@ ContainerMD::addFile(IFileMD* file)
                       ", target container ID: " << mCont.id());
   }
 
+  auto containerConflict = mSubcontainers->find(file->getName());
+  if(containerConflict != mSubcontainers->end()) {
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EEXIST, "Attempted to add file with name " << file->getName() <<
+                      " while a subcontainer exists already there.");
+  }
+
+  auto fileConflict = mFiles->find(file->getName());
+  if(fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
+    eos_static_crit(eos::common::getStacktrace().c_str());
+    throw_mdexception(EEXIST, "Attempted to add file with name " << file->getName() <<
+                      " while a different file exists already there.");
+  }
+
   file->setContainerId(mCont.id());
   (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
-  // @todo (esindril): Here we follow the behaviour of the namespace in memory
-  // and don't do any extra checks but this can lead to multiple accounting
-  // of this file in the quota view since the listeners are notified every
-  // time we call this ....
-  // if (!ret.second) {
-  //   MDException e(EINVAL);
-  //   e.getMessage() << "Error, file #" << file->getId() << " already exists";
-  //   throw e;
-  // }
   pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
   lock.unlock();
 

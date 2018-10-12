@@ -533,3 +533,19 @@ TEST_F(HierarchicalViewF, RenameDirectoryAsSubdirOfItself)
   ASSERT_TRUE(eos::isSafeToRename(view(), cont2.get(), cont1.get())); // non-sensical to do, but safe (no-op)
   ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont2.get()));
 }
+
+TEST_F(HierarchicalViewF, AddFileWithConflicts)
+{
+  eos::IContainerMDPtr cont1 = view()->createContainer("/test/dir1", true);
+  view()->createContainer("/test/dir1/dir2", true);
+  eos::IContainerMDPtr cont2 = view()->createContainer("/dir1", true);
+
+  eos::IFileMDPtr file1 = view()->createFile("/test/dir1/file1", true);
+  eos::IFileMDPtr file2 = view()->createFile("/file1", true);
+
+  ASSERT_THROW(cont1->addFile(file2.get()), eos::MDException); // conflicts with file
+  file2->setName("dir2");
+  ASSERT_THROW(cont1->addFile(file2.get()), eos::MDException); // conflicts with directory
+
+  cont1->addFile(file1.get()); // conflicts with itself, thus, no conflict
+}

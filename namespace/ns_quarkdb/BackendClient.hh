@@ -69,9 +69,6 @@ public:
   static qclient::QClient* getInstance(const QdbContactDetails& contactDetails,
                                        const std::string& tag = "default");
 private:
-  static std::atomic<qclient::QClient*> sQdbClient;
-  static std::string sQdbHost; ///< quarkdb instance host
-  static int sQdbPort;         ///< quarkddb instance port
   static std::map<std::string, qclient::QClient*> pMapClients;
   static std::mutex pMutexMap; ///< Mutex to protect the access to the map
 };
