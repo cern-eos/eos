@@ -381,6 +381,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     ManagerId += ":";
     ManagerId += (int)myPort;
     Eroute.Say("=====> mq.managerid: ", ManagerId.c_str(), "");
+    // @todo(esindril): maybe the MGM id should be taken from an env variable
     mMgmId = SSTR(HostName << ":1094").c_str();
   }
   gMqOfsTrace.What = TRACE_getstats | TRACE_close | TRACE_open;

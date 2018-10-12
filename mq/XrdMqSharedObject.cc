@@ -2160,7 +2160,7 @@ void
 XrdMqSharedObjectChangeNotifier::SomListener()
 {
   // thread listening on filesystem errors and configuration changes
-  eos_static_info("Starting Listener");
+  eos_static_info("%s", "mgm=\"starting SOM listener\"");
 
   do {
     SOM->SubjectsSem.Wait();
