@@ -2708,7 +2708,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         // add caps to be revoked
         XrdSysMutexHelper rLock(EosFuse::Instance().getCap().get_revocationLock());
         auto rmap = hb.mutable_heartbeat_()->mutable_authrevocation();
-        cap::revocation_set_t revocationset =
+        cap::revocation_set_t& revocationset =
           EosFuse::Instance().getCap().get_revocationmap();
         size_t n_revocations = 0;
 
