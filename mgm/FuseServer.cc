@@ -2559,9 +2559,12 @@ FuseServer::HandleMD(const std::string& id,
               FillContainerMD(it->second, *child_md, vid);
 
               if (n_caps < 16) {
-                // add maximum 16 caps for a listing
-                FillContainerCAP(it->second, *child_md, vid, "", true);
-                n_caps++;
+                // skip hidden directories
+                if (it->first.substr(0, 1) == ".") {
+                  // add maximum 16 caps for a listing
+                  FillContainerCAP(it->second, *child_md, vid, "", true);
+                  n_caps++;
+                }
               }
 
               child_md->clear_operation();
