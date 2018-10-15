@@ -330,7 +330,8 @@ CommitHelper::validate_size(eos::common::Mapping::VirtualIdentity_t& vid,
 {
   if (fmd->getSize() != size) {
     eos_thread_err("replication for fid=%lu resulted in a different file "
-                   "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid, fmd->getSize(), size);
+                   "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid,
+                   fmd->getSize(), size);
     gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
 
     // -----------------------------------------------------------
@@ -667,6 +668,11 @@ CommitHelper::handle_versioning(eos::common::Mapping::VirtualIdentity_t& vid,
     std::shared_ptr<eos::IFileMD> versionfmd;
     dir = gOFS->eosView->getContainer(paths["versiondir"].GetParentPath());
     fmd = gOFS->eosFileService->getFileMD(fid);
+
+    if (fmd->getName() == paths["atomic"].GetName()) {
+      // defere version handling for an overlapping secondary commit due to lock-release during commit
+      return;
+    }
 
     if (option["versioning"] && (std::string(paths["version"].GetPath()) != "/")) {
       try {
