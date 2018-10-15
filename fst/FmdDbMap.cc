@@ -177,6 +177,8 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   address += current_mgr.c_str();
   address += "//dummy?xrd.wantprot=sss";
   XrdCl::URL url(address.c_str());
+  std::unique_ptr<XrdCl::FileSystem> fs;
+
 again:
 
   if (!url.IsValid()) {
@@ -184,7 +186,7 @@ again:
     return EINVAL;
   }
 
-  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+  fs.reset(new XrdCl::FileSystem(url));
 
   if (!fs) {
     eos_static_err("error=failed to get new FS object");
@@ -225,8 +227,6 @@ again:
     eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
                    current_mgr.c_str(), fid);
   }
-
-  delete fs;
 
   if (rc) {
     delete response;
