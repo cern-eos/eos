@@ -930,6 +930,8 @@ runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /etc/passwd /eos/$E
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/* /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp2
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp3
 runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp
+runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp2
+runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp3
 
 ################################################################################
 # eos FUSE tests
