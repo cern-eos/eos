@@ -305,9 +305,7 @@ Converter::Converter(const char* spacename)
   }
 
   mActiveJobs = 0;
-  XrdSysThread::Run(&mThread, Converter::StaticConverter,
-                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                    "Converter Thread");
+  mThread.reset(&Converter::Convert, this);
 }
 
 //------------------------------------------------------------------------------
@@ -316,7 +314,7 @@ Converter::Converter(const char* spacename)
 void
 Converter::Stop()
 {
-  XrdSysThread::Cancel(mThread);
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
@@ -325,32 +323,22 @@ Converter::Stop()
 Converter::~Converter()
 {
   Stop();
-  XrdSysThread::Join(mThread, NULL);
   XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
   gConverterMap[mSpaceName] = 0;
 }
 
 //------------------------------------------------------------------------------
-// Method executed by the covertor thread
-//------------------------------------------------------------------------------
-void*
-Converter::StaticConverter(void* arg)
-{
-  return reinterpret_cast<Converter*>(arg)->Convert();
-}
-
-//------------------------------------------------------------------------------
 // Eternal loop trying to run conversion jobs
 //------------------------------------------------------------------------------
-void*
-Converter::Convert(void)
+void
+Converter::Convert(ThreadAssistant& assistant) noexcept
 {
   using eos::common::StringConversion;
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
+  assistant.wait_for(std::chrono::seconds(10));
 
   // Reset old jobs pending from service restart/crash
   if (gOFS->mMaster->IsMaster()) {
@@ -362,7 +350,7 @@ Converter::Convert(void)
   // the parent container of the fid
   std::map<eos::common::FileId::fileid_t, std::string> lConversionFidMap;
 
-  while (true) {
+  while (!assistant.terminationRequested()) {
     bool IsSpaceConverter = true;
     bool IsMaster = true;
     int lSpaceTransfers = 0;
@@ -373,7 +361,9 @@ Converter::Convert(void)
 
       // Try to read lock the mutex
       while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-        XrdSysThread::CancelPoint();
+        if (assistant.terminationRequested()) {
+          return;
+        }
       }
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
@@ -511,11 +501,12 @@ Converter::Convert(void)
     // Let some time pass or wait for a notification
     for (int i = 0; i < 10; i++) {
       mDoneSignal.Wait(1);
-      XrdSysThread::CancelPoint();
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
   }
-
-  return 0;
 }
 
 //------------------------------------------------------------------------------

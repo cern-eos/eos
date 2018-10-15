@@ -21,23 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/http/HttpServer.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetPeer.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
 #include <sstream>
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -55,7 +51,6 @@ HttpServer::HttpServer(int port)
   mDaemon = 0;
 #endif
   mPort = port;
-  mThreadId = 0;
   mRunning = false;
 }
 
@@ -64,11 +59,7 @@ bool
 HttpServer::Start()
 {
   if (!mRunning) {
-    XrdSysThread::Run(&mThreadId,
-                      HttpServer::StaticHttp,
-                      static_cast<void*>(this),
-                      XRDSYSTHREAD_HOLD,
-                      "Httpd Thread");
+    mThreadId.reset(&HttpServer::Run, this);
     mRunning = true;
     return true;
   } else {
@@ -77,16 +68,8 @@ HttpServer::Start()
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-HttpServer::StaticHttp(void* arg)
-{
-  return reinterpret_cast<HttpServer*>(arg)->Run();
-}
-
-
-/*----------------------------------------------------------------------------*/
-void*
-HttpServer::Run()
+void
+HttpServer::Run(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_MICRO_HTTPD
   std::string thread_model = "threads";
@@ -171,7 +154,7 @@ HttpServer::Run()
   if (!mDaemon) {
     mRunning = false;
     eos_static_warning("msg=\"start of micro httpd failed [port=%d]\"", mPort);
-    return (0);
+    return;
   } else {
     mRunning = true;
   }
@@ -185,11 +168,11 @@ HttpServer::Run()
   struct timeval tv;
 
   if ((thread_model == "epoll") || (thread_model == "threads")) {
-    while (1) {
-      pause();
+    while (!assistant.terminationRequested()) {
+      assistant.wait_for(std::chrono::seconds(30));
     }
   } else {
-    while (1) {
+    while (!assistant.terminationRequested()) {
       tv.tv_sec = 3600;
       tv.tv_usec = 0;
       max = 0;
@@ -215,7 +198,6 @@ HttpServer::Run()
 
   MHD_stop_daemon(mDaemon);
 #endif
-  return (0);
 }
 
 #ifdef EOS_MICRO_HTTPD

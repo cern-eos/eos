@@ -87,7 +87,7 @@ bool
 Fsck::Stop(bool store)
 {
   if (mRunning) {
-    eos_static_info("%s", "msg=\"join FSCK thread");
+    eos_static_info("%s", "msg=\"join FSCK thread\"");
     mThread.join();
     mRunning = false;
     mEnabled = false;

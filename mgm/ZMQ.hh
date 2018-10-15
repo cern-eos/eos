@@ -57,7 +57,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! KStart thread handling fuse server proxying
+  //! Start thread handling fuse server proxying
   //----------------------------------------------------------------------------
   void ServeFuse();
 

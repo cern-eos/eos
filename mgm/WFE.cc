@@ -60,9 +60,7 @@ using namespace eos::common;
  */
 /*----------------------------------------------------------------------------*/
 WFE::WFE()
-
 {
-  mThread = 0;
   mMs = 0;
   mActiveJobs = 0;
   eos::common::Mapping::Root(mRootVid);
@@ -72,45 +70,31 @@ WFE::WFE()
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-WFE::Start()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief asynchronous WFE thread startup function
  */
 /*----------------------------------------------------------------------------*/
+bool
+WFE::Start()
 {
-  // run an asynchronous WFE thread
-  mThread = 0;
-  XrdSysThread::Run(&mThread, WFE::StartWFEThread, static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD, "WFE engine Thread");
-  return mThread != 0;
+  try {
+    mThread.reset(&WFE::WFEr, this);
+  } catch (const std::system_error& e) {
+    return false;
+  }
+
+  return true;
 }
 
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-void
-WFE::Stop()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief asynchronous WFE thread stop function
  */
 /*----------------------------------------------------------------------------*/
+void
+WFE::Stop()
 {
-  // cancel the asynchronous WFE thread
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, nullptr);
-  }
-
-  mThread = 0;
-}
-
-void*
-WFE::StartWFEThread(void* arg)
-{
-  return reinterpret_cast<WFE*>(arg)->WFEr();
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
@@ -119,19 +103,23 @@ WFE::StartWFEThread(void* arg)
 // This thread method loops in regular intervals over all workflow jobs in the
 // workflow directory /eos/<instance>/proc/workflow/
 //------------------------------------------------------------------------------/
-void*
-WFE::WFEr()
-
+void
+WFE::WFEr(ThreadAssistant& assistant) noexcept
 {
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
   // Eternal thread doing WFE scans
   time_t snoozetime = 10;
   size_t lWFEntx = 0;
   time_t cleanuptime = 0;
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
+
+  if (assistant.terminationRequested()) {
+    return;
+  }
+
+  assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("msg=\"async WFE thread started\"");
 
-  while (true) {
+  while (!assistant.terminationRequested()) {
     bool IsEnabledWFE;
     time_t lWFEInterval;
     time_t lStartTime = time(NULL);
@@ -199,18 +187,8 @@ WFE::WFEr()
 
       for (size_t i = 0; i < 4; ++i) {
         eos_static_debug("query-path=%s", queries[i].c_str());
-        gOFS->_find(queries[i].c_str(),
-                    mError,
-                    stdErr,
-                    mRootVid,
-                    wfedirs,
-                    0,
-                    0,
-                    false,
-                    0,
-                    false,
-                    0
-                   );
+        gOFS->_find(queries[i].c_str(), mError, stdErr, mRootVid, wfedirs, 0,
+                    0, false, 0, false, 0);
       }
 
       {
@@ -282,8 +260,7 @@ WFE::WFEr()
 
       EXEC_TIMING_END("WFEFind");
       eos_static_debug("msg=\"finished WFE application\" WFE-dirs=%llu",
-                       wfedirs.size()
-                      );
+                       wfedirs.size());
     }
 
     lStopTime = time(NULL);
@@ -297,30 +274,32 @@ WFE::WFEr()
     }
 
     eos_static_debug("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
-    XrdSysThread::CancelPoint();
     size_t snoozeloop = snoozetime * 10;
 
     for (size_t i = 0; i < snoozeloop; i++) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      {
-        // check if the setting changes
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-        if (FsView::gFsView.mSpaceView.count("default") &&
-            (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
-          if (!IsEnabledWFE) {
-            break;
-          }
-        } else {
-          if (IsEnabledWFE) {
-            break;
-          }
+      if (assistant.terminationRequested()) {
+        break;
+      }
+
+      // Check if the setting changed
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+      if (FsView::gFsView.mSpaceView.count("default") &&
+          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
+        if (!IsEnabledWFE) {
+          break;
+        }
+      } else {
+        if (IsEnabledWFE) {
+          break;
         }
       }
     }
 
-    if (gOFS->mMaster->IsMaster() && (!cleanuptime ||
-                                      (cleanuptime < time(NULL)))) {
+    if (gOFS->mMaster->IsMaster() &&
+        (!cleanuptime || (cleanuptime < time(NULL)))) {
       time_t now = time(NULL);
       eos_static_info("msg=\"clean old workflows\"");
       XrdMgmOfsDirectory dir;
@@ -368,9 +347,6 @@ WFE::WFEr()
       cleanuptime = now + 3600;
     }
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

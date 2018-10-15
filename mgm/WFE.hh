@@ -29,6 +29,7 @@
 #include "common/Timing.hh"
 #include "common/FileId.hh"
 #include "common/ThreadPool.hh"
+#include "common/AssistedThread.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -53,7 +54,7 @@ private:
   //............................................................................
   // variables for the WFE thread
   //............................................................................
-  pthread_t mThread; //< thread id of the WFE thread
+  AssistedThread mThread; //< thread id of the WFE thread
   time_t mMs; //< forced sleep time used for find / scans
 
   eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
@@ -97,13 +98,9 @@ public:
    */
   void Stop();
 
-  /* Thread start function for WFE thread
-   */
-  static void* StartWFEThread(void*);
-
   /* WFE method doing the actual policy scrubbing
    */
-  void* WFEr();
+  void WFEr(ThreadAssistant& assistant) noexcept;
 
   /**
    * @brief Destructor
@@ -111,10 +108,7 @@ public:
    */
   ~WFE()
   {
-    if (mThread) {
-      Stop();
-    }
-
+    Stop();
     std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
   }
 

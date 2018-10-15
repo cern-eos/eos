@@ -25,6 +25,7 @@
 #define __EOSMGM_BALANCER__
 
 #include "mgm/Namespace.hh"
+#include "common/AssistedThread.hh"
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN
@@ -67,10 +68,10 @@ public:
   //! Balancer implementation - this method en-/disables balancing within
   //! groups depending on the current settings.
   //----------------------------------------------------------------------------
-  void* Balance();
+  void Balance(ThreadAssistant& assistant) noexcept;
 
 private:
-  pthread_t mThread; ///< Balancer thread id
+  AssistedThread mThread; ///< Balancer thread id
   std::string mSpaceName; ///< Space of this balancer object
 };
 

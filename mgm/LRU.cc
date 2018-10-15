@@ -45,53 +45,29 @@ EOSMGMNAMESPACE_BEGIN
 using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/
-bool
-LRU::Start()
-/*----------------------------------------------------------------------------*/
 /**
  * @brief asynchronous LRU thread startup function
  */
 /*----------------------------------------------------------------------------*/
+bool
+LRU::Start()
 {
-  // run an asynchronous LRU thread
-  mThread = 0;
-  XrdSysThread::Run(&mThread,
-                    LRU::StartLRUThread,
-                    static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD,
-                    "LRU engine Thread");
-  return (mThread ? true : false);
+  mThread.reset(&LRU::LRUr, this);
+  return true;
 }
 
-/*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-void
-LRU::Stop()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief asynchronous LRU thread stop function
  */
 /*----------------------------------------------------------------------------*/
+void
+LRU::Stop()
 {
-  // cancel the asynchronous LRU thread
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, 0);
-  }
-
-  mThread = 0;
+  mThread.join();
 }
 
-void*
-LRU::StartLRUThread(void* arg)
-{
-  return reinterpret_cast<LRU*>(arg)->LRUr();
-}
-
-/*----------------------------------------------------------------------------*/
-void*
-LRU::LRUr()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief LRU method doing the actual policy scrubbing
@@ -100,17 +76,21 @@ LRU::LRUr()
  * a LRU policy attribute set (sys.lru.*) and applies the defined policy.
  */
 /*----------------------------------------------------------------------------*/
+void
+LRU::LRUr(ThreadAssistant& assistant) noexcept
 {
-  // ---------------------------------------------------------------------------
-  // wait that the namespace is initialized
-  // ---------------------------------------------------------------------------
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
   // Eternal thread doing LRU scans
   time_t snoozetime = 60;
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
+
+  if (assistant.terminationRequested()) {
+    return;
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(10));
   eos_static_info("msg=\"async LRU thread started\"");
 
-  while (true) {
+  while (!assistant.terminationRequested()) {
     // every now and then we wake up
     bool IsEnabledLRU;
     time_t lLRUInterval;
@@ -209,7 +189,9 @@ LRU::LRUr()
           }
         }
 
-        XrdSysThread::CancelPoint();
+        if (assistant.terminationRequested()) {
+          return;
+        }
       }
 
       EXEC_TIMING_END("LRUFind");
@@ -224,32 +206,33 @@ LRU::LRUr()
     }
 
     eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledLRU);
-    XrdSysThread::SetCancelOn();
-    time_t snoozeinterval = 60;
     size_t snoozeloop = snoozetime / 60;
 
     for (size_t i = 0 ; i < snoozeloop; i++) {
-      std::this_thread::sleep_for(std::chrono::seconds(snoozeinterval));
-      {
-        // check if the setting changes
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      // Sleep one minuted in 5 seconds intervals
+      for (int j = 0; j < 12; ++j) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        if (FsView::gFsView.mSpaceView.count("default") &&
-            (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
-          if (!IsEnabledLRU) {
-            break;
-          }
-        } else {
-          if (IsEnabledLRU) {
-            break;
-          }
+        if (assistant.terminationRequested()) {
+          return;
+        }
+      }
+
+      // Check if the setting changes
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+      if (FsView::gFsView.mSpaceView.count("default") &&
+          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
+        if (!IsEnabledLRU) {
+          break;
+        }
+      } else {
+        if (IsEnabledLRU) {
+          break;
         }
       }
     }
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

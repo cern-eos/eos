@@ -1794,15 +1794,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  eos_info("starting archive submitter thread");
+  eos_info("%s", "msg=\"starting archive submitter thread\"");
   mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);
 
   if (!MgmRedirector) {
-    eos_info("starting fs listener thread");
+    eos_info("%s", "msg=\"starting fs listener thread\"");
 
-    if ((XrdSysThread::Run(&mFsConfigTid,
-                           XrdMgmOfs::StartMgmFsConfigListener,
-                           static_cast<void*>(this), 0, "FsListener Thread"))) {
+    try {
+      mFsConfigTid.reset(&XrdMgmOfs::FsConfigListener, this);
+    } catch (const std::system_error& e) {
       eos_crit("cannot start fs listener thread");
       NoGo = 1;
     }
@@ -1900,8 +1900,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (mNumAuthThreads && mFrontendPort) {
     eos_info("starting the authentication master thread");
 
-    if ((XrdSysThread::Run(&mAuthMasterTid, XrdMgmOfs::StartAuthMasterThread,
-                           static_cast<void*>(this), 0, "Auth Master Thread"))) {
+    try {
+      mAuthMasterTid.reset(&XrdMgmOfs::AuthMasterThread, this);
+    } catch (const std::system_error& e) {
       eos_crit("cannot start the authentication master thread");
       NoGo = 1;
     }

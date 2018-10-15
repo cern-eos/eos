@@ -391,7 +391,7 @@ XrdMqClient::RecvFromInternalBuffer()
 // Receive message
 //------------------------------------------------------------------------------
 XrdMqMessage*
-XrdMqClient::RecvMessage()
+XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 {
   if (kBrokerN == 1) {
     // Single broker case - check if there is still a buffered message
@@ -416,11 +416,19 @@ XrdMqClient::RecvMessage()
     XrdCl::StatInfo* stinfo = nullptr;
 
     while (!file->Stat(true, stinfo, timeout).IsOK()) {
+      fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
       ReNewBrokerXrdClientReceiver(0);
       file = GetBrokerXrdClientReceiver(0);
-      std::this_thread::sleep_for(std::chrono::seconds(2));
-      fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
-      XrdSysThread::CancelPoint();
+
+      if (assistant) {
+        assistant->wait_for(std::chrono::seconds(2));
+
+        if (assistant->terminationRequested()) {
+          return nullptr;
+        }
+      } else {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+      }
     }
 
     if (stinfo->GetSize() == 0) {

@@ -42,11 +42,11 @@ public:
                bool advisorystatus = false, bool advisoryquery = false,
                XrdMqSharedObjectManager* som = 0);
 
-  virtual ~VstMessaging() = default;
+  virtual ~VstMessaging();
 
   virtual bool Update(XrdAdvisoryMqMessage* advmsg);
-  virtual void Listen();
-  virtual void Process(XrdMqMessage* newmessage);
+  virtual void Listen(ThreadAssistant& assistant) noexcept override;
+  void Process(XrdMqMessage* newmessage);
 
   bool SetInfluxUdpEndpoint(const char*, bool onlyme);
 

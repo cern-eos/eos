@@ -1182,11 +1182,6 @@ public:
   // ---------------------------------------------------------------------------
   static void* StartMgmStats(void* pp);
 
-  // ---------------------------------------------------------------------------
-  // Filesystem error/config listener thread startup function
-  // ---------------------------------------------------------------------------
-  static void* StartMgmFsConfigListener(void* pp);
-
   //----------------------------------------------------------------------------
   //! Authentication master thread startup static function
   //!
@@ -1198,8 +1193,10 @@ public:
   //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH
   //! plugins which he then forwards to worker threads.
+  //!
+  //! @param assistant thread doing the work
   //----------------------------------------------------------------------------
-  void AuthMasterThread();
+  void AuthMasterThread(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Authentication worker thread startup static function
@@ -1242,7 +1239,7 @@ public:
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
-  void FsConfigListener();
+  void FsConfigListener(ThreadAssistant& assistant) noexcept;
 
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
@@ -1298,6 +1295,13 @@ public:
   //! Check if a host was tried in an URL already with the given error
   //----------------------------------------------------------------------------
   bool Tried(XrdCl::URL& url, std::string& host, const char* serr);
+
+  //----------------------------------------------------------------------------
+  //! Wait until namespace is initialized - thread cancellation point
+  //!
+  //! @param assistant reference to thread executing the job
+  //----------------------------------------------------------------------------
+  void WaitUntilNamespaceIsBooted(ThreadAssistant& assistant);
 
   //----------------------------------------------------------------------------
   // Configuration variables
@@ -1428,10 +1432,9 @@ public:
   // ---------------------------------------------------------------------------
   // thread variables
   // ---------------------------------------------------------------------------
-  pthread_t deletion_tid; ///< Thead Id of the deletion thread
   pthread_t mStatsTid; ///< Thread Id of the stats thread
-  pthread_t mFsConfigTid; ///< Thread ID of the fs listener/config change thread
-  pthread_t mAuthMasterTid; ///< Thread Id of the authentication thread
+  AssistedThread mFsConfigTid; ///< Fs listener/config change thread
+  AssistedThread mAuthMasterTid; ///< Thread Id of the authentication thread
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
   //----------------------------------------------------------------------------
@@ -1528,6 +1531,12 @@ public:
   void SetupProcFiles();
 
   //----------------------------------------------------------------------------
+  //! Method called during shutdown to destroy the rest of the objects and
+  //! clean up the threads.
+  //----------------------------------------------------------------------------
+  void OrderlyShutdown();
+
+  //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
   XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
@@ -1605,9 +1614,9 @@ private:
   AssistedThread mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
-
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
+  std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with

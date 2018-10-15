@@ -29,23 +29,13 @@
 XrdMqClient XrdMqMessaging::gMessageClient;
 
 //------------------------------------------------------------------------------
-// Start listener thread
-//------------------------------------------------------------------------------
-void*
-XrdMqMessaging::Start(void* pp)
-{
-  static_cast<XrdMqMessaging*>(pp)->Listen();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqMessaging::XrdMqMessaging(const char* url,
                                const char* defaultreceiverqueue,
                                bool advisorystatus, bool advisoryquery,
                                XrdMqSharedObjectManager* som):
-  mSom(som), mThreadId(0)
+  mSom(som)
 {
   if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery)) {
     mIsZombie = false;
@@ -79,12 +69,11 @@ XrdMqMessaging::~XrdMqMessaging()
 // Method executed by listener thread
 //------------------------------------------------------------------------------
 void
-XrdMqMessaging::Listen()
+XrdMqMessaging::Listen(ThreadAssistant& assistant) noexcept
 {
   std::unique_ptr<XrdMqMessage> new_msg;
-  XrdSysThread::SetCancelDeferred();
 
-  while (true) {
+  while (!assistant.terminationRequested()) {
     new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
 
     if (new_msg && mSom) {
@@ -100,8 +89,6 @@ XrdMqMessaging::Listen()
     if (new_msg == nullptr) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-
-    XrdSysThread::CancelPoint();
   }
 }
 
@@ -110,13 +97,11 @@ XrdMqMessaging::Listen()
 //------------------------------------------------------------------------------
 bool XrdMqMessaging::StartListenerThread()
 {
-  int rc;
   XrdMqMessage::Eroute.Say("###### " , "mq messaging: starting thread ", "");
 
-  if ((rc = XrdSysThread::Run(&mThreadId, XrdMqMessaging::Start,
-                              static_cast<void*>(this),
-                              XRDSYSTHREAD_HOLD, "Messaging Receiver"))) {
-    XrdMqMessage::Eroute.Emsg("messaging", rc, "create messaging thread");
+  try {
+    mThread.reset(&XrdMqMessaging::Listen, this);
+  } catch (const std::system_error& e) {
     mIsZombie = true;
     return false;
   }
@@ -130,12 +115,7 @@ bool XrdMqMessaging::StartListenerThread()
 void
 XrdMqMessaging::StopListener()
 {
-  if (mThreadId) {
-    XrdSysThread::Cancel(mThreadId);
-    XrdSysThread::Join(mThreadId, 0);
-    mThreadId = 0;
-  }
-
+  mThread.join();
   gMessageClient.Unsubscribe();
 }
 

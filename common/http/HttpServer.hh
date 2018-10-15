@@ -31,17 +31,16 @@
 #ifndef __EOSCOMMON_HTTP_SERVER__HH__
 #define __EOSCOMMON_HTTP_SERVER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
+#include "common/AssistedThread.hh"
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
+#include <iostream>
 
 #ifdef EOS_MICRO_HTTPD
 #include <microhttpd.h>
 #endif
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -50,19 +49,19 @@ class HttpServer
 
 protected:
 #ifdef EOS_MICRO_HTTPD
-  struct MHD_Daemon *mDaemon;   //!< MicroHttpd daemon instance
+  struct MHD_Daemon* mDaemon;   //!< MicroHttpd daemon instance
 #endif
   int                mPort;     //!< The port this server listens on
-  pthread_t          mThreadId; //!< This thread's ID
+  AssistedThread     mThreadId; //!< This thread's ID
   bool               mRunning;  //!< Is this server running?
-  static HttpServer *gHttp;     //!< This is the instance of the HTTP server
-                                //!< allowing the Handler function to call
-                                //!< class member functions
+  static HttpServer* gHttp;     //!< This is the instance of the HTTP server
+  //!< allowing the Handler function to call
+  //!< class member functions
 
   static std::string to_string(unsigned long long num)
   {
     char sout[128];
-    sprintf(sout,"%llu",num);
+    sprintf(sout, "%llu", num);
     return sout;
   }
 
@@ -70,36 +69,36 @@ public:
   /**
    * Constructor
    */
-  HttpServer (int port = 8000);
+  HttpServer(int port = 8000);
 
   /**
    * Destructor
    */
-  virtual ~HttpServer () {};
+  virtual ~HttpServer()
+  {
+    mThreadId.join();
+    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+  }
 
   /**
    * Return port number of service
    */
-  int Port() { return mPort; }
+  int Port()
+  {
+    return mPort;
+  }
 
   /**
    * Start the listening HTTP server
    *
    * @return true if server running otherwise false
    */
-  virtual bool Start ();
-
-  /**
-   * Start a thread running the embedded server
-   *
-   * @return void
-   */
-  static void* StaticHttp (void *arg);
+  virtual bool Start();
 
   /**
    * Create the embedded server and run
    */
-  void* Run ();
+  void Run(ThreadAssistant& assistant) noexcept;
 
   /**
    * Get an HTTP redirect response object.
@@ -113,10 +112,10 @@ public:
    * @return an HTTP response object
    */
   static HttpResponse*
-  HttpRedirect (const std::string &url,
-                const std::string &hostCGI,
-                int                port,
-                bool               cookie);
+  HttpRedirect(const std::string& url,
+               const std::string& hostCGI,
+               int                port,
+               bool               cookie);
 
   /**
    * Get an HTTP error response object containing an HTML error page inside
@@ -128,7 +127,7 @@ public:
    * @return an HTTP response object
    */
   static HttpResponse*
-  HttpError (const char *errorText, int errorCode);
+  HttpError(const char* errorText, int errorCode);
 
   /**
    * Get an HTTP HEAD response object with an empty
@@ -140,7 +139,7 @@ public:
    * @return an HTTP response object
    */
   static HttpResponse*
-  HttpHead (off_t length, std::string name);
+  HttpHead(off_t length, std::string name);
 
 
   /**
@@ -153,7 +152,7 @@ public:
    * @return an HTTP response object
    */
   static HttpResponse*
-  HttpData (const char *data, int length);
+  HttpData(const char* data, int length);
 
   /**
    * Get an HTTP stall response object.
@@ -164,7 +163,7 @@ public:
    * @return an HTTP response object
    */
   static HttpResponse*
-  HttpStall (const char *stallText, int seconds);
+  HttpStall(const char* stallText, int seconds);
 
   /**
    * Encode the provided CGI string, escaping '/' '+' '=' characters
@@ -172,7 +171,7 @@ public:
    * @param cgi  the CGI string to encode
    */
   static void
-  EncodeURI (std::string &cgi);
+  EncodeURI(std::string& cgi);
 
   /**
    * Deocde the provided CGI string, unesacping '/' '+' '=' characters
@@ -180,7 +179,7 @@ public:
    * @param cgi  the CGI string to decode
    */
   static void
-  DecodeURI (std::string &cgi);
+  DecodeURI(std::string& cgi);
 
 #ifdef EOS_MICRO_HTTPD
   /**
@@ -189,14 +188,14 @@ public:
    * @return see implementation
    */
   static int
-  StaticHandler (void                  *cls,
-                 struct MHD_Connection *connection,
-                 const char            *url,
-                 const char            *method,
-                 const char            *version,
-                 const char            *upload_data,
-                 size_t                *upload_data_size,
-                 void                 **ptr);
+  StaticHandler(void*                  cls,
+                struct MHD_Connection* connection,
+                const char*            url,
+                const char*            method,
+                const char*            version,
+                const char*            upload_data,
+                size_t*                upload_data_size,
+                void**                 ptr);
 
   /**
    * Calls the instance handler function of the Http object
@@ -204,10 +203,10 @@ public:
    * @return nothing
    */
   static void
-  StaticCompleteHandler (void                  *cls,
-			 struct MHD_Connection *connection,
-			 void **con_cls,
-			 enum MHD_RequestTerminationCode toe);
+  StaticCompleteHandler(void*                  cls,
+                        struct MHD_Connection* connection,
+                        void** con_cls,
+                        enum MHD_RequestTerminationCode toe);
 
   /**
    * HTTP object handler function
@@ -215,14 +214,14 @@ public:
    * @return see implementation
    */
   virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr) = 0;
+  Handler(void*                  cls,
+          struct MHD_Connection* connection,
+          const char*            url,
+          const char*            method,
+          const char*            version,
+          const char*            upload_data,
+          size_t*                upload_data_size,
+          void**                 ptr) = 0;
 
   /**
    * HTTP complete handler function
@@ -230,10 +229,10 @@ public:
    * @return nothing
    */
   virtual void
-  CompleteHandler (void                  *cls,
-		   struct MHD_Connection *connection,
-		   void                 **con_cls,
-		   enum MHD_RequestTerminationCode toe) = 0;
+  CompleteHandler(void*                  cls,
+                  struct MHD_Connection* connection,
+                  void**                 con_cls,
+                  enum MHD_RequestTerminationCode toe) = 0;
 
   /**
    * Returns the query string for an HTTP request
@@ -246,10 +245,10 @@ public:
    * @return MHD_YES
    */
   static int
-  BuildQueryString (void              *cls,
-                    enum MHD_ValueKind kind,
-                    const char        *key,
-                    const char        *value);
+  BuildQueryString(void*              cls,
+                   enum MHD_ValueKind kind,
+                   const char*        key,
+                   const char*        value);
 
   /**
    * Returns the header map for an HTTP request
@@ -263,10 +262,10 @@ public:
    * @return MHD_YES
    */
   static int
-  BuildHeaderMap (void              *cls,
-                  enum MHD_ValueKind kind,
-                  const char        *key,
-                  const char        *value);
+  BuildHeaderMap(void*              cls,
+                 enum MHD_ValueKind kind,
+                 const char*        key,
+                 const char*        value);
 
   /**
    * Cleans closed connections earlier than MHD_run

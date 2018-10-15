@@ -171,19 +171,18 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mAuthorize(false), mAuthLib(""), IssueCapability(false), MgmRedirector(false),
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
-  deletion_tid(0), mStatsTid(0), mFsConfigTid(0), mAuthMasterTid(0),
-  mFrontendPort(0), mNumAuthThreads(0), zMQ(nullptr), Authorization(0),
-  MgmStatsPtr(new eos::mgm::Stat()), MgmStats(*MgmStatsPtr),
-  mCommentLog(nullptr), FsckPtr(new eos::mgm::Fsck()), FsCheck(*FsckPtr),
-  mMaster(nullptr), mRouting(new eos::mgm::PathRouting()),
-  mIsCentralDrain(false),
-  LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
-  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr),
-  UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
+  mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
+  zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
+  MgmStats(*MgmStatsPtr), mCommentLog(nullptr), FsckPtr(new eos::mgm::Fsck()),
+  FsCheck(*FsckPtr), mMaster(nullptr), mRouting(new eos::mgm::PathRouting()),
+  mIsCentralDrain(false), LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
+  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
+  mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
   mTapeAwareGcDefaultSpaceEnable(false),
   mTapeAwareGc(TapeAwareGc::instance()),
-  mJeMallocHandler(new eos::common::JeMallocHandler())
+  mJeMallocHandler(new eos::common::JeMallocHandler()),
+  mDoneOrderlyShutdown(false)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -209,26 +208,211 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 //------------------------------------------------------------------------------
 XrdMgmOfs::~XrdMgmOfs()
 {
+  OrderlyShutdown();
   std::cerr << "Shutdown:: Calling XrdMgmOfs destructor ... " << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Destroy member objects and clean up threads
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::OrderlyShutdown()
+{
+  if (mDoneOrderlyShutdown) {
+    eos_warning("%s", "msg=\"skipping already done shutdown procedure\"");
+    return;
+  }
+
+  mDoneOrderlyShutdown = true;
+  {
+    eos_warning("%s", "msg=\"set stall rule of all ns operations\"");
+    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+    Access::gStallRules[std::string("*")] = "300";
+  }
+  eos_warning("%s", "msg=\"disable configuration engine autosave\"");
+  ConfEngine->SetAutoSave(false);
+  eos_warning("%s", "msg=\"stop routing\"");
+
+  if (mRouting) {
+    mRouting.reset();
+  }
+
+  eos_warning("%s", "msg=\"stopping archive submitter\"");
   mSubmitterTid.join();
-  mZmqContext->close();
 
-  if (mAuthMasterTid) {
-    XrdSysThread::Join(mAuthMasterTid, nullptr);
-    mAuthMasterTid = 0;
+  if (mZmqContext) {
+    eos_warning("%s", "msg=\"closing the ZMQ context\"");
+    mZmqContext->close();
+    eos_warning("%s", "msg=\"joining the master and worker auth threads\"");
+    mAuthMasterTid.join();
+
+    for (const auto& auth_tid : mVectTid) {
+      XrdSysThread::Join(auth_tid, nullptr);
+    }
+
+    mVectTid.clear();
+    eos_warning("%s", "msg=\"deleting the ZMQ context\"");
+    delete mZmqContext;
   }
 
-  for (const auto& auth_tid : mVectTid) {
-    XrdSysThread::Join(auth_tid, nullptr);
+  eos_warning("%s", "msg=\"stopping central drainning\"");
+  mDrainEngine.Stop();
+  eos_warning("%s", "msg=\"stopping geotree engine updater\"");
+  gGeoTreeEngine.StopUpdater();
+
+  if (IoStats) {
+    eos_warning("%s", "msg=\"stopping and deleting IoStats\"");
+    IoStats.reset();
   }
 
-  mVectTid.clear();
-  std::cerr << "Shutdown:: XrdMgmOfs destructor deleting zmq context ... "
-            << std::endl;
-  delete mZmqContext;
-  delete zMQ;
-  mRouting.reset();
-  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+  eos_warning("%s", "msg=\"stopping fusex server\"");
+  zMQ->gFuseServer.shutdown();
+
+  if (zMQ) {
+    delete zMQ;
+    zMQ = nullptr;
+  }
+
+  eos_warning("%s", "msg=\"stopping FSCK service\"");
+
+  if (FsckPtr) {
+    FsckPtr.reset();
+  }
+
+  eos_warning("%s", "msg=\"stopping messaging\"");
+
+  if (MgmOfsMessaging) {
+    delete MgmOfsMessaging;
+    MgmOfsMessaging = nullptr;
+  }
+
+  if (Recycler) {
+    eos_warning("%s", "msg=\"stopping and deleting recycler server\"");
+    Recycler.reset();
+  }
+
+  if (WFEPtr) {
+    eos_warning("%s", "msg=\"stopping and deleting the WFE engine\"");
+    WFEPtr.reset();
+  }
+
+  if (LRUPtr) {
+    eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
+    LRUPtr.reset();
+  }
+
+  if (EgroupRefresh) {
+    eos_warning("%s", "msg=\"stopping and deleting egroup refresh thread\"");
+    EgroupRefresh.reset();
+  }
+
+  if (Httpd) {
+    eos_warning("%s", "msg=\"stopping and deleting HTTP daemon\"");
+    Httpd.reset();
+  }
+
+  eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
+  gTransferEngine.Stop();
+  eos_warning("%s", "msg=\"stopping VST messaging\"");
+
+  if (MgmOfsVstMessaging) {
+    delete MgmOfsVstMessaging;
+    MgmOfsVstMessaging = nullptr;
+  }
+
+  eos_warning("%s", "msg=\"stopping fs listener thread\"");
+  auto stop_fsconfiglistener = std::thread([&]() {
+    mFsConfigTid.join();
+  });
+  // We now need to signal to the FsConfigListener thread to unblock it
+  XrdMqSharedObjectChangeNotifier::Subscriber*
+  subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
+
+  if (subscriber) {
+    XrdSysMutexHelper lock(subscriber->SubjectsMutex);
+    subscriber->SubjectsSem.Post();
+  }
+
+  stop_fsconfiglistener.join();
+  eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
+  ObjectNotifier.Stop();
+  eos_warning("%s", "msg=\"cleanup quota information\"");
+  (void) Quota::CleanUp();
+  eos_warning("%s", "msg=\"graceful shutdown of the FsView\"");
+  FsView::gFsView.StopHeartBeat();
+  FsView::gFsView.Clear();
+
+  if (gOFS->ErrorLog) {
+    eos_warning("%s", "msg=\"error log kill\"");
+    std::string errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
+    int rrc = system(errorlogkillline.c_str());
+
+    if (WEXITSTATUS(rrc)) {
+      eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
+    }
+  }
+
+  if (gOFS->mInitialized == gOFS->kBooted) {
+    eos_warning("%s", "msg=\"finalizing namespace views\"");
+
+    try {
+      // These two views need to be deleted without holding the namespace mutex
+      // as this might lead to a deadlock
+      eos_warning("%s", "msg=\"deleting synctime and container accounting\"");
+
+      if (gOFS->eosSyncTimeAccounting) {
+        delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = nullptr;
+      }
+
+      if (gOFS->eosContainerAccounting) {
+        delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = nullptr;
+      }
+
+      eos_warning("%s", "msg=\"grabbing namespace write lock\"");
+      uint64_t timeout_ns = 3 * 1e9;
+
+      while (!gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
+        eos_warning("%s", "msg=\"still trying to grab the ns write lock\"");
+      }
+
+      if (gOFS->eosFsView) {
+        delete gOFS->eosFsView;
+        gOFS->eosFsView = nullptr;
+      }
+
+      if (gOFS->eosView) {
+        delete gOFS->eosView;
+        gOFS->eosView = nullptr;
+      }
+
+      if (gOFS->eosDirectoryService) {
+        gOFS->eosDirectoryService->finalize();
+        delete gOFS->eosDirectoryService;
+        gOFS->eosDirectoryService = nullptr;
+      }
+
+      if (gOFS->eosFileService) {
+        gOFS->eosFileService->finalize();
+        delete gOFS->eosFileService;
+        gOFS->eosFileService = nullptr;
+      }
+
+      gOFS->eosViewRWMutex.UnLockWrite();
+    } catch (eos::MDException& e) {
+      // we don't really care about any exception here!
+      gOFS->eosViewRWMutex.UnLockWrite();
+    }
+  }
+
+  eos_warning("%s", "msg=\"stopping master-slave supervisor thread\"");
+
+  if (mMaster) {
+    mMaster.reset();
+  }
+
+  eos_warning("%s", "msg=\"finished orderly shutdown\"");
 }
 
 //------------------------------------------------------------------------------
@@ -693,17 +877,6 @@ XrdMgmOfs::StartMgmStats(void* pp)
 }
 
 //------------------------------------------------------------------------------
-// Filesystem error/config listener thread startup function
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::StartMgmFsConfigListener(void* pp)
-{
-  XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
-  ofs->FsConfigListener();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Start a thread that will queue, build and submit backup operations to the
 // archiver daemon.
 //------------------------------------------------------------------------------
@@ -932,7 +1105,6 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted()
 //------------------------------------------------------------------------------
 // Check if a host was tried already in a given URL with a given error
 //------------------------------------------------------------------------------
-
 bool
 XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
 {
@@ -955,4 +1127,19 @@ XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Wait until namespace is booted
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::WaitUntilNamespaceIsBooted(ThreadAssistant& assistant)
+{
+  while (gOFS->mInitialized != gOFS->kBooted) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+  }
 }

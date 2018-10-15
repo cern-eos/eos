@@ -30,6 +30,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "common/AssistedThread.hh"
 #include "mq/XrdMqMessage.hh"
 
 class XrdMqMessage;
@@ -137,7 +138,7 @@ public:
 
   XrdMqMessage* RecvFromInternalBuffer();
 
-  XrdMqMessage* RecvMessage();
+  XrdMqMessage* RecvMessage(ThreadAssistant* assistant = nullptr);
 
   XrdOucString* GetBrokerUrl(int i, XrdOucString& rhostport);
 
@@ -165,11 +166,11 @@ public:
     return (*this).SendMessage(msg);
   }
 
-  XrdMqMessage* operator >> (XrdMqMessage* msg)
-  {
-    msg = (*this).RecvMessage();
-    return msg;
-  }
+  // XrdMqMessage* operator >> (XrdMqMessage* msg)
+  // {
+  //   msg = (*this).RecvMessage();
+  //   return msg;
+  // }
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are

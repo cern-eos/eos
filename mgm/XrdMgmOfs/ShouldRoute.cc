@@ -42,9 +42,14 @@ XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
     return false;
   }
 
+  // Might happend during shutdown
+  if (mRouting == nullptr) {
+    return false;
+  }
+
   std::string stat_info;
   eos::mgm::PathRouting::Status st =
-    gOFS->mRouting->Reroute(path, info, vid, host, port, stat_info);
+    mRouting->Reroute(path, info, vid, host, port, stat_info);
 
   if (st == PathRouting::Status::REROUTE) {
     gOFS->MgmStats.Add(stat_info.c_str(), vid.uid, vid.gid, 1);

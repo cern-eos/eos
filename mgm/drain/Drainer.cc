@@ -34,7 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Drainer::Drainer():
-  mThread(0), mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5)
+  mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5)
 {}
 
 //------------------------------------------------------------------------------
@@ -42,8 +42,7 @@ Drainer::Drainer():
 //------------------------------------------------------------------------------
 void Drainer::Start()
 {
-  XrdSysThread::Run(&mThread, Drainer::StaticDrainer, static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD, "Drainer Thread");
+  mThread.reset(&Drainer::Drain, this);
 }
 
 //------------------------------------------------------------------------------
@@ -52,9 +51,7 @@ void Drainer::Start()
 void
 Drainer::Stop()
 {
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-  }
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
@@ -63,10 +60,6 @@ Drainer::Stop()
 Drainer::~Drainer()
 {
   Stop();
-
-  if (mThread) {
-    XrdSysThread::Join(mThread, NULL);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -323,40 +316,26 @@ Drainer::PrintJobsTable(TableFormatterBase& table, DrainTransferJob* job)
 }
 
 //------------------------------------------------------------------------------
-// Static thread startup function
-//------------------------------------------------------------------------------
-void*
-Drainer::StaticDrainer(void* arg)
-{
-  return reinterpret_cast<Drainer*>(arg)->Drain();
-}
-
-//------------------------------------------------------------------------------
 // Method doing the drain monitoring
 //------------------------------------------------------------------------------
-void*
-Drainer::Drain()
+void
+Drainer::Drain(ThreadAssistant& assistant) noexcept
 {
-  XrdSysThread::SetCancelOn();
-  eos_static_debug("Starting centralized drainer");
+  eos_static_debug("%s", "msg=\"starting central drainer\"");
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
 
-  // Wait that the namespace is initialized
-  while (true) {
-    if (gOFS->IsNsBooted()) {
-      break;
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+  if (assistant.terminationRequested()) {
+    return;
   }
 
-  while (true) {
+  while (!assistant.terminationRequested()) {
     uint64_t timeout_ns = 100 * 1e6; // 100ms
 
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      XrdSysThread::CancelPoint();
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
-
-    XrdSysThread::SetCancelOff();
 
     for (const auto& space : FsView::gFsView.mSpaceView) {
       int max_drain_fs = 5;
@@ -415,11 +394,8 @@ Drainer::Drain()
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-    XrdSysThread::SetCancelOn();
     std::this_thread::sleep_for(std::chrono::seconds(10));
   }
-
-  return 0;
 }
 
 //------------------------------------------------------------------------------

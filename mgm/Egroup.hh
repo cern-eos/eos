@@ -24,17 +24,14 @@
 #ifndef __EOSMGM_EGROUP__HH__
 #define __EOSMGM_EGROUP__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "common/AssistedThread.hh"
 #include <qclient/WaitableQueue.hh>
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
 #include <deque>
 #include <map>
-/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -43,7 +40,6 @@
  * @brief Class implementing egroup support via LDAP queries
  *
  */
-
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
@@ -145,7 +141,6 @@ public:
   // asynchronous thread loop doing egroup/username fetching
   // ---------------------------------------------------------------------------
   void Refresh(ThreadAssistant& assistant) noexcept;
-
 };
 
 EOSMGMNAMESPACE_END

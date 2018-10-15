@@ -101,7 +101,7 @@ Storage::Publish()
   std::string publish_uptime = "";
   std::string publish_sockets = "";
 
-  while (1) {
+  while (true) {
     {
       // Retrieve uptime information
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";

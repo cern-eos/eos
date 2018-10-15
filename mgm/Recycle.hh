@@ -25,6 +25,7 @@
 #define __EOSMGM_RECYCLE__HH__
 
 #include "mgm/Namespace.hh"
+#include "common/AssistedThread.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include <sys/types.h>
 
@@ -53,7 +54,7 @@ EOSMGMNAMESPACE_BEGIN
 class Recycle
 {
 private:
-  pthread_t mThread; //< thread id of the recyling thread
+  AssistedThread mThread; ///< Thread doing the recycling
   std::string mPath;
   std::string mRecycleDir;
   std::string mRecyclePath;
@@ -70,7 +71,7 @@ public:
   //----------------------------------------------------------------------------
 
   Recycle() :
-    mThread(0), mPath(""), mRecycleDir(""), mRecyclePath(""),
+    mPath(""), mRecycleDir(""), mRecyclePath(""),
     mOwnerUid(99), mOwnerGid(99), mId(0), mWakeUp(false) { }
 
   //----------------------------------------------------------------------------
@@ -85,15 +86,13 @@ public:
   Recycle(const char* path, const char* recycledir,
           eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid,
           gid_t ownerGid, unsigned long long id) :
-    mThread(0), mPath(path), mRecycleDir(recycledir),
+    mPath(path), mRecycleDir(recycledir),
     mRecyclePath(""), mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id),
     mWakeUp(false) { }
 
   ~Recycle()
   {
-    if (mThread) {
-      Stop();
-    }
+    Stop();
   }
 
 
@@ -105,13 +104,9 @@ public:
    */
   void Stop();
 
-  /* Thread start function for recycle thread
-   */
-  static void* StartRecycleThread(void*);
-
   /* Recycle method doing the actual clean-up
    */
-  void* Recycler();
+  void Recycler(ThreadAssistant& assistant) noexcept;
 
   /**
    * do the recycling of the recycle object (file or subtree)

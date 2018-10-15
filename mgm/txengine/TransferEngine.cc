@@ -33,7 +33,7 @@ const char* TransferEngine::gConfigSchedule = "transfer.schedule";
 
 /*----------------------------------------------------------------------------*/
 TransferEngine::TransferEngine():
-  thread(0), watchthread(0)
+  mRunning(false)
 {
   xDB = (TransferDB*) new TransferFsDB();
 }
@@ -62,16 +62,15 @@ bool TransferEngine::Init(const char* connectstring)
 /*----------------------------------------------------------------------------*/
 int TransferEngine::Run(bool store)
 {
-  if (!thread) {
+  if (!mRunning) {
+    mRunning = true;
+
     if (store) {
       FsView::gFsView.SetGlobalConfig(TransferEngine::gConfigSchedule, "true");
     }
 
-    XrdSysThread::Run(&thread, TransferEngine::StaticSchedulerProc,
-                      static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                      "Transfer Scheduler Thread started");
-    XrdSysThread::Run(&watchthread, TransferEngine::StaticWatchProc,
-                      static_cast<void*>(this), XRDSYSTHREAD_HOLD, "Transfer Watch Thread started");
+    mSchedulerThread.reset(&TransferEngine::Scheduler, this);
+    mWatchThread.reset(&TransferEngine::Watch, this);
     return 0;
   }
 
@@ -82,35 +81,16 @@ int TransferEngine::Run(bool store)
 int
 TransferEngine::Stop(bool store)
 {
-  if (thread) {
-    XrdSysThread::Cancel(thread);
-    XrdSysThread::Join(thread, NULL);
-    XrdSysThread::Cancel(watchthread);
-    XrdSysThread::Join(watchthread, NULL);
-    thread = 0;
-    watchthread = 0;
+  mWatchThread.join();
+  mSchedulerThread.join();
 
-    if (store) {
-      FsView::gFsView.SetGlobalConfig(TransferEngine::gConfigSchedule, "false");
-    }
-
-    eos_static_info("Stop transfer engine");
-    return 0;
+  if (store) {
+    FsView::gFsView.SetGlobalConfig(TransferEngine::gConfigSchedule, "false");
   }
 
-  return EINVAL;
-}
-
-/* ------------------------------------------------------------------------- */
-void* TransferEngine::StaticSchedulerProc(void* arg)
-{
-  return reinterpret_cast<TransferEngine*>(arg)->Scheduler();
-}
-
-/* ------------------------------------------------------------------------- */
-void* TransferEngine::StaticWatchProc(void* arg)
-{
-  return reinterpret_cast<TransferEngine*>(arg)->Watch();
+  mRunning = false;
+  eos_static_info("Stop transfer engine");
+  return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -456,8 +436,8 @@ TransferEngine::Clear(XrdOucString& stdOut, XrdOucString& stdErr,
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-TransferEngine::Scheduler()
+void
+TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("running transfer scheduler");
   size_t loopsleep = 500000;
@@ -465,8 +445,7 @@ TransferEngine::Scheduler()
   size_t gwpos = 0;
   double pacifier = 1;
 
-  while (1) {
-    XrdSysThread::SetCancelOff();
+  while (!assistant.terminationRequested()) {
     // schedule here
     {
       eos_static_debug("getting next transfer");
@@ -645,27 +624,26 @@ TransferEngine::Scheduler()
         }
       }
     }
-    XrdSysThread::SetCancelOn();
 
     for (size_t i = 0; i < pacifier * loopsleep / 100000; i++) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      XrdSysThread::CancelPoint();
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
   }
-
-  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-void*
-TransferEngine::Watch()
+void
+TransferEngine::Watch(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("running transfer watch");
   size_t loopsleep = 2000000;
-  sleep(10);
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 
-  while (1) {
-    XrdSysThread::SetCancelOff();
+  while (!assistant.terminationRequested()) {
     {
       eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
@@ -684,11 +662,12 @@ TransferEngine::Watch()
 
     for (size_t i = 0; i < loopsleep / 100000; i++) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      XrdSysThread::CancelPoint();
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
   }
-
-  return 0;
 }
 
 EOSMGMNAMESPACE_END

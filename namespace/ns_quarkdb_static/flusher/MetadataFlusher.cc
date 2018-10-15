@@ -54,6 +54,7 @@ MetadataFlusher::MetadataFlusher(const std::string& path,
 //------------------------------------------------------------------------------
 MetadataFlusher::~MetadataFlusher()
 {
+  sizePrinter.join();
   synchronize();
 }
 

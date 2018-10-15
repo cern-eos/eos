@@ -49,11 +49,11 @@ public:
   //----------------------------------------------------------------------------
   virtual ~Messaging() = default;
 
-  virtual void Listen();
+  virtual void Listen(ThreadAssistant& assistant) noexcept override;
 
   virtual bool Update(XrdAdvisoryMqMessage* advmsg);
 
-  virtual void Process(XrdMqMessage* newmessage);
+  void Process(XrdMqMessage* newmessage);
 };
 
 EOSMGMNAMESPACE_END

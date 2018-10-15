@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mq/XrdMqClient.hh"
 #include "common/Logging.hh"
+#include "common/AssistedThread.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/sparse_hash_map>
 #include <sys/types.h>
@@ -37,9 +38,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-namespace eos { namespace common {
-  class Report;
-}}
+namespace eos
+{
+namespace common
+{
+class Report;
+}
+}
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -121,7 +126,8 @@ private:
     unsigned long long rb;
   };
 
-  std::atomic<size_t> IostatLastPopularityBin; // this points to the bin which was last used in IostatPopularity
+  // Points to the bin which was last used in IostatPopularity
+  std::atomic<size_t> IostatLastPopularityBin;
 
   google::sparse_hash_map<std::string, struct Popularity>
     IostatPopularity[ IOSTAT_POPULARITY_HISTORY_DAYS ];
@@ -182,9 +188,6 @@ public:
   static const char* gIostatUdpTargetList;
 
   static FILE* gOpenReportFD;
-
-  pthread_t thread;
-  pthread_t cthread;
   bool mRunning;
   bool mInit;
 
@@ -228,11 +231,22 @@ public:
 
   void UdpBroadCast(eos::common::Report*);
 
-  static void* StaticReceive(void*);
-  static void* StaticCirculate(void*);
-  void* Receive();
+  //----------------------------------------------------------------------------
+  //! Method executed by the thread receiving reports
+  //!
+  //! @param assistant reference to thread object
+  //----------------------------------------------------------------------------
+  void Receive(ThreadAssistant& assistant) noexcept;
 
-  void WriteRecord(std::string &record); // let's the MGM add some record into the stream
+  //----------------------------------------------------------------------------
+  //! Method executed by the thread ciruclating the entires
+  //!
+  //! @param assistant reference to thread object
+  //----------------------------------------------------------------------------
+  void Circulate(ThreadAssistant& assistant) noexcept;
+
+  void WriteRecord(std::string&
+                   record); // let's the MGM add some record into the stream
 
   static bool NamespaceReport(const char* path, XrdOucString& stdOut,
                               XrdOucString& stdErr);
@@ -348,7 +362,9 @@ public:
     return val;
   }
 
-  void* Circulate();
+private:
+  AssistedThread mReceivingThread; ///< Looping thread receiving reports
+  AssistedThread mCirculateThread; ///< Looping thread circulating reports
 };
 
 EOSMGMNAMESPACE_END

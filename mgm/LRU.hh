@@ -24,15 +24,12 @@
 #ifndef __EOSMGM_LRU__HH__
 #define __EOSMGM_LRU__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
+#include "common/AssistedThread.hh"
 #include "namespace/interface/IContainerMD.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucErrInfo.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -46,12 +43,8 @@ EOSMGMNAMESPACE_BEGIN
 class LRU
 {
 private:
-  //............................................................................
-  // variables for the LRU thread
-  //............................................................................
-  pthread_t mThread; //< thread id of the LRU thread
+  AssistedThread mThread; ///< thread id of the LRU thread
   time_t mMs; //< forced sleep time used for find / scans
-
   eos::common::Mapping::VirtualIdentity mRootVid;//< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
@@ -61,7 +54,6 @@ public:
    */
   LRU()
   {
-    mThread = 0;
     mMs = 0;
     eos::common::Mapping::Root(mRootVid);
   }
@@ -92,13 +84,9 @@ public:
    */
   void Stop();
 
-  /* Thread start function for LRU thread
-   */
-  static void* StartLRUThread(void*);
-
   /* LRU method doing the actual policy scrubbing
    */
-  void* LRUr();
+  void LRUr(ThreadAssistant& assistant) noexcept;
 
   /**
    * @brief Destructor
@@ -106,10 +94,7 @@ public:
    */
   ~LRU()
   {
-    if (mThread) {
-      Stop();
-    }
-
+    Stop();
     std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
   }
 

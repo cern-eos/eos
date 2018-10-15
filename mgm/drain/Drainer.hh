@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/ThreadPool.hh"
+#include "common/AssistedThread.hh"
 #include "mgm/drain/DrainFs.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -127,15 +128,17 @@ private:
 
   //----------------------------------------------------------------------------
   //! Method doing the drain monitoring
+  //!
+  //! @param assistant thread running the job
   //----------------------------------------------------------------------------
-  void* Drain(void);
+  void Drain(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Handle queued draining requests
   //----------------------------------------------------------------------------
   void HandleQueued();
 
-  pthread_t mThread; ///< Thread updating the drain configuration
+  AssistedThread mThread; ///< Thread updating the drain configuration
   //! Contains per space the max allowed fs draining per node
   std::map<std::string, int> mCfgMap;
   DrainMap mDrainFs; ///< Map of nodes to file systems draining

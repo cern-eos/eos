@@ -35,8 +35,7 @@ EOSMGMNAMESPACE_BEGIN
 Balancer::Balancer(const char* space_name):
   mSpaceName(space_name)
 {
-  XrdSysThread::Run(&mThread, Balancer::StaticBalance, static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD, "Balancer Thread");
+  mThread.reset(&Balancer::Balance, this);
 }
 
 //------------------------------------------------------------------------------
@@ -45,7 +44,6 @@ Balancer::Balancer(const char* space_name):
 Balancer::~Balancer()
 {
   Stop();
-  XrdSysThread::Join(mThread, NULL);
 }
 
 //------------------------------------------------------------------------------
@@ -54,30 +52,21 @@ Balancer::~Balancer()
 void
 Balancer::Stop()
 {
-  XrdSysThread::Cancel(mThread);
-}
-
-//------------------------------------------------------------------------------
-// Static function used to start thread
-//------------------------------------------------------------------------------
-void*
-Balancer::StaticBalance(void* arg)
-{
-  return reinterpret_cast<Balancer*>(arg)->Balance();
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
 // Balancer implementation
 //------------------------------------------------------------------------------
-void*
-Balancer::Balance(void)
+void
+Balancer::Balance(ThreadAssistant& assistant) noexcept
 {
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
+  assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("%s", "msg=\"starting balancer thread\"");
 
   // Loop forever until cancelled
-  while (true) {
+  while (!assistant.terminationRequested()) {
     bool IsSpaceBalancing = true;
     bool IsMaster = true;
     double SpaceDifferenceThreshold = 0;
@@ -88,7 +77,9 @@ Balancer::Balance(void)
 
     // Try to read lock the mutex
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      XrdSysThread::CancelPoint();
+      if (assistant.terminationRequested()) {
+        return;
+      }
     }
 
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
@@ -280,16 +271,9 @@ Balancer::Balance(void)
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-
     // Wait a while ...
-    for (size_t i = 0; i < 10; ++i) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      XrdSysThread::CancelPoint();
-    }
+    assistant.wait_for(std::chrono::seconds(10));
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 EOSMGMNAMESPACE_END

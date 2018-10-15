@@ -54,11 +54,8 @@ bool
 Recycle::Start()
 {
   eos_static_info("constructor");
-  mThread = 0;
-  XrdSysThread::Run(&mThread, Recycle::StartRecycleThread,
-                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                    "Recycle garbage collection Thread");
-  return (mThread ? true : false);
+  mThread.reset(&Recycle::Recycler, this);
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -67,18 +64,7 @@ Recycle::Start()
 void
 Recycle::Stop()
 {
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, 0);
-  }
-
-  mThread = 0;
-}
-
-void*
-Recycle::StartRecycleThread(void* arg)
-{
-  return reinterpret_cast<Recycle*>(arg)->Recycler();
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
@@ -87,8 +73,8 @@ Recycle::StartRecycleThread(void* arg)
 // - one should define an attribute like 'sys.recycle.keeptime' on this dir
 //   to define the time in seconds how long files stay in the recycle bin
 //------------------------------------------------------------------------------
-void*
-Recycle::Recycler()
+void
+Recycle::Recycler(ThreadAssistant& assistant) noexcept
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
@@ -101,16 +87,23 @@ Recycle::Recycler()
   unsigned long long lLowSpaceWatermark = 0;
   bool show_attribute_missing = true;
   eos_static_info("msg=\"async recycling thread started\"");
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-  XrdSysThread::CancelPoint();
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
 
-  while (true) {
+  if (assistant.terminationRequested()) {
+    return;
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  while (!assistant.terminationRequested()) {
     // Every now and then we wake up
     eos_static_info("snooze-time=%llu", snoozetime);
 
     for (int i = 0; i < snoozetime / 10; i++) {
-      XrdSysThread::CancelPoint();
+      if (assistant.terminationRequested()) {
+        return;
+      }
+
       std::this_thread::sleep_for(std::chrono::seconds(10));
       XrdSysMutexHelper lock(mWakeUpMutex);
 
@@ -476,9 +469,6 @@ Recycle::Recycler()
       }
     }
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

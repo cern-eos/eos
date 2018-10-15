@@ -59,11 +59,7 @@ GeoBalancer::GeoBalancer(const char* spacename)
 {
   mSpaceName = spacename;
   mLastCheck = 0;
-  XrdSysThread::Run(&mThread,
-                    GeoBalancer::StaticGeoBalancer,
-                    static_cast<void*>(this),
-                    XRDSYSTHREAD_HOLD,
-                    "GeoBalancer Thread");
+  mThread.reset(&GeoBalancer::GeoBalance, this);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -75,9 +71,7 @@ GeoBalancer::Stop()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-  }
+  mThread.join();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -89,11 +83,7 @@ GeoBalancer::Join()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, nullptr);
-    mThread = 0;
-  }
+  mThread.join();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -108,17 +98,6 @@ GeoBalancer::~GeoBalancer()
   clearCachedSizes();
 }
 
-/*----------------------------------------------------------------------------*/
-void*
-GeoBalancer::StaticGeoBalancer(void* arg)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Static thread startup function calling Convert
- */
-/*----------------------------------------------------------------------------*/
-{
-  return reinterpret_cast<GeoBalancer*>(arg)->GeoBalance();
-}
 
 /*----------------------------------------------------------------------------*/
 GeotagSize::GeotagSize(uint64_t usedBytes, uint64_t capacity)
@@ -233,7 +212,8 @@ GeoBalancer::populateGeotagsInfo()
     fs->SnapShotFileSystem(snapshot, false);
 
     if (snapshot.mStatus != eos::common::FileSystem::kBooted ||
-        snapshot.mConfigStatus < eos::common::FileSystem::kRO) {
+        snapshot.mConfigStatus < eos::common::FileSystem::kRO ||
+        snapshot.mGeoTag.empty()) {
       continue;
     }
 
@@ -578,18 +558,17 @@ GeoBalancer::prepareTransfers(int nrTransfers)
 //------------------------------------------------------------------------------
 //! @brief eternal loop trying to run conversion jobs
 //------------------------------------------------------------------------------
-void*
-GeoBalancer::GeoBalance()
+void
+GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-  XrdSysThread::CancelPoint();
+  gOFS->WaitUntilNamespaceIsBooted(assistant);
+  assistant.wait_for(std::chrono::seconds(10));
 
   // Loop forever until cancelled
-  while (true) {
+  while (!assistant.terminationRequested()) {
     bool isSpaceGeoBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;
@@ -600,7 +579,9 @@ GeoBalancer::GeoBalance()
 
       // Try to read lock the mutex
       while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-        XrdSysThread::CancelPoint();
+        if (assistant.terminationRequested()) {
+          return;
+        }
       }
 
       FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
@@ -649,12 +630,12 @@ GeoBalancer::GeoBalance()
 
 wait:
     // Let some time pass or wait for a notification
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    XrdSysThread::CancelPoint();
-  }
+    assistant.wait_for(std::chrono::seconds(10));
 
-  XrdSysThread::SetCancelOn();
-  return 0;
+    if (assistant.terminationRequested()) {
+      return;
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END

@@ -37,24 +37,19 @@ EOSFSTNAMESPACE_BEGIN
 // Listen for incoming messages
 //------------------------------------------------------------------------------
 void
-Messaging::Listen()
+Messaging::Listen(ThreadAssistant& assistant) noexcept
 {
   std::unique_ptr<XrdMqMessage> new_msg;
-  XrdSysThread::SetCancelDeferred();
 
-  while (true) {
-    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+  while (!assistant.terminationRequested()) {
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
 
     if (new_msg) {
       Process(new_msg.get());
     } else {
-      std::this_thread::sleep_for(std::chrono::seconds(2));
+      assistant.wait_for(std::chrono::seconds(2));
     }
-
-    XrdSysThread::CancelPoint();
   }
-
-  XrdSysThread::SetCancelOn();
 }
 
 //------------------------------------------------------------------------------

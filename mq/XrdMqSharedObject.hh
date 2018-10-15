@@ -28,6 +28,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 #include "mgm/TableFormatter/TableCell.hh"
+#include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include "common/RWMutex.hh"
 #include <string>
@@ -794,12 +795,7 @@ public:
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  static void* StartHashDumper(void* pp);
-
-  //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  void FileDumper();
+  void FileDumper(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Clear all managed hashes and queues
@@ -842,7 +838,7 @@ protected:
 
 private:
   std::atomic<bool> mBroadcast {true}; ///< Broadcast mode, default on
-  pthread_t mDumperTid; ///< Dumper thread tid
+  AssistedThread mDumperTid; ///< Dumper thread tid
   ///! Map of subjects to shared hash objects
   std::map<std::string, XrdMqSharedHash*> mHashSubjects;
   ///! Map of subjects to shared queue objects
@@ -954,12 +950,15 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   XrdMqSharedObjectChangeNotifier():
-    SOM(0), tid(0) {}
+    SOM(0) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~XrdMqSharedObjectChangeNotifier() = default;
+  ~XrdMqSharedObjectChangeNotifier()
+  {
+    Stop();
+  }
 
   bool SubscribesToSubject(const std::string& susbcriber,
                            const std::string& subject,
@@ -1053,9 +1052,14 @@ private:
   //!  listof((Subjects,Keys),Subscribers)
   std::map<std::string, std::string> LastValues;
 
-  pthread_t tid; //< Thread ID of the dispatching change thread
-  void SomListener();
-  static void* StartSomListener(void* pp);
+  AssistedThread mDispatchThread; ///< Dispatching change thread
+
+  //----------------------------------------------------------------------------
+  //! Loop ran by thread dispathcing change notifications
+  //!
+  //! @param assistant executing thread
+  //----------------------------------------------------------------------------
+  void SomListener(ThreadAssistant& assistant) noexcept;
 
   std::map<std::string, Subscriber*> pSubscribersCatalog;
   XrdSysMutex pCatalogMutex;

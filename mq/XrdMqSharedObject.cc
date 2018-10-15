@@ -2157,14 +2157,14 @@ XrdMqSharedObjectChangeNotifier::StopNotifyCurrentThread()
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMqSharedObjectChangeNotifier::SomListener()
+XrdMqSharedObjectChangeNotifier::SomListener(ThreadAssistant& assistant)
+noexcept
 {
   // thread listening on filesystem errors and configuration changes
   eos_static_info("%s", "mgm=\"starting SOM listener\"");
 
-  do {
+  while (!assistant.terminationRequested()) {
     SOM->SubjectsSem.Wait();
-    XrdSysThread::SetCancelOff();
     // we always take a lock to take something from the queue and then release it
     WatchMutex.Lock();
     SOM->mSubjectsMutex.Lock();
@@ -2364,46 +2364,42 @@ XrdMqSharedObjectChangeNotifier::SomListener()
 
     SOM->mSubjectsMutex.UnLock();
     WatchMutex.UnLock();
-    XrdSysThread::SetCancelOn();
-  } while (true);
-}
-
-//------------------------------------------------------------------------------
-// Start the listener thread
-//------------------------------------------------------------------------------
-void*
-XrdMqSharedObjectChangeNotifier::StartSomListener(void* pp)
-{
-  ((XrdMqSharedObjectChangeNotifier*) pp)->SomListener();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-bool
-XrdMqSharedObjectChangeNotifier::Start()
-{
-  if (XrdSysThread::Run(&tid, XrdMqSharedObjectChangeNotifier::StartSomListener,
-                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                        "XrdMqSharedObject Change Notifier")) {
-    return false;
-  } else {
-    return true;
   }
 }
 
 //------------------------------------------------------------------------------
-//
+// Start dispatching change thread
+//------------------------------------------------------------------------------
+bool
+XrdMqSharedObjectChangeNotifier::Start()
+{
+  try {
+    mDispatchThread.reset(&XrdMqSharedObjectChangeNotifier::SomListener, this);
+  } catch (const std::system_error& e) {
+    eos_static_err("%s", "msg=\"failed to start SOM listener\"");
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Stop dispatcher thread
 //------------------------------------------------------------------------------
 bool
 XrdMqSharedObjectChangeNotifier::Stop()
 {
-  XrdSysThread::Cancel(tid);
-  XrdSysThread::Join(tid, 0);
+  auto stop_objnotifier = std::thread([&]() {
+    mDispatchThread.join();
+  });
+  // We now need to signal to the SomListener thread to unblock it
+  {
+    XrdSysMutexHelper lock(SOM->mSubjectsMutex);
+    SOM->SubjectsSem.Post();
+  }
+  stop_objnotifier.join();
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 //                * * * Class XrdMqSharedObjectManager  * * *
@@ -2413,7 +2409,7 @@ XrdMqSharedObjectChangeNotifier::Stop()
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqSharedObjectManager::XrdMqSharedObjectManager():
-  mDumperTid(0), mDumperFile("")
+  mDumperFile("")
 {
   mEnableQueue = false;
   AutoReplyQueue = "";
@@ -2430,10 +2426,7 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager():
 //------------------------------------------------------------------------------
 XrdMqSharedObjectManager::~XrdMqSharedObjectManager()
 {
-  if (mDumperTid) {
-    XrdSysThread::Cancel(mDumperTid);
-    XrdSysThread::Join(mDumperTid, 0);
-  }
+  mDumperTid.join();
 
   for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
     delete it->second;
@@ -2706,13 +2699,11 @@ XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
 void
 XrdMqSharedObjectManager::StartDumper(const char* file)
 {
-  int rc = 0;
   mDumperFile = file;
 
-  if ((rc = XrdSysThread::Run(&mDumperTid,
-                              XrdMqSharedObjectManager::StartHashDumper,
-                              static_cast<void*>(this),
-                              XRDSYSTHREAD_HOLD, "HashDumper"))) {
+  try {
+    mDumperTid.reset(&XrdMqSharedObjectManager::FileDumper, this);
+  } catch (const std::system_error& e) {
     fprintf(stderr, "XrdMqSharedObjectManager::StartDumper=> failed to run "
             "dumper thread\n");
   }
@@ -2721,23 +2712,10 @@ XrdMqSharedObjectManager::StartDumper(const char* file)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-void*
-XrdMqSharedObjectManager::StartHashDumper(void* pp)
-{
-  XrdMqSharedObjectManager* man = (XrdMqSharedObjectManager*) pp;
-  man->FileDumper();
-  // Should never return
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
 void
-XrdMqSharedObjectManager::FileDumper()
+XrdMqSharedObjectManager::FileDumper(ThreadAssistant& assistant) noexcept
 {
-  while (true) {
-    XrdSysThread::SetCancelOff();
+  while (!assistant.terminationRequested()) {
     XrdOucString s;
     DumpSharedObjects(s);
     std::string df = mDumperFile;
@@ -2759,13 +2737,7 @@ XrdMqSharedObjectManager::FileDumper()
               "dumper file %s\n", mDumperFile.c_str());
     }
 
-    XrdSysThread::SetCancelOn();
-
-    for (size_t i = 0; i < 60; i++) {
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
-      XrdSysThread::CancelPoint();
-    }
+    assistant.wait_for(std::chrono::seconds(60));
   }
 }
 

@@ -34,7 +34,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 VstMessaging::VstMessaging(const char* url, const char* defaultreceiverqueue,
                            bool advisorystatus, bool advisoryquery,
                            XrdMqSharedObjectManager* som):
@@ -68,6 +70,14 @@ VstMessaging::VstMessaging(const char* url, const char* defaultreceiverqueue,
   eos::common::LogId();
 }
 
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+VstMessaging::~VstMessaging()
+{
+  mMessageClient.Unsubscribe();
+}
+
 /*----------------------------------------------------------------------------*/
 bool
 VstMessaging::Update(XrdAdvisoryMqMessage* advmsg)
@@ -89,31 +99,24 @@ VstMessaging::Update(XrdAdvisoryMqMessage* advmsg)
 
 /*----------------------------------------------------------------------------*/
 void
-VstMessaging::Listen()
+VstMessaging::Listen(ThreadAssistant& assistant) noexcept
 {
   static int lPublishTime = 0;
-  XrdSysThread::SetCancelDeferred();
-
   // Give some time for startup
-  for (size_t i = 0; i < 30; ++i) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    XrdSysThread::CancelPoint();
-  }
+  assistant.wait_for(std::chrono::seconds(30));
 
-  while (true) {
-    XrdMqMessage* newmessage = mMessageClient.RecvMessage();
+  while (!assistant.terminationRequested()) {
+    XrdMqMessage* newmessage = mMessageClient.RecvMessage(&assistant);
 
     if (newmessage) {
       Process(newmessage);
       delete newmessage;
     } else {
-      XrdSysThread::SetCancelOn();
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      XrdSysThread::CancelPoint();
-      XrdSysThread::SetCancelOff();
+      assistant.wait_for(std::chrono::seconds(1));
     }
 
-    if (gOFS->mInitialized == gOFS->kBooted) {
+    if (!assistant.terminationRequested() &&
+        (gOFS->mInitialized == gOFS->kBooted)) {
       if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15)) {
         XrdMqMessage message("VST-Info");
         message.SetBody(PublishVst().c_str());
@@ -125,11 +128,7 @@ VstMessaging::Listen()
         PublishInfluxDbUdp();
       }
     }
-
-    XrdSysThread::CancelPoint();
   }
-
-  XrdSysThread::SetCancelOn();
 }
 
 /*----------------------------------------------------------------------------*/

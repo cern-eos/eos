@@ -27,20 +27,19 @@
 // Authentication master thread startup function
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StartAuthMasterThread(void* pp)
+XrdMgmOfs::StartAuthWorkerThread(void* pp)
 {
   XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
-  ofs->AuthMasterThread();
+  ofs->AuthWorkerThread();
   return 0;
 }
-
 
 //------------------------------------------------------------------------------
 // Authentication master thread function - accepts requests from EOS AUTH
 // plugins which he then forwards to worker threads.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthMasterThread()
+XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
 {
   // Socket facing clients
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
@@ -88,18 +87,6 @@ XrdMgmOfs::AuthMasterThread()
   }
 
 #endif
-}
-
-
-//------------------------------------------------------------------------------
-// Authentication worker thread startup function
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::StartAuthWorkerThread(void* pp)
-{
-  XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
-  ofs->AuthWorkerThread();
-  return 0;
 }
 
 //------------------------------------------------------------------------------

@@ -47,9 +47,8 @@ public:
   virtual
   ~Messaging() {}
 
-  static void* Start(void* pp);
-  virtual void Listen();
-  virtual void Process(XrdMqMessage* message);
+  virtual void Listen(ThreadAssistant& assistant) noexcept override;
+  void Process(XrdMqMessage* message);
 };
 
 EOSFSTNAMESPACE_END

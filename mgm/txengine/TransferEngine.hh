@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/txengine/TransferDB.hh"
 #include "common/Mapping.hh"
+#include "common/AssistedThread.hh"
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN
@@ -39,12 +40,13 @@ class TransferEngine
 {
 private:
   TransferDB* xDB;
-  pthread_t thread;
-  pthread_t watchthread;
+  AssistedThread mSchedulerThread;
+  AssistedThread mWatchThread;
+  std::atomic<bool> mRunning;
 public:
+  //! Global configuration tag if scheduling is enabled
+  static const char* gConfigSchedule;
 
-  static const char*
-  gConfigSchedule; //< global configuration tag if scheduling is enabled
   static const char* GetTransferState(int state)
   {
     if (state == kNone) {
@@ -105,13 +107,9 @@ public:
 
   int Stop(bool store = true);
 
-  static void* StaticSchedulerProc(void*);
+  void Scheduler(ThreadAssistant& assistant) noexcept;
 
-  void* Scheduler();
-
-  static void* StaticWatchProc(void*);
-
-  void* Watch();
+  void Watch(ThreadAssistant& assistant) noexcept;
 
   int ApplyTransferEngineConfig();
 

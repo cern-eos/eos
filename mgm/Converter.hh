@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
+#include "common/AssistedThread.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdJob.hh"
 #include <string>
@@ -107,15 +108,10 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Service thread static startup function
-  //----------------------------------------------------------------------------
-  static void* StaticConverter(void*);
-
-  //----------------------------------------------------------------------------
   //! Service implementation e.g. eternal conversion loop running third-party
   //! conversion
   //----------------------------------------------------------------------------
-  void* Convert(void);
+  void Convert(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Return the condition variable to signal when a job finishes
@@ -171,7 +167,7 @@ public:
   static std::map<std::string, Converter*> gConverterMap;
 
 private:
-  pthread_t mThread; ///< Thread id
+  AssistedThread mThread; ///< Thread id
   std::string mSpaceName; ///< name of the espace this converter serves
   size_t mActiveJobs; ///< All the queued jobs that didn't run yet
   XrdSysCondVar mDoneSignal; ///< Condition variable signalled when a job is done

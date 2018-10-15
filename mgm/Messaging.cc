@@ -64,26 +64,19 @@ Messaging::Messaging(const char* url, const char* defaultreceiverqueue,
 // Infinite loop processing messages
 //------------------------------------------------------------------------------
 void
-Messaging::Listen()
+Messaging::Listen(ThreadAssistant& assistant) noexcept
 {
   std::unique_ptr<XrdMqMessage> new_msg;
-  XrdSysThread::SetCancelDeferred();
 
-  while (true) {
-    //eos_static_debug("RecvMessage");
+  while (!assistant.terminationRequested()) {
     new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
-    // if (new_msg) new_msg->Print();
 
     if (new_msg) {
       Process(new_msg.get());
     } else {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      assistant.wait_for(std::chrono::seconds(1));
     }
-
-    XrdSysThread::CancelPoint();
   }
-
-  XrdSysThread::SetCancelOn();
 }
 
 //------------------------------------------------------------------------------

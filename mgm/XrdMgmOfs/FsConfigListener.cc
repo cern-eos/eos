@@ -41,7 +41,7 @@
  */
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::FsConfigListener()
+XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
   // setup the modifications which the fs listener thread is waiting for
   std::string watch_errc = "stat.errc";
@@ -81,10 +81,8 @@ XrdMgmOfs::FsConfigListener()
     eos_crit("error starting shared objects change notifications");
   }
 
-  XrdSysThread::SetCancelDeferred();
-
   // Thread listening on filesystem errors and configuration changes
-  do {
+  while (!assistant.terminationRequested()) {
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
     // we always take a lock to take something from the queue and then release it
     gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
@@ -378,8 +376,5 @@ XrdMgmOfs::FsConfigListener()
     }
 
     gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
-    XrdSysThread::CancelPoint();
-  } while (true);
-
-  XrdSysThread::SetCancelOn();
+  }
 }

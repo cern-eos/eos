@@ -46,7 +46,7 @@
 //! Forward declaration
 namespace eos
 {
-  class IFileMD;
+class IFileMD;
 }
 
 EOSMGMNAMESPACE_BEGIN
@@ -55,32 +55,38 @@ EOSMGMNAMESPACE_BEGIN
 //! @brief Class representing a geotag's size
 //! It holds the capacity and the current used space of a geotag.
 //------------------------------------------------------------------------------
-class GeotagSize {
+class GeotagSize
+{
 public:
-  GeotagSize (uint64_t usedBytes, uint64_t capacity);
+  GeotagSize(uint64_t usedBytes, uint64_t capacity);
 
   uint64_t
-  usedBytes () const {
+  usedBytes() const
+  {
     return mSize;
   };
 
   void
-  setUsedBytes (uint64_t usedBytes) {
+  setUsedBytes(uint64_t usedBytes)
+  {
     mSize = usedBytes;
   };
 
   void
-  setCapacity (uint64_t capacity) {
+  setCapacity(uint64_t capacity)
+  {
     mCapacity = capacity;
   };
 
   uint64_t
-  capacity () const {
+  capacity() const
+  {
     return mCapacity;
   };
 
   double
-  filled () const {
+  filled() const
+  {
     return (double) mSize / (double) mCapacity;
   };
 
@@ -97,10 +103,10 @@ private:
  */
 
 /*----------------------------------------------------------------------------*/
-class GeoBalancer {
+class GeoBalancer
+{
 private:
-  /// thread id
-  pthread_t mThread;
+  AssistedThread mThread; ///< Thread doing the geo-balancing
 
   /// name of the space this geo balancer serves
   std::string mSpaceName;
@@ -112,7 +118,7 @@ private:
   /// fs->geotag cache
   std::map<eos::common::FileSystem::fsid_t, std::string> mFsGeotag;
   /// geotags' sizes cache
-  std::map<std::string, GeotagSize *> mGeotagSizes;
+  std::map<std::string, GeotagSize*> mGeotagSizes;
   /// cache with geotags over the current average
   std::vector<std::string> mGeotagsOverAvg;
 
@@ -125,64 +131,59 @@ private:
   /// transfers scheduled (maps files' ids with their path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
 
-  std::string getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
-                                              uint64_t *size);
+  std::string getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
+      uint64_t* size);
 
-  eos::common::FileId::fileid_t chooseFidFromGeotag (const std::string &geotag);
+  eos::common::FileId::fileid_t chooseFidFromGeotag(const std::string& geotag);
 
-  void populateGeotagsInfo (void);
+  void populateGeotagsInfo(void);
 
-  void clearCachedSizes (void);
+  void clearCachedSizes(void);
 
-  void fillGeotagsByAvg (void);
+  void fillGeotagsByAvg(void);
 
-  void prepareTransfers (int nrTransfers);
+  void prepareTransfers(int nrTransfers);
 
-  void prepareTransfer (void);
+  void prepareTransfer(void);
 
-  bool scheduleTransfer (eos::common::FileId::fileid_t fid,
-                         const std::string &sourceGeotag);
+  bool scheduleTransfer(eos::common::FileId::fileid_t fid,
+                        const std::string& sourceGeotag);
 
-  int getRandom (int max);
+  int getRandom(int max);
 
-  bool cacheExpired (void);
+  bool cacheExpired(void);
 
-  void updateTransferList (void);
+  void updateTransferList(void);
 
-  bool fileIsInDifferentLocations (const eos::IFileMD *fmd);
+  bool fileIsInDifferentLocations(const eos::IFileMD* fmd);
 
 public:
 
   // ---------------------------------------------------------------------------
   // Constructor (per space)
   // ---------------------------------------------------------------------------
-  GeoBalancer (const char* spacename);
+  GeoBalancer(const char* spacename);
 
   // ---------------------------------------------------------------------------
   // Destructor
   // ---------------------------------------------------------------------------
-  ~GeoBalancer ();
+  ~GeoBalancer();
 
   // ---------------------------------------------------------------------------
   // thread stop function
   // ---------------------------------------------------------------------------
-  void Stop ();
+  void Stop();
 
   // ---------------------------------------------------------------------------
   // thread join function
   // ---------------------------------------------------------------------------
-  void Join ();
-
-  // ---------------------------------------------------------------------------
-  // Service thread static startup function
-  // ---------------------------------------------------------------------------
-  static void* StaticGeoBalancer (void*);
+  void Join();
 
   // ---------------------------------------------------------------------------
   // Service implementation e.g. eternal conversion loop running third-party
   // conversion
   // ---------------------------------------------------------------------------
-  void* GeoBalance (void);
+  void GeoBalance(ThreadAssistant& assistant) noexcept;
 
 };
 

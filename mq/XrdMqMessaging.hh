@@ -34,13 +34,12 @@ class XrdMqMessaging
 {
 public:
   static XrdMqClient gMessageClient;
-  static void* Start(void* pp);
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   XrdMqMessaging():
-    mIsZombie(false), mSom(nullptr), mThreadId(0)
+    mIsZombie(false), mSom(nullptr)
   {}
 
   //----------------------------------------------------------------------------
@@ -55,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdMqMessaging();
 
-  virtual void Listen();
+  virtual void Listen(ThreadAssistant& assistant) noexcept;
 
   virtual bool StartListenerThread();
 
@@ -88,7 +87,7 @@ public:
 protected:
   std::atomic<bool> mIsZombie;
   XrdMqSharedObjectManager* mSom;
-  pthread_t mThreadId;
+  AssistedThread mThread; ///< Listener thread
 };
 
 #endif

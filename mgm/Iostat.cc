@@ -50,8 +50,6 @@ Iostat::Iostat()
   mRunning = false;
   mInit = false;
   mStoreFileName = "";
-  cthread = 0;
-  thread = 0;
   // push default domains to watch TODO: make generic
   IoDomains.insert(".ch");
   IoDomains.insert(".it");
@@ -97,9 +95,7 @@ Iostat::StartCirculate()
 {
   // We have to do after the name of the dump file was set, therefore the
   // StartCirculate is an extra call
-  XrdSysThread::Run(&cthread, Iostat::StaticCirculate,
-                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                    "Report Circulation Thread");
+  mCirculateThread.reset(&Iostat::Circulate, this);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -178,8 +174,7 @@ Iostat::Start()
 
   if (!mRunning) {
     mClient.Subscribe();
-    XrdSysThread::Run(&thread, Iostat::StaticReceive, static_cast<void*>(this),
-                      XRDSYSTHREAD_HOLD, "Report Receiver Thread");
+    mReceivingThread.reset(&Iostat::Receive, this);
     mRunning = true;
     return true;
   } else {
@@ -192,9 +187,8 @@ bool
 Iostat::Stop()
 {
   if (mRunning) {
-    XrdSysThread::Cancel(thread);
-    XrdSysThread::Join(thread, NULL);
     mRunning = false;
+    mReceivingThread.join();
     mClient.Unsubscribe();
     return true;
   } else {
@@ -205,40 +199,22 @@ Iostat::Stop()
 /* ------------------------------------------------------------------------- */
 Iostat::~Iostat()
 {
-  if (mRunning) {
-    Stop();
-  }
-
-  if (cthread) {
-    XrdSysThread::Cancel(cthread);
-    XrdSysThread::Join(cthread, NULL);
-  }
+  (void) Stop();
+  mCirculateThread.join();
 }
 
 /* ------------------------------------------------------------------------- */
-void*
-Iostat::StaticReceive(void* arg)
+void
+Iostat::Receive(ThreadAssistant& assistant) noexcept
 {
-  return reinterpret_cast<Iostat*>(arg)->Receive();
-}
-
-/* ------------------------------------------------------------------------- */
-void*
-Iostat::StaticCirculate(void* arg)
-{
-  return reinterpret_cast<Iostat*>(arg)->Circulate();
-}
-
-/* ------------------------------------------------------------------------- */
-void*
-Iostat::Receive(void)
-{
-  XrdSysThread::SetCancelDeferred();
-
-  while (true) {
+  while (!assistant.terminationRequested()) {
     XrdMqMessage* newmessage = 0;
 
-    while ((newmessage = mClient.RecvMessage())) {
+    while ((newmessage = mClient.RecvMessage(&assistant))) {
+      if (assistant.terminationRequested()) {
+        break;
+      }
+
       XrdOucString body = newmessage->GetBody();
 
       while (body.replace("&&", "&")) {
@@ -465,11 +441,7 @@ Iostat::Receive(void)
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    XrdSysThread::CancelPoint();
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 
@@ -1466,18 +1438,16 @@ Iostat::NamespaceReport(const char* path, XrdOucString& stdOut,
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
-void*
-Iostat::Circulate()
+//------------------------------------------------------------------------------
+//! Circulate the entries to get averages over sec.min.hour and day
+//------------------------------------------------------------------------------
+void
+Iostat::Circulate(ThreadAssistant& assistant) noexcept
 {
-  // ---------------------------------------------------------------------------
-  // ! circulate the entries to get averages over sec.min.hour and day
-  // ---------------------------------------------------------------------------
   unsigned long long sc = 0;
-  XrdSysThread::SetCancelDeferred();
 
   // empty the circular buffer
-  while (true) {
+  while (!assistant.terminationRequested()) {
     // we store once per minute the current statistics
     if (!(sc % 117)) {
       // save the current state ~ every minute
@@ -1544,12 +1514,7 @@ Iostat::Circulate()
       IostatLastPopularityBin = popularitybin;
       PopularityMutex.UnLock();
     }
-
-    XrdSysThread::CancelPoint();
   }
-
-  XrdSysThread::SetCancelOn();
-  return nullptr;
 }
 
 /* ------------------------------------------------------------------------- */
