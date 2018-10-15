@@ -691,7 +691,7 @@ com_cp(char* argin)
     }
   }
 
-  if (debug || !silent) {
+  if (debug || (!silent && source_list.size() > 1)) {
     XrdOucString ssize;
     fprintf(stderr, "[eos-cp] going to copy %lu files and %s\n", source_list.size(),
             eos::common::StringConversion::GetReadableSizeString(ssize, copysize, "B"));
@@ -828,7 +828,7 @@ com_cp(char* argin)
     }
 
     if (debug) {
-      fprintf(stderr, "[eos-cp] copying %s to %s\n",
+      fprintf(stderr, "\n[eos-cp] copying %s to %s\n",
               source.name.c_str(), target_path.c_str());
     }
 

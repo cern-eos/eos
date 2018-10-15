@@ -835,7 +835,8 @@ main(int argc, char* argv[])
     src_location.push_back(std::make_pair(address, file_path));
 
     if (verbose || debug) {
-      fprintf(stdout, "[eoscp] src<%d>=%s ", i, location.c_str());
+      if (i == 0) { fprintf(stdout, "[eoscp] "); }
+      fprintf(stdout, "src<%d>=%s ", i, location.c_str());
     }
   }
 
@@ -1101,8 +1102,6 @@ main(int argc, char* argv[])
     } else {
       src_type.push_back(LOCAL_ACCESS);
     }
-
-    fprintf(stderr, "\n");
   }
 
   //............................................................................
@@ -1144,6 +1143,10 @@ main(int argc, char* argv[])
 
       fprintf(stdout, "\n");
     }
+  }
+
+  if (verbose || debug) {
+    fprintf(stderr, "\n");
   }
 
   if (egid >= 0) {
