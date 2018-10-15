@@ -924,7 +924,11 @@ categorie="eoscp"
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -d /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp -
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.1
-runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/a/b/c/
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.1 root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.2
+runtest "### eoscp     " unix 1 "EOSROLE='-r 0 0'" eos cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/a/b/c/
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/a/b/c/
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/* /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp2
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp3
 runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp
 
 ################################################################################
