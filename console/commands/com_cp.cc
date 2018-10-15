@@ -245,6 +245,10 @@ com_cp(char* argin)
     noprogress = true;
   }
 
+  if (recursive) {
+    makeparent = true;
+  }
+
   // Store list of source locations + target destination
   XrdOucString nextarg = subtokenizer.GetToken();
   XrdOucString lastarg = subtokenizer.GetToken();
@@ -366,7 +370,6 @@ com_cp(char* argin)
 
         // Capture only last directory
         // This will end up appended to the target
-
 
         std::string smaxdepth = " ";
         if (depth != 0) {
