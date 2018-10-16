@@ -899,7 +899,7 @@ backend::statvfs(fuse_req_t req,
   arg.FromString(sarg);
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
-                                     response);
+                                     response, 2, true);
   eos_static_info("calling %s\n", url.GetURL().c_str());
 
   if (status.IsOK() && response && response->GetBuffer()) {
@@ -936,7 +936,7 @@ backend::statvfs(fuse_req_t req,
     stbuf->f_namemax = 1024;
     eos_static_debug("vol=%lu ino=%lu", a1, a4);
   } else {
-    errno = EPERM;
+    errno = ETIMEDOUT;
     ;
   }
 
@@ -948,7 +948,8 @@ backend::statvfs(fuse_req_t req,
 XrdCl::XRootDStatus
 /* -------------------------------------------------------------------------- */
 backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
-               XrdCl::Buffer& arg, XrdCl::Buffer*& response, uint16_t rtimeout)
+               XrdCl::Buffer& arg, XrdCl::Buffer*& response, uint16_t rtimeout,
+               bool noretry)
 /* -------------------------------------------------------------------------- */
 {
   // this function retries queries until the given timeout period has been reached
@@ -989,9 +990,9 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
                    exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
                    status.IsError(), status.IsFatal(), status.code, status.errNo);
 
-    if (timeout &&
-        (total_exec_time_sec >
-         timeout)) {
+    if ((noretry) || (timeout &&
+                      (total_exec_time_sec >
+                       timeout))) {
       eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f",
                      total_exec_time_sec, timeout);
       return status;
