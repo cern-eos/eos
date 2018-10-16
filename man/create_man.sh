@@ -23,11 +23,23 @@ export EOS_DISABLE_PIPEMODE=1
 rm -rf man1 >& /dev/null
 mkdir man1
 
+########################################################################
+# On the SLC6 help2man version there is no "--no-discard-stderr" option.
+#
+# Since the output of most eos help commands is sent to stderr,
+# it will be missed by help2man.
+# We workaround this by calling a helper script to run the eos command.
+# The script will redirect stderr output to stdout.
+#
+# @todo Use --no-discard-stderr option after SLC6 support is stopped.
+# The workaround should be replaced by the help2man
+# "--no-discard-stderr" option once SLC6 is no longer supported.
+########################################################################
+
 # create eos command include file
-$(dirname $0)/create_eos_cmds.pl ${excluded[*]} > eos.cmds
-# @todo: On the SLC6 help2man version there is no "--no-discard-stderr" option.
-# Add it back once we drop SLC6 support.
-help2man --include eos.cmds --help-option="-h " --no-info eos > man1/eos.1
+wdir=$(dirname $0)
+${wdir}/create_eos_cmds.pl ${excluded[*]} > eos.cmds
+help2man --include eos.cmds --help-option="-h " --no-info "${wdir}/eos_cmd_helper.sh " > man1/eos.1
 gzip man1/eos.1
 unlink eos.cmds
 
@@ -41,9 +53,7 @@ echo "Generating man pages:"
 for (( i=0; i<${#commands[@]}; i++ )); do
     name="${commands[$i]}"
     printf "  [%2s/%2s] Processing command %s\n" $((${i} + 1)) ${#commands[@]} ${name}
-    # @todo: On the SLC6 help2man version there is no "--no-discard-stderr" option.
-    # Add it back once we drop SLC6 support.
-    help2man --name "eos $name"  --help-option="$name -h " --no-info "eos " > man1/eos-${name}.1 \
+    help2man --name "eos $name"  --help-option="$name -h " --no-info "${wdir}/eos_cmd_helper.sh " > man1/eos-${name}.1 \
         && gzip man1/eos-${name}.1 &
 done
 
