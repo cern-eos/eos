@@ -441,7 +441,6 @@ void
 FuseServer::Clients::Print(std::string& out, std::string options,
                            bool monitoring)
 {
-  eos::common::RWMutexReadLock lLock(*this);
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
   std::map<std::string, size_t> clientcaps;
@@ -459,6 +458,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
       }
     }
   }
+  eos::common::RWMutexReadLock lLock(*this);
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
     char formatline[4096];
@@ -904,7 +904,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   {
     size_t leasetime = 0;
     {
-      eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Client());
+      eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(cap->clientuuid());
     }
     eos::common::RWMutexWriteLock lock(*this);
@@ -1980,7 +1980,7 @@ FuseServer::FillContainerCAP(uint64_t id,
   size_t leasetime = 0;
 
   {
-    eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Client());
+    eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
     leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
     eos_static_debug("checking client %s leastime=%d", dir.clientid().c_str(),
                      leasetime);
