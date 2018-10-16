@@ -209,6 +209,11 @@ public:
       return mCaps;
     }
 
+    bool HasCap(authid_t authid)
+    {
+      return (this->mCaps.count(authid) ? true : false);
+    }
+
     notify_set_t& InodeCaps()
     {
       return mInodeCaps;

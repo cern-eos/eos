@@ -207,6 +207,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
   (this->map())[identity].heartbeat() = hb;
   (this->uuidview())[hb.uuid()] = identity;
+  lLock.Release();
   {
     // apply lifetime extensions requested by the client
     auto map = hb.mutable_authextension();
@@ -251,9 +252,6 @@ FuseServer::Clients::Dispatch(const std::string identity,
     for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
       eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
       gOFS->zMQ->gFuseServer.Cap().Remove(*it);
-      //      gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)((*it)->id()),
-      //             (*it)->clientuuid(),
-      //             (*it)->clientid());
     }
   }
 
@@ -305,11 +303,12 @@ FuseServer::MonitorCaps() noexcept
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
+        eos::common::RWMutexReadLock lLock(Cap());
+
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         }
 
-        eos::common::RWMutexReadLock lLock(Cap());
         std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
           Cap().GetCaps();
 
@@ -613,7 +612,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason)
 int
 FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
 {
-  eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
+  eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
   out += " dropping caps of '";
   out += uuid;
   out += "' : ";
@@ -623,13 +622,14 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
   }
 
   std::string id = mUUIDView[uuid];
+  Caps::ino_set_t cleanup_authids;
 
   for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
        it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
     std::set<FuseServer::Caps::shared_cap> cap2delete;
 
     for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
-      if (gOFS->zMQ->gFuseServer.Cap().GetCaps().count(*sit)) {
+      if (gOFS->zMQ->gFuseServer.Cap().HasCap(*sit)) {
         FuseServer::Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetCaps()[*sit];
 
         if (cap->clientuuid() == uuid) {
@@ -660,7 +660,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
             *scap)->authid());
 
       if (!gOFS->zMQ->gFuseServer.Cap().InodeCaps()[(*scap)->id()].size()) {
-        gOFS->zMQ->gFuseServer.Cap().InodeCaps().erase((*scap)->id());
+        cleanup_authids.insert((*scap)->id());
       }
 
       gOFS->zMQ->gFuseServer.Cap().ClientCaps()[(*scap)->clientid()].erase((
@@ -673,9 +673,11 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
       gOFS->zMQ->gFuseServer.Cap().ClientCaps()[(*scap)->clientid()].insert((
             *scap)->authid());
     }
+  }
 
-    if (!cap2delete.size()) {
-      out += " <no caps held>\n";
+  for (auto it = cleanup_authids.begin(); it != cleanup_authids.end(); ++it) {
+    if (!gOFS->zMQ->gFuseServer.Cap().InodeCaps()[*it].size()) {
+      gOFS->zMQ->gFuseServer.Cap().InodeCaps().erase(*it);
     }
   }
 
