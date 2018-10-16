@@ -289,7 +289,8 @@ backend::fetchResponse(std::string& requestURL,
       if (
         (status.code == XrdCl::errConnectionError) ||
         (status.code == XrdCl::errSocketTimeout) ||
-        (status.code == XrdCl::errOperationExpired)
+        (status.code == XrdCl::errOperationExpired) ||
+        (status.code == XrdCl::errSocketDisconnected)
       ) {
         // if there is a timeout, we might retry according to the backend timeout setting
         if (timeout &&
@@ -978,7 +979,8 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     if (
       (status.code != XrdCl::errConnectionError) &&
       (status.code != XrdCl::errSocketTimeout) &&
-      (status.code != XrdCl::errOperationExpired)
+      (status.code != XrdCl::errOperationExpired) &&
+      (status.code != XrdCl::errSocketDisconnected)
     ) {
       return status;
     }
