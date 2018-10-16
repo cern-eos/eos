@@ -394,8 +394,9 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
   if (mVid.uid == 0) {
     std::string source = mvProto.src();
     std::string dest = mvProto.dst();
+    bool force = mvProto.force();
     XrdOucString outLocal, errLocal;
-    retc = proc_fs_mv(source, dest, outLocal, errLocal, mVid);
+    retc = proc_fs_mv(source, dest, outLocal, errLocal, mVid, force);
     mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
     mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   } else {

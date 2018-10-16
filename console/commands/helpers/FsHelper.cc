@@ -385,6 +385,16 @@ FsHelper::ParseCommand(const char* arg)
       return false;
     } else {
       soption = option;
+
+      if (soption == "--force") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+
+        mv->set_force(true);
+      }
+
+      soption = option;
       mv->set_src(soption);
 
       if (!(option = tokenizer.GetToken())) {

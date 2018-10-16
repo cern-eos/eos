@@ -209,8 +209,11 @@ void com_fs_help()
       << std::endl
       << "          'fs ls -l default,drain,bootfailure'" << std::endl
       << std::endl
-      << "  fs mv <src_fsid|src_grp|src_space> <dst_grp|dst_space>" << std::endl
+      << "  fs mv [--force] <src_fsid|src_grp|src_space> <dst_grp|dst_space>" <<
+      std::endl
       << "    move filesystem(s) in different scheduling group or space"
+      << std::endl
+      << "    --force   : force mode - allows to move non-empty filesystems bypassing group and node constraints"
       << std::endl
       << "    src_fsid  : source filesystem id" << std::endl
       << "    src_grp   : all filesystems from scheduling group are moved"

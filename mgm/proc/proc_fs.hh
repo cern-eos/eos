@@ -188,12 +188,14 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 //! @param dst destination
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
                XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in);
+               eos::common::Mapping::VirtualIdentity& vid_in,
+               bool force);
 
 
 //------------------------------------------------------------------------------
@@ -204,11 +206,12 @@ int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
 //! @param dst destination
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return true if can be moved, otherwise false
 //------------------------------------------------------------------------------
 bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
-                    XrdOucString& stdOut, XrdOucString& stdErr);
+                    XrdOucString& stdOut, XrdOucString& stdErr, bool force);
 
 //------------------------------------------------------------------------------
 //! Move a filesystem to a group
@@ -219,12 +222,13 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
 //! @param dst destination group
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_mv_fs_group(FsView& fs_view, const std::string& src,
                      const std::string& dst, XrdOucString& stdOut,
-                     XrdOucString& stdErr);
+                     XrdOucString& stdErr, bool force);
 
 //------------------------------------------------------------------------------
 //! Move a filesystem to a space
@@ -235,12 +239,13 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 //! @param dst destination space
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_mv_fs_space(FsView& fs_view, const std::string& src,
                      const std::string& dst, XrdOucString& stdOut,
-                     XrdOucString& stdErr);
+                     XrdOucString& stdErr, bool force);
 
 //------------------------------------------------------------------------------
 //! Move a group to a space
@@ -251,12 +256,13 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 //! @param dst destination space
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_mv_grp_space(FsView& fs_view, const std::string& src,
                       const std::string& dst, XrdOucString& stdOut,
-                      XrdOucString& stdErr);
+                      XrdOucString& stdErr, bool force);
 
 //------------------------------------------------------------------------------
 //! Move a space to a space
@@ -267,12 +273,13 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
 //! @param dst destination space
 //! @param stdOut output string
 //! @param stdErr error output string
+//! @param force allows to move non-empty filesystems
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_mv_space_space(FsView& fs_view, const std::string& src,
                         const std::string& dst, XrdOucString& stdOut,
-                        XrdOucString& stdErr);
+                        XrdOucString& stdErr, bool force);
 
 //------------------------------------------------------------------------------
 //! Sort the groups in a space by priority - the first ones are the ones that

@@ -709,7 +709,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 int
 proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
            XrdOucString& stdErr,
-           eos::common::Mapping::VirtualIdentity& vid_in)
+           eos::common::Mapping::VirtualIdentity& vid_in, bool force)
 {
   int retc = 0;
   MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
@@ -717,19 +717,19 @@ proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
 
   switch (operation) {
   case MvOpType::FS_2_GROUP:
-    retc = proc_mv_fs_group(FsView::gFsView, src, dst, stdOut, stdErr);
+    retc = proc_mv_fs_group(FsView::gFsView, src, dst, stdOut, stdErr, force);
     break;
 
   case MvOpType::FS_2_SPACE:
-    retc = proc_mv_fs_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    retc = proc_mv_fs_space(FsView::gFsView, src, dst, stdOut, stdErr, force);
     break;
 
   case MvOpType::GRP_2_SPACE:
-    retc = proc_mv_grp_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    retc = proc_mv_grp_space(FsView::gFsView, src, dst, stdOut, stdErr, force);
     break;
 
   case MvOpType::SPC_2_SPACE:
-    retc = proc_mv_space_space(FsView::gFsView, src, dst, stdOut, stdErr);
+    retc = proc_mv_space_space(FsView::gFsView, src, dst, stdOut, stdErr, force);
     break;
 
   default:
@@ -745,7 +745,7 @@ proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
 // Check if a file system can be moved. It needs to be active and in RW mode.
 //------------------------------------------------------------------------------
 bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
-                    XrdOucString& stdOut, XrdOucString& stdErr)
+                    XrdOucString& stdOut, XrdOucString& stdErr, bool force)
 {
   std::ostringstream oss;
   FileSystem::fs_snapshot snapshot;
@@ -771,6 +771,10 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     bool is_empty = (fs->GetConfigStatus() == eos::common::FileSystem::kEmpty);
     bool is_active = (fs->GetActiveStatus() == eos::common::FileSystem::kOnline);
 
+    if (force) {
+      is_empty = is_active = true;
+    }
+
     if (!(is_empty && is_active)) {
       eos_static_err("fsid %i is not empty or is not active", snapshot.mId);
       oss << "error: file system " << snapshot.mId << " is not empty or "
@@ -793,7 +797,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
 //------------------------------------------------------------------------------
 int proc_mv_fs_group(FsView& fs_view, const std::string& src,
                      const std::string& dst, XrdOucString& stdOut,
-                     XrdOucString& stdErr)
+                     XrdOucString& stdErr, bool force)
 {
   using eos::mgm::FsView;
   using eos::mgm::FileSystem;
@@ -825,7 +829,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   if (fs_view.mIdView.count(fsid)) {
     fs = fs_view.mIdView[fsid];
 
-    if (!proc_fs_can_mv(fs, dst, stdOut, stdErr)) {
+    if (!proc_fs_can_mv(fs, dst, stdOut, stdErr, force)) {
       return EINVAL;
     }
   } else {
@@ -844,7 +848,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       size_t grp_num_fs = grp->size();
 
       // Check that we can still add file systems to this group
-      if (grp_num_fs > grp_size) {
+      if (!force && (grp_num_fs > grp_size)) {
         eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
         oss << "error: reached maximum number of file systems for group "
             << dst.c_str() << std::endl;
@@ -866,7 +870,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
         }
       }
 
-      if (is_forbidden) {
+      if (is_forbidden && !force) {
         eos_static_err("group %s already contains an fs from the same node",
                        dst.c_str());
         oss << "error: group " << dst << " already contains a file system from "
@@ -878,7 +882,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       // A new group will be created, check that it respects the groupmod param
       size_t grp_indx = std::strtoul(group.c_str(), nullptr, 10);
 
-      if (grp_indx >= grp_mod) {
+      if (!force && (grp_indx >= grp_mod)) {
         eos_static_err("group %s is not respecting the groupmod value of %u",
                        dst.c_str(), grp_mod);
         oss << "error: group " << dst.c_str() << " is not respecting the groupmod"
@@ -914,7 +918,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 //------------------------------------------------------------------------------
 int proc_mv_fs_space(FsView& fs_view, const std::string& src,
                      const std::string& dst, XrdOucString& stdOut,
-                     XrdOucString& stdErr)
+                     XrdOucString& stdErr, bool force)
 {
   using eos::mgm::FsView;
   std::ostringstream oss;
@@ -925,7 +929,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   if (fs_view.mIdView.count(fsid)) {
     fs = fs_view.mIdView[fsid];
 
-    if (!proc_fs_can_mv(fs, dst, stdOut, stdErr)) {
+    if (!proc_fs_can_mv(fs, dst, stdOut, stdErr, force)) {
       return EINVAL;
     }
   } else {
@@ -971,7 +975,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   bool done = false;
 
   for (const auto& grp : sorted_grps) {
-    if (proc_mv_fs_group(fs_view, src, grp, stdOut, stdErr) == 0) {
+    if (proc_mv_fs_group(fs_view, src, grp, stdOut, stdErr, force) == 0) {
       stdErr = "";
       done = true;
       break;
@@ -1035,7 +1039,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
   // without any file systems i.e highest priority
   std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
-  for (auto && grp : grps) {
+  for (auto&& grp : grps) {
     ret_grps.push_back(grp->mName);
   }
 
@@ -1046,7 +1050,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
 //------------------------------------------------------------------------------
 int proc_mv_grp_space(FsView& fs_view, const std::string& src,
                       const std::string& dst, XrdOucString& stdOut,
-                      XrdOucString& stdErr)
+                      XrdOucString& stdErr, bool force)
 {
   using eos::mgm::FsView;
   std::ostringstream oss;
@@ -1070,7 +1074,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   }
 
   for (const auto& sfsid : lst_fsids) {
-    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
+    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr, force)) {
       failed_fs.push_back(sfsid);
     }
   }
@@ -1078,7 +1082,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1100,7 +1104,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
 //------------------------------------------------------------------------------
 int proc_mv_space_space(FsView& fs_view, const std::string& src,
                         const std::string& dst, XrdOucString& stdOut,
-                        XrdOucString& stdErr)
+                        XrdOucString& stdErr, bool force)
 {
   using eos::mgm::FsView;
   std::ostringstream oss;
@@ -1133,7 +1137,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   }
 
   for (const auto& sfsid : lst_fsids) {
-    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr)) {
+    if (proc_mv_fs_space(fs_view, sfsid, dst, stdOut, stdErr, force)) {
       failed_fs.push_back(sfsid);
     }
   }
@@ -1141,7 +1145,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
