@@ -47,6 +47,32 @@ com_quota(char* arg1)
   if (subcommand == "" || subcommand.beginswith("/")) {
     XrdOucString in = "mgm.cmd=quota&mgm.subcmd=lsuser";
 
+    if (subcommand == "") {
+      if (getenv("EOSHOME")) {
+        subcommand = getenv("EOSHOME");
+      } else {
+        char default_home[4096];
+        std::string username;
+
+        if (getenv("EOSUSER")) {
+          username = getenv("EOSUSER");
+        }
+
+        if (getenv("USER")) {
+          username = getenv("USER");
+        }
+
+        if (username.length()) {
+          snprintf(default_home, sizeof(default_home), "/eos/user/%s/%s/",
+                   username.substr(0, 1).c_str(), username.c_str());
+          fprintf(stderr,
+                  "# pre-configuring quota query directory to %s\n# -use $EOSHOME variable to override\n# -add query directory to ask for quota in a particular namespace branch e.g. eos quota /eos/mydir/ \n",
+                  default_home);
+          subcommand = default_home;
+        }
+      }
+    }
+
     if (subcommand.beginswith("/")) {
       in += "&mgm.quota.space=";
       in += subcommand;
@@ -317,7 +343,7 @@ com_quota(char* arg1)
 
 com_quota_usage:
   std::ostringstream oss;
-  std::vector<std::uint32_t> col_size = {0 , 0};
+  std::vector<std::uint32_t> col_size = {0, 0};
   std::map<std::string, std::string> map_cmds = {
     {
       "quota [<path>]",
