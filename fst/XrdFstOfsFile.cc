@@ -1381,7 +1381,7 @@ XrdFstOfsFile::close()
                 }
 
                 if (error.getErrInfo() == EREMCHG) {
-                  eos_err("inof=\"unlinking fid=%08x path=%s - "
+                  eos_err("info=\"unlinking fid=%08x path=%s - "
                           "overlapping atomic upload - discarding this one\"",
                           fMd->mProtoFmd.fid(), mNsPath.c_str());
                   atomicoverlap = true;
