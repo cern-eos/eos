@@ -1065,16 +1065,22 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
+                  md.md_pino(),
                   refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
   std::vector<shared_cap> bccaps;
+  uint64_t md_pino = refcap->id();
 
-  if (mInodeCaps.count(refcap->id())) {
-    for (auto it = mInodeCaps[refcap->id()].begin();
-         it != mInodeCaps[refcap->id()].end(); ++it) {
+  if (!md_pino) {
+    md_pino = md.md_pino();
+  }
+
+  if (mInodeCaps.count(md_pino)) {
+    for (auto it = mInodeCaps[md_pino].begin();
+         it != mInodeCaps[md_pino].end(); ++it) {
       shared_cap cap;
 
       // loop over all caps for that inode
@@ -1085,7 +1091,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
       }
 
       // skip our own cap!
-      if (cap->authid() == refcap->authid()) {
+      if (cap->authid() == md.authid()) {
         continue;
       }
 
@@ -1236,17 +1242,18 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   EXEC_TIMING_BEGIN("Eosxd::int::BcMD");
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
+                  md_pino,
                   refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
   std::set<std::string> clients_sent;
   std::vector<shared_cap> bccaps;
 
-  if (mInodeCaps.count(refcap->id())) {
-    for (auto it = mInodeCaps[refcap->id()].begin();
-         it != mInodeCaps[refcap->id()].end(); ++it) {
+  if (mInodeCaps.count(md_pino)) {
+    for (auto it = mInodeCaps[md_pino].begin();
+         it != mInodeCaps[md_pino].end(); ++it) {
       shared_cap cap;
 
       // loop over all caps for that inode
@@ -1256,8 +1263,14 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
         continue;
       }
 
+      eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+                      cap->id(),
+                      cap->clientid().c_str(),
+                      cap->clientuuid().c_str(),
+                      cap->authid().c_str());
+
       // skip our own cap!
-      if (cap->authid() == refcap->authid()) {
+      if (cap->authid() == md.authid()) {
         continue;
       }
 
