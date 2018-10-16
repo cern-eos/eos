@@ -1690,7 +1690,18 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         if ((cont.md_().clock() >= md->clock())) {
           eos_static_info("overwriting clock MD %lx => %lx", md->clock(),
                           cont.md_().clock());
+          size_t local_size = md->size();
+          uint64_t local_mtime = md->mtime();
+          uint64_t local_mtime_ns = md->mtime_ns();
           md->CopyFrom(cont.md_());
+
+          if (EosFuse::Instance().datas.has(ino, true)) {
+            // see if this file is open for write, because in that case
+            // we have to keep the local size information and modification times
+            md->set_size(local_size);
+            md->set_mtime(local_mtime);
+            md->set_mtime_ns(local_mtime_ns);
+          }
         } else {
           eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ",
                              (long) ino, (long) md_ino);
@@ -1802,7 +1813,19 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           if (child) {
             eos_static_debug("case 1 %s", md->name().c_str());
             eos::fusex::md::TYPE mdtype = md->type();
+            size_t local_size = md->size();
+            uint64_t local_mtime = md->mtime();
+            uint64_t local_mtime_ns = md->mtime_ns();
             md->CopyFrom(map->second);
+
+            if (EosFuse::Instance().datas.has(ino, true)) {
+              // see if this file is open for write, because in that case
+              // we have to keep the local size information and modification times
+              md->set_size(local_size);
+              md->set_mtime(local_mtime);
+              md->set_mtime_ns(local_mtime_ns);
+            }
+
             md->set_nchildren(md->local_children().size());
             // if this object was a listing type, keep that
             md->set_type(mdtype);
@@ -2408,6 +2431,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           EosFuse::Instance().caps.reset();
           eos_static_notice("sending shutdown heartbeat message");
           hb.mutable_heartbeat_()->set_shutdown(true);
+          break;
         }
 
         if (items[0].revents & ZMQ_POLLIN) {
