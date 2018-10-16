@@ -1730,11 +1730,16 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
   // read the missing part remote
   XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
                           req) : mFile->xrdiorw(req);
+  XrdCl::XRootDStatus status;
 
   if (proxy) {
+    if (proxy->IsOpening()) {
+      status = proxy->WaitOpen();
+    }
+
     if (!mFile->is_caching()) {
       // if caching is disabled, we wait for outstanding writes
-      XrdCl::XRootDStatus status = proxy->WaitWrite();
+      status = proxy->WaitWrite();
       // it is not obvious what we should do if there was a write error,
       // we just proceed
     }
@@ -2466,7 +2471,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 if (fit->second->IsWaitWrite()) {
                   if (!fit->second->OutstandingWrites()) {
-                    if ((fit->second->state_age() > 1.0)) {
+                    if ((fit->second->state_age() > 1.0) &&
+                        !EosFuse::Instance().mds.has_flush((*it)->id())) {
                       std::string msg;
 
                       // check if we need to run a recovery action
@@ -2495,13 +2501,15 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                         }
                       }
 
-                      eos_static_info("changing to close async state - age = %f ino:%16lx",
-                                      fit->second->state_age(), (*it)->id());
+                      eos_static_info("changing to close async state - age = %f ino:%16lx has-flush=%s",
+                                      fit->second->state_age(), (*it)->id(),
+                                      EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
                       fit->second->CloseAsync();
                       break;
                     } else {
-                      eos_static_info("waiting for right age before async close - age = %f",
-                                      fit->second->state_age());
+                      eos_static_info("waiting for right age before async close - age = %f ino:%16lx has-flush=%s",
+                                      fit->second->state_age(), (*it)->id(),
+                                      EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
                       break;
                     }
                   }

@@ -581,7 +581,11 @@ XrdCl::Proxy::Close(uint16_t timeout)
   }
 
   WaitOpen();
-  Collect();
+
+  if (IsOpen()) {
+    Collect();
+  }
+
   XrdSysCondVarHelper lLock(OpenCondVar());
   XrdCl::XRootDStatus status = XrdCl::File::Close(timeout);
   set_state(CLOSED, &status);
@@ -630,7 +634,11 @@ XrdCl::Proxy::WaitClose()
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  Collect();
+
+  if (IsOpen()) {
+    Collect();
+  }
+
   XrdSysCondVarHelper lLock(OpenCondVar());
 
   while (state() == CLOSING) {
