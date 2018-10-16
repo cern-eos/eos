@@ -201,13 +201,13 @@ again:
     eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
                      current_mgr.c_str(), fid);
   } else {
-    eos_static_err("msg=\"query error\" status=%d code=%d", status.status,
+    eos_static_err("msg=\"query error\" fid=%08llx status=%d code=%d", fid, status.status,
                    status.code);
 
     if ((status.code >= 100) &&
         (status.code <= 300)) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
-      eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
+      eos_static_info("msg=\"retry query\" fid=%08llx query=\"%s\"", fid, fmdquery.c_str());
 
       if (!manager) {
         // Use the broadcasted manager name
@@ -260,7 +260,7 @@ again:
 
   if (!EnvMgmToFmd(fmdenv, fmd)) {
     int envlen;
-    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    eos_static_err("Failed to unparse file meta data %s for fid=%08llx", fmdenv.Env(envlen), fid);
     delete response;
     return EIO;
   }
