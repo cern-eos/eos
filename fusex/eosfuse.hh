@@ -233,6 +233,7 @@ public:
       int no_hardlinks;
       uint32_t nocache_graceperiod;
       int leasetime;
+      int write_size_flush_interval;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 

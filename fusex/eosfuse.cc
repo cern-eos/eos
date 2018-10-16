@@ -464,6 +464,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["rm-rf-bulk"] = 0;
     }
 
+    if (!root["options"].isMember("write-size-flush-interval")) {
+      root["options"]["write-size-flush-interval"] = 5;
+    }
+
     // xrdcl default options
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
     XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
@@ -567,6 +571,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
     config.options.no_xattr = root["options"]["no-xattr"].asInt();
     config.options.no_hardlinks = root["options"]["no-link"].asInt();
+    config.options.write_size_flush_interval =
+      root["options"]["write-size-flush-interval"].asInt();
 
     if (config.options.no_xattr) {
       disable_xattr();
@@ -1241,7 +1247,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1266,7 +1272,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.nocache_graceperiod,
                        config.options.rm_rf_protect_levels,
                        config.options.rm_rf_bulk,
-                       config.options.leasetime
+                       config.options.leasetime,
+                       config.options.write_size_flush_interval
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
@@ -3566,6 +3573,20 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             XrdSysMutexHelper mLock(io->mdctx()->Locker());
             io->mdctx()->set_size(io->ioctx()->size());
             io->set_update();
+            // flush size updates every 5 seconds
+            time_t now = time(NULL);
+
+            if (Instance().Config().options.write_size_flush_interval) {
+              if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
+                Instance().mds.update(req, io->md, io->authid());
+              } else {
+                if (!io->next_size_flush.load()) {
+                  io->next_size_flush.store(now +
+                                            Instance().Config().options.write_size_flush_interval,
+                                            std::memory_order_seq_cst);
+                }
+              }
+            }
           }
           fuse_reply_write(req, size);
         }

@@ -55,7 +55,8 @@ This
     "no-xattr" : 1,
     "no-link" : 0,
     "nocache-graceperiod" : 5
-    "leasetime" : 300
+    "leasetime" : 300,
+    "write-size-flush-interval" : 5
   },
   "auth" : {
     "shared-mount" : 1,
