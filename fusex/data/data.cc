@@ -101,13 +101,21 @@ data::get(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 bool
 /* -------------------------------------------------------------------------- */
-data::has(fuse_ino_t ino)
+data::has(fuse_ino_t ino, bool checkwriteopen)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(datamap);
 
   if (datamap.count(ino)) {
-    return true;
+    if (checkwriteopen) {
+      if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return true;
+    }
   } else {
     return false;
   }

@@ -105,6 +105,11 @@ public:
       return mFile;
     }
 
+    int flags()
+    {
+      return mFlags;
+    }
+
     int flush(fuse_req_t req);
     int flush_nolock(fuse_req_t req, bool wait_open = true,
                      bool wait_writes = false);
@@ -372,7 +377,7 @@ public:
                   fuse_ino_t ino,
                   metad::shared_md m);
 
-  bool has(fuse_ino_t);
+  bool has(fuse_ino_t ino, bool checkwriteopen = false);
 
   void release(fuse_req_t req,
                fuse_ino_t ino);
