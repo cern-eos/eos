@@ -140,7 +140,7 @@ int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                          XrdOucString& stdErr,
                          eos::common::Mapping::VirtualIdentity& vid_in);
 
-//------------------------------------------------------------------------------
+//!------------------------------------------------------------------------------
 //! Drop ghost entries from a filesystem view (file ids without meta data objects)
 //!
 //! @param id id of the filesystem

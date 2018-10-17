@@ -45,31 +45,19 @@
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-# Input parsing
+# Configuration
 #------------------------------------------------------------------------------
 
-if [[ $# -eq 0 || $# -gt 3 ]]; then
-    echo "Usage: $0 <eos_mgm_hostname> [--ssh] [--verbose]"
-    echo "          <eos_mgm_hostname> - the name of the MGM host"
-    echo "          --ssh              - attempt preparation set-up using ssh"
-    echo "          --verbose          - trigger verbose output"
-    exit 1
-fi
+# These variables are injected via Gitlab CI secrets
+#EOS_FST_S3_ACCESS_KEY
+#EOS_FST_S3_SECRET_KEY
 
-echo $1 | grep ":" &> /dev/null
-[[ $? -ne 0 ]] && echo "Hostname must be of format: <host>:<port>" && exit 1
-EOS_MGM_URL=$1
+# The mount points for the file systems
+PATHS=( "/home/data/eos_lpath"
+        "s3://s3.cern.ch/eostest/" )
 
-CONN_CLIENT=false
-if [[ $2 == "--ssh" ]]; then
-    CONN_CLIENT=true
-    shift
-fi
-
-VERBOSE=false
-if [[ $2 == "--verbose" ]]; then
-    VERBOSE=true
-fi
+# Assign spaces to the different mount points
+SPACE=( "lpath_test" "s3_test" )
 
 #------------------------------------------------------------------------------
 # Utility functions
@@ -99,19 +87,62 @@ wait_result () {
 }
 
 #------------------------------------------------------------------------------
-# Configuration
+# Clean-up function
 #------------------------------------------------------------------------------
 
-# These variables are injected via Gitlab CI secrets
-#EOS_FST_S3_ACCESS_KEY
-#EOS_FST_S3_SECRET_KEY
+clean_up () {
+    # Remove files from S3 storage
+    for i in `seq 0 49`; do
+        davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                 --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/${i}.dat &> /dev/null &
+        davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                 --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/.${i}.dat.xattr &> /dev/null &
+    done
 
-# The mount points for the file systems
-PATHS=( "/home/data/eos_lpath"
-        "s3://s3.cern.ch/eostest/" )
+    # Remove all EOS files and directories
+    eos rm -rF /eos/dockertest/${SPACE[0]}/*
+    eos rm -rF /eos/dockertest/${SPACE[1]}/upload/*
+    eos rm -rF /eos/dockertest/${SPACE[1]}/import/*
+    eos rmdir /eos/dockertest/${SPACE[0]}/
+    eos rmdir /eos/dockertest/${SPACE[1]}/upload/
+    eos rmdir /eos/dockertest/${SPACE[1]}/import/
+    eos rmdir /eos/dockertest/${SPACE[1]}/
+}
 
-# Assign spaces to the different mount points
-SPACE=( "lpath_test" "s3_test" )
+#------------------------------------------------------------------------------
+# Input parsing
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 3 ]]; then
+    echo "Usage: $0 <eos_mgm_hostname> [--verbose] [--ssh] [--no-cleanup]"
+    echo "          <eos_mgm_hostname> - the name of the MGM host"
+    echo "          --verbose          - trigger verbose output"
+    echo "          --ssh              - attempt preparation set-up using ssh"
+    echo "          --no-cleanup       - skip the clean up stage"
+    echo "          --only-cleanup     - perform only the clean-up stage"
+    exit 1
+fi
+
+echo $1 | grep ":" &> /dev/null
+[[ $? -ne 0 ]] && echo "Hostname must be of format: <host>:<port>" && exit 1
+
+EOS_MGM_URL=$1
+CONN_CLIENT=false
+VERBOSE=false
+NOCLEANUP=false
+
+for arg in "${@:2}"; do
+    if [[ ${arg} == "--verbose" ]]; then
+        VERBOSE=true
+    elif [[ ${arg} == "--ssh" ]]; then
+        CONN_CLIENT=true
+    elif [[ ${arg} == "--no-cleanup" ]]; then
+        NOCLEANUP=true
+    elif [[ ${arg} == "--only-cleanup" ]]; then
+        clean_up
+        exit 0
+    fi
+done
 
 #------------------------------------------------------------------------------
 # Preparation
@@ -283,23 +314,5 @@ fi
 # Clean-up
 #------------------------------------------------------------------------------
 
-${VERBOSE} && echo "Cleaning up"
-
-# Remove files from S3 storage
-for i in `seq 0 49`; do
-    davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
-             --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/${i}.dat &> /dev/null &
-    davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
-             --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/.${i}.dat.xattr &> /dev/null &
-done
-
-# Remove all EOS files and directories
-eos rm -rF /eos/dockertest/${SPACE[0]}/*
-eos rm -rF /eos/dockertest/${SPACE[1]}/upload/*
-eos rm -rF /eos/dockertest/${SPACE[1]}/import/*
-eos rmdir /eos/dockertest/${SPACE[0]}/
-eos rmdir /eos/dockertest/${SPACE[1]}/upload/
-eos rmdir /eos/dockertest/${SPACE[1]}/import/
-eos rmdir /eos/dockertest/${SPACE[1]}/
-
-exit 0
+${VERBOSE} && ${NOCLEANUP} && echo "Skipping clean-up step" && exit 0
+${VERBOSE} && echo "Cleaning up" && clean_up && exit 0

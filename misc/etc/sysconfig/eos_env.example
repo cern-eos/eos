@@ -99,7 +99,7 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_USE_SHARED_MUTEX=1
 
 # By default statvfs reports the total space if the path deepness is < 4
-# If you want to report only quota accouting you can define
+# If you want to report only quota accounting you can define
 # EOS_MGM_STATVFS_ONLY_QUOTA=1
 
 #-------------------------------------------------------------------------------
@@ -241,7 +241,7 @@ EOS_TEST_TESTTIMESLICE=300;
 # Archive configuration
 #-------------------------------------------------------------------------------
 
-# Set the root destination for all archives beloging to this instance
+# Set the root destination for all archives belonging to this instance
 # EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
 
 # Set the CASTOR service class (svcClass) for all file transfers to CASTOR
@@ -268,7 +268,7 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # ------------------------------------------------------------------
 # MGM Boot options
 # ------------------------------------------------------------------
-# uncomment to avoid mmaping a changelog file
+# uncomment to avoid mapping a changelog file
 # EOS_NS_BOOT_NOMMAP
 
 # uncomment to speed up the scanning phase skipping CRC32 computation
