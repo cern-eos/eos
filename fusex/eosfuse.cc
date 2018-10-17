@@ -2667,7 +2667,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
     if (!rc) {
       metad::shared_md md;
       md = Instance().mds.lookup(req, parent, name);
-      md->Locker().Lock();
+      XrdSysMutexHelper lLock(md->Locker());
 
       if (!md->id() || md->deleted()) {
         rc = ENOENT;
@@ -2757,6 +2757,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
             if (tmd && (tmd->nlink() == 0)) {
               // delete the target locally
+              XrdSysMutexHelper lLock(tmd->Locker());
               Instance().mds.remove(req, pmd, tmd, pcap->authid(), false);
             }
           } else {
@@ -2772,8 +2773,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
           }
         }
       }
-
-      md->Locker().UnLock();
     }
 
     if (!rc) {
