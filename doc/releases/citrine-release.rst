@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.6 Citrine``
+==================
+
+2018-10-10
+
+Bug
+---
+
+* [EOS-2816] - eos cp issues
+* [EOS-2894] - FUSEX: "xauth -q -" gets stuck in "D" state
+* [EOS-2992] - aiadm: Lost all files in EOS home
+* FUSEX: Various fixes
+
+
+Task
+----
+
+* [EOS-2988] - Login hangs forever (with HOME=/eos/user/l/laman)
+
+
 ``v4.4.5 Citrine``
 ==================
 
