@@ -25,8 +25,9 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -97,7 +98,7 @@ public:
   //----------------------------------------------------------------------------
   //! Replace underlying QuotaNodeCore object.
   //----------------------------------------------------------------------------
-  void replaceCore(const QuotaNodeCore &updated) override;
+  void replaceCore(const QuotaNodeCore& updated) override;
 
 private:
   //! Quota quota node uid hash key e.g. quota_node:id:uid
@@ -105,7 +106,8 @@ private:
   //! Quota quota node gid hash key e.g. quota_node:id:gid
   std::string pQuotaGidKey;
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
-  MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
+  std::shared_ptr<MetadataFlusher>
+  pFlusher; ///< Metadata flusher object from QuotaStats
 };
 
 //------------------------------------------------------------------------------
@@ -188,7 +190,7 @@ private:
 
   std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>> pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
-  MetadataFlusher* pFlusher; ///< Metadata flusher object
+  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
 };
 
 EOSNSNAMESPACE_END

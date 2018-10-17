@@ -183,7 +183,7 @@ private:
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
-  MetadataFlusher* pFlusher; ///< Metadata flusher object
+  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl; ///< QClient object
   qclient::QHash mMetaMap ; ///< Map holding metainfo about the namespace
   std::atomic<uint64_t> mNumFiles; ///< Total number of fileso

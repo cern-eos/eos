@@ -33,8 +33,9 @@
 #include <folly/executors/Async.h>
 #include "common/Assert.hh"
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -46,14 +47,17 @@ struct IsNoReplicaListTag {};
 //! Iterator to go through the contents of a FileSystemHandler. Keeps
 //! the corresponding list read-locked during its lifetime.
 //------------------------------------------------------------------------------
-class FileListIterator : public ICollectionIterator<IFileMD::id_t> {
+class FileListIterator : public ICollectionIterator<IFileMD::id_t>
+{
 public:
 
   //----------------------------------------------------------------------------
   //! Constructor.
   //----------------------------------------------------------------------------
-  FileListIterator(const IFsView::FileList &fileList, std::shared_timed_mutex &mtx)
-  : pFileList(fileList), mLock(mtx) {
+  FileListIterator(const IFsView::FileList& fileList,
+                   std::shared_timed_mutex& mtx)
+    : pFileList(fileList), mLock(mtx)
+  {
     mIterator = pFileList.begin();
   }
 
@@ -65,26 +69,29 @@ public:
   //----------------------------------------------------------------------------
   //! Check whether the iterator is still valid.
   //----------------------------------------------------------------------------
-  virtual bool valid() override {
+  virtual bool valid() override
+  {
     return mIterator != pFileList.end();
   }
 
   //----------------------------------------------------------------------------
   //! Get current element.
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getElement() {
+  virtual IFileMD::id_t getElement()
+  {
     return *mIterator;
   }
 
   //----------------------------------------------------------------------------
   //! Progress iterator.
   //----------------------------------------------------------------------------
-  virtual void next() {
+  virtual void next()
+  {
     mIterator++;
   }
 
 private:
-  const IFsView::FileList &pFileList;
+  const IFsView::FileList& pFileList;
   std::shared_lock<std::shared_timed_mutex> mLock;
   IFsView::FileList::const_iterator mIterator;
 };
@@ -98,14 +105,15 @@ private:
 //! Also, watch out for races related to the flusher.. Use only if a weakly
 //! consistent view is acceptable.
 //------------------------------------------------------------------------------
-class StreamingFileListIterator : public ICollectionIterator<IFileMD::id_t> {
+class StreamingFileListIterator : public ICollectionIterator<IFileMD::id_t>
+{
 public:
 
   //----------------------------------------------------------------------------
   //! Constructor.
   //----------------------------------------------------------------------------
-  StreamingFileListIterator(qclient::QClient &qcl, const std::string &key)
-  : mQSet(qcl, key), it(mQSet.getIterator()) {}
+  StreamingFileListIterator(qclient::QClient& qcl, const std::string& key)
+    : mQSet(qcl, key), it(mQSet.getIterator()) {}
 
   //----------------------------------------------------------------------------
   //! Destructor.
@@ -115,21 +123,24 @@ public:
   //----------------------------------------------------------------------------
   //! Check whether the iterator is still valid.
   //----------------------------------------------------------------------------
-  virtual bool valid() override {
+  virtual bool valid() override
+  {
     return it.valid();
   }
 
   //----------------------------------------------------------------------------
   //! Get current element.
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getElement() {
+  virtual IFileMD::id_t getElement()
+  {
     return std::stoull(it.getElement());
   }
 
   //----------------------------------------------------------------------------
   //! Progress iterator.
   //----------------------------------------------------------------------------
-  virtual void next() {
+  virtual void next()
+  {
     return it.next();
   }
 
@@ -139,7 +150,8 @@ private:
 };
 
 
-class FileSystemHandler {
+class FileSystemHandler
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor.
@@ -149,8 +161,9 @@ public:
   //! @param flusher Flusher object for propagating updates to the backend
   //! @param unlinked whether we want the unlinked file list, or the regular one
   //----------------------------------------------------------------------------
-  FileSystemHandler(IFileMD::location_t location, folly::Executor *pExecutor,
-    qclient::QClient *qcl, MetadataFlusher *flusher, bool unlinked);
+  FileSystemHandler(IFileMD::location_t location, folly::Executor* pExecutor,
+                    qclient::QClient* qcl, std::shared_ptr<MetadataFlusher> flusher,
+                    bool unlinked);
 
   //----------------------------------------------------------------------------
   //! Constructor for the special case of "no replica list".
@@ -160,8 +173,8 @@ public:
   //! @param flusher Flusher object for propagating updates to the backend
   //! @param Tag for dispatching to this constructor overload
   //----------------------------------------------------------------------------
-  FileSystemHandler(folly::Executor *pExecutor, qclient::QClient *qcl,
-    MetadataFlusher *flusher, IsNoReplicaListTag tag);
+  FileSystemHandler(folly::Executor* pExecutor, qclient::QClient* qcl,
+                    std::shared_ptr<MetadataFlusher> flusher, IsNoReplicaListTag tag);
 
   //----------------------------------------------------------------------------
   //! Ensure contents have been loaded into the cache. If so, returns
@@ -201,7 +214,7 @@ public:
   //! this filesystem read-locked during its entire lifetime.
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-  getFileList();
+      getFileList();
 
   //----------------------------------------------------------------------------
   //! Retrieve streaming iterator to go through the contents of a
@@ -214,7 +227,7 @@ public:
   //! consistent view is acceptable.
   //----------------------------------------------------------------------------
   std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-  getStreamingFileList();
+      getStreamingFileList();
 
   //----------------------------------------------------------------------------
   //! Delete the entire filelist.
@@ -224,7 +237,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get an approximately random file in the filelist.
   //----------------------------------------------------------------------------
-  bool getApproximatelyRandomFile(IFileMD::id_t &res);
+  bool getApproximatelyRandomFile(IFileMD::id_t& res);
 
   //----------------------------------------------------------------------------
   //! Check whether a given id_t is contained in this filelist
@@ -243,7 +256,8 @@ private:
     kLoaded
   };
 
-  CacheStatus mCacheStatus = CacheStatus::kNotLoaded; ///< Stores caching status for this fs
+  CacheStatus mCacheStatus =
+    CacheStatus::kNotLoaded; ///< Stores caching status for this fs
 
   enum class Target {
     kRegular,
@@ -255,10 +269,12 @@ private:
   IFileMD::location_t location;             ///< Filesystem ID, if available
   folly::Executor* pExecutor;               ///< Folly executor
   qclient::QClient* pQcl;                   ///< QClient object
-  MetadataFlusher* pFlusher;                ///< Metadata flusher object
+  std::shared_ptr<MetadataFlusher> pFlusher;///< Metadata flusher object
   std::shared_timed_mutex mMutex;           ///< Object mutex
-  IFsView::FileList mContents;              ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.
-  SetChangeList<IFileMD::id_t> mChangeList; ///< ChangeList for what happens when cache loading is in progress.
+  IFsView::FileList
+  mContents;              ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.
+  SetChangeList<IFileMD::id_t>
+  mChangeList; ///< ChangeList for what happens when cache loading is in progress.
 
   folly::FutureSplitter<FileSystemHandler*> mSplitter;
 };

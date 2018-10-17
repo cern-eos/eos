@@ -50,7 +50,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
+              IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Constructor used for testing and dump command
@@ -96,7 +97,8 @@ public:
   //----------------------------------------------------------------------------
   //! Find subcontainer, asynchronous API
   //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name) override;
+  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name)
+  override;
 
   //----------------------------------------------------------------------------
   //! Find subcontainer
@@ -418,13 +420,13 @@ public:
   //----------------------------------------------------------------------------
   //! Initialize, and inject children
   //----------------------------------------------------------------------------
-  void initialize(eos::ns::ContainerMdProto &&proto,
-    IContainerMD::FileMap &&fileMap, IContainerMD::ContainerMap &&containerMap);
+  void initialize(eos::ns::ContainerMdProto&& proto,
+                  IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap);
 
   //----------------------------------------------------------------------------
   //! Initialize, without loading children
   //----------------------------------------------------------------------------
-  void initializeWithoutChildren(eos::ns::ContainerMdProto &&proto);
+  void initializeWithoutChildren(eos::ns::ContainerMdProto&& proto);
 
   //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
@@ -465,7 +467,8 @@ private:
   //! Get iterator to the begining of the subcontainers map
   //----------------------------------------------------------------------------
   eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersBegin() override {
+  subcontainersBegin() override
+  {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
     return mSubcontainers->begin();
   }
@@ -474,7 +477,8 @@ private:
   //! Get iterator to the end of the subcontainers map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::ContainerMap::const_iterator
-  subcontainersEnd() override {
+  subcontainersEnd() override
+  {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
     return mSubcontainers->end();
   }
@@ -483,7 +487,8 @@ private:
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
-  filesBegin() override {
+  filesBegin() override
+  {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
     return mFiles->begin();
   }
@@ -492,7 +497,8 @@ private:
   //! Get iterator to the end of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
-  filesEnd() override {
+  filesEnd() override
+  {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
     return mFiles->end();
   }
@@ -500,7 +506,7 @@ private:
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
-  MetadataFlusher* pFlusher;            ///< Metadata flusher object
+  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
   qclient::QClient* pQcl;               ///< QClient object
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key

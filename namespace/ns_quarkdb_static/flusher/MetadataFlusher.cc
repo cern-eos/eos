@@ -180,8 +180,8 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
 // TODO(gbitzes): specify a sharding scheme, based on which flusher hits
 // which keys, and enforce it with static checks, if possible.
 //------------------------------------------------------------------------------
-std::map<MetadataFlusherFactory::InstanceKey, MetadataFlusher*>
-MetadataFlusherFactory::instances;
+std::map<MetadataFlusherFactory::InstanceKey, std::shared_ptr<MetadataFlusher>>
+    MetadataFlusherFactory::instances;
 std::mutex MetadataFlusherFactory::mtx;
 std::string MetadataFlusherFactory::queuePath = "/var/eos/ns-queue/";
 
@@ -190,7 +190,7 @@ void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
   queuePath = newpath;
 }
 
-MetadataFlusher*
+std::shared_ptr<MetadataFlusher>
 MetadataFlusherFactory::getInstance(const std::string& id,
                                     const QdbContactDetails& contactDetails)
 {
@@ -209,11 +209,10 @@ MetadataFlusherFactory::getInstance(const std::string& id,
     return it->second;
   }
 
-  MetadataFlusher* flusher = new MetadataFlusher(queuePath + id, contactDetails);
   eos_static_notice("Created new metadata flusher towards %s",
                     contactDetails.members.toString().c_str());
-  instances[key] = flusher;
-  return flusher;
+  instances.emplace(key,  new MetadataFlusher(queuePath + id, contactDetails));
+  return instances[key];
 }
 
 //------------------------------------------------------------------------------

@@ -217,7 +217,7 @@ private:
   IQuotaStats* pQuotaStats;             ///< Quota view
   IFileMDSvc* pFileSvc;                 ///< File metadata service
   qclient::QClient* pQcl;               ///< QClient object
-  MetadataFlusher* pFlusher;            ///< Metadata flusher object
+  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
   //! Map holding metainfo about the namespace
   qclient::QHash mMetaMap;
   MetadataProvider* mMetadataProvider;  ///< Provider namespace metadata

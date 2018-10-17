@@ -396,7 +396,7 @@ private:
   ///! Folly executor
   std::unique_ptr<folly::Executor> mExecutor;
   ///! Metadata flusher object
-  MetadataFlusher* pFlusher;
+  std::shared_ptr<MetadataFlusher> pFlusher;
   ///! QClient object
   qclient::QClient* pQcl;
 

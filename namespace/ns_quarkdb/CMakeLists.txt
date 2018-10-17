@@ -74,7 +74,6 @@ add_library(
 
 target_link_libraries(
   EosNsQuarkdb
-  EosProtobuf
   EosNsCommon
   eosCommon
   EosCrc32c-Static
