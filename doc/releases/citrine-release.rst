@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.7 Citrine``
+==================
+
+2018-10-18
+
+Bug
+---
+
+* [EOS-2992],[EOS-2994],[EOS-2967] - clients shows empty file list after caps expired
+* [EOS-2997] - GIT usage broken since hard-links are enabled by default 
+
 ``v4.4.6 Citrine``
 ==================
 
