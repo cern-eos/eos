@@ -2220,6 +2220,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
     // the root directory adds only '.', all other add '.' and '..' for off=0
     if (off == 0) {
+      md->readdir_items.clear();
       // at offset=0 add the '.' directory
       std::string bname = ".";
       fuse_ino_t cino = pmd_id;
@@ -2666,7 +2667,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
     if (!rc) {
       metad::shared_md md;
       md = Instance().mds.lookup(req, parent, name);
-      XrdSysMutexHelper mLock(md->Locker());
+      md->Locker().Lock();
 
       if (!md->id() || md->deleted()) {
         rc = ENOENT;
@@ -2771,12 +2772,17 @@ EROFS  pathname refers to a file on a read-only filesystem.
           }
         }
       }
+
+      md->Locker().UnLock();
     }
 
     if (!rc) {
       if (hardlink_target_ino || Instance().Config().options.rmdir_is_sync) {
-        eos_static_debug("waiting for flush of  %d", del_ino);
-        Instance().mds.wait_deleted(req, del_ino);
+        eos_static_warning("waiting for flush of  %d", del_ino);
+
+        if (del_ino) {
+          Instance().mds.wait_deleted(req, del_ino);
+        }
       }
 
       XrdSysMutexHelper pLock(pcap->Locker());
