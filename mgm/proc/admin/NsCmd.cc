@@ -227,7 +227,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   XrdOucString sizestring = "";
 
   // Statistics for the changelog files if they exist
-  if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
+  if ((gOFS->MgmNsFileChangeLogFile.length() != 0) &&
+      (gOFS->MgmNsDirChangeLogFile.length() != 0) &&
+      (!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
       (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd))) {
     StringConversion::GetReadableSizeString(clfsize,
                                             (unsigned long long) statf.st_size, "B");

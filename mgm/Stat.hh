@@ -564,10 +564,7 @@ public:
 
   void Circulate();
 
-  ~Stat()
-  {
-    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
-  }
+  ~Stat() = default;
 };
 
 EOSMGMNAMESPACE_END

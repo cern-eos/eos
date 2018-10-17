@@ -209,7 +209,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 XrdMgmOfs::~XrdMgmOfs()
 {
   OrderlyShutdown();
-  std::cerr << "Shutdown:: Calling XrdMgmOfs destructor ... " << std::endl;
+  eos_warning("%s", "msg=\"finished destructor\"");
 }
 
 //------------------------------------------------------------------------------
