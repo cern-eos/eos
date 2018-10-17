@@ -767,6 +767,12 @@ public:
     return want_zmq_connect.load();
   }
 
+  uint64_t make_inode(uint64_t remote_inode)
+  {
+    uint64_t local_ino = next_ino.inc();
+    vmaps().insert(remote_inode, local_ino);
+    return local_ino;
+  }
 
 private:
 

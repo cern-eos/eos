@@ -2003,6 +2003,21 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       md->lookup_inc();
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                              R_OK);
+      {
+        auto attrMap = md->attr();
+
+        // fetch necessary hardlink target
+        if (attrMap.count(k_mdino)) {
+          uint64_t mdino = std::stoll(attrMap[k_mdino]);
+          uint64_t local_ino = EosFuse::Instance().mds.vmaps().forward(mdino);
+
+          if (!local_ino) {
+            local_ino = EosFuse::Instance().mds.make_inode(mdino);
+          }
+
+          metad::shared_md tmd = EosFuse::Instance().mds.get(req, local_ino, "");
+        }
+      }
       md->convert(e, pcap->lifetime());
     } else {
       // negative cache entry

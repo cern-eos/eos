@@ -341,6 +341,9 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
     shared_md tmd = EosFuse::Instance().mds.getlocal(NULL, local_ino);
 
     if (!tmd->id()) {
+      // this is an ugly fall-back hack, however this should not happen since we read the target hlnk node now in lookup
+      local_ino = EosFuse::Instance().mds.make_inode(mdino);
+      e.attr.st_nlink = 2;
       eos_static_err("converting hard-link %s target inode %#lx remote %#lx not in cache, nlink set to %d",
                      name().c_str(), local_ino, mdino, e.attr.st_nlink);
     } else {
