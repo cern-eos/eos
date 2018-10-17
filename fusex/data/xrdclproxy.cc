@@ -1120,6 +1120,10 @@ XrdCl::Proxy::PreReadAsync(uint64_t offset,
   XRootDStatus status = WaitOpen();
 
   if (!status.IsOK()) {
+    // remove the allocated chunk buffer
+    XrdSysCondVarHelper lLock(ReadCondVar());
+    ChunkRMap().erase(offset);
+    dec_read_chunks_in_flight();
     return status;
   }
 
@@ -1128,7 +1132,7 @@ XrdCl::Proxy::PreReadAsync(uint64_t offset,
                                     (void*) handler->buffer(), handler.get(), timeout);
 
   if (!rstatus.IsOK()) {
-    // rempove the allocated chunk buffer
+    // remove the allocated chunk buffer
     XrdSysCondVarHelper lLock(ReadCondVar());
     ChunkRMap().erase(offset);
     dec_read_chunks_in_flight();
