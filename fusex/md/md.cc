@@ -1958,7 +1958,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           eos_static_debug("cap count %d\n", pmd->cap_count());
         }
 
-        if (!pmd->cap_count()) {
+        if (!pmd->cap_count() && (pmd == md)) {
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("clearing out %0016lx", pmd->id());
           }
