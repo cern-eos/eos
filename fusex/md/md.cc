@@ -1926,7 +1926,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         *md = map->second;
         md->clear_capability();
 
-        if (!pmd) {
+        if ((!pmd) && (map->first == cont.ref_inode_())) {
           pmd = md;
           md->set_type(pmd->MD);
         }
@@ -1954,18 +1954,20 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         }
         update(req, md, md->authid(), true);
 
-        if (EOS_LOGS_DEBUG) {
-          eos_static_debug("cap count %d\n", pmd->cap_count());
-        }
-
-        if (!pmd->cap_count() && (pmd == md)) {
+        if ((pmd == md)) {
           if (EOS_LOGS_DEBUG) {
-            eos_static_debug("clearing out %0016lx", pmd->id());
+            eos_static_debug("cap count %d\n", pmd->cap_count());
           }
 
-          XrdSysMutexHelper scope_lock(pmd->Locker());
-          pmd->local_children().clear();
-          pmd->get_todelete().clear();
+          if (!pmd->cap_count()) {
+            if (EOS_LOGS_DEBUG) {
+              eos_static_debug("clearing out %0016lx", pmd->id());
+            }
+
+            XrdSysMutexHelper scope_lock(pmd->Locker());
+            pmd->local_children().clear();
+            pmd->get_todelete().clear();
+          }
         }
 
         if (cap_received.id()) {
