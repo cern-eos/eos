@@ -523,23 +523,8 @@ cap::capflush(ThreadAssistant& assistant)
     {
       cmap capdelmap;
       cinodes capdelinodes;
-      static time_t capemptytime = 0;
       capmap.Lock();
       time_t now = time(NULL);
-
-      if (!capmap.size()) {
-        if (!capemptytime) {
-          capemptytime = now;
-        }
-
-        if ((now - capemptytime) > CAP_EXTENSION_TIME) {
-          eos_static_notice("forgetting all md from mdmap");
-          mds->forget_all();
-          capemptytime = now;
-        }
-      } else {
-        capemptytime = 0;
-      }
 
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());

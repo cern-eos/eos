@@ -307,23 +307,6 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 
 /* -------------------------------------------------------------------------- */
 void
-metad::forget_all()
-{
-  // all but /
-  XrdSysMutexHelper lLock(mdmap);
-
-  for (auto it = mdmap.begin(); it != mdmap.end();) {
-    if (it->first != 1) {
-      it = mdmap.erase(it);
-      stat.inodes_dec();
-    } else {
-      it++;
-    }
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-void
 metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
 {
   const char* k_mdino = "sys.eos.mdino";
@@ -565,6 +548,7 @@ metad::getlocal(fuse_req_t req,
 
   if (!mdmap.retrieveTS(ino, md)) {
     md = std::make_shared<mdx>();
+    md->set_err(ENOENT);
   }
 
   return md;
