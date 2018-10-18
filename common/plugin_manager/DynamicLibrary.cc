@@ -21,13 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#include "DynamicLibrary.hh"
 #include <dlfcn.h>
 #include <sstream>
 #include <iostream>
-/*----------------------------------------------------------------------------*/
-#include "DynamicLibrary.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -45,8 +42,9 @@ DynamicLibrary::DynamicLibrary(void* handle):
 //------------------------------------------------------------------------------
 DynamicLibrary::~DynamicLibrary()
 {
-  if (mHandle)
+  if (mHandle) {
     ::dlclose(mHandle);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -56,8 +54,7 @@ DynamicLibrary*
 DynamicLibrary::Load(const std::string& name,
                      std::string& error)
 {
-  if (name.empty())
-  {
+  if (name.empty()) {
     error = "Empty path";
     return NULL;
   }
@@ -65,13 +62,11 @@ DynamicLibrary::Load(const std::string& name,
   void* handle = NULL;
   handle = ::dlopen(name.c_str(), RTLD_NOW);
 
-  if (!handle)
-  {
+  if (!handle) {
     const char* zErrorString = ::dlerror();
     error += "Failed to load \"" + name + '"';
 
-    if (zErrorString)
-    {
+    if (zErrorString) {
       std::string dl_error = zErrorString;
       error += ": " + dl_error;
     }
@@ -88,8 +83,7 @@ DynamicLibrary::Load(const std::string& name,
 void*
 DynamicLibrary::GetSymbol(const std::string& symbol)
 {
-  if (!mHandle)
-  {
+  if (!mHandle) {
     std::cerr << "No handle object" << std::endl;
     return NULL;
   }
@@ -97,8 +91,7 @@ DynamicLibrary::GetSymbol(const std::string& symbol)
   void* dlsym_obj = ::dlsym(mHandle, symbol.c_str());
   const char* dlsym_error = ::dlerror();
 
-  if (dlsym_error)
-  {
+  if (dlsym_error) {
     std::cerr << "Cannot load symbol: " << symbol
               << " error: " << dlsym_error << std::endl;
     return NULL;

@@ -24,11 +24,8 @@
 #ifndef __EOS_PF_DYNAMIC_LIBRARY_HH__
 #define __EOS_PF_DYNAMIC_LIBRARY_HH__
 
-/*----------------------------------------------------------------------------*/
-#include <string>
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
+#include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -37,7 +34,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class DynamicLibrary
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Load dynamic library
@@ -64,7 +61,7 @@ class DynamicLibrary
   //----------------------------------------------------------------------------
   void* GetSymbol(const std::string& name);
 
- private:
+private:
 
   void* mHandle;  ///< handle to dynamic library
 

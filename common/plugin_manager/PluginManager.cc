@@ -50,7 +50,9 @@ PluginManager::PluginManager()
 PluginManager::~PluginManager()
 {
   // Just in case it wasn't called earlier
+  std::cerr << __FUNCTION__ << "msg=\"begin destructor\"" << std::endl;
   Shutdown();
+  std::cerr << __FUNCTION__ << "msg=\"end destructor\"" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -72,7 +74,9 @@ int32_t PluginManager::Shutdown()
 
   for (auto func = mExitFuncVec.begin(); func != mExitFuncVec.end(); ++func) {
     try {
-      result += (*func)();
+      // @todo(esindril): this could be re-enabled if we don't do the cleaning
+      // ourselves before
+      //result += (*func)();
     } catch (...) {
       result = -1;
     }
