@@ -377,8 +377,8 @@ public:
   void
   Shutdown()
   {
-    for (auto it = mDbMap.begin(); it != mDbMap.end(); it++) {
-      ShutdownDB(it->first);
+    while (!mDbMap.empty()) {
+      ShutdownDB(mDbMap.begin()->first);
     }
 
     eos::common::RWMutexWriteLock lock(mMapMutex);
