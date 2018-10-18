@@ -24,10 +24,44 @@
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include <new>
+#include <type_traits>
 
 EOSCOMMONNAMESPACE_BEGIN
 
-Mapping::VirtualIdentity Logging::gZeroVid;
+static std::atomic<int> sCounter {0};
+static typename std::aligned_storage<sizeof(Logging), alignof(Logging)>::type
+logging_buf; ///< Memory for the global logging object
+Logging& gLogging = reinterpret_cast<Logging&>(logging_buf);
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+LoggingInitializer::LoggingInitializer()
+{
+  if (sCounter++ == 0) {
+    new(&gLogging) Logging();  // placement new
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+LoggingInitializer::~LoggingInitializer()
+{
+  if (--sCounter == 0) {
+    (&gLogging)->~Logging();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get singleton instance
+//------------------------------------------------------------------------------
+Logging&
+Logging::GetInstance()
+{
+  return gLogging;
+}
 
 //------------------------------------------------------------------------------
 // Constructor

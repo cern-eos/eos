@@ -164,31 +164,31 @@ EOSCOMMONNAMESPACE_BEGIN
     0,0,0,0, "",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
 #define eos_static_debug(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_DEBUG), __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_DEBUG), __VA_ARGS__)
 #define eos_static_info(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                             eos::common::Logging::gZeroVid, "", (LOG_INFO), __VA_ARGS__)
+                             eos::common::gLogging.gZeroVid, "", (LOG_INFO), __VA_ARGS__)
 #define eos_static_notice(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_NOTICE), __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_NOTICE), __VA_ARGS__)
 #define eos_static_warning(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_WARNING), __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_WARNING), __VA_ARGS__)
 #define eos_static_err(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_ERR), __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_ERR), __VA_ARGS__)
 #define eos_static_crit(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_CRIT), __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_CRIT), __VA_ARGS__)
 #define eos_static_alert(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid, "", (LOG_ALERT)  , __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid, "", (LOG_ALERT)  , __VA_ARGS__)
 #define eos_static_emerg(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
 #define eos_static_silent(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::Logging::gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__)
+                                          eos::common::gLogging.gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__)
 
 //------------------------------------------------------------------------------
 //! Log Macros to check if a function would log in a certain log level
@@ -326,11 +326,11 @@ public:
 class Logging
 {
 public:
-  static Mapping::VirtualIdentity gZeroVid; //< Root vid
   //! Typedef for circular index pointing to the next message position int he log array
   typedef std::vector< unsigned long > LogCircularIndex;
   //! Typdef for log message array
   typedef std::vector< std::vector <XrdOucString> > LogArray;
+  Mapping::VirtualIdentity gZeroVid; ///< Root vid
   LogCircularIndex gLogCircularIndex; //< global circular index
   LogArray gLogMemory; //< global logging memory
   unsigned long gCircularIndexSize; //< global circular index size
@@ -348,14 +348,19 @@ public:
   std::map<std::string, FILE*> gLogFanOut;
 
   //----------------------------------------------------------------------------
-  //! Get singleton instance - this method MUST be in the header file so that
-  //! any external libraries get the same instace of the logging object.
+  //! Get singleton instance
   //----------------------------------------------------------------------------
-  static Logging& GetInstance()
-  {
-    static Logging instance;
-    return instance;
-  }
+  static Logging& GetInstance();
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Logging();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~Logging() = default;
 
   //----------------------------------------------------------------------------
   //! Get current loglevel
@@ -616,13 +621,24 @@ public:
   //---------------------------------------------------------------------------
 
   bool rate_limit(struct timeval& tv, int priority, const char* file, int line);
-
-private:
-  //----------------------------------------------------------------------------
-  //! Constructor - use GetInstance to get singleton object
-  //----------------------------------------------------------------------------
-  Logging();
 };
+
+extern Logging& gLogging; ///< Global logging object
+
+//------------------------------------------------------------------------------
+//! Static Logging initializer
+//------------------------------------------------------------------------------
+static struct LoggingInitializer {
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  LoggingInitializer();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~LoggingInitializer();
+} sLoggingInit; ///< Static initializer for every translation unit
 
 EOSCOMMONNAMESPACE_END
 
