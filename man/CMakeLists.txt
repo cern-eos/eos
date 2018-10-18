@@ -26,7 +26,6 @@ add_custom_target(
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/man1/)
 
 add_dependencies(man eos)
-link_directories(${CMAKE_BINARY_DIR}/common)
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/
