@@ -26,10 +26,13 @@ add_custom_target(
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/man1/)
 
 add_dependencies(man eos)
+link_directories(${CMAKE_BINARY_DIR}/common)
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/
-  COMMAND ${CMAKE_COMMAND} -E env "PATH=${CMAKE_BINARY_DIR}/console:$ENV{PATH}" ${CMAKE_CURRENT_SOURCE_DIR}/create_man.sh
+  COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/common:$ENV{LD_LIBRARY_PATH}" 
+                                  "PATH=${CMAKE_BINARY_DIR}/console:$ENV{PATH}" 
+          ${CMAKE_CURRENT_SOURCE_DIR}/create_man.sh
 )
 
 install(
