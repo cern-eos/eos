@@ -550,7 +550,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (!isCreation) {
     // Get the real size of the file, not the local stripe size!
-    struct stat statinfo;
+    struct stat statinfo {};
 
     if ((retc = layOut->Stat(&statinfo))) {
       return gOFS.Emsg(epname, error, EIO,
