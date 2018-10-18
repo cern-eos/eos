@@ -27,7 +27,6 @@
 #include "mgm/Namespace.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "common/AssistedThread.hh"
-#include <qclient/WaitableQueue.hh>
 #include <sys/types.h>
 #include <string>
 #include <deque>
@@ -73,10 +72,6 @@ private:
   void DoRefresh(std::string& egroupname, std::string& username);
 
 public:
-  /// static queue with pairs of egroup/username
-  static qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
-  PendingQueue;
-
   /// static mutex protecting static Egroup objects
   static XrdSysMutex Mutex;
 

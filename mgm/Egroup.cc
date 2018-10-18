@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Egroup.hh"
-/*----------------------------------------------------------------------------*/
+#include <qclient/WaitableQueue.hh>
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
 #include <ldap.h>
 
 
@@ -34,8 +32,8 @@ EOSMGMNAMESPACE_BEGIN
 XrdSysMutex Egroup::Mutex;
 std::map < std::string, std::map < std::string, bool > > Egroup::Map;
 std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
-qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
-Egroup::PendingQueue;
+static qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
+PendingQueue;
 
 /*----------------------------------------------------------------------------*/
 /**
