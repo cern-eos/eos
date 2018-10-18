@@ -1278,7 +1278,7 @@ Recycle::Purge(XrdOucString& stdOut, XrdOucString& stdErr,
     }
   }
 
-  int retc = gOFS->_find(sdir, lError, stdErr, vid,
+  int retc = gOFS->_find(sdir, lError, stdErr, rootvid,
                          findmap,
                          0, 0, false, 0, true, depth);
 
@@ -1309,7 +1309,7 @@ Recycle::Purge(XrdOucString& stdOut, XrdOucString& stdErr,
         continue;
       }
 
-      if (!gOFS->_stat(pathname.c_str(), &buf, lError, vid, "")) {
+      if (!gOFS->_stat(pathname.c_str(), &buf, lError, rootvid, "")) {
         // execute a proc command
         ProcCommand Cmd;
         XrdOucString info;
