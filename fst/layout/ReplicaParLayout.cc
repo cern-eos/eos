@@ -181,6 +181,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         mLastTriedUrl = file->GetLastTriedUrl();
         eos_err("Failed to open replica - local open failed on path=%s errno=%d",
                 mLocalPath.c_str(), errno);
+        delete file;
         return gOFS.Emsg("ReplicaOpen", *mError, errno,
                          "open replica - local open failed ", mLocalPath.c_str());
       }
