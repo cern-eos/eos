@@ -70,9 +70,10 @@ set(COMMON_UT_SRCS
   common/ThreadPoolTest.cc
   common/RWMutexTest.cc
   common/StringConversionTests.cc)
+  common/LoggingTests.cc
+  common/LoggingTestsUtils.cc)
 
-set(FST_UT_SRCS
-  #fst/XrdFstOssFileTest.cc
+set(FST_UT_SRCS  #fst/XrdFstOssFileTest.cc
   fst/XrdFstOfsFileTest.cc
   fst/HealthTest.cc)
 
