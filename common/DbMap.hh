@@ -216,7 +216,7 @@ private:
   // ------------------------------------------------------------------------
   //! this list is used to iterate through the db by block
   // ------------------------------------------------------------------------
-  static thread_local TlogentryVec* tlDbItList;
+  static thread_local std::unique_ptr<TlogentryVec> tlDbItList;
 
   // ------------------------------------------------------------------------
   //! these members are used for the iteration through the map
@@ -739,7 +739,7 @@ public:
       pIt = pMap.begin();
     } else {
       tlDbItList->clear();
-      pDb->getAll(tlDbItList, pDbIterationChunkSize, NULL);
+      pDb->getAll(tlDbItList.get(), pDbIterationChunkSize, NULL);
       tlDbIt = tlDbItList->begin();
     }
 
@@ -785,7 +785,7 @@ public:
 
         tlDbItList->clear();
 
-        if (pDb->getAll(tlDbItList, pDbIterationChunkSize, lastentry) == 0) {
+        if (pDb->getAll(tlDbItList.get(), pDbIterationChunkSize, lastentry) == 0) {
           endIter(unlockit);
           return false;
         }

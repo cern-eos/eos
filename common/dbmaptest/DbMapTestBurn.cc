@@ -36,7 +36,8 @@
 using namespace eos::common;
 
 thread_local bool DbMapT::tlIterating {false};
-thread_local DbMapT::TlogentryVec* DbMapT::tlDbItList {new DbMapT::TlogentryVec()};
+thread_local std::unique_ptr<DbMapT::TlogentryVec>
+DbMapT::tlDbItList {new DbMapT::TlogentryVec()};
 thread_local DbMapT::TlogentryVec::const_iterator DbMapT::tlDbIt;
 
 const unsigned long int NNUM_THREADS = 10;
