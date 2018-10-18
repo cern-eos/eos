@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.8 Citrine``
+==================
+
+2018-10-19
+
+Bug
+---
+
+* [EOS-3001] - fix clients seeing deleted CWDs after few minutes
+
 
 ``v4.4.7 Citrine``
 ==================
