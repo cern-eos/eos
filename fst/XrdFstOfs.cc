@@ -236,6 +236,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   // (e.g. let time to finish write operations)
   if (gOFS.Messaging) {
     gOFS.Messaging->StopListener();  // stop any communication
+    delete gOFS.Messaging;
   }
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -298,6 +299,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   if (gOFS.Messaging) {
     gOFS.Messaging->StopListener();
+    delete gOFS.Messaging;
   }
 
   // Wait for 60 seconds heartbeat timeout (see mgm/FsView) + 30 seconds

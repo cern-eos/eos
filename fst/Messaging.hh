@@ -41,7 +41,6 @@ public:
     XrdMqMessaging(url, defaultreceiverqueue, advisorystatus, advisoryquery)
   {
     mSom = som;
-    eos::common::LogId();
   }
 
   virtual
