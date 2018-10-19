@@ -361,7 +361,7 @@ uint64_t ChangeLogFile::storeRecord(char type, Buffer& record)
   //--------------------------------------------------------------------------
   uint16_t size   = record.size();
   uint64_t offset = ::lseek(pFd, 0, SEEK_END);
-  uint64_t seq    = 0;
+  uint64_t seq    = 0ull;
   uint16_t magic  = RECORD_MAGIC;
   uint32_t opts   = type; // occupy the first byte (little endian)
   // the rest is unused for the moment

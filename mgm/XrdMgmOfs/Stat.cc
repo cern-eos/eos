@@ -93,18 +93,21 @@ XrdMgmOfs::stat(const char* inpath,
 
   errno = 0;
   int rc = _stat(path, buf, error, vid, ininfo, etag, follow, uri);
-  bool onDisk = ((buf->st_mode & EOS_TAPE_MODE_T) ? buf->st_nlink - 1 :
-                 buf->st_nlink) > 0;
 
-  if (!onDisk) {
-    buf->st_rdev |= XRDSFS_OFFLINE;
+  if (rc) {
+    if (errno == ENOENT) {
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+    }
   } else {
-    buf->st_rdev &= ~XRDSFS_OFFLINE;
-  }
+    bool onDisk = ((buf->st_mode & EOS_TAPE_MODE_T) ? buf->st_nlink - 1 :
+                   buf->st_nlink) > 0;
 
-  if (rc && (errno == ENOENT)) {
-    MAYREDIRECT_ENOENT;
-    MAYSTALL_ENOENT;
+    if (!onDisk) {
+      buf->st_rdev |= XRDSFS_OFFLINE;
+    } else {
+      buf->st_rdev &= ~XRDSFS_OFFLINE;
+    }
   }
 
   return rc;

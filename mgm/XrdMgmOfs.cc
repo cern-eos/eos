@@ -447,7 +447,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     if (prep_path.length() == 0) {
       Emsg(epname, error, ENOENT,
-           "prepare - path empty or uses forbidden characters: ",
+           "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
       return SFS_ERROR;
     }
