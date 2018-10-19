@@ -430,6 +430,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // check that all files exist
   while (pptr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
+    std::string orig_path = prep_path;
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {
       const char* inpath = prep_path.c_str();
@@ -443,6 +444,13 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       MAYREDIRECT;
     }
     XrdSfsFileExistence check;
+
+    if (prep_path.length() == 0) {
+      Emsg(epname, error, ENOENT,
+           "prepare - path empty or uses forbidden characters: ",
+           orig_path.c_str());
+      return SFS_ERROR;
+    }
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {

@@ -95,6 +95,11 @@ XrdMgmOfs::_exists(const char* path,
  */
 /*----------------------------------------------------------------------------*/
 {
+  if ((path == nullptr) || (strlen(path) == 0)) {
+    eos_err("%s" "msg=\"null or empty path\"");
+    return SFS_ERROR;
+  }
+
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
@@ -145,7 +150,8 @@ XrdMgmOfs::_exists(const char* path,
     std::shared_ptr<eos::IContainerMD> dir;
     eos::IContainerMD::XAttrMap attrmap;
     // -------------------------------------------------------------------------
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetParentPath(), false);
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+        cPath.GetParentPath(), false);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
@@ -225,8 +231,8 @@ XrdMgmOfs::_exists(const char* path,
   {
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock ns_rd_lock;
-
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path, false);
+
     if (take_lock) {
       ns_rd_lock.Grab(gOFS->eosViewRWMutex);
     }
@@ -247,8 +253,8 @@ XrdMgmOfs::_exists(const char* path,
     // -------------------------------------------------------------------------
     std::shared_ptr<eos::IFileMD> fmd;
     eos::common::RWMutexReadLock ns_rd_lock;
-
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path, false);
+
     if (take_lock) {
       ns_rd_lock.Grab(gOFS->eosViewRWMutex);
     }
