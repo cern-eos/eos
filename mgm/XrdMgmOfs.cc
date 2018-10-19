@@ -430,7 +430,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // check that all files exist
   while (pptr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
-    std::string orig_path = prep_path;
+    std::string orig_path = prep_path.c_str();
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {
       const char* inpath = prep_path.c_str();

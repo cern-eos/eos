@@ -96,7 +96,7 @@ XrdMgmOfs::_exists(const char* path,
 /*----------------------------------------------------------------------------*/
 {
   if ((path == nullptr) || (strlen(path) == 0)) {
-    eos_err("%s" "msg=\"null or empty path\"");
+    eos_err("%s", "msg=\"null or empty path\"");
     return SFS_ERROR;
   }
 
