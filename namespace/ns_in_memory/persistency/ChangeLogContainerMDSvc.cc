@@ -203,7 +203,7 @@ public:
           // ---------------------------------------------------------------
           if (currentCont->getName() == it->second.ptr->getName()) {
             // meta data change - keeping directory name
-            mem_found_cont = mem_current_cont;
+            *mem_found_cont = *mem_current_cont;
             it.value().logOffset = itU->second.logOffset;
             pContSvc->notifyListeners(it->second.ptr.get() ,
                                       IContainerMDChangeListener::MTimeChange);
