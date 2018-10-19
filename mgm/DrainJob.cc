@@ -288,7 +288,6 @@ retry:
 
   fs->SetDrainStatus(eos::common::FileSystem::kDrainWait);
   gOFS->WaitUntilNamespaceIsBooted();
-
   // build the list of files to migrate
   long long totalfiles = 0;
   long long wopenfiles = 0;
@@ -615,7 +614,7 @@ nofilestodrain:
       // we automatically switch this filesystem to the 'empty' state -
       // if the system is not shutting down
       //--------------------------------------------------------------------------
-      fs->SetString("configstatus", "empty");
+      static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus", "empty");
       FsView::gFsView.StoreFsConfig(fs);
       fs->SetLongLong("stat.drainprogress", 100);
     }
