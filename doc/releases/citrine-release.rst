@@ -26,6 +26,7 @@ Bug
 
 * [EOS-2947] - MGM crash near eos::HierarchicalView::findLastContainer
 * [EOS-2981] - DrainJob destructor: Thread attempts to join with itself
+* [EOS-3009] - -checksum argument of fileinfo not supported anymore
 * MGM: Fix master-slave propagation of container metadata
 
 
