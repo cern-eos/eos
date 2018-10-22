@@ -29,7 +29,6 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
-#include "namespace/ns_quarkdb/views/PathLookupState.hh"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"

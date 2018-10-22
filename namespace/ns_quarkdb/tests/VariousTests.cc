@@ -24,14 +24,14 @@
 #include <memory>
 #include <gtest/gtest.h>
 
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb_static/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"

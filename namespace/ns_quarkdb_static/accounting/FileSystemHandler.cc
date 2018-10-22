@@ -18,7 +18,7 @@
 
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb_static/accounting/FileSystemHandler.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "namespace/utils/FileListRandomPicker.hh"
 #include "common/Assert.hh"
 #include "qclient/QSet.hh"

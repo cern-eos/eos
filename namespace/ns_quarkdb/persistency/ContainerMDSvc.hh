@@ -31,7 +31,7 @@
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "qclient/QHash.hh"
 #include <list>
 #include <map>

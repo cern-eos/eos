@@ -55,10 +55,7 @@ add_library(
   persistency/RequestBuilder.cc          persistency/RequestBuilder.hh
   persistency/Serialization.cc           persistency/Serialization.hh
   persistency/UnifiedInodeProvider.cc    persistency/UnifiedInodeProvider.hh
-  explorer/NamespaceExplorer.cc          explorer/NamespaceExplorer.hh
-  flusher/MetadataFlusher.cc             flusher/MetadataFlusher.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
-                                         views/PathLookupState.hh
   accounting/QuotaStats.cc               accounting/QuotaStats.hh
 )
 

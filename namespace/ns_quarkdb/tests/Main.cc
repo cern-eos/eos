@@ -22,7 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include <gtest/gtest.h>
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 
 int main(int argc, char **argv) {
   const std::string testpath("/tmp/eos-ns-tests/");

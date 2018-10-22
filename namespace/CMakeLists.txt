@@ -78,6 +78,9 @@ add_library(
   ns_quarkdb_static/accounting/FileSystemView.cc          ns_quarkdb_static/accounting/FileSystemView.hh
                                                           ns_quarkdb_static/accounting/SetChangeList.hh
 
+  ns_quarkdb_static/explorer/NamespaceExplorer.cc         ns_quarkdb_static/explorer/NamespaceExplorer.hh
+  ns_quarkdb_static/flusher/MetadataFlusher.cc            ns_quarkdb_static/flusher/MetadataFlusher.hh
+
 )
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)

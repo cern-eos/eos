@@ -17,7 +17,7 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
