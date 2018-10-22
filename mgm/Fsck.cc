@@ -257,22 +257,31 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
         } else {
           // Not ok and contributes to replica offline errors
           try {
-            // TODO(gbitzes): This could be improved for QDB namespace. We don't
-            // need the FileMD contents, we just need to know if it exists.
-            eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndWait(gOFS->eosView,
+            eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
                 gOFS->eosFsView, fsid);
+
             XrdSysMutexHelper lock(eMutex);
-            eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+
+            // Only need the view lock if we're in-memory
+            eos::common::RWMutexReadLock nslock;
+            if(gOFS->eosView->inMemory()) {
+              nslock.Grab(gOFS->eosViewRWMutex);
+            }
+
+            std::deque<std::pair<FileIdentifier, folly::Future<bool>>> futs;
 
             for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
                  (it_fid && it_fid->valid()); it_fid->next()) {
-              eos::IFileMD::id_t fid = it_fid->getElement();
-              auto fmd = gOFS->eosFileService->getFileMD(fid);
 
-              if (fmd) {
+              eos::FileIdentifier fid(it_fid->getElement());
+              futs.emplace_back(fid, gOFS->eosFileService->hasFileMD(fid));
+            }
+
+            for(size_t i = 0; i < futs.size(); i++) {
+              if(futs[i].second.get() == true) {
                 eFsUnavail[fsid]++;
-                eFsMap["rep_offline"][fsid].insert(fid);
-                eMap["rep_offline"].insert(fid);
+                eFsMap["rep_offline"][fsid].insert(futs[i].first.getUnderlyingUInt64());
+                eMap["rep_offline"].insert(futs[i].first.getUnderlyingUInt64());
                 eCount["rep_offline"]++;
               }
             }
