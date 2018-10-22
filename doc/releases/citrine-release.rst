@@ -15,6 +15,20 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.9 Citrine``
+==================
+
+2018-10-22
+
+Bug
+---
+
+* [EOS-2947] - MGM crash near eos::HierarchicalView::findLastContainer
+* [EOS-2981] - DrainJob destructor: Thread attempts to join with itself
+* MGM: Fix master-slave propagation of container metadata
+
+
 ``v4.4.8 Citrine``
 ==================
 
@@ -35,7 +49,7 @@ Bug
 ---
 
 * [EOS-2992],[EOS-2994],[EOS-2967] - clients shows empty file list after caps expired
-* [EOS-2997] - GIT usage broken since hard-links are enabled by default 
+* [EOS-2997] - GIT usage broken since hard-links are enabled by default
 
 ``v4.4.6 Citrine``
 ==================
