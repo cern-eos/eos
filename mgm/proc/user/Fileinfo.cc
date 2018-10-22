@@ -648,10 +648,6 @@ ProcCommand::FileInfo(const char* path)
           if (!Monitoring) {
             stdOut += "*******";
           }
-        } else {
-          stdOut = "";
-          stdErr = SSTR("error: unkown option - " << option.c_str()).c_str();
-          retc = EINVAL;
         }
       }
     }
