@@ -168,9 +168,24 @@ int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_import(std::string& sfsid, std::string& extSrc, std::string &lclDst,
+int proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
                    XrdOucString& stdOut, XrdOucString& stdErr,
                    eos::common::Mapping::VirtualIdentity& vid_in);
+
+//------------------------------------------------------------------------------
+//! Check whether the import procedure can be done at given destination.
+//! The destination must be a directory and the scheduling space of the
+//! destination must be identical to the filesystem space.
+//!
+//! @param fs file system object
+//! @param lclDst destination path
+//! @param stdOut normal output string
+//! @param stdErr error output string
+//!
+//! @return true if import can be done at destination or false otherwise
+//------------------------------------------------------------------------------
+bool proc_fs_can_import_to_dst(eos::mgm::FileSystem* fs, const char* dst,
+                               XrdOucString& stdOut, XrdOucString& stdErr);
 
 //------------------------------------------------------------------------------
 //! Get type of entity. It can either be a filesystem, an eos group or an eos

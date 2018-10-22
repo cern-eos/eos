@@ -735,8 +735,71 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   eos::mgm::FileSystem* fs = 0;
 
+  // Check valid fsid was provided
   if (FsView::gFsView.mIdView.count(fsid)) {
     fs = FsView::gFsView.mIdView[fsid];
+
+    // Check the external path begins with the filesystem local prefix
+    const char* localprefix = fs->GetPath().c_str();
+
+    if (!strncmp(extSrc.c_str(), localprefix, strlen(localprefix))) {
+      // Check the import procedure can be done at given destination
+      if (proc_fs_can_import_to_dst(fs, lclDst.c_str(), stdOut, stdErr)) {
+        // Create destination path if it doesn't exist
+        XrdSfsFileExistence file_exists;
+        XrdOucErrInfo errInfo;
+        int ec = gOFS->_exists(lclDst.c_str(), file_exists, errInfo);
+
+        if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
+          mode_t mode = SFS_O_MKPTH;
+
+          if (gOFS->_mkdir(lclDst.c_str(), mode, errInfo, vid_in)) {
+            stdErr = "error: could not create destination path='";
+            stdErr += lclDst.c_str();
+            stdErr += "'";
+            retc = errno;
+            return retc;
+          }
+        }
+
+        // Prepare import scan command message
+        XrdOucString receiver = fs->GetQueue().c_str();
+        XrdOucString opaquestring = "";
+
+        opaquestring += "&mgm.manager=";
+        opaquestring += gOFS->ManagerId.c_str();
+        opaquestring += "&mgm.fsid=";
+        opaquestring += sfsid.c_str();
+        opaquestring += "&mgm.extpath=";
+        opaquestring += extSrc.c_str();
+        opaquestring += "&mgm.lclpath=";
+        opaquestring += lclDst.c_str();
+
+
+        XrdMqMessage message("importScan");
+        XrdOucString msgbody = "mgm.cmd=importscan";
+        msgbody += opaquestring;
+        message.SetBody(msgbody.c_str());
+
+        if (Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+          stdOut += "Importing of ";
+          stdOut += extSrc.c_str();
+          stdOut += " started successfully";
+        } else {
+          eos_static_err("unable to send verification message to %s",
+                         receiver.c_str());
+          stdErr = "error: could not send message to filesystem node";
+          retc = EIO;
+        }
+      } else {
+        retc = EPERM;
+      }
+    } else {
+      stdErr = "error: external source does not match with filesystem path='";
+      stdErr += localprefix;
+      stdErr += "'";
+      retc = EINVAL;
+    }
   } else {
     stdErr = "error: could not retrieve filesystem identified by <";
     stdErr += sfsid.c_str();
@@ -744,38 +807,96 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
     retc = EINVAL;
   }
 
-  XrdOucString receiver = fs->GetQueue().c_str();
-  XrdOucString opaquestring = "";
-
-  opaquestring += "&mgm.manager=";
-  opaquestring += gOFS->ManagerId.c_str();
-  opaquestring += "&mgm.fsid=";
-  opaquestring += sfsid.c_str();
-  opaquestring += "&mgm.extpath=";
-  opaquestring += extSrc.c_str();
-  opaquestring += "&mgm.lclpath=";
-  opaquestring += lclDst.c_str();
-
-
-  XrdMqMessage message("importScan");
-  XrdOucString msgbody = "mgm.cmd=importscan";
-  msgbody += opaquestring;
-  message.SetBody(msgbody.c_str());
-
-  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-    eos_static_err("unable to send verification message to %s",
-                   receiver.c_str());
-    stdErr = "error: could not send message to filesystem node";
-    retc = EIO;
-  }
-
-  if (!retc) {
-    stdOut += "Importing of ";
-    stdOut += extSrc.c_str();
-    stdOut += " started successfully";
-  }
-
   return retc;
+}
+
+//------------------------------------------------------------------------------
+// Checks the destination path is a directory. Also checks that the
+// scheduling space of the destination is identical to the filesystem space.
+//------------------------------------------------------------------------------
+bool
+proc_fs_can_import_to_dst(eos::mgm::FileSystem* fs, const char* dst,
+                          XrdOucString& stdOut, XrdOucString& stdErr)
+{
+  eos::common::Path cPath(dst);
+  XrdSfsFileExistence file_exists;
+  XrdOucErrInfo errInfo;
+
+  int ec = gOFS->_exists(cPath.GetPath(), file_exists, errInfo);
+
+  if (!ec) {
+    // Destination path does not exist --> check parent path
+    if (file_exists == XrdSfsFileExistNo) {
+      return proc_fs_can_import_to_dst(fs, cPath.GetParentPath(),
+                                       stdOut, stdErr);
+    } else if (file_exists == XrdSfsFileExistIsDirectory) {
+      // Grab scheduling space of this path
+      std::shared_ptr<eos::IContainerMD> dmd = nullptr;
+      eos::IContainerMD::XAttrMap attrmap;
+      std::string dstSpace = "";
+
+      eos::common::Mapping::VirtualIdentity rootvid;
+      eos::common::Mapping::Root(rootvid);
+
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      try {
+        dmd = gOFS->eosView->getContainer(cPath.GetPath());
+        gOFS->_attr_ls(gOFS->eosView->getUri(dmd.get()).c_str(),
+                       errInfo, rootvid, 0, attrmap, false);
+
+        if (attrmap.count("user.forced.space")) {
+          dstSpace = attrmap["user.forced.space"];
+        }
+
+        if (attrmap.count("sys.forced.space")) {
+          dstSpace = attrmap["sys.forced.space"];
+        }
+      } catch (eos::MDException& e) {
+        dmd.reset();
+        eos_static_err("msg=\"exception retrieving metadata\" ec=%d emsg=\"%s\"",
+                       e.getErrno(), e.getMessage().str().c_str());
+        stdErr = "error: could not retrieve metadata for path='";
+        stdErr += cPath.GetPath();
+        stdErr += "'";
+        return false;
+      }
+
+      if (!dstSpace.empty()) {
+        std::string fsSpace = fs->GetString("schedgroup");
+
+        std::string::size_type dpos = 0;
+        if ((dpos = fsSpace.find(".")) != std::string::npos) {
+          fsSpace.erase(dpos);
+        }
+
+        if (dstSpace != fsSpace) {
+          stdErr = "error: different destination space [";
+          stdErr += dstSpace.c_str();
+          stdErr += "] and filesystem space [";
+          stdErr += fsSpace.c_str();
+          stdErr += "]";
+          return false;
+        }
+      } else {
+        stdErr = "error: could not identify scheduling space of path='";
+        stdErr += cPath.GetPath();
+        stdErr += "'";
+        return false;
+      }
+    } else {
+      stdErr = "error: not a directory -- destination path='";
+      stdErr += cPath.GetPath();
+      stdErr += "'";
+      return false;
+    }
+  } else {
+    stdErr = "error: could not check existence of path='";
+    stdErr += cPath.GetPath();
+    stdErr += "'";
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

@@ -422,24 +422,16 @@ FsCmd::Import(const eos::console::FsProto::ImportProto& importProto)
     if (FsView::gFsView.mIdView.count(importProto.fsid())) {
       std::string extPath = importProto.externalpath().c_str();
       std::string lclPath = importProto.localpath().c_str();
-      XrdOucErrInfo statError;
-      struct stat buf;
 
-      // Check that local path exists and is a directory
-      if (gOFS->_stat(lclPath.c_str(), &buf, statError, mVid, (char*) 0,
-                      (std::string*) 0, false)) {
-        mErr = "error: cannot stat local path " + lclPath + "\n";
-        mErr += statError.getErrText();
-        retc = ENOENT;
-      } else if (S_ISDIR(buf.st_mode)) {
+      // Check local path is an absolute path
+      if (lclPath.find("/") == 0) {
         XrdOucString outLocal, errLocal;
-        retc = proc_fs_import(sfsid, extPath, lclPath, outLocal,
-                              errLocal, mVid);
+        retc = proc_fs_import(sfsid, extPath, lclPath, outLocal, errLocal, mVid);
         mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
         mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
       } else {
-        mErr = "error: provided path " + lclPath + " is not a directory";
         retc = EINVAL;
+        mErr = "error: destination path must be an absolute path";
       }
     } else {
       retc = EINVAL;

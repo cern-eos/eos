@@ -482,6 +482,14 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
       soption = option;
+
+      // Local path must be an absolute path
+      if (soption.find("/") != 0) {
+        std::cerr << "error: <local_path> must be an absolute path"
+                  << std::endl;
+        return false;
+      }
+
       import->set_localpath(soption);
     }
   } else if (cmd == "rm") {
