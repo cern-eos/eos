@@ -29,7 +29,7 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
-#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "proto/ContainerMd.pb.h"
@@ -364,7 +364,7 @@ public:
   //----------------------------------------------------------------------------
   inline void setContainerAcc(IFileMDChangeListener* contacc)
   {
-    mContAcc = dynamic_cast<eos::ContainerAccounting*>(contacc);
+    mContAcc = dynamic_cast<eos::QuarkContainerAccounting*>(contacc);
   }
 
 private:
@@ -382,7 +382,7 @@ private:
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
   eos::SyncTimeAccounting* mSyncTimeAcc; ///< Sync time accounting view
-  eos::ContainerAccounting* mContAcc; ///< Subtree size accounting
+  eos::QuarkContainerAccounting* mContAcc; ///< Subtree size accounting
 };
 
 EOSNSNAMESPACE_END

@@ -1175,7 +1175,8 @@ main(int argc, char* argv[])
                 << rate << " Hz" << std::endl;
     }
 
-    // Initialize the file meta-data service
+    // Initialize the file meta-data serviceaccounting view
+  eos::QuarkContainerAccounting* mContAcc; ///< Subtree
     std::cout << "Initialize the file meta-data service" << std::endl;
     file_svc->setContMDService(cont_svc.get());
     // Create views for sync time and tree size propagation
@@ -1183,7 +1184,7 @@ main(int argc, char* argv[])
     eos::IContainerMDChangeListener* sync_view =
       new eos::SyncTimeAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
     eos::IFileMDChangeListener* cont_acc =
-      new eos::ContainerAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
+      new eos::QuarkContainerAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
     conv_file_svc->setSyncTimeAcc(sync_view);
     conv_file_svc->setContainerAcc(cont_acc);
     conv_file_svc->configure(config_file);

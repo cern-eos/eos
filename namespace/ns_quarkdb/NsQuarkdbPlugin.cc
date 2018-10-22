@@ -18,7 +18,7 @@
 
 #include "namespace/ns_quarkdb/NsQuarkdbPlugin.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
@@ -239,7 +239,7 @@ NsQuarkdbPlugin::CreateContAcc(PF_PlatformServices* services)
 
   eos::common::RWMutex* ns_mutex = static_cast<eos::common::RWMutex*>
                                    (ns_lock_svc.ptrService);
-  return new ContainerAccounting(pContMDSvc, ns_mutex);
+  return new QuarkContainerAccounting(pContMDSvc, ns_mutex);
 }
 
 //------------------------------------------------------------------------------
@@ -252,7 +252,7 @@ NsQuarkdbPlugin::DestroyContAcc(void* obj)
     return -1;
   }
 
-  delete static_cast<ContainerAccounting*>(obj);
+  delete static_cast<QuarkContainerAccounting*>(obj);
   return 0;
 }
 

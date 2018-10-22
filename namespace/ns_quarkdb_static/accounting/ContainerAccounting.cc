@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
 #include <iostream>
 #include <chrono>
 
@@ -25,7 +25,7 @@ EOSNSNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 // Constructor
 //----------------------------------------------------------------------------
-ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc,
+QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc,
     eos::common::RWMutex* ns_mutex, int32_t update_interval)
   : mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
     mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
@@ -35,14 +35,14 @@ ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc,
 
   // If update interval is 0 then we disable async updates
   if (mUpdateIntervalSec) {
-    mThread = std::thread(&ContainerAccounting::PropagateUpdates, this);
+    mThread = std::thread(&QuarkContainerAccounting::PropagateUpdates, this);
   }
 }
 
 //----------------------------------------------------------------------------
 // Constructor
 //----------------------------------------------------------------------------
-ContainerAccounting::~ContainerAccounting()
+QuarkContainerAccounting::~QuarkContainerAccounting()
 {
   mShutdown = true;
 
@@ -55,7 +55,7 @@ ContainerAccounting::~ContainerAccounting()
 // Notifications about changes in the main view
 //----------------------------------------------------------------------------
 void
-ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
+QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 {
   switch (e->action) {
   // We are only interested in SizeChange events
@@ -80,7 +80,7 @@ ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 // Add tree
 //------------------------------------------------------------------------------
 void
-ContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
+QuarkContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
 {
   QueueForUpdate(obj->getId(), dsize);
 }
@@ -89,7 +89,7 @@ ContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
 // Remove tree
 //-------------------------------------------------------------------------------
 void
-ContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
+QuarkContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 {
   QueueForUpdate(obj->getId(), -dsize);
 }
@@ -98,7 +98,7 @@ ContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
 // Queue file info for update
 //------------------------------------------------------------------------------
 void
-ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
+QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 {
   uint16_t deepness = 0;
   std::shared_ptr<IContainerMD> cont;
@@ -131,7 +131,7 @@ ContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 // asynchronous thread.
 //------------------------------------------------------------------------------
 void
-ContainerAccounting::PropagateUpdates()
+QuarkContainerAccounting::PropagateUpdates()
 {
   while (true) {
     if (mShutdown) {

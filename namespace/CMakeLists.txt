@@ -63,7 +63,12 @@ add_library(
   utils/FileListRandomPicker.cc
   utils/ThreadUtils.cc
   utils/TestHelpers.cc
-  utils/Buffer.hh)
+  utils/Buffer.hh
+
+  # non-loadable classes used in QDB namespace
+  ns_quarkdb_static/accounting/ContainerAccounting.cc     ns_quarkdb_static/accounting/ContainerAccounting.hh
+
+)
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
 

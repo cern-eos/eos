@@ -38,7 +38,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
 //------------------------------------------------------------------------------
-class ContainerAccounting : public IFileMDChangeListener
+class QuarkContainerAccounting : public IFileMDChangeListener
 {
 public:
   //----------------------------------------------------------------------------
@@ -48,21 +48,21 @@ public:
   //! @param ns_mutex global (MGM) namespace mutex
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  ContainerAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+  QuarkContainerAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
                       int32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerAccounting();
+  virtual ~QuarkContainerAccounting();
 
   //----------------------------------------------------------------------------
   //! Delete copy/move constructor and assignment operators
   //----------------------------------------------------------------------------
-  ContainerAccounting(const ContainerAccounting& other) = delete;
-  ContainerAccounting& operator=(const ContainerAccounting& other) = delete;
-  ContainerAccounting(ContainerAccounting&& other) = delete;
-  ContainerAccounting& operator=(ContainerAccounting&& other) = delete;
+  QuarkContainerAccounting(const QuarkContainerAccounting& other) = delete;
+  QuarkContainerAccounting& operator=(const QuarkContainerAccounting& other) = delete;
+  QuarkContainerAccounting(QuarkContainerAccounting&& other) = delete;
+  QuarkContainerAccounting& operator=(QuarkContainerAccounting&& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view

@@ -64,7 +64,6 @@ add_library(
   flusher/MetadataFlusher.cc             flusher/MetadataFlusher.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
                                          views/PathLookupState.hh
-  accounting/ContainerAccounting.cc      accounting/ContainerAccounting.hh
   accounting/FileSystemHandler.cc        accounting/FileSystemHandler.hh
   accounting/FileSystemView.cc           accounting/FileSystemView.hh
   accounting/QuotaStats.cc               accounting/QuotaStats.hh
@@ -174,7 +173,6 @@ install(
 #-------------------------------------------------------------------------------
 add_executable(eos-ns-convert
   tools/ConvertMemToKV.cc
-  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
   accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
   persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
