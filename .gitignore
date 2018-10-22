@@ -36,6 +36,8 @@ __pycache__
 kineticio-dist.tgz
 # clion specific configs
 /cmake-build-debug/
+/cmake-build-relwithdebinfo/
+/cmake-build-release/
 /.idea/
 # eclipse specific configs
 /.settings/
