@@ -37,6 +37,7 @@
 
   XrdOucString response;
 
+  char* id = env.Get("mgm.import.id");
   char* afsid = env.Get("mgm.import.fsid");
   char* asize = env.Get("mgm.import.size");
   char* extpath = env.Get("mgm.import.extpath");
@@ -47,9 +48,9 @@
     ThreadLogId.SetLogId(alogid, tident);
   }
 
-  if (afsid && extpath && lpath && asize) {
-    eos_thread_info("import for extpath=%s lclpath=%s "
-                    "[fsid=%s, size=%s]", extpath, lpath, afsid, asize);
+  if (id && afsid && extpath && lpath && asize) {
+    eos_thread_info("import[id=%s] fsid=%s size=%s extpath=%s lclpath=%s",
+                     id, extpath, lpath, afsid, asize);
 
     unsigned long size = strtoull(asize, 0, 10);
     unsigned long fsid = strtoull(afsid, 0, 10);
@@ -98,7 +99,8 @@
       if (FsView::gFsView.mIdView.count(fsid)) {
         filesystem = FsView::gFsView.mIdView[fsid];
       } else {
-        eos_thread_err("msg=\"could not find filesystem fsid=%d\"", fsid);
+        eos_thread_err("import[id=%s] msg=\"could not find filesystem fsid=%d\"",
+                       id, fsid);
         gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
         return Emsg(epname, error, EBADR, "retrieve filesystem [EBADR]",
                     std::to_string(fsid).c_str());
@@ -114,7 +116,7 @@
         lpathSuffix.insert('/', 0);
       }
     } else {
-      eos_thread_err("could not determine filesystem prefix "
+      eos_thread_err("import[id=%s] could not determine filesystem prefix "
                      "in extpath=%s", extpath);
       gOFS->MgmStats.Add("ImportFailedFsPrefix", 0, 0, 1);
       return Emsg(epname, error, EBADE, "match fs prefix [EBADE]",
@@ -134,8 +136,8 @@
       } catch(eos::MDException& e) {
         std::string errmsg = e.getMessage().str();
         gOFS->MgmStats.Add("ImportFailedFmdCreate", 0, 0, 1);
-        eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
-                       e.getErrno(), errmsg.c_str());
+        eos_thread_err("import[id=%s] msg=\"exception\" ec=%d emsg=\"%s\"",
+                       id, e.getErrno(), errmsg.c_str());
         if (e.getErrno() == EEXIST) {
           return Emsg(epname, error, EEXIST, "create fmd [EEXIST]", lpath);
         } else {
@@ -192,8 +194,8 @@
       } catch(eos::MDException& e) {
         std::string errmsg = e.getMessage().str();
         gOFS->MgmStats.Add("ImportFailedFmdUpdate", 0, 0, 1);
-        eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"",
-                       e.getErrno(), errmsg.c_str());
+        eos_thread_err("import[id=%s] msg=\"exception\" ec=%d emsg=\"%s\"",
+                       id, e.getErrno(), errmsg.c_str());
         return Emsg(epname, error, e.getErrno(), "update fmd",
                     errmsg.c_str());
       }
@@ -211,8 +213,8 @@
     }
   } else {
     int envlen = 0;
-    eos_thread_err("import message does not contain all meta information: %s",
-                   env.Env(envlen));
+    eos_thread_err("import[id=%s] message does not contain all metadata: %s",
+                   id, env.Env(envlen));
     gOFS->MgmStats.Add("ImportFailedParameters", 0, 0, 1);
     XrdOucString filename = (extpath) ? extpath : "unknown";
     return Emsg(epname, error, EINVAL,

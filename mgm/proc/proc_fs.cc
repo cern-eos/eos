@@ -775,6 +775,10 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
         opaquestring += "&mgm.lclpath=";
         opaquestring += lclDst.c_str();
 
+        // Use timestamp as unique import scan id
+        std::string id = to_string(time(NULL)).c_str();
+        opaquestring += "&mgm.id=";
+        opaquestring += id.c_str();
 
         XrdMqMessage message("importScan");
         XrdOucString msgbody = "mgm.cmd=importscan";
@@ -784,7 +788,8 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
         if (Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
           stdOut += "Importing of ";
           stdOut += extSrc.c_str();
-          stdOut += " started successfully";
+          stdOut += " started successfully. Import id=";
+          stdOut += id.c_str();
         } else {
           eos_static_err("unable to send verification message to %s",
                          receiver.c_str());

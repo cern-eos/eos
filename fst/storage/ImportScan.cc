@@ -60,8 +60,8 @@ Storage::ImportScan()
     }
     
     mImportScanMutex.UnLock();
-    eos_static_debug("starting importScan fsid=%u extPath=%s lclPath=%s",
-                     scan->fsId, scan->extPath.c_str(),
+    eos_static_debug("ImportScan[id=%s] starting fsid=%u extPath=%s lclPath=%s",
+                     scan->id.c_str(), scan->fsId, scan->extPath.c_str(),
                      scan->lclPath.c_str());
 
     // Construct helper objects
@@ -69,7 +69,7 @@ Storage::ImportScan()
         FileIoPlugin::GetIoObject(scan->extPath.c_str()));
     if (!io) {
       eos_static_err("unable to retrieve IO object for %s",
-                     scan->extPath.c_str());
+                     scan->id.c_str(), scan->extPath.c_str());
       continue;
     }
 
@@ -83,7 +83,8 @@ Storage::ImportScan()
 
     // Scan the directory found at extPath
     while ((filePath = io->ftsRead(handle)) != "") {
-      eos_static_info("ImportScan -- processing file %s", filePath.c_str());
+      eos_static_info("ImportScan[id=%s] -- processing file %s",
+                       scan->id.c_str(), filePath.c_str());
       lFilePath = filePath;
 
       // Remove opaque from file path
@@ -123,6 +124,8 @@ Storage::ImportScan()
       XrdOucErrInfo error;
       XrdOucString capOpaqueFile = "";
       capOpaqueFile += "/?mgm.pcmd=import";
+      capOpaqueFile += "&mgm.import.id=";
+      capOpaqueFile += scan->id.c_str();
       capOpaqueFile += "&mgm.import.fsid=";
       capOpaqueFile += (int) scan->fsId;
       capOpaqueFile += "&mgm.import.extpath=";
@@ -137,15 +140,17 @@ Storage::ImportScan()
       int rc = gOFS.CallManager(&error, 0, 0,
                                 capOpaqueFile, &response);
       if (rc) {
-        eos_static_err("unable to import file fs=%u name=%s dest=%s "
-                       "at manager %s reason=\"%s\"", scan->fsId,
-                       lFilePath.c_str(), destPath.c_str(),
-                       scan->managerId.c_str(), error.getErrText());
+        eos_static_err("ImportScan[id=%s] unable to import file "
+                       "fs=%u name=%s dest=%s at manager %s reason=\"%s\"",
+                       scan->id.c_str(), scan->fsId, lFilePath.c_str(),
+                       destPath.c_str(), scan->managerId.c_str(),
+                       error.getErrText());
       } else if (!response.length()) {
-        eos_static_err("file imported in namespace. Mgm file metadata expected "
-                       "but response is empty fs=%u name=%s dest=%s at manager %s",
-                       scan->fsId, lFilePath.c_str(), destPath.c_str(),
-                       scan->managerId.c_str());
+        eos_static_err("ImportScan[id=%s] file imported in namespace. "
+                       "Mgm file metadata expected but response is empty "
+                       "fs=%u name=%s dest=%s at manager %s",
+                       scan->id.c_str(), scan->fsId, lFilePath.c_str(),
+                       destPath.c_str(), scan->managerId.c_str());
       } else {
         XrdOucEnv fMdEnv(response.c_str());
         int envlen;
@@ -168,20 +173,23 @@ Storage::ImportScan()
                               fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
                               fMd.mtime(), fMd.mtime_ns(), fMd.layouterror(),
                               fMd.locations())) {
-              eos_static_err("unable to update local fmd entry from Mgm "
-                             "fs=%u name=%s metadata=%s", scan->fsId,
+              eos_static_err("ImportScan[id=%s] unable to update local fmd entry "
+                             "from Mgm fs=%u name=%s metadata=%s",
+                             scan->id.c_str(), scan->fsId,
                              lFilePath.c_str(), fMdEnv.Env(envlen));
             }
 
             delete localFmd;
           } else {
-            eos_static_err("unable to create local fmd entry fs=%u name=%s",
-                           scan->fsId, lFilePath.c_str());
+            eos_static_err("ImportScan[id=%s] unable to create local fmd entry "
+                           "fs=%u name=%s",
+                           scan->id.c_str(), scan->fsId, lFilePath.c_str());
           }
         } else {
-          eos_static_err("unable to parse Mgm file metadata. "
+          eos_static_err("ImportScan[id=%s] unable to parse Mgm file metadata. "
                          "No local fmd entry created fs=%u name=%s metadata=%s",
-                         scan->fsId, lFilePath.c_str(), fMdEnv.Env(envlen));
+                         scan->id.c_str(), scan->fsId, lFilePath.c_str(),
+                         fMdEnv.Env(envlen));
         }
       }
     }
