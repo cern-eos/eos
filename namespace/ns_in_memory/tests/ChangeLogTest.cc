@@ -80,6 +80,10 @@ public:
   {
     return folly::makeFuture(getFileMD(id));
   }
+  virtual folly::Future<bool> hasFileMD(eos::FileIdentifier id)
+  {
+    return false;
+  }
   virtual std::shared_ptr<eos::IFileMD> getFileMD(eos::IFileMD::id_t id)
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);

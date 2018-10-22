@@ -1132,7 +1132,7 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 folly::Future<bool> ChangeLogFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 {
   try {
-    IFileMDPtr md = getFileMD(id);
+    IFileMDPtr md = getFileMD(id.getUnderlyingUInt64());
     return (md != nullptr);
   }
   catch(const eos::MDException &e) {
