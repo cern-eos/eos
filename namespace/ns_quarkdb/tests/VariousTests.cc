@@ -525,6 +525,19 @@ TEST_F(VariousTests, EtagFormatting) {
 
 }
 
+TEST_F(FileMDFetching, ExistenceTest) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file1->getId(), 1);
+
+  mdFlusher()->synchronize();
+
+  ASSERT_TRUE(MetadataFetcher::doesFileMdExist(qcl(), FileIdentifier(1)).get());
+  ASSERT_FALSE(MetadataFetcher::doesFileMdExist(qcl(), FileIdentifier(2)).get());
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

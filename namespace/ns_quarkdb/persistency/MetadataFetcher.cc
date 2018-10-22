@@ -247,6 +247,34 @@ MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
          .then(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
+//----------------------------------------------------------------------------
+// Fetch file metadata info for current id
+//------------------------------------------------------------------------------
+static bool
+checkFileMdProtoExistence(redisReplyPtr reply, FileIdentifier id)
+{
+  MDStatus st = ensureStringReply(reply);
+  if(st.getErrno() == ENOENT) {
+    return false;
+  }
+
+  st.throwIfNotOk(SSTR("Error while fetching FileMD #"
+                       << id.getUnderlyingUInt64()
+                       << " protobuf from QDB: "));
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+// Check if given file id exists on the namespace
+//----------------------------------------------------------------------------
+folly::Future<bool>
+MetadataFetcher::doesFileMdExist(qclient::QClient& qcl, FileIdentifier id)
+{
+  return qcl.follyExec(RequestBuilder::readFileProto(id))
+         .then(std::bind(checkFileMdProtoExistence, _1, id));
+}
+
 //------------------------------------------------------------------------------
 // Parse ContainerMdProto from a redis response, throw on error.
 //------------------------------------------------------------------------------
