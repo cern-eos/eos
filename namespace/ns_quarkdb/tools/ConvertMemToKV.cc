@@ -1182,7 +1182,7 @@ main(int argc, char* argv[])
     // Create views for sync time and tree size propagation
     eos::common::RWMutex dummy_ns_mutex;
     eos::IContainerMDChangeListener* sync_view =
-      new eos::SyncTimeAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
+      new eos::QuarkSyncTimeAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
     eos::IFileMDChangeListener* cont_acc =
       new eos::QuarkContainerAccounting(conv_cont_svc, &dummy_ns_mutex, 0);
     conv_file_svc->setSyncTimeAcc(sync_view);

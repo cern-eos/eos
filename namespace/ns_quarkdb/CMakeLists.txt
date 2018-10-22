@@ -37,11 +37,6 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 #-------------------------------------------------------------------------------
-# Build qclient static library
-#-------------------------------------------------------------------------------
-add_subdirectory(qclient)
-
-#-------------------------------------------------------------------------------
 # EosNsQuarkdb-Objects library
 #-------------------------------------------------------------------------------
 add_library(
@@ -64,11 +59,9 @@ add_library(
   flusher/MetadataFlusher.cc             flusher/MetadataFlusher.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
                                          views/PathLookupState.hh
-  accounting/FileSystemHandler.cc        accounting/FileSystemHandler.hh
   accounting/FileSystemView.cc           accounting/FileSystemView.hh
   accounting/QuotaStats.cc               accounting/QuotaStats.hh
                                          accounting/SetChangeList.hh
-  accounting/SyncTimeAccounting.cc       accounting/SyncTimeAccounting.hh
 )
 
 set_target_properties(
@@ -173,7 +166,6 @@ install(
 #-------------------------------------------------------------------------------
 add_executable(eos-ns-convert
   tools/ConvertMemToKV.cc
-  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
   persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 

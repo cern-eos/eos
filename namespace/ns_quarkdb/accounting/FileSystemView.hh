@@ -29,7 +29,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemHandler.hh"
 #include "qclient/QClient.hh"
 #include "qclient/QSet.hh"
 #include <utility>

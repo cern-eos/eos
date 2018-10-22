@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/SyncTimeAccounting.hh"
 #include <iostream>
 #include <chrono>
 
@@ -25,7 +25,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
+QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
                                        eos::common::RWMutex* ns_mutex,
                                        uint32_t update_interval):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
@@ -36,14 +36,14 @@ SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc,
 
   // Enable updates if update interval is not 0
   if (mUpdateIntervalSec) {
-    mThread = std::thread(&SyncTimeAccounting::PropagateUpdates, this);
+    mThread = std::thread(&QuarkSyncTimeAccounting::PropagateUpdates, this);
   }
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SyncTimeAccounting::~SyncTimeAccounting()
+QuarkSyncTimeAccounting::~QuarkSyncTimeAccounting()
 {
   mShutdown = true;
 
@@ -56,7 +56,7 @@ SyncTimeAccounting::~SyncTimeAccounting()
 // Notify the me about the changes in the main view
 //------------------------------------------------------------------------------
 void
-SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
+QuarkSyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
 {
   switch (type) {
   case IContainerMDChangeListener::MTimeChange:
@@ -72,7 +72,7 @@ SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
 // Queue container object for update
 //------------------------------------------------------------------------------
 void
-SyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
+QuarkSyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
 {
   std::lock_guard<std::mutex> scope_lock(mMutexBatch);
   auto& batch = mBatch[mAccumulateIndx];
@@ -92,7 +92,7 @@ SyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
 // Propagate the sync time
 //------------------------------------------------------------------------------
 void
-SyncTimeAccounting::PropagateUpdates()
+QuarkSyncTimeAccounting::PropagateUpdates()
 {
   while (true) {
     if (mShutdown) {

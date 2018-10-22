@@ -20,7 +20,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
@@ -295,7 +295,7 @@ NsQuarkdbPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
 
   eos::common::RWMutex* ns_mutex = static_cast<eos::common::RWMutex*>
                                    (ns_lock_svc.ptrService);
-  return new SyncTimeAccounting(pContMDSvc, ns_mutex);
+  return new QuarkSyncTimeAccounting(pContMDSvc, ns_mutex);
 }
 
 //------------------------------------------------------------------------------

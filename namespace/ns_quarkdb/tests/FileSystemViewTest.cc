@@ -22,7 +22,7 @@
 //------------------------------------------------------------------------------
 #include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"

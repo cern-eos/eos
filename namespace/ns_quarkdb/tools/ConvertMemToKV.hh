@@ -28,7 +28,7 @@
 #include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb_static/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -354,7 +354,7 @@ public:
   //----------------------------------------------------------------------------
   inline void setSyncTimeAcc(IContainerMDChangeListener* synctime)
   {
-    mSyncTimeAcc = dynamic_cast<eos::SyncTimeAccounting*>(synctime);
+    mSyncTimeAcc = dynamic_cast<eos::QuarkSyncTimeAccounting*>(synctime);
   }
 
   //----------------------------------------------------------------------------
@@ -381,7 +381,7 @@ private:
   IFileMD::id_t mFirstFreeId; ///< First free file id
   ConvertQuotaView* mConvQView; ///< Quota view object
   ConvertFsView* mConvFsView; ///< Filesystem view object
-  eos::SyncTimeAccounting* mSyncTimeAcc; ///< Sync time accounting view
+  eos::QuarkSyncTimeAccounting* mSyncTimeAcc; ///< Sync time accounting view
   eos::QuarkContainerAccounting* mContAcc; ///< Subtree size accounting
 };
 

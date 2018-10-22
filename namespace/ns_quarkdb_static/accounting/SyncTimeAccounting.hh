@@ -38,7 +38,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Synchronous mtime propagation listener
 //------------------------------------------------------------------------------
-class SyncTimeAccounting : public IContainerMDChangeListener,
+class QuarkSyncTimeAccounting : public IContainerMDChangeListener,
   public eos::common::LogId
 {
 public:
@@ -49,21 +49,21 @@ public:
   //! @param ns_mutex global namespace view mutex
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
-  SyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
+  QuarkSyncTimeAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
                      uint32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SyncTimeAccounting();
+  virtual ~QuarkSyncTimeAccounting();
 
   //----------------------------------------------------------------------------
   //! Delete copy constructor and assignment operator
   //----------------------------------------------------------------------------
-  SyncTimeAccounting(const SyncTimeAccounting& other) = delete;
-  SyncTimeAccounting& operator=(const SyncTimeAccounting& other) = delete;
-  SyncTimeAccounting(SyncTimeAccounting&& other) = delete;
-  SyncTimeAccounting& operator=(SyncTimeAccounting&& other) = delete;
+  QuarkSyncTimeAccounting(const QuarkSyncTimeAccounting& other) = delete;
+  QuarkSyncTimeAccounting& operator=(const QuarkSyncTimeAccounting& other) = delete;
+  QuarkSyncTimeAccounting(QuarkSyncTimeAccounting&& other) = delete;
+  QuarkSyncTimeAccounting& operator=(QuarkSyncTimeAccounting&& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view

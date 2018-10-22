@@ -30,7 +30,13 @@ include_directories(
   ${XROOTD_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
 )
+
+#-------------------------------------------------------------------------------
+# Build qclient static library
+#-------------------------------------------------------------------------------
+add_subdirectory(ns_quarkdb/qclient)
 
 add_library(
   EosNsCommon-Objects OBJECT
@@ -67,6 +73,8 @@ add_library(
 
   # non-loadable classes used in QDB namespace
   ns_quarkdb_static/accounting/ContainerAccounting.cc     ns_quarkdb_static/accounting/ContainerAccounting.hh
+  ns_quarkdb_static/accounting/SyncTimeAccounting.cc      ns_quarkdb_static/accounting/SyncTimeAccounting.hh
+  ns_quarkdb_static/accounting/FileSystemHandler.cc       ns_quarkdb_static/accounting/FileSystemHandler.hh
 
 )
 
@@ -88,6 +96,7 @@ target_include_directories(
 target_link_libraries(
   EosNsCommon PUBLIC
   EosProtobuf
+  qclient
   ${Z_LIBRARY} fmt)
 
 set_target_properties(
