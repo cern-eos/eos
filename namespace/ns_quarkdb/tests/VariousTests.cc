@@ -30,7 +30,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/common/QuotaNodeCore.hh"

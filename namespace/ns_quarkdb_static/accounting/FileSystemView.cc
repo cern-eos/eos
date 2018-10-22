@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
@@ -35,7 +35,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemView::FileSystemView():
+QuarkFileSystemView::QuarkFileSystemView():
   mExecutor(new folly::IOThreadPoolExecutor(8)), pFlusher(nullptr), pQcl(nullptr)
 { }
 
@@ -43,7 +43,7 @@ FileSystemView::FileSystemView():
 // Configure the container service
 //------------------------------------------------------------------------------
 void
-FileSystemView::configure(const std::map<std::string, std::string>& config)
+QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
   std::string qdb_flusher_id;
@@ -77,7 +77,7 @@ FileSystemView::configure(const std::map<std::string, std::string>& config)
 // Notify the me about changes in the main view
 //------------------------------------------------------------------------------
 void
-FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
+QuarkFileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 {
   std::string key, val;
   FileMD* file = static_cast<FileMD*>(e->file);
@@ -162,7 +162,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 // that the information is consistent in the back-end KV store.
 //------------------------------------------------------------------------------
 bool
-FileSystemView::fileMDCheck(IFileMD* file)
+QuarkFileSystemView::fileMDCheck(IFileMD* file)
 {
   std::string key;
   IFileMD::LocationVector replica_locs = file->getLocations();
@@ -221,7 +221,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 // Get iterator object to run through all currently active filesystem IDs
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-    FileSystemView::getFileSystemIterator()
+    QuarkFileSystemView::getFileSystemIterator()
 {
   std::unique_lock<std::mutex> lock(mMutex);
   return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
@@ -232,7 +232,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 // Get iterator to list of files on a particular file system
 //----------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getFileList(IFileMD::location_t location)
+    QuarkFileSystemView::getFileList(IFileMD::location_t location)
 {
   FileSystemHandler* handler = fetchRegularFilelistIfExists(location);
 
@@ -247,7 +247,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 // Erase an entry from all filesystem view collections
 //------------------------------------------------------------------------------
 void
-FileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t fid)
+QuarkFileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t fid)
 {
   {
     FileSystemHandler* handler = fetchRegularFilelistIfExists(location);
@@ -275,7 +275,7 @@ FileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t fid)
 //----------------------------------------------------------------------------
 // Get an approximately random file residing within the given filesystem.
 //----------------------------------------------------------------------------
-bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t
+bool QuarkFileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t
     location,
     IFileMD::id_t& retval)
 {
@@ -292,7 +292,7 @@ bool FileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t
 // Get iterator to list of unlinked files on a particular file system
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
+    QuarkFileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
 
@@ -307,7 +307,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 // Get iterator to list of files without replicas
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getNoReplicasFileList()
+    QuarkFileSystemView::getNoReplicasFileList()
 {
   return mNoReplicas->getFileList();
 }
@@ -316,7 +316,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 // Get number of files with no replicas
 //------------------------------------------------------------------------------
 uint64_t
-FileSystemView::getNumNoReplicasFiles()
+QuarkFileSystemView::getNumNoReplicasFiles()
 {
   return mNoReplicas->size();
 }
@@ -325,7 +325,7 @@ FileSystemView::getNumNoReplicasFiles()
 // Get number of files on the given file system
 //------------------------------------------------------------------------------
 uint64_t
-FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
+QuarkFileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 {
   FileSystemHandler* handler = fetchRegularFilelistIfExists(fs_id);
 
@@ -340,7 +340,7 @@ FileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 // Get number of unlinked files on the given file system
 //------------------------------------------------------------------------------
 uint64_t
-FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
+QuarkFileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
   FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(fs_id);
 
@@ -355,7 +355,7 @@ FileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 // Check if file system has file id
 //------------------------------------------------------------------------------
 bool
-FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
+QuarkFileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 {
   FileSystemHandler* handler = fetchRegularFilelistIfExists(fs_id);
 
@@ -370,7 +370,7 @@ FileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 // Clear unlinked files for filesystem
 //------------------------------------------------------------------------------
 bool
-FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
+QuarkFileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
 
@@ -417,7 +417,7 @@ bool parseFsId(const std::string& str, IFileMD::location_t& fsid,
 // Get iterator object to run through all currently active filesystem IDs
 //----------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-    FileSystemView::getQdbFileSystemIterator(const std::string& pattern)
+    QuarkFileSystemView::getQdbFileSystemIterator(const std::string& pattern)
 {
   qclient::QScanner replicaSets(*pQcl, pattern);
   std::set<IFileMD::location_t> uniqueFilesytems;
@@ -443,7 +443,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
 // Get iterator to list of files without replicas
 //------------------------------------------------------------------------------
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-    FileSystemView::getStreamingNoReplicasFileList()
+    QuarkFileSystemView::getStreamingNoReplicasFileList()
 {
   return mNoReplicas->getStreamingFileList();
 }
@@ -452,7 +452,7 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
 // Load view from backend
 //------------------------------------------------------------------------------
 void
-FileSystemView::loadFromBackend()
+QuarkFileSystemView::loadFromBackend()
 {
   std::vector<std::string> patterns {
     fsview::sPrefix + "*:files",
@@ -480,7 +480,7 @@ FileSystemView::loadFromBackend()
 //!
 //! @param fsid file system id
 //------------------------------------------------------------------------------
-FileSystemHandler* FileSystemView::initializeRegularFilelist(
+FileSystemHandler* QuarkFileSystemView::initializeRegularFilelist(
   IFileMD::location_t fsid)
 {
   std::unique_lock<std::mutex> lock(mMutex);
@@ -502,7 +502,7 @@ FileSystemHandler* FileSystemView::initializeRegularFilelist(
 //!
 //! @param fsid file system id
 //------------------------------------------------------------------------------
-FileSystemHandler* FileSystemView::fetchRegularFilelistIfExists(
+FileSystemHandler* QuarkFileSystemView::fetchRegularFilelistIfExists(
   IFileMD::location_t fsid)
 {
   std::unique_lock<std::mutex> lock(mMutex);
@@ -523,7 +523,7 @@ FileSystemHandler* FileSystemView::fetchRegularFilelistIfExists(
 //!
 //! @param fsid file system id
 //------------------------------------------------------------------------------
-FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(
+FileSystemHandler* QuarkFileSystemView::initializeUnlinkedFilelist(
   IFileMD::location_t fsid)
 {
   std::unique_lock<std::mutex> lock(mMutex);
@@ -545,7 +545,7 @@ FileSystemHandler* FileSystemView::initializeUnlinkedFilelist(
 //!
 //! @param fsid file system id
 //------------------------------------------------------------------------------
-FileSystemHandler* FileSystemView::fetchUnlinkedFilelistIfExists(
+FileSystemHandler* QuarkFileSystemView::fetchUnlinkedFilelistIfExists(
   IFileMD::location_t fsid)
 {
   std::unique_lock<std::mutex> lock(mMutex);

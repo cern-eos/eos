@@ -29,7 +29,7 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 
 EOSNSTESTING_BEGIN
@@ -83,7 +83,7 @@ void NsTestsFixture::initServices() {
   containerSvcPtr.reset(new eos::ContainerMDSvc());
   fileSvcPtr.reset(new eos::FileMDSvc());
   viewPtr.reset(new eos::HierarchicalView());
-  fsViewPtr.reset(new eos::FileSystemView());
+  fsViewPtr.reset(new eos::QuarkFileSystemView());
 
   fileSvcPtr->setContMDService(containerSvcPtr.get());
   containerSvcPtr->setFileMDService(fileSvcPtr.get());

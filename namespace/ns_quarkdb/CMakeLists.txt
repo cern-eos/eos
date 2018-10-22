@@ -59,9 +59,7 @@ add_library(
   flusher/MetadataFlusher.cc             flusher/MetadataFlusher.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
                                          views/PathLookupState.hh
-  accounting/FileSystemView.cc           accounting/FileSystemView.hh
   accounting/QuotaStats.cc               accounting/QuotaStats.hh
-                                         accounting/SetChangeList.hh
 )
 
 set_target_properties(

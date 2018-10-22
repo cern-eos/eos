@@ -75,6 +75,8 @@ add_library(
   ns_quarkdb_static/accounting/ContainerAccounting.cc     ns_quarkdb_static/accounting/ContainerAccounting.hh
   ns_quarkdb_static/accounting/SyncTimeAccounting.cc      ns_quarkdb_static/accounting/SyncTimeAccounting.hh
   ns_quarkdb_static/accounting/FileSystemHandler.cc       ns_quarkdb_static/accounting/FileSystemHandler.hh
+  ns_quarkdb_static/accounting/FileSystemView.cc          ns_quarkdb_static/accounting/FileSystemView.hh
+                                                          ns_quarkdb_static/accounting/SetChangeList.hh
 
 )
 

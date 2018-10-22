@@ -28,7 +28,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb_static/accounting/FileSystemHandler.hh"
 #include "qclient/QClient.hh"
 #include "qclient/QSet.hh"
@@ -169,18 +169,18 @@ private:
 //! fsview_noreplicas - file ids that don't have any replicas on any fs
 //! fsview:x:unlinked - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
-class FileSystemView : public IFsView
+class QuarkFileSystemView : public IFsView
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemView();
+  QuarkFileSystemView();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView() = default;
+  virtual ~QuarkFileSystemView() = default;
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
