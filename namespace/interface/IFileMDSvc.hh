@@ -27,6 +27,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/MDException.hh"
+#include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/Misc.hh"
 #include <folly/futures/Future.h>
 #include <map>
@@ -137,6 +138,11 @@ public:
   //------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
       uint64_t* clock) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Check if a FileMD with a given identifier exists - no caching
+  //----------------------------------------------------------------------------
+  virtual folly::Future<bool> hasFileMD(const eos::FileIdentifier id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id, the user has

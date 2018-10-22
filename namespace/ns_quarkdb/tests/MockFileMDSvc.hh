@@ -37,6 +37,7 @@ public:
   MOCK_METHOD0(finalize, void());
   MOCK_METHOD1(getFileMDFut, folly::Future<eos::IFileMDPtr>(eos::IFileMD::id_t id));
   MOCK_METHOD1(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id));
+  MOCK_METHOD1(hasFileMD, folly::Future<bool>(eos::FileIdentifier));
   MOCK_METHOD2(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id,
                uint64_t* clock));
   MOCK_METHOD0(createFile, std::shared_ptr<eos::IFileMD>());

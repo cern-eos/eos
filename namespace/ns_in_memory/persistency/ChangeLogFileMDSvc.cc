@@ -1127,6 +1127,20 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 }
 
 //------------------------------------------------------------------------------
+//! Check if a FileMD with a given identifier exists
+//------------------------------------------------------------------------------
+folly::Future<bool> ChangeLogFileMDSvc::hasFileMD(const eos::FileIdentifier id)
+{
+  try {
+    IFileMDPtr md = getFileMD(id);
+    return (md != nullptr);
+  }
+  catch(const eos::MDException &e) {
+    return false;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD> ChangeLogFileMDSvc::createFile()

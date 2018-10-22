@@ -174,6 +174,15 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 }
 
 //------------------------------------------------------------------------------
+//! Check if a FileMD with a given identifier exists
+//------------------------------------------------------------------------------
+folly::Future<bool>
+FileMDSvc::hasFileMD(const eos::FileIdentifier id)
+{
+  return mMetadataProvider->hasFileMD(id);
+}
+
+//------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>

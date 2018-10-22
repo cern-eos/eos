@@ -94,6 +94,11 @@ public:
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
       uint64_t* clock) override;
 
+  //------------------------------------------------------------------------
+  //! Check if a FileMD with a given identifier exists
+  //------------------------------------------------------------------------
+  virtual folly::Future<bool> hasFileMD(const eos::FileIdentifier id) override;
+
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------

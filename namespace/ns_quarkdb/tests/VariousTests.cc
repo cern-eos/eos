@@ -536,6 +536,9 @@ TEST_F(FileMDFetching, ExistenceTest) {
 
   ASSERT_TRUE(MetadataFetcher::doesFileMdExist(qcl(), FileIdentifier(1)).get());
   ASSERT_FALSE(MetadataFetcher::doesFileMdExist(qcl(), FileIdentifier(2)).get());
+
+  ASSERT_TRUE(fileSvc()->hasFileMD(FileIdentifier(1)).get());
+  ASSERT_FALSE(fileSvc()->hasFileMD(FileIdentifier(2)).get());
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {

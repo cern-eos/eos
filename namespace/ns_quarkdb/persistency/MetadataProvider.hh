@@ -66,6 +66,11 @@ public:
   folly::Future<IFileMDPtr> retrieveFileMD(FileIdentifier id);
 
   //----------------------------------------------------------------------------
+  //! Check if a FileMD exists with the given id
+  //----------------------------------------------------------------------------
+  folly::Future<bool> hasFileMD(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
   //! Insert newly created item into the cache
   //----------------------------------------------------------------------------
   void insertFileMD(FileIdentifier id, IFileMDPtr item);

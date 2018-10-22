@@ -156,6 +156,15 @@ MetadataProvider::retrieveFileMD(FileIdentifier id)
   return mInFlightFiles[id].getFuture();
 }
 
+//----------------------------------------------------------------------------
+// Check if a FileMD exists with the given id
+//----------------------------------------------------------------------------
+folly::Future<bool>
+MetadataProvider::hasFileMD(FileIdentifier id)
+{
+  return MetadataFetcher::doesFileMdExist(pickQcl(id), id);
+}
+
 //------------------------------------------------------------------------------
 // Insert newly created item into the cache.
 //------------------------------------------------------------------------------
