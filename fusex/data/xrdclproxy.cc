@@ -468,6 +468,7 @@ XrdCl::Proxy::ReOpenAsync()
 /* -------------------------------------------------------------------------- */
 {
   if (mUrl.length()) {
+    set_state_TS(CLOSED);
     return OpenAsync(mUrl, mFlags, mMode, mTimeout);
   } else {
     XRootDStatus status(XrdCl::stError,
@@ -503,7 +504,13 @@ XrdCl::Proxy::CloseAsync(uint16_t timeout)
       (state() == WAITWRITE)) {
     XrdCl::XRootDStatus status = XrdCl::File::Close(&XCloseAsyncHandler,
                                  timeout);
-    set_state(CLOSING, &status);
+
+    if (!status.IsOK()) {
+      eos_err("state=failed closeasync errms=%s", status.ToString().c_str());
+      set_state(FAILED, &status);
+    } else {
+      set_state(CLOSING, &status);
+    }
   } else {
     eos_crit("%x closing an unopened file state=%d url=%s\n", this, state(),
              mUrl.c_str());

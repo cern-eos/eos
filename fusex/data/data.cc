@@ -2507,9 +2507,16 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       fit->second->CloseAsync();
                       break;
                     } else {
-                      eos_static_info("waiting for right age before async close - age = %f ino:%16lx has-flush=%s",
-                                      fit->second->state_age(), (*it)->id(),
-                                      EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
+                      if (fit->second->state_age() < 1.0) {
+                        eos_static_info("waiting for right age before async close - age = %f ino:%16lx has-flush=%s",
+                                        fit->second->state_age(), (*it)->id(),
+                                        EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
+                      } else {
+                        eos_static_info("waiting for flush before async close - age = %f ino:%16lx has-flush=%s",
+                                        fit->second->state_age(), (*it)->id(),
+                                        EosFuse::Instance().mds.has_flush((*it)->id()) ? "true" : "false");
+                      }
+
                       break;
                     }
                   }
@@ -2523,6 +2530,21 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                   std::string msg;
 
                   if ((!(*it)->unlinked()) && fit->second->HadFailures(msg)) {
+                    // let's see if the initial OpenAsync got a timeout, this we should retry always
+                    XrdCl::XRootDStatus status = fit->second->opening_state();
+
+                    if (
+                      (status.code == XrdCl::errConnectionError) ||
+                      (status.code == XrdCl::errSocketTimeout) ||
+                      (status.code == XrdCl::errOperationExpired) ||
+                      (status.code == XrdCl::errSocketDisconnected)) {
+                      // retry the open
+                      eos_static_warning("re-issuing OpenAsync request after timeout - ino:%16lx err-code:%d",
+                                         (*it)->id(), status.code);
+                      fit->second->ReOpenAsync();
+                      continue;
+                    }
+
                     // ---------------------------------------------------------
                     // we really have to avoid this to happen, but
                     // we can put everything we have cached in a save place for
