@@ -308,7 +308,22 @@ com_cp(char* argin)
       source.append("/");
     }
 
-    eos::common::Path cPath(source.c_str());
+    // Extract file name and parent path
+    const char* filepath = source.c_str();
+
+    // URLs need different processing in order to extract the path
+    if ((protocol != Protocol::EOS) && (protocol != Protocol::LOCAL)) {
+      XrdOucString sprot, hostport;
+      filepath = eos::common::StringConversion::ParseUrl(source.c_str(),
+                                                         sprot, hostport);
+      if (!filepath) {
+        fprintf(stderr, "error: cannot process file=%s [protocol=%s]\n",
+                source.c_str(), protocol_to_string(protocol));
+        continue;
+      }
+    }
+
+    eos::common::Path cPath(filepath);
     basepath = cPath.GetParentPath();
 
     if ((source.find("*") != STR_NPOS) || (source.endswith("/"))) {
@@ -895,6 +910,28 @@ com_cp(char* argin)
     }
 
     //------------------------------------
+    // Prepare eoscp transaction name
+    //------------------------------------
+
+    XrdOucString safename = source.name.c_str();
+    int qpos = safename.rfind("?");
+    if (qpos != STR_NPOS) {
+      safename.erase(qpos);
+    }
+
+    if ((source.protocol != Protocol::EOS) ||
+        (source.protocol != Protocol::LOCAL)) {
+      XrdOucString sprot, hostport;
+      const char* url = eos::common::StringConversion::ParseUrl(safename.c_str(),
+                                                                sprot, hostport);
+      if (url) { safename = url; }
+    }
+
+    safename = eos::common::Path(safename.c_str()).GetName();;
+    while (safename.replace("&", "#AND#")) {}
+    while (safename.replace("'", "\\'")) {}
+
+    //------------------------------------
     // Construct 'eoscp' command
     //------------------------------------
 
@@ -906,10 +943,6 @@ com_cp(char* argin)
     if (noprogress)             { cmdtext += "-n "; }
     if (nooverwrite)            { cmdtext += "-x "; }
     if (transfersize.length())  { cmdtext += "-T "; }
-
-    XrdOucString safename = eos::common::Path(source.name.c_str()).GetName();;
-    while (safename.replace("&", "#AND#")) {}
-    while (safename.replace("'", "\\'")) {}
 
     cmdtext += transfersize;
     cmdtext += "-N $'";
