@@ -144,7 +144,7 @@ ProcCommand::Archive()
 
     // Used for creating/deleting a file in /eos/.../proc/archive with the same
     // name as the inode value. Used to provide archive fast find functionality.
-    int fid = statinfo.st_ino;
+    uint64_t fid = statinfo.st_ino;
     // Create vector containing the paths to all the possible special files
     std::ostringstream oss;
     std::vector<std::string> vect_paths;
@@ -656,7 +656,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
     for (auto fid = fids.begin(); fid != fids.end(); ++fid) {
       // Convert string id to ContainerMD:id_t
-      id = std::stoll(*fid);
+      id = std::stoull(*fid);
 
       try {
         cmd = gOFS->eosDirectoryService->getContainerMD(id);
@@ -780,7 +780,7 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveCreate(const std::string& arch_dir,
-                           const std::string& dst_url, int fid)
+                           const std::string& dst_url, uint64_t fid)
 {
   int num_dirs = 0;
   int num_files = 0;

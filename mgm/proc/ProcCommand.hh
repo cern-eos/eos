@@ -320,7 +320,7 @@ private:
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
   void ArchiveCreate(const std::string& arch_dir,
-                     const std::string& dst_url, int fid);
+                     const std::string& dst_url, uint64_t fid);
 
   //----------------------------------------------------------------------------
   //! Get list of archived files from the proc/archive directory
