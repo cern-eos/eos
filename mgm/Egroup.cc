@@ -35,7 +35,7 @@ XrdSysMutex Egroup::Mutex;
 std::map < std::string, std::map < std::string, bool > > Egroup::Map;
 std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
 qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
-  Egroup::PendingQueue;
+Egroup::PendingQueue;
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -239,16 +239,18 @@ void
  * resolved entry.
  */
 /*----------------------------------------------------------------------------*/
-Egroup::Refresh(ThreadAssistant &assistant)
+Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
-
   // infinite loop waiting to run refresh requests
   auto iterator = PendingQueue.begin();
 
-  while(!assistant.terminationRequested()) {
-    std::pair<std::string, std::string> *resolve = iterator.getItemBlockOrNull();
-    if(!resolve) break;
+  while (!assistant.terminationRequested()) {
+    std::pair<std::string, std::string>* resolve = iterator.getItemBlockOrNull();
+
+    if (!resolve) {
+      break;
+    }
 
     if (!resolve->first.empty()) {
       DoRefresh(resolve->first, resolve->second);
