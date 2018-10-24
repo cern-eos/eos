@@ -645,8 +645,8 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
   if (!fmd)
     return false;
 
-  int fsid = fmd->fMd.fsid;
-  int fid = fmd->fMd.fid;
+  eos::common::FileSystem::fsid_t fsid = fmd->fMd.fsid;
+  eos::common::FileId::fileid_t fid fid = fmd->fMd.fid;
 
   struct timeval tv;
   struct timezone tz;
