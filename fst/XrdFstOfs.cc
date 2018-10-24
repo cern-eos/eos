@@ -215,13 +215,17 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   }
 
   pid_t watchdog;
+  pid_t ppid = getpid();
+
   if (!(watchdog = fork()))
   {
     eos::common::SyncAll::AllandClose();
     XrdSysTimer sleeper;
     sleeper.Snooze(15);
     fprintf(stderr,"@@@@@@ 00:00:00 %s", "op=shutdown msg=\"shutdown timedout after 15 seconds\"\n");
-    kill(getppid(), 9);
+    if (ppid > 1 ) {
+      kill(ppid, 9);
+    }
     fprintf(stderr,"@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
     kill(getpid(), 9);
   }
@@ -250,7 +254,9 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
-  kill(watchdog,9);
+  if (watchdog > 1 ) {
+    kill(watchdog,9);
+  }
   int wstatus = 0;
   wait(&wstatus);
   eos_static_warning("%s", "op=shutdown status=sqliteclosed");

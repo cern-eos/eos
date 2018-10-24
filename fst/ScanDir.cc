@@ -263,10 +263,10 @@ ScanDir::CheckFile (const char* filepath)
     XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
     if (gOFS.WOpenFid[fsId].count(fid)) {
-      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n",
-	     filePath.c_str(), (int)fid, fsId);
-      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x",
-		  filePath.c_str(), (int)fid, fsId);
+      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%llx\n",
+	     filePath.c_str(), fsId, (long long)fid);
+      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%llx",
+		  filePath.c_str(), fsId, (long long)fid);
       return;
     }
   }
@@ -444,7 +444,7 @@ ScanDir::CheckFile (const char* filepath)
 		       )
 		  {
 		    char oname[4096];
-		    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08x", dirPath.c_str(), (unsigned int) fid);
+		    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx", dirPath.c_str(), (long long) fid);
 		    
 		    // store the original path name as an extended attribute in case ...
 		    attr->Set("user.eos.orphaned", filePath.c_str());
