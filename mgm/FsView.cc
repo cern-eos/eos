@@ -1060,6 +1060,45 @@ void FsSpace::Join()
 }
 
 //------------------------------------------------------------------------------
+//               * * *   Structure ImportStatus   * * *
+//------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------
+// Starts monitoring a new import batch
+//----------------------------------------------------------------------------
+bool ImportStatus::NewBatch(unsigned long files)
+{
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+
+  mCurrent = 0;
+  mBatch++;
+  mFiles = files;
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+// Increments the count of imported files
+//----------------------------------------------------------------------------
+bool ImportStatus::IncrementImported()
+{
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  mCurrent++;
+  mTotal++;
+  return true;
+}
+
+//----------------------------------------------------------------------------
+// Increments the count of failed files
+//----------------------------------------------------------------------------
+bool ImportStatus::IncrementFailed()
+{
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  mFailed++;
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Check if quota is enabled for space
 //-----------------------------------------------------------------------------
 bool FsView::IsQuotaEnabled(const std::string& space)

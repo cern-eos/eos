@@ -680,6 +680,74 @@ protected:
 };
 
 //------------------------------------------------------------------------------
+//! Structure ImportStatus describing the state of an import operation
+//------------------------------------------------------------------------------
+struct ImportStatus
+{
+  std::string mId; ///< ID of the import operation
+  unsigned long mBatch; ///< Index of the current import batch
+  unsigned long mCurrent; ///< Index of the current file being imported
+  unsigned long mFiles; ///< Number of files to be imported during the batch
+  unsigned long mTotal; ///< Total number of files imported
+  unsigned long mFailed; ///< Number of imported files which ended in error
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param id ID of the import operation
+  //----------------------------------------------------------------------------
+  ImportStatus(const char* id):
+    mId(id), mBatch(0), mCurrent(0), mFiles(0), mTotal(0), mFailed(0)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ImportStatus() = default;
+
+  //----------------------------------------------------------------------------
+  //! Starts monitoring a new import batch
+  //!
+  //! @param files number of files in this batch
+  //----------------------------------------------------------------------------
+  bool NewBatch(unsigned long files);
+
+  //----------------------------------------------------------------------------
+  //! Increments the count of imported files
+  //----------------------------------------------------------------------------
+  bool IncrementImported();
+
+  //----------------------------------------------------------------------------
+  //! Increments the count of failed files
+  //----------------------------------------------------------------------------
+  bool IncrementFailed();
+
+  //----------------------------------------------------------------------------
+  //! String representation of the import state
+  //! Format: Batch \##  %# [========    ] #/#    Total: #  Failed: #
+  //----------------------------------------------------------------------------
+  std::string to_string() {
+    std::ostringstream ss;
+    float percentage = mCurrent * 100.0 / mFiles;
+    int limit = (int) (15 * percentage / 100);
+
+    ss << "Batch #" << mBatch;
+    ss << "  %" << percentage << "[";
+
+    for (int i = 0; i < 15; i++) {
+      if (i <= limit) { ss << "="; }
+      else            { ss << " "; }
+    }
+
+    ss << "]  " << mCurrent << "/" << mFiles << "    ";
+    ss << "Total:  " << mTotal << "  ";
+    ss << "Failed: " << mFailed;
+
+    return ss.str();
+  }
+};
+
+//------------------------------------------------------------------------------
 //! Class FsNode describing a node (set of filesystems)
 //------------------------------------------------------------------------------
 class FsNode : public BaseView
@@ -897,6 +965,9 @@ public:
 
   //! Map translating a filesystem ID to a file system object
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
+
+  //! Map translating an import ID to an import status object
+  std::map<std::string, ImportStatus* > mImportView;
 
   //! Mutex protecting the set of gateway nodes mGwNodes
   eos::common::RWMutex GwMutex;

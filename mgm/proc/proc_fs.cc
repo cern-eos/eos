@@ -780,6 +780,10 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
         opaquestring += "&mgm.id=";
         opaquestring += id.c_str();
 
+        // Register import operation into FsView map
+        ImportStatus *importStatus = new ImportStatus(id.c_str());
+        FsView::gFsView.mImportView[id] = importStatus;
+
         XrdMqMessage message("importScan");
         XrdOucString msgbody = "mgm.cmd=importscan";
         msgbody += opaquestring;
