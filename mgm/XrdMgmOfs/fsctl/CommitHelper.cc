@@ -620,7 +620,7 @@ CommitHelper::commit_fmd(eos::common::Mapping::VirtualIdentity_t& vid,
 unsigned long long
 CommitHelper::get_version_fid(eos::common::Mapping::VirtualIdentity_t& vid,
                               eos::common::LogId& ThreadLogId,
-                              std::shared_ptr<eos::IFileMD>& fmd,
+                              unsigned long long fid,
                               CommitHelper::path_t& paths,
                               CommitHelper::option_t& option)
 {
@@ -628,6 +628,7 @@ CommitHelper::get_version_fid(eos::common::Mapping::VirtualIdentity_t& vid,
   std::shared_ptr<eos::IFileMD> versionfmd;
 
   try {
+    auto fmd = gOFS->eosFileService->getFileMD(fid);
     paths["versiondir"] = gOFS->eosView->getUri(fmd.get());
 
     if (option["versioning"]) {

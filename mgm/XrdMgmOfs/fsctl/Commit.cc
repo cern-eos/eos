@@ -98,7 +98,7 @@
     std::string emsg;
 
     if ((errno = CommitHelper::check_filesystem(vid, ThreadLogId, fsid, cgi, option,
-         params, emsg))) {
+    params, emsg))) {
       return Emsg(epname, error, errno, emsg.c_str(), "");
     }
 
@@ -261,7 +261,7 @@
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(),
                         paths["atomic"].GetName());
         XrdOucString versionedname = "";
-        unsigned long long vfid = CommitHelper::get_version_fid(vid, ThreadLogId, fmd,
+        unsigned long long vfid = CommitHelper::get_version_fid(vid, ThreadLogId, fid,
                                   paths, option);
 
         // check if we want versioning
@@ -303,23 +303,24 @@
       }
     }
 
-    if(fmd) {
+    if (fmd) {
       gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
   } else
   {
     int envlen = 0;
     eos_thread_err("commit message does not contain all meta information: %s",
-                   env.Env(envlen));
+    env.Env(envlen));
     gOFS->MgmStats.Add("CommitFailedParameters", 0, 0, 1);
 
-    if (cgi["path"].length()) {
+    if (cgi["path"].length())
+    {
       return Emsg(epname, error, EINVAL,
-                  "commit filesize change - size,fid,fsid,mtime not complete",
-                  cgi["path"].c_str());
+      "commit filesize change - size,fid,fsid,mtime not complete",
+      cgi["path"].c_str());
     } else {
       return Emsg(epname, error, EINVAL,
-                  "commit filesize change - size,fid,fsid,mtime,path not complete", "unknown");
+      "commit filesize change - size,fid,fsid,mtime,path not complete", "unknown");
     }
   }
 

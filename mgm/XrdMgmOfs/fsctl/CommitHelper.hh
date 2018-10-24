@@ -128,7 +128,7 @@ public:
   static unsigned long long get_version_fid(
     eos::common::Mapping::VirtualIdentity_t& vid,
     eos::common::LogId& ThreadLogId,
-    std::shared_ptr<eos::IFileMD>& fmd,
+    unsigned long long fid,
     CommitHelper::path_t& paths,
     CommitHelper::option_t& option);
 
