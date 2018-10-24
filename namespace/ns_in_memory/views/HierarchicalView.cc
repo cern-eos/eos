@@ -123,8 +123,7 @@ HierarchicalView::getItem(const std::string& uri, bool follow)
     FileOrContainerMD item;
     item.file = getFile(uri, follow);
     return item;
-  }
-  catch(const eos::MDException &e) {
+  } catch (const eos::MDException& e) {
     // ...
   }
 
@@ -136,7 +135,8 @@ HierarchicalView::getItem(const std::string& uri, bool follow)
 //------------------------------------------------------------------------
 // Retrieve a file for given uri, asynchronously
 //------------------------------------------------------------------------
-folly::Future<IFileMDPtr> HierarchicalView::getFileFut(const std::string& uri, bool follow)
+folly::Future<IFileMDPtr> HierarchicalView::getFileFut(const std::string& uri,
+    bool follow)
 {
   return getFile(uri, follow);
 }
@@ -403,7 +403,8 @@ void HierarchicalView::removeFile(IFileMD* file)
 // Get a container (directory) asynchronously
 //----------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
-HierarchicalView::getContainerFut(const std::string& uri, bool follow) {
+HierarchicalView::getContainerFut(const std::string& uri, bool follow)
+{
   return folly::makeFuture<IContainerMDPtr>(getContainer(uri, follow));
 }
 
@@ -567,7 +568,6 @@ void HierarchicalView::removeContainer(const std::string& uri)
   }
 
   parent->removeContainer(cont->getName());
-
   pContainerSvc->removeContainer(cont.get());
 }
 
@@ -646,7 +646,9 @@ void HierarchicalView::FileVisitor::visitFile(IFileMD* file)
 
   try {
     cont = pContSvc->getContainerMD(file->getContainerId());
-  } catch (MDException& e) {}
+  } catch (const MDException& e) {
+    std::cerr << "Catching an exception!" << std::endl;
+  }
 
   if (!cont) {
     return;
@@ -707,7 +709,8 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
 //----------------------------------------------------------------------------
 // Get uri for the container - asynchronous version
 //----------------------------------------------------------------------------
-folly::Future<std::string> HierarchicalView::getUriFut(const IContainerMD* container) const
+folly::Future<std::string> HierarchicalView::getUriFut(const IContainerMD*
+    container) const
 {
   return folly::makeFuture<std::string>(getUri(container));
 }
@@ -715,7 +718,8 @@ folly::Future<std::string> HierarchicalView::getUriFut(const IContainerMD* conta
 //---------------------------------------------------------------------------
 // Get uri for the file
 //---------------------------------------------------------------------------
-folly::Future<std::string> HierarchicalView::getUriFut(const IFileMD* file) const
+folly::Future<std::string> HierarchicalView::getUriFut(const IFileMD* file)
+const
 {
   return folly::makeFuture<std::string>(getUri(file));
 }

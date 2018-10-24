@@ -170,14 +170,14 @@ XrdMgmOfs::InitializeFileView()
     mMaster->MasterLog(eos_notice("eos namespace file loading stopped after %d "
                                   "seconds", (tstop - tstart)));
     Access::SetStallRule(old_stall, new_stall);
-  } catch (eos::MDException& e) {
+  } catch (const eos::MDException& e) {
     mInitialized = kFailed;
     time_t tstop = time(nullptr);
     errno = e.getErrno();
     eos_crit("namespace file loading initialization failed after %d seconds",
              (tstop - tstart));
     eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),
-             e.getMessage().str().c_str());
+             e.what());
     std::abort();
   }
 
@@ -657,7 +657,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
           }
 
-          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ", mTapeAwareGcEnable ? "true" : "false");
+          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ",
+                     mTapeAwareGcEnable ? "true" : "false");
         }
 
         if (!strcmp("tapeawaregc_defaultminfreebytes", var)) {
@@ -666,6 +667,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             uint64_t minFreeBytes = 0;
             std::istringstream minFreeBytesStream(val);
+
             if (!(minFreeBytesStream >> minFreeBytes)) {
               Eroute.Emsg("Config", "argument for tapeawaregc_defaultminfreebytes illegal."
                           "Must be an unsigned 64-bit integer!");
@@ -675,7 +677,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
 
           Eroute.Say("=====> mgmofs.tapeawaregc_defaultminfreebytes : ",
-            std::to_string(mTapeAwareGcDefaultMinFreeBytes).c_str());
+                     std::to_string(mTapeAwareGcDefaultMinFreeBytes).c_str());
         }
 
         if (!strcmp("authorize", var)) {
@@ -1949,7 +1951,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mDrainEngine.Start();
 
   // Only if configured to do so, enable the tape aware garbage collector
-  if(mTapeAwareGcEnable) {
+  if (mTapeAwareGcEnable) {
     mTapeAwareGc.enable(mTapeAwareGcDefaultMinFreeBytes);
   }
 

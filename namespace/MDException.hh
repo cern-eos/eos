@@ -36,116 +36,129 @@
 
 namespace eos
 {
-  //----------------------------------------------------------------------------
-  //! Metadata exception
-  //----------------------------------------------------------------------------
-  class MDException: public std::exception
+//----------------------------------------------------------------------------
+//! Metadata exception
+//----------------------------------------------------------------------------
+class MDException: public std::exception
+{
+public:
+  //------------------------------------------------------------------------
+  // Constructor taking an error code and string message
+  //------------------------------------------------------------------------
+  MDException(int errorNo = ENODATA, const std::string& msg = ""):
+    pErrorNo(errorNo), pTmpMessage(0)
   {
-    public:
-      //------------------------------------------------------------------------
-      // Constructor taking an error code and string message
-      //------------------------------------------------------------------------
-      MDException( int errorNo = ENODATA, const std::string &msg = ""):
-        pErrorNo( errorNo ), pTmpMessage( 0 ) {
-
-        if(!msg.empty()) {
-          getMessage() << msg;
-        }
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~MDException() throw()
-      {
-        delete [] pTmpMessage;
-      }
-
-      //------------------------------------------------------------------------
-      //! Copy constructor - this is actually required because we cannot copy
-      //! stringstreams
-      //------------------------------------------------------------------------
-      MDException(const MDException &e)
-      {
-        pMessage << e.pMessage.str();
-        pErrorNo = e.getErrno();
-        pTmpMessage = 0;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get errno assosiated with the exception
-      //------------------------------------------------------------------------
-      int getErrno() const
-      {
-        return pErrorNo;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the message stream
-      //------------------------------------------------------------------------
-      std::ostringstream &getMessage()
-      {
-        return pMessage;
-      }
-
-      //------------------------------------------------------------------------
-      // Get the message
-      //------------------------------------------------------------------------
-      virtual const char *what() const throw() override
-      {
-      	// we could to that instead: return (pMessage.str()+" ").c_str();
-      	// but it's ugly and probably not portable
-
-      	if( pTmpMessage )
-      	  delete [] pTmpMessage;
-
-      	std::string msg = pMessage.str();
-      	pTmpMessage = new char[msg.length()+1];
-      	pTmpMessage[msg.length()] = 0;
-      	pTmpMessage = strcpy( pTmpMessage, msg.c_str() );
-      	return pTmpMessage;
-      }
-
-      void wrapAndRethrow(const std::string &prefix) const {
-        throw_mdexception(pErrorNo, SSTR(prefix << pMessage.str()));
-      }
-
-    private:
-      //------------------------------------------------------------------------
-      // Data members
-      //------------------------------------------------------------------------
-      std::ostringstream  pMessage;
-      int                 pErrorNo;
-      mutable char       *pTmpMessage;
-  };
-
-  inline MDException makeMDException(int err, const std::string &msg) {
-    MDException exc(err);
-    exc.getMessage() << msg;
-    return exc;
+    if (!msg.empty()) {
+      getMessage() << msg;
+    }
   }
 
-  //----------------------------------------------------------------------------
-  //! Metadata operation status
-  //----------------------------------------------------------------------------
-  class MDStatus {
-  public:
-    MDStatus() : localerrno(0) {}
+  //------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------
+  virtual ~MDException() throw()
+  {
+    delete [] pTmpMessage;
+  }
 
-    MDStatus(int localerrn, const std::string &error);
-    bool ok() const { return err.empty(); }
-    std::string getError() const { return err; }
-    int getErrno() const { return localerrno; }
+  //------------------------------------------------------------------------
+  //! Copy constructor - this is actually required because we cannot copy
+  //! stringstreams
+  //------------------------------------------------------------------------
+  MDException(const MDException& e)
+  {
+    pMessage << e.pMessage.str();
+    pErrorNo = e.getErrno();
+    pTmpMessage = 0;
+  }
 
-    void throwIfNotOk(const std::string &prefix = {}) {
-      if(!ok()) {
-        throw_mdexception(localerrno, SSTR(prefix << err));
-      }
+  //------------------------------------------------------------------------
+  //! Get errno assosiated with the exception
+  //------------------------------------------------------------------------
+  int getErrno() const
+  {
+    return pErrorNo;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get the message stream
+  //------------------------------------------------------------------------
+  std::ostringstream& getMessage()
+  {
+    return pMessage;
+  }
+
+  //------------------------------------------------------------------------
+  // Get the message
+  //------------------------------------------------------------------------
+  virtual const char* what() const noexcept override
+  {
+    // we could to that instead: return (pMessage.str()+" ").c_str();
+    // but it's ugly and probably not portable
+    if (pTmpMessage) {
+      delete [] pTmpMessage;
     }
-  private:
-    int localerrno;
-    std::string err;
-  };
+
+    std::string msg = pMessage.str();
+    pTmpMessage = new char[msg.length() + 1];
+    pTmpMessage[msg.length()] = 0;
+    pTmpMessage = strcpy(pTmpMessage, msg.c_str());
+    return pTmpMessage;
+  }
+
+  void wrapAndRethrow(const std::string& prefix) const
+  {
+    throw_mdexception(pErrorNo, SSTR(prefix << pMessage.str()));
+  }
+
+private:
+  //------------------------------------------------------------------------
+  // Data members
+  //------------------------------------------------------------------------
+  std::ostringstream  pMessage;
+  int                 pErrorNo;
+  mutable char*       pTmpMessage;
+};
+
+inline MDException makeMDException(int err, const std::string& msg)
+{
+  MDException exc(err);
+  exc.getMessage() << msg;
+  return exc;
+}
+
+//----------------------------------------------------------------------------
+//! Metadata operation status
+//----------------------------------------------------------------------------
+class MDStatus
+{
+public:
+  MDStatus() : localerrno(0) {}
+
+  MDStatus(int localerrn, const std::string& error);
+  bool ok() const
+  {
+    return err.empty();
+  }
+  std::string getError() const
+  {
+    return err;
+  }
+  int getErrno() const
+  {
+    return localerrno;
+  }
+
+  void throwIfNotOk(const std::string& prefix = {})
+  {
+    if (!ok()) {
+      throw_mdexception(localerrno, SSTR(prefix << err));
+    }
+  }
+private:
+  int localerrno;
+  std::string err;
+};
 
 }
 
