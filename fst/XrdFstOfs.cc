@@ -213,6 +213,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
   sShutdown = true;
   pid_t watchdog;
+  pid_t ppid = getpid();
 
   if (!(watchdog = fork())) {
     eos::common::SyncAll::AllandClose();
@@ -222,7 +223,11 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     std::this_thread::sleep_for(timeout);
     fprintf(stderr, "@@@@@@ 00:00:00 op=shutdown msg=\"shutdown timedout after "
             "%li seconds, signal=%i\n", timeout.count(), sig);
-    kill(getppid(), 9);
+
+    if (ppid > 1) {
+      kill(ppid, 9);
+    }
+
     fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete\n");
     kill(getpid(), 9);
   }
@@ -238,7 +243,11 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   eos_static_warning("%s", "op=shutdown msg=\"stop messaging\"");
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
-  kill(watchdog, 9);
+
+  if (watchdog > 1) {
+    kill(watchdog, 9);
+  }
+
   int wstatus = 0;
   wait(&wstatus);
   eos_static_warning("%s", "op=shutdown status=dbmapclosed");
@@ -267,6 +276,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   sShutdown = true;
   const char* swait = getenv("EOS_GRACEFUL_SHUTDOWN_TIMEOUT");
   std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
+  pid_t ppid = getpid();
 
   if (!(watchdog = fork())) {
     std::this_thread::sleep_for(std::chrono::seconds(wait));
@@ -274,7 +284,11 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     std::this_thread::sleep_for(std::chrono::seconds(15));
     fprintf(stderr, "@@@@@@ 00:00:00 %s %li seconds\"\n",
             "op=shutdown msg=\"shutdown timedout after ", wait);
-    kill(getppid(), 9);
+
+    if (ppid > 1) {
+      kill(ppid, 9);
+    }
+
     fprintf(stderr, "@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
     kill(getpid(), 9);
   }
@@ -304,7 +318,11 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   gOFS.Storage->ShutdownThreads();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
-  kill(watchdog, 9);
+
+  if (watchdog > 1) {
+    kill(watchdog, 9);
+  }
+
   int wstatus = 0;
   ::wait(&wstatus);
   eos_static_warning("op=shutdown status=dbmapclosed");
