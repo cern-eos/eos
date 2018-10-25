@@ -269,6 +269,11 @@ public:
       return _local_children;
     }
 
+    std::set<std::string>& local_enoent()
+    {
+      return _local_enoent;
+    }
+
     const uint64_t inlinesize()
     {
       return inline_size;
@@ -292,6 +297,7 @@ public:
     std::vector<struct flock> locktable;
     std::map<std::string, uint64_t> todelete;
     std::map<std::string, uint64_t> _local_children;
+    std::set<std::string> _local_enoent;
   };
 
   typedef std::shared_ptr<mdx> shared_md;

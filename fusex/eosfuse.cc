@@ -338,7 +338,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("md-kernelcache.enoent.timeout")) {
-        root["options"]["md-kernelcache.enoent.timeout"] = 0.01;
+        root["options"]["md-kernelcache.enoent.timeout"] = 0;
       }
 
       if (!root["options"].isMember("md-backend.timeout")) {
@@ -2022,8 +2022,22 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     } else {
       // negative cache entry
       e.ino = 0;
-      e.attr_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
-      e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
+
+      if (Instance().Config().options.md_kernelcache_enoent_timeout) {
+        e.attr_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
+        e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
+      } else {
+        cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                               R_OK);
+        e.entry_timeout = pcap->lifetime();
+        metad::shared_md pmd = Instance().mds.getlocal(req, parent);
+
+        if (pmd && pmd->id()) {
+          // remember negative lookups
+          XrdSysMutexHelper mLock(pmd->Locker());
+          pmd->local_enoent().insert(name);
+        }
+      }
 
       if (e.entry_timeout) {
         rc = 0;
@@ -2043,8 +2057,14 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
   }
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f name=%s %s", timing.RealTime(), name,
-                    dump(id, parent, 0, rc).c_str());
+
+  if (e.ino) {
+    eos_static_notice("t(ms)=%.03f name=%s %s", timing.RealTime(), name,
+                      dump(id, parent, 0, rc).c_str());
+  } else {
+    eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f",
+                      timing.RealTime(), parent, name, e.entry_timeout);
+  }
 
   if (rc) {
     fuse_reply_err(req, rc);
@@ -2578,6 +2598,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           memset(&e, 0, sizeof(e));
           md->convert(e, pcap->lifetime());
           md->lookup_inc();
+          pmd->local_enoent().erase(name);
           eos_static_info("%s", md->dump(e).c_str());
         } else {
           Instance().getCap().forget(implied_cid);
@@ -3481,6 +3502,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                     true);
             io->ioctx()->attach(req, cookie, fi->flags);
           }
+
+          pmd->local_enoent().erase(name);
         }
 
         eos_static_info("%s", md->dump(e).c_str());
@@ -4682,6 +4705,10 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
         Instance().mds.add(req, pmd, md, pcap->authid());
       }
 
+      if (rc) {
+        pmd->local_enoent().erase(name);
+      }
+
       memset(&e, 0, sizeof(e));
       md->convert(e, pcap->lifetime());
     }
@@ -4802,6 +4829,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
             eos_static_debug("hlnk tmd %s %s", tmd->name().c_str(), tmd->dump(e).c_str());
           }
 
+          pmd->local_enoent().erase(newname);
           // reply with the target entry
           fuse_reply_entry(req, &e);
         }

@@ -32,7 +32,7 @@ This
     "backtrace" : 1,
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
-    "md-kernelcache.enoent.timeout" : 0.01,
+    "md-kernelcache.enoent.timeout" : 0,
     "md-backend.timeout" : 86400, 
     "md-backend.put.timeout" : 120, 
     "data-kernelcache" : 1,

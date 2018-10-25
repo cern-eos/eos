@@ -1342,9 +1342,26 @@ metad::dump_md(shared_md md, bool lock)
     }
   }
 
-  jsonstring += "]\n";
+  jsonstring += "}\n";
+  jsonstring += "\nenoent: {\n";
+
+  for (auto it = md->local_enoent().begin();
+       it != md->local_enoent().end(); ++it) {
+    jsonstring += "\"";
+    jsonstring += *it;
+
+    if (it == md->local_enoent().end()) {
+      jsonstring += "\"";
+      break;
+    } else {
+      jsonstring += "\",";
+    }
+  }
+
+  jsonstring += "}\n";
   jsonstring += "\ncap-cnt: ";
   jsonstring += capcnt;
+  jsonstring += "\n";
 
   if (lock) {
     md->Locker().UnLock();
@@ -1562,11 +1579,16 @@ metad::cleanup(shared_md md)
         inval_entry_name.push_back(it->first);
       } else {
         // if the server provides a dentry invalidation message
-        // files and directories never get an inval_entry call, only when we see an explicit deletion
+        // files and directories never get an inval_entry call, only when we see an explicit deletion or a negative cache entry needs cleanup
       }
     }
   }
 
+  for (auto it : md->local_enoent()) {
+    inval_entry_name.push_back(it);
+  }
+
+  md->local_enoent().clear();
   md->Locker().UnLock();
 
   if (EosFuse::Instance().Config().options.md_kernelcache) {
@@ -2603,6 +2625,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                 // update the local store
                 update(req, md, authid, true);
+                std::string name = md->name();
                 md->Locker().UnLock();
                 // adjust local quota
                 cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
@@ -2625,6 +2648,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     EosFuse::Instance().Config().options.data_kernelcache) {
                   eos_static_info("invalidate data cache for ino=%016lx", ino);
                   kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
+                  kernelcache::inval_entry(pino, name);
                 }
 
                 if (S_ISREG(mode)) {
