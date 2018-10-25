@@ -3599,6 +3599,10 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             if (Instance().Config().options.write_size_flush_interval) {
               if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
                 Instance().mds.update(req, io->md, io->authid());
+                Instance().mds.update(req, io->md, io->authid());
+                io->next_size_flush.store(now +
+                                          Instance().Config().options.write_size_flush_interval,
+                                          std::memory_order_seq_cst);
               } else {
                 if (!io->next_size_flush.load()) {
                   io->next_size_flush.store(now +
