@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.10 Citrine``
+===================
+
+2018-10-25
+
+Bug
+---
+
+* [EOS-2500] fix shutdown procedure which might send a kill signal to process id=1 when the watchdog becomes a zombie process
+* [EOS-3015] deal with OpenAsync timeouts in the ioflush thread
+* [EOS-3016] Properly handle URL sources (eg.: starting with root://) in eos cp
+* [EOS-3021] Make function executed by thread noexcept so that we get a proper stack if it throws an exception
+* [EOS-3022] Use uint64_t for storing file ids in the archive command
+* fixes for file ids > 2^31 (int->long long in FST)
+
+
+Improvements
+------------
+
+* update file sizes for ongonig writes in eosxd by default every 5s and as long as the cap is valid
 
 ``v4.4.9 Citrine``
 ==================
