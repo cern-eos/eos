@@ -63,7 +63,7 @@ message FsProto {
     }
 
     uint64 Fsid = 1;
-    DisplayMode display = 2;
+    DisplayMode Display = 2;
     bool ShowFid = 3;
     bool ShowPath = 4;
     bool ShowSize = 5;
@@ -86,15 +86,24 @@ message FsProto {
       DRAIN   = 6;
    }
 
-   DisplayMode display = 1;
+   DisplayMode Display = 1;
    bool Brief = 2;
    string Matchlist = 3;
   }
 
   message ImportProto {
-    uint64 Fsid = 1;
-    string ExternalPath = 2;
-    string LocalPath = 3;
+    enum ImportCommand {
+      START = 0;
+      QUERY = 1;
+    }
+
+    ImportCommand Command = 1;
+    oneof id {
+      uint64 Fsid = 2;
+      string Importid = 3;
+    }
+    string ExternalPath = 4;
+    string LocalPath = 5;
   }
 
   message RmProto {

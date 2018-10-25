@@ -80,7 +80,7 @@ Storage::ImportScan()
     }
 
     // To be able to provide progress status on the importation procedure,
-    // files will be processed in batches of 50k
+    // files will be processed in batches of 1k
 
     XrdOucErrInfo error;
     XrdOucString capOpaqueFile;
@@ -102,7 +102,7 @@ Storage::ImportScan()
       batches++;
 
       // Fetch batch of files
-      while ((count < 50000) && ((file = io->ftsRead(handle)) != "")) {
+      while ((count < 1000) && ((file = io->ftsRead(handle)) != "")) {
         // Obtain file size from stat call
         struct stat buf;
         std::unique_ptr<FileIo> fIo(FileIoPlugin::GetIoObject(file));
@@ -247,7 +247,7 @@ Storage::ImportScan()
         }
       }
 
-      doImport = (count == 50000);
+      doImport = (count == 1000);
     }
 
     // Send import end signal to MGM

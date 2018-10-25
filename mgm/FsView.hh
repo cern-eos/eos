@@ -724,19 +724,22 @@ struct ImportStatus
 
   //----------------------------------------------------------------------------
   //! String representation of the import state
-  //! Format: Batch \##  %# [========    ] #/#    Total: #  Failed: #
+  //! Format: Batch \##  %## [========    ] #/#    Total: #  Failed: #
   //----------------------------------------------------------------------------
   std::string to_string() {
     std::ostringstream ss;
-    float percentage = mCurrent * 100.0 / mFiles;
+    float percentage = (mFiles) ? (mCurrent * 100.0 / mFiles) : 0;
     int limit = (int) (15 * percentage / 100);
+    char pct[10];
+
+    sprintf(pct, "%02d", (int) percentage);
 
     ss << "Batch #" << mBatch;
-    ss << "  %" << percentage << "[";
+    ss << "  %" << pct << " [";
 
     for (int i = 0; i < 15; i++) {
-      if (i <= limit) { ss << "="; }
-      else            { ss << " "; }
+      if (limit && i <= limit) { ss << "="; }
+      else                     { ss << " "; }
     }
 
     ss << "]  " << mCurrent << "/" << mFiles << "    ";
@@ -964,7 +967,7 @@ public:
   std::map<std::string, FsNode* > mNodeView;
 
   //! Map translating a filesystem ID to a file system object
-  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
+  std::map<eos::common::FileSystem::fsid_t, FileSystem* > mIdView;
 
   //! Map translating an import ID to an import status object
   std::map<std::string, ImportStatus* > mImportView;

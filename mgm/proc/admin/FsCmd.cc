@@ -418,24 +418,39 @@ FsCmd::Import(const eos::console::FsProto::ImportProto& importProto)
   std::string sfsid = std::to_string(importProto.fsid());
 
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
-    // Check for valid filesystem id
-    if (FsView::gFsView.mIdView.count(importProto.fsid())) {
-      std::string extPath = importProto.externalpath().c_str();
-      std::string lclPath = importProto.localpath().c_str();
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-      // Check local path is an absolute path
-      if (lclPath.find("/") == 0) {
-        XrdOucString outLocal, errLocal;
-        retc = proc_fs_import(sfsid, extPath, lclPath, outLocal, errLocal, mVid);
-        mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-        mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+    if (importProto.command() == eos::console::FsProto::ImportProto::START) {
+      // Check for valid filesystem id
+      if (FsView::gFsView.mIdView.count(importProto.fsid())) {
+        std::string extPath = importProto.externalpath().c_str();
+        std::string lclPath = importProto.localpath().c_str();
+
+        // Check local path is an absolute path
+        if (lclPath.find("/") == 0) {
+          XrdOucString outLocal, errLocal;
+          retc = proc_fs_import(sfsid, extPath, lclPath, outLocal, errLocal, mVid);
+          mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
+          mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+        } else {
+          retc = EINVAL;
+          mErr = "error: destination path must be an absolute path";
+        }
       } else {
         retc = EINVAL;
-        mErr = "error: destination path must be an absolute path";
+        mErr = "error: cannot identify the filesystem by <" + sfsid + ">";
       }
-    } else {
-      retc = EINVAL;
-      mErr = "error: cannot identify the filesystem by <" + sfsid + ">";
+    } else if (importProto.command() == eos::console::FsProto::ImportProto::QUERY) {
+      std::string importId = importProto.importid();
+
+      if (FsView::gFsView.mImportView.count(importId)) {
+        ImportStatus* importStatus = FsView::gFsView.mImportView[importId];
+        mOut = importStatus->to_string();
+        retc = SFS_OK;
+      } else {
+        retc = EINVAL;
+        mErr = "error: no import operation with id=" + importId;
+      }
     }
   } else {
     retc = EPERM;

@@ -190,15 +190,18 @@ void com_fs_help()
       << "    -m     : print full metadata record in env format" << std::endl
       << "    -s     : silent mode (will keep an internal reference)" << std::endl
       << std::endl
-      << "  fs import <src_fsid> <ext_path> <lcl_path>" << std::endl
-      << "     scan an external endpoint and register all files" << std::endl
-      << "     into the namespace as belonging to the given filesystem" << std::endl
-      << "     at the specified local path"
+      << "  fs import start <src_fsid> <ext_path> <lcl_path>" << std::endl
+      << "    scan an external endpoint and register all files" << std::endl
+      << "    into the namespace as belonging to the given filesystem" << std::endl
+      << "    at the specified local path"
       << std::endl
-      << "     src_fsid  : source filesystem identifier" <<std::endl
-      << "     ext_path  : complete path to an external location" << std::endl
-      << "     lcl_path  : path to a location within the selected" << std:: endl
-      << "                 filesystem" << std::endl
+      << "    src_fsid  : source filesystem identifier" <<std::endl
+      << "    ext_path  : complete path to an external location" << std::endl
+      << "    lcl_path  : path to a location within the selected" << std::endl
+      << "                filesystem" << std::endl
+      << "  fs import query <import_id>" << std::endl
+      << "    perform status query about ongoing import procedure" << std::endl
+      << "    import_id : id to identify import operation" << std::endl
       << std::endl
       << "  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]"
       << std::endl

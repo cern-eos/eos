@@ -461,36 +461,61 @@ FsHelper::ParseCommand(const char* arg)
     } else {
       soption = option;
 
-      // Parse fsid
-      try {
-        uint64_t fsid = std::stoull(soption);
-        import->set_fsid(fsid);
-      } catch (const std::exception& e) {
-        std::cerr << "error: fsid needs to be numeric" << std::endl;
+      if (soption == "start") {
+        import->set_command(FsProto_ImportProto::START);
+
+        if (!(option = tokenizer.GetToken())) {
+          std::cerr << "error: missing <fsid>" << std::endl;
+          return false;
+        }
+
+        soption = option;
+
+        // Parse fsid
+        try {
+          uint64_t fsid = std::stoull(soption);
+          import->set_fsid(fsid);
+        } catch (const std::exception& e) {
+          std::cerr << "error: fsid needs to be numeric" << std::endl;
+          return false;
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          std::cerr << "error: missing <external_path>" << std::endl;
+          return false;
+        }
+        soption = option;
+        import->set_externalpath(soption);
+
+        if (!(option = tokenizer.GetToken())) {
+          std::cerr << "error: missing <local_path>" << std::endl;
+          return false;
+        }
+        soption = option;
+
+        // Local path must be an absolute path
+        if (soption.find("/") != 0) {
+          std::cerr << "error: <local_path> must be an absolute path"
+                    << std::endl;
+          return false;
+        }
+
+        import->set_localpath(soption);
+      } else if (soption == "query") {
+        import->set_command(FsProto_ImportProto::QUERY);
+
+        if (!(option = tokenizer.GetToken())) {
+          std::cerr << "error: missing <import_id>" << std::endl;
+          return false;
+        }
+
+        soption = option;
+        import->set_importid(soption);
+      } else {
+        std::cerr << "error: unknown import command <"
+                  << option  << ">" << std::endl;
         return false;
       }
-
-      if (!(option = tokenizer.GetToken())) {
-        std::cerr << "error: missing <external_path>" << std::endl;
-        return false;
-      }
-      soption = option;
-      import->set_externalpath(soption);
-
-      if (!(option = tokenizer.GetToken())) {
-        std::cerr << "error: missing <local_path>" << std::endl;
-        return false;
-      }
-      soption = option;
-
-      // Local path must be an absolute path
-      if (soption.find("/") != 0) {
-        std::cerr << "error: <local_path> must be an absolute path"
-                  << std::endl;
-        return false;
-      }
-
-      import->set_localpath(soption);
     }
   } else if (cmd == "rm") {
     using eos::console::FsProto_RmProto;
