@@ -26,6 +26,7 @@
 #include "common/FileId.hh"
 #include "common/Path.hh"
 #include "common/Attr.hh"
+#include "common/ShellCmd.hh"
 #include "fst/FmdSqlite.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -234,9 +235,10 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
   sqlite3cmd += " && sqlite3 ";
   sqlite3cmd += fsDBFileName;
   sqlite3cmd += " \"select count(*) from fst where 1;\"";
-  int rc = system(sqlite3cmd.c_str());
 
-  if (WEXITSTATUS(rc))
+  eos::common::ShellCmd sqlitecmd(sqlite3cmd.c_str());
+  eos::common::cmd_status rc = sqlitecmd.wait(60);
+  if (rc.exit_code) 
   {
     eos_warning("sqlite3 command execution failed");
   }
@@ -1289,10 +1291,12 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
   cmd += url;
   cmd += "\" ";
   cmd += tmpfile;
-  int rc = system(cmd.c_str());
-  if (WEXITSTATUS(rc))
+
+  eos::common::ShellCmd bootcmd(cmd.c_str());
+  eos::common::cmd_status rc = bootcmd.wait(1800);
+  if (rc.exit_code) 
   {
-    eos_err("%s returned %d", cmd.c_str(), WEXITSTATUS(rc));
+    eos_err("%s returned %d", cmd.c_str(), rc.exit_code);
     return false;
   }
   else
