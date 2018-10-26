@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.11 Citrine``
+===================
+
+2018-10-26
+
+Bug
+---
+
+* don't call 'system' implying fork in FST code
+* fix Fmd object constructor to use 64-bit file ids
+
+Improvements
+------------
+
+* [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g. to force a client mount with a newer version
+* manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
+
 ``v4.4.10 Citrine``
 ===================
 
