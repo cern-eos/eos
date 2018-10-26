@@ -23,6 +23,7 @@
 
 #include "fst/FmdDbMap.hh"
 #include "common/Path.hh"
+#include "common/ShellCmd.hh"
 #include "proto/Fs.pb.h"
 #include "proto/ConsoleRequest.pb.h"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -178,7 +179,6 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   address += "//dummy?xrd.wantprot=sss";
   XrdCl::URL url(address.c_str());
   std::unique_ptr<XrdCl::FileSystem> fs;
-
 again:
 
   if (!url.IsValid()) {
@@ -201,13 +201,15 @@ again:
     eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
                      current_mgr.c_str(), fid);
   } else {
-    eos_static_err("msg=\"query error\" fid=%08llx status=%d code=%d", fid, status.status,
+    eos_static_err("msg=\"query error\" fid=%08llx status=%d code=%d", fid,
+                   status.status,
                    status.code);
 
     if ((status.code >= 100) &&
         (status.code <= 300)) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
-      eos_static_info("msg=\"retry query\" fid=%08llx query=\"%s\"", fid, fmdquery.c_str());
+      eos_static_info("msg=\"retry query\" fid=%08llx query=\"%s\"", fid,
+                      fmdquery.c_str());
 
       if (!manager) {
         // Use the broadcasted manager name
@@ -260,7 +262,8 @@ again:
 
   if (!EnvMgmToFmd(fmdenv, fmd)) {
     int envlen;
-    eos_static_err("Failed to unparse file meta data %s for fid=%08llx", fmdenv.Env(envlen), fid);
+    eos_static_err("Failed to unparse file meta data %s for fid=%08llx",
+                   fmdenv.Env(envlen), fid);
     delete response;
     return EIO;
   }
@@ -1582,10 +1585,11 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
         << "xrdcp -f -s \"root://" << mgm_host.c_str() << "/"
         << "/proc/admin/?mgm.cmd.proto=" << b64buff << "\" "
         << tmpfile;
-    int rc = system(cmd.str().c_str());
+    eos::common::ShellCmd bootcmd(cmd.str().c_str());
+    eos::common::cmd_status rc = bootcmd.wait(1800);
 
-    if (WEXITSTATUS(rc)) {
-      eos_static_err("%s returned %d", cmd.str().c_str(), WEXITSTATUS(rc));
+    if (rc.exit_code) {
+      eos_static_err("%s returned %d", cmd.str().c_str(), rc.exit_code);
     } else {
       eos_static_debug("%s executed successfully", cmd.str().c_str());
       return true;
@@ -1602,10 +1606,11 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
       << "/proc/admin/?&mgm.format=fuse&mgm.cmd=fs&mgm.subcmd=dumpmd&"
       << "mgm.dumpmd.option=m&mgm.fsid=" << fsid << "\" "
       << tmpfile;
-  int rc = system(cmd.str().c_str());
+  eos::common::ShellCmd bootcmd(cmd.str().c_str());
+  eos::common::cmd_status rc = bootcmd.wait(1800);
 
-  if (WEXITSTATUS(rc)) {
-    eos_static_err("%s returned %d", cmd.str().c_str(), WEXITSTATUS(rc));
+  if (rc.exit_code) {
+    eos_static_err("%s returned %d", cmd.str().c_str(), rc.exit_code);
     return false;
   } else {
     eos_static_debug("%s executed successfully", cmd.str().c_str());

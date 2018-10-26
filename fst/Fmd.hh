@@ -21,6 +21,7 @@
 #include "proto/FmdBase.pb.h"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
+#include "common/FileId.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -71,7 +72,7 @@ public:
   //---------------------------------------------------------------------------
   //! Constructor
   //---------------------------------------------------------------------------
-  FmdHelper(int fid = 0, int fsid = 0): LogId()
+  FmdHelper(eos::common::FileId::fileid_t fid = 0, int fsid = 0): LogId()
   {
     Reset(mProtoFmd);
     mProtoFmd.set_fid(fid);

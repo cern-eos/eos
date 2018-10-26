@@ -29,7 +29,7 @@
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
-
+#include "common/ShellCmd.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -114,10 +114,11 @@ Messaging::Process(XrdMqMessage* newmessage)
       sysline += space2register;
       sysline += " >& /tmp/eosfstregister.out &";
       eos_notice("launched %s", sysline.c_str());
-      int rc = system(sysline.c_str());
+      eos::common::ShellCmd registercmd(sysline.c_str());
+      eos::common::cmd_status rc = registercmd.wait(60);
 
-      if (rc) {
-        rc = 0;
+      if (rc.exit_code) {
+        eos_notice("cmd '%s' failed with rc=%d", sysline.c_str(), rc.exit_code);
       }
     }
   }
