@@ -114,22 +114,23 @@ com_fusex(char* arg1)
   } else if (subcmd == "conf") {
     XrdOucString interval = subtokenizer.GetToken();
     XrdOucString quota_interval = subtokenizer.GetToken();
-    int i_interval = interval.length()? atoi(interval.c_str()) : 0;
-    int q_interval = quota_interval.length()? atoi(quota_interval.c_str()) : 0;
+    int i_interval = interval.length() ? atoi(interval.c_str()) : 0;
+    int q_interval = quota_interval.length() ? atoi(quota_interval.c_str()) : 0;
 
     if ((i_interval < 0) ||
         (i_interval > 15)) {
       goto com_fusex_usage;
     }
 
-    if ((q_interval < 0 ) ||
-	(q_interval > 60 )) {
+    if ((q_interval < 0) ||
+        (q_interval > 60)) {
       goto com_fusex_usage;
     }
 
     in += "&mgm.subcmd=conf";
     in += "&mgm.fusex.hb=";
     in += interval;
+
     if (quota_interval.length()) {
       in += "&mgm.fusex.qc=";
       in += quota_interval;
@@ -190,7 +191,7 @@ com_fusex_usage:
   fprintf(stdout,
           "                                                              <uuid> -  uuid of the client to evict\n");
   fprintf(stdout,
-          "                                                            <reason> -  optional text shown to the client why he has been evicted\n");
+          "                                                            <reason> -  optional text shown to the client why he has been evicted - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       fusex dropcaps <uuid>                                         :  advice a client to drop all caps\n");
@@ -218,13 +219,16 @@ com_fusex_usage:
           "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
   fprintf(stdout,
           "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds]  :  show heartbeat and quota interval\n");
-  fprintf(stdout,                       
+  fprintf(stdout,
           "                                                                     :  [ optional change heartbeat interval from [1-15] seconds ]\n");
   fprintf(stdout,
-	  "                                                                     :  [ optional set quota check interval from [1-16] seconds ]\n");
+          "                                                                     :  [ optional set quota check interval from [1-16] seconds ]\n");
   fprintf(stdout, "examples:\n");
-  fprintf(stdout, "   fusex conf                                                :  show heartbeat and quota interval\n");
-  fprintf(stdout, "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
-  fprintf(stdout, "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
+  fprintf(stdout,
+          "   fusex conf                                                :  show heartbeat and quota interval\n");
+  fprintf(stdout,
+          "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
+  fprintf(stdout,
+          "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
   return (0);
 }

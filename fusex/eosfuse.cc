@@ -1390,10 +1390,11 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   system(systemline.c_str());
   fprintf(stderr, "# umounthandler: executing %s", systemline.c_str());
   fprintf(stderr,
-          "# umounthandler: sighandler received signal %d - emitting signal %d again",
+          "# umounthandler: sighandler received signal %d - emitting signal %d again\n",
           sig, sig);
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
+  signal(SIGTERM, SIG_DFL);
   kill(getpid(), sig);
 }
 
@@ -1418,6 +1419,12 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
     }
 
     if (sigaction(SIGABRT, &sa, NULL) == -1) {
+      char msg[1024];
+      snprintf(msg, sizeof(msg), "failed to install SEGV handler");
+      throw std::runtime_error(msg);
+    }
+
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
       char msg[1024];
       snprintf(msg, sizeof(msg), "failed to install SEGV handler");
       throw std::runtime_error(msg);

@@ -2469,8 +2469,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
             if (rsp.type() == rsp.EVICT) {
               eos_static_crit("evicted from MD server - reason: %s",
                               rsp.evict_().reason().c_str());
+
               // suicide
-              kill(getpid(), SIGABRT);
+              if (rsp.evict_().reason().find("abort") != std::string::npos) {
+                kill(getpid(), SIGABRT);
+              } else {
+                kill(getpid(), SIGTERM);
+              }
+
               pause();
             }
 
