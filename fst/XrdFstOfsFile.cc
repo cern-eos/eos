@@ -545,8 +545,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  eos_info("checksum=%llx entryserver=%d", (unsigned long long) mCheckSum.get(),
-           layOut->IsEntryServer());
+  eos_info("checksum_object=0x%llx entryserver=%d",
+           (unsigned long long) mCheckSum.get(), layOut->IsEntryServer());
 
   if (!isCreation) {
     // Get the real size of the file, not the local stripe size!
