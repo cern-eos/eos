@@ -33,6 +33,9 @@
 #include <sys/time.h>
 #include <shared_mutex>
 
+#define FRIEND_TEST(test_case_name, test_name)\
+friend class test_case_name##_##test_name##_Test
+
 EOSNSNAMESPACE_BEGIN
 
 class IContainerMDSvc;
@@ -441,6 +444,8 @@ public:
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
 private:
+  FRIEND_TEST(VariousTests, EtagFormattingContainer);
+
   //----------------------------------------------------------------------------
   //! Get propagated modification time, no locks
   //----------------------------------------------------------------------------

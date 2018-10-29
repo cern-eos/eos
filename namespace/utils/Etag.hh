@@ -21,9 +21,7 @@
 // desc:   Namespace etag utilities
 //------------------------------------------------------------------------------
 
-#include "namespace/interface/IFileMD.hh"
-#include "common/FileId.hh"
-#include "namespace/utils/Checksum.hh"
+#include <string>
 
 #ifndef EOS_NS_ETAG_HH
 #define EOS_NS_ETAG_HH
@@ -31,59 +29,19 @@
 namespace eos
 {
 
+  class IFileMD;
+  class IContainerMD;
+
   //----------------------------------------------------------------------------
   //! Calculate etag for the given FileMD.
   //----------------------------------------------------------------------------
-  inline void calculateEtag(const IFileMD *const fmd, std::string &out) {
-    //----------------------------------------------------------------------------
-    // Forced etag?
-    //----------------------------------------------------------------------------
-    constexpr char tmpEtag[] = "sys.tmp.etag";
-    if(fmd->hasAttribute(tmpEtag)) {
-      out = fmd->getAttribute(tmpEtag);
-      return;
-    }
+  void calculateEtag(const IFileMD *const fmd, std::string &out);
 
-    //--------------------------------------------------------------------------
-    // Nope. Is there a checksum?
-    //--------------------------------------------------------------------------
-    size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-    unsigned long long inodeNumber = eos::common::FileId::FidToInode(fmd->getId());
-
-    if(cxlen > 0) {
-      //------------------------------------------------------------------------
-      // Yes, use inode + checksum for the etag.
-      // If MD5 checksums are used we omit the inode number, S3 wants that
-      //------------------------------------------------------------------------
-      if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) == eos::common::LayoutId::kMD5) {
-        out = "\"";
-        eos::appendChecksumOnStringAsHex(fmd, out);
-        out += "\"";
-      }
-      else {
-        char setag[256];
-        snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) inodeNumber);
-        out = setag;
-        eos::appendChecksumOnStringAsHex(fmd, out);
-        out += "\"";
-      }
-
-      return;
-    }
-
-    //--------------------------------------------------------------------------
-    // Nope, fallback to inode + mtime.
-    //--------------------------------------------------------------------------
-    eos::IFileMD::ctime_t mtime;
-    fmd->getCTime(mtime);
-
-    char setag[256];
-    snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-            (unsigned long long) inodeNumber,
-            (unsigned long long) mtime.tv_sec);
-    out = setag;
-    return;
-  }
+  //----------------------------------------------------------------------------
+  //! Calculate etag for the given ContainerMD.
+  //! TODO(gbitzes): Make cmd const?
+  //----------------------------------------------------------------------------
+  void calculateEtag(IContainerMD *cmd, std::string &out);
 
 }
 

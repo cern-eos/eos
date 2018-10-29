@@ -286,18 +286,7 @@ XrdMgmOfs::_stat(const char* path,
 #endif
 
     if (etag) {
-      // use inode + mtime
-      char setag[256];
-      snprintf(setag, sizeof(setag) - 1, "\"%llx:%llu.%03lu\"",
-               (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime,
-               (unsigned long) buf->st_atim.tv_nsec / 1000000);
-      *etag = setag;
-      // check for a forced etag
-      std::string tmpEtag = "sys.tmp.etag";
-
-      if (cmd->hasAttribute(tmpEtag)) {
-        *etag = cmd->getAttribute(tmpEtag);
-      }
+      eos::calculateEtag(cmd.get(), *etag);
     }
 
     return SFS_OK;

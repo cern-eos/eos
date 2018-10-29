@@ -36,6 +36,7 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/Checksum.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -801,15 +802,7 @@ ProcCommand::DirInfo(const char* path)
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
         std::string etag;
-        char setag[256];
-        snprintf(setag, sizeof(setag) - 1, "%llx:%llu.%03lu",
-                 (unsigned long long)dmd_copy->getId(), (unsigned long long)tmtime.tv_sec,
-                 (unsigned long)tmtime.tv_nsec / 1000000);
-        etag = setag;
-
-        if (dmd_copy->hasAttribute("sys.tmp.etag")) {
-          etag = dmd_copy->getAttribute("sys.tmp.etag");
-        }
+        eos::calculateEtag(dmd_copy.get(), etag);
 
         if (!Monitoring) {
           stdOut = "  Directory: '";
@@ -1166,19 +1159,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     std::string etag;
-    // use inode + mtime
-    char setag[256];
-    eos::IFileMD::ctime_t mtime;
-    cmd_copy->getMTime(mtime);
-    time_t filemtime = (time_t) mtime.tv_sec;
-    snprintf(setag, sizeof(setag) - 1, "%llu:%llu",
-             (unsigned long long) eos::common::FileId::FidToInode(cmd_copy->getId()),
-             (unsigned long long) filemtime);
-    etag = setag;
-
-    if (cmd_copy->hasAttribute("sys.tmp.etag")) {
-      etag = cmd_copy->getAttribute("sys.tmp.etag");
-    }
+    eos::calculateEtag(cmd_copy.get(), etag);
 
     json["etag"] = etag;
     json["path"] = fullpath;

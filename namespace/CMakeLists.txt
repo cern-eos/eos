@@ -71,6 +71,8 @@ add_library(
   utils/TestHelpers.cc
   utils/Buffer.hh
 
+  utils/Etag.cc                       utils/Etag.hh
+
   # non-loadable classes used in QDB namespace
   ns_quarkdb_static/accounting/ContainerAccounting.cc     ns_quarkdb_static/accounting/ContainerAccounting.hh
   ns_quarkdb_static/accounting/SyncTimeAccounting.cc      ns_quarkdb_static/accounting/SyncTimeAccounting.hh

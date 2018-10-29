@@ -33,6 +33,7 @@
 #include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -522,6 +523,33 @@ TEST_F(VariousTests, EtagFormatting) {
 
   eos::calculateEtag(file1.get(), outcome);
   ASSERT_EQ(outcome, "\"6501e9c7bf20b1dc56f015e341f79833\"");
+}
+
+TEST_F(VariousTests, EtagFormattingContainer) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  // Create a test directory.
+  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/my-file.txt", true);
+  ASSERT_EQ(cont1->getId(), 2);
+
+  eos::IFileMD::ctime_t mtime;
+  mtime.tv_sec = 1534776794;
+  mtime.tv_nsec = 97343404;
+  cont1->setTMTime(mtime);
+
+  eos::ContainerMD *cont1c = reinterpret_cast<ContainerMD*>(cont1.get());
+  cont1c->mCont.set_id(5734137);
+
+  std::string outcome;
+  cont1->setAttribute("sys.tmp.etag", "lmao");
+  eos::calculateEtag(cont1.get(), outcome);
+  ASSERT_EQ(outcome, "lmao");
+
+  cont1->removeAttribute("sys.tmp.etag");
+
+  eos::calculateEtag(cont1.get(), outcome);
+  ASSERT_EQ(outcome, "577ef9:1534776794.097");
 }
 
 }
