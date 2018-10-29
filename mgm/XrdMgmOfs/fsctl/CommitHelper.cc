@@ -40,7 +40,7 @@ void
 CommitHelper::hex2bin_checksum(std::string& checksum, char* binchecksum)
 {
   // hex2binary conversion
-  memset(binchecksum, 0, sizeof(SHA_DIGEST_LENGTH));
+  memset(binchecksum, 0, SHA_DIGEST_LENGTH);
 
   for (unsigned int i = 0; i < checksum.length(); i += 2) {
     char hex[3];
