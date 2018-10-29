@@ -36,6 +36,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/Resolver.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include <math.h>
 #include <memory>
@@ -137,17 +138,7 @@ ProcCommand::File()
 
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
             WAIT_BOOT;
-            unsigned long long fid = 0;
-
-            if (spath.beginswith("fid:")) {
-              spath.replace("fid:", "");
-              fid = strtoull(spath.c_str(), 0, 10);
-            }
-
-            if (spath.beginswith("fxid:")) {
-              spath.replace("fxid:", "");
-              fid = strtoull(spath.c_str(), 0, 16);
-            }
+            unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
             // reference by fid+fsid
             //-------------------------------------------
@@ -275,17 +266,7 @@ ProcCommand::File()
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
           WAIT_BOOT;
-          unsigned long long fid = 0;
-
-          if (spath.beginswith("fid:")) {
-            spath.replace("fid:", "");
-            fid = strtoull(spath.c_str(), 0, 10);
-          }
-
-          if (spath.beginswith("fxid:")) {
-            spath.replace("fxid:", "");
-            fid = strtoull(spath.c_str(), 0, 16);
-          }
+          unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
           // -------------------------------------------------------------------
           // reference by fid+fsid
@@ -606,15 +587,7 @@ ProcCommand::File()
         //-------------------------------------------
         // reference by fid+fsid
         //-------------------------------------------
-        if (spath.beginswith("fid:")) {
-          spath.replace("fid:", "");
-          fid = strtoull(spath.c_str(), 0, 10);
-        }
-
-        if (spath.beginswith("fxid:")) {
-          spath.replace("fxid:", "");
-          fid = strtoull(spath.c_str(), 0, 16);
-        }
+        unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
@@ -1267,17 +1240,8 @@ ProcCommand::File()
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
           WAIT_BOOT;
-          unsigned long long fid = 0;
 
-          if (spath.beginswith("fid:")) {
-            spath.replace("fid:", "");
-            fid = strtoull(spath.c_str(), 0, 10);
-          }
-
-          if (spath.beginswith("fxid:")) {
-            spath.replace("fxid:", "");
-            fid = strtoull(spath.c_str(), 0, 16);
-          }
+          unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
           try {
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -1726,17 +1690,7 @@ ProcCommand::File()
         try {
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
             WAIT_BOOT;
-            unsigned long long fid = 0;
-
-            if (spath.beginswith("fid:")) {
-              spath.replace("fid:", "");
-              fid = strtoull(spath.c_str(), 0, 10);
-            }
-
-            if (spath.beginswith("fxid:")) {
-              spath.replace("fxid:", "");
-              fid = strtoull(spath.c_str(), 0, 16);
-            }
+            unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
             // reference by fid+fsid
             //-------------------------------------------

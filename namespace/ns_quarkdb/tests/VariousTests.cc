@@ -37,6 +37,7 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
 #include "namespace/PermissionHandler.hh"
+#include "namespace/Resolver.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
 
@@ -838,4 +839,33 @@ TEST(QuotaNodeCore, BasicSanity) {
 
   ASSERT_EQ(qn.getUids(), uids);
   ASSERT_EQ(qn.getGids(), gids);
+}
+
+TEST(Resolver, FidParsing) {
+  XrdOucString str = "fid:123";
+  ASSERT_EQ(FileIdentifier(123), Resolver::retrieveFileIdentifier(str));
+
+  str = "asdef234";
+  ASSERT_EQ(FileIdentifier(0), Resolver::retrieveFileIdentifier(str));
+
+  str = "fxid:0x12f";
+  ASSERT_EQ(FileIdentifier(303), Resolver::retrieveFileIdentifier(str));
+
+  str = "fxid:12f";
+  ASSERT_EQ(FileIdentifier(303), Resolver::retrieveFileIdentifier(str));
+
+  str = "ino:0x3e70000000"; // fid: 999, old encoding
+  ASSERT_EQ(FileIdentifier(999), Resolver::retrieveFileIdentifier(str));
+
+  str = "ino:zzzz";
+  ASSERT_EQ(FileIdentifier(0), Resolver::retrieveFileIdentifier(str));
+
+  str = "ino:123"; // cid: 123
+  ASSERT_EQ(FileIdentifier(0), Resolver::retrieveFileIdentifier(str));
+
+  str = "ino:0x80000000000003e7"; // fid: 999, new encoding
+  ASSERT_EQ(FileIdentifier(999), Resolver::retrieveFileIdentifier(str));
+
+  str = "ino:80000000000003e7"; // fid: 999, new encoding
+  ASSERT_EQ(FileIdentifier(999), Resolver::retrieveFileIdentifier(str));
 }

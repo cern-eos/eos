@@ -30,6 +30,8 @@
 #include "namespace/interface/IView.hh"
 #include "proto/Ns.pb.h"
 
+class XrdOucString;
+
 EOSNSNAMESPACE_BEGIN
 
 using ContainerSpecificationProto = eos::console::NsProto_ContainerSpecificationProto;
@@ -42,6 +44,12 @@ public:
   //! Assumes caller holds eosViewRWMutex.
   //----------------------------------------------------------------------------
   static IContainerMDPtr resolveContainer(IView *view, const ContainerSpecificationProto &proto);
+
+  //----------------------------------------------------------------------------
+  //! Parse FileIdentifier based on an string.
+  //! Recognizes "fid:", "fxid:", "ino:"
+  //----------------------------------------------------------------------------
+  static FileIdentifier retrieveFileIdentifier(XrdOucString &str);
 
 };
 

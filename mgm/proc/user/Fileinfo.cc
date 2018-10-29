@@ -34,6 +34,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/Resolver.hh"
 #include "namespace/utils/Etag.hh"
 #include <json/json.h>
 
@@ -127,17 +128,7 @@ ProcCommand::FileInfo(const char* path)
     std::shared_ptr<eos::IFileMD> fmd;
 
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
-      unsigned long long fid = 0;
-
-      if (spath.beginswith("fid:")) {
-        spath.replace("fid:", "");
-        fid = strtoull(spath.c_str(), 0, 10);
-      }
-
-      if (spath.beginswith("fxid:")) {
-        spath.replace("fxid:", "");
-        fid = strtoull(spath.c_str(), 0, 16);
-      }
+      unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
       // reference by fid+fxid
       //-------------------------------------------

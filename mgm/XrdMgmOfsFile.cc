@@ -45,6 +45,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/Master.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/Resolver.hh"
 #include "authz/XrdCapability.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -211,21 +212,7 @@ XrdMgmOfsFile::open(const char* inpath,
     WAIT_BOOT;
 
     // reference by fid+fsid
-    if (spath.beginswith("fid:")) {
-      spath.replace("fid:", "");
-      byfid = strtoull(spath.c_str(), 0, 10);
-    }
-
-    if (spath.beginswith("fxid:")) {
-      spath.replace("fxid:", "");
-      byfid = strtoull(spath.c_str(), 0, 16);
-    }
-
-    if (spath.beginswith("ino:")) {
-      spath.replace("ino:", "");
-      byfid = strtoull(spath.c_str(), 0, 16);
-      byfid = eos::common::FileId::InodeToFid(byfid);
-    }
+    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
