@@ -104,7 +104,7 @@ ProcCommand::File()
     if (mSubCmd == "layout") {
       cmdok = true;
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
-      XrdOucString cksum = pOpaque->Get("mgm.file.layout.ckecksum");
+      XrdOucString cksum = pOpaque->Get("mgm.file.layout.checksum");
       int checksum_type = eos::common::LayoutId::kNone;
       XrdOucString ne = "eos.layout.checksum=";
       ne += cksum;

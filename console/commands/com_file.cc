@@ -204,11 +204,11 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 
   if (status.IsOK()) {
     rc = 0;
-    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",
+    eos_static_debug("got replica file meta data from server %s for fxid=%s fsid=%s",
                      manager, shexfid, sfsid);
   } else {
     rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",
+    eos_static_err("Unable to retrieve meta data from server %s for fxid=%s fsid=%s",
                    manager, shexfid, sfsid);
   }
 
@@ -219,7 +219,7 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 
   if (!strncmp(response->GetBuffer(), "ERROR", 5)) {
     // remote side couldn't get the record
-    eos_static_info("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",
+    eos_static_info("Unable to retrieve meta data on remote server %s for fxid=%s fsid=%s",
                     manager, shexfid, sfsid);
     delete response;
     return ENODATA;
@@ -657,7 +657,7 @@ com_file(char* arg1)
     }
 
     if (fsid1 == "-checksum") {
-      in += "&mgm.file.layout.ckecksum=";
+      in += "&mgm.file.layout.checksum=";
     }
 
     in += fsid2;
@@ -796,9 +796,9 @@ com_file(char* arg1)
     int envlen = 0;
     XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
     delete result;
+
     XrdOucString checksumattribute = "NOTREQUIRED";
     bool consistencyerror = false;
-    bool down = false;
 
     if (envlen) {
       XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
@@ -806,7 +806,7 @@ com_file(char* arg1)
       XrdOucString size = newresult->Get("mgm.size");
 
       if ((option.find("%silent") == STR_NPOS) && (!silent)) {
-        fprintf(stdout, "path=\"%s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" "
+        fprintf(stdout, "path=\"%s\" fxid=\"%4s\" size=\"%s\" nrep=\"%s\" "
                 "checksumtype=\"%s\" checksum=\"%s\"\n",
                 path.c_str(), newresult->Get("mgm.fid0"),
                 size.c_str(), newresult->Get("mgm.nrep"),
@@ -854,18 +854,11 @@ com_file(char* arg1)
           }
 
           XrdOucString bs = newresult->Get(repbootstat.c_str());
-
-          if (bs != "booted") {
-            down = true;
-          } else {
-            down = false;
-          }
-
-          struct eos::fst::Fmd fmd;
+          bool down = (bs != "booted");
 
           int retc = 0;
-
           int oldsilent = silent;
+          struct eos::fst::Fmd fmd;
 
           if ((option.find("%silent")) != STR_NPOS) {
             silent = true;
@@ -984,16 +977,12 @@ com_file(char* arg1)
                         fmd.size(),
                         static_cast<long long>(rsize),
                         cx.c_str());
-              }
 
-              if ((option.find("%checksumattr") != STR_NPOS)) {
-                if (!silent) {
-                  fprintf(stdout, " checksumattr=\"%s\"\n", checksumattribute.c_str());
+                if ((option.find("%checksumattr") != STR_NPOS)) {
+                  fprintf(stdout, " checksumattr=\"%s\"", checksumattribute.c_str());
                 }
-              } else {
-                if (!silent) {
-                  fprintf(stdout, "\n");
-                }
+
+                fprintf(stdout, "\n");
               }
             }
           }
@@ -1030,7 +1019,7 @@ com_file(char* arg1)
       if ((option.find("%output")) != STR_NPOS) {
         if (consistencyerror) {
           fprintf(stdout,
-                  "INCONSISTENCY %s path=%-32s fid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n",
+                  "INCONSISTENCY %s path=%-32s fxid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n",
                   inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"),
                   size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i,
                   nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
@@ -1038,8 +1027,9 @@ com_file(char* arg1)
       }
 
       if (consistencyerror) {
-	global_retc = EFAULT;
+	      global_retc = EFAULT;
       }
+
       delete newresult;
     } else {
       fprintf(stderr, "error: couldn't get meta data information\n");
