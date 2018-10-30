@@ -77,7 +77,6 @@ public:
   virtual ~HttpServer()
   {
     mThreadId.join();
-    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
   }
 
   /**
