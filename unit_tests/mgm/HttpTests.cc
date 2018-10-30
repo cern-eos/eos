@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: AccessTests.cc
+// File: HttpTests.cc
 // Author: Elvin-Alin Sindrilaru <esindril at cern dot ch>
 //------------------------------------------------------------------------------
 
@@ -22,33 +22,22 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/Access.hh"
+#define IN_TEST_HARNESS
+#include "mgm/http/HttpServer.hh"
+#undef IN_TEST_HARNESS
 
 //------------------------------------------------------------------------------
-// Test basic access functionality
+// Test clientDN formatting according to different standards
 //------------------------------------------------------------------------------
-TEST(Access, SetRule)
+TEST(Http, FormatClientDN)
 {
-  using namespace eos::mgm;
-  Access::StallInfo old_stall;
-  Access::StallInfo new_stall("*", "60", "test stall", true);
-  ASSERT_EQ(false, Access::gStallGlobal);
-  // Set new stall state
-  Access::SetStallRule(new_stall, old_stall);
-  // Do checks without taking the lock as this is just for test purposes
-  ASSERT_STREQ("60", Access::gStallRules[new_stall.mType].c_str());
-  ASSERT_STREQ("test stall", Access::gStallComment[new_stall.mType].c_str());
-  ASSERT_EQ(new_stall.mIsGlobal, Access::gStallGlobal);
-  Access::StallInfo empty_stall;
-  // Setting an empty stall should not change anything
-  Access::SetStallRule(empty_stall, old_stall);
-  ASSERT_STREQ("60", Access::gStallRules[new_stall.mType].c_str());
-  ASSERT_STREQ("test stall", Access::gStallComment[new_stall.mType].c_str());
-  ASSERT_EQ(new_stall.mIsGlobal, Access::gStallGlobal);
-  // Revert to initial state
-  Access::StallInfo tmp_stall;
-  Access::SetStallRule(old_stall, tmp_stall);
-  ASSERT_TRUE(Access::gStallRules.count(old_stall.mType) == 0);
-  ASSERT_TRUE(Access::gStallComment.count(old_stall.mType) == 0);
-  ASSERT_EQ(old_stall.mIsGlobal, Access::gStallGlobal);
+  eos::mgm::HttpServer http;
+  std::string ref =
+    "/DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=hroussea/CN=660542/CN=Herve Rousseau";
+  std::string old_cnd =
+    "/DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=hroussea/CN=660542/CN=Herve Rousseau";
+  ASSERT_TRUE(ref == http.ProcessClientDN(old_cnd));
+  std::string new_cnd =
+    "CN=Herve Rousseau,CN=660542,CN=hroussea,OU=Users,OU=Organic Units,DC=cern,DC=ch";
+  ASSERT_TRUE(ref == http.ProcessClientDN(new_cnd));
 }
