@@ -243,6 +243,22 @@ std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
   return nullptr;
 }
 
+
+//----------------------------------------------------------------------------
+// Get streaming iterator to list of files on a particular file system
+//----------------------------------------------------------------------------
+std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+    QuarkFileSystemView::getStreamingFileList(IFileMD::location_t location)
+{
+  FileSystemHandler* handler = fetchRegularFilelistIfExists(location);
+
+  if (handler) {
+    return handler->getStreamingFileList();
+  }
+
+  return nullptr;
+}
+
 //------------------------------------------------------------------------------
 // Erase an entry from all filesystem view collections
 //------------------------------------------------------------------------------

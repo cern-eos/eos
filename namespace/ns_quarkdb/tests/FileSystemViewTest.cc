@@ -387,6 +387,11 @@ TEST_F(FileSystemViewF, FileListIterator) {
   ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 3 } ));
   ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
   ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(4), std::set<eos::IFileMD::id_t> { 4 } ));
+
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(2), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3), std::set<eos::IFileMD::id_t> { 1, 3 } ));
+  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(4), std::set<eos::IFileMD::id_t> { 4 } ));
 }
 
 //------------------------------------------------------------------------------

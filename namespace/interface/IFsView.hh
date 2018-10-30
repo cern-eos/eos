@@ -123,6 +123,16 @@ public:
       getFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get streaming iterator to list of files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
+  //----------------------------------------------------------------------------
+  virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getStreamingFileList(IFileMD::location_t location) = 0;
+
+  //----------------------------------------------------------------------------
   //! Erase an entry from all filesystem view collections
   //!
   //! @param location where to remove

@@ -222,6 +222,16 @@ public:
       getFileList(IFileMD::location_t location) override;
 
   //----------------------------------------------------------------------------
+  //! Get streaming iterator to list of files on a particular file system
+  //!
+  //! @param location file system id
+  //!
+  //! @return shared ptr to collection iterator
+  //----------------------------------------------------------------------------
+  std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
+      getStreamingFileList(IFileMD::location_t location) override;
+
+  //----------------------------------------------------------------------------
   //! Get an approximately random file residing within the given filesystem.
   //!
   //! @param location file system id
