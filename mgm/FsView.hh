@@ -784,26 +784,18 @@ public:
   static std::string GetFileSystemFormat(std::string option);
 
   //----------------------------------------------------------------------------
-  //! Static thread startup function
-  //----------------------------------------------------------------------------
-  static void* StaticHeartBeatCheck(void*);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param start_heartbeat control whether heartbeat thread is started - for
   //!                        testing purposes
   //----------------------------------------------------------------------------
   FsView(bool start_heartbeat = true):
-    hbthread(), mIsHeartbeatOn(false), NextFsId(0)
+    NextFsId(0)
   {
     MgmConfigQueueName = "";
 
     if (start_heartbeat) {
-      mIsHeartbeatOn = true;
-      XrdSysThread::Run(&hbthread, FsView::StaticHeartBeatCheck,
-                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                        "HeartBeat Thread");
+      mHeartBeatThread.reset(&FsView::HeartBeatCheck, this);
     }
   }
 
@@ -988,18 +980,14 @@ public:
   //----------------------------------------------------------------------------
   //! Thread loop function checking heartbeats
   //----------------------------------------------------------------------------
-  void* HeartBeatCheck();
+  void HeartBeatCheck(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Stop the heartbeat thread
   //----------------------------------------------------------------------------
   void StopHeartBeat()
   {
-    if (mIsHeartbeatOn) {
-      XrdSysThread::Cancel(hbthread);
-      XrdSysThread::Join(hbthread, 0);
-      mIsHeartbeatOn = false;
-    }
+    mHeartBeatThread.join();
   }
 
   //----------------------------------------------------------------------------
@@ -1057,8 +1045,7 @@ public:
   void BroadcastMasterId(const std::string master_id);
 
 private:
-  pthread_t hbthread; ///< Thread ID of the heartbeat thread
-  bool mIsHeartbeatOn; ///< True if heartbeat thread is running
+  AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
   //! Mutex protecting all ...Map variables

@@ -2303,23 +2303,13 @@ FsView::GetGlobalConfig(std::string key)
 }
 
 //------------------------------------------------------------------------------
-// Static thread startup function calling HeartBeatCheck
-//------------------------------------------------------------------------------
-void*
-FsView::StaticHeartBeatCheck(void* arg)
-{
-  return reinterpret_cast<FsView*>(arg)->HeartBeatCheck();
-}
-
-//------------------------------------------------------------------------------
 // Heart beat checker set's filesystem to down if the heart beat is missing
 //------------------------------------------------------------------------------
-void*
-FsView::HeartBeatCheck()
+void
+FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
-  while (true) {
+  while (!assistant.terminationRequested()) {
     {
-      // quickly go through all heartbeats
       eos::common::RWMutexReadLock lock(ViewMutex);
 
       for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
@@ -2386,15 +2376,8 @@ FsView::HeartBeatCheck()
         }
       }
     }
-
-    for (int i = 0; i < 10; ++i) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      XrdSysThread::CancelPoint();
-    }
+    assistant.wait_for(std::chrono::seconds(10));
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 //------------------------------------------------------------------------------
