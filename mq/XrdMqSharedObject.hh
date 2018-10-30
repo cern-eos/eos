@@ -877,8 +877,8 @@ public:
     XrdSysMutex WatchMutex; //< protects access to all Watch* objects
 
     std::deque<XrdMqSharedObjectManager::Notification> NotificationSubjects;
-    XrdSysSemWait SubjectsSem;
-    XrdSysMutex SubjectsMutex;
+    XrdSysSemWait mSubjSem;
+    XrdSysMutex mSubjMtx;
     bool Notify;
 
     Subscriber(const std::string& name = ""):
@@ -934,13 +934,14 @@ public:
     return ret;
   }
 
+  static thread_local Subscriber* tlSubscriber;
+
   inline Subscriber* BindCurrentThread(const std::string& name,
                                        bool createIfNeeded = true)
   {
-    return tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded);
+    return (tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded));
   }
 
-  static thread_local Subscriber* tlSubscriber;
   void SetShareObjectManager(XrdMqSharedObjectManager* som)
   {
     SOM = som;

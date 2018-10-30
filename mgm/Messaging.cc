@@ -69,7 +69,7 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   std::unique_ptr<XrdMqMessage> new_msg;
 
   while (!assistant.terminationRequested()) {
-    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
 
     if (new_msg) {
       Process(new_msg.get());

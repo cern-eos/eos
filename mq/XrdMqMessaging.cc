@@ -74,7 +74,7 @@ XrdMqMessaging::Listen(ThreadAssistant& assistant) noexcept
   std::unique_ptr<XrdMqMessage> new_msg;
 
   while (!assistant.terminationRequested()) {
-    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage());
+    new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
 
     if (new_msg && mSom) {
       XrdOucString error;
@@ -127,7 +127,8 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
                                     XrdOucString broadcasttargetqueues,
                                     XrdOucString& msgbody,
                                     XrdOucString& responses,
-                                    unsigned long waittime)
+                                    unsigned long waittime,
+                                    ThreadAssistant* assistant)
 {
   XrdMqClient MessageClient(broadcastresponsequeue.c_str());
 
@@ -159,10 +160,14 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
     return false;
   }
 
-  // sleep
-  std::this_thread::sleep_for(std::chrono::seconds(waittime));
+  if (assistant) {
+    assistant->wait_for(std::chrono::seconds(waittime));
+  } else {
+    std::this_thread::sleep_for(std::chrono::seconds(waittime));
+  }
+
   // now collect:
-  XrdMqMessage* new_msg = MessageClient.RecvMessage();
+  XrdMqMessage* new_msg = MessageClient.RecvMessage(assistant);
 
   if (new_msg) {
     responses += new_msg->GetBody();

@@ -198,7 +198,8 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
     XrdOucString stdErr = "";
 
     if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-        broadcasttargetqueue, msgbody, stdOut, 10)) {
+        broadcasttargetqueue, msgbody,
+        stdOut, 10, &assistant)) {
       eos_static_err("failed to broad cast and collect fsck from [%s]:[%s]",
                      broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
@@ -259,12 +260,11 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
           try {
             eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
                 gOFS->eosFsView, fsid);
-
             XrdSysMutexHelper lock(eMutex);
-
             // Only need the view lock if we're in-memory
             eos::common::RWMutexReadLock nslock;
-            if(gOFS->eosView->inMemory()) {
+
+            if (gOFS->eosView->inMemory()) {
               nslock.Grab(gOFS->eosViewRWMutex);
             }
 
@@ -272,13 +272,12 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
             for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
                  (it_fid && it_fid->valid()); it_fid->next()) {
-
               eos::FileIdentifier fid(it_fid->getElement());
               futs.emplace_back(fid, gOFS->eosFileService->hasFileMD(fid));
             }
 
-            for(size_t i = 0; i < futs.size(); i++) {
-              if(futs[i].second.get() == true) {
+            for (size_t i = 0; i < futs.size(); i++) {
+              if (futs[i].second.get() == true) {
                 eFsUnavail[fsid]++;
                 eFsMap["rep_offline"][fsid].insert(futs[i].first.getUnderlyingUInt64());
                 eMap["rep_offline"].insert(futs[i].first.getUnderlyingUInt64());

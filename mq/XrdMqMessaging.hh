@@ -68,13 +68,15 @@ public:
   //! @param msgbody message which is broadcasted
   //! @param reponses collected reponses
   //! @param waittime timeout in seconds before we attempt to collect responses
+  //! @parma assistant thread assistant running this method
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool BroadCastAndCollect(XrdOucString broadcastresponsequeue,
                            XrdOucString broadcasttargetqueues,
                            XrdOucString& msgbody, XrdOucString& responses,
-                           unsigned long waittime = 5);
+                           unsigned long waittime = 5,
+                           ThreadAssistant* assistant = nullptr);
 
   //----------------------------------------------------------------------------
   //! Check if listener thread is zombie

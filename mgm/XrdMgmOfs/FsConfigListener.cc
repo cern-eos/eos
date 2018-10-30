@@ -83,16 +83,16 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 
   // Thread listening on filesystem errors and configuration changes
   while (!assistant.terminationRequested()) {
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait();
     // we always take a lock to take something from the queue and then release it
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
     // Listens for modifications on filesystem objects
     while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
       XrdMqSharedObjectManager::Notification event;
       event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
       gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-      gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+      gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
       eos_static_debug("MGM shared object notification subject is %s",
                        event.mSubject.c_str());
       std::string newsubject = event.mSubject.c_str();
@@ -100,14 +100,14 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
       // Handle subject creation
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
         eos_static_debug("received creation on subject %s\n", newsubject.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
       // Handle subject deletion
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
         eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
@@ -347,7 +347,7 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           }
         }
 
-        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
@@ -365,16 +365,16 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 
         gOFS->ConfEngine->DeleteConfigValue(0, key.c_str(), false);
         gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
       eos_static_warning("msg=\"don't know what to do with subject\" subject=%s",
                          newsubject.c_str());
-      gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+      gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
       continue;
     }
 
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
   }
 }

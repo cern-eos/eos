@@ -2234,9 +2234,9 @@ noexcept
 
             for (auto it2 = it->second.mSubscribers.begin();
                  it2 != it->second.mSubscribers.end(); ++it2) {
-              (*it2)->SubjectsMutex.Lock();
+              (*it2)->mSubjMtx.Lock();
               (*it2)->NotificationSubjects.push_back(event);
-              (*it2)->SubjectsMutex.UnLock();
+              (*it2)->mSubjMtx.UnLock();
               notifiedSubscribersForCurrentEvent.insert(*it2);
               notifiedSubscribers.insert(*it2);
             }
@@ -2282,9 +2282,9 @@ noexcept
                  it2 != it->second.mSubscribers.end(); ++it2) {
               if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
                 // Don't notify twice for the same event
-                (*it2)->SubjectsMutex.Lock();
+                (*it2)->mSubjMtx.Lock();
                 (*it2)->NotificationSubjects.push_back(event);
-                (*it2)->SubjectsMutex.UnLock();
+                (*it2)->mSubjMtx.UnLock();
                 notifiedSubscribersForCurrentEvent.insert(*it2);
                 notifiedSubscribers.insert(*it2);
               }
@@ -2335,9 +2335,9 @@ noexcept
             for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
               if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
                 // Don't notify twice for the same event
-                (*it2)->SubjectsMutex.Lock();
+                (*it2)->mSubjMtx.Lock();
                 (*it2)->NotificationSubjects.push_back(event);
-                (*it2)->SubjectsMutex.UnLock();
+                (*it2)->mSubjMtx.UnLock();
                 notifiedSubscribersForCurrentEvent.insert(*it2);
                 notifiedSubscribers.insert(*it2);
               }
@@ -2359,7 +2359,7 @@ noexcept
     // wake up all subscriber threads
     for (auto it = notifiedSubscribers.begin();
          it != notifiedSubscribers.end(); ++it) {
-      (*it)->SubjectsSem.Post();
+      (*it)->mSubjSem.Post();
     }
 
     SOM->mSubjectsMutex.UnLock();

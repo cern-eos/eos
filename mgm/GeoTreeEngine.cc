@@ -475,7 +475,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   {
     XrdMqSharedObjectChangeNotifier::Subscriber* subscriber =
       gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine", false);
-    subscriber->SubjectsMutex.Lock();
+    subscriber->mSubjMtx.Lock();
 
     for (auto it = subscriber->NotificationSubjects.begin();
          it != subscriber->NotificationSubjects.end(); it++) {
@@ -487,7 +487,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
       }
     }
 
-    subscriber->SubjectsMutex.UnLock();
+    subscriber->mSubjMtx.UnLock();
   }
   // ==== update the entry
   SchedTreeBase::TreeNodeInfo info;
@@ -2248,13 +2248,12 @@ void GeoTreeEngine::listenFsChange()
       }
     }
 
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait(1);
-    //gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait(1);
     XrdSysThread::SetCancelOff();
     // to be sure that we won't try to access a removed fs
     pAddRmFsMutex.LockWrite();
     // we always take a lock to take something from the queue and then release it
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
     // listens on modifications on filesystem objects
     while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
@@ -2335,7 +2334,7 @@ void GeoTreeEngine::listenFsChange()
       continue;
     }
 
-    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
     pAddRmFsMutex.UnLockWrite();
     // do the processing
     prevtime = curtime;
@@ -4468,7 +4467,7 @@ GeoTreeEngine::removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
   if (rmHost) {
     XrdMqSharedObjectChangeNotifier::Subscriber* subscriber =
       gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine", false);
-    subscriber->SubjectsMutex.Lock();
+    subscriber->mSubjMtx.Lock();
 
     for (auto it = subscriber->NotificationSubjects.begin();
          it != subscriber->NotificationSubjects.end(); it++) {
@@ -4479,7 +4478,7 @@ GeoTreeEngine::removeHostFromPxyGr(FsNode* host , const std::string& proxygroup,
       }
     }
 
-    subscriber->SubjectsMutex.UnLock();
+    subscriber->mSubjMtx.UnLock();
   }
 
   // remove the entry in the fake fsid system

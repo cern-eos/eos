@@ -91,17 +91,17 @@ Storage::Communicator()
 
   while (true) {
     // wait for new filesystem definitions
-    gOFS.ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
+    gOFS.ObjectNotifier.tlSubscriber->mSubjSem.Wait();
     XrdSysThread::CancelPoint();
     eos_static_debug("received shared object notification ...");
     // we always take a lock to take something from the queue and then release it
-    gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+    gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
     while (gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
       XrdMqSharedObjectManager::Notification event;
       event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
       gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-      gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+      gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
       eos_static_info("FST shared object notification subject is %s",
                       event.mSubject.c_str());
       XrdOucString queue = event.mSubject.c_str();
@@ -109,13 +109,13 @@ Storage::Communicator()
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
         // Handle subject creation
         if (queue == Config::gConfig.FstQueueWildcard) {
-          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         }
 
         if ((queue.find("/txqueue/") != STR_NPOS)) {
           // this is a transfer queue we, don't need to take action
-          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         }
 
@@ -134,7 +134,7 @@ Storage::Communicator()
                             event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
           }
 
-          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         } else {
           eos_static_info("received creation notification of subject <%s> - we are <%s>",
@@ -154,7 +154,7 @@ Storage::Communicator()
           fs->SetStatus(eos::common::FileSystem::kDown);
         }
 
-        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
@@ -162,14 +162,14 @@ Storage::Communicator()
         // Handle subject deletion
         if ((queue.find("/txqueue/") != STR_NPOS)) {
           // this is a transfer queue we, don't need to take action
-          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         }
 
         if (!queue.beginswith(Config::gConfig.FstQueue)) {
           eos_static_err("illegal subject found in deletion list <%s> - we are <%s>",
                          event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
-          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         } else {
           eos_static_info("received deletion notification of subject <%s> - we are <%s>",
@@ -177,7 +177,7 @@ Storage::Communicator()
         }
 
         // we don't delete filesystem objects anymore ...
-        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
@@ -420,12 +420,12 @@ Storage::Communicator()
           mFsMutex.UnLockRead();
         }
 
-        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
     }
 
-    gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+    gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
     XrdSysThread::CancelPoint();
   }
 
