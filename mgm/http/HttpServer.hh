@@ -30,36 +30,27 @@
 #ifndef __EOSMGM_HTTPSERVER__HH__
 #define __EOSMGM_HTTPSERVER__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/http/HttpServer.hh"
 #include "common/Mapping.hh"
-/*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 class HttpServer : public eos::common::HttpServer
 {
-
-private:
-  std::string     mGridMapFile;            //!< contents of the gridmap file
-  struct timespec mGridMapFileLastModTime; //!< last modification time of the
-                                           //!< gridmap file
-
 public:
   /**
    * Constructor
    */
-  HttpServer (int port = 8000) :
+  HttpServer(int port = 8000) :
     eos::common::HttpServer(port), mGridMapFileLastModTime{0} {}
 
   /**
    * Destructor
    */
-  virtual ~HttpServer () {};
+  virtual ~HttpServer() {};
 
 #ifdef EOS_MICRO_HTTPD
   /**
@@ -68,14 +59,14 @@ public:
    * @return see implementation
    */
   virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr);
+  Handler(void*                  cls,
+          struct MHD_Connection* connection,
+          const char*            url,
+          const char*            method,
+          const char*            version,
+          const char*            upload_data,
+          size_t*                upload_data_size,
+          void**                 ptr);
 
   /**
    * HTTP complete handler function on MGM
@@ -84,10 +75,10 @@ public:
    */
 
   virtual void
-  CompleteHandler (void                              *cls,
-		   struct MHD_Connection             *connection,
-		   void                             **con_cls,
-		   enum MHD_RequestTerminationCode    toe);
+  CompleteHandler(void*                              cls,
+                  struct MHD_Connection*             connection,
+                  void**                             con_cls,
+                  enum MHD_RequestTerminationCode    toe);
 
 
 
@@ -106,11 +97,28 @@ public:
    * @return an appropriately filled virtual identity
    */
   eos::common::Mapping::VirtualIdentity*
-  Authenticate (std::map<std::string, std::string> &headers);
+  Authenticate(std::map<std::string, std::string>& headers);
 
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  std::string     mGridMapFile;            //!< contents of the gridmap file
+  struct timespec mGridMapFileLastModTime; //!< last modification time of the
+  //!< gridmap file
+
+  //----------------------------------------------------------------------------
+  //! Handle clientDN specified using RFC2253 (and RFC4514) where the
+  //! separator is "," instead of the usual "/" and also the order of the DNs
+  //! is reversed
+  //!
+  //! @param cnd input clientDN
+  //!
+  //! @return clientDN formatted according to the legacy standard
+  //----------------------------------------------------------------------------
+  std::string ProcessClientDN(const std::string& cnd) const;
 };
 
-/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
 
 #endif

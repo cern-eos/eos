@@ -21,17 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
-/*----------------------------------------------------------------------------*/
+#include "common/StringTokenizer.hh"
 #include "XrdNet/XrdNetAddr.hh"
-/*----------------------------------------------------------------------------*/
 #include <netdb.h>
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -230,6 +226,38 @@ HttpServer::CompleteHandler(void*                              cls,
                   scode.c_str());
 }
 
+//------------------------------------------------------------------------------
+// Handle clientDN specified using RFC2253 (and RFC4514) where the
+// separator is "," instead of the usual "/" and also the order of the DNs
+// is reversed
+//------------------------------------------------------------------------------
+std::string
+HttpServer::ProcessClientDN(const std::string& cdn) const
+{
+  std::string new_cdn = cdn;
+
+  if (new_cdn.empty()) {
+    return new_cdn;
+  }
+
+  if (new_cdn.find(',') != std::string::npos) {
+    // clientDN specified using RFC2253 (and RFC4514) where the separator is
+    // "," instead of the usual "/" and DNs reversed
+    std::replace(new_cdn.begin(), new_cdn.end(), ',', '/');
+    // Reverse the DN tokens
+    auto tokens =  eos::common::StringTokenizer::split
+                   <std::list<std::string>>(new_cdn, '/');
+    new_cdn.clear();
+
+    for (auto token = tokens.rbegin(); token != tokens.rend(); ++token) {
+      new_cdn += '/';
+      new_cdn += *token;
+    }
+  }
+
+  return new_cdn;
+}
+
 /*----------------------------------------------------------------------------*/
 eos::common::Mapping::VirtualIdentity*
 HttpServer::Authenticate(std::map<std::string, std::string>& headers)
@@ -246,12 +274,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
                      "Remote-User headers\"");
   } else {
     if (clientDN.length()) {
-      // Handle clientDN specified using RFC2253 (and RFC4514) where the
-      // separator is "," instead of the usual "/"
-      if (clientDN.find(',') != std::string::npos) {
-        std::replace(clientDN.begin(), clientDN.end(), ',', '/');
-      }
-
+      clientDN = ProcessClientDN(clientDN);
       // Stat the gridmap file
       struct stat info;
 
