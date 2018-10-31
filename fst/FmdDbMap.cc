@@ -158,7 +158,6 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
 
   int rc = 0;
   XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
   char sfmd[1024];
   snprintf(sfmd, sizeof(sfmd) - 1, "%llu", fid);
@@ -166,6 +165,9 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   fmdquery += sfmd;
   XrdOucString address = "root://";
   std::string current_mgr;
+
+  std::unique_ptr<XrdCl::Buffer> response;
+  XrdCl::Buffer* responseRaw = nullptr;
 
   if (!manager) {
     // Use the broadcasted manager name
@@ -194,7 +196,9 @@ again:
   }
 
   arg.FromString(fmdquery.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw);
+  response.reset(responseRaw);
+  responseRaw = nullptr;
 
   if (status.IsOK()) {
     rc = 0;
@@ -231,7 +235,6 @@ again:
   }
 
   if (rc) {
-    delete response;
     return EIO;
   }
 
@@ -239,7 +242,6 @@ again:
   if (!response->GetBuffer()) {
     eos_static_info("Unable to retrieve meta data from mgm %s for fid=%08llx, "
                     "result data is empty", current_mgr.c_str(), fid);
-    delete response;
     return ENODATA;
   }
 
@@ -250,7 +252,6 @@ again:
     eos_static_info("Unable to retrieve meta data on remote mgm %s for "
                     "fid=%08llx - result=%s", current_mgr.c_str(), fid,
                     response->GetBuffer());
-    delete response;
     return ENODATA;
   } else {
     // Truncate 'getfmd: retc=0 ' away
@@ -264,7 +265,6 @@ again:
     int envlen;
     eos_static_err("Failed to unparse file meta data %s for fid=%08llx",
                    fmdenv.Env(envlen), fid);
-    delete response;
     return EIO;
   }
 
@@ -272,11 +272,9 @@ again:
   if (fmd.fid() != fid) {
     eos_static_err("Uups! Received wrong meta data from remote server - fid "
                    "is %lu instead of %lu !", fmd.fid(), fid);
-    delete response;
     return EIO;
   }
 
-  delete response;
   return 0;
 }
 
