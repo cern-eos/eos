@@ -274,10 +274,6 @@ QuotaStats::QuotaStats():
 //------------------------------------------------------------------------------
 QuotaStats::~QuotaStats()
 {
-  for (auto && elem : pNodeMap) {
-    delete elem.second;
-  }
-
   pNodeMap.clear();
 }
 
@@ -312,8 +308,10 @@ QuotaStats::configure(const std::map<std::string, std::string>& config)
 IQuotaNode*
 QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 {
-  if (pNodeMap.count(node_id) != 0u) {
-    return pNodeMap[node_id];
+  auto it = pNodeMap.find(node_id);
+
+  if(it != pNodeMap.end()) {
+    return it->second.get();
   }
 
   std::string snode_id = std::to_string(node_id);
@@ -322,7 +320,7 @@ QuotaStats::getQuotaNode(IContainerMD::id_t node_id)
       (pQcl->exists(KeyQuotaGidMap(snode_id)) == 1)) {
     QuotaNode* ptr = new QuotaNode(this, node_id);
     ptr->updateFromBackend();
-    pNodeMap[node_id] = static_cast<IQuotaNode*>(ptr);
+    pNodeMap[node_id].reset(ptr);
     return ptr;
   }
 
@@ -346,7 +344,7 @@ QuotaStats::registerNewNode(IContainerMD::id_t node_id)
   }
 
   IQuotaNode* ptr = new QuotaNode(this, node_id);
-  pNodeMap[node_id] = ptr;
+  pNodeMap[node_id].reset(ptr);
   return ptr;
 }
 
@@ -359,7 +357,6 @@ QuotaStats::removeNode(IContainerMD::id_t node_id)
   auto it = pNodeMap.find(node_id);
 
   if (it != pNodeMap.end()) {
-    delete it->second;
     pNodeMap.erase(it);
   }
 

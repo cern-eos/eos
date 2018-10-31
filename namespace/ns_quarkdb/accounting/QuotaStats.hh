@@ -186,7 +186,7 @@ private:
   //----------------------------------------------------------------------------
   static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
 
-  std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
+  std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>> pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
   MetadataFlusher* pFlusher; ///< Metadata flusher object
 };
