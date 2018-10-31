@@ -857,8 +857,11 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   std::string opaque = capOpaqueFile.c_str();
   // Get XrdCl::FileSystem object
   // !!! WATCH OUT: GOTO ANCHOR !!!
+
+  std::unique_ptr<XrdCl::FileSystem> fs;
+
 again:
-  auto* fs = new XrdCl::FileSystem(url);
+  fs.reset(new XrdCl::FileSystem(url));
 
   if (!fs) {
     eos_err("error=failed to get new FS object");
@@ -926,7 +929,6 @@ again:
 
       if (retry && (status.code >= 100) && (status.code <= 300) && (!timeout)) {
         // implement automatic retry - network errors will be cured at some point
-        delete fs;
         std::this_thread::sleep_for(std::chrono::seconds(1));
         tried++;
         eos_static_info("msg=\"retry query\" query=\"%s\"", opaque.c_str());
@@ -953,7 +955,6 @@ again:
     *return_result = response->GetBuffer();
   }
 
-  delete fs;
   delete response;
   return rc;
 }
