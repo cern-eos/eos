@@ -221,8 +221,7 @@ ProcCommand::FuseX()
   std::string result;
   std::string id = std::string("Fusex::sync:") + vid.tident.c_str();
   mResultStream = "";
-  int rc = gOFS->zMQ->gFuseServer.HandleMD(id, md, &result, &md_clock,
-           pVid);
+  int rc = gOFS->zMQ->gFuseServer.HandleMD(id, md, *pVid, &result, &md_clock);
 
   if (rc) {
     return gOFS->Emsg("FuseX", *mError, rc, "handle request", "");

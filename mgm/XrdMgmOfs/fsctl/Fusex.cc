@@ -49,7 +49,7 @@
 
   std::string resultstream = "";
 
-  int rc = gOFS->zMQ->gFuseServer.HandleMD(id, md, &resultstream, 0, &vid);
+  int rc = gOFS->zMQ->gFuseServer.HandleMD(id, md, vid, &resultstream, 0);
 
   if (rc)
   {

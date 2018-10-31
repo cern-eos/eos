@@ -35,6 +35,7 @@
 #include "mgm/fuse-locks/LockTracker.hh"
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
+#include "common/Logging.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -43,7 +44,8 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class FuseServer
 //------------------------------------------------------------------------------
-class FuseServer
+class FuseServer : public eos::common::LogId
+
 {
 public:
   FuseServer();
@@ -552,30 +554,30 @@ public:
   void Print(std::string& out, std::string options = "", bool monitoring = false);
 
   int FillContainerMD(uint64_t id, eos::fusex::md& dir,
-                      eos::common::Mapping::VirtualIdentity* vid);
+                      eos::common::Mapping::VirtualIdentity& vid);
   bool FillFileMD(uint64_t id, eos::fusex::md& file,
-                  eos::common::Mapping::VirtualIdentity* vid);
+                  eos::common::Mapping::VirtualIdentity& vid);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
-                        eos::common::Mapping::VirtualIdentity* vid,
+                        eos::common::Mapping::VirtualIdentity& vid,
                         std::string reuse_uuid = "",
                         bool issue_only_one = false);
 
-  Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode);
+  Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode,
+                               eos::common::Mapping::VirtualIdentity& vid);
   bool ValidatePERM(const eos::fusex::md& md, const std::string& mode,
-                    eos::common::Mapping::VirtualIdentity* vid,
+                    eos::common::Mapping::VirtualIdentity& vid,
                     bool lock = true);
 
   uint64_t InodeFromCAP(const eos::fusex::md&);
-
-  void HandleDir(const std::string& identity, const eos::fusex::dir& dir);
 
   std::string Header(const std::string& response); // reply a sync-response header
 
   int HandleMD(const std::string& identity,
                const eos::fusex::md& md,
+               eos::common::Mapping::VirtualIdentity& vid,
                std::string* response = 0,
-               uint64_t* clock = 0,
-               eos::common::Mapping::VirtualIdentity* vid = 0);
+               uint64_t* clock = 0);
+
 
   void
   MonitorCaps() noexcept;
@@ -589,6 +591,8 @@ public:
   {
     terminate_.store(true, std::memory_order_seq_cst);
   } // indicate to terminate
+
+  static const char* cident;
 
 protected:
   Clients mClients;

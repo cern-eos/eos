@@ -160,16 +160,6 @@ ZMQ::Worker::work()
         }
         break;
 
-        case hb.MD: {
-          gFuseServer.HandleMD(id, hb.md_());
-        }
-        break;
-
-        case hb.DIR: {
-          gFuseServer.HandleDir(id, hb.dir_());
-        }
-        break;
-
         default:
           eos_static_err("%s", "msg=\"message type unknown");
         }
