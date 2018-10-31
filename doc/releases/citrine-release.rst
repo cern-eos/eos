@@ -25,13 +25,18 @@ Bug
 
 * don't call 'system' implying fork in FST code
 * fix Fmd object constructor to use 64-bit file ids
+* [EOS-3033] fix wrong etag in JSON fileinfo response
 * [EOS-3029] disable backward stacktrace in eosd by default possibly creating SEGVs when a long standing mutex is discovered
+* [EOS-3025] fix checksum array reset in Commit operation
+* [EOS-2989] take fsck enable intereval into account
 
 Improvements
 ------------
 
 * [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g. to force a client mount with a newer version
+* [EOS-2576] add support for clientDNs formatted according to RFC2253
 * manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
+* Improve tracebility in FuseServer logging to log by client credential (remove the _static_ log entries)
 
 ``v4.4.10 Citrine``
 ===================
