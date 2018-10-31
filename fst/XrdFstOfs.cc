@@ -822,7 +822,6 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   int rc = SFS_OK;
   XrdOucString msg = "";
   XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
 
@@ -859,6 +858,8 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   // !!! WATCH OUT: GOTO ANCHOR !!!
 
   std::unique_ptr<XrdCl::FileSystem> fs;
+  std::unique_ptr<XrdCl::Buffer> response;
+  XrdCl::Buffer* responseRaw = nullptr;
 
 again:
   fs.reset(new XrdCl::FileSystem(url));
@@ -875,7 +876,10 @@ again:
   }
 
   arg.FromString(opaque);
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw, timeout);
+
+  response.reset(responseRaw);
+  responseRaw = nullptr;
 
   if (status.IsOK()) {
     eos_static_debug("msg=\"MGM query succeeded\" opaque=\"%s\"", opaque.c_str());
@@ -955,7 +959,6 @@ again:
     *return_result = response->GetBuffer();
   }
 
-  delete response;
   return rc;
 }
 
