@@ -25,6 +25,7 @@ Bug
 
 * don't call 'system' implying fork in FST code
 * fix Fmd object constructor to use 64-bit file ids
+* [EOS-3029] disable backward stacktrace in eosd by default possibly creating SEGVs when a long standing mutex is discovered
 
 Improvements
 ------------
