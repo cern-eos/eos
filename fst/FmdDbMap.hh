@@ -432,16 +432,20 @@ private:
       mFsMtxMapMutex.UnLockRead();
     } else {
       mFsMtxMapMutex.UnLockRead();
-      mFsMtxMapMutex.LockWrite();
-      mFsMtxMap[fsid] = new eos::common::RWMutex();
+      eos::common::RWMutexWriteLock wr_lock(mFsMtxMapMutex);
+      auto it = mFsMtxMap.find(fsid);
 
-      if (write) {
-        mFsMtxMap[fsid]->LockWrite();
-      } else {
-        mFsMtxMap[fsid]->LockRead();
+      if (it == mFsMtxMap.end()) {
+        auto pair = mFsMtxMap.insert(std::make_pair(fsid,
+                                     new eos::common::RWMutex()));
+        it = pair.first;
       }
 
-      mFsMtxMapMutex.UnLockWrite();
+      if (write) {
+        it->second->LockWrite();
+      } else {
+        it->second->LockRead();
+      }
     }
   }
 
@@ -454,30 +458,19 @@ private:
   inline void
   _FsUnlock(const eos::common::FileSystem::fsid_t& fsid, bool write)
   {
-    mFsMtxMapMutex.LockRead();
+    eos::common::RWMutexReadLock rd_lock(mFsMtxMapMutex);
+    auto it = mFsMtxMap.find(fsid);
 
-    if (mFsMtxMap.count(fsid)) {
+    if (it != mFsMtxMap.end()) {
       if (write) {
-        mFsMtxMap[fsid]->UnLockWrite();
+        it->second->UnLockWrite();
       } else {
-        mFsMtxMap[fsid]->UnLockRead();
+        it->second->UnLockRead();
       }
-
-      mFsMtxMapMutex.UnLockRead();
     } else {
       // This should NEVER happen as the entry should be in the map because
       // mutex #i should have been locked at some point.
-      mFsMtxMapMutex.UnLockRead();
-      mFsMtxMapMutex.LockWrite();
-      mFsMtxMap[fsid] = new eos::common::RWMutex();
-
-      if (write) {
-        mFsMtxMap[fsid]->UnLockWrite();
-      } else {
-        mFsMtxMap[fsid]->UnLockRead();
-      }
-
-      mFsMtxMapMutex.UnLockWrite();
+      std::abort();
     }
   }
 
