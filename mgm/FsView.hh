@@ -685,32 +685,24 @@ protected:
 struct ImportStatus
 {
   std::string mId; ///< ID of the import operation
-  unsigned long mBatch; ///< Index of the current import batch
-  unsigned long mCurrent; ///< Index of the current file being imported
-  unsigned long mFiles; ///< Number of files to be imported during the batch
-  unsigned long mTotal; ///< Total number of files imported
+  time_t mTimestamp; ///< Timestamp of import start
+  unsigned long mImported; ///< Number of successfully imported files
   unsigned long mFailed; ///< Number of imported files which ended in error
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param id ID of the import operation
+  //! @param timestamp start of import procedure
   //----------------------------------------------------------------------------
-  ImportStatus(const char* id):
-    mId(id), mBatch(0), mCurrent(0), mFiles(0), mTotal(0), mFailed(0)
+  ImportStatus(const char* id, const time_t timestamp):
+    mId(id), mTimestamp(timestamp), mImported(0), mFailed(0)
   {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~ImportStatus() = default;
-
-  //----------------------------------------------------------------------------
-  //! Starts monitoring a new import batch
-  //!
-  //! @param files number of files in this batch
-  //----------------------------------------------------------------------------
-  bool NewBatch(unsigned long files);
 
   //----------------------------------------------------------------------------
   //! Increments the count of imported files
@@ -723,28 +715,34 @@ struct ImportStatus
   bool IncrementFailed();
 
   //----------------------------------------------------------------------------
-  //! String representation of the import state
-  //! Format: Batch \##  %## [========    ] #/#    Total: #  Failed: #
+  //! String representation of the import state:
+  //! Started:  hh:mm:ss   Elapsed:  hh mm ss
+  //! Imported: #   Failed: #   ## files/s
   //----------------------------------------------------------------------------
   std::string to_string() {
     std::ostringstream ss;
-    float percentage = (mFiles) ? (mCurrent * 100.0 / mFiles) : 0;
-    int limit = (int) (15 * percentage / 100);
-    char pct[10];
 
-    sprintf(pct, "%02d", (int) percentage);
-
-    ss << "Batch #" << mBatch;
-    ss << "  %" << pct << " [";
-
-    for (int i = 0; i < 15; i++) {
-      if (limit && i <= limit) { ss << "="; }
-      else                     { ss << " "; }
+    if (!mTimestamp) {
+      ss << "Import procedure not yet started";
+      return ss.str();
     }
 
-    ss << "]  " << mCurrent << "/" << mFiles << "    ";
-    ss << "Total:  " << mTotal << "  ";
-    ss << "Failed: " << mFailed;
+    char stime_start[128], stime_elapsed[128];
+    time_t elapsed = time(NULL) - mTimestamp;
+
+    strftime(stime_start, 127, "%H:%M:%S", localtime(&mTimestamp));
+    strftime(stime_elapsed, 127, "%Hh %Mm %Ss", gmtime(&elapsed));
+
+    float fpsec = (mImported + mFailed) * 1.0 / elapsed;
+    char sfpsec[20];
+    sprintf(sfpsec, "%02.1f", fpsec);
+
+    ss << "Started:  " << stime_start << "   ";
+    ss << "Elapsed:  " << stime_elapsed << "\n";
+
+    ss << "Imported:  " << mImported << "   ";
+    ss << "Failed: " << mFailed << "   ";
+    ss << sfpsec << " files/s";
 
     return ss.str();
   }

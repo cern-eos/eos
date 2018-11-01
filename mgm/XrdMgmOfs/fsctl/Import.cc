@@ -35,8 +35,6 @@
 
   EXEC_TIMING_BEGIN("Import");
 
-  // Import message can be of following type: status or file import
-
   char* id = env.Get("mgm.import.id");
   char* alogid = env.Get("mgm.logid");
 
@@ -44,73 +42,61 @@
     ThreadLogId.SetLogId(alogid, tident);
   }
 
-  XrdOucString response;
-  eos::mgm::ImportStatus* importStatus = 0;
-
-  if (id) {
-    // Retrieve ImportStatus object
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
-    if (FsView::gFsView.mImportView.count(id)) {
-      importStatus = FsView::gFsView.mImportView[id];
-    } else {
-      eos_thread_err("import[id=%s] msg=\"cannot find import status object\"",
-                     id);
-      gOFS->MgmStats.Add("ImportFailedStatusRetrieve", 0, 0, 1);
-      return Emsg(epname, error, EBADR,
-                  "retrieve import status object [EBADR]", id);
-    }
-  } else {
+  if (!id) {
     int envlen = 0;
     eos_thread_err("import message does not contain an id: %s", env.Env(envlen));
     return Emsg(epname, error, EINVAL, "retrieve import id [EINVAL]");
   }
 
   // ---------------------------------------------------------------------
+  // Import messages can be of following type: status or file import
+  //
   // Import message type: status
   // ---------------------------------------------------------------------
 
   XrdOucString status = env.Get("mgm.import.status");
 
   if (status.length()) {
-    char* batch = env.Get("mgm.import.status.batch");
-    char* total = env.Get("mgm.import.status.total");
+    char* atimestamp = env.Get("mgm.import.status.timestamp");
 
-    if (batch && total) {
+    if (atimestamp) {
+      time_t timestamp = (time_t) atoll(atimestamp);
+      eos::mgm::ImportStatus* importStatus = 0;
+
+      eos::common::RWMutexWriteLock wlock(FsView::gFsView.ViewMutex);
+
       if (status == "start") {
-        // Update import status object with current batch
-        importStatus->NewBatch(std::stol(total));
-
-        error.setErrInfo(0, "");
-        return SFS_DATA;
+        // Register new import operation into FsView map
+        importStatus = new ImportStatus(id, timestamp);
+        FsView::gFsView.mImportView[id] = importStatus;
       } else if (status == "end") {
-        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        // Retrieve ImportStatus object
+        if (FsView::gFsView.mImportView.count(id)) {
+          importStatus = FsView::gFsView.mImportView[id];
 
-        // Validate import procedure ending
-        unsigned long lBatch = std::stol(batch);
-        unsigned long lTotal = std::stol(total);
+          // Calculate time elapsed
+          char stime_elapsed[128];
+          time_t elapsed = timestamp - importStatus->mTimestamp;
+          strftime(stime_elapsed, 127, "%Hh:%Mm:%Ss", gmtime(&elapsed));
 
-        if ((importStatus->mTotal != lTotal) ||
-            (importStatus->mBatch != lBatch)) {
-          eos_thread_err("import[id=%s] ended with inconsistent state: "
-                         "MGM.batches=%ld MGM.total_files=%ld -- "
-                         "FST.batches=%ld FST.total_files=%ld", id,
-                         importStatus->mBatch, importStatus->mTotal,
-                         lBatch, lTotal);
+          eos_thread_info("import[id=%s] finished "
+                          "imported=%ld failed=%ld time_elapsed=%s",
+                          id, importStatus->mImported, importStatus->mFailed,
+                          stime_elapsed);
 
+          // Unregister import operation from FsView map
           FsView::gFsView.mImportView.erase(id);
-          return Emsg(epname, error, EINVAL,
-              "finalize import procedure [EINVAL]");
+        } else {
+          eos_thread_err("import[id=%s] msg=\"cannot find import status object\"",
+                         id);
+          gOFS->MgmStats.Add("ImportFailedStatusRetrieve", 0, 0, 1);
+          return Emsg(epname, error, EBADR,
+                      "retrieve import status object [EBADR]", id);
         }
-
-        // Import procedure finished successfully
-        eos_thread_info("import[id=%s] finished successfully "
-                        "batches=%s total_files=%s", id, batch, total);
-        FsView::gFsView.mImportView.erase(id);
-
-        error.setErrInfo(0, "");
-        return SFS_DATA;
       }
+
+      error.setErrInfo(0, "");
+      return SFS_DATA;
     } else {
       int envlen = 0;
       eos_thread_err("import[id=%s] message does not contain all metadata: %s",
@@ -131,9 +117,25 @@
   char* extpath = env.Get("mgm.import.extpath");
   char* lpath = env.Get("mgm.import.lclpath");
 
-  if (afsid && extpath && lpath && asize) {
+  XrdOucString response;
+
+  eos::common::RWMutexWriteLock wlock(FsView::gFsView.ViewMutex);
+  eos::mgm::ImportStatus* importStatus = 0;
+
+  // Retrieve ImportStatus object
+  if (FsView::gFsView.mImportView.count(id)) {
+    importStatus = FsView::gFsView.mImportView[id];
+  } else {
+    eos_thread_err("import[id=%s] msg=\"cannot find import status object\"",
+                   id);
+    gOFS->MgmStats.Add("ImportFailedStatusRetrieve", 0, 0, 1);
+    return Emsg(epname, error, EBADR,
+                "retrieve import status object [EBADR]", id);
+  }
+
+  if (afsid && asize && extpath && lpath) {
     eos_thread_info("import[id=%s] fsid=%s size=%s extpath=%s lclpath=%s",
-                     id, afsid, asize, extpath, lpath);
+                    id, afsid, asize, extpath, lpath);
 
     unsigned long size = strtoull(asize, 0, 10);
     unsigned long fsid = strtoull(afsid, 0, 10);
@@ -156,7 +158,7 @@
         gOFS->MgmStats.Add("ImportFailedParentPathNotDir", 0, 0, 1);
         return Emsg(epname, error, ENOTDIR,
                     "import file - parent path is not a directory [ENOTDIR]",
-                     cPath.GetParentPath());
+                    cPath.GetParentPath());
         }
 
       // Create parent path if it does not exist
@@ -178,20 +180,16 @@
                   cPath.GetParentPath());
     }
 
-    {
-      // Obtain filesystem handler
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
-      if (FsView::gFsView.mIdView.count(fsid)) {
-        filesystem = FsView::gFsView.mIdView[fsid];
-      } else {
-        eos_thread_err("import[id=%s] msg=\"could not find filesystem fsid=%d\"",
-                       id, fsid);
-        importStatus->IncrementFailed();
-        gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
-        return Emsg(epname, error, EBADR, "retrieve filesystem [EBADR]",
-                    std::to_string(fsid).c_str());
-      }
+    // Obtain filesystem handler
+    if (FsView::gFsView.mIdView.count(fsid)) {
+      filesystem = FsView::gFsView.mIdView[fsid];
+    } else {
+      eos_thread_err("import[id=%s] msg=\"could not find filesystem fsid=%d\"",
+                     id, fsid);
+      importStatus->IncrementFailed();
+      gOFS->MgmStats.Add("ImportFailedFsRetrieve", 0, 0, 1);
+      return Emsg(epname, error, EBADR, "retrieve filesystem [EBADR]",
+                  std::to_string(fsid).c_str());
     }
 
     // Create logical path suffix

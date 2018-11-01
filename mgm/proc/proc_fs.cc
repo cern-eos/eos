@@ -778,14 +778,9 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
         uuid_t uuid;
         uuid_generate_time(uuid);
         uuid_unparse(uuid, importid);
-        std::string id = importid;
 
         opaquestring += "&mgm.id=";
-        opaquestring += id.c_str();
-
-        // Register import operation into FsView map
-        ImportStatus *importStatus = new ImportStatus(id.c_str());
-        FsView::gFsView.mImportView[id] = importStatus;
+        opaquestring += importid;
 
         XrdMqMessage message("importScan");
         XrdOucString msgbody = "mgm.cmd=importscan";
@@ -796,7 +791,7 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
           stdOut += "Importing of ";
           stdOut += extSrc.c_str();
           stdOut += " started successfully. Import id: ";
-          stdOut += id.c_str();
+          stdOut += importid;
         } else {
           eos_static_err("unable to send verification message to %s",
                          receiver.c_str());
