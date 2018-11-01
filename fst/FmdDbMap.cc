@@ -165,7 +165,6 @@ FmdDbMapHandler::GetMgmFmd(const char* manager,
   fmdquery += sfmd;
   XrdOucString address = "root://";
   std::string current_mgr;
-
   std::unique_ptr<XrdCl::Buffer> response;
   XrdCl::Buffer* responseRaw = nullptr;
 
@@ -196,7 +195,8 @@ again:
   }
 
   arg.FromString(fmdquery.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw);
+  uint16_t timeout = 10;
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw, timeout);
   response.reset(responseRaw);
   responseRaw = nullptr;
 
