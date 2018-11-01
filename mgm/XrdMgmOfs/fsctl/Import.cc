@@ -81,7 +81,8 @@
 
           eos_thread_info("import[id=%s] finished "
                           "imported=%ld failed=%ld time_elapsed=%s",
-                          id, importStatus->mImported, importStatus->mFailed,
+                          id, importStatus->GetImported(),
+                          importStatus->GetFailed(),
                           stime_elapsed);
 
           // Unregister import operation from FsView map
@@ -119,7 +120,7 @@
 
   XrdOucString response;
 
-  eos::common::RWMutexWriteLock wlock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
   eos::mgm::ImportStatus* importStatus = 0;
 
   // Retrieve ImportStatus object

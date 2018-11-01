@@ -1064,10 +1064,29 @@ void FsSpace::Join()
 //------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------
+// Returns the count of imported files
+//----------------------------------------------------------------------------
+unsigned long ImportStatus::GetImported()
+{
+  eos::common::RWMutexReadLock lock(StatusMutex);
+  return mImported;
+}
+
+//----------------------------------------------------------------------------
+// Returns the count of failed files
+//----------------------------------------------------------------------------
+unsigned long ImportStatus::GetFailed()
+{
+  eos::common::RWMutexReadLock lock(StatusMutex);
+  return mFailed;
+}
+
+//----------------------------------------------------------------------------
 // Increments the count of imported files
 //----------------------------------------------------------------------------
 bool ImportStatus::IncrementImported()
 {
+  eos::common::RWMutexWriteLock lock(StatusMutex);
   mImported++;
   return true;
 }
@@ -1077,8 +1096,44 @@ bool ImportStatus::IncrementImported()
 //----------------------------------------------------------------------------
 bool ImportStatus::IncrementFailed()
 {
+  eos::common::RWMutexWriteLock lock(StatusMutex);
   mFailed++;
   return true;
+}
+
+//----------------------------------------------------------------------------
+// String representation of the import state:
+// Started:  hh:mm:ss   Elapsed:  hh mm ss
+// Imported: #   Failed: #   ## files/s
+//----------------------------------------------------------------------------
+std::string ImportStatus::to_string()
+{
+  eos::common::RWMutexReadLock lock(StatusMutex);
+  std::ostringstream ss;
+
+  if (!mTimestamp) {
+    ss << "Import procedure not yet started";
+    return ss.str();
+  }
+
+  char stime_start[128], stime_elapsed[128];
+  time_t elapsed = time(NULL) - mTimestamp;
+
+  strftime(stime_start, 127, "%H:%M:%S", localtime(&mTimestamp));
+  strftime(stime_elapsed, 127, "%Hh %Mm %Ss", gmtime(&elapsed));
+
+  float fpsec = (mImported + mFailed) * 1.0 / elapsed;
+  char sfpsec[20];
+  sprintf(sfpsec, "%02.1f", fpsec);
+
+  ss << "Started:  " << stime_start << "   ";
+  ss << "Elapsed:  " << stime_elapsed << "\n";
+
+  ss << "Imported:  " << mImported << "   ";
+  ss << "Failed: " << mFailed << "   ";
+  ss << sfpsec << " files/s";
+
+  return ss.str();
 }
 
 //------------------------------------------------------------------------------

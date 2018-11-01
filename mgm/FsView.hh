@@ -680,14 +680,13 @@ protected:
 };
 
 //------------------------------------------------------------------------------
-//! Structure ImportStatus describing the state of an import operation
+//! Class ImportStatus describing the state of an import operation
 //------------------------------------------------------------------------------
-struct ImportStatus
+class ImportStatus
 {
+public:
   std::string mId; ///< ID of the import operation
   time_t mTimestamp; ///< Timestamp of import start
-  unsigned long mImported; ///< Number of successfully imported files
-  unsigned long mFailed; ///< Number of imported files which ended in error
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -705,6 +704,16 @@ struct ImportStatus
   ~ImportStatus() = default;
 
   //----------------------------------------------------------------------------
+  //! Get the count of imported files
+  //----------------------------------------------------------------------------
+  unsigned long GetImported();
+
+  //----------------------------------------------------------------------------
+  //! Get the count of failed files
+  //----------------------------------------------------------------------------
+  unsigned long GetFailed();
+
+  //----------------------------------------------------------------------------
   //! Increments the count of imported files
   //----------------------------------------------------------------------------
   bool IncrementImported();
@@ -719,33 +728,12 @@ struct ImportStatus
   //! Started:  hh:mm:ss   Elapsed:  hh mm ss
   //! Imported: #   Failed: #   ## files/s
   //----------------------------------------------------------------------------
-  std::string to_string() {
-    std::ostringstream ss;
+  std::string to_string();
 
-    if (!mTimestamp) {
-      ss << "Import procedure not yet started";
-      return ss.str();
-    }
-
-    char stime_start[128], stime_elapsed[128];
-    time_t elapsed = time(NULL) - mTimestamp;
-
-    strftime(stime_start, 127, "%H:%M:%S", localtime(&mTimestamp));
-    strftime(stime_elapsed, 127, "%Hh %Mm %Ss", gmtime(&elapsed));
-
-    float fpsec = (mImported + mFailed) * 1.0 / elapsed;
-    char sfpsec[20];
-    sprintf(sfpsec, "%02.1f", fpsec);
-
-    ss << "Started:  " << stime_start << "   ";
-    ss << "Elapsed:  " << stime_elapsed << "\n";
-
-    ss << "Imported:  " << mImported << "   ";
-    ss << "Failed: " << mFailed << "   ";
-    ss << sfpsec << " files/s";
-
-    return ss.str();
-  }
+private:
+  eos::common::RWMutex StatusMutex; ///< Mutex protecting the import status state
+  unsigned long mImported; ///< Number of successfully imported files
+  unsigned long mFailed; ///< Number of imported files which ended in error
 };
 
 //------------------------------------------------------------------------------
