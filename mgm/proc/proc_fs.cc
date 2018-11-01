@@ -773,8 +773,13 @@ proc_fs_import(std::string& sfsid, std::string& extSrc, std::string& lclDst,
         opaquestring += "&mgm.lclpath=";
         opaquestring += lclDst.c_str();
 
-        // Use timestamp as unique import scan id
-        std::string id = to_string(time(NULL)).c_str();
+        // Create unique import scan id
+        char importid[40];
+        uuid_t uuid;
+        uuid_generate_time(uuid);
+        uuid_unparse(uuid, importid);
+        std::string id = importid;
+
         opaquestring += "&mgm.id=";
         opaquestring += id.c_str();
 
