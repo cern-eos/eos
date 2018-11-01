@@ -362,25 +362,39 @@ FmdDbMapHandler::GetNumFileSystems() const
 bool
 FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
 {
+  bool is_attached = false;
   {
     // First check if DB is already open - in this case we first do a shutdown
     eos::common::RWMutexWriteLock wr_lock(mMapMutex);
 
     if (mDbMap.count(fsid)) {
-      if (ShutdownDB(fsid, false)) {
-        mDbMap[fsid] = new eos::common::DbMap();
-      }
-    } else {
-      mDbMap[fsid] = new eos::common::DbMap();
+      is_attached = true;
     }
   }
+
+  if (is_attached) {
+    if (ShutdownDB(fsid)) {
+      is_attached = false;
+    }
+  }
+
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s/fmd.%04d.%s", meta_dir, fsid,
           eos::common::DbMap::getDbType().c_str());
   eos_info("%s DB is now %s", eos::common::DbMap::getDbType().c_str(),
            fsDBFileName);
-  eos::common::RWMutexReadLock rd_lock(mMapMutex);
-  FsWriteLock vlock(fsid);
+  eos::common::RWMutexWriteLock wr_lock(mMapMutex);
+  FsWriteLock wlock(fsid);
+
+  if (!is_attached) {
+    auto result = mDbMap.insert(std::make_pair(fsid, new eos::common::DbMap()));
+
+    if (result.second == false) {
+      eos_err("msg=\"failed to insert new db in map, fsid=%lli", fsid);
+      return false;
+    }
+  }
+
   // Create / or attach the db (try to repair if needed)
   eos::common::LvDbDbMapInterface::Option* dbopt = &lvdboption;
 
