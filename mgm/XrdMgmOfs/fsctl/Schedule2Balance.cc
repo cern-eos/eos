@@ -179,13 +179,14 @@
                      "n_source_fids=%llu", target_snapshot.mGroup.c_str(),
                      gposition, source_fsid, target_fsid, nfids);
 
-    for(unsigned long long attempts = 0; attempts < nfids; attempts++) {
+    for (unsigned long long attempts = 0; attempts < nfids; attempts++) {
       eos::IFileMD::id_t fid;
-      if(!gOFS->eosFsView->getApproximatelyRandomFileInFs(source_fsid, fid)) {
+
+      if (!gOFS->eosFsView->getApproximatelyRandomFileInFs(source_fsid, fid)) {
         break;
       }
 
-      if(!gOFS->eosView->inMemory()) {
+      if (!gOFS->eosView->inMemory()) {
         lock.Release();
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
         lock.Grab(gOFS->eosViewRWMutex);
@@ -262,7 +263,7 @@
               unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
               // Mask block checksums (set to kNone) for replica layouts
-              if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
+              if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
                 target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
               }
 

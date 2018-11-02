@@ -417,7 +417,7 @@
             unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
             // Mask block checksums (set to kNone) for replica layouts
-            if ((LayoutId::GetLayoutType(lid) == LayoutId::kReplica)) {
+            if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
               target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
             }
 
