@@ -584,10 +584,19 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
  */
 /*----------------------------------------------------------------------------*/
 {
+  using eos::common::LayoutId;
   static const char* epname = "replicatestripe";
   unsigned long long fid = fmd->getId();
   unsigned long long cid = fmd->getContainerId();
   long unsigned int lid = fmd->getLayoutId();
+  unsigned long src_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
+  unsigned long dst_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
+
+  // Mask block checksum (set to kNone) for replica layouts
+  if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
+    dst_lid = LayoutId::SetBlockChecksum(dst_lid, LayoutId::kNone);
+  }
+
   uid_t uid = fmd->getCUid();
   gid_t gid = fmd->getCGid();
   unsigned long long size = fmd->getSize();
@@ -639,12 +648,10 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   XrdOucString sizestring;
   source_capability += "mgm.access=read";
   source_capability += "&mgm.lid=";
-  source_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) lid & 0xffffff0f);
+  source_capability += std::to_string(src_lid).c_str();
   // make's it a plain replica
   source_capability += "&mgm.cid=";
-  source_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       cid);
+  source_capability += std::to_string(cid).c_str();
   source_capability += "&mgm.ruid=";
   source_capability += (int) 1;
   source_capability += "&mgm.rgid=";
@@ -685,12 +692,10 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   XrdOucString target_capability = "";
   target_capability += "mgm.access=write";
   target_capability += "&mgm.lid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) lid & 0xffffff0f);
+  target_capability += std::to_string(dst_lid).c_str();
   // make's it a plain replica
   target_capability += "&mgm.cid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       cid);
+  target_capability += std::to_string(cid).c_str();
   target_capability += "&mgm.ruid=";
   target_capability += (int) 1;
   target_capability += "&mgm.rgid=";
