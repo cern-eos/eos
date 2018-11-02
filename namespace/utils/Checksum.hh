@@ -26,6 +26,8 @@
 
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "namespace/utils/Buffer.hh"
+#include "namespace/interface/IFileMD.hh"
 
 namespace eos
 {
@@ -33,43 +35,44 @@ namespace eos
   //! Append FileMD checksum onto the given string. Return false only if we're
   //! not able to determine checksum type for given layout id.
   //!
-  //! Use the given separator to separate each two hexademical digits.
-  //! ie "b5 e1 70 20", instead of "b5e17020"
+  //! Use the given separator to separate each two hexadecimal digits.
+  //! i.e. "b5 e1 70 20" instead of "b5e17020"
   //!
-  //! We use a template to support both std::string, and XrdOucString...
+  //! We use a template to support both std::string and XrdOucString...
   //----------------------------------------------------------------------------
   template<typename StringType>
-  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out, char separator = 0x00, int overrideLength = -1) {
+  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out,
+                                   char separator = 0x00,
+                                   int overrideLength = -1) {
     // All this is to maintain backward compatibility in all places where
     // we print checksums.. I'm not sure if we absolutely need to pad with
     // zeroes, for example.
-    if(!fmd) return false;
+    if (!fmd) return false;
 
-    unsigned int nominalChecksumLength = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+    unsigned int nominalChecksumLength =
+        eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
     unsigned int targetChecksumLength;
 
-    if(overrideLength == -1) {
+    if (overrideLength == -1) {
       targetChecksumLength = nominalChecksumLength;
-    }
-    else {
+    } else {
       targetChecksumLength = overrideLength;
     }
 
     Buffer buffer = fmd->getChecksum();
 
-    for(unsigned int i = 0; i < targetChecksumLength; i++) {
+    for (unsigned int i = 0; i < targetChecksumLength; i++) {
+      unsigned char targetCharacter = 0x00;
       char hb[4];
 
-      unsigned char targetCharacter = 0x00;
-      if(i < nominalChecksumLength) {
+      if (i < nominalChecksumLength) {
         targetCharacter = buffer.getDataPadded(i);
       }
 
-      if(separator != 0x00 && i != (targetChecksumLength-1)) {
+      if (separator != 0x00 && i != (targetChecksumLength-1)) {
         sprintf(hb, "%02x%c", targetCharacter, separator);
         out += hb;
-      }
-      else {
+      } else {
         sprintf(hb, "%02x", targetCharacter);
         out += hb;
       }
@@ -77,7 +80,6 @@ namespace eos
 
     return (nominalChecksumLength > 0);
   }
-
 }
 
 #endif
