@@ -427,7 +427,7 @@ Iostat::Receive(void)
 
             eos::common::Path cPath(reportfile.c_str());
 
-            if (cPath.MakeParentPath(S_IRWXU)) {
+            if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
               gOpenReportFD = fopen(reportfile.c_str(), "a+");
 
               if (gOpenReportFD) {
@@ -450,7 +450,7 @@ Iostat::Receive(void)
                  report->path.c_str());
         eos::common::Path cPath(path);
 
-        if (cPath.MakeParentPath(S_IRWXU)) {
+        if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
           FILE* freport = fopen(path, "a+");
 
           if (freport) {
