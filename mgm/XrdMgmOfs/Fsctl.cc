@@ -199,9 +199,10 @@ XrdMgmOfs::FSctl(const int cmd,
   XrdOucString execmd = scmd ? scmd : "";
   eos_static_debug("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
-  // version is not submitted to access control
-  // so that features of the instance can be retrieved by an authenticated user
-  if ((execmd != "version") && !fusexset) {
+  // version and is_master is not submitted to access control
+  // so that features of the instance can be retrieved by an authenticated user and
+  // router front-ends can discover the activation state of the mgm
+  if ((execmd != "is_master") && (execmd != "version") && !fusexset) {
     BOUNCE_NOT_ALLOWED;
   }
 
