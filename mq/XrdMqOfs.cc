@@ -234,6 +234,7 @@ XrdMqOfsFile::close()
     return SFS_OK;
   }
 
+  mIsOpen = false;
   eos_info_lite("disconnecting queue: %s", mQueueName.c_str());
   {
     XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
@@ -248,7 +249,7 @@ XrdMqOfsFile::close()
       delete mMsgOut;
     }
 
-    mMsgOut = 0;
+    mMsgOut = nullptr;
   }
   {
     gMqFS->AdvisoryMessages++;
