@@ -41,6 +41,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
+#include "mgm/TapeAwareGcConstants.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfsFile.hh"
@@ -182,7 +183,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
   mTapeAwareGcDefaultSpaceEnable(false),
-  mTapeAwareGcDefaultSpaceMinFreeBytes(10000000000LL),
+  mTapeAwareGcDefaultSpaceMinFreeBytes(TAPEAWAREGC_MINFREEBYTES),
   mTapeAwareGc(TapeAwareGc::instance()),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
