@@ -26,6 +26,7 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
+#include "mgm/TapeAwareGcCachedValue.hh"
 #include "mgm/TapeAwareGcLru.hh"
 #include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -77,11 +78,8 @@ public:
 
   //----------------------------------------------------------------------------
   //! Enable the GC
-  //!
-  //! @param defaultSpaceMinFreeBytes Minium number of free bytes the default
-  //! space should have
   //----------------------------------------------------------------------------
-  void enable(const uint64_t defaultSpaceMinFreeBytes) noexcept;
+  void enable() noexcept;
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened
@@ -186,9 +184,6 @@ private:
   /// The one and only GC worker thread
   std::unique_ptr<std::thread> m_worker;
 
-  /// Minimum number of free bytes the default space should have
-  uint64_t m_defaultSpaceMinFreeBytes;
-
   /// Mutex protecting mLruQueue
   std::mutex m_lruQueueMutex;
 
@@ -209,6 +204,24 @@ private:
   struct SpaceNotFound: public std::runtime_error {
     SpaceNotFound(const std::string &msg): std::runtime_error(msg) {}
   };
+
+  //----------------------------------------------------------------------------
+  //! @return The minimum number of free bytes the default space should have
+  //! as set in the configuration variables of the space.  If the minimum
+  //! number of free bytes cannot be determined for whatever reason then 0 is
+  //! returned.
+  //----------------------------------------------------------------------------
+  static uint64_t getDefaultSpaceMinNbFreeBytes() noexcept;
+
+  //----------------------------------------------------------------------------
+  //! @return The minimum number of free bytes the specified space should have
+  //! as set in the configuration variables of the space.  If the minimum
+  //! number of free bytes cannot be determined for whatever reason then 0 is
+  //! returned.
+  //!
+  //! @param name The name of the space
+  //----------------------------------------------------------------------------
+  static uint64_t getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept;
 
   //----------------------------------------------------------------------------
   //! @return Number of free bytes in the specified space
@@ -241,6 +254,23 @@ private:
   //----------------------------------------------------------------------------
   static std::string createLogPreamble(const std::string &path,
     const FileIdentifier fid);
+
+  //----------------------------------------------------------------------------
+  //! Returns the integer representation of the specified string or zero if the
+  //! string could not be parsed
+  //!
+  //! @param str string to be parsed
+  //! @return the integer representation of the specified string
+  //----------------------------------------------------------------------------
+  static uint64_t toUint64(const std::string &str) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Cached value for the minum number of free bytes to be available in the
+  //! default EOS space.  If the actual number of free bytes is less than this
+  //! value then the garbage collector will try to free up space by garbage
+  //! collecting disk replicas.
+  //----------------------------------------------------------------------------
+  TapeAwareGcCachedValue<uint64_t> m_cachedDefaultSpaceMinFreeBytes;
 };
 
 EOSMGMNAMESPACE_END

@@ -660,25 +660,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.enable : ", mTapeAwareGcDefaultSpaceEnable ? "true" : "false");
         }
 
-        if (!strcmp("tapeawaregc.defaultspace.minfreebytes", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.minfreebytes missing.");
-          } else {
-            uint64_t minFreeBytes = 0;
-            std::istringstream minFreeBytesStream(val);
-
-            if (!(minFreeBytesStream >> minFreeBytes)) {
-              Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.minfreebytes illegal."
-                          "Must be an unsigned 64-bit integer!");
-            } else {
-              mTapeAwareGcDefaultSpaceMinFreeBytes = minFreeBytes;
-            }
-          }
-
-          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.minfreebytes : ",
-            std::to_string(mTapeAwareGcDefaultSpaceMinFreeBytes).c_str());
-        }
-
         if (!strcmp("authorize", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
@@ -1951,7 +1932,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Only if configured to do so, enable the tape aware garbage collector
   if(mTapeAwareGcDefaultSpaceEnable) {
-    mTapeAwareGc.enable(mTapeAwareGcDefaultSpaceMinFreeBytes);
+    mTapeAwareGc.enable();
   }
 
   return NoGo;

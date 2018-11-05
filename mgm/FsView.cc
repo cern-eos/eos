@@ -987,6 +987,12 @@ FsSpace::FsSpace(const char* name)
     if (GetConfigMember("wfe.ntx").empty()) {
       SetConfigMember("wfe.ntx", "1", true, "/eos/*/mgm");
     }
+
+    // Set the default minimum number of free bytes for the tape aware garbage
+    // collector
+    if (GetConfigMember("tapeawaregc.minfreebytes").empty()) {
+      SetConfigMember("tapeawaregc.minfreebytes", "0", true, "/eos/*/mgm");
+    }
   }
 }
 

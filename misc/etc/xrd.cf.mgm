@@ -116,6 +116,6 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 
 # Minimum number of free bytes to be available in the default EOS space.  If the
 # actual number of free bytes is less than this value then the garbage collector
-# will try to free up space by garbage collecting disk replicas.  Default is
-# 10GB.
-#mgmofs.tapeawaregc.defaultspace.minfreebytes 10000000000
+# will try to free up space by garbage collecting disk replicas.  Default is 0
+# which effective means no garbage collection.
+#mgmofs.tapeawaregc.defaultspace.minfreebytes 0

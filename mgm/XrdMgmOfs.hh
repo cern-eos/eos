@@ -1589,7 +1589,6 @@ public:
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
-  uint64_t mTapeAwareGcDefaultSpaceMinFreeBytes; ///< Minimum number of free bytes the default space should have
   TapeAwareGc &mTapeAwareGc; ///< Tape aware garbage collector
 
 private:

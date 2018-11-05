@@ -546,6 +546,7 @@ ProcCommand::Space()
                 (key == "geobalancer.threshold") ||
                 (key == "geo.access.policy.read.exact") ||
                 (key == "geo.access.policy.write.exact") ||
+                (key == "tapeawaregc.minfreebytes") ||
                 (key == "balancer.threshold")) {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||

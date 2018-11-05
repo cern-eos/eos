@@ -28,15 +28,18 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/Prefetcher.hh"
 
+#include <functional>
 #include <ios>
 #include <sstream>
+#include <time.h>
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Return the single instance of this class
 //------------------------------------------------------------------------------
-TapeAwareGc &TapeAwareGc::instance() {
+TapeAwareGc &
+TapeAwareGc::instance() {
   static TapeAwareGc s_instance;
   return s_instance;
 }
@@ -44,7 +47,12 @@ TapeAwareGc &TapeAwareGc::instance() {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-TapeAwareGc::TapeAwareGc(): m_enabled(false), m_defaultSpaceMinFreeBytes(0)
+TapeAwareGc::TapeAwareGc():
+  m_enabled(false),
+  m_cachedDefaultSpaceMinFreeBytes(
+    0, // Initial value
+    TapeAwareGc::getDefaultSpaceMinNbFreeBytes, // Value getter
+    10) // Maximum age of cached value in seconds
 {
 }
 
@@ -70,17 +78,16 @@ TapeAwareGc::~TapeAwareGc()
 //------------------------------------------------------------------------------
 // Enable the GC
 //------------------------------------------------------------------------------
-void TapeAwareGc::enable(const uint64_t defaultSpaceMinFreeBytes) noexcept
+void
+TapeAwareGc::enable() noexcept
 {
   try {
     // Do nothing if the calling thread is not the first to call start()
     if (m_enabledMethodCalled.test_and_set()) return;
 
-    m_defaultSpaceMinFreeBytes = defaultSpaceMinFreeBytes;
     m_enabled = true;
 
-    std::function<void()> entryPoint =
-      std::bind(&TapeAwareGc::workerThreadEntryPoint, this);
+    std::function<void()> entryPoint = std::bind(&TapeAwareGc::workerThreadEntryPoint, this);
     m_worker.reset(new std::thread(entryPoint));
   } catch(std::exception &ex) {
     eos_static_err("msg=\"%s\"", ex.what());
@@ -92,8 +99,14 @@ void TapeAwareGc::enable(const uint64_t defaultSpaceMinFreeBytes) noexcept
 //------------------------------------------------------------------------------
 // Entry point for the GC worker thread
 //------------------------------------------------------------------------------
-void TapeAwareGc::workerThreadEntryPoint() noexcept
+void
+TapeAwareGc::workerThreadEntryPoint() noexcept
 {
+  try {
+    eos_static_info("msg=\"TapeAwareGc worker thread started\"");
+  } catch(...) {
+  }
+
   do {
     while(!m_stop && garbageCollect()) {};
   } while(!m_stop.waitForTrue(std::chrono::seconds(10)));
@@ -102,8 +115,8 @@ void TapeAwareGc::workerThreadEntryPoint() noexcept
 //------------------------------------------------------------------------------
 // Notify GC the specified file has been opened
 //------------------------------------------------------------------------------
-void TapeAwareGc::fileOpened(const std::string &path, const IFileMD &fmd)
-  noexcept
+void
+TapeAwareGc::fileOpened(const std::string &path, const IFileMD &fmd) noexcept
 {
   if(!m_enabled) return;
 
@@ -136,8 +149,8 @@ void TapeAwareGc::fileOpened(const std::string &path, const IFileMD &fmd)
 //------------------------------------------------------------------------------
 // Notify GC a replica of the specified file has been committed
 //------------------------------------------------------------------------------
-void TapeAwareGc::fileReplicaCommitted(const std::string &path,
-  const IFileMD &fmd) noexcept
+void
+TapeAwareGc::fileReplicaCommitted(const std::string &path, const IFileMD &fmd) noexcept
 {
   if(!m_enabled) return;
 
@@ -163,26 +176,109 @@ void TapeAwareGc::fileReplicaCommitted(const std::string &path,
 }
 
 //------------------------------------------------------------------------------
+// Return the minimum number of free bytes the default space should have
+// as set in the configuration variables of the space.  If the minimum
+// number of free bytes cannot be determined for whatever reason then 0 is
+// returned.
+//------------------------------------------------------------------------------
+uint64_t
+TapeAwareGc::getDefaultSpaceMinNbFreeBytes() noexcept
+{
+  try {
+    return getSpaceConfigMinNbFreeBytes("default");
+  } catch(...) {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Return the minimum number of free bytes the specified space should have
+// as set in the configuration variables of the space.  If the minimum
+// number of free bytes cannot be determined for whatever reason then 0 is
+// returned.
+//------------------------------------------------------------------------------
+uint64_t
+TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept
+{
+  try {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    const auto spaceItor = FsView::gFsView.mSpaceView.find("default");
+
+    if (FsView::gFsView.mSpaceView.end() == spaceItor) return 0;
+
+    if (nullptr == spaceItor->second) return 0;
+
+    const auto &space = *(spaceItor->second);
+    const auto minFreeBytesStr = space.GetConfigMember("tapeawaregc.minfreebytes");
+
+    if (minFreeBytesStr.empty()) return 0;
+
+    return toUint64(minFreeBytesStr);
+  } catch(...) {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Return the integer representation of the specified string
+//------------------------------------------------------------------------------
+uint64_t
+TapeAwareGc::toUint64(const std::string &str) noexcept
+{
+  try {
+    uint64_t result = 0;
+    std::istringstream iss(str);
+    iss >> result;
+    return result;
+  } catch(...) {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Return number of free bytes in the specified space
 //------------------------------------------------------------------------------
-uint64_t TapeAwareGc::getSpaceNbFreeBytes(const std::string &name) {
+uint64_t
+TapeAwareGc::getSpaceNbFreeBytes(const std::string &name)
+{
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  const auto defaultSpace = FsView::gFsView.mSpaceView.find("default");
+  const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
 
-  if(FsView::gFsView.mSpaceView.end() == defaultSpace) {
+  if(FsView::gFsView.mSpaceView.end() == spaceItor) {
     throw SpaceNotFound(std::string("Cannot find space ") + name);
   }
 
-  return defaultSpace->second->SumLongLong("stat.statfs.freebytes", false);
+  if(nullptr == spaceItor->second) {
+    throw SpaceNotFound(std::string("Cannot find space ") + name);
+  }
+
+  return spaceItor->second->SumLongLong("stat.statfs.freebytes", false);
 }
 
 //------------------------------------------------------------------------------
 // Garage collect
 //------------------------------------------------------------------------------
-bool TapeAwareGc::garbageCollect() noexcept {
+bool
+TapeAwareGc::garbageCollect() noexcept
+{
   try {
-    // Return no file was garbage collected if there is still enough free space
-    if(getSpaceNbFreeBytes("default") >= m_defaultSpaceMinFreeBytes) return false;
+    bool defaultSpaceMinFreeBytesHasChanged = false;
+    const auto defaultSpaceMinFreeBytes =
+      m_cachedDefaultSpaceMinFreeBytes.get(defaultSpaceMinFreeBytesHasChanged);
+    if(defaultSpaceMinFreeBytesHasChanged) {
+      std::ostringstream msg;
+      msg << "msg=\"defaultSpaceMinFreeBytes has been changed to " << defaultSpaceMinFreeBytes << "\"";
+      eos_static_info(msg.str().c_str());
+    }
+
+    try {
+      // Return no file was garbage collected if there is still enough free space
+      const auto actualDefaultSpaceNbFreeBytes = getSpaceNbFreeBytes("default");
+      if(actualDefaultSpaceNbFreeBytes >= defaultSpaceMinFreeBytes) return false;
+    } catch(SpaceNotFound) {
+      // Return no file was garbage collected if the space was not found
+      return false;
+    }
 
     FileIdentifier fid;
 
@@ -243,7 +339,9 @@ bool TapeAwareGc::garbageCollect() noexcept {
 //----------------------------------------------------------------------------
 // Execute stagerrm as user root
 //----------------------------------------------------------------------------
-console::ReplyProto TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid) {
+console::ReplyProto
+TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid)
+{
   eos::common::Mapping::VirtualIdentity rootVid;
   eos::common::Mapping::Root(rootVid);
 
@@ -259,8 +357,9 @@ console::ReplyProto TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid) {
 //----------------------------------------------------------------------------
 // Return the preamble to be placed at the beginning of every log message
 //----------------------------------------------------------------------------
-std::string TapeAwareGc::createLogPreamble(const std::string &path,
-  const FileIdentifier fid) {
+std::string
+TapeAwareGc::createLogPreamble(const std::string &path, const FileIdentifier fid)
+{
   std::ostringstream preamble;
 
   preamble << "fxid=" << std::hex << fid.getUnderlyingUInt64() <<

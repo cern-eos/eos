@@ -57,6 +57,7 @@ set(MGM_UT_SRCS
   mgm/LockTrackerTests.cc
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
+  mgm/TapeAwareGcCachedValueTests.cc
   mgm/TapeAwareGcLruTests.cc)
 
 set(COMMON_UT_SRCS
