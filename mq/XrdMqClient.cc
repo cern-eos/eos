@@ -407,12 +407,13 @@ XrdMqClient::RecvMessage()
       // Fatal no client
       XrdMqMessage::Eroute.Emsg("RecvMessage", EINVAL,
                                 "receive message - no client present");
-      return 0;
+      return nullptr;
     }
 
-    XrdCl::StatInfo* stinfo = 0;
+    uint16_t timeout = 2;
+    XrdCl::StatInfo* stinfo = nullptr;
 
-    while (!file->Stat(true, stinfo).IsOK()) {
+    while (!file->Stat(true, stinfo, timeout).IsOK()) {
       ReNewBrokerXrdClientReceiver(0);
       file = GetBrokerXrdClientReceiver(0);
       std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -458,10 +459,10 @@ XrdMqClient::RecvMessage()
     return RecvFromInternalBuffer();
   } else {
     // Multiple broker case
-    return 0;
+    return nullptr;
   }
 
-  return 0;
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -509,14 +510,24 @@ void
 XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
 {
   kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
-  kBrokerXrdClientReceiver.Add(GetBrokerId(i).c_str(), new XrdCl::File());
-  XrdOucString rhostport;
-  XrdCl::XRootDStatus status = GetBrokerXrdClientReceiver(i)->Open(
-                                 GetBrokerUrl(i, rhostport)->c_str(), XrdCl::OpenFlags::Read);
 
-  if (!status.IsOK()) {
-    fprintf(stderr, "XrdMqClient::Reopening of new alias failed ...\n");
-  }
+  do {
+    auto file = new XrdCl::File();
+    XrdOucString rhostport;
+    uint16_t timeout = 2;
+    std::string url {GetBrokerUrl(i, rhostport)->c_str()};
+    XrdCl::XRootDStatus status = file->Open(url, XrdCl::OpenFlags::Read,
+                                            XrdCl::Access::None, timeout);
+
+    if (status.IsOK()) {
+      kBrokerXrdClientReceiver.Add(GetBrokerId(i).c_str(), file);
+      break;
+    } else {
+      delete file;
+      fprintf(stderr, "XrdMqClient::Reopening of new alias failed ...\n");
+      std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+  } while (true);
 }
 
 //------------------------------------------------------------------------------
