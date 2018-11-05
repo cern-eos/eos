@@ -373,7 +373,7 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
   }
 
   if (is_attached) {
-    if (ShutdownDB(fsid)) {
+    if (ShutdownDB(fsid, true)) {
       is_attached = false;
     }
   }
