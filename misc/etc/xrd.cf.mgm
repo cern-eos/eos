@@ -112,7 +112,7 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 #-------------------------------------------------------------------------------
 
 # Whether or not the garbage collector should be enabled.  Default is false.
-#mgmofs.tapeawaregc_enable false
+#mgmofs.tapeawaregc.defaultspace.enable false
 
 # Minimum number of free bytes to be available in the default EOS space.  If the
 # actual number of free bytes is less than this value then the garbage collector

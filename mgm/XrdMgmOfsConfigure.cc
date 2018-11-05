@@ -645,19 +645,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("tapeawaregc_enable", var)) {
+        if (!strcmp("tapeawaregc.defaultspace.enable", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
                strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for tapeawaregc_enable illegal or missing. "
+            Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.enable illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              mTapeAwareGcEnable = true;
+              mTapeAwareGcDefaultSpaceEnable = true;
             }
           }
 
-          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ", mTapeAwareGcEnable ? "true" : "false");
+          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.enable : ", mTapeAwareGcDefaultSpaceEnable ? "true" : "false");
         }
 
         if (!strcmp("tapeawaregc.defaultspace.minfreebytes", var)) {
@@ -1950,7 +1950,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mDrainEngine.Start();
 
   // Only if configured to do so, enable the tape aware garbage collector
-  if(mTapeAwareGcEnable) {
+  if(mTapeAwareGcDefaultSpaceEnable) {
     mTapeAwareGc.enable(mTapeAwareGcDefaultSpaceMinFreeBytes);
   }
 
