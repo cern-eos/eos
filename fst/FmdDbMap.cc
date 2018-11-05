@@ -221,7 +221,7 @@ again:
         current_mgr = Config::gConfig.Manager.c_str();
         address = "root://";
         address += current_mgr.c_str();
-        address += "//dummy";
+        address += "//dummy?xrd.wantprot=sss";
         url.Clear();
         url.FromString(address.c_str());
       }
