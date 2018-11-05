@@ -509,6 +509,14 @@ XrdMqClient::GetBrokerXrdClientReceiver(int i)
 void
 XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
 {
+  auto old_file = kBrokerXrdClientReceiver.Find(GetBrokerId(i).c_str());
+
+  if (old_file) {
+    // Close old file with small timeout to avoid any hangs, blow it will be
+    // automatically deleted
+    (void) old_file->Close(1);
+  }
+
   kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
 
   do {
