@@ -44,7 +44,7 @@ TapeAwareGc &TapeAwareGc::instance() {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-TapeAwareGc::TapeAwareGc(): m_enabled(false), m_defaultMinFreeBytes(0)
+TapeAwareGc::TapeAwareGc(): m_enabled(false), m_defaultSpaceMinFreeBytes(0)
 {
 }
 
@@ -70,13 +70,13 @@ TapeAwareGc::~TapeAwareGc()
 //------------------------------------------------------------------------------
 // Enable the GC
 //------------------------------------------------------------------------------
-void TapeAwareGc::enable(const uint64_t defaultMinFreeBytes) noexcept
+void TapeAwareGc::enable(const uint64_t defaultSpaceMinFreeBytes) noexcept
 {
   try {
     // Do nothing if the calling thread is not the first to call start()
     if (m_enabledMethodCalled.test_and_set()) return;
 
-    m_defaultMinFreeBytes = defaultMinFreeBytes;
+    m_defaultSpaceMinFreeBytes = defaultSpaceMinFreeBytes;
     m_enabled = true;
 
     std::function<void()> entryPoint =
@@ -182,7 +182,7 @@ uint64_t TapeAwareGc::getSpaceNbFreeBytes(const std::string &name) {
 bool TapeAwareGc::garbageCollect() noexcept {
   try {
     // Return no file was garbage collected if there is still enough free space
-    if(getSpaceNbFreeBytes("default") >= m_defaultMinFreeBytes) return false;
+    if(getSpaceNbFreeBytes("default") >= m_defaultSpaceMinFreeBytes) return false;
 
     FileIdentifier fid;
 

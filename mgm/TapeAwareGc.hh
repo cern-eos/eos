@@ -78,10 +78,10 @@ public:
   //----------------------------------------------------------------------------
   //! Enable the GC
   //!
-  //! @param defaultMinFreeBytes Minium number of free bytes the default space
-  //! should have
+  //! @param defaultSpaceMinFreeBytes Minium number of free bytes the default
+  //! space should have
   //----------------------------------------------------------------------------
-  void enable(const uint64_t defaultMinFreeBytes) noexcept;
+  void enable(const uint64_t defaultSpaceMinFreeBytes) noexcept;
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened
@@ -186,8 +186,8 @@ private:
   /// The one and only GC worker thread
   std::unique_ptr<std::thread> m_worker;
 
-  /// Minium number of free bytes the default space should have
-  uint64_t m_defaultMinFreeBytes;
+  /// Minimum number of free bytes the default space should have
+  uint64_t m_defaultSpaceMinFreeBytes;
 
   /// Mutex protecting mLruQueue
   std::mutex m_lruQueueMutex;
