@@ -118,4 +118,4 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 # actual number of free bytes is less than this value then the garbage collector
 # will try to free up space by garbage collecting disk replicas.  Default is
 # 10GB.
-#mgmofs.tapeawaregc_defaultminfreebytes 10000000000
+#mgmofs.tapeawaregc.defaultspace.minfreebytes 10000000000

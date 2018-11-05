@@ -657,27 +657,26 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
           }
 
-          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ",
-                     mTapeAwareGcEnable ? "true" : "false");
+          Eroute.Say("=====> mgmofs.tapeawaregc_enable : ", mTapeAwareGcEnable ? "true" : "false");
         }
 
-        if (!strcmp("tapeawaregc_defaultminfreebytes", var)) {
+        if (!strcmp("tapeawaregc.defaultspace.minfreebytes", var)) {
           if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for tapeawaregc_defaultminfreebytes missing.");
+            Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.minfreebytes missing.");
           } else {
             uint64_t minFreeBytes = 0;
             std::istringstream minFreeBytesStream(val);
 
             if (!(minFreeBytesStream >> minFreeBytes)) {
-              Eroute.Emsg("Config", "argument for tapeawaregc_defaultminfreebytes illegal."
+              Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.minfreebytes illegal."
                           "Must be an unsigned 64-bit integer!");
             } else {
-              mTapeAwareGcDefaultMinFreeBytes = minFreeBytes;
+              mTapeAwareGcDefaultSpaceMinFreeBytes = minFreeBytes;
             }
           }
 
-          Eroute.Say("=====> mgmofs.tapeawaregc_defaultminfreebytes : ",
-                     std::to_string(mTapeAwareGcDefaultMinFreeBytes).c_str());
+          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.minfreebytes : ",
+            std::to_string(mTapeAwareGcDefaultSpaceMinFreeBytes).c_str());
         }
 
         if (!strcmp("authorize", var)) {
@@ -1951,8 +1950,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mDrainEngine.Start();
 
   // Only if configured to do so, enable the tape aware garbage collector
-  if (mTapeAwareGcEnable) {
-    mTapeAwareGc.enable(mTapeAwareGcDefaultMinFreeBytes);
+  if(mTapeAwareGcEnable) {
+    mTapeAwareGc.enable(mTapeAwareGcDefaultSpaceMinFreeBytes);
   }
 
   return NoGo;

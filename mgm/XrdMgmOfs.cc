@@ -182,7 +182,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   UTF8(false), mFstGwHost(""), mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
   mTapeAwareGcEnable(false),
-  mTapeAwareGcDefaultMinFreeBytes(10000000000LL),
+  mTapeAwareGcDefaultSpaceMinFreeBytes(10000000000LL),
   mTapeAwareGc(TapeAwareGc::instance()),
   mJeMallocHandler(new eos::common::JeMallocHandler())
 {
