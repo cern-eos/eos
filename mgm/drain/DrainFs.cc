@@ -146,8 +146,8 @@ DrainFs::DoIt()
       } else if ((state == State::Done) || (state == State::Failed)) {
         return state;
       }
-    } while (!mDrainStop.load());
-  } while ((ntried < mMaxRetries.load()) && !mDrainStop.load());
+    } while (!mDrainStop);
+  } while ((ntried < mMaxRetries.load()) && !mDrainStop);
 
   if (mDrainStop.load()) {
     Stop();
@@ -307,7 +307,7 @@ DrainFs::CollectDrainJobs()
 {
   eos::common::RWMutexReadLock ns_rd_lock;
 
-  if(gOFS->eosView->inMemory()) {
+  if (gOFS->eosView->inMemory()) {
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
 
