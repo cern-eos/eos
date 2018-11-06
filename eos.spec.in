@@ -288,8 +288,8 @@ The EOS server installation containing MGM, FST & MQ service.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/tx
 %attr(555,daemon,daemon) %{_localstatedir}/eos/html/error.html
 %attr(555,daemon,daemon) %{_localstatedir}/eos/wfe/bash/shell
-%exclude %dir ${_localstatedir}/eos/archive/
-%exclude %dir ${_localstatedir}/log/eos/archive/
+%exclude %dir %{_localstatedir}/eos/archive/
+%exclude %dir %{_localstatedir}/log/eos/archive/
 
 %post -n eos-server
 echo "Starting conditional EOS services"
