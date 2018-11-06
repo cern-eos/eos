@@ -26,8 +26,8 @@ After=network-online.target local-fs.target
 Wants=network-online.target local-fs.target
 
 [Service]
-WorkinDirectory=/var/eos/
-LogDirectory=eos/archive/
+WorkingDirectory=/var/eos/
+LogsDirectory=eos/archive/
 EnvironmentFile=/etc/sysconfig/eosarchived_env
 ExecStart=/usr/bin/eosarchived.py
 Type=simple
@@ -36,5 +36,5 @@ Group=c3
 Restart=on-abort
 RestartSec=5
 LimitNOFILE=65000
-KillMode=Mixed
+KillMode=mixed
 SuccessExitStatus=KILL
