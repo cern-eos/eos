@@ -662,7 +662,7 @@ The EOS archive daemon.
 
 %files -n eos-archive
 %defattr(-, eosarchi, c3, -)
-/usr/lib/python*
+%{_prefix}/lib/python2.7/site-packages/eosarch/*
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py
 %{_bindir}/eosarch_reconstruct.py
