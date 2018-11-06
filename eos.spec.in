@@ -7,18 +7,18 @@
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
         %define use_systemd 1
-	%define use_richacl 1
+        %define use_richacl 1
     %else
         %define use_systemd 0
-	%define use_richacl 0
+        %define use_richacl 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
         %define use_systemd 1
-	%define use_richacl 1
+        %define use_richacl 1
     %else
         %define use_systemd 0
-	%define use_richacl 0
+        %define use_richacl 0
     %endif
 %endif
 
@@ -279,15 +279,17 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sysconfdir}/cron.d/eos-logs
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
-%dir %attr(700,daemon,daemon) /var/eos
-%dir %attr(700,daemon,daemon) /var/eos/wfe
-%dir %attr(700,daemon,daemon) /var/eos/wfe/bash/
-%dir %attr(700,daemon,daemon) /var/eos/ns-queue
-%dir %attr(700,daemon,daemon) /var/eos/ns-queue/default
-%dir %attr(755,daemon,daemon) /var/log/eos
-%dir %attr(755,daemon,daemon) /var/log/eos/tx
-%attr(555,daemon,daemon) /var/eos/html/error.html
-%attr(555,daemon,daemon) /var/eos/wfe/bash/shell
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe/bash/
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue/default
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/tx
+%attr(555,daemon,daemon) %{_localstatedir}/eos/html/error.html
+%attr(555,daemon,daemon) %{_localstatedir}/eos/wfe/bash/shell
+%exclude %dir ${_localstatedir}/eos/archive/
+%exclude %dir ${_localstatedir}/log/eos/archive/
 
 %post -n eos-server
 echo "Starting conditional EOS services"
@@ -406,11 +408,11 @@ The EOS fuse core containing eosd and mount scripts.
 %{_datarootdir}/selinux/mls/eosfuse.pp
 %{_datarootdir}/selinux/strict/eosfuse.pp
 %config %{_sysconfdir}/logrotate.d/eos-fuse-logs
-%dir %attr(755,daemon,daemon) /var/log/eos
-%dir %attr(755,daemon,daemon) /var/log/eos/fuse
-%dir %attr(0755, root, root) /var/run/eosd/
-%dir %attr(1777, root, root) /var/run/eosd/credentials/
-%dir %attr(1777, root, root) /var/run/eosd/credentials/store
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fuse
+%dir %attr(0755, root, root) %{_localstatedir}/run/eosd/
+%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/
+%dir %attr(1777, root, root) %{_localstatedir}/run/eosd/credentials/store
 
 # Create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
@@ -562,10 +564,10 @@ The new EOS fuse core containing eosxd.
 %{_bindir}/eosxd
 /sbin/mount.eosx
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
-%dir %attr(755,daemon,daemon) /var/log/eos/
-%dir %attr(755,daemon,daemon) /var/log/eos/fusex/
-%dir %attr(755,daemon,daemon) /var/cache/eos/
-%dir %attr(755,daemon,daemon) /var/cache/eos/fusex/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
+%dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
@@ -659,7 +661,7 @@ Requires: xrootd-python >= %{xrootd_version}
 The EOS archive daemon.
 
 %files -n eos-archive
-%defattr(-, root, root, -)
+%defattr(-, eosarchi, c3, -)
 /usr/lib/python*
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py
@@ -672,8 +674,8 @@ The EOS archive daemon.
 %{_sysconfdir}/rc.d/init.d/eosarchived
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %endif
-%dir %attr(755,eosarchi,c3) %{_localstatedir}/log/eos/archive/
 %dir %attr(755,eosarchi,c3) %{_localstatedir}/eos/archive/
+%dir %attr(755,eosarchi,c3) %{_localstatedir}/log/eos/archive/
 
 %post -n eos-archive
 case "$1" in
@@ -753,8 +755,8 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-io-tool
 %{_sbindir}/eos-unit-tests
 %{_sbindir}/eos-fst-unit-tests
-%attr(444,daemon,daemon) /var/eos/test/fuse/untar/untar.tgz
-%attr(444,daemon,daemon) /var/eos/test/fuse/untar/xrootd.tgz
+%attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/untar.tgz
+%attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/xrootd.tgz
 
 #-------------------------------------------------------------------------------
 # Package eos-cleanup
