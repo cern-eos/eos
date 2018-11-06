@@ -661,7 +661,6 @@ The EOS archive daemon.
 
 %files -n eos-archive
 %defattr(-, eosarchi, c3, -)
-%{_prefix}/lib/python2.7/site-packages/eosarch*
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py
 %{_bindir}/eosarch_reconstruct.py
@@ -675,6 +674,7 @@ The EOS archive daemon.
 %endif
 %dir %attr(755,eosarchi,c3) %{_localstatedir}/eos/archive/
 %dir %attr(755,eosarchi,c3) %{_localstatedir}/log/eos/archive/
+%dir %{python_sitelib}/eosarch/
 
 %post -n eos-archive
 case "$1" in
