@@ -877,7 +877,7 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%llu&ruid=%u&rgid=%udc_ts=%lu&dc_tns=%lu&"
+           "log=%s&host=%s&fid=%llu&ruid=%u&rgid=%u&dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
            gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
            fmd->getCUid(), fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec,
