@@ -159,13 +159,11 @@ XrdMqOfsFile::stat(struct stat* buf)
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kQueryMessage, mQueueName.c_str());
-    {
-      XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
-      if (!gMqFS->Deliver(matches)) {
-        delete env;
-      }
+    if (!gMqFS->Deliver(matches)) {
+      delete env;
     }
+
     ZTRACE(stat, "Grabbing message");
     memset(buf, 0, sizeof(struct stat));
     buf->st_blksize = 1024;
@@ -247,6 +245,7 @@ XrdMqOfsFile::close()
       mMsgOut->RetrieveMessages();
       gMqFS->mQueueOut.erase(mQueueName);
       delete mMsgOut;
+      mMsgOut->DeletionSem.Post();
     }
 
     mMsgOut = nullptr;
@@ -266,7 +265,6 @@ XrdMqOfsFile::close()
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kStatusMessage, mQueueName.c_str());
-    XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -602,7 +600,6 @@ XrdMqOfs::stat(const char* queuename, struct stat* buf, XrdOucErrInfo& error,
     XrdSmartOucEnv* env = new XrdSmartOucEnv(amg.GetMessageBuffer());
     XrdMqOfsMatches matches(gMqFS->QueueAdvisory.c_str(), env, tident,
                             XrdMqMessageHeader::kQueryMessage, queuename);
-    XrdSysMutexHelper scope_lock(mQueueOutMutex);
 
     if (!gMqFS->Deliver(matches)) {
       delete env;
@@ -1166,10 +1163,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   env = new XrdSmartOucEnv(envstring.c_str());
   XrdMqOfsMatches matches(mh.kReceiverQueue.c_str(), env, tident, mh.kType,
                           mh.kSenderId.c_str());
-  {
-    XrdSysMutexHelper scope_lock(mQueueOutMutex);
-    Deliver(matches);
-  }
+  Deliver(matches);
 
   if (matches.backlogrejected) {
     XrdOucString backlogmessage =
@@ -1253,7 +1247,8 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 bool
 XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
 {
-  EPNAME("AddToMatch");
+  EPNAME("Deliver");
+  XrdSysMutexHelper scope_lock(mQueueOutMutex);
   const char* tident = Matches.mTident;
   std::string sendername = Matches.sendername.c_str();
   // Store all the queues where we need to deliver this message
