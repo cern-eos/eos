@@ -103,11 +103,11 @@ Each FST sends for a deletion on disk a record which is tagged with application 
    fid                  file id of the file deleted
    fsid                 filesystem id where the file is deleted
    dc_ts                change timestamp of the deleted file
-   dc_nts               change timestamp in ns of the deleted file
+   dc_tns               change timestamp in ns of the deleted file
    dm_ts                modification timestamp of the deleted file
-   dm_nts               modification timestamp in ns of the deleted file
+   dm_tns               modification timestamp in ns of the deleted file
    da_ts                access timestamp on local disk of the deleted file
-   da_nts               access timestamp on local disk in ns of the deleted file
+   da_tns               access timestamp on local disk in ns of the deleted file
    dsize                size of the file before deletion
    sec.app              always: deletion
    ==================== ==================================================================================================
