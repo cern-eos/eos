@@ -2717,7 +2717,7 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
 // Get a configuration member variable (stored in the config engine)
 //------------------------------------------------------------------------------
 std::string
-BaseView::GetConfigMember(std::string key)
+BaseView::GetConfigMember(std::string key) const
 {
   RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(

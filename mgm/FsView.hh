@@ -440,7 +440,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return a configuration member
   //----------------------------------------------------------------------------
-  virtual std::string GetConfigMember(std::string key);
+  virtual std::string GetConfigMember(std::string key) const;
 
   //----------------------------------------------------------------------------
   //! Print the view contents
