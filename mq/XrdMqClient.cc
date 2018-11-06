@@ -215,16 +215,15 @@ bool
 XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
                          bool encrypt, bool asynchronous)
 {
+  bool rc = false;
   XrdSysMutexHelper lock(Mutex);
-  bool rc = true;
-  int i = 0;
   // Tag the sender
   msg.kMessageHeader.kSenderId = kClientId;
   // Tag the send time
   XrdMqMessageHeader::GetTime(msg.kMessageHeader.kSenderTime_sec,
                               msg.kMessageHeader.kSenderTime_nsec);
 
-  // tag the receiver queue
+  // Tag the receiver queue
   if (!receiverid) {
     msg.kMessageHeader.kReceiverQueue = kDefaultReceiverQueue;
   } else {
@@ -254,11 +253,9 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
   }
 
   XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
-  XrdCl::FileSystem* fs = 0;
 
-  for (i = 0; i < kBrokerN; i++) {
+  for (int i = 0; i < kBrokerN; i++) {
     XrdOucString rhostport;
     XrdCl::URL url(GetBrokerUrl(i, rhostport)->c_str());
 
@@ -269,12 +266,14 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
       continue;
     }
 
-    fs = new XrdCl::FileSystem(url);
+    uint16_t timeout = 2;
+    XrdCl::Buffer* response_raw {nullptr};
+    std::unique_ptr<XrdCl::Buffer> response {nullptr};
+    std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
 
     if (!fs) {
       fprintf(stderr, "error=failed to get new FS object");
       XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
-      delete fs;
       continue;
     }
 
@@ -282,9 +281,13 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
     if (asynchronous) {
       // Don't wait for responses if not required
-      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &gDiscardResponseHandler);
+      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg,
+                         &gDiscardResponseHandler, timeout);
     } else {
-      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response_raw,
+                         timeout);
+      response.reset(response_raw);
+      response_raw = nullptr;
     }
 
     rc = status.IsOK();
@@ -294,12 +297,9 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
       XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
                                 status.GetErrorMessage().c_str());
     }
-
-    delete response;
-    delete fs;
   }
 
-  return true;
+  return rc;
 }
 
 //----------------------------------------------------------------------------
