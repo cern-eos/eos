@@ -129,9 +129,9 @@ The MGM sends for each deletion moving a file into the recycle bin a record tagg
    host                 mgm host name
    fid                  file id
    dc_ts                change timestamp of the deleted file
-   dc_nts               change timestamp in ns of the deleted file
+   dc_tns               change timestamp in ns of the deleted file
    dm_ts                modification timestamp of the deleted file
-   dm_nts               modification timestamp in ns of the deleted file
+   dm_tns               modification timestamp in ns of the deleted file
    dsize                size of the file before deletion
    sec.app              rm,recycle (see above)
    ==================== ==================================================================================================
