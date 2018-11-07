@@ -276,7 +276,6 @@ public:
     uint64_t _maxfilesize; // maximum allowed file size
     uint64_t _opensize; // size at the moment of opening the file
 
-
     _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
     {
       data = _data;

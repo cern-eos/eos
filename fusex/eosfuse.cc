@@ -1815,6 +1815,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
          */
         ADD_FUSE_STAT("setattr:utimes", req);
         EXEC_TIMING_BEGIN("setattr:utimes");
+        eos_static_debug("setattr:utimes %d", fi ? fi->fh : -1);
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
 
@@ -1925,6 +1926,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                   eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                   rc |= io->ioctx()->truncate(req, attr->st_size);
                   io->ioctx()->inline_file(attr->st_size);
+                  struct timespec tsnow;
+                  eos::common::Timing::GetTimeSpec(tsnow);
+                  md->set_mtime(tsnow.tv_sec);
+                  md->set_mtime_ns(tsnow.tv_nsec);
                   rc |= io->ioctx()->flush(req);
                   rc = rc ? (errno ? errno : rc) : 0;
                 }
@@ -1946,6 +1951,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 rc |= io->detach(req, cookie, true);
                 rc = rc ? (errno ? errno : rc) : 0;
                 Instance().datas.release(req, md->id());
+                struct timespec tsnow;
+                eos::common::Timing::GetTimeSpec(tsnow);
+                md->set_mtime(tsnow.tv_sec);
+                md->set_mtime_ns(tsnow.tv_nsec);
               }
             }
 
@@ -3622,6 +3631,12 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
           {
             XrdSysMutexHelper mLock(io->mdctx()->Locker());
             io->mdctx()->set_size(io->ioctx()->size());
+            {
+              struct timespec tsnow;
+              eos::common::Timing::GetTimeSpec(tsnow);
+              io->md->set_mtime(tsnow.tv_sec);
+              io->md->set_mtime_ns(tsnow.tv_nsec);
+            }
             io->set_update();
             // flush size updates every 5 seconds
             time_t now = time(NULL);
@@ -3834,8 +3849,6 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         XrdSysMutexHelper mLock(io->md->Locker());
-        io->md->set_mtime(tsnow.tv_sec);
-        io->md->set_mtime_ns(tsnow.tv_nsec);
 
         // actually do the flush
         if ((rc = io->ioctx()->flush(req))) {
