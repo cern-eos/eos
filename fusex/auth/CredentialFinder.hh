@@ -79,7 +79,8 @@ struct CredInfo {
   };
 
   CredType type; // krb5 , krk5 or x509
-  std::string fname; // credential file
+  JailedPath fname; // credential file
+  std::string keyring; // kernel keyring
   time_t mtime;
 
   bool operator<(const CredInfo& src) const
@@ -90,6 +91,10 @@ struct CredInfo {
 
     if (fname != src.fname) {
       return fname < src.fname;
+    }
+
+    if (keyring != src.keyring) {
+      return keyring < src.keyring;
     }
 
     return mtime < src.mtime;
@@ -106,7 +111,7 @@ public:
     initialized(false), invalidated(false), type(CredInfo::nobody),
     uid(-2), gid(-2), mtime(0) { }
 
-  void setKrb5(const std::string& filename, uid_t uid, gid_t gid, time_t mtime)
+  void setKrb5(const JailedPath& path, uid_t uid, gid_t gid, time_t mtime)
   {
     if (initialized) {
       THROW("already initialized");
@@ -114,7 +119,7 @@ public:
 
     initialized = true;
     type = CredInfo::krb5;
-    contents = filename;
+    this->path = path;
     this->uid = uid;
     this->gid = gid;
     this->mtime = mtime;
@@ -133,7 +138,7 @@ public:
     this->gid = gid;
   }
 
-  void setx509(const std::string& filename, uid_t uid, gid_t gid, time_t mtime)
+  void setx509(const JailedPath& path, uid_t uid, gid_t gid, time_t mtime)
   {
     if (initialized) {
       THROW("already initialized");
@@ -141,13 +146,13 @@ public:
 
     initialized = true;
     type = CredInfo::x509;
-    contents = filename;
+    this->path = path;
     this->uid = uid;
     this->gid = gid;
     this->mtime = mtime;
   }
 
-  void setSss(const std::string& filename, uid_t uid, gid_t gid)
+  void setSss(const JailedPath& path, uid_t uid, gid_t gid)
   {
     if (initialized) {
       THROW("already initialized");
@@ -155,20 +160,18 @@ public:
 
     initialized = true;
     type = CredInfo::sss;
-    contents = filename;
+    this->path = path;
     this->uid = uid;
     this->gid = gid;
   }
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
-    for (size_t i = 0; i < contents.size(); i++) {
-      if (contents[i] == '&' || contents[i] == '=') {
-        eos_static_err("rejecting credential for using forbidden characters in the path: %s",
-                       contents.c_str());
-        paramsMap["xrd.wantprot"] = "unix";
-        return;
-      }
+    if(path.hasUnsafeCharacters()) {
+      eos_static_err("rejecting credential for using forbidden characters in the path: %s",
+                     path.describe().c_str());
+      paramsMap["xrd.wantprot"] = "unix";
+      return;
     }
 
     if (type == CredInfo::nobody) {
@@ -179,12 +182,15 @@ public:
     paramsMap["xrdcl.secuid"] = std::to_string(uid);
     paramsMap["xrdcl.secgid"] = std::to_string(gid);
 
-    if (type == CredInfo::krb5 || type == CredInfo::krk5) {
+    if (type == CredInfo::krb5) { // } || type == CredInfo::krk5) {
+      paramsMap["xrd.wantprot"] = "krb5,unix";
+      paramsMap["xrd.k5ccname"] = path.getFullPath();
+    } else if (type == CredInfo::krk5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = contents;
     } else if (type == CredInfo::x509 || type == CredInfo::krk5) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
-      paramsMap["xrd.gsiusrpxy"] = contents;
+      paramsMap["xrd.gsiusrpxy"] = path.getFullPath();
     } else if (type == CredInfo::sss) {
       paramsMap["xrd.wantprot"] = "sss";
     } else {
@@ -220,11 +226,15 @@ public:
       return false;
     }
 
-    if (contents.empty() || (type != CredInfo::x509 && type != CredInfo::krb5)) {
+    if(type != CredInfo::x509 && type != CredInfo::krb5) {
+      return true;
+    }
+
+    if(path.empty()) {
       return false;
     }
 
-    SecurityChecker::Info info = checker.lookup(JailedPath("", contents), uid);
+    SecurityChecker::Info info = checker.lookup(path, uid);
 
     if (info.state != CredentialState::kOk) {
       return false;
@@ -246,6 +256,7 @@ private:
   std::atomic<bool> invalidated;
   CredInfo::CredType type;
   std::string contents;
+  JailedPath path;
   uid_t uid;
   gid_t gid;
   time_t mtime;

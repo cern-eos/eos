@@ -42,10 +42,26 @@
 class JailedPath {
 public:
   //----------------------------------------------------------------------------
+  //! Empty constructor
+  //----------------------------------------------------------------------------
+  JailedPath() {}
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   JailedPath(const std::string &jail_, const std::string &path_)
   : jail(jail_), path(path_) {}
+
+  //----------------------------------------------------------------------------
+  //! Get full path
+  //----------------------------------------------------------------------------
+  std::string getFullPath() const {
+    if(jail.empty()) {
+      return path;
+    }
+
+    return SSTR(jail << "/" << path);
+  }
 
   //----------------------------------------------------------------------------
   //! Get raw path
@@ -78,6 +94,53 @@ public:
     }
 
     return path < other.path;
+  }
+
+  //----------------------------------------------------------------------------
+  //! operator! for equality comparison
+  //----------------------------------------------------------------------------
+  bool operator!=(const JailedPath& other) const {
+    if(jail != other.jail) {
+      return true;
+    }
+
+    return path != other.path;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Hash contents
+  //----------------------------------------------------------------------------
+  uint64_t stupidHash() const {
+    uint64_t result = 0;
+
+    for(size_t i = 0; i < jail.size(); i++) {
+      result += jail[i];
+    }
+
+    for(size_t i = 0; i < path.size(); i++) {
+      result += path[i];
+    }
+
+    return result;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if path contains unsafe characters: '&' or '='
+  //----------------------------------------------------------------------------
+  bool hasUnsafeCharacters() const {
+    for(size_t i = 0; i < jail.size(); i++) {
+      if(jail[i] == '&' || jail[i] == '=') {
+        return true;
+      }
+    }
+
+    for(size_t i = 0; i < path.size(); i++) {
+      if(path[i] == '&' || path[i] == '=') {
+        return true;
+      }
+    }
+
+    return false;
   }
 
 private:

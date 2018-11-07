@@ -37,7 +37,7 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
   }
 
   eos_static_info("Using credential file '%s' for uid %d", path.describe().c_str(), uid);
-  creds.fname = path.getRawPath();
+  creds.fname = path;
   creds.mtime = info.mtime;
   return info.state;
 }
@@ -190,7 +190,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
   if (credinfo.type == CredInfo::krb5) {
     trustedCreds->setKrb5(credinfo.fname, uid, gid, credinfo.mtime);
   } else if (credinfo.type == CredInfo::krk5) {
-    trustedCreds->setKrk5(credinfo.fname, uid, gid);
+    trustedCreds->setKrk5(credinfo.keyring, uid, gid);
   } else if (credinfo.type == CredInfo::x509) {
     trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
   } else if (credinfo.type == CredInfo::sss) {

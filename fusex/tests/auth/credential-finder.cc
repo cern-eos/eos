@@ -59,9 +59,9 @@ TEST(TrustedCredentials, BasicSanity)
   ASSERT_EQ(emptycreds.toXrdParams(), "xrd.wantprot=unix");
   TrustedCredentials cred1;
   ASSERT_TRUE(cred1.empty());
-  cred1.setKrb5("/tmp/some-file", 5, 6, 0);
+  cred1.setKrb5(JailedPath("", "/tmp/some-file"), 5, 6, 0);
   ASSERT_FALSE(cred1.empty());
-  ASSERT_THROW(cred1.setx509("/tmp/some-other-file", 1, 2, 0), FatalException);
+  ASSERT_THROW(cred1.setx509(JailedPath("", "/tmp/some-other-file"), 1, 2, 0), FatalException);
   ASSERT_EQ(cred1.toXrdParams(),
             "xrd.k5ccname=/tmp/some-file&xrd.wantprot=krb5,unix&xrdcl.secgid=6&xrdcl.secuid=5");
   TrustedCredentials cred2;
@@ -70,12 +70,12 @@ TEST(TrustedCredentials, BasicSanity)
   ASSERT_EQ(cred2.toXrdParams(),
             "xrd.k5ccname=keyring-name&xrd.wantprot=krb5,unix&xrdcl.secgid=6&xrdcl.secuid=5");
   TrustedCredentials cred3;
-  cred3.setx509("/tmp/some-file", 5, 6, 0);
+  cred3.setx509(JailedPath("", "/tmp/some-file"), 5, 6, 0);
   ASSERT_FALSE(cred3.empty());
   ASSERT_EQ(cred3.toXrdParams(),
             "xrd.gsiusrpxy=/tmp/some-file&xrd.wantprot=gsi,unix&xrdcl.secgid=6&xrdcl.secuid=5");
   TrustedCredentials cred4;
-  cred4.setx509("/tmp/some-evil&file=", 5, 6, 0);
+  cred4.setx509(JailedPath("", "/tmp/some-evil&file="), 5, 6, 0);
   ASSERT_FALSE(cred4.empty());
   ASSERT_EQ(cred4.toXrdParams(), "xrd.wantprot=unix");
 }

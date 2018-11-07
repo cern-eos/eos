@@ -31,12 +31,7 @@ struct CredInfoHasher {
 
   static uint64_t hash(const CredInfo& key)
   {
-    uint64_t result = key.type;
-
-    for (size_t i = 0; i < key.fname.size(); i++) {
-      result += key.fname[i];
-    }
-
+    uint64_t result = key.type + key.fname.stupidHash();
     return result;
   }
 };
