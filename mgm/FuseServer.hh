@@ -253,7 +253,7 @@ public:
   public:
     Clients():
       mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
-      mHeartBeatRemoveWindow(120), mHeartBeatInterval(1),
+      mHeartBeatRemoveWindow(120), mHeartBeatInterval(10),
       mQuotaCheckInterval(10)
     {}
 
