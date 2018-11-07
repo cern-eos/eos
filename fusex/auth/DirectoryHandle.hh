@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: CredentialFinder.cc
-// Author: Georgios Bitzes - CERN
+// File: DirectoryHandle.hh
+// Author: Georgios Bitzes, CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,66 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <iostream>
-#include <sstream>
-#include "CredentialFinder.hh"
-#include "Utils.hh"
+#ifndef FUSEX_DIRECTORY_HANDLE_HH
+#define FUSEX_DIRECTORY_HANDLE_HH
 
-void Environment::fromFile(const std::string& path)
+//------------------------------------------------------------------------------
+// Keeps ownership of an open file descriptor.
+//------------------------------------------------------------------------------
+class DirectoryHandle
 {
-  std::string contents;
+public:
 
-  if (readFile(path, contents)) {
-    fromString(contents);
-  }
-}
+};
 
-void Environment::fromString(const std::string& str)
-{
-  contents = split_on_nullbyte(str);
-}
-
-void Environment::fromVector(const std::vector<std::string>& vec)
-{
-  contents = vec;
-}
-
-std::string Environment::get(const std::string& key) const
-{
-  std::string keyWithEquals = key + "=";
-
-  for (size_t i = 0; i < contents.size(); i++) {
-    if (startswith(contents[i], keyWithEquals)) {
-      return contents[i].substr(keyWithEquals.size());
-    }
-  }
-
-  return "";
-}
-
-std::vector<std::string> Environment::getAll() const
-{
-  return contents;
-}
-
-JailedPath CredentialFinder::locateKerberosTicket(const Environment& env)
-{
-  std::string krb5ccname = env.get("KRB5CCNAME");
-  const std::string prefix = "FILE:";
-
-  if (startswith(krb5ccname, prefix)) {
-    krb5ccname = krb5ccname.substr(prefix.size());
-  }
-
-  return JailedPath("", krb5ccname);
-}
-
-JailedPath CredentialFinder::locateX509Proxy(const Environment& env)
-{
-  return JailedPath("", env.get("X509_USER_PROXY"));
-}
-
-JailedPath CredentialFinder::locateSss(const Environment& env)
-{
-  return JailedPath("", env.get("XrdSecSSSKT"));
-}
+#endif

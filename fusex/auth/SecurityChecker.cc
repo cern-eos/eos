@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 #include <iostream>
 
-void SecurityChecker::inject(const std::string& path, uid_t uid, mode_t mode,
+void SecurityChecker::inject(const JailedPath& path, uid_t uid, mode_t mode,
                              time_t mtime)
 {
   std::lock_guard<std::mutex> lock(mtx);
@@ -34,7 +34,7 @@ void SecurityChecker::inject(const std::string& path, uid_t uid, mode_t mode,
   injections[path] = InjectedData(uid, mode, mtime);
 }
 
-SecurityChecker::Info SecurityChecker::lookupInjected(const std::string& path,
+SecurityChecker::Info SecurityChecker::lookupInjected(const JailedPath& path,
     uid_t uid)
 {
   std::lock_guard<std::mutex> lock(mtx);
@@ -75,7 +75,7 @@ SecurityChecker::Info SecurityChecker::validate(uid_t uid, mode_t mode,
   return Info(CredentialState::kOk, mtime);
 }
 
-SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
+SecurityChecker::Info SecurityChecker::lookup(const JailedPath& path,
     uid_t uid)
 {
   if (path.empty()) return {};
@@ -87,12 +87,12 @@ SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
   std::string resolvedPath;
   // is "path" a symlink?
   char buffer[1024];
-  const ssize_t retsize = readlink(path.c_str(), buffer, 1023);
+  const ssize_t retsize = readlink(path.getRawPath().c_str(), buffer, 1023);
   if(retsize != -1) {
     resolvedPath = std::string(buffer, retsize);
   }
   else {
-    resolvedPath = path;
+    resolvedPath = path.getRawPath();
   }
 
   struct stat filestat;
@@ -107,7 +107,7 @@ SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
 
   if (info.state == CredentialState::kBadPermissions) {
     eos_static_alert("Uid %d is asking to use credentials '%s', but permission check failed!",
-                     uid, path.c_str());
+                     uid, path.describe().c_str());
   }
 
   return info;

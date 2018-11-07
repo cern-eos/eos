@@ -27,6 +27,7 @@ add_library(
                                    CredentialCache.hh
   CredentialFinder.cc              CredentialFinder.hh
   EnvironmentReader.cc             EnvironmentReader.hh
+                                   JailedPath.hh
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh
   ProcessInfo.cc                   ProcessInfo.hh

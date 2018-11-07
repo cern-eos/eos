@@ -35,6 +35,7 @@
 #include "LoginIdentifier.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "SecurityChecker.hh"
+#include "JailedPath.hh"
 #include <sys/stat.h>
 
 class CredentialConfig
@@ -223,7 +224,7 @@ public:
       return false;
     }
 
-    SecurityChecker::Info info = checker.lookup(contents, uid);
+    SecurityChecker::Info info = checker.lookup(JailedPath("", contents), uid);
 
     if (info.state != CredentialState::kOk) {
       return false;
@@ -318,9 +319,9 @@ private:
 class CredentialFinder
 {
 public:
-  static std::string locateKerberosTicket(const Environment& env);
-  static std::string locateX509Proxy(const Environment& env);
-  static std::string locateSss(const Environment& env);
+  static JailedPath locateKerberosTicket(const Environment& env);
+  static JailedPath locateX509Proxy(const Environment& env);
+  static JailedPath locateSss(const Environment& env);
 };
 
 #endif

@@ -30,6 +30,7 @@
 #include "ProcessInfo.hh"
 #include "EnvironmentReader.hh"
 #include "SecurityChecker.hh"
+#include "JailedPath.hh"
 
 class BoundIdentityProvider
 {
@@ -86,7 +87,7 @@ private:
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
 
-  CredentialState tryCredentialFile(const std::string& path, CredInfo& creds,
+  CredentialState tryCredentialFile(const JailedPath& path, CredInfo& creds,
                                     uid_t uid);
   CredentialState fillKrb5FromEnv(const Environment& env, CredInfo& creds,
                                   uid_t uid);

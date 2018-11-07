@@ -112,7 +112,7 @@ TEST_F(ProcessCacheFixture, Kerberos)
 {
   configureKerberosAuth();
   injectProcess(1234, 1, 1234, 1234, 9999, 0);
-  securityChecker.inject("/tmp/my-creds", 1000, 0400, 1);
+  securityChecker.inject(JailedPath("", "/tmp/my-creds"), 1000, 0400, 1);
   environmentReader.inject(1234, createEnv("/tmp/my-creds", ""));
   ProcessSnapshot snapshot = processCache.retrieve(1234, 1000, 1000, false);
   ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1).getStringID());

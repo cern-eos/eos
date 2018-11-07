@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 
 CredentialState
-BoundIdentityProvider::tryCredentialFile(const std::string& path,
+BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
     CredInfo& creds, uid_t uid)
 {
   SecurityChecker::Info info = securityChecker.lookup(path, uid);
@@ -36,8 +36,8 @@ BoundIdentityProvider::tryCredentialFile(const std::string& path,
     return info.state;
   }
 
-  eos_static_info("Using credential file '%s' for uid %d", path.c_str(), uid);
-  creds.fname = path;
+  eos_static_info("Using credential file '%s' for uid %d", path.describe().c_str(), uid);
+  creds.fname = path.getRawPath();
   creds.mtime = info.mtime;
   return info.state;
 }
@@ -46,7 +46,7 @@ CredentialState
 BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, CredInfo& creds,
                                        uid_t uid)
 {
-  std::string path = CredentialFinder::locateKerberosTicket(env);
+  JailedPath path = CredentialFinder::locateKerberosTicket(env);
   creds.type = CredInfo::krb5;
   return tryCredentialFile(path, creds, uid);
 }
@@ -55,7 +55,7 @@ CredentialState
 BoundIdentityProvider::fillX509FromEnv(const Environment& env, CredInfo& creds,
                                        uid_t uid)
 {
-  std::string path = CredentialFinder::locateX509Proxy(env);
+  JailedPath path = CredentialFinder::locateX509Proxy(env);
   creds.type = CredInfo::x509;
   return tryCredentialFile(path, creds, uid);
 }
@@ -64,7 +64,7 @@ CredentialState
 BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
                                       uid_t uid)
 {
-  std::string path = CredentialFinder::locateSss(env);
+  JailedPath path = CredentialFinder::locateSss(env);
   creds.type = CredInfo::sss;
   return tryCredentialFile(path, creds, uid);
 }
