@@ -2417,20 +2417,24 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   hb.set_type(hb.HEARTBEAT);
   eos::fusex::response rsp;
   size_t cnt = 0;
-  int interval = 1;
+  int interval = 10;
   bool shutdown = false;
 
   while (!assistant.terminationRequested() || shutdown == false) {
     try {
-      std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
+      std::unique_lock<std::mutex> connectionMutex(zmq_socket_mutex);
       eos_static_debug("");
       zmq::pollitem_t items[] = {
         {static_cast<void*>(*z_socket), 0, ZMQ_POLLIN, 0}
       };
+      struct timespec ts;
+      eos::common::Timing::GetTimeSpec(ts);
 
-      for (int i = 0; i < 100 * interval; ++i) {
+      do {
         // if there is a ZMQ reconnection to be done we release the ZQM socket mutex
         if (zmq_wants_to_connect()) {
+          connectionMutex.unlock();
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
           continue;
         }
 
@@ -2719,7 +2723,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
           zmq_msg_close(&message);
         }
-      }
+
+        // leave the loop to send a heartbeat after the given interval
+        if ((eos::common::Timing::GetCoarseAgeInNs(&ts,
+             0) >= (interval * 1000000000))) {
+          break;
+        }
+      } while (1);
 
       //eos_static_debug("send");
       // prepare a heart-beat message
