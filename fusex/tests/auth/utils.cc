@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: Utils.cc
+//------------------------------------------------------------------------------
+// File: utils.cc
 // Author: Georgios Bitzes - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,61 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <sys/stat.h>
-#include "Utils.hh"
+#include <gtest/gtest.h>
+#include "auth/Utils.hh"
 
-bool readFile(const std::string& path, std::string& contents)
-{
-  bool retvalue = true;
-  std::ostringstream ss;
-  const int BUFFER_SIZE = 1024;
-  char buffer[BUFFER_SIZE];
-  FILE* in = fopen(path.c_str(), "rb");
-
-  if (!in) {
-    return false;
-  }
-
-  while (true) {
-    size_t bytesRead = fread(buffer, 1, BUFFER_SIZE, in);
-
-    if (bytesRead > 0) {
-      ss.write(buffer, bytesRead);
-    }
-
-    if (bytesRead == 0) {
-      retvalue = false;
-      break;
-    }
-
-    if (bytesRead != BUFFER_SIZE) {
-      break;
-    }
-  }
-
-  fclose(in);
-  contents = ss.str();
-  return retvalue;
-}
-
-bool checkCredSecurity(const struct stat& filestat, uid_t uid)
-{
-  if (filestat.st_uid == uid
-      && (filestat.st_mode & 0077) == 0 // no access to other users/groups
-      && (filestat.st_mode & 0400) != 0 // read allowed for the user
-     ) {
-    return true;
-  }
-
-  return false;
-}
-
-std::string chopTrailingSlashes(const std::string &path)
-{
-  std::string value = path;
-  while(value.size() > 1 && value[value.size()-1] == '/') {
-    value.pop_back();
-  }
-
-  return value;
+TEST(ChopTrailingSlashes, BasicSanity) {
+  ASSERT_EQ(chopTrailingSlashes("/test/b"), "/test/b");
+  ASSERT_EQ(chopTrailingSlashes("/test/b/"), "/test/b");
+  ASSERT_EQ(chopTrailingSlashes("/test/b///"), "/test/b");
+  ASSERT_EQ(chopTrailingSlashes("/b///"), "/b");
+  ASSERT_EQ(chopTrailingSlashes("//"), "/");
+  ASSERT_EQ(chopTrailingSlashes("/"), "/");
+  ASSERT_EQ(chopTrailingSlashes(""), "");
 }

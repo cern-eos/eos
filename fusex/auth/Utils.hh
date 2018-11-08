@@ -113,5 +113,6 @@ inline bool startswith(const std::string& str, const std::string& prefix)
 
 bool readFile(const std::string& path, std::string& ret);
 bool checkCredSecurity(const struct stat& filestat, uid_t uid);
+std::string chopTrailingSlashes(const std::string &path);
 
 #endif
