@@ -85,6 +85,7 @@ struct CredInfo {
   CredentialType type;
   JailedPath fname; // credential file
   std::string keyring; // kernel keyring
+  std::string endorsement; // endorsement for sss
   time_t mtime;
 
   bool operator<(const CredInfo& src) const
@@ -99,6 +100,10 @@ struct CredInfo {
 
     if (keyring != src.keyring) {
       return keyring < src.keyring;
+    }
+
+    if (endorsement < src.endorsement) {
+      return endorsement < src.endorsement;
     }
 
     return mtime < src.mtime;
@@ -156,7 +161,8 @@ public:
     this->mtime = mtime;
   }
 
-  void setSss(const JailedPath& path, uid_t uid, gid_t gid)
+  void setSss(const JailedPath& path, const std::string& endorsement, uid_t uid,
+              gid_t gid)
   {
     if (initialized) {
       THROW("already initialized");
@@ -165,13 +171,14 @@ public:
     initialized = true;
     type = CredentialType::SSS;
     this->path = path;
+    this->endorsement = endorsement;
     this->uid = uid;
     this->gid = gid;
   }
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
-    if(path.hasUnsafeCharacters()) {
+    if (path.hasUnsafeCharacters()) {
       eos_static_err("rejecting credential for using forbidden characters in the path: %s",
                      path.describe().c_str());
       paramsMap["xrd.wantprot"] = "unix";
@@ -234,7 +241,7 @@ public:
       return true;
     }
 
-    if(path.empty()) {
+    if (path.empty()) {
       return false;
     }
 
@@ -262,6 +269,7 @@ private:
   CredentialType type;
   std::string contents;
   JailedPath path;
+  std::string endorsement;
   uid_t uid;
   gid_t gid;
   time_t mtime;
@@ -338,6 +346,7 @@ public:
   static JailedPath locateKerberosTicket(const Environment& env);
   static JailedPath locateX509Proxy(const Environment& env);
   static JailedPath locateSss(const Environment& env);
+  static std::string getSssEndorsement(const Environment& env);
 };
 
 #endif

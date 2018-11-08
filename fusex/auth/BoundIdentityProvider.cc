@@ -36,7 +36,8 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
     return info.state;
   }
 
-  eos_static_info("Using credential file '%s' for uid %d", path.describe().c_str(), uid);
+  eos_static_info("Using credential file '%s' for uid %d",
+                  path.describe().c_str(), uid);
   creds.fname = path;
   creds.mtime = info.mtime;
   return info.state;
@@ -66,6 +67,13 @@ BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
 {
   JailedPath path = CredentialFinder::locateSss(env);
   creds.type = CredentialType::SSS;
+  creds.endorsement = CredentialFinder::getSssEndorsement(env);
+
+  if (!geteuid()) {
+    // if this is a shared mount, the sss keytab file has to be owned by root
+    uid = 0;
+  }
+
   return tryCredentialFile(path, creds, uid);
 }
 
@@ -194,7 +202,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
   } else if (credinfo.type == CredentialType::X509) {
     trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
   } else if (credinfo.type == CredentialType::SSS) {
-    trustedCreds->setSss(credinfo.fname, uid, gid);
+    trustedCreds->setSss(credinfo.fname, credinfo.endorsement, uid, gid);
   }
 
   BoundIdentity* binding = new BoundIdentity(login, trustedCreds);

@@ -84,3 +84,8 @@ JailedPath CredentialFinder::locateSss(const Environment& env)
 {
   return JailedPath("", env.get("XrdSecSSSKT"));
 }
+
+std::string CredentialFinder::getSssEndorsement(const Environment& env)
+{
+  return env.get("XrdSecsssENDORSEMENT");
+}
