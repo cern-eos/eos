@@ -58,7 +58,6 @@ Client Commands
   clicommands/role
   clicommands/group
   clicommands/info
-  clicommands/drain
   clicommands/attr
   clicommands/license
   clicommands/clear

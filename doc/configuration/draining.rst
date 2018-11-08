@@ -11,36 +11,47 @@ Drain System
 Overview
 --------
 
-The EOS drain system provides a fully automized mechanism to drain (empty) 
-filesystems under certain error conditions. A file system drain is triggered 
-by an IO error on a file system or manually by an operator setting a 
+The EOS drain system provides a fully automized mechanism to drain (empty)
+filesystems under certain error conditions. A file system drain is triggered
+by an IO error on a file system or manually by an operator setting a
 filesystem into drain status.
 
-The drain system is made up by the cooperation of several components:
+Starting from EOS Citrine 4.3.0, a new implementation of the drain is available,
+called Central Drain, but the old implementation, called Distributed Drain, is
+still used by default. The new implementation can be enabled by adding
+``mgmofs.centraldrain true`` to the MGM configuration file (/etc/xrd.cf.mgm).
+
+The Distributed drain system orchestrates the cooperation of several components:
 
 * File System Probe running on FST writing Scrub Files with predefined patterns
 * Central File System View with file system state machine
 * Centrally running drain threads steering the filesystem drain process
 * Drain Thread on each FST pulling workload to pull files locally to drain filesystems
 
+The Central drain system does not use drain threads on the FSTs, but it makes
+use of the GeoTreeEngine component to decide where to move the drained replicas.
+The drain proccesses are spawned on the MGM node and not on the FSTs, and
+represent simple XRootD third-party-copy transfers. The Central Drain is
+recommended for instances having the Namespace stored in QuarkDB.
+
 FST Scrubber
 ------------
 
-Each FST run's a dedicated thread doing scrubbing. Scrubbing is running if the 
-file system configuration is at least **wo** ( e.g. in write-only or read-write mode), 
-the file system is in **booted** state and the label of the 
-filesystem ``<mountpoint>/.eosfsid + <mountpoint>/.eosfsuuid`` is readable. 
-If the label is not readable the Scrubber broadcasts an IO error for filesystems 
+Each FST run's a dedicated thread doing scrubbing. Scrubbing is running if the
+file system configuration is at least **wo** ( e.g. in write-only or read-write mode),
+the file system is in **booted** state and the label of the
+filesystem ``<mountpoint>/.eosfsid + <mountpoint>/.eosfsuuid`` is readable.
+If the label is not readable the Scrubber broadcasts an IO error for filesystems
 in **ro**, **wo** or **rw** mode and **booted** state with the error text
  "filesystem seems to be not mounted anymore".
 
-The FST scrubber follows the filling size of a disk and writes test pattern 
-files at 0%, 10%, 20% ... 90% filling with the goal to do tests equally 
-distributed over the physical size of the disk. At each 10% filling position 
-the scrubber creates a write-once file to be re-read in each scrubbing pass 
-and a re-write file which is re-written and re-read in each scrubbing pass. 
+The FST scrubber follows the filling size of a disk and writes test pattern
+files at 0%, 10%, 20% ... 90% filling with the goal to do tests equally
+distributed over the physical size of the disk. At each 10% filling position
+the scrubber creates a write-once file to be re-read in each scrubbing pass
+and a re-write file which is re-written and re-read in each scrubbing pass.
 The following pattern is written into the test files:
- 
+
 .. code-block:: bash
 
    scrubPattern[0][i]=0xaaaa5555aaaa5555ULL;
@@ -48,11 +59,11 @@ The following pattern is written into the test files:
    scrubPattern[1][i]=0x5555aaaa5555aaaaULL;
    scrubPattern[1][i+1]=0xaaaa5555aaaa5555ULL;
 
-Patterm 0 or pattern 1 is selected randomly.  Each test file has 1MB size and 
-the scrub file names are ``<mountpoint>/scrub.write-once.[0-9]`` and 
+Patterm 0 or pattern 1 is selected randomly.  Each test file has 1MB size and
+the scrub file names are ``<mountpoint>/scrub.write-once.[0-9]`` and
 ``<mountpoint>/scrub.re-write.[0-9]``.
 
-In case an error is detected, the FST broadcasts an EIO to the MGM with the 
+In case an error is detected, the FST broadcasts an EIO to the MGM with the
 error text "filesystem probe error detected".
 
 You can see filesystems in error state and the error text on the MGM node doing:
@@ -80,12 +91,12 @@ The possible configuration states are self explaining:
    ============= ======================================================================================
    state          definition
    ============= ======================================================================================
-   rw            filesystem set in read write mode 
-   wo            filesystem set in write-once mode 
-   ro            filesystem set in read-only mode 
-   drain         filesystem set in drain mode 
-   draindead     filesystem set in drain mode and the filesystem is considered as unusable for any read 
-   off           filesystem set disabled 
+   rw            filesystem set in read write mode
+   wo            filesystem set in write-once mode
+   ro            filesystem set in read-only mode
+   drain         filesystem set in drain mode
+   draindead     filesystem set in drain mode and the filesystem is considered as unusable for any read
+   off           filesystem set disabled
    empty         filesystem is empty e.g. contains no files any more
    ============= ======================================================================================
 
@@ -114,17 +125,17 @@ As shown each file system has also a drain state. Drain states can be:
    state            definition
    ================ ==============================================================================================================================================================================
    nodrain          file system is currently not draining
-   prepare          the drain process is prepared - this phase lasts 60 seconds 
-   wait             the drain process either waits for the namespace to be booted or it is waiting that the graceperiod has passed (see below) 
-   draining         the drain process is enabled - nodes inside the scheduling group start to pull transfers to drop replicas from the filesystem to drain 
-   stalling         in the last 5 minutes there was noprogress of the drain procedure. This happens if the files to transfer are very huge or there are only files left which cannot be replicated. 
+   prepare          the drain process is prepared - this phase lasts 60 seconds
+   wait             the drain process either waits for the namespace to be booted or it is waiting that the graceperiod has passed (see below)
+   draining         the drain process is enabled - nodes inside the scheduling group start to pull transfers to drop replicas from the filesystem to drain
+   stalling         in the last 5 minutes there was noprogress of the drain procedure. This happens if the files to transfer are very huge or there are only files left which cannot be replicated.
    expired          the time defined by the drainperiod variable has passed and the drain process is stopped. There are files left on the disk which couldn't be drained.
    drained          all files have been drained from the filesystem.
    ================ ==============================================================================================================================================================================
-  
+
 Finale states are expired or drained.
 
-The drain and grace periods are defined as a space variable (e.g. automatically 
+The drain and grace periods are defined as a space variable (e.g. automatically
 applied to all filesystems in that space when they are moved into or registered).
 
 One can see the settings via the space command:
@@ -149,7 +160,7 @@ One can see the settings via the space command:
    quota                            := off
    scaninterval                     := 1
 
-They can be modified by setting the *drainperiod* or *graceperiod* variable in 
+They can be modified by setting the *drainperiod* or *graceperiod* variable in
 number of seconds:
 
 .. code-block:: bash
@@ -160,10 +171,10 @@ number of seconds:
    EOS Console [root://localhost] |/> space config default space.graceperiod=86400
    success: setting graceperiod=86400
 
-.. warning:: 
+.. warning::
    This defines the variables only if filesystems are registered or moved into that space.
 
-If you want to apply this setting to all filesystems in that space, 
+If you want to apply this setting to all filesystems in that space,
 you have additionally to call:
 
 .. code-block:: bash
@@ -171,7 +182,7 @@ you have additionally to call:
    EOS Console [root://localhost] |/> space config default fs.drainperiod=86400
    EOS Console [root://localhost] |/> space config default fs.graceperiod=86400
 
-If you want a global overview about running drain processes, you can get the 
+If you want a global overview about running drain processes, you can get the
 number of running drain transfers by space, by group, by node and by filesystem:
 
 .. code-block:: bash
@@ -236,11 +247,15 @@ number of running drain transfers by space, by group, by node and by filesystem:
 
    ...
 
-Central Drain Threads MGM
--------------------------
 
-Each filesystem shown in the drain view in a non-final state has a thread on the 
-MGM associated which keeps track to enable the drain process on all FSTs in the 
+
+
+
+Drain Threads MGM
+-----------------
+
+Each filesystem shown in the drain view in a non-final state has a thread on the
+MGM associated which keeps track to enable the drain process on all FSTs in the
 same scheduling group.
 
 .. code-block:: bash
@@ -252,26 +267,59 @@ same scheduling group.
    #.............................................................................................................................
    lxfsra02a05.cern.ch (1095)     20          /data20      prepare            0         0.00       0.00 B          24      0
 
-When the drain process reaches a final state, the thread is joined and if there 
-is no other filesystem in drain mode in that scheduling group, the drain transfer 
-pull for all FSTs in that group is disabled. 
+For the Distribute Drain case, when the drain process reaches a final state,
+the thread is joined and if there is no other filesystem in drain mode in that
+scheduling group, the drain transfer pull for all FSTs in that group is disabled.
+Similarly for the Central Drain, a drain thread is steering the drain of each
+filesystem in non-final state, and is responsible of spawning drain processes
+directly on the MGM node, by using the GeoTreeEngine to select the destination
+file systemd and to queue drain jobs in case the limits per node are reached.
+The Central Drain parameters can be configured at the space level:
 
- 
-Pull Drain Thread FST 
----------------------
+.. code-block:: bash
 
-As described the pull threads are enabled whenever there is something to drain. 
-There is one thread pulling transfer jobs for all configured filesystems. 
-The pull thread calls the schedule2drain function on the MGM to retrieve the 
-next file to be drained. The MGM hands out transfer jobs fitting the advertised 
-free space in that moment on the FST and empties filesystems from the lowest 
-remaining file id. If a pull thread is enabled but there was no transfer to be 
+   EOS Console [root://localhost] |/> space status default
+
+   # ------------------------------------------------------------------------------------
+   # Space Variables
+   # ....................................................................................
+   ..
+
+   drainer.node.nfs                 := 10
+   drainer.retries                  := 2
+   drainer.fs.ntx                   := 10
+   drainperiod                      := 3600
+   graceperiod                      := 86400
+   ..
+
+By default max 5 file systems per node can be drained in parallel with max 5
+parallel transfers per file system. The default value for the drain retries is 1.
+
+The values can be modified via:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/> space config default space.drainer.node.nfs=20
+   EOS Console [root://localhost] |/> space config default space.drainer.retries=5
+   EOS Console [root://localhost] |/> space config default space.drainer.fs.ntx=50
+
+
+Pull Drain Thread FST (Distributed Drain)
+-----------------------------------------
+
+As described, the pull threads are enabled in the case of Distributed Drain whenever
+there is something to drain. There is one thread pulling transfer jobs for all
+configured filesystems.
+The pull thread calls the schedule2drain function on the MGM to retrieve the
+next file to be drained. The MGM hands out transfer jobs fitting the advertised
+free space in that moment on the FST and empties filesystems from the lowest
+remaining file id. If a pull thread is enabled but there was no transfer to be
 pulled for all filesystems, the thread stops polling for 30s.
 
-When a transfer is pulled it is added to the drain balance queue on the 
-corresponding file system. The transfer scheduler on that filesystem runs the 
-transfer with the bandwidth defined by the space variable  drainer.node.rate 
-[ defining MB/s ]. The number of concurrent transfers on a node for all 
+When a transfer is pulled it is added to the drain balance queue on the
+corresponding file system. The transfer scheduler on that filesystem runs the
+transfer with the bandwidth defined by the space variable  drainer.node.rate
+[ defining MB/s ]. The number of concurrent transfers on a node for all
 filesystems is defined by the space variable drainer.node.ntx.
 
 .. code-block:: bash
@@ -295,7 +343,7 @@ filesystems is defined by the space variable drainer.node.ntx.
    quota                            := off
    scaninterval                     := 1
 
-Here we have 10 parallel transfers with a bandwidth cut-off at 25 Mb/s. 
+Here we have 10 parallel transfers with a bandwidth cut-off at 25 Mb/s.
 
 You can modify these settings via:
 
@@ -306,21 +354,21 @@ You can modify these settings via:
 
 Transfer jobs show up on the FSTs as processes named *eosfstcp*.
 
-Drain State Reset 
------------------
+Drain State Reset (Distributed Drain)
+-------------------------------------
 
 Under certain circumstances it might happen that FSTs stay in pull mode although there is no drainjob (certain restart/failover patterns).
 To recompute the proper pull state one can issue a drain state reset using:
 
 .. code-block:: bash
- 
+
    EOS Console [root://localhost] |/> space reset default
 
 
 Example Drain Process
 ---------------------
 
-We need to drain filesystem 20. However the file system is still fully operational 
+We need to drain filesystem 20. However the file system is still fully operational
 hence we use status drain (not draindead).
 
 .. code-block:: bash
@@ -333,8 +381,8 @@ hence we use status drain (not draindead).
    #.............................................................................................................................
    lxfsra02a05.cern.ch (1095)     20          /data20      prepare            0         0.00       0.00 B          24      0
 
-After 60 seconds a drain filesystem changes into state draining if the drain 
-mode was manually set. If a graceperiod is defined, it will stay in status 
+After 60 seconds a drain filesystem changes into state draining if the drain
+mode was manually set. If a graceperiod is defined, it will stay in status
 waiting for the length of the grace period.
 
 In this example the defined drain period is 1 day:
@@ -357,7 +405,7 @@ In this example the defined drain period is 1 day:
    #.............................................................................................................................
    lxfsra02a05.cern.ch (1095)     20          /data20      drained            0         0.00       0.00 B           0      0
 
- 
+
 If the drain can not complete you will see this after the drain period has passed:
 
 .. code-block:: bash
@@ -372,7 +420,7 @@ If the drain can not complete you will see this after the drain period has passe
 
 You can now investigate the origin by doing:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> fs status 20
 
@@ -409,7 +457,7 @@ Check these files using 'file check':
    nrep="00" fsid="20" host="lxfsra02a05.cern.ch:1095" fstpath="/data08/00000012/0002d989" size="291241984" checksum="0473000100000000000000000000000000000000"
    nrep="01" fsid="53" host="lxfsra04a01.cern.ch:1095" fstpath="/data09/00000012/0002d989" size="291241984" checksum="0000000000000000000000000000000000000000"
 
-In this case the second replica didn't commit a checksum and cannot be read. 
+In this case the second replica didn't commit a checksum and cannot be read.
 
 This you might fix like this:
 
@@ -417,11 +465,11 @@ This you might fix like this:
 
    EOS Console [root://localhost] |/> file verify /eos/dev/2rep/sub12/lxplus403.cern.ch_10/0/0/7.root -checksum -commitchecksum
 
- 
 
-If you just want to force the remove of files remaining on a non-drained filesystem, 
-you can drop all files on a particular filesystem using **eos fs dropfiles**. 
-If you use the '-f' flag all references to these files will be removed immediately  
+
+If you just want to force the remove of files remaining on a non-drained filesystem,
+you can drop all files on a particular filesystem using **eos fs dropfiles**.
+If you use the '-f' flag all references to these files will be removed immediately
 and EOS won't try to delete any file anymore.
 
 .. code-block:: bash
