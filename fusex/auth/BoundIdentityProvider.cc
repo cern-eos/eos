@@ -38,7 +38,7 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
 
   eos_static_info("Using credential file '%s' for uid %d", path.describe().c_str(), uid);
   creds.fname = path;
-  creds.mtime = info.mtime;
+  // creds.mtime = info.mtime;
   return info.state;
 }
 
@@ -47,7 +47,7 @@ BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, CredInfo& creds,
                                        uid_t uid)
 {
   JailedPath path = CredentialFinder::locateKerberosTicket(env);
-  creds.type = CredInfo::krb5;
+  creds.type = CredentialType::KRB5;
   return tryCredentialFile(path, creds, uid);
 }
 
@@ -56,7 +56,7 @@ BoundIdentityProvider::fillX509FromEnv(const Environment& env, CredInfo& creds,
                                        uid_t uid)
 {
   JailedPath path = CredentialFinder::locateX509Proxy(env);
-  creds.type = CredInfo::x509;
+  creds.type = CredentialType::X509;
   return tryCredentialFile(path, creds, uid);
 }
 
@@ -65,7 +65,7 @@ BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
                                       uid_t uid)
 {
   JailedPath path = CredentialFinder::locateSss(env);
-  creds.type = CredInfo::sss;
+  creds.type = CredentialType::SSS;
   return tryCredentialFile(path, creds, uid);
 }
 
@@ -187,13 +187,13 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
   LoginIdentifier login(connectionCounter++);
   std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
 
-  if (credinfo.type == CredInfo::krb5) {
+  if (credinfo.type == CredentialType::KRB5) {
     trustedCreds->setKrb5(credinfo.fname, uid, gid, credinfo.mtime);
-  } else if (credinfo.type == CredInfo::krk5) {
+  } else if (credinfo.type == CredentialType::KRK5) {
     trustedCreds->setKrk5(credinfo.keyring, uid, gid);
-  } else if (credinfo.type == CredInfo::x509) {
+  } else if (credinfo.type == CredentialType::X509) {
     trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
-  } else if (credinfo.type == CredInfo::sss) {
+  } else if (credinfo.type == CredentialType::SSS) {
     trustedCreds->setSss(credinfo.fname, uid, gid);
   }
 

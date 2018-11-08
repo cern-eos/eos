@@ -31,7 +31,7 @@ struct CredInfoHasher {
 
   static uint64_t hash(const CredInfo& key)
   {
-    uint64_t result = key.type + key.fname.stupidHash();
+    uint64_t result = std::uint32_t(key.type) + key.fname.stupidHash();
     return result;
   }
 };

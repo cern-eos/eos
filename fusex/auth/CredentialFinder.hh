@@ -72,13 +72,17 @@ public:
 
 // Information extracted from environment variables.
 
+enum class CredentialType : std::uint32_t {
+  KRB5,
+  KRK5,
+  X509,
+  SSS,
+  NOBODY
+};
+
 struct CredInfo {
 
-  enum CredType {
-    krb5, krk5, x509, sss, nobody
-  };
-
-  CredType type; // krb5 , krk5 or x509
+  CredentialType type;
   JailedPath fname; // credential file
   std::string keyring; // kernel keyring
   time_t mtime;
@@ -108,7 +112,7 @@ class TrustedCredentials
 public:
 
   TrustedCredentials() :
-    initialized(false), invalidated(false), type(CredInfo::nobody),
+    initialized(false), invalidated(false), type(CredentialType::NOBODY),
     uid(-2), gid(-2), mtime(0) { }
 
   void setKrb5(const JailedPath& path, uid_t uid, gid_t gid, time_t mtime)
@@ -118,7 +122,7 @@ public:
     }
 
     initialized = true;
-    type = CredInfo::krb5;
+    type = CredentialType::KRB5;
     this->path = path;
     this->uid = uid;
     this->gid = gid;
@@ -132,7 +136,7 @@ public:
     }
 
     initialized = true;
-    type = CredInfo::krk5;
+    type = CredentialType::KRK5;
     contents = keyring;
     this->uid = uid;
     this->gid = gid;
@@ -145,7 +149,7 @@ public:
     }
 
     initialized = true;
-    type = CredInfo::x509;
+    type = CredentialType::X509;
     this->path = path;
     this->uid = uid;
     this->gid = gid;
@@ -159,7 +163,7 @@ public:
     }
 
     initialized = true;
-    type = CredInfo::sss;
+    type = CredentialType::SSS;
     this->path = path;
     this->uid = uid;
     this->gid = gid;
@@ -174,7 +178,7 @@ public:
       return;
     }
 
-    if (type == CredInfo::nobody) {
+    if (type == CredentialType::NOBODY) {
       paramsMap["xrd.wantprot"] = "unix";
       return;
     }
@@ -182,16 +186,16 @@ public:
     paramsMap["xrdcl.secuid"] = std::to_string(uid);
     paramsMap["xrdcl.secgid"] = std::to_string(gid);
 
-    if (type == CredInfo::krb5) { // } || type == CredInfo::krk5) {
+    if (type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = path.getFullPath();
-    } else if (type == CredInfo::krk5) {
+    } else if (type == CredentialType::KRK5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = contents;
-    } else if (type == CredInfo::x509 || type == CredInfo::krk5) {
+    } else if (type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = path.getFullPath();
-    } else if (type == CredInfo::sss) {
+    } else if (type == CredentialType::SSS) {
       paramsMap["xrd.wantprot"] = "sss";
     } else {
       THROW("should never reach here");
@@ -226,7 +230,7 @@ public:
       return false;
     }
 
-    if(type != CredInfo::x509 && type != CredInfo::krb5) {
+    if(type != CredentialType::X509 && type != CredentialType::KRB5) {
       return true;
     }
 
@@ -251,10 +255,11 @@ public:
   {
     return !initialized;
   }
+
 private:
   bool initialized;
   std::atomic<bool> invalidated;
-  CredInfo::CredType type;
+  CredentialType type;
   std::string contents;
   JailedPath path;
   uid_t uid;
