@@ -26,6 +26,7 @@ add_library(
   BoundIdentityProvider.cc         BoundIdentityProvider.hh
                                    CredentialCache.hh
   CredentialFinder.cc              CredentialFinder.hh
+  DirectoryIterator.cc             DirectoryIterator.hh
   EnvironmentReader.cc             EnvironmentReader.hh
                                    JailedPath.hh
   LoginIdentifier.cc               LoginIdentifier.hh
