@@ -2042,10 +2042,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource,
-                                     config);
+  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource, config);
   cta::xrd::Response response;
 
+  // Send the request
   try {
     auto sentAt = std::chrono::steady_clock::now();
     service.Send(request, response);
@@ -2062,14 +2062,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
-  errorEnumMap;
-  errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
-  errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
-  errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
-  errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
-
-  switch (response.type()) {
+  // Handle the response
+  int retval = EPROTO;
+  switch (response.type())
+  {
   case cta::xrd::Response::RSP_SUCCESS: {
     // Set all attributes for file from response
     eos::common::Mapping::VirtualIdentity rootvid;
@@ -2091,21 +2087,32 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return SFS_OK;
   }
 
-  case cta::xrd::Response::RSP_ERR_CTA:
-  case cta::xrd::Response::RSP_ERR_USER:
-  case cta::xrd::Response::RSP_ERR_PROTOBUF:
+  // CTA Frontend error; return operation cancelled
+  case cta::xrd::Response::RSP_ERR_CTA:       retval = ECANCELED; break;
+  // User error; return operation not permitted
+  case cta::xrd::Response::RSP_ERR_USER:      retval = EPERM; break;
+  // Error in Google Protocol buffers; return protocol error
+  case cta::xrd::Response::RSP_ERR_PROTOBUF:  retval = EPROTO; break;
+  // Response type was not set or was set to an unknown value; return not a data message
   case cta::xrd::Response::RSP_INVALID:
-    eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()],
-                   fullPath.c_str(), response.message_txt().c_str());
-    retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
-    errorMsg = response.message_txt();
-    return EPROTO;
-
   default:
+    retval = EBADMSG;
     eos_static_err("Response:\n%s", response.DebugString().c_str());
-    retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(EPROTO);
-    return EPROTO;
   }
+
+  const std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
+  errorEnumMap = {
+    { cta::xrd::Response::RSP_ERR_CTA,      "RSP_ERR_CTA" },
+    { cta::xrd::Response::RSP_ERR_USER,     "RSP_ERR_USER" },
+    { cta::xrd::Response::RSP_ERR_PROTOBUF, "RSP_ERR_PROTOBUF" },
+    { cta::xrd::Response::RSP_INVALID,      "RSP_INVALID" }
+  };
+
+  eos_static_err("%s for file %s. Reason: %s", errorEnumMap.at(response.type()),
+                 fullPath.c_str(), response.message_txt().c_str());
+  retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
+  errorMsg = response.message_txt();
+  return retval;
 }
 
 void
