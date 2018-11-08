@@ -266,7 +266,8 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
       continue;
     }
 
-    uint16_t timeout = 2;
+    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
     XrdCl::Buffer* response_raw {nullptr};
     std::unique_ptr<XrdCl::Buffer> response {nullptr};
     std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
@@ -410,7 +411,8 @@ XrdMqClient::RecvMessage()
       return nullptr;
     }
 
-    uint16_t timeout = 2;
+    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
     XrdCl::StatInfo* stinfo = nullptr;
 
     while (!file->Stat(true, stinfo, timeout).IsOK()) {
@@ -522,7 +524,8 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
   do {
     auto file = new XrdCl::File();
     XrdOucString rhostport;
-    uint16_t timeout = 2;
+    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
     std::string url {GetBrokerUrl(i, rhostport)->c_str()};
     XrdCl::XRootDStatus status = file->Open(url, XrdCl::OpenFlags::Read,
                                             XrdCl::Access::None, timeout);
