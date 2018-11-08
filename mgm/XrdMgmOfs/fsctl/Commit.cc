@@ -240,6 +240,10 @@
           return Emsg(epname, error, errno, "commit filesize change",
                       errmsg.c_str());
         }
+
+        if (fmd) {
+          gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
+        }
       }
     }
     {
@@ -301,10 +305,6 @@
         return Emsg(epname, error, EREMCHG, "commit replica - overlapping "
                     "atomic upload [EREMCHG] - discarding atomic upload", "");
       }
-    }
-
-    if (fmd) {
-      gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
   } else
   {
