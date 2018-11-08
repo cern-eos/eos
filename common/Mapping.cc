@@ -177,11 +177,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
-
-  if (vid.prot == "sss") {
-    vid.key = (client->endorsements ? client->endorsements : "");
-  }
-
   // first map by alias
   XrdOucString useralias = client->prot;
   useralias += ":";
@@ -194,6 +189,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   groupalias += "gid";
   RWMutexReadLock lock(gMapMutex);
   vid.prot = client->prot;
+
+  if (vid.prot == "sss") {
+    vid.key = (client->endorsements ? client->endorsements : "");
+  }
 
   // ---------------------------------------------------------------------------
   // kerberos mapping
@@ -875,8 +874,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                    rgid.c_str());
 
   if (log) {
-    eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client,
-                    Env.Get("eos.app")).c_str(), tident);
+    eos_static_info("%s sec.tident=\"%s\"",
+                    eos::common::SecEntity::ToString(client,
+                        Env.Get("eos.app")).c_str(), tident);
   }
 }
 
@@ -1618,8 +1618,7 @@ Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
       }) !=
       username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      }
-      else {
+      } else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
