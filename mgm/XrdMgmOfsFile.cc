@@ -210,7 +210,6 @@ XrdMgmOfsFile::open(const char* inpath,
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
        (spath.beginswith("ino:")))) {
     WAIT_BOOT;
-
     // reference by fid+fsid
     byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
@@ -1441,8 +1440,9 @@ XrdMgmOfsFile::open(const char* inpath,
       // INLINE Workflows
       int stalltime = 0;
       workflow.SetFile(path, fmd->getId());
+      std::string errorMsg;
 
-      if ((stalltime = workflow.Trigger("open", "enonet", vid)) > 0) {
+      if ((stalltime = workflow.Trigger("open", "enonet", vid, errorMsg)) > 0) {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
         return gOFS->Stall(error, stalltime, ""
                            "File is currently unavailable - triggered workflow!");
@@ -2360,7 +2360,9 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  if(nullptr != fmd) gOFS->mTapeAwareGc.fileOpened(path, *fmd);
+  if (nullptr != fmd) {
+    gOFS->mTapeAwareGc.fileOpened(path, *fmd);
+  }
 
   // Also trigger synchronous create workflow event if it's defined
   if (isCreation) {
@@ -2368,7 +2370,9 @@ XrdMgmOfsFile::open(const char* inpath,
     workflow.SetFile(path, fileId);
     auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
                         openOpaque->Get("eos.workflow") : "default";
-    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid);
+    std::string errorMsg;
+    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid,
+                                    errorMsg);
 
     if (ret_wfe < 0 && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::create\"");
@@ -2385,7 +2389,7 @@ XrdMgmOfsFile::open(const char* inpath,
                   ex.what());
         }
 
-        return Emsg(epname, error, ret_wfe, "open - synchronous create workflow error",
+        return Emsg(epname, error, ret_wfe, errorMsg.c_str(),
                     path);
       }
     }

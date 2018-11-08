@@ -49,7 +49,8 @@ public:
     mFid = fid;
   }
 
-  void SetFile(const std::string& path = "", eos::common::FileId::fileid_t fid = 0)
+  void SetFile(const std::string& path = "",
+               eos::common::FileId::fileid_t fid = 0)
   {
     if (path.length()) {
       mPath = path;
@@ -61,14 +62,18 @@ public:
   }
 
   int Trigger(const std::string& event, std::string workflow,
-              eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "");
+              eos::common::Mapping::VirtualIdentity& vid, std::string& errorMessage);
 
-  std::string getCGICloseW(std::string workflow, const eos::common::Mapping::VirtualIdentity& vid);
+  std::string getCGICloseW(std::string workflow,
+                           const eos::common::Mapping::VirtualIdentity& vid);
 
   std::string getCGICloseR(std::string workflow);
 
 
-  bool IsSync() {return (mEvent.substr(0,6) == "sync::");}
+  bool IsSync()
+  {
+    return (mEvent.substr(0, 6) == "sync::");
+  }
 
   void Reset()
   {
@@ -80,7 +85,8 @@ public:
     mAction = "";
   }
 
-  int Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage = "");
+  int Create(eos::common::Mapping::VirtualIdentity& vid,
+             std::string& errorMessage);
 
   bool Attach(const char* path);
 

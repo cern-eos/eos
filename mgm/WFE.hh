@@ -187,10 +187,11 @@ public:
     // ---------------------------------------------------------------------------
     void DoIt() override
     {
-      DoIt(false);
+      std::string errorMsg;
+      DoIt(false, errorMsg);
     }
 
-    int  DoIt(bool issync = false);
+    int  DoIt(bool issync, std::string& errorMsg);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event

@@ -77,10 +77,13 @@
   // check that we have write permission on path
   eos_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u", vid.prot.c_str(), vid.uid, vid.gid);
   eos_debug("local.prot=%s, local.uid=%u, local.gid=%u", localVid.prot.c_str(), localVid.uid, localVid.gid);
+
   if (vid.prot != "sss" &&
-      gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, localVid, "")) {
+      gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, localVid, ""))
+  {
     Emsg(epname, error, EPERM,
-         isPrepare ? "event - you don't have write and prepare permissions" : "event - you don't have write permission",
+         isPrepare ? "event - you don't have write and prepare permissions" :
+         "event - you don't have write permission",
          spath);
     return SFS_ERROR;
   }
@@ -98,13 +101,13 @@
   if (!spath || !afid || !alogid || !aevent)
   {
     return Emsg(epname, error, EINVAL, "notify - invalid parameters for event call",
-    env.Env(envlen));
+                env.Env(envlen));
   }
 
   eos_thread_info("subcmd=event event=%s path=%s fid=%s",
-  aevent,
-  spath,
-  afid);
+                  aevent,
+                  spath,
+                  afid);
 
   unsigned long long fid = strtoull(afid, 0, 16);
 
@@ -130,11 +133,9 @@
 
     try
     {
-      if (fid)
-      {
+      if (fid) {
         fmd = gOFS->eosFileService->getFileMD(fid);
-      } else
-      {
+      } else {
         fmd = gOFS->eosView->getFile(spath);
         fid = fmd->getId();
       }
@@ -142,14 +143,12 @@
       dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
 
-      for (const auto& elem : xattrs)
-      {
+      for (const auto& elem : xattrs) {
         attr[elem.first] = elem.second;
       }
 
       // check for attribute references
-      if (attr.count("sys.attr.link"))
-      {
+      if (attr.count("sys.attr.link")) {
         try {
           dh = gOFS->eosView->getContainer(attr["sys.attr.link"]);
           eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
@@ -182,8 +181,10 @@
   // load the corresponding workflow
   workflow.Init(&attr, path, fid);
 
-  std::string decodedErrorMessage;
-  if (errmsg != nullptr) {
+  std::string decodedErrorMessage = "trigger workflow - synchronous workflow failed";
+
+  if (errmsg != nullptr)
+  {
     if (!eos::common::SymKey::Base64Decode(errmsg, decodedErrorMessage)) {
       decodedErrorMessage = "";
     }
@@ -196,25 +197,32 @@
   {
     if (errno == ENOKEY) {
       // there is no workflow defined
-      return Emsg(epname, error, EINVAL, "trigger workflow - there is no workflow defined for this <workflow>.<event>",
-		  env.Env(envlen));
-    }
-    else
-    {
+      return Emsg(epname, error, EINVAL,
+                  "trigger workflow - there is no workflow defined for this <workflow>.<event>",
+                  env.Env(envlen));
+    } else {
       if (!workflow.IsSync())
-	return Emsg(epname, error, EIO, "trigger workflow - internal error",
-		    env.Env(envlen));
+        return Emsg(epname, error, EIO, "trigger workflow - internal error",
+                    env.Env(envlen));
       else
-	return Emsg(epname, error, errno, "trigger workflow - synchronous workflow failed",
-		    env.Env(envlen));
+        return Emsg(epname, error, errno, decodedErrorMessage.c_str(),
+                    env.Env(envlen));
     }
   }
 
-  if (rc != 0) {
+  if (rc != 0)
+  {
     std::ostringstream errStr;
-    errStr << "complete workflow - error while executing " << event << " workflow [" << MacroStringError(rc) << "]";
-    return Emsg(epname, error, rc, errStr.str().c_str(), spath);
-  } else {
+    errStr << "complete workflow - error while executing " << event << " workflow ["
+           << MacroStringError(rc) << "]";
+
+    if (decodedErrorMessage.empty()) {
+      return Emsg(epname, error, rc, errStr.str().c_str(), spath);
+    } else {
+      return Emsg(epname, error, rc, decodedErrorMessage.c_str(), spath);
+    }
+  } else
+  {
     const char* ok = "OK";
     error.setErrInfo(strlen(ok) + 1, ok);
   }

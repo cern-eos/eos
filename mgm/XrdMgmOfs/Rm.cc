@@ -107,6 +107,7 @@ XrdMgmOfs::_rem(const char* path,
     gOFS->MgmStats.Add("Rm", vid.uid, vid.gid, 1);
   }
 
+  std::string errMsg = "remote";
   // Perform the actual deletion
   errno = 0;
   XrdSfsFileExistence file_exists;
@@ -285,7 +286,7 @@ XrdMgmOfs::_rem(const char* path,
         workflow.Init(&attrmap, path, fid);
         errno = 0;
         gOFS->eosViewRWMutex.UnLockWrite();
-        auto ret_wfe = workflow.Trigger("sync::delete", "default", vid);
+        auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, errMsg);
 
         if (ret_wfe < 0 && errno == ENOKEY) {
           eos_info("msg=\"no workflow defined for delete\"");
@@ -416,7 +417,7 @@ XrdMgmOfs::_rem(const char* path,
   EXEC_TIMING_END("Rm");
 
   if (errno) {
-    return Emsg(epname, error, errno, "remove", path);
+    return Emsg(epname, error, errno, errMsg.c_str(), path);
   } else {
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);

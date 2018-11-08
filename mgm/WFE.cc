@@ -723,7 +723,7 @@ WFE::Job::Delete(std::string queue, std::string fromDay)
 
 /*----------------------------------------------------------------------------*/
 int
-WFE::Job::DoIt(bool issync)
+WFE::Job::DoIt(bool issync, std::string& errorMsg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief execute a workflow
@@ -1621,7 +1621,7 @@ WFE::Job::DoIt(bool issync)
           for (const auto& attribute : CollectAttributes(fullPath))
           {
             google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-            attribute.second);
+                attribute.second);
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
@@ -1725,7 +1725,6 @@ WFE::Job::DoIt(bool issync)
                               "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(
               errorReportStream.str());
-            std::string errorMsg;
             auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
             if (sendResult != 0) {
@@ -1733,8 +1732,13 @@ WFE::Job::DoIt(bool issync)
               auto time = std::chrono::system_clock::to_time_t(
                             std::chrono::system_clock::now());
               std::string ctime = std::ctime(&time);
+
+              if (errorMsg.empty()) {
+                errorMsg = "Prepare handshake failed";
+              }
+
               std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
-                                         (errorMsg.empty() ? "Prepare handshake failed" : errorMsg);
+                                         errorMsg;
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
               try {
@@ -1797,7 +1801,6 @@ WFE::Job::DoIt(bool issync)
             notification->mutable_wf()->mutable_instance()->set_name(
               gOFS->MgmOfsInstanceName.c_str());
             notification->mutable_file()->set_fid(mFid);
-            std::string errorMsg;
             return SendProtoWFRequest(this, fullPath, request, errorMsg);
           } else {
             // retrieve counter hasn't reached 0 yet, we just return OK
@@ -1822,7 +1825,6 @@ WFE::Job::DoIt(bool issync)
             gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
-          std::string errorMsg;
           return SendProtoWFRequest(this, fullPath, request, errorMsg);
         } else if (event == "sync::delete" || event == "delete") {
           collectAttributes();
@@ -1831,8 +1833,7 @@ WFE::Job::DoIt(bool issync)
             gOFS->MgmOfsInstanceName.c_str());
           notification->mutable_file()->set_lpath(fullPath);
           notification->mutable_file()->set_fid(mFid);
-          auto sendRequestAsync = [fullPath, request](Job jobCopy) {
-            std::string errorMsg;
+          auto sendRequestAsync = [fullPath, request, &errorMsg](Job jobCopy) {
             SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
           };
           auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
@@ -1890,7 +1891,6 @@ WFE::Job::DoIt(bool issync)
                               "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(
               errorReportStream.str());
-            std::string errorMsg;
             auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg,
                                                  !IsSync(event));
 
@@ -1899,8 +1899,13 @@ WFE::Job::DoIt(bool issync)
               auto time = std::chrono::system_clock::to_time_t(
                             std::chrono::system_clock::now());
               std::string ctime = std::ctime(&time);
+
+              if (errorMsg.empty()) {
+                errorMsg = "Closew handshake failed";
+              }
+
               std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
-                                         (errorMsg.empty() ? "Closew handshake failed" : errorMsg);
+                                         errorMsg;
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
               try {

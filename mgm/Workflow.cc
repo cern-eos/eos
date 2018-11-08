@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 
 int
 Workflow::Trigger(const std::string& event, std::string workflow,
-                  eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
+                  eos::common::Mapping::VirtualIdentity& vid, std::string& errorMessage)
 {
   errno = 0;
 
@@ -47,7 +47,8 @@ Workflow::Trigger(const std::string& event, std::string workflow,
     return 0;
   }
 
-  if ((workflow == eos::common::RETRIEVE_WRITTEN_WORKFLOW_NAME && vid.prot != "sss")
+  if ((workflow == eos::common::RETRIEVE_WRITTEN_WORKFLOW_NAME &&
+       vid.prot != "sss")
       || (workflow == "none" && !vid.sudoer)) {
     workflow = "default";
   }
@@ -109,7 +110,8 @@ Workflow::Trigger(const std::string& event, std::string workflow,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::VirtualIdentity& vid)
+Workflow::getCGICloseW(std::string workflow,
+                       const eos::common::Mapping::VirtualIdentity& vid)
 {
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
@@ -120,6 +122,7 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
     std::string owner, ownerGroup, fullPath;
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid = 99;
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid = 99;
+
     try {
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
       eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
@@ -128,24 +131,26 @@ Workflow::getCGICloseW(std::string workflow, const eos::common::Mapping::Virtual
       cuid = fmd->getCUid();
       cgid = fmd->getCGid();
     } catch (eos::MDException& e) {
-      eos_static_err("Not creating workflow URL because cannot get meta data. Reason: %s", e.what());
+      eos_static_err("Not creating workflow URL because cannot get meta data. Reason: %s",
+                     e.what());
       return "";
     }
-    
+
     owner = WFE::GetUserName(cuid);
     ownerGroup = WFE::GetGroupName(cgid);
-
     std::ostringstream attrStream;
     std::string separator;
+
     for (const auto& attribute : WFE::CollectAttributes(fullPath)) {
-      attrStream << separator << attribute.first << eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS << attribute.second;
+      attrStream << separator << attribute.first <<
+                 eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS << attribute.second;
       separator = eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR;
     }
 
     auto attrStr = attrStream.str();
     std::string attrEncoded;
-    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(), attrEncoded);
-
+    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(),
+                                      attrEncoded);
     cgi = "&mgm.event=sync::closew&mgm.workflow=";
     cgi += workflow;
     cgi += "&mgm.instance=";
@@ -197,7 +202,8 @@ Workflow::Attach(const char* path)
 
 /*----------------------------------------------------------------------------*/
 int
-Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& errorMessage)
+Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
+                 std::string& errorMessage)
 {
   int retc = 0;
   WFE::Job job(mFid, vid, errorMessage);
@@ -206,12 +212,13 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid, const std::string& 
   if (job.IsSync(mEvent)) {
     if (WfeEnabled()) {
       job.AddAction(mAction, mEvent, t, mWorkflow, "r");
-      return job.DoIt(true);
+      return job.DoIt(true, errorMessage);
     }
   } else {
     if (WfeRecordingEnabled()) {
       job.AddAction(mAction, mEvent, t, mWorkflow, "q");
       retc = job.Save("q", t);
+
       if (retc) {
         eos_static_err("failed to save");
         return retc;
@@ -230,14 +237,16 @@ Workflow::Delete()
 }
 
 bool
-Workflow::WfeRecordingEnabled() {
+Workflow::WfeRecordingEnabled()
+{
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   return FsView::gFsView.mSpaceView.count("default") &&
          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") != "off");
 }
 
 bool
-Workflow::WfeEnabled() {
+Workflow::WfeEnabled()
+{
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   return FsView::gFsView.mSpaceView.count("default") &&
          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on");

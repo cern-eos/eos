@@ -551,10 +551,15 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     args.Arg2Len = prep_info.length();
     auto ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN, args,
                                     error, &lClient);
+    std::string errMsg = "prepare - synchronous prepare workflow error";
+
+    if (error.getErrTextLen()) {
+      errMsg = error.getErrText();
+    }
 
     if (ret_wfe != SFS_DATA) {
       retc = Emsg(epname, error, ret_wfe,
-                  "prepare - synchronous prepare workflow error", prep_path.c_str());
+                  errMsg.c_str(), prep_path.c_str());
     }
   }
 
