@@ -38,7 +38,7 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
 
   eos_static_info("Using credential file '%s' for uid %d", path.describe().c_str(), uid);
   creds.fname = path;
-  // creds.mtime = info.mtime;
+  creds.mtime = info.mtime;
   return info.state;
 }
 
@@ -243,7 +243,7 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
 
   // First, let's read the environment to build up a CredInfo object.
   Environment processEnv;
-  EnvironmentResponse response = environmentReader.stageRequest(pid);
+  FutureEnvironment response = environmentReader.stageRequest(pid);
   std::chrono::high_resolution_clock::time_point deadline = response.queuedSince +
       std::chrono::milliseconds(credConfig.environ_deadlock_timeout);
 

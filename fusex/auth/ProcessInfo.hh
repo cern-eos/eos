@@ -70,30 +70,7 @@ public:
     return true;
   }
 
-  // Certain information can change over the lifetime of a process, such as ppid
-  // (parent dying and PID 1 taking over), or sid.
-  // This function updates the current object to the new information, if and
-  // only if it can be guaranteed they both refer to the same process.
-  // (ie same pid, same start time)
-  // Return value: false if they're not the same process, true otherwise.
-
-  bool updateIfSameProcess(const ProcessInfo& src)
-  {
-    if (empty || src.empty) {
-      THROW("updateIfSameProcess can only be used on filled ProcessInfo objects.");
-    }
-
-    if (!isSameProcess(src)) {
-      return false;
-    }
-
-    ppid = src.ppid;
-    sid = src.sid;
-    return true;
-  }
-
   // Fill cmdline information as obtained from /proc/<pid>/cmdline
-
   void fillCmdline(const std::vector<std::string>& contents)
   {
     cmd = contents;

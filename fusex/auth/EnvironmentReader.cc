@@ -24,7 +24,7 @@
 #include "EnvironmentReader.hh"
 
 void EnvironmentReader::inject(pid_t pid, const Environment& env,
-                               const std::chrono::milliseconds& artificialDelay)
+                               std::chrono::milliseconds artificialDelay)
 {
   SimulatedResponse simulated;
   simulated.env = env;
@@ -58,7 +58,9 @@ void EnvironmentReader::fillFromInjection(pid_t pid, Environment& env)
 
 EnvironmentReader::~EnvironmentReader()
 {
-  // spin until all threads are done
+  //----------------------------------------------------------------------------
+  // Spin until all threads are done, and join.
+  //----------------------------------------------------------------------------
   shutdown = true;
 
   while (threadsAlive != 0) {
@@ -72,42 +74,64 @@ EnvironmentReader::~EnvironmentReader()
 
 void EnvironmentReader::launchWorkers(size_t nthreads)
 {
+  //----------------------------------------------------------------------------
   // Start up our thread pool.
+  //----------------------------------------------------------------------------
   for (size_t i = 0; i < nthreads; i++) {
     threads.emplace_back(&EnvironmentReader::worker, this);
   }
 
-  // Wait until all threads have been properly spawned. (allows us to assume all
-  // threads are active in destructor)
+  //----------------------------------------------------------------------------
+  // Wait until all threads have been properly spawned - this allows us to
+  // assume all threads are active in the destructor.
+  //----------------------------------------------------------------------------
   while (threadsAlive != nthreads);
 }
 
+//------------------------------------------------------------------------------
+// Each worker loops on the queue, waiting for pending requests to fulfill.
+//------------------------------------------------------------------------------
 void EnvironmentReader::worker()
 {
   threadsAlive++;
   std::unique_lock<std::mutex> lock(mtx);
 
   while (!shutdown) {
+    //------------------------------------------------------------------------
+    // Is there an item for me to process?
+    //------------------------------------------------------------------------
     if (!requestQueue.empty()) {
       QueuedRequest request = std::move(requestQueue.front());
       requestQueue.pop();
       lock.unlock();
-      // Start timing how long it takes to get a response
+
+      //------------------------------------------------------------------------
+      // Yes, I have work to do. Start timing how long it takes to receive
+      // a response from the kernel.
+      //------------------------------------------------------------------------
       std::chrono::high_resolution_clock::time_point startTime =
         std::chrono::high_resolution_clock::now();
       Environment env;
 
+      //------------------------------------------------------------------------
       // Provide simulated or real response?
+      //------------------------------------------------------------------------
       if (injections.empty()) {
-        // Real response, read environment. If a (temporary) kernel deadlock occurs,
-        // it will be at this point.
+        //----------------------------------------------------------------------
+        // Real response, read environment. If a (temporary) kernel deadlock
+        // occurs, it will be at this point. Provide simulated or real response?
+        //----------------------------------------------------------------------
         env.fromFile(SSTR("/proc/" << request.pid << "/environ"));
       } else {
+        //----------------------------------------------------------------------
         // Simulation
+        //----------------------------------------------------------------------
         fillFromInjection(request.pid, env);
       }
 
-      // Measure how long it took, issue warning if too high
+      //----------------------------------------------------------------------
+      // Measure how long it took, issue warning if too high.
+      //----------------------------------------------------------------------
       std::chrono::high_resolution_clock::time_point endTime =
         std::chrono::high_resolution_clock::now();
       std::chrono::milliseconds duration =
@@ -121,7 +145,9 @@ void EnvironmentReader::worker()
                          duration.count());
       }
 
-      // It's done, give back result
+      //------------------------------------------------------------------------
+      // It's over, it's done. Give back result.
+      //------------------------------------------------------------------------
       lock.lock();
       auto it = pendingRequests.find(request.pid);
 
@@ -133,8 +159,14 @@ void EnvironmentReader::worker()
       }
 
       request.promise.set_value(env);
-      // process next item in the queue, no waiting
+
+      //------------------------------------------------------------------------
+      // Process next item in the queue, no waiting.
+      //------------------------------------------------------------------------
     } else {
+      //------------------------------------------------------------------------
+      // No work to do, sleep.
+      //------------------------------------------------------------------------
       queueCV.wait_for(lock, std::chrono::seconds(1));
     }
   }
@@ -142,11 +174,21 @@ void EnvironmentReader::worker()
   threadsAlive--;
 }
 
-EnvironmentResponse EnvironmentReader::stageRequest(pid_t pid)
+//------------------------------------------------------------------------------
+// Request to retrieve the environmnet variables for the given pid.
+//
+// Returns a FutureEnvironment object, which _might_ be kernel-deadlocked,
+// and must be waited-for with a timeout.
+//------------------------------------------------------------------------------
+FutureEnvironment EnvironmentReader::stageRequest(pid_t pid)
 {
   std::unique_lock<std::mutex> lock(mtx);
   eos_static_debug("Staging request to read environment of pid %d", pid);
-  // Check: Is this request already pending? If so, give back old response
+
+  //----------------------------------------------------------------------------
+  //! Check: Is this request already pending? If so, give back the same
+  //! response, connected to the same promise object.
+  //----------------------------------------------------------------------------
   auto it = pendingRequests.find(pid);
 
   if (it != pendingRequests.end()) {
@@ -154,9 +196,11 @@ EnvironmentResponse EnvironmentReader::stageRequest(pid_t pid)
     return it->second;
   }
 
-  // Nope, stage it
+  //----------------------------------------------------------------------------
+  //! Nope, stage it
+  //----------------------------------------------------------------------------
   QueuedRequest request;
-  EnvironmentResponse response;
+  FutureEnvironment response;
   request.pid = pid;
   response.contents = request.promise.get_future();
   response.queuedSince = std::chrono::high_resolution_clock::now();

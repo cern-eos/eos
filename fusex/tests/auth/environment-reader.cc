@@ -36,12 +36,12 @@ TEST(EnvironmentReader, BasicSanity)
   reader.inject(4, env2, std::chrono::milliseconds(10));
   reader.inject(1, env1, std::chrono::milliseconds(30));
   reader.inject(3978, env2, std::chrono::milliseconds(1));
-  EnvironmentResponse response1 = reader.stageRequest(1);
-  EnvironmentResponse response1_2 = reader.stageRequest(1);
-  EnvironmentResponse response1_3 = reader.stageRequest(1);
-  EnvironmentResponse response3 = reader.stageRequest(3);
-  EnvironmentResponse response4 = reader.stageRequest(4);
-  EnvironmentResponse response3978 = reader.stageRequest(3978);
+  FutureEnvironment response1 = reader.stageRequest(1);
+  FutureEnvironment response1_2 = reader.stageRequest(1);
+  FutureEnvironment response1_3 = reader.stageRequest(1);
+  FutureEnvironment response3 = reader.stageRequest(3);
+  FutureEnvironment response4 = reader.stageRequest(4);
+  FutureEnvironment response3978 = reader.stageRequest(3978);
   ASSERT_EQ(response1.contents.get(), env1);
   ASSERT_EQ(response1_2.contents.get(), env1);
   ASSERT_EQ(response1_3.contents.get(), env1);
@@ -66,7 +66,7 @@ static void inject(EnvironmentReader& reader, size_t from, size_t until)
 
 static void issueRequests(EnvironmentReader& reader, size_t from, size_t until)
 {
-  std::vector<EnvironmentResponse> responses;
+  std::vector<FutureEnvironment> responses;
 
   for (size_t i = from; i < until; i++) {
     responses.emplace_back(reader.stageRequest(i));
