@@ -21,8 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <gtest/gtest.h>
 #include "auth/Utils.hh"
+#include "common/SymKeys.hh"
+#include <gtest/gtest.h>
 
 TEST(ChopTrailingSlashes, BasicSanity) {
   ASSERT_EQ(chopTrailingSlashes("/test/b"), "/test/b");
@@ -32,4 +33,19 @@ TEST(ChopTrailingSlashes, BasicSanity) {
   ASSERT_EQ(chopTrailingSlashes("//"), "/");
   ASSERT_EQ(chopTrailingSlashes("/"), "/");
   ASSERT_EQ(chopTrailingSlashes(""), "");
+}
+
+TEST(sha256, BasicSanity) {
+  ASSERT_EQ(eos::common::SymKey::Sha256("12345"), "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5");
+}
+
+TEST(FileReadWrite, BasicSanity) {
+  ASSERT_EQ(system("rm -rf /tmp/eos-fusex-unit-tests/"), 0);
+  ASSERT_EQ(system("mkdir /tmp/eos-fusex-unit-tests/"), 0);
+
+  ASSERT_TRUE(writeFile("/tmp/eos-fusex-unit-tests/pickles", "chicken chicken chicken chicken"));
+
+  std::string contents;
+  ASSERT_TRUE(readFile("/tmp/eos-fusex-unit-tests/pickles", contents));
+  ASSERT_EQ(contents, "chicken chicken chicken chicken");
 }

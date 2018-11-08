@@ -58,6 +58,23 @@ bool readFile(const std::string& path, std::string& contents)
   return retvalue;
 }
 
+bool writeFile(const std::string& path, const std::string& contents)
+{
+  FILE *out = fopen(path.c_str(), "wb");
+
+  if(!out) {
+    return false;
+  }
+
+  if(fwrite(contents.c_str(), sizeof(char), contents.size(), out) != contents.size()) {
+    fclose(out);
+    return false;
+  }
+
+  fclose(out);
+  return true;
+}
+
 bool checkCredSecurity(const struct stat& filestat, uid_t uid)
 {
   if (filestat.st_uid == uid

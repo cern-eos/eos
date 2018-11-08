@@ -25,7 +25,6 @@ add_library(
   EosFuseAuth OBJECT
   BoundIdentityProvider.cc         BoundIdentityProvider.hh
                                    CredentialCache.hh
-  ContentAddressableStore.cc       ContentAddressableStore.hh
   CredentialFinder.cc              CredentialFinder.hh
   DirectoryIterator.cc             DirectoryIterator.hh
   EnvironmentReader.cc             EnvironmentReader.hh
