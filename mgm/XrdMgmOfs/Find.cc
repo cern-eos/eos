@@ -183,7 +183,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
           for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
             fname = fit.key();
-            fmd = cmd->findFile(fname);
+
+            try {
+              fmd = cmd->findFile(fname);
+            } catch (eos::MDException& e) {
+              fmd = 0;
+            }
 
             if (fmd) {
               // Skip symbolic links
