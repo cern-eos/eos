@@ -44,6 +44,7 @@ Bug
 Improvements
 ------------
 
+* [EOS-3072] add number of open files to the eosxd statistics output
 * [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g. to force a client mount with a newer version
 * [EOS-2576] add support for clientDNs formatted according to RFC2253
 * manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
