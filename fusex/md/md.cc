@@ -2738,7 +2738,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       hb.mutable_heartbeat_()->set_clock(tsnow.tv_sec);
       hb.mutable_heartbeat_()->set_clock_ns(tsnow.tv_nsec);
 
-      if (!(cnt % 60)) {
+      if (!(cnt % (60 / interval))) {
         // we send a statistics update every 60 heartbeats
         EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
       } else {

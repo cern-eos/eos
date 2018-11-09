@@ -5040,6 +5040,7 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_threads(osstat.threads);
   hbs.set_vsize_mb(osstat.vsize / 1024.0 / 1024.0);
   hbs.set_rss_mb(osstat.rss / 1024.0 / 1024.0);
+  hbs.set_open_files(Instance().datas.size());
 }
 
 /* -------------------------------------------------------------------------- */

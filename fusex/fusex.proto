@@ -126,6 +126,7 @@ message statistics {
   fixed32 threads = 6; //< client threads in use
   float vsize_mb = 7; //< client virtual memory usage in mb
   float rss_mb = 8; //< client resident memory usage in mb
+  fixed32 open_files = 9; //< files currently open on a client
 }
 
 message container {

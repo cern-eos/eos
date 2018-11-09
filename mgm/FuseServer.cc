@@ -481,7 +481,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
     if (!monitoring) {
       if (!options.length() || (options.find("l") != std::string::npos))
         snprintf(formatline, sizeof(formatline),
-                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu\n",
+                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu fds=%u\n",
                  it->second.heartbeat().name().c_str(),
                  it->second.heartbeat().host().c_str(),
                  it->second.heartbeat().version().c_str(),
@@ -492,7 +492,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                    (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
                  it->second.heartbeat().delta() * 1000,
                  it->second.heartbeat().uuid().c_str(),
-                 clientcaps[it->second.heartbeat().uuid()]
+                 clientcaps[it->second.heartbeat().uuid()],
+                 it->second.statistics().open_files()
                 );
 
       out += formatline;
@@ -507,7 +508,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "......   threads      : %d\n"
                  "......   vsize        : %.03f GB\n"
                  "......   rsize        : %.03f GB\n"
-                 "......   leasetime    : %u s\n",
+                 "......   leasetime    : %u s\n"
+                 "......   open-files   : %u\n",
                  it->second.statistics().inodes(),
                  it->second.statistics().inodes_todelete(),
                  it->second.statistics().inodes_backlog(),
@@ -516,7 +518,9 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.statistics().threads(),
                  it->second.statistics().vsize_mb() / 1024.0,
                  it->second.statistics().rss_mb() / 1024.0,
-                 it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300);
+                 it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
+                 it->second.statistics().open_files()
+                );
         out += formatline;
       }
 
