@@ -207,7 +207,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
   }
 
   // sss credential registration
-  if (credinfo.type == CredInfo::sss) {
+  if (credinfo.type == CredentialType::SSS) {
     // by default we request the uid/gid name of the calling process
     // the xrootd server rejects to map these if the sss key is not issued for anyuser/anygroup
     XrdSecEntity* newEntity = new XrdSecEntity("sss");
