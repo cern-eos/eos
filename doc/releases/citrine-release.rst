@@ -25,10 +25,21 @@ Bug
 
 * don't call 'system' implying fork in FST code
 * fix Fmd object constructor to use 64-bit file ids
+* fix 
+* [EOS-3068] fix to catch missing exception in find, avoid FUSE client heartbeat waiving creating DOS  
+* [EOS-3054] add missing '&' separator in deletion reports
+* [EOS-3052] fix typo in report log description
+* [EOS_3048] create group readable reports directory structure
+* [EOS-3045] fix wrong heart-beat interval logic creating tight-loops and default to 0.1Hz
+* [EOS-3043] avoid creating .xsmap files
+* [EOS-3041] add timeout to query in SendMessage, add timeout to open and stat requests
 * [EOS-3033] fix wrong etag in JSON fileinfo response
 * [EOS-3029] disable backward stacktrace in eosd by default possibly creating SEGVs when a long standing mutex is discovered
 * [EOS-3025] fix checksum array reset in Commit operation
 * [EOS-2989] take fsck enable intereval into account
+* [EOS-2872] modify mtime modification in write/truncate/flush to preserve the order of operations in EOSXD
+* [EOS-2599] fix ACLs by key and fully supported trusted and signle ID shared sss mounts supporting endorsement keys
+* [CTA-312]  propagate protobuf call related errors messages through back to clients
 
 Improvements
 ------------
@@ -37,6 +48,9 @@ Improvements
 * [EOS-2576] add support for clientDNs formatted according to RFC2253
 * manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
 * Improve tracebility in FuseServer logging to log by client credential (remove the _static_ log entries)
+* Support deny ACL entries, RICHACL_DELETE from parent
+* rename tape gc variable names
+* use RAII for XrdCl::Buffer response objects in FST code
 
 ``v4.4.10 Citrine``
 ===================
