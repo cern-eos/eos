@@ -209,6 +209,18 @@ FuseServer::Clients::Dispatch(const std::string identity,
     rc = false;
   }
 
+  // if heartbeats are older than the offline window, we just ignore them to avoid client 'waving'
+  struct timespec tsnow;
+  eos::common::Timing::GetTimeSpec(tsnow);
+  double heartbeat_delay = tsnow.tv_sec - hb.clock() + (((
+                             int64_t) tsnow.tv_nsec - (int64_t) hb.clock_ns()) * 1.0 / 1000000000.0);
+
+  if (heartbeat_delay > mHeartBeatOfflineWindow) {
+    eos_static_warning("delayed heartbeat from client=%s - delay=%.02f - dropping heartbeat",
+                       identity.c_str(), heartbeat_delay);
+    return rc;
+  }
+
   (this->map())[identity].heartbeat() = hb;
   (this->uuidview())[hb.uuid()] = identity;
   lLock.Release();
