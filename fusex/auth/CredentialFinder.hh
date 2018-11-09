@@ -161,7 +161,7 @@ public:
     this->mtime = mtime;
   }
 
-  void setSss(const JailedPath& path, const std::string& endorsement, uid_t uid,
+  void setSss(const std::string& endorsement, uid_t uid,
               gid_t gid)
   {
     if (initialized) {
@@ -170,7 +170,6 @@ public:
 
     initialized = true;
     type = CredentialType::SSS;
-    this->path = path;
     this->endorsement = endorsement;
     this->uid = uid;
     this->gid = gid;

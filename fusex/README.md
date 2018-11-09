@@ -25,7 +25,6 @@ This
   "mdcachedir" : "/var/cache/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
-
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
@@ -63,6 +62,7 @@ This
     "krb5" : 1,
     "gsi-first" : 0,
     "sss" : 0,
+    "ssskeytab" : "/etc/eos/fuse.sss.keytab"
     "environ-deadlock-timeout" : 100, 
     "forknoexec-heuristic" : 1
   },
@@ -263,8 +263,8 @@ Use these authentication directives in the config file:
     "sss" : 1
   }
 ```
-The root user will be mapped to nobody unless the server is configured not to squash root. All other
-clients will be mapped in EOS to the uid of the calling process.
+The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user. 
+The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access. 
 
 
 AUTOFS Configuration

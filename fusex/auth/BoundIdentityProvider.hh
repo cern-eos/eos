@@ -32,9 +32,14 @@
 #include "SecurityChecker.hh"
 #include "JailedPath.hh"
 
+#include <XrdSec/XrdSecEntity.hh>
+#include <XrdSecsss/XrdSecsssID.hh>
+
 class BoundIdentityProvider
 {
 public:
+  BoundIdentityProvider();
+
   CredentialState
   fillCredsFromEnv(const Environment& env, const CredentialConfig& credConfig,
                    CredInfo& creds, uid_t uid);
@@ -86,6 +91,7 @@ private:
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
+  XrdSecsssID* sssRegistry;
 
   CredentialState tryCredentialFile(const JailedPath& path, CredInfo& creds,
                                     uid_t uid);

@@ -202,6 +202,7 @@ public:
     std::string mqname;
     std::string clienthost;
     std::string clientuuid;
+    std::string ssskeytab;
 
     typedef struct options {
       int debug;

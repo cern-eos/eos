@@ -26,6 +26,13 @@
 #include "EnvironmentReader.hh"
 #include <sys/stat.h>
 
+BoundIdentityProvider::BoundIdentityProvider()
+{
+  // create an sss registry
+  sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
+}
+
+
 CredentialState
 BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
     CredInfo& creds, uid_t uid)
@@ -65,16 +72,10 @@ CredentialState
 BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
                                       uid_t uid)
 {
-  JailedPath path = CredentialFinder::locateSss(env);
   creds.type = CredentialType::SSS;
   creds.endorsement = CredentialFinder::getSssEndorsement(env);
-
-  if (!geteuid()) {
-    // if this is a shared mount, the sss keytab file has to be owned by root
-    uid = 0;
-  }
-
-  return tryCredentialFile(path, creds, uid);
+  creds.mtime = 0;
+  return CredentialState::kOk;
 }
 
 CredentialState
@@ -83,7 +84,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
                                         CredInfo& creds, uid_t uid)
 {
   if (credConfig.use_user_sss) {
-    CredentialState state = fillSssFromEnv(env, creds, geteuid());
+    CredentialState state = fillSssFromEnv(env, creds, uid);
 
     if (state != CredentialState::kCannotStat) {
       return state;
@@ -109,7 +110,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
     }
 
     if (credConfig.use_user_sss) {
-      CredentialState state = fillSssFromEnv(env, creds, geteuid());
+      CredentialState state = fillSssFromEnv(env, creds, uid);
 
       if (state != CredentialState::kCannotStat) {
         return state;
@@ -202,7 +203,35 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
   } else if (credinfo.type == CredentialType::X509) {
     trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
   } else if (credinfo.type == CredentialType::SSS) {
-    trustedCreds->setSss(credinfo.fname, credinfo.endorsement, uid, gid);
+    trustedCreds->setSss(credinfo.endorsement, 0, 0);
+  }
+
+  // sss credential registration
+  if (credinfo.type == CredInfo::sss) {
+    // by default we request the uid/gid name of the calling process
+    // the xrootd server rejects to map these if the sss key is not issued for anyuser/anygroup
+    XrdSecEntity* newEntity = new XrdSecEntity("sss");
+    int errc_uid = 0;
+    std::string username = eos::common::Mapping::UidToUserName(uid, errc_uid);
+    int errc_gid = 0;
+    std::string groupname = eos::common::Mapping::GidToGroupName(gid, errc_gid);
+
+    if (errc_uid) {
+      newEntity->name = strdup("nobody");
+    } else {
+      newEntity->name = strdup(username.c_str());
+    }
+
+    if (errc_gid) {
+      newEntity->grps = strdup("nogroup");
+    } else {
+      newEntity->grps = strdup(groupname.c_str());
+    }
+
+    // store the endorsement from the environment
+    newEntity->endorsements = strdup(credinfo.endorsement.c_str());
+    // register new ID
+    sssRegistry->Register(login.getStringID().c_str(), newEntity);
   }
 
   BoundIdentity* binding = new BoundIdentity(login, trustedCreds);
