@@ -1295,6 +1295,11 @@ public:
   void WaitUntilNamespaceIsBooted();
 
   //----------------------------------------------------------------------------
+  //! Check if a host was tried in an URL already with the given error
+  //----------------------------------------------------------------------------
+  bool Tried(XrdCl::URL& url, std::string& host, const char* serr);
+
+  //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file
@@ -1589,7 +1594,7 @@ public:
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
-  TapeAwareGc &mTapeAwareGc; ///< Tape aware garbage collector
+  TapeAwareGc& mTapeAwareGc; ///< Tape aware garbage collector
 
 private:
   std::map<std::string, XrdMgmOfsDirectory*>

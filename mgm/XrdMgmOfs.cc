@@ -605,6 +605,7 @@ XrdMgmOfs::Emsg(const char* pfx,
                 const char* target)
 {
   char* etext, buffer[4096], unkbuff[64];
+  bool passthrough = false;
 
   // Get the reason for the error
   if (ecode < 0) {
@@ -616,19 +617,39 @@ XrdMgmOfs::Emsg(const char* pfx,
     etext = unkbuff;
   }
 
-  // Format the error message
-  snprintf(buffer, sizeof(buffer), "Unable to %s %s", op, target);
+  if (strncmp(op, "Unable to ", 10)) {
+    passthrough = true;
+  }
+
+  if (passthrough) {
+    snprintf(buffer, sizeof(buffer), "%s", op);
+  } else {
+    // Format the error message
+    snprintf(buffer, sizeof(buffer), "Unable to %s %s", op, target);
+  }
 
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
-    eos_debug("Unable to %s %s; %s", op, target, etext);
+    if (passthrough) {
+      eos_debug("%s", op);
+    } else {
+      eos_debug("Unable to %s %s; %s", op, target, etext);
+    }
   } else {
     if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) ||
         ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls")) ||
           (!strcmp(pfx, "commit"))) &&
          (ecode == ENOENT))) {
-      eos_debug("Unable to %s %s; %s", op, target, etext);
+      if (passthrough) {
+        eos_debug("%s", op);
+      } else {
+        eos_debug("Unable to %s %s; %s", op, target, etext);
+      }
     } else {
-      eos_err("Unable to %s %s; %s", op, target, etext);
+      if (passthrough) {
+        eos_err("%s", op);
+      } else {
+        eos_err("Unable to %s %s; %s", op, target, etext);
+      }
     }
   }
 
@@ -924,4 +945,32 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted()
     std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if a host was tried already in a given URL with a given error
+//------------------------------------------------------------------------------
+
+bool
+XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
+{
+  XrdCl::URL::ParamsMap params = url.GetParams();
+  std::string tried_hosts = params["tried"];
+  std::string tried_rc = params["triedrc"];
+  std::vector<std::string> v_hosts;
+  std::vector<std::string> v_rc;
+  eos::common::StringConversion::Tokenize(tried_hosts,
+                                          v_hosts, ",");
+  eos::common::StringConversion::Tokenize(tried_rc,
+                                          v_rc, ",");
+
+  for (size_t i = 0; i < v_hosts.size(); ++i) {
+    if ((v_hosts[i] == host) &&
+        (i < v_rc.size()) &&
+        (v_rc[i] == std::string(terr))) {
+      return true;
+    }
+  }
+
+  return false;
 }
