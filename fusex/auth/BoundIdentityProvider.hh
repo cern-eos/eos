@@ -42,7 +42,7 @@ public:
 
   CredentialState
   fillCredsFromEnv(const Environment& env, const CredentialConfig& credConfig,
-                   UserCredentials& creds, uid_t uid);
+                   UserCredentials& creds, uid_t uid, gid_t gid);
 
   CredentialState
   retrieve(const Environment& env, uid_t uid, gid_t gid, bool reconnect,
@@ -101,7 +101,7 @@ private:
                                   uid_t uid);
 
   CredentialState fillSssFromEnv(const Environment& env, UserCredentials& creds,
-                                 uid_t uid);
+                                 uid_t uid, gid_t gid);
 
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
 

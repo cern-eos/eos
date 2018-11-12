@@ -222,6 +222,8 @@ public:
   }
 
 private:
+  UserCredentials credentials;
+
   bool initialized;
   std::atomic<bool> invalidated;
   CredentialType type;

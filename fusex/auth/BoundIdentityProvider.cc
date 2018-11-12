@@ -47,6 +47,8 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
                   path.describe().c_str(), uid);
   creds.fname = path;
   creds.mtime = info.mtime;
+  creds.uid = uid;
+  creds.gid = 0u;
   return info.state;
 }
 
@@ -70,21 +72,23 @@ BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& 
 
 CredentialState
 BoundIdentityProvider::fillSssFromEnv(const Environment& env, UserCredentials& creds,
-                                      uid_t uid)
+                                      uid_t uid, gid_t gid)
 {
   creds.type = CredentialType::SSS;
   creds.endorsement = CredentialFinder::getSssEndorsement(env);
   creds.mtime = 0;
+  creds.uid = uid;
+  creds.gid = gid;
   return CredentialState::kOk;
 }
 
 CredentialState
 BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
                                         const CredentialConfig& credConfig,
-                                        UserCredentials& creds, uid_t uid)
+                                        UserCredentials& creds, uid_t uid, gid_t gid)
 {
   if (credConfig.use_user_sss) {
-    CredentialState state = fillSssFromEnv(env, creds, uid);
+    CredentialState state = fillSssFromEnv(env, creds, uid, gid);
 
     if (state != CredentialState::kCannotStat) {
       return state;
@@ -110,7 +114,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
     }
 
     if (credConfig.use_user_sss) {
-      CredentialState state = fillSssFromEnv(env, creds, uid);
+      CredentialState state = fillSssFromEnv(env, creds, uid, gid);
 
       if (state != CredentialState::kCannotStat) {
         return state;
@@ -168,7 +172,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     std::shared_ptr<const BoundIdentity>& result)
 {
   UserCredentials credinfo;
-  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
+  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid, gid);
 
   if (state != CredentialState::kOk) {
     return state;

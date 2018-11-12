@@ -35,21 +35,40 @@
 // - NOBODY: Identify as nobody, no user credentails whatsoever
 //------------------------------------------------------------------------------
 enum class CredentialType : std::uint32_t {
-  KRB5,
+  KRB5 = 0,
   KRK5,
   X509,
   SSS,
-  NOBODY
+  NOBODY,
+  INVALID
 };
 
 //------------------------------------------------------------------------------
 // This class stores information about an instance of user credentials.
 //------------------------------------------------------------------------------
 struct UserCredentials {
+
+  //----------------------------------------------------------------------------
+  // Default constructor: Invalid set of credentials
+  //----------------------------------------------------------------------------
+  UserCredentials() {
+    type = CredentialType::INVALID;
+    uid = 0;
+    gid = 0;
+    mtime = 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // The subset of fields actually containing a value depends on the
+  // CredentialType.
+  //----------------------------------------------------------------------------
   CredentialType type;
-  JailedPath fname; // credential file
-  std::string keyring; // kernel keyring
+  JailedPath fname;        // credential file for krb5, x509
+  std::string keyring;     // kernel keyring for krk5
   std::string endorsement; // endorsement for sss
+  uid_t uid;               // uid for krb5, x509, sss, unix
+  gid_t gid;               // gid, only used in sss
+
   time_t mtime;
 
   //----------------------------------------------------------------------------
@@ -69,8 +88,16 @@ struct UserCredentials {
       return keyring < src.keyring;
     }
 
-    if (endorsement < src.endorsement) {
+    if (endorsement != src.endorsement) {
       return endorsement < src.endorsement;
+    }
+
+    if (uid != src.uid) {
+      return uid < src.uid;
+    }
+
+    if (gid != src.gid) {
+      return gid < src.gid;
     }
 
     return mtime < src.mtime;
