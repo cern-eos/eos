@@ -1,7 +1,7 @@
-//------------------------------------------------------------------------------
-// File: CredentialCache.hh
+// ----------------------------------------------------------------------
+// File: UserCredentials.hh
 // Author: Georgios Bitzes - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,61 +21,60 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_FUSEX_CREDENTIAL_CACHE_HH
-#define EOS_FUSEX_CREDENTIAL_CACHE_HH
+#ifndef EOS_FUSEX_USER_CREDENTIALS_HH
+#define EOS_FUSEX_USER_CREDENTIALS_HH
 
-#include "UserCredentials.hh"
-#include "CredentialFinder.hh"
-#include "common/ShardedCache.hh"
+#include "JailedPath.hh"
 
 //------------------------------------------------------------------------------
-// Hasher class for UserCredentials.
+// Designates what kind of user credentials we're dealing with:
+// - KRB5: Kerberos file-based ticket cache
+// - KRK5: Kerberos kernel-keyring-based ticket cache
+// - X509: GSI user certificates
+// - SSS: SSS ticket delegation
+// - NOBODY: Identify as nobody, no user credentails whatsoever
 //------------------------------------------------------------------------------
-struct UserCredentialsHasher {
-
-  static uint64_t hash(const UserCredentials& key)
-  {
-    uint64_t result = std::uint32_t(key.type) + key.fname.stupidHash();
-
-    for (size_t i = 0; i < key.endorsement.size(); i++) {
-      result += key.endorsement[i];
-    }
-
-    return result;
-  }
+enum class CredentialType : std::uint32_t {
+  KRB5,
+  KRK5,
+  X509,
+  SSS,
+  NOBODY
 };
 
 //------------------------------------------------------------------------------
-// Maps UserCredentials to a BoundIdentity.
+// This class stores information about an instance of user credentials.
 //------------------------------------------------------------------------------
-class CredentialCache
-{
-public:
+struct UserCredentials {
+  CredentialType type;
+  JailedPath fname; // credential file
+  std::string keyring; // kernel keyring
+  std::string endorsement; // endorsement for sss
+  time_t mtime;
 
-  CredentialCache() : cache(16 /* 2^16 shards */,
-                              1000 * 60 * 60 * 12 /* 12 hours */) { }
-
-  std::shared_ptr<const BoundIdentity> retrieve(const UserCredentials& credInfo)
+  //----------------------------------------------------------------------------
+  // Comparator for storing such objects in maps.
+  //----------------------------------------------------------------------------
+  bool operator<(const UserCredentials& src) const
   {
-    return cache.retrieve(credInfo);
+    if (type != src.type) {
+      return type < src.type;
+    }
+
+    if (fname != src.fname) {
+      return fname < src.fname;
+    }
+
+    if (keyring != src.keyring) {
+      return keyring < src.keyring;
+    }
+
+    if (endorsement < src.endorsement) {
+      return endorsement < src.endorsement;
+    }
+
+    return mtime < src.mtime;
   }
-
-  // replace by default
-
-  bool store(const UserCredentials& credInfo, std::unique_ptr<BoundIdentity> boundIdentity,
-    std::shared_ptr<const BoundIdentity> &retval)
-  {
-    return cache.store(credInfo, std::move(boundIdentity), retval, true);
-  }
-
-  bool invalidate(const UserCredentials& credInfo)
-  {
-    return cache.invalidate(credInfo);
-  }
-
-private:
-  // shards: 2^16 = 65536
-  ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher> cache;
 };
 
 #endif

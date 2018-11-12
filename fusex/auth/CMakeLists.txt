@@ -35,5 +35,6 @@ add_library(
   ProcessInfo.cc                   ProcessInfo.hh
   RmInfo.cc                        RmInfo.hh
   SecurityChecker.cc               SecurityChecker.hh
+                                   UserCredentials.hh
   Utils.cc                         Utils.hh
 )

@@ -35,7 +35,7 @@ BoundIdentityProvider::BoundIdentityProvider()
 
 CredentialState
 BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
-    CredInfo& creds, uid_t uid)
+    UserCredentials& creds, uid_t uid)
 {
   SecurityChecker::Info info = securityChecker.lookup(path, uid);
 
@@ -51,7 +51,7 @@ BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
 }
 
 CredentialState
-BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, CredInfo& creds,
+BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                        uid_t uid)
 {
   JailedPath path = CredentialFinder::locateKerberosTicket(env);
@@ -60,7 +60,7 @@ BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, CredInfo& creds,
 }
 
 CredentialState
-BoundIdentityProvider::fillX509FromEnv(const Environment& env, CredInfo& creds,
+BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& creds,
                                        uid_t uid)
 {
   JailedPath path = CredentialFinder::locateX509Proxy(env);
@@ -69,7 +69,7 @@ BoundIdentityProvider::fillX509FromEnv(const Environment& env, CredInfo& creds,
 }
 
 CredentialState
-BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
+BoundIdentityProvider::fillSssFromEnv(const Environment& env, UserCredentials& creds,
                                       uid_t uid)
 {
   creds.type = CredentialType::SSS;
@@ -81,7 +81,7 @@ BoundIdentityProvider::fillSssFromEnv(const Environment& env, CredInfo& creds,
 CredentialState
 BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
                                         const CredentialConfig& credConfig,
-                                        CredInfo& creds, uid_t uid)
+                                        UserCredentials& creds, uid_t uid)
 {
   if (credConfig.use_user_sss) {
     CredentialState state = fillSssFromEnv(env, creds, uid);
@@ -167,7 +167,7 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     uid_t uid, gid_t gid, bool reconnect,
     std::shared_ptr<const BoundIdentity>& result)
 {
-  CredInfo credinfo;
+  UserCredentials credinfo;
   CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid);
 
   if (state != CredentialState::kOk) {
@@ -277,20 +277,18 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
     return unixAuthentication(uid, gid, pid, reconnect, result);
   }
 
-  // First, let's read the environment to build up a CredInfo object.
+  // First, let's read the environment to build up a UserCredentials object.
   Environment processEnv;
   FutureEnvironment response = environmentReader.stageRequest(pid);
-  std::chrono::high_resolution_clock::time_point deadline = response.queuedSince +
-      std::chrono::milliseconds(credConfig.environ_deadlock_timeout);
+  if(!response.waitUntilDeadline(
+    std::chrono::milliseconds(credConfig.environ_deadlock_timeout))) {
 
-  if (response.contents.wait_until(deadline) != std::future_status::ready) {
     eos_static_info("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!",
                     pid, uid);
     return {};
   }
 
-  processEnv = response.contents.get();
-  return retrieve(processEnv, uid, gid, reconnect, result);
+  return retrieve(response.get(), uid, gid, reconnect, result);
 }
 
 bool BoundIdentityProvider::isStillValid(const BoundIdentity& identity)

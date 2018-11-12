@@ -42,7 +42,7 @@ public:
 
   CredentialState
   fillCredsFromEnv(const Environment& env, const CredentialConfig& credConfig,
-                   CredInfo& creds, uid_t uid);
+                   UserCredentials& creds, uid_t uid);
 
   CredentialState
   retrieve(const Environment& env, uid_t uid, gid_t gid, bool reconnect,
@@ -93,14 +93,14 @@ private:
   EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
 
-  CredentialState tryCredentialFile(const JailedPath& path, CredInfo& creds,
+  CredentialState tryCredentialFile(const JailedPath& path, UserCredentials& creds,
                                     uid_t uid);
-  CredentialState fillKrb5FromEnv(const Environment& env, CredInfo& creds,
+  CredentialState fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                   uid_t uid);
-  CredentialState fillX509FromEnv(const Environment& env, CredInfo& creds,
+  CredentialState fillX509FromEnv(const Environment& env, UserCredentials& creds,
                                   uid_t uid);
 
-  CredentialState fillSssFromEnv(const Environment& env, CredInfo& creds,
+  CredentialState fillSssFromEnv(const Environment& env, UserCredentials& creds,
                                  uid_t uid);
 
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);

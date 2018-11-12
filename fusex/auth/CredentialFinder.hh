@@ -24,18 +24,19 @@
 #ifndef __CREDENTIALFINDER__HH__
 #define __CREDENTIALFINDER__HH__
 
+#include "UserCredentials.hh"
+#include "SecurityChecker.hh"
+#include "JailedPath.hh"
+#include "LoginIdentifier.hh"
+#include "Utils.hh"
+#include "common/Logging.hh"
+#include "XrdCl/XrdClURL.hh"
 #include <string>
 #include <map>
 #include <vector>
 #include <sstream>
 #include <atomic>
 #include <time.h>
-#include "common/Logging.hh"
-#include "Utils.hh"
-#include "LoginIdentifier.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "SecurityChecker.hh"
-#include "JailedPath.hh"
 #include <sys/stat.h>
 
 class CredentialConfig
@@ -69,49 +70,7 @@ public:
   bool forknoexec_heuristic;
 };
 
-
-// Information extracted from environment variables.
-
-enum class CredentialType : std::uint32_t {
-  KRB5,
-  KRK5,
-  X509,
-  SSS,
-  NOBODY
-};
-
-struct CredInfo {
-
-  CredentialType type;
-  JailedPath fname; // credential file
-  std::string keyring; // kernel keyring
-  std::string endorsement; // endorsement for sss
-  time_t mtime;
-
-  bool operator<(const CredInfo& src) const
-  {
-    if (type != src.type) {
-      return type < src.type;
-    }
-
-    if (fname != src.fname) {
-      return fname < src.fname;
-    }
-
-    if (keyring != src.keyring) {
-      return keyring < src.keyring;
-    }
-
-    if (endorsement < src.endorsement) {
-      return endorsement < src.endorsement;
-    }
-
-    return mtime < src.mtime;
-  }
-};
-
 // We need this object to generate the parameters in the xrootd URL
-
 class TrustedCredentials
 {
 public:
