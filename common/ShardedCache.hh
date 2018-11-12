@@ -122,11 +122,11 @@ public:
   // Calling this function means giving up ownership of the pointer.
   // Don't use it anymore and don't call delete on it!
   // Return value: whether insertion was successful.
-  bool store(const Key& key, Value* const value, bool replace = true)
+  bool store(const Key& key, std::unique_ptr<Value> value, bool replace = true)
   {
     CacheEntry entry;
     entry.marked = false;
-    entry.value = std::shared_ptr<Value>(value);
+    entry.value = std::move(value);
     ShardGuard guard(this, key);
 
     if (replace) {
