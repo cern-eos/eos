@@ -694,7 +694,7 @@ protected:
         authid = *cachedConnection;
       } else {
         authid = getNewConId(uid, gid, pid);
-        uidCache->store(credKey, new uint64_t(authid));
+        uidCache->store(credKey, std::unique_ptr<uint64_t>(new uint64_t(authid)));
       }
 
       if (!authid) {
