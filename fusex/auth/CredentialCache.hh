@@ -57,9 +57,10 @@ public:
 
   // replace by default
 
-  bool store(const CredInfo& credInfo, std::unique_ptr<BoundIdentity> boundIdentity)
+  bool store(const CredInfo& credInfo, std::unique_ptr<BoundIdentity> boundIdentity,
+    std::shared_ptr<const BoundIdentity> &retval)
   {
-    return cache.store(credInfo, std::move(boundIdentity), true);
+    return cache.store(credInfo, std::move(boundIdentity), retval, true);
   }
 
   bool invalidate(const CredInfo& credInfo)

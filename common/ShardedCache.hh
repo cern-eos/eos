@@ -122,7 +122,8 @@ public:
   // Calling this function means giving up ownership of the pointer.
   // Don't use it anymore and don't call delete on it!
   // Return value: whether insertion was successful.
-  bool store(const Key& key, std::unique_ptr<Value> value, bool replace = true)
+  bool store(const Key& key, std::unique_ptr<Value> value, std::shared_ptr<Value>
+    &retval, bool replace = true)
   {
     CacheEntry entry;
     entry.marked = false;
@@ -131,13 +132,32 @@ public:
 
     if (replace) {
       contents[guard.getShard()][key] = entry;
+      retval = entry.value;
       return true;
     }
 
     std::pair<typename std::map<Key, CacheEntry>::iterator, bool> status;
     status = contents[guard.getShard()].insert(std::pair<Key, CacheEntry>(key,
              entry));
+    retval = status.first->second.value;
     return status.second;
+  }
+
+  // store overload without retval
+  bool store(const Key& key, std::unique_ptr<Value> value, bool replace = true)
+  {
+    std::shared_ptr<Value> val;
+    return store(key, std::move(value), val, replace);
+  }
+
+  // store overload with const retval.
+  bool store(const Key& key, std::unique_ptr<Value> value,
+    std::shared_ptr<const Value> &retval, bool replace = true)
+  {
+    std::shared_ptr<Value> val;
+    bool status = store(key, std::move(value), val, replace);
+    retval = val;
+    return status;
   }
 
   // Removes an element from the cache. Return value is whether the key existed.

@@ -234,12 +234,10 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     sssRegistry->Register(login.getStringID().c_str(), newEntity);
   }
 
-  std::unique_ptr<BoundIdentity> binding;
-  binding.reset(new BoundIdentity(login, trustedCreds));
-  credentialCache.store(credinfo, std::move(binding));
-  // cannot return binding directly, as its ownership has been transferred to
-  // the cache. TODO(gbitzes): Fix this!
-  result = credentialCache.retrieve(credinfo);
+  credentialCache.store(credinfo,
+    std::unique_ptr<BoundIdentity>(new BoundIdentity(login, trustedCreds)),
+    result
+  );
   return CredentialState::kOk;
 }
 

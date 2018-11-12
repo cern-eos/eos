@@ -49,11 +49,10 @@ CredentialState ProcessCache::useCredentialsOfAnotherPID(
     return state;
   }
 
-  std::unique_ptr<ProcessCacheEntry> entry;
-  entry.reset(new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid));
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), std::move(entry));
-  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
+    std::unique_ptr<ProcessCacheEntry>(
+      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
+    snapshot);
   return state;
 }
 
@@ -70,11 +69,10 @@ ProcessCache::useDefaultPaths(const ProcessInfo& processInfo, uid_t uid,
     return state;
   }
 
-  std::unique_ptr<ProcessCacheEntry> entry;
-  entry.reset(new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid));
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), std::move(entry));
-  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
+    std::unique_ptr<ProcessCacheEntry>(
+      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
+    snapshot);
   return state;
 }
 
@@ -91,11 +89,10 @@ ProcessCache::useGlobalBinding(const ProcessInfo& processInfo, uid_t uid,
     return state;
   }
 
-  std::unique_ptr<ProcessCacheEntry> entry;
-  entry.reset(new ProcessCacheEntry(processInfo,
-      *boundIdentity.get(), uid, gid));
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid), std::move(entry));
-  snapshot = cache.retrieve(ProcessCacheKey(processInfo.getPid(), uid, gid));
+  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
+    std::unique_ptr<ProcessCacheEntry>(
+      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
+    snapshot);
   return state;
 }
 
