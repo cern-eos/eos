@@ -71,8 +71,8 @@ TEST(JournalCache, BasicSanity)
       size = chunk_size;
     }
 
-    rc = jc.pwrite(buff + offset, chunk_size, offset);
-    ASSERT_EQ(rc, (int64_t) chunk_size);
+    rc = jc.pwrite(buff + offset, size, offset);
+    ASSERT_EQ(rc, (int64_t) size);
   }
 
   for (int i = 0; i < 10; ++i) {
