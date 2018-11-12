@@ -620,6 +620,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason)
   }
 
   std::string id = mUUIDView[uuid];
+  lLock.Release();
   eos_static_info("msg=\"evicting client\" uuid=%s name=%s",
                   uuid.c_str(), id.c_str());
   gOFS->zMQ->mTask->reply(id, rspstream);
@@ -730,6 +731,7 @@ FuseServer::Clients::ReleaseCAP(uint64_t md_ino,
   }
 
   std::string id = mUUIDView[uuid];
+  lLock.Release();
   eos_static_info("msg=\"asking cap release\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
@@ -765,6 +767,7 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
   }
 
   std::string id = mUUIDView[uuid];
+  lLock.Release();
   eos_static_info("msg=\"asking dentry deletion\" uuid=%s clientid=%s id=%lx name=%s",
                   uuid.c_str(), clientid.c_str(), md_ino, name.c_str());
   gOFS->zMQ->mTask->reply(id, rspstream);
@@ -814,6 +817,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
     return ENOENT;
   }
 
+  lLock.Release();
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md.md_ino());
@@ -845,6 +849,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   }
 
   const std::string& clientid = mUUIDView[uuid];
+  lLock.Release();
   eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
                   uuid.c_str(), clientid.c_str(), cap->id());
   gOFS->zMQ->mTask->reply(clientid, rspstream);
