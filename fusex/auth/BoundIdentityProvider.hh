@@ -24,16 +24,16 @@
 #ifndef __BOUND_IDENTITY_PROVIDER__HH__
 #define __BOUND_IDENTITY_PROVIDER__HH__
 
-#include <atomic>
+#include "CredentialValidator.hh"
 #include "CredentialCache.hh"
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
 #include "EnvironmentReader.hh"
 #include "SecurityChecker.hh"
 #include "JailedPath.hh"
-
 #include <XrdSec/XrdSecEntity.hh>
 #include <XrdSecsss/XrdSecsssID.hh>
+#include <atomic>
 
 class BoundIdentityProvider
 {
@@ -88,12 +88,12 @@ public:
                                      bool reconnect, std::shared_ptr<const BoundIdentity>& result);
 private:
   SecurityChecker securityChecker;
+  CredentialValidator validator;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
 
-  CredentialState validateCredentialFile(UserCredentials &creds);
   CredentialState fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                   uid_t uid);
   CredentialState fillX509FromEnv(const Environment& env, UserCredentials& creds,

@@ -27,6 +27,7 @@ add_library(
                                    CredentialCache.hh
   ContentAddressableStore.cc       ContentAddressableStore.hh
   CredentialFinder.cc              CredentialFinder.hh
+  CredentialValidator.cc           CredentialValidator.hh
   DirectoryIterator.cc             DirectoryIterator.hh
   EnvironmentReader.cc             EnvironmentReader.hh
                                    JailedPath.hh

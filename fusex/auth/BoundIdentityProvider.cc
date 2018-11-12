@@ -27,25 +27,10 @@
 #include <sys/stat.h>
 
 BoundIdentityProvider::BoundIdentityProvider()
+: validator(securityChecker)
 {
   // create an sss registry
   sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
-}
-
-CredentialState
-BoundIdentityProvider::validateCredentialFile(UserCredentials &creds)
-{
-  SecurityChecker::Info info = securityChecker.lookup(creds.fname, creds.uid);
-
-  if(info.state != CredentialState::kOk) {
-    return info.state;
-  }
-
-  eos_static_info("Using credential file '%s' for uid %d",
-                  creds.fname.describe().c_str(), creds.uid);
-
-  creds.mtime = info.mtime;
-  return info.state;
 }
 
 CredentialState
@@ -57,7 +42,8 @@ BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& 
     uid
   );
 
-  return validateCredentialFile(creds);
+  TrustedCredentials emptyForNow;
+  return validator.validate(std::move(creds), emptyForNow);
 }
 
 CredentialState
@@ -69,7 +55,8 @@ BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& 
     uid
   );
 
-  return validateCredentialFile(creds);
+  TrustedCredentials emptyForNow;
+  return validator.validate(std::move(creds), emptyForNow);
 }
 
 CredentialState
