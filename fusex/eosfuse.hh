@@ -27,6 +27,7 @@
 
 #include "misc/MacOSXHelper.hh"
 #include "common/AssistedThread.hh"
+#include "common/LinuxTotalMem.hh"
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -355,6 +356,7 @@ private:
     return mds.stats();
   }
 
+  eos::common::LinuxTotalMem meminfo;
 
   static EosFuse* sEosFuse;
 

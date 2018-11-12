@@ -74,6 +74,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
+#include "common/LinuxTotalMem.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
@@ -790,6 +791,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["cache"]["read-ahead-strategy"] = "dynamic";
     }
 
+    if (!root["cache"].isMember("max-read-ahead-buffer")) {
+      root["cache"]["max-read-ahead-buffer"] = 1 * 1024 * 1024 * 1024;
+    }
+
+    if (!root["cache"].isMember("max-write-buffer")) {
+      root["cache"]["max-write-buffer"] = 1 * 1024 * 1024 * 1024;
+    }
+
     cconfig.location = root["cache"]["location"].asString();
     cconfig.journal = root["cache"]["journal"].asString();
     cconfig.default_read_ahead_size =
@@ -805,6 +814,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
               "error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
       exit(EINVAL);
     }
+
+    cconfig.max_inflight_read_ahead_buffer_size     =
+      root["cache"]["max-read-ahead-buffer"].asInt();
+    cconfig.max_inflight_write_buffer_size =
+      root["cache"]["max-write-buffer"].asInt();
 
     // set defaults for journal and file-start cache
     if (geteuid()) {
@@ -1301,11 +1315,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.leasetime,
                        config.options.write_size_flush_interval
                       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
                        cconfig.max_read_ahead_size,
                        cconfig.max_read_ahead_blocks,
+                       cconfig.max_inflight_read_ahead_buffer_size,
+                       cconfig.max_inflight_write_buffer_size,
                        cconfig.total_file_cache_size,
                        cconfig.total_file_cache_inodes,
                        cconfig.location.c_str(),
@@ -1480,6 +1496,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
   time_t start_time = time(NULL);
 
   while (!assistant.terminationRequested()) {
+    meminfo.update();
     eos::common::LinuxStat::linux_stat_t osstat;
 #ifndef __APPLE__
     eos::common::LinuxMemConsumption::linux_mem_t mem;
@@ -1529,45 +1546,54 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     std::string s6;
     std::string s7;
     std::string s8;
-    snprintf(ino_stat, sizeof(ino_stat),
-             "ALL        threads             := %llu\n"
-             "ALL        visze               := %s\n"
-             "All        rss                 := %s\n"
-             "All        wr-buf-inflight     := %s\n"
-             "All        wr-buf-queued       := %s\n"
-             "All        ra-buf-inflight     := %s\n"
-             "All        ra-buf-queued       := %s\n"
-             "All        rd-buf-inflight     := %s\n"
-             "All        rd-buf-queued       := %s\n"
-             "All        version             := %s\n"
-             "ALl        fuseversion         := %d\n"
-             "All        starttime           := %lu\n"
-             "All        uptime              := %lu\n"
-             "All        instance-url        := %s\n"
-             "All        client-uuid         := %s\n"
-             "# -----------------------------------------------------------------------------------------------------------\n",
-             osstat.threads,
-             eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
-             eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
-             eos::common::StringConversion::GetReadableSizeString(s3,
-                 XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
-             eos::common::StringConversion::GetReadableSizeString(s4,
-                 XrdCl::Proxy::sWrBufferManager.queued(), "b"),
-             eos::common::StringConversion::GetReadableSizeString(s5,
-                 XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
-             eos::common::StringConversion::GetReadableSizeString(s6,
-                 XrdCl::Proxy::sRaBufferManager.queued(), "b"),
-             eos::common::StringConversion::GetReadableSizeString(s7,
-                 data::datax::sBufferManager.inflight(), "b"),
-             eos::common::StringConversion::GetReadableSizeString(s8,
-                 data::datax::sBufferManager.queued(), "b"),
-             VERSION,
-             FUSE_USE_VERSION,
-             start_time,
-             now - start_time,
-             EosFuse::Instance().config.hostport.c_str(),
-             EosFuse::instance().config.clientuuid.c_str()
-            );
+    {
+      std::lock_guard<std::mutex> lock(meminfo.mutex());
+      snprintf(ino_stat, sizeof(ino_stat),
+               "ALL        threads             := %llu\n"
+               "ALL        visze               := %s\n"
+               "All        rss                 := %s\n"
+               "All        wr-buf-inflight     := %s\n"
+               "All        wr-buf-queued       := %s\n"
+               "All        ra-buf-inflight     := %s\n"
+               "All        ra-buf-queued       := %s\n"
+               "All        rd-buf-inflight     := %s\n"
+               "All        rd-buf-queued       := %s\n"
+               "All        version             := %s\n"
+               "ALl        fuseversion         := %d\n"
+               "All        starttime           := %lu\n"
+               "All        uptime              := %lu\n"
+               "All        total-mem           := %lu\n"
+               "All        free-mem            := %lu\n"
+               "All        load                := %lu\n"
+               "All        instance-url        := %s\n"
+               "All        client-uuid         := %s\n"
+               "# -----------------------------------------------------------------------------------------------------------\n",
+               osstat.threads,
+               eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
+               eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
+               eos::common::StringConversion::GetReadableSizeString(s3,
+                   XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s4,
+                   XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s5,
+                   XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s6,
+                   XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s7,
+                   data::datax::sBufferManager.inflight(), "b"),
+               eos::common::StringConversion::GetReadableSizeString(s8,
+                   data::datax::sBufferManager.queued(), "b"),
+               VERSION,
+               FUSE_USE_VERSION,
+               start_time,
+               now - start_time,
+               meminfo.getref().totalram,
+               meminfo.getref().freeram,
+               meminfo.getref().loads[0],
+               EosFuse::Instance().config.hostport.c_str(),
+               EosFuse::instance().config.clientuuid.c_str()
+              );
+    }
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
@@ -3608,6 +3634,8 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 
   if (rc) {
     fuse_reply_err(req, rc);
+  } else {
+    ADD_IO_STAT("rbytes", res);
   }
 
   eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
@@ -3695,6 +3723,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
 
   if (rc) {
     fuse_reply_err(req, rc);
+  } else {
+    ADD_IO_STAT("wbytes", size);
   }
 
   eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
@@ -5038,9 +5068,21 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_inodes_ever(getMdStat().inodes_ever());
   hbs.set_inodes_ever_deleted(getMdStat().inodes_deleted_ever());
   hbs.set_threads(osstat.threads);
-  hbs.set_vsize_mb(osstat.vsize / 1024.0 / 1024.0);
-  hbs.set_rss_mb(osstat.rss / 1024.0 / 1024.0);
+  hbs.set_vsize_mb(osstat.vsize / 1000.0 / 1000.0);
+  hbs.set_rss_mb(osstat.rss / 1000.0 / 1000.0);
   hbs.set_open_files(Instance().datas.size());
+  {
+    std::lock_guard<std::mutex> lock(meminfo.mutex());
+    hbs.set_free_ram_mb(meminfo.getref().freeram / 1000.0 / 1000.0);
+    hbs.set_total_ram_mb(meminfo.getref().totalram / 1000.0 / 1000.0);
+    hbs.set_load1(1.0 * meminfo.getref().loads[0] / (1 << SI_LOAD_SHIFT));
+  }
+  hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
+  hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
+  hbs.set_rd_rate_60_mb(getFuseStat().GetTotalAvg60("rbytes") / 1000.0 / 1000.0);
+  hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
+  hbs.set_nio(getFuseStat().GetOps());
+  hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
 }
 
 /* -------------------------------------------------------------------------- */

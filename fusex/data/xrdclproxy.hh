@@ -159,10 +159,12 @@ public:
 
   virtual ~BufferManager() { }
 
-  void configure(size_t _max, size_t _size)
+  void configure(size_t _max, size_t _size,
+                 size_t _max_inflight_size = 1 * 1024 * 1024 * 1024)
   {
     max = _max;
     buffersize = _size;
+    max_inflight_size = _max_inflight_size;
   }
 
   shared_buffer get_buffer(size_t size)
@@ -183,7 +185,7 @@ public:
 
       if (!(cnt % 1000)) {
         if (inflight_size >= max_inflight_size) {
-          eos_static_warning("inflight-buffer exceeds maximum number of %lu bytes [%ld/%ld]",
+          eos_static_warning("inflight-buffer exceeds maximum number of bytes [%ld/%ld]",
                              inflight_size, max_inflight_size);
         }
 

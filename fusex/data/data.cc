@@ -27,6 +27,7 @@
 #include "eosfuse.hh"
 #include "data/cachesyncer.hh"
 #include "data/journalcache.hh"
+#include "data/xrdclproxy.hh"
 #include "misc/MacOSXHelper.hh"
 #include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
@@ -44,8 +45,6 @@ std::string data::datax::kInlineCompressor = "sys.file.inline.compressor";
 data::data()
 /* -------------------------------------------------------------------------- */
 {
-  XrdCl::Proxy::sRaBufferManager.configure(16,
-      cachehandler::instance().get_config().default_read_ahead_size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -60,6 +59,13 @@ void
 data::init()
 /* -------------------------------------------------------------------------- */
 {
+  // configure the ra,rd,wr buffer sizes
+  XrdCl::Proxy::sRaBufferManager.configure(16,
+      cachehandler::instance().get_config().default_read_ahead_size,
+      cachehandler::instance().get_config().max_inflight_read_ahead_buffer_size);
+  XrdCl::Proxy::sWrBufferManager.configure(128,
+      128 * 1024,
+      cachehandler::instance().get_config().max_inflight_write_buffer_size);
   datamap.run();
 }
 

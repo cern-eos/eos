@@ -127,6 +127,15 @@ message statistics {
   float vsize_mb = 7; //< client virtual memory usage in mb
   float rss_mb = 8; //< client resident memory usage in mb
   fixed32 open_files = 9; //< files currently open on a client
+  float total_ram_mb = 10;//< total usable ram size
+  float free_ram_mb = 11; //< total free ram size
+  float load1 = 12; //< load value 1
+  fixed64 rbytes = 13; //< number of bytes read since start
+  fixed64 wbytes = 14; //< number of bytes written since start
+  float rd_rate_60_mb = 15; //< read rate in 1m window in mb/s
+  float wr_rate_60_mb = 16; //< write rate in 1m window in mb/s
+  fixed64 nio = 17; //< total number of io's
+  float iops_60 = 18; //< average ios in 1m window
 }
 
 message container {

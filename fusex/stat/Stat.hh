@@ -488,6 +488,12 @@ public:
                     fuse_req_ctx(__REQ__)->uid, \
                     fuse_req_ctx(__REQ__)->gid, \
                              1);
+
+#define ADD_IO_STAT(__ID__, __VALUE__) \
+  EosFuse::Instance().getFuseStat().Add(__ID__,   \
+          0,0,__VALUE__);
+
+
 #define EXEC_TIMING_BEGIN(__ID__)               \
   struct timeval start__ID__;                   \
   struct timeval stop__ID__;                    \
@@ -518,6 +524,14 @@ public:
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt> >
   StatExtGid;
   google::sparse_hash_map<std::string, std::deque<float> > StatExec;
+
+  size_t sum_ops;
+
+  size_t GetOps()
+  {
+    XrdSysMutexHelper sLock(Mutex);
+    return sum_ops;
+  }
 
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
 

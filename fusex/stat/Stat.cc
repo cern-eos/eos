@@ -666,6 +666,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   }
 
   avg = GetTotalExec(sig, ops);
+  sum_ops = ops;
 
   if (!monitoring) {
     sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
@@ -686,6 +687,10 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   }
 
   for (it = tags.begin(); it != tags.end(); ++it) {
+    if ((*it == "rbytes") || (*it == "wbytes")) {
+      continue;
+    }
+
     const char* tag = it->c_str();
     char a5[1024];
     char a60[1024];
