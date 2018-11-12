@@ -60,11 +60,11 @@ enum class CredentialType : std::uint32_t {
 struct UserCredentials {
 
   //----------------------------------------------------------------------------
-  // Default constructor: Invalid set of credentials
+  // Private constructor: Use the methods above to create such an object.
   //----------------------------------------------------------------------------
   UserCredentials() {
     type = CredentialType::INVALID;
-    // fname, keyrin, endorsement default-initialized to empty
+    // fname, keyring, endorsement default-initialized to empty
     uid = 0;
     gid = 0;
     mtime = 0;
@@ -75,11 +75,12 @@ struct UserCredentials {
   // We only need two pieces of information: The path at which the ticket cache
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKrb5(const JailedPath &name, uid_t uid) {
+  static UserCredentials MakeKrb5(const JailedPath &name, uid_t uid, gid_t gid) {
     UserCredentials retval;
     retval.type = CredentialType::KRB5;
     retval.fname = name;
     retval.uid = uid;
+    retval.gid = gid;
     return retval;
   }
 
@@ -87,10 +88,12 @@ struct UserCredentials {
   // Constructor: Make a KRK5 object.
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKrk5(const std::string &keyring) {
+  static UserCredentials MakeKrk5(const std::string &keyring, uid_t uid, gid_t gid) {
     UserCredentials retval;
     retval.type = CredentialType::KRK5;
     retval.keyring = keyring;
+    retval.uid = uid;
+    retval.gid = gid;
     return retval;
   }
 
@@ -101,11 +104,12 @@ struct UserCredentials {
   // We only need two pieces of information: The path at which the certificate
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeX509(const JailedPath &name, uid_t uid) {
+  static UserCredentials MakeX509(const JailedPath &name, uid_t uid, gid_t gid) {
     UserCredentials retval;
     retval.type = CredentialType::X509;
     retval.fname = name;
     retval.uid = uid;
+    retval.gid = gid;
     return retval;
   }
 
@@ -147,7 +151,7 @@ struct UserCredentials {
   std::string keyring;     // kernel keyring for krk5
   std::string endorsement; // endorsement for sss
   uid_t uid;               // uid for krb5, x509, sss, unix
-  gid_t gid;               // gid, only used in sss
+  gid_t gid;               // gid for krb5, x509, sss, unix
 
   // TODO: Remove
   time_t mtime;
@@ -183,6 +187,8 @@ struct UserCredentials {
 
     return mtime < src.mtime;
   }
+
+private:
 };
 
 #endif

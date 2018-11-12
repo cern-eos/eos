@@ -70,97 +70,54 @@ public:
   bool forknoexec_heuristic;
 };
 
-// We need this object to generate the parameters in the xrootd URL
+//------------------------------------------------------------------------------
+// TrustedCredentials = UserCredentials with a stamp of approval. We need
+// this object to generate the parameters in the xrootd URL.
+//------------------------------------------------------------------------------
 class TrustedCredentials
 {
 public:
-
-  TrustedCredentials() :
-    initialized(false), invalidated(false), type(CredentialType::NOBODY),
-    uid(-2), gid(-2), mtime(0) { }
-
-  void setKrb5(const JailedPath& path, uid_t uid, gid_t gid, time_t mtime)
-  {
-    if (initialized) {
-      THROW("already initialized");
-    }
-
-    initialized = true;
-    type = CredentialType::KRB5;
-    this->path = path;
-    this->uid = uid;
-    this->gid = gid;
-    this->mtime = mtime;
+  //------------------------------------------------------------------------------
+  // Constructor.
+  //------------------------------------------------------------------------------
+  TrustedCredentials(const UserCredentials& uc_) : uc(uc_), initialized(true),
+    invalidated(false) {
+    mtime = uc.mtime; // TODO: remove
   }
 
-  void setKrk5(const std::string& keyring, uid_t uid, gid_t gid)
-  {
-    if (initialized) {
-      THROW("already initialized");
-    }
-
-    initialized = true;
-    type = CredentialType::KRK5;
-    contents = keyring;
-    this->uid = uid;
-    this->gid = gid;
-  }
-
-  void setx509(const JailedPath& path, uid_t uid, gid_t gid, time_t mtime)
-  {
-    if (initialized) {
-      THROW("already initialized");
-    }
-
-    initialized = true;
-    type = CredentialType::X509;
-    this->path = path;
-    this->uid = uid;
-    this->gid = gid;
-    this->mtime = mtime;
-  }
-
-  void setSss(const std::string& endorsement, uid_t uid,
-              gid_t gid)
-  {
-    if (initialized) {
-      THROW("already initialized");
-    }
-
-    initialized = true;
-    type = CredentialType::SSS;
-    this->endorsement = endorsement;
-    this->uid = uid;
-    this->gid = gid;
-  }
+  //------------------------------------------------------------------------------
+  // Empty constructor.
+  //------------------------------------------------------------------------------
+  TrustedCredentials() : uc(UserCredentials::MakeNobody()), initialized(false),
+  invalidated(false) {}
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
-    if (path.hasUnsafeCharacters()) {
+    if (uc.fname.hasUnsafeCharacters()) {
       eos_static_err("rejecting credential for using forbidden characters in the path: %s",
-                     path.describe().c_str());
+                     uc.fname.describe().c_str());
       paramsMap["xrd.wantprot"] = "unix";
       return;
     }
 
-    if (type == CredentialType::NOBODY) {
+    if (uc.type == CredentialType::NOBODY) {
       paramsMap["xrd.wantprot"] = "unix";
       return;
     }
 
-    paramsMap["xrdcl.secuid"] = std::to_string(uid);
-    paramsMap["xrdcl.secgid"] = std::to_string(gid);
+    paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
+    paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
 
-    if (type == CredentialType::KRB5) {
+    if (uc.type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
-      paramsMap["xrd.k5ccname"] = path.getFullPath();
-    } else if (type == CredentialType::KRK5) {
+      paramsMap["xrd.k5ccname"] = uc.fname.getFullPath();
+    } else if (uc.type == CredentialType::KRK5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
-      paramsMap["xrd.k5ccname"] = contents;
-    } else if (type == CredentialType::X509) {
+      paramsMap["xrd.k5ccname"] = uc.keyring;
+    } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
-      paramsMap["xrd.gsiusrpxy"] = path.getFullPath();
-    } else if (type == CredentialType::SSS) {
+      paramsMap["xrd.gsiusrpxy"] = uc.fname.getFullPath();
+    } else if (uc.type == CredentialType::SSS) {
       paramsMap["xrd.wantprot"] = "sss";
     } else {
       THROW("should never reach here");
@@ -195,15 +152,15 @@ public:
       return false;
     }
 
-    if(type != CredentialType::X509 && type != CredentialType::KRB5) {
+    if(uc.type != CredentialType::X509 && uc.type != CredentialType::KRB5) {
       return true;
     }
 
-    if (path.empty()) {
+    if (uc.fname.empty()) {
       return false;
     }
 
-    SecurityChecker::Info info = checker.lookup(path, uid);
+    SecurityChecker::Info info = checker.lookup(uc.fname, uc.uid);
 
     if (info.state != CredentialState::kOk) {
       return false;
@@ -222,16 +179,10 @@ public:
   }
 
 private:
-  UserCredentials credentials;
+  UserCredentials uc;
 
   bool initialized;
   std::atomic<bool> invalidated;
-  CredentialType type;
-  std::string contents;
-  JailedPath path;
-  std::string endorsement;
-  uid_t uid;
-  gid_t gid;
   time_t mtime;
 };
 

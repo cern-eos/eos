@@ -35,28 +35,30 @@ BoundIdentityProvider::BoundIdentityProvider()
 
 CredentialState
 BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
-                                       uid_t uid)
+                                       uid_t uid, gid_t gid)
 {
   creds = UserCredentials::MakeKrb5(
     CredentialFinder::locateKerberosTicket(env),
-    uid
+    uid,
+    gid
   );
 
   TrustedCredentials emptyForNow;
-  return validator.validate(std::move(creds), emptyForNow);
+  return validator.validate(creds, emptyForNow);
 }
 
 CredentialState
 BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& creds,
-                                       uid_t uid)
+                                       uid_t uid, gid_t gid)
 {
   creds = UserCredentials::MakeX509(
     CredentialFinder::locateX509Proxy(env),
-    uid
+    uid,
+    gid
   );
 
   TrustedCredentials emptyForNow;
-  return validator.validate(std::move(creds), emptyForNow);
+  return validator.validate(creds, emptyForNow);
 }
 
 CredentialState
@@ -88,7 +90,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
   // Try krb5 second
   if (credConfig.tryKrb5First) {
     if (credConfig.use_user_krb5cc) {
-      CredentialState state = fillKrb5FromEnv(env, creds, uid);
+      CredentialState state = fillKrb5FromEnv(env, creds, uid, gid);
 
       if (state != CredentialState::kCannotStat) {
         return state;
@@ -96,7 +98,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
     }
 
     if (credConfig.use_user_gsiproxy) {
-      CredentialState state = fillX509FromEnv(env, creds, uid);
+      CredentialState state = fillX509FromEnv(env, creds, uid, gid);
 
       if (state != CredentialState::kCannotStat) {
         return state;
@@ -116,7 +118,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
 
   // Try krb5 second
   if (credConfig.use_user_gsiproxy) {
-    CredentialState state = fillX509FromEnv(env, creds, uid);
+    CredentialState state = fillX509FromEnv(env, creds, uid, gid);
 
     if (state != CredentialState::kCannotStat) {
       return state;
@@ -124,7 +126,7 @@ BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
   }
 
   if (credConfig.use_user_krb5cc) {
-    CredentialState state = fillKrb5FromEnv(env, creds, uid);
+    CredentialState state = fillKrb5FromEnv(env, creds, uid, gid);
 
     if (state != CredentialState::kCannotStat) {
       return state;
@@ -155,6 +157,18 @@ CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid,
   result = std::shared_ptr<const BoundIdentity>(new BoundIdentity(login,
            trustedCreds));
   return CredentialState::kOk;
+}
+
+//------------------------------------------------------------------------------
+// Given a set of user-provided, non-trusted UserCredentials, attempt to
+// translate them into a BoundIdentity object. (either by allocating a new
+// connection, or re-using a cached one)
+//
+// If such a thing is not possible, return false.
+//------------------------------------------------------------------------------
+bool BoundIdentityProvider::userCredsToBoundIdentity(const UserCredentials &creds,
+  std::shared_ptr<const BoundIdentity>& result) {
+
 }
 
 CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
@@ -188,17 +202,11 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
 
   // No binding exists yet, let's create one..
   LoginIdentifier login(connectionCounter++);
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
+  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials(
+    credinfo));
 
-  if (credinfo.type == CredentialType::KRB5) {
-    trustedCreds->setKrb5(credinfo.fname, uid, gid, credinfo.mtime);
-  } else if (credinfo.type == CredentialType::KRK5) {
-    trustedCreds->setKrk5(credinfo.keyring, uid, gid);
-  } else if (credinfo.type == CredentialType::X509) {
-    trustedCreds->setx509(credinfo.fname, uid, gid, credinfo.mtime);
-  } else if (credinfo.type == CredentialType::SSS) {
-    trustedCreds->setSss(credinfo.endorsement, 0, 0);
-  }
+    // TODO: Conversion from UserCredentials to TrustedCredebtials must be
+    // done by the validator.
 
   // sss credential registration
   if (credinfo.type == CredentialType::SSS) {

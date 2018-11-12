@@ -95,14 +95,24 @@ private:
   XrdSecsssID* sssRegistry;
 
   CredentialState fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
-                                  uid_t uid);
+                                  uid_t uid, gid_t gid);
   CredentialState fillX509FromEnv(const Environment& env, UserCredentials& creds,
-                                  uid_t uid);
+                                  uid_t uid, gid_t gid);
 
   CredentialState fillSssFromEnv(const Environment& env, UserCredentials& creds,
                                  uid_t uid, gid_t gid);
 
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Given a set of user-provided, non-trusted UserCredentials, attempt to
+  // translate them into a BoundIdentity object. (either by allocating a new
+  // connection, or re-using a cached one)
+  //
+  // If such a thing is not possible, return false.
+  //----------------------------------------------------------------------------
+  bool userCredsToBoundIdentity(const UserCredentials &creds,
+    std::shared_ptr<const BoundIdentity>& result);
 
   std::mutex unixConnectionCounterMtx;
   std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;
