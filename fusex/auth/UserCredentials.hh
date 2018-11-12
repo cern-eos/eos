@@ -44,7 +44,18 @@ enum class CredentialType : std::uint32_t {
 };
 
 //------------------------------------------------------------------------------
-// This class stores information about an instance of user credentials.
+// This class stores information about an instance of user credentials. The
+// information contained within _must be sufficient_ to create an instance
+// of TrustedCredentials, after validation.
+//
+// UserCredentials could be all kinds of wrong, as it's derived directly
+// by user-provided data: Maybe credential files don't exist, or they have
+// wrong permissions, etc, so we cannot use it yet.
+//
+// TrustedCredentials = validated UserCredentials with a stamp of approval, but
+// not yet bound to a connection.
+//
+// BoundIdentity = TrustedCredentials bound to a LoginIdentifier.
 //------------------------------------------------------------------------------
 struct UserCredentials {
 
@@ -53,10 +64,79 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   UserCredentials() {
     type = CredentialType::INVALID;
+    // fname, keyrin, endorsement default-initialized to empty
     uid = 0;
     gid = 0;
     mtime = 0;
   }
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make a KRB5 object.
+  // We only need two pieces of information: The path at which the ticket cache
+  // resides in, and the uid to validate file permissions.
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeKrb5(const JailedPath &name, uid_t uid) {
+    UserCredentials retval;
+    retval.type = CredentialType::KRB5;
+    retval.fname = name;
+    retval.uid = uid;
+    return retval;
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make a KRK5 object.
+  // TODO(gbitzes): Actually test this...
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeKrk5(const std::string &keyring) {
+    UserCredentials retval;
+    retval.type = CredentialType::KRK5;
+    retval.keyring = keyring;
+    return retval;
+  }
+
+
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make an X509 object.
+  // We only need two pieces of information: The path at which the certificate
+  // resides in, and the uid to validate file permissions.
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeX509(const JailedPath &name, uid_t uid) {
+    UserCredentials retval;
+    retval.type = CredentialType::X509;
+    retval.fname = name;
+    retval.uid = uid;
+    return retval;
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make a "nobody" object.
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeNobody() {
+    UserCredentials retval;
+    retval.type = CredentialType::NOBODY;
+    return retval;
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make an SSS object.
+  // Three things required: The endorsement derived through environment
+  // variables, as well as uid and gid.
+  //
+  // TODO: If the global SSS key is not mapped to anyuser / anygroup,
+  // persisting uid/gid here is pointless.
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeSSS(const std::string &endorsement, uid_t uid,
+    gid_t gid) {
+
+    UserCredentials retval;
+    retval.type = CredentialType::SSS;
+    retval.endorsement = endorsement;
+    retval.uid = uid;
+    retval.gid = gid;
+    return retval;
+  }
+
 
   //----------------------------------------------------------------------------
   // The subset of fields actually containing a value depends on the
@@ -69,6 +149,7 @@ struct UserCredentials {
   uid_t uid;               // uid for krb5, x509, sss, unix
   gid_t gid;               // gid, only used in sss
 
+  // TODO: Remove
   time_t mtime;
 
   //----------------------------------------------------------------------------

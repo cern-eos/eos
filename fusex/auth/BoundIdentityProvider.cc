@@ -32,23 +32,19 @@ BoundIdentityProvider::BoundIdentityProvider()
   sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
 }
 
-
 CredentialState
-BoundIdentityProvider::tryCredentialFile(const JailedPath& path,
-    UserCredentials& creds, uid_t uid)
+BoundIdentityProvider::validateCredentialFile(UserCredentials &creds)
 {
-  SecurityChecker::Info info = securityChecker.lookup(path, uid);
+  SecurityChecker::Info info = securityChecker.lookup(creds.fname, creds.uid);
 
-  if (info.state != CredentialState::kOk) {
+  if(info.state != CredentialState::kOk) {
     return info.state;
   }
 
   eos_static_info("Using credential file '%s' for uid %d",
-                  path.describe().c_str(), uid);
-  creds.fname = path;
+                  creds.fname.describe().c_str(), creds.uid);
+
   creds.mtime = info.mtime;
-  creds.uid = uid;
-  creds.gid = 0u;
   return info.state;
 }
 
@@ -56,29 +52,36 @@ CredentialState
 BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                        uid_t uid)
 {
-  JailedPath path = CredentialFinder::locateKerberosTicket(env);
-  creds.type = CredentialType::KRB5;
-  return tryCredentialFile(path, creds, uid);
+  creds = UserCredentials::MakeKrb5(
+    CredentialFinder::locateKerberosTicket(env),
+    uid
+  );
+
+  return validateCredentialFile(creds);
 }
 
 CredentialState
 BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& creds,
                                        uid_t uid)
 {
-  JailedPath path = CredentialFinder::locateX509Proxy(env);
-  creds.type = CredentialType::X509;
-  return tryCredentialFile(path, creds, uid);
+  creds = UserCredentials::MakeX509(
+    CredentialFinder::locateX509Proxy(env),
+    uid
+  );
+
+  return validateCredentialFile(creds);
 }
 
 CredentialState
 BoundIdentityProvider::fillSssFromEnv(const Environment& env, UserCredentials& creds,
                                       uid_t uid, gid_t gid)
 {
-  creds.type = CredentialType::SSS;
-  creds.endorsement = CredentialFinder::getSssEndorsement(env);
-  creds.mtime = 0;
-  creds.uid = uid;
-  creds.gid = gid;
+  creds = UserCredentials::MakeSSS(
+    CredentialFinder::getSssEndorsement(env),
+    uid,
+    gid
+  );
+
   return CredentialState::kOk;
 }
 

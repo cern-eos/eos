@@ -93,8 +93,7 @@ private:
   EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
 
-  CredentialState tryCredentialFile(const JailedPath& path, UserCredentials& creds,
-                                    uid_t uid);
+  CredentialState validateCredentialFile(UserCredentials &creds);
   CredentialState fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                   uid_t uid);
   CredentialState fillX509FromEnv(const Environment& env, UserCredentials& creds,
