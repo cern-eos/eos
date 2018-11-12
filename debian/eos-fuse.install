@@ -3,7 +3,6 @@ usr/bin/eosfusebind
 sbin/mount.eos
 usr/lib/tmpfiles.d/eosd.conf
 etc/logrotate.d/eos-fuse-logs
-etc/fuse.conf.eos
 etc/sysconfig/eosd_env.example
 etc/sysconfig/eos_env.example
 usr/sbin/eos_start_pre.sh

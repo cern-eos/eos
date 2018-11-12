@@ -15,7 +15,7 @@ Description: EOS client package
 
 Package: eos-fuse
 Architecture: any
-Depends: ${shlibs:Depends}, systemd, fuse, xrootd-client
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, xrootd-client
 Description: EOS FUSE package
 
 Package: eos-fusex

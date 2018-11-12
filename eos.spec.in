@@ -357,6 +357,15 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
 
+# This file is required by both the eos-fuse and eos-fusex package, therefore
+# to avoid any conflicts we distribute it with eos-client.
+%if 0%{distribution} == 6
+%config(noreplace) %{_sysconfdir}/fuse.conf
+%{_sysconfdir}/fuse.conf.eos
+%else
+%{_sysconfdir}/fuse.conf.eos
+%endif
+
 # Documentation
 %doc %{_mandir}/man1/
 
@@ -391,6 +400,7 @@ Summary: The EOS fuse client
 Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
+Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
 Requires: policycoreutils
@@ -416,13 +426,6 @@ The EOS fuse core containing eosd and mount scripts.
 # Create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
 %{_usr}/lib/tmpfiles.d/eosd.conf
-%endif
-
-%if 0%{distribution} == 6
-%config(noreplace) %{_sysconfdir}/fuse.conf
-%{_sysconfdir}/fuse.conf.eos
-%else
-%{_sysconfdir}/fuse.conf.eos
 %endif
 
 %post -n eos-fuse-core
@@ -567,13 +570,6 @@ The new EOS fuse core containing eosxd.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
-
-%if 0%{distribution} == 5 || 0%{distribution} == 6
-%config(noreplace) %{_sysconfdir}/fuse.conf
-%{_sysconfdir}/fuse.conf.eos
-%else
-%{_sysconfdir}/fuse.conf.eos
-%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
