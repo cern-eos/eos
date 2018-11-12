@@ -506,20 +506,38 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "......   ino-ever     : %ld\n"
                  "......   ino-ever-del : %ld\n"
                  "......   threads      : %d\n"
+                 "......   total-ram    : %.03f GB\n"
+                 "......   free-ram     : %.03f GB\n"
                  "......   vsize        : %.03f GB\n"
                  "......   rsize        : %.03f GB\n"
+                 "......   load1        : %.02f\n"
                  "......   leasetime    : %u s\n"
-                 "......   open-files   : %u\n",
+                 "......   open-files   : %u\n"
+                 "......   rbytes       : %lu\n"
+                 "......   wbytes       : %lu\n"
+                 "......   n-op         : %lu\n"
+                 "......   rd60         : %.02f MB/s\n"
+                 "......   wr60         : %.02f MB/s\n"
+                 "......   iops60       : %.02f \n",
                  it->second.statistics().inodes(),
                  it->second.statistics().inodes_todelete(),
                  it->second.statistics().inodes_backlog(),
                  it->second.statistics().inodes_ever(),
                  it->second.statistics().inodes_ever_deleted(),
                  it->second.statistics().threads(),
+                 it->second.statistics().total_ram_mb() / 1024.0,
+                 it->second.statistics().free_ram_mb() / 1024.0,
                  it->second.statistics().vsize_mb() / 1024.0,
                  it->second.statistics().rss_mb() / 1024.0,
+                 it->second.statistics().load1(),
                  it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
-                 it->second.statistics().open_files()
+                 it->second.statistics().open_files(),
+                 it->second.statistics().rbytes(),
+                 it->second.statistics().wbytes(),
+                 it->second.statistics().nio(),
+                 it->second.statistics().rd_rate_60_mb(),
+                 it->second.statistics().wr_rate_60_mb(),
+                 it->second.statistics().iops_60()
                 );
         out += formatline;
       }
