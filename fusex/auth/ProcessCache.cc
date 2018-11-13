@@ -118,7 +118,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
 
     if (processInfo.isSameProcess(entry->getProcessInfo())) {
       // Yep, that's a cache hit.. but credentials could have been invalidated.
-      if (boundIdentityProvider.isStillValid(entry->getBoundIdentity())) {
+      if (boundIdentityProvider.checkValidity(entry->getBoundIdentity())) {
         return entry;
       }
     }

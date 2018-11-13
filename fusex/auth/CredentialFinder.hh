@@ -195,33 +195,6 @@ public:
     return mtime;
   }
 
-  bool isStillValid(SecurityChecker& checker) const
-  {
-    if (invalidated) {
-      return false;
-    }
-
-    if(uc.type != CredentialType::X509 && uc.type != CredentialType::KRB5) {
-      return true;
-    }
-
-    if (uc.fname.empty()) {
-      return false;
-    }
-
-    SecurityChecker::Info info = checker.lookup(uc.fname, uc.uid);
-
-    if (info.state != CredentialState::kOk) {
-      return false;
-    }
-
-    if (info.mtime != mtime) {
-      return false;
-    }
-
-    return true;
-  }
-
   bool empty() const
   {
     return !initialized;

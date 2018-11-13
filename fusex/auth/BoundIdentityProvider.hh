@@ -69,7 +69,10 @@ public:
     environmentReader.launchWorkers(3);
   }
 
-  bool isStillValid(const BoundIdentity& identity);
+  //----------------------------------------------------------------------------
+  // Check if the given BoundIdentity object is still valid.
+  //----------------------------------------------------------------------------
+  bool checkValidity(const BoundIdentity& identity);
 
   SecurityChecker& getSecurityChecker()
   {

@@ -337,7 +337,10 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
   return retrieve(response.get(), uid, gid, reconnect, result);
 }
 
-bool BoundIdentityProvider::isStillValid(const BoundIdentity& identity)
+//------------------------------------------------------------------------------
+// Check if the given BoundIdentity object is still valid.
+//------------------------------------------------------------------------------
+bool BoundIdentityProvider::checkValidity(const BoundIdentity& identity)
 {
   if (!identity.getCreds()) {
     return false;
