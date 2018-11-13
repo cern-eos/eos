@@ -48,6 +48,7 @@ CredentialState CredentialValidator::validate(const UserCredentials &uc,
   //----------------------------------------------------------------------------
   if(uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
     uc.type == CredentialType::NOBODY) {
+    out.initialize(uc, 0);
     return CredentialState::kOk;
   }
 
