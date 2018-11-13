@@ -25,7 +25,6 @@ Bug
 
 * don't call 'system' implying fork in FST code
 * fix Fmd object constructor to use 64-bit file ids
-* fix 
 * [EOS-3068] fix to catch missing exception in find, avoid FUSE client heartbeat waiving creating DOS  
 * [EOS-3054] add missing '&' separator in deletion reports
 * [EOS-3052] fix typo in report log description
@@ -44,9 +43,11 @@ Bug
 Improvements
 ------------
 
+* [EOS-3073] auto-scale IO buffers according to available client memory
 * [EOS-3072] add number of open files to the eosxd statistics output
 * [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g. to force a client mount with a newer version
 * [EOS-2576] add support for clientDNs formatted according to RFC2253
+* adding client IO counter and rates in EOSXD stats file and 'fusex ls -l' output
 * manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
 * Improve tracebility in FuseServer logging to log by client credential (remove the _static_ log entries)
 * Support deny ACL entries, RICHACL_DELETE from parent
