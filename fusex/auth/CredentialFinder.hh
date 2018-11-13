@@ -125,6 +125,11 @@ public:
       return;
     }
 
+    if (uc.type == CredentialType::SSS) {
+      paramsMap["xrd.wantprot"] = "sss";
+      return;
+    }
+
     paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
     paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
 
@@ -137,8 +142,6 @@ public:
     } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = uc.fname.getFullPath();
-    } else if (uc.type == CredentialType::SSS) {
-      paramsMap["xrd.wantprot"] = "sss";
     } else {
       THROW("should never reach here");
     }
