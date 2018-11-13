@@ -41,10 +41,6 @@ public:
   BoundIdentityProvider();
 
   CredentialState
-  fillCredsFromEnv(const Environment& env, const CredentialConfig& credConfig,
-                   UserCredentials& creds, uid_t uid, gid_t gid);
-
-  CredentialState
   retrieve(const Environment& env, uid_t uid, gid_t gid, bool reconnect,
            std::shared_ptr<const BoundIdentity>& result);
 
@@ -94,24 +90,35 @@ private:
   EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
 
-  CredentialState fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
-                                  uid_t uid, gid_t gid);
-  CredentialState fillX509FromEnv(const Environment& env, UserCredentials& creds,
-                                  uid_t uid, gid_t gid);
-
-  CredentialState fillSssFromEnv(const Environment& env, UserCredentials& creds,
-                                 uid_t uid, gid_t gid);
-
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
-
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of KRB5 environment
   // variables. NO fallback to default paths. If not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> krb5EnvToBoundIdentity(
-    const Environment& env, uid_t uid, gid_t gid, bool reconnect
-  );
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of X509 environment
+  // variables. NO fallback to default paths. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> x509EnvToBoundIdentity(
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of SSS environment
+  // variables. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> sssEnvToBoundIdentity(
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of given environment
+  // variables. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
 
   //----------------------------------------------------------------------------
   // Given a set of user-provided, non-trusted UserCredentials, attempt to
@@ -121,7 +128,7 @@ private:
   // If such a thing is not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> userCredsToBoundIdentity(
-    UserCredentials &creds, bool reconnect);
+    const UserCredentials &creds, bool reconnect);
 
   //----------------------------------------------------------------------------
   // Register SSS credentials

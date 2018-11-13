@@ -37,121 +37,110 @@ BoundIdentityProvider::BoundIdentityProvider()
 // Attempt to produce a BoundIdentity object out of KRB5 environment
 // variables. NO fallback to default paths. If not possible, return nullptr.
 //------------------------------------------------------------------------------
-// std::shared_ptr<const BoundIdentity>
-// BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
-//   uid_t uid, gid_t gid, bool reconnect)
-// {
-//   JailedPath path = extractKrb5(env);
-//   if(path.empty()) {
-//     return {};
-//   }
-
-//   return userCredsToBoundIdentity(UserCredentials::MakeKrb5(path, uid, gid),
-//     reconnect);
-// }
-
-
-CredentialState
-BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
-                                       uid_t uid, gid_t gid)
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
+  uid_t uid, gid_t gid, bool reconnect)
 {
-  creds = UserCredentials::MakeKrb5(
-    CredentialFinder::locateKerberosTicket(env),
-    uid,
-    gid
-  );
+  JailedPath path = CredentialFinder::locateKerberosTicket(env);
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, no need to go through the trouble
+    // of userCredsToBoundIdentity.
+    //--------------------------------------------------------------------------
+    return {};
+  }
 
-  TrustedCredentials emptyForNow;
-  return validator.validate(creds, emptyForNow);
+  return userCredsToBoundIdentity(
+    UserCredentials::MakeKrb5(path, uid, gid), reconnect);
 }
 
-CredentialState
-BoundIdentityProvider::fillX509FromEnv(const Environment& env, UserCredentials& creds,
-                                       uid_t uid, gid_t gid)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of X509 environment
+// variables. NO fallback to default paths. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::x509EnvToBoundIdentity(const Environment& env,
+  uid_t uid, gid_t gid, bool reconnect)
 {
-  creds = UserCredentials::MakeX509(
-    CredentialFinder::locateX509Proxy(env),
-    uid,
-    gid
-  );
+  JailedPath path = CredentialFinder::locateX509Proxy(env);
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, no need to go through the trouble
+    // of userCredsToBoundIdentity.
+    //--------------------------------------------------------------------------
+    return {};
+  }
 
-  TrustedCredentials emptyForNow;
-  return validator.validate(creds, emptyForNow);
+  return userCredsToBoundIdentity(
+    UserCredentials::MakeX509(path, uid, gid), reconnect);
 }
 
-CredentialState
-BoundIdentityProvider::fillSssFromEnv(const Environment& env, UserCredentials& creds,
-                                      uid_t uid, gid_t gid)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of SSS environment
+// variables. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::sssEnvToBoundIdentity(const Environment& env,
+  uid_t uid, gid_t gid, bool reconnect)
 {
-  creds = UserCredentials::MakeSSS(
-    CredentialFinder::getSssEndorsement(env),
-    uid,
-    gid
-  );
-
-  return CredentialState::kOk;
+  std::string endorsement = CredentialFinder::getSssEndorsement(env);
+  return userCredsToBoundIdentity(
+    UserCredentials::MakeSSS(endorsement, uid, gid), reconnect);
 }
 
-CredentialState
-BoundIdentityProvider::fillCredsFromEnv(const Environment& env,
-                                        const CredentialConfig& credConfig,
-                                        UserCredentials& creds, uid_t uid, gid_t gid)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of given environment
+// variables. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::environmentToBoundIdentity(
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
+  std::shared_ptr<const BoundIdentity> output;
+
+  //----------------------------------------------------------------------------
+  // Always use SSS if available.
+  //----------------------------------------------------------------------------
   if (credConfig.use_user_sss) {
-    CredentialState state = fillSssFromEnv(env, creds, uid, gid);
-
-    if (state != CredentialState::kCannotStat) {
-      return state;
-    }
+    output = sssEnvToBoundIdentity(env, uid, gid, reconnect);
+    if(output) return output;
   }
 
-  // Try krb5 second
-  if (credConfig.tryKrb5First) {
-    if (credConfig.use_user_krb5cc) {
-      CredentialState state = fillKrb5FromEnv(env, creds, uid, gid);
+  //----------------------------------------------------------------------------
+  // No SSS.. should we try KRB5 first, or second?
+  //----------------------------------------------------------------------------
+  if(credConfig.tryKrb5First) {
+    output = krb5EnvToBoundIdentity(env, uid, gid, reconnect);
+    if(output) return output;
 
-      if (state != CredentialState::kCannotStat) {
-        return state;
-      }
-    }
+    //--------------------------------------------------------------------------
+    // No krb5.. what about x509..
+    //--------------------------------------------------------------------------
+    output = x509EnvToBoundIdentity(env, uid, gid, reconnect);
+    if(output) return output;
 
-    if (credConfig.use_user_gsiproxy) {
-      CredentialState state = fillX509FromEnv(env, creds, uid, gid);
-
-      if (state != CredentialState::kCannotStat) {
-        return state;
-      }
-    }
-
-    if (credConfig.use_user_sss) {
-      CredentialState state = fillSssFromEnv(env, creds, uid, gid);
-
-      if (state != CredentialState::kCannotStat) {
-        return state;
-      }
-    }
-
-    return CredentialState::kCannotStat;
+    //--------------------------------------------------------------------------
+    // Nothing, bail out
+    //--------------------------------------------------------------------------
+    return {};
   }
 
-  // Try krb5 second
-  if (credConfig.use_user_gsiproxy) {
-    CredentialState state = fillX509FromEnv(env, creds, uid, gid);
+  //----------------------------------------------------------------------------
+  // No SSS, and we should try krb5 second.
+  //----------------------------------------------------------------------------
+  output = x509EnvToBoundIdentity(env, uid, gid, reconnect);
+  if(output) return output;
 
-    if (state != CredentialState::kCannotStat) {
-      return state;
-    }
-  }
+  //--------------------------------------------------------------------------
+  // No x509.. what about krb5..
+  //--------------------------------------------------------------------------
+  output = krb5EnvToBoundIdentity(env, uid, gid, reconnect);
+  if(output) return output;
 
-  if (credConfig.use_user_krb5cc) {
-    CredentialState state = fillKrb5FromEnv(env, creds, uid, gid);
-
-    if (state != CredentialState::kCannotStat) {
-      return state;
-    }
-  }
-
-  return CredentialState::kCannotStat;
+  //--------------------------------------------------------------------------
+  // Nothing, bail out
+  //--------------------------------------------------------------------------
+  return {};
 }
 
 uint64_t BoundIdentityProvider::getUnixConnectionCounter(uid_t uid, gid_t gid,
@@ -220,8 +209,8 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity &bdi)
 // If such a thing is not possible, return false.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds, bool
-  reconnect)
+BoundIdentityProvider::userCredsToBoundIdentity(const UserCredentials &creds,
+  bool reconnect)
 {
   //----------------------------------------------------------------------------
   // First check: Is the item in the cache?
@@ -277,19 +266,13 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     uid_t uid, gid_t gid, bool reconnect,
     std::shared_ptr<const BoundIdentity>& result)
 {
-  UserCredentials credinfo;
-  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid, gid);
 
-  if (state != CredentialState::kOk) {
-    return state;
+  result = environmentToBoundIdentity(processEnv, uid, gid, reconnect);
+  if(result) {
+    return CredentialState::kOk;
   }
 
-  result = userCredsToBoundIdentity(credinfo, reconnect);
-  if(!result) {
-    return CredentialState::kCannotStat;
-  }
-
-  return CredentialState::kOk;
+  return CredentialState::kCannotStat;
 }
 
 CredentialState
@@ -348,5 +331,5 @@ bool BoundIdentityProvider::isStillValid(const BoundIdentity& identity)
     return false;
   }
 
-  return identity.getCreds()->isStillValid(securityChecker);
+  return validator.checkValidity(*identity.getCreds());
 }

@@ -34,7 +34,7 @@ CredentialValidator::CredentialValidator(SecurityChecker &chk)
 // Validate the given set of UserCredentials, promote into TrustedCredentials,
 // if possible
 //------------------------------------------------------------------------------
-CredentialState CredentialValidator::validate(UserCredentials &uc,
+CredentialState CredentialValidator::validate(const UserCredentials &uc,
 	TrustedCredentials &out)
 {
   if(uc.type == CredentialType::INVALID) {

@@ -47,7 +47,7 @@ public:
   // Validate the given set of UserCredentials, promote into TrustedCredentials,
   // if possible
   //----------------------------------------------------------------------------
-  CredentialState validate(UserCredentials &uc, TrustedCredentials &out);
+  CredentialState validate(const UserCredentials &uc, TrustedCredentials &out);
 
   //----------------------------------------------------------------------------
   // Is the given TrustedCredentials object still valid? Reasons for
