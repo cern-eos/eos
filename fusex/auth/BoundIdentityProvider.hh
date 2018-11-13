@@ -24,6 +24,7 @@
 #ifndef __BOUND_IDENTITY_PROVIDER__HH__
 #define __BOUND_IDENTITY_PROVIDER__HH__
 
+#include "UnixAuthenticator.hh"
 #include "CredentialValidator.hh"
 #include "CredentialCache.hh"
 #include "CredentialFinder.hh"
@@ -80,17 +81,22 @@ public:
     return environmentReader;
   }
 
-  CredentialState unixAuthentication(uid_t uid, gid_t gid, pid_t pid,
-                                     bool reconnect, std::shared_ptr<const BoundIdentity>& result);
+  //----------------------------------------------------------------------------
+  // Fallback to unix authentication. Guaranteed to always return a valid
+  // BoundIdentity object. (whether this is accepted by the server is another
+  // matter)
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> unixAuth(pid_t pid, uid_t uid, gid_t gid,
+    bool reconnect);
+
 private:
+  UnixAuthenticator unixAuthenticator;
   SecurityChecker securityChecker;
   CredentialValidator validator;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
-
-  uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of KRB5 environment
@@ -134,9 +140,6 @@ private:
   // Register SSS credentials
   //----------------------------------------------------------------------------
   void registerSSS(const BoundIdentity& bdi);
-
-  std::mutex unixConnectionCounterMtx;
-  std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;
 
   std::atomic<uint64_t> connectionCounter{1};
 };

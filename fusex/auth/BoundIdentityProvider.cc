@@ -160,29 +160,6 @@ BoundIdentityProvider::environmentToBoundIdentity(
   return {};
 }
 
-uint64_t BoundIdentityProvider::getUnixConnectionCounter(uid_t uid, gid_t gid,
-    bool reconnect)
-{
-  std::lock_guard<std::mutex> lock(unixConnectionCounterMtx);
-
-  if (reconnect) {
-    unixConnectionCounter[std::make_pair(uid, gid)]++;
-  }
-
-  return unixConnectionCounter[std::make_pair(uid, gid)];
-}
-
-CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid,
-    pid_t pid, bool reconnect, std::shared_ptr<const BoundIdentity>& result)
-{
-  LoginIdentifier login(uid, gid, pid, getUnixConnectionCounter(uid, gid,
-                        reconnect));
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
-  result = std::shared_ptr<const BoundIdentity>(new BoundIdentity(login,
-           trustedCreds));
-  return CredentialState::kOk;
-}
-
 //------------------------------------------------------------------------------
 // Register SSS credentials
 //------------------------------------------------------------------------------
@@ -276,11 +253,23 @@ BoundIdentityProvider::userCredsToBoundIdentity(const UserCredentials& creds,
                                           tc.getMTime())); // fix this madness
   std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc2));
   registerSSS(*bdi);
+
   //----------------------------------------------------------------------------
   // Store into the cache
   //----------------------------------------------------------------------------
   credentialCache.store(creds, std::move(bdi), cached);
   return cached;
+}
+
+//------------------------------------------------------------------------------
+// Fallback to unix authentication. Guaranteed to always return a valid
+// BoundIdentity object. (whether this is accepted by the server is another
+// matter)
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
+{
+  return unixAuthenticator.createIdentity(pid, uid, gid, reconnect);
 }
 
 CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
@@ -329,7 +318,9 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
   // If not using krb5 or gsi, fallback to unix authentication
   if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
       !credConfig.use_user_sss) {
-    return unixAuthentication(uid, gid, pid, reconnect, result);
+
+    result = unixAuth(pid, uid, gid, reconnect);
+    return CredentialState::kOk;
   }
 
   // First, let's read the environment to build up a UserCredentials object.
