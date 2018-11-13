@@ -67,7 +67,6 @@ struct UserCredentials {
     // fname, keyring, endorsement default-initialized to empty
     uid = 0;
     gid = 0;
-    mtime = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -153,9 +152,6 @@ struct UserCredentials {
   uid_t uid;               // uid for krb5, x509, sss, unix
   gid_t gid;               // gid for krb5, x509, sss, unix
 
-  // TODO: Remove
-  time_t mtime;
-
   //----------------------------------------------------------------------------
   // Comparator for storing such objects in maps.
   //----------------------------------------------------------------------------
@@ -181,11 +177,7 @@ struct UserCredentials {
       return uid < src.uid;
     }
 
-    if (gid != src.gid) {
-      return gid < src.gid;
-    }
-
-    return mtime < src.mtime;
+    return gid < src.gid;
   }
 
 private:

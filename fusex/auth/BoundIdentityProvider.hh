@@ -104,15 +104,24 @@ private:
 
   uint64_t getUnixConnectionCounter(uid_t uid, gid_t gid, bool reconnect);
 
+
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of KRB5 environment
+  // variables. NO fallback to default paths. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> krb5EnvToBoundIdentity(
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect
+  );
+
   //----------------------------------------------------------------------------
   // Given a set of user-provided, non-trusted UserCredentials, attempt to
   // translate them into a BoundIdentity object. (either by allocating a new
   // connection, or re-using a cached one)
   //
-  // If such a thing is not possible, return false.
+  // If such a thing is not possible, return nullptr.
   //----------------------------------------------------------------------------
-  bool userCredsToBoundIdentity(UserCredentials &creds,
-    std::shared_ptr<const BoundIdentity>& result, bool reconnect);
+  std::shared_ptr<const BoundIdentity> userCredsToBoundIdentity(
+    UserCredentials &creds, bool reconnect);
 
   //----------------------------------------------------------------------------
   // Register SSS credentials

@@ -65,9 +65,6 @@ CredentialState CredentialValidator::validate(UserCredentials &uc,
   eos_static_info("Using credential file '%s' for uid %d",
                   uc.fname.describe().c_str(), uc.uid);
 
-  // TODO: Remove mtime from here..
-  uc.mtime = info.mtime;
-
   //----------------------------------------------------------------------------
   // We've made it, fill out TrustedCredentials.
   //----------------------------------------------------------------------------

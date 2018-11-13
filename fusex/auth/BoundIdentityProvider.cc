@@ -33,6 +33,24 @@ BoundIdentityProvider::BoundIdentityProvider()
   sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
 }
 
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of KRB5 environment
+// variables. NO fallback to default paths. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+// std::shared_ptr<const BoundIdentity>
+// BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
+//   uid_t uid, gid_t gid, bool reconnect)
+// {
+//   JailedPath path = extractKrb5(env);
+//   if(path.empty()) {
+//     return {};
+//   }
+
+//   return userCredsToBoundIdentity(UserCredentials::MakeKrb5(path, uid, gid),
+//     reconnect);
+// }
+
+
 CredentialState
 BoundIdentityProvider::fillKrb5FromEnv(const Environment& env, UserCredentials& creds,
                                        uid_t uid, gid_t gid)
@@ -201,29 +219,30 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity &bdi)
 //
 // If such a thing is not possible, return false.
 //------------------------------------------------------------------------------
-bool BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds,
-  std::shared_ptr<const BoundIdentity>& result, bool reconnect)
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds, bool
+  reconnect)
 {
   //----------------------------------------------------------------------------
   // First check: Is the item in the cache?
   //----------------------------------------------------------------------------
-  result = credentialCache.retrieve(creds);
+  std::shared_ptr<const BoundIdentity> cached = credentialCache.retrieve(creds);
 
   //----------------------------------------------------------------------------
   // Invalidate result if asked to reconnect
   //----------------------------------------------------------------------------
-  if(result && reconnect) {
+  if(cached && reconnect) {
     credentialCache.invalidate(creds);
-    result->getCreds()->invalidate();
-    result = {};
+    cached->getCreds()->invalidate();
+    cached = {};
   }
 
-  if(result) {
+  if(cached) {
     //--------------------------------------------------------------------------
     // Item is in the cache, and reconnection was not requested. Still valid?
     //--------------------------------------------------------------------------
-    if(validator.checkValidity(*result->getCreds().get())) {
-      return true;
+    if(validator.checkValidity(*cached->getCreds().get())) {
+      return cached;
     }
   }
 
@@ -236,7 +255,7 @@ bool BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds,
     //--------------------------------------------------------------------------
     // Nope, these UserCredentials are unusable.
     //--------------------------------------------------------------------------
-    return false;
+    return {};
   }
 
   //----------------------------------------------------------------------------
@@ -250,8 +269,8 @@ bool BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds,
   //----------------------------------------------------------------------------
   // Store into the cache
   //----------------------------------------------------------------------------
-  credentialCache.store(creds, std::move(bdi), result);
-  return true;
+  credentialCache.store(creds, std::move(bdi), cached);
+  return cached;
 }
 
 CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
@@ -265,7 +284,8 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     return state;
   }
 
-  if(!userCredsToBoundIdentity(credinfo, result, reconnect)) {
+  result = userCredsToBoundIdentity(credinfo, reconnect);
+  if(!result) {
     return CredentialState::kCannotStat;
   }
 
