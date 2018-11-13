@@ -1565,6 +1565,12 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        total-mem           := %lu\n"
                "All        free-mem            := %lu\n"
                "All        load                := %lu\n"
+               "All        total-rbytes        := %llu\n"
+               "All        total-wbytes        := %llu\n"
+               "All        total-io-ops        := %lu\n"
+               "All        read--mb/s          := %.02f\n"
+               "All        write-mb/s          := %.02f\n"
+               "All        iops                := %d\n"
                "All        instance-url        := %s\n"
                "All        client-uuid         := %s\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
@@ -1590,6 +1596,12 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                meminfo.getref().totalram,
                meminfo.getref().freeram,
                meminfo.getref().loads[0],
+               this->getFuseStat().GetTotal("rbytes"),
+               this->getFuseStat().GetTotal("wbytes"),
+               this->getFuseStat().GetOps(),
+               this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0,
+               this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
+               (int)this->getFuseStat().GetTotalAvg5(":sum"),
                EosFuse::Instance().config.hostport.c_str(),
                EosFuse::instance().config.clientuuid.c_str()
               );
