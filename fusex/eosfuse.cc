@@ -791,12 +791,27 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["cache"]["read-ahead-strategy"] = "dynamic";
     }
 
+    // auto-scale read-ahead and write-back buffer
+    uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
+
+    if (best_io_buffer_size > 1 * 1024 * 1024 * 1024) {
+      best_io_buffer_size = 1 * 1024 * 1024 * 1024;
+    } else {
+      // we take 1/8 of the total available memory, if we don't have one GB available
+      best_io_buffer_size /= 8 ;
+    }
+
     if (!root["cache"].isMember("max-read-ahead-buffer")) {
-      root["cache"]["max-read-ahead-buffer"] = 1 * 1024 * 1024 * 1024;
+      fprintf(stderr, "# allowing max read-ahead buffers of %lu bytes\n",
+              best_io_buffer_size);
+      root["cache"]["max-read-ahead-buffer"] = (Json::Value::UInt64)
+          best_io_buffer_size;
     }
 
     if (!root["cache"].isMember("max-write-buffer")) {
-      root["cache"]["max-write-buffer"] = 1 * 1024 * 1024 * 1024;
+      fprintf(stderr, "# allowing max write-back buffers of %lu bytes\n",
+              best_io_buffer_size);
+      root["cache"]["max-write-buffer"] = (Json::Value::UInt64)best_io_buffer_size;
     }
 
     cconfig.location = root["cache"]["location"].asString();
