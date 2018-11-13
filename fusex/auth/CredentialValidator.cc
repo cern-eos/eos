@@ -68,6 +68,58 @@ CredentialState CredentialValidator::validate(UserCredentials &uc,
   // TODO: Remove mtime from here..
   uc.mtime = info.mtime;
 
-  // TODO: fill trustedcredentials, obviously
+  //----------------------------------------------------------------------------
+  // We've made it, fill out TrustedCredentials.
+  //----------------------------------------------------------------------------
+  out.initialize(uc, info.mtime);
   return info.state;
+}
+
+//------------------------------------------------------------------------------
+// Is the given TrustedCredentials object still valid? Reasons for
+// invalidation:
+//
+// - The underlying credential file on disk has changed.
+// - Reconnection
+//------------------------------------------------------------------------------
+bool CredentialValidator::checkValidity(TrustedCredentials &tc) {
+  if(!tc.valid()) {
+    return false;
+  }
+
+  const UserCredentials& uc = tc.getUC();
+
+  //----------------------------------------------------------------------------
+  // KRK5, SSS, and nobody don't expire.
+  //----------------------------------------------------------------------------
+  if(uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
+     uc.type == CredentialType::NOBODY) {
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // KRB5, X509: Check underlying file, ensure contents have not changed.
+  //----------------------------------------------------------------------------
+  SecurityChecker::Info info = checker.lookup(uc.fname, uc.uid);
+
+  if(info.state != CredentialState::kOk) {
+    //--------------------------------------------------------------------------
+    // File has disappeared on us, or permissions changed.
+    //--------------------------------------------------------------------------
+    tc.invalidate();
+    return false;
+  }
+
+  if(info.mtime != tc.getMTime()) {
+    //--------------------------------------------------------------------------
+    // File was modified
+    //--------------------------------------------------------------------------
+    tc.invalidate();
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // All clear
+  //----------------------------------------------------------------------------
+  return true;
 }

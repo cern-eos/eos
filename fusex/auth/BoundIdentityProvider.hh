@@ -111,8 +111,13 @@ private:
   //
   // If such a thing is not possible, return false.
   //----------------------------------------------------------------------------
-  bool userCredsToBoundIdentity(const UserCredentials &creds,
-    std::shared_ptr<const BoundIdentity>& result);
+  bool userCredsToBoundIdentity(UserCredentials &creds,
+    std::shared_ptr<const BoundIdentity>& result, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Register SSS credentials
+  //----------------------------------------------------------------------------
+  void registerSSS(const BoundIdentity& bdi);
 
   std::mutex unixConnectionCounterMtx;
   std::map<std::pair<uid_t, gid_t>, uint64_t> unixConnectionCounter;

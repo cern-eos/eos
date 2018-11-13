@@ -21,13 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __PROCESS_CACHE__HH__
-#define __PROCESS_CACHE__HH__
+#ifndef EOS_FUSEX_PROCESS_CACHE_HH
+#define EOS_FUSEX_PROCESS_CACHE_HH
 
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
-#include "common/ShardedCache.hh"
 #include "BoundIdentityProvider.hh"
+#include "common/ShardedCache.hh"
 
 class ProcessCacheEntry
 {

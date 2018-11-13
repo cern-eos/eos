@@ -160,63 +160,20 @@ CredentialState BoundIdentityProvider::unixAuthentication(uid_t uid, gid_t gid,
 }
 
 //------------------------------------------------------------------------------
-// Given a set of user-provided, non-trusted UserCredentials, attempt to
-// translate them into a BoundIdentity object. (either by allocating a new
-// connection, or re-using a cached one)
-//
-// If such a thing is not possible, return false.
+// Register SSS credentials
 //------------------------------------------------------------------------------
-bool BoundIdentityProvider::userCredsToBoundIdentity(const UserCredentials &creds,
-  std::shared_ptr<const BoundIdentity>& result) {
-
-}
-
-CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
-    uid_t uid, gid_t gid, bool reconnect,
-    std::shared_ptr<const BoundIdentity>& result)
+void BoundIdentityProvider::registerSSS(const BoundIdentity &bdi)
 {
-  UserCredentials credinfo;
-  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid, gid);
+  const UserCredentials uc = bdi.getCreds()->getUC();
 
-  if (state != CredentialState::kOk) {
-    return state;
-  }
-
-  // We found some credentials, yay. We have to bind them to an xrootd
-  // connection - does such a binding exist already? We don't want to
-  // waste too many LoginIdentifiers, so we re-use them when possible.
-  std::shared_ptr<const BoundIdentity> boundIdentity = credentialCache.retrieve(
-        credinfo);
-
-  if (boundIdentity && !reconnect) {
-    // Cache hit
-    result = boundIdentity;
-    return CredentialState::kOk;
-  }
-
-  if (boundIdentity && boundIdentity->getCreds() && reconnect) {
-    // Invalidate credentials
-    credentialCache.invalidate(credinfo);
-    boundIdentity->getCreds()->invalidate();
-  }
-
-  // No binding exists yet, let's create one..
-  LoginIdentifier login(connectionCounter++);
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials(
-    credinfo));
-
-    // TODO: Conversion from UserCredentials to TrustedCredebtials must be
-    // done by the validator.
-
-  // sss credential registration
-  if (credinfo.type == CredentialType::SSS) {
+  if(uc.type == CredentialType::SSS) {
     // by default we request the uid/gid name of the calling process
     // the xrootd server rejects to map these if the sss key is not issued for anyuser/anygroup
     XrdSecEntity* newEntity = new XrdSecEntity("sss");
     int errc_uid = 0;
-    std::string username = eos::common::Mapping::UidToUserName(uid, errc_uid);
+    std::string username = eos::common::Mapping::UidToUserName(uc.uid, errc_uid);
     int errc_gid = 0;
-    std::string groupname = eos::common::Mapping::GidToGroupName(gid, errc_gid);
+    std::string groupname = eos::common::Mapping::GidToGroupName(uc.gid, errc_gid);
 
     if (errc_uid) {
       newEntity->name = strdup("nobody");
@@ -231,15 +188,87 @@ CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
     }
 
     // store the endorsement from the environment
-    newEntity->endorsements = strdup(credinfo.endorsement.c_str());
+    newEntity->endorsements = strdup(uc.endorsement.c_str());
     // register new ID
-    sssRegistry->Register(login.getStringID().c_str(), newEntity);
+    sssRegistry->Register(bdi.getLogin().getStringID().c_str(), newEntity);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Given a set of user-provided, non-trusted UserCredentials, attempt to
+// translate them into a BoundIdentity object. (either by allocating a new
+// connection, or re-using a cached one)
+//
+// If such a thing is not possible, return false.
+//------------------------------------------------------------------------------
+bool BoundIdentityProvider::userCredsToBoundIdentity(UserCredentials &creds,
+  std::shared_ptr<const BoundIdentity>& result, bool reconnect)
+{
+  //----------------------------------------------------------------------------
+  // First check: Is the item in the cache?
+  //----------------------------------------------------------------------------
+  result = credentialCache.retrieve(creds);
+
+  //----------------------------------------------------------------------------
+  // Invalidate result if asked to reconnect
+  //----------------------------------------------------------------------------
+  if(result && reconnect) {
+    credentialCache.invalidate(creds);
+    result->getCreds()->invalidate();
+    result = {};
   }
 
-  credentialCache.store(credinfo,
-    std::unique_ptr<BoundIdentity>(new BoundIdentity(login, trustedCreds)),
-    result
-  );
+  if(result) {
+    //--------------------------------------------------------------------------
+    // Item is in the cache, and reconnection was not requested. Still valid?
+    //--------------------------------------------------------------------------
+    if(validator.checkValidity(*result->getCreds().get())) {
+      return true;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Alright, we have a cache miss. Can we promote UserCredentials into
+  // TrustedCredentials?
+  //----------------------------------------------------------------------------
+  TrustedCredentials tc;
+  if(validator.validate(creds, tc) != CredentialState::kOk) {
+    //--------------------------------------------------------------------------
+    // Nope, these UserCredentials are unusable.
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // We made it, the crowd goes wild, allocate a new connection
+  //----------------------------------------------------------------------------
+  LoginIdentifier login(connectionCounter++);
+  std::shared_ptr<TrustedCredentials> tc2(new TrustedCredentials(tc.getUC(), tc.getMTime())); // fix this madness
+  std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc2));
+  registerSSS(*bdi);
+
+  //----------------------------------------------------------------------------
+  // Store into the cache
+  //----------------------------------------------------------------------------
+  credentialCache.store(creds, std::move(bdi), result);
+  return true;
+}
+
+CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
+    uid_t uid, gid_t gid, bool reconnect,
+    std::shared_ptr<const BoundIdentity>& result)
+{
+  UserCredentials credinfo;
+  CredentialState state = fillCredsFromEnv(processEnv, credConfig, credinfo, uid, gid);
+
+  if (state != CredentialState::kOk) {
+    return state;
+  }
+
+  if(!userCredsToBoundIdentity(credinfo, result, reconnect)) {
+    return CredentialState::kCannotStat;
+  }
+
   return CredentialState::kOk;
 }
 

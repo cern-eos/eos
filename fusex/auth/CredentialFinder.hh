@@ -80,16 +80,36 @@ public:
   //------------------------------------------------------------------------------
   // Constructor.
   //------------------------------------------------------------------------------
-  TrustedCredentials(const UserCredentials& uc_) : uc(uc_), initialized(true),
-    invalidated(false) {
-    mtime = uc.mtime; // TODO: remove
+  TrustedCredentials(const UserCredentials& uc_, time_t mtime_) {
+    initialize(uc_, mtime_);
   }
 
   //------------------------------------------------------------------------------
   // Empty constructor.
   //------------------------------------------------------------------------------
-  TrustedCredentials() : uc(UserCredentials::MakeNobody()), initialized(false),
-  invalidated(false) {}
+  TrustedCredentials() {
+    clear();
+  }
+
+  //----------------------------------------------------------------------------
+  // Clear contents.
+  //----------------------------------------------------------------------------
+  void clear() {
+    uc = UserCredentials::MakeNobody();
+    initialized = false;
+    invalidated = false;
+    mtime = 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Re-initialize contents.
+  //----------------------------------------------------------------------------
+  void initialize(const UserCredentials& uc_, time_t mtime_) {
+    uc = uc_;
+    initialized = true;
+    invalidated = false;
+    mtime = mtime_;
+  }
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
@@ -144,6 +164,32 @@ public:
   void invalidate()
   {
     invalidated = true;
+  }
+
+  bool valid() const
+  {
+    return ! invalidated;
+  }
+
+  //----------------------------------------------------------------------------
+  // Accessor for underlying UserCredentials
+  //----------------------------------------------------------------------------
+  UserCredentials& getUC() {
+    return uc;
+  }
+
+  //----------------------------------------------------------------------------
+  // Const accessor for underlying UserCredentials
+  //----------------------------------------------------------------------------
+  const UserCredentials& getUC() const {
+    return uc;
+  }
+
+  //----------------------------------------------------------------------------
+  // Accessor for mtime
+  //----------------------------------------------------------------------------
+  time_t getMTime() const {
+    return mtime;
   }
 
   bool isStillValid(SecurityChecker& checker) const
