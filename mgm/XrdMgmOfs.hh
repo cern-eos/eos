@@ -1366,10 +1366,10 @@ public:
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   //! Map with scheduled fids for draining
-  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToDrainFid;
+  std::map<eos::common::FileId::fileid_t, time_t> ScheduledToDrainFid;
   XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
   //! Map with scheduled fids for balancing
-  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToBalanceFid;
+  std::map<eos::common::FileId::fileid_t, time_t> ScheduledToBalanceFid;
   //! Mutex protecting ScheduledToBalanceFid
   XrdSysMutex ScheduledToBalanceFidMutex;
   char* HostName; ///< our hostname as derived in XrdOfs

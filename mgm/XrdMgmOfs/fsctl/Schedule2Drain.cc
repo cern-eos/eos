@@ -257,8 +257,8 @@
       if (sScheduledFidCleanupTime < now) {
         // Do clean-up and set the next one in 10 minutes
         sScheduledFidCleanupTime = now + 600;
-        std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
-        std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it2;
+        std::map<eos::common::FileId::fileid_t, time_t>::iterator it1;
+        std::map<eos::common::FileId::fileid_t, time_t>::iterator it2;
         it1 = it2 = ScheduledToDrainFid.begin();
 
         while (it2 != ScheduledToDrainFid.end()) {

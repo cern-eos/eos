@@ -206,8 +206,8 @@
           // next clean-up in 10 minutes
           sScheduledFidCleanupTime = now + 600;
           // do some cleanup
-          std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
-          std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it2;
+          std::map<eos::common::FileId::fileid_t, time_t>::iterator it1;
+          std::map<eos::common::FileId::fileid_t, time_t>::iterator it2;
           it1 = it2 = ScheduledToBalanceFid.begin();
 
           while (it2 != ScheduledToBalanceFid.end()) {
