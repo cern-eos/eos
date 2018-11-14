@@ -25,6 +25,7 @@
 #define EOS_FUSEX_USER_CREDENTIALS_HH
 
 #include "JailIdentifier.hh"
+#include <sys/types.h>
 
 //------------------------------------------------------------------------------
 // Designates what kind of user credentials we're dealing with:
