@@ -554,7 +554,11 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     std::string errMsg = "prepare - synchronous prepare workflow error";
 
     if (error.getErrTextLen()) {
-      errMsg = error.getErrText();
+      // avoid to pass an error twice through ::Emsg but put the proper return code
+      if (ret_wfe != SFS_DATA) {
+        error.setErrCode(ret_wfe);
+        return SFS_ERROR;
+      }
     }
 
     if (ret_wfe != SFS_DATA) {
@@ -605,7 +609,6 @@ XrdMgmOfs::Emsg(const char* pfx,
                 const char* target)
 {
   char* etext, buffer[4096], unkbuff[64];
-  bool passthrough = false;
 
   // Get the reason for the error
   if (ecode < 0) {
@@ -617,39 +620,17 @@ XrdMgmOfs::Emsg(const char* pfx,
     etext = unkbuff;
   }
 
-  if (strncmp(op, "Unable to ", 10)) {
-    passthrough = true;
-  }
-
-  if (passthrough) {
-    snprintf(buffer, sizeof(buffer), "%s", op);
-  } else {
-    // Format the error message
-    snprintf(buffer, sizeof(buffer), "Unable to %s %s", op, target);
-  }
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
 
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
-    if (passthrough) {
-      eos_debug("%s", op);
-    } else {
-      eos_debug("Unable to %s %s; %s", op, target, etext);
-    }
+    eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
-    if ((!strcmp(op, "get-if-clock")) || (!strcmp(op, "stat")) ||
-        ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls")) ||
-          (!strcmp(pfx, "commit"))) &&
-         (ecode == ENOENT))) {
-      if (passthrough) {
-        eos_debug("%s", op);
-      } else {
-        eos_debug("Unable to %s %s; %s", op, target, etext);
-      }
+    if ((!strcmp(op, "stat")) || ((!strcmp(pfx, "attr_get") ||
+                                   (!strcmp(pfx, "attr_ls"))) && (ecode == ENOENT))) {
+      eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
-      if (passthrough) {
-        eos_err("%s", op);
-      } else {
-        eos_err("Unable to %s %s; %s", op, target, etext);
-      }
+      eos_err("Unable to %s %s; %s", op, target, etext);
     }
   }
 
@@ -661,6 +642,7 @@ XrdMgmOfs::Emsg(const char* pfx,
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }
+
 
 //------------------------------------------------------------------------------
 // Create stall response
