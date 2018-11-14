@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "auth/Utils.hh"
+#include "auth/JailIdentifier.hh"
 #include "common/SymKeys.hh"
 #include <gtest/gtest.h>
 
@@ -48,4 +49,22 @@ TEST(FileReadWrite, BasicSanity) {
   std::string contents;
   ASSERT_TRUE(readFile("/tmp/eos-fusex-unit-tests/pickles", contents));
   ASSERT_EQ(contents, "chicken chicken chicken chicken");
+}
+
+TEST(JailIdentifier, IdentifyMyself) {
+  JailResolver jr;
+  JailIdentifier id = jr.resolve(getpid());
+  std::cout << id.describe() << std::endl;
+  ASSERT_TRUE(id.ok());
+
+  JailIdentifier id2 = jr.resolve(getppid());
+  std::cout << id2.describe() << std::endl;
+  ASSERT_TRUE(id2.ok());
+
+  JailIdentifier id3 = jr.resolve(getsid(getpid()));
+  std::cout << id3.describe() << std::endl;
+  ASSERT_TRUE(id3.ok());
+
+  ASSERT_EQ(id, id2);
+  ASSERT_EQ(id, id3);
 }
