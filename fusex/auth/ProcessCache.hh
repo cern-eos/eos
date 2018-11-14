@@ -96,8 +96,10 @@ class ProcessCache
 {
 public:
 
-  ProcessCache() : cache(16 /* 2^16 shards */,
-                           1000 * 60 * 10 /* 10 minutes inactivity TTL */) { }
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ProcessCache();
 
   //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd.
@@ -165,6 +167,7 @@ private:
   BoundIdentityProvider boundIdentityProvider;
   ProcessInfoProvider processInfoProvider;
   JailResolver jailResolver;
+  JailInformation myJail;
 };
 
 #endif

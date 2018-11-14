@@ -38,6 +38,15 @@ ExecveAlert::~ExecveAlert()
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ProcessCache::ProcessCache() : cache(16 /* 2^16 shards */,
+                           1000 * 60 * 10 /* 10 minutes inactivity TTL */)
+{
+  myJail = jailResolver.resolve(getpid());
+}
+
+//------------------------------------------------------------------------------
 // Discover some bound identity to use matching the given arguments.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
@@ -161,6 +170,19 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
                    pid, uid, gid, reconnect);
 
   //----------------------------------------------------------------------------
+  // Retrieve information about the jail in which this pid lives in. Is it the
+  // same as ours?
+  //----------------------------------------------------------------------------
+  JailInformation jailInfo = jailResolver.resolve(pid);
+  if(!jailInfo.id.ok()) {
+    //--------------------------------------------------------------------------
+    // Couldn't retrieve jail of this pid.. bad. Assume our jail.
+    //--------------------------------------------------------------------------
+    eos_static_notice("Could not retrieve jail information for pid=%d", pid);
+    jailInfo = myJail;
+  }
+
+  //----------------------------------------------------------------------------
   // First, let's check the cache. Major retrieve function, called by the rest
   // of eosxd.
   //----------------------------------------------------------------------------
@@ -188,7 +210,8 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
       // Yep, that's a cache hit.. but credentials could have been invalidated
       // in the meantime, check.
       //------------------------------------------------------------------------
-      if (boundIdentityProvider.checkValidity(entry->getBoundIdentity())) {
+      if (boundIdentityProvider.checkValidity(jailInfo,
+        entry->getBoundIdentity())) {
         return entry;
       }
     }
@@ -205,7 +228,6 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   if (!processInfoProvider.retrieveFull(pid, processInfo)) {
     return {};
   }
-  JailInformation jailInfo = jailResolver.resolve(pid);
 
   //----------------------------------------------------------------------------
   // Discover which bound identity to attach to this process, and store into

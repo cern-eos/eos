@@ -75,9 +75,12 @@ struct UserCredentials {
   // We only need two pieces of information: The path at which the ticket cache
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKrb5(const JailedPath &name, uid_t uid, gid_t gid) {
+  static UserCredentials MakeKrb5(const JailIdentifier& jail,
+    const JailedPath &name, uid_t uid, gid_t gid) {
+
     UserCredentials retval;
     retval.type = CredentialType::KRB5;
+    retval.jail = jail;
     retval.fname = name;
     retval.uid = uid;
     retval.gid = gid;
@@ -104,9 +107,12 @@ struct UserCredentials {
   // We only need two pieces of information: The path at which the certificate
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
-  static UserCredentials MakeX509(const JailedPath &name, uid_t uid, gid_t gid) {
+  static UserCredentials MakeX509(const JailIdentifier& jail,
+    const JailedPath &name, uid_t uid, gid_t gid) {
+
     UserCredentials retval;
     retval.type = CredentialType::X509;
+    retval.jail = jail;
     retval.fname = name;
     retval.uid = uid;
     retval.gid = gid;

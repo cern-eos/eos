@@ -41,8 +41,8 @@ BoundIdentityProvider::BoundIdentityProvider()
 // variables. NO fallback to default paths. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
-    uid_t uid, gid_t gid, bool reconnect)
+BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
   JailedPath path = CredentialFinder::locateKerberosTicket(env);
 
@@ -54,8 +54,8 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
     return {};
   }
 
-  return userCredsToBoundIdentity(
-           UserCredentials::MakeKrb5(path, uid, gid), reconnect);
+  return userCredsToBoundIdentity(jail,
+           UserCredentials::MakeKrb5(jail.id, path, uid, gid), reconnect);
 }
 
 //------------------------------------------------------------------------------
@@ -63,8 +63,8 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const Environment& env,
 // variables. NO fallback to default paths. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::x509EnvToBoundIdentity(const Environment& env,
-    uid_t uid, gid_t gid, bool reconnect)
+BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
   JailedPath path = CredentialFinder::locateX509Proxy(env);
 
@@ -76,8 +76,8 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const Environment& env,
     return {};
   }
 
-  return userCredsToBoundIdentity(
-           UserCredentials::MakeX509(path, uid, gid), reconnect);
+  return userCredsToBoundIdentity(jail,
+           UserCredentials::MakeX509(jail.id, path, uid, gid), reconnect);
 }
 
 //------------------------------------------------------------------------------
@@ -85,11 +85,11 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const Environment& env,
 // variables. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::sssEnvToBoundIdentity(const Environment& env,
-    uid_t uid, gid_t gid, bool reconnect)
+BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
   std::string endorsement = CredentialFinder::getSssEndorsement(env);
-  return userCredsToBoundIdentity(
+  return userCredsToBoundIdentity(jail,
            UserCredentials::MakeSSS(endorsement, uid, gid), reconnect);
 }
 
@@ -98,7 +98,7 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const Environment& env,
 // variables. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::environmentToBoundIdentity(
+BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
   std::shared_ptr<const BoundIdentity> output;
@@ -107,7 +107,7 @@ BoundIdentityProvider::environmentToBoundIdentity(
   // Always use SSS if available.
   //----------------------------------------------------------------------------
   if (credConfig.use_user_sss) {
-    output = sssEnvToBoundIdentity(env, uid, gid, reconnect);
+    output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect);
 
     if (output) {
       return output;
@@ -118,7 +118,7 @@ BoundIdentityProvider::environmentToBoundIdentity(
   // No SSS.. should we try KRB5 first, or second?
   //----------------------------------------------------------------------------
   if (credConfig.tryKrb5First) {
-    output = krb5EnvToBoundIdentity(env, uid, gid, reconnect);
+    output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect);
 
     if (output) {
       return output;
@@ -127,7 +127,7 @@ BoundIdentityProvider::environmentToBoundIdentity(
     //--------------------------------------------------------------------------
     // No krb5.. what about x509..
     //--------------------------------------------------------------------------
-    output = x509EnvToBoundIdentity(env, uid, gid, reconnect);
+    output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect);
 
     if (output) {
       return output;
@@ -142,7 +142,7 @@ BoundIdentityProvider::environmentToBoundIdentity(
   //----------------------------------------------------------------------------
   // No SSS, and we should try krb5 second.
   //----------------------------------------------------------------------------
-  output = x509EnvToBoundIdentity(env, uid, gid, reconnect);
+  output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect);
 
   if (output) {
     return output;
@@ -151,7 +151,7 @@ BoundIdentityProvider::environmentToBoundIdentity(
   //--------------------------------------------------------------------------
   // No x509.. what about krb5..
   //--------------------------------------------------------------------------
-  output = krb5EnvToBoundIdentity(env, uid, gid, reconnect);
+  output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect);
 
   if (output) {
     return output;
@@ -209,8 +209,8 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity& bdi)
 // If such a thing is not possible, return false.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::userCredsToBoundIdentity(const UserCredentials& creds,
-    bool reconnect)
+BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
+  const UserCredentials& creds, bool reconnect)
 {
   //----------------------------------------------------------------------------
   // First check: Is the item in the cache?
@@ -289,7 +289,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   Environment defaultEnv;
   defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
-  return environmentToBoundIdentity(defaultEnv, uid, gid, reconnect);
+  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect);
 }
 
 //------------------------------------------------------------------------------
@@ -307,7 +307,7 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
                             << ".krb5"));
   defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eosd/credentials/uid" << uid
                             << ".x509"));
-  return environmentToBoundIdentity(defaultEnv, uid, gid, reconnect);
+  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect);
 }
 
 //------------------------------------------------------------------------------
@@ -329,13 +329,14 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     return {};
   }
 
-  return environmentToBoundIdentity(response.get(), uid, gid, reconnect);
+  return environmentToBoundIdentity(jail, response.get(), uid, gid, reconnect);
 }
 
 //------------------------------------------------------------------------------
 // Check if the given BoundIdentity object is still valid.
 //------------------------------------------------------------------------------
-bool BoundIdentityProvider::checkValidity(const BoundIdentity& identity)
+bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
+  const BoundIdentity& identity)
 {
   if (!identity.getCreds()) {
     return false;
