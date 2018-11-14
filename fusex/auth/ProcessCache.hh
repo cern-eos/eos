@@ -78,6 +78,10 @@ public:
     return boundIdentity.getCreds() && (!boundIdentity.getCreds()->empty());
   }
 
+  std::string getExe() const {
+    return processInfo.getExe();
+  }
+
 private:
   ProcessInfo processInfo;
   BoundIdentity boundIdentity;

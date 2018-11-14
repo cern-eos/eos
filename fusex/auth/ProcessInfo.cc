@@ -287,6 +287,15 @@ bool ProcessInfoProvider::retrieveFull(pid_t pid, ProcessInfo& ret)
   parseCmdline(cmdline, ret);
   parseExec(pid, ret);
   ret.fillRmInfo();
+
+  // Read path of /proc/<pid>/exe
+  std::string exePath = SSTR("/proc/" << pid << "/exe");
+  char buffer[1024];
+  ssize_t outcome = readlink(exePath.c_str(), buffer, 1024);
+  if(outcome > 0) {
+    ret.exe = std::string(buffer, outcome);
+  }
+
   return true;
 }
 

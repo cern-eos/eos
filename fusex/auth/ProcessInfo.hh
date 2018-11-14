@@ -142,6 +142,11 @@ public:
     return rmInfo;
   }
 
+  std::string getExe() const
+  {
+    return exe;
+  }
+
 private:
   bool empty;
   RmInfo rmInfo;
@@ -160,6 +165,7 @@ public:
   std::vector<std::string> cmd;
   std::string cmdStr; // TODO(gbitzes): remove this eventually?
   std::string executablePath;
+  std::string exe; // derived from /proc/<pid>/exe
 };
 
 // Parses the contents of /proc/<pid>/stat, converting it to a ProcessInfo
