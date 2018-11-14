@@ -400,11 +400,12 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
 /* normalize e_id to (idType, id) for easy comparisons */
 id_t
-richacl_normalize_special_id(struct richace *ace, metad::shared_md md, int *idType) {
+richacl_normalize_id(const struct richace *ace, metad::shared_md md, int *idType) {
   id_t id = 0;
+  *idType = 0;
 
   if (ace->e_flags & RICHACE_SPECIAL_WHO) {
-    *idType = (int) ace->e_id;
+    *idType = (int) ace->e_id;          /* one of owner, group, everyone */
 
     if (*idType == RICHACE_OWNER_SPECIAL_ID) {
       id = md->uid();
@@ -412,15 +413,17 @@ richacl_normalize_special_id(struct richace *ace, metad::shared_md md, int *idTy
       id = md->gid();
     }
   } else { 
-    *idType = 0x800;    /* any "free" bit that does not clash with RICHACE_IDENTIFIER_GROUP */
     id = ace->e_id;
-      
-    if (ace->e_flags & RICHACE_IDENTIFIER_GROUP)
-        *idType |= RICHACE_IDENTIFIER_GROUP;
+    if (ace->e_flags & RICHACE_IDENTIFIER_GROUP) {
+      *idType = RICHACE_GROUP_SPECIAL_ID;
+    } else {
+      *idType = RICHACE_OWNER_SPECIAL_ID;
+    }
   }
 
   return id;
 }
+
 
 static richace *
 richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
@@ -428,7 +431,7 @@ richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
   struct richace *ace;
 
   int idType1;
-  id_t id1 = richacl_normalize_special_id(e, pmd, &idType1);
+  id_t id1 = richacl_normalize_id(e, pmd, &idType1);
 
   richacl_for_each_entry(ace, acl) {
       if (ace->e_type==RICHACE_ACCESS_ALLOWED_ACE_TYPE) {
@@ -436,47 +439,61 @@ richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
         if (richace_is_same_identifier(e, ace)) return ace;
 
         int idType2;
-        id_t id2 = richacl_normalize_special_id(ace, md, &idType2);
+        id_t id2 = richacl_normalize_id(ace, md, &idType2);
 
         if ((idType1 != idType2) || (id1 != id2)) continue;
-
         return ace;
       }
   }
   return NULL;
 }
 
-/* merge "D" privileges (RICHACE_DELETE) from parent's 'd' (RICHACE_DELETE_CHILD) into ACL */
+// merge parent ACL as defined:
+//  for non-Dir (dynamically) inherits parent ACL
+//  inherits RICHACL_DELETE_CHILD as RICHACL_DELETE for all
 struct richacl *
-richacl_DELETE_from_parent(struct richacl *acl, metad::shared_md md,
-                           struct richacl *pacl, metad::shared_md pmd) {
+richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
+                     struct richacl *pacl, metad::shared_md pmd /* parent */) {
+  bool isDir = S_ISDIR(md->mode());         /* non-Dir inherits from parent if acl == NULL */
   struct richace *ace, *pace;
 
-  /* Loop over all entries in parent ACL which have DELETE_CHILD on */
-  richacl_for_each_entry(pace, pacl) {
-    if ( (pace->e_type != RICHACE_ACCESS_ALLOWED_ACE_TYPE) ||
-            (pace->e_mask & RICHACE_DELETE_CHILD) == 0 )
-        continue;
-
-    ace = richacl_find_matching_ace(pace, pmd, acl, md);
-    if (ace == NULL) {
-      size_t newsz = sizeof(struct richacl) + (acl->a_count + 1) * sizeof(struct richace);
-      struct richacl *newacl = (struct richacl *) realloc(acl, newsz);
-      eos_static_debug("richacl realloced %d bytes for parent DELETE_CHILD old=%#p new=%#p, e_id=%d", newsz, acl, newacl, pace->e_id);
-      if (newacl == NULL) {         /* running out of memory */
-          richacl_free(acl);        /* complete, high-level free */
-          return NULL;
+  if (acl == NULL && !isDir) {              /* inherits ACL from parent */
+    acl = richacl_clone(pacl);
+    eos_static_debug("richacl cloned %d entries from parent for non-dir", pacl->a_count);
+    richacl_for_each_entry(ace, acl) {
+      if ( (ace->e_mask & RICHACE_DELETE_CHILD) ) {
+        ace->e_mask |= RICHACE_DELETE;      /* works for both deny/allow */
       }
-          
-      acl = newacl;
-      ace = &(acl->a_entries[acl->a_count]);
-      memset(ace, 0, sizeof(*ace));     /* richace_copy needs a clean entry */
-      richace_copy(ace, pace);
-      ace->e_mask = 0;
-      acl->a_count++;
+      ace->e_mask &= ~RICHACE_DELETE_CHILD; /* not meaningful */
     }
-    ace->e_mask |= RICHACE_DELETE;
-    eos_static_debug("richacl allowing DELETE for %d, mask %#x", ace->e_id, ace->e_mask);
+  } else {                                  /* inherits only RICHACL_DELETE_CHILD */
+    if (acl == NULL)                        /* Container without ACL, use mode bits, no inheritance */
+      acl = richacl_from_mode(md->mode());
+
+    /* Loop over all entries in parent ACL and merge into child */
+    richacl_for_each_entry(pace, pacl) {
+      if ( (pace->e_mask & RICHACE_DELETE_CHILD) == 0) continue;     /* only inherits RICHACL_DELETE from RICHACL_DELETE_CHILD */
+      int dummy;
+      ace = richacl_find_matching_ace(pace, pmd, acl, md);
+      if (ace == NULL) {                    /* need a new entry */
+        size_t newsz = sizeof(struct richacl) + (acl->a_count + 1) * sizeof(struct richace);
+        struct richacl *newacl = (struct richacl *) realloc(acl, newsz);
+        eos_static_debug("richacl realloced %d bytes for parent DELETE_CHILD old=%#p new=%#p, e_id=%d", newsz, acl, newacl, pace->e_id);
+        if (newacl == NULL) {               /* running out of memory */
+            richacl_free(acl);              /* complete, high-level free */
+            return NULL;
+        }
+            
+        acl = newacl;
+        ace = &(acl->a_entries[acl->a_count]);
+        memset(ace, 0, sizeof(*ace));       /* richace_copy needs a clean entry */
+        richace_copy(ace, pace);
+        ace->e_mask = 0;                    /* no mask bits yet */
+        acl->a_count++;
+      }
+      ace->e_mask |= RICHACE_DELETE;        /* works for both deny/allow */
+      eos_static_debug("richacl allowing DELETE for %d, mask %#x", ace->e_id, ace->e_mask);
+    }
   }
 
   return acl;

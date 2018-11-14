@@ -4285,7 +4285,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   std::string key = xattr_name;
-  eos_static_debug(key.c_str());        /* key in case xattr_name == NULL */
+  eos_static_debug("ino=%#x %s", ino, key.c_str());        /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino);
@@ -4480,58 +4480,52 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 #ifdef RICHACL_FOUND
 
               if (key == s_racl) {
-                struct richacl* a;
+                  struct richacl *a;
+                  if (map.count("sys.eval.useracl") == 0 || map.count("user.acl") == 0 ||
+                          map["user.acl"].length() == 0) {
+                    a = NULL;
+                  } else {
+                    const char* eosacl = map["user.acl"].c_str();
+                    eos_static_debug("eosacl '%s'", eosacl);
+                    a = eos2racl(eosacl, md);
+                  }
 
-                if (map.count("sys.eval.useracl") == 0 ||
-                    map.count("user.acl") == 0 || map["user.acl"].length() == 0) {
-                  a = richacl_from_mode(md->mode());          /* Always returns an ACL */
-                } else {
-                  const char* eosacl = map["user.acl"].c_str();
-                  eos_static_debug("eosacl '%s'", eosacl);
-                  a = eos2racl(eosacl, md);
-                }
-
-                if (a != NULL) {
-                  /* decode parent ACL to determine 'D' right */
                   metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
-
-                  if (pmd) {
+                  if (pmd != NULL) {
+                    /* decode parent ACL for merge */
                     auto pmap = pmd->attr();
 
+                    struct richacl *pa = NULL;
                     if (pmap.count("sys.eval.useracl") > 0 && pmap.count("user.acl") > 0) {
-                      const char* peosacl = pmap["user.acl"].c_str();
-                      struct richacl* pa = eos2racl(peosacl, pmd);
-
-                      if (pa != NULL) {
-                        a = richacl_DELETE_from_parent(a, md, pa, pmd);
-                        richacl_free(pa);
-                      }
-
-                      if (a == NULL) {            /* a has been freed */
-                        rc = ENOMEM;
-                      } else {
-                        eos_static_debug("merged D right into acl");
-                      }
+                      const char *peosacl = pmap["user.acl"].c_str();
+                      pa = eos2racl(peosacl, pmd);
                     }
+
+                    if (pa == NULL) {
+                      pa = richacl_from_mode(md->mode());       /* Always returns an ACL */
+                    }
+                    a = richacl_merge_parent(a, md, pa, pmd);
+                    richacl_free(pa);
+
+                    if (a == NULL) rc = ENOMEM;               /* a has been freed */
+
+                    if (rc == 0) {
+                      size_t sz = richacl_xattr_size(a);
+                      value.assign(sz, '\0'); /* allocate and clear result buffer */
+                      richacl_to_xattr(a, (void*) value.c_str());
+                      char* a_t = richacl_to_text(a, 0);
+                      eos_static_debug("eos2racl returned raw size %d, decoded: %s", sz, a_t);
+                      free(a_t);
+                      richacl_free(a);
+                    }
+                  } else { /* unsupported EOS Acl */
+                    size_t xx = 0;
+                    value.assign((char*) &xx, sizeof(xx));  /* Invalid xattr */
                   }
 
-                  if (rc == 0) {
-                    size_t sz = richacl_xattr_size(a);
-                    value.assign(sz, '\0'); /* allocate and clear result buffer */
-                    richacl_to_xattr(a, (void*) value.c_str());
-                    char* a_t = richacl_to_text(a, 0);
-                    eos_static_debug("eos2racl returned raw size %d, decoded: %s", sz, a_t);
-                    free(a_t);
-                    richacl_free(a);
+                  if (EOS_LOGS_DEBUG) {
+                    eos_static_debug("racl getxattr %d", value.length());
                   }
-                } else { /* unsupported EOS Acl */
-                  size_t xx = 0;
-                  value.assign((char*) &xx, sizeof(xx));  /* Invalid xattr */
-                }
-
-                if (EOS_LOGS_DEBUG) {
-                  eos_static_debug("racl getxattr %d", value.length());
-                }
               } else
 #endif /*RICHACL_FOUND*/
                 if (!map.count(key)) {
