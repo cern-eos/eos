@@ -35,7 +35,11 @@ struct UserCredentialsHasher {
 
   static uint64_t hash(const UserCredentials& key)
   {
-    uint64_t result = std::uint32_t(key.type) + key.fname.stupidHash();
+    uint64_t result = std::uint32_t(key.type);
+
+    for (size_t i = 0; i < key.fname.size(); i++) {
+      result += key.fname[i];
+    }
 
     for (size_t i = 0; i < key.endorsement.size(); i++) {
       result += key.endorsement[i];

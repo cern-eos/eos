@@ -34,8 +34,8 @@ CredentialValidator::CredentialValidator(SecurityChecker &chk)
 // Validate the given set of UserCredentials, promote into TrustedCredentials,
 // if possible
 //------------------------------------------------------------------------------
-CredentialState CredentialValidator::validate(const UserCredentials &uc,
-	TrustedCredentials &out)
+CredentialState CredentialValidator::validate(const JailInformation &jail,
+  const UserCredentials &uc, TrustedCredentials &out)
 {
   if(uc.type == CredentialType::INVALID) {
     THROW("invalid credentials provided to CredentialValidator");
@@ -64,7 +64,7 @@ CredentialState CredentialValidator::validate(const UserCredentials &uc,
   // TODO: replace below logline with something more generic,
   // ie UserCredentials::describe, or something, and move out of this class
   eos_static_info("Using credential file '%s' for uid %d",
-                  uc.fname.describe().c_str(), uc.uid);
+                  uc.fname.c_str(), uc.uid);
 
   //----------------------------------------------------------------------------
   // We've made it, fill out TrustedCredentials.
@@ -80,7 +80,9 @@ CredentialState CredentialValidator::validate(const UserCredentials &uc,
 // - The underlying credential file on disk has changed.
 // - Reconnection
 //------------------------------------------------------------------------------
-bool CredentialValidator::checkValidity(TrustedCredentials &tc) {
+bool CredentialValidator::checkValidity(const JailInformation& jail,
+  TrustedCredentials &tc) {
+
   if(!tc.valid()) {
     return false;
   }

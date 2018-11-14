@@ -63,7 +63,7 @@ std::vector<std::string> Environment::getAll() const
   return contents;
 }
 
-JailedPath CredentialFinder::locateKerberosTicket(const Environment& env)
+std::string CredentialFinder::locateKerberosTicket(const Environment& env)
 {
   std::string krb5ccname = env.get("KRB5CCNAME");
   const std::string prefix = "FILE:";
@@ -72,17 +72,17 @@ JailedPath CredentialFinder::locateKerberosTicket(const Environment& env)
     krb5ccname = krb5ccname.substr(prefix.size());
   }
 
-  return JailedPath("", krb5ccname);
+  return krb5ccname;
 }
 
-JailedPath CredentialFinder::locateX509Proxy(const Environment& env)
+std::string CredentialFinder::locateX509Proxy(const Environment& env)
 {
-  return JailedPath("", env.get("X509_USER_PROXY"));
+  return env.get("X509_USER_PROXY");
 }
 
-JailedPath CredentialFinder::locateSss(const Environment& env)
+std::string CredentialFinder::locateSss(const Environment& env)
 {
-  return JailedPath("", env.get("XrdSecSSSKT"));
+  return env.get("XrdSecSSSKT");
 }
 
 std::string CredentialFinder::getSssEndorsement(const Environment& env)

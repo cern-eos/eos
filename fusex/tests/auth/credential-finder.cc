@@ -60,7 +60,7 @@ TEST(TrustedCredentials, BasicSanity)
   TrustedCredentials cred0;
   ASSERT_TRUE(cred0.empty());
   TrustedCredentials cred1(
-    UserCredentials::MakeKrb5(JailIdentifier(), JailedPath("", "/tmp/some-file"), 5, 6),
+    UserCredentials::MakeKrb5(JailIdentifier(), "/tmp/some-file", 5, 6),
     0
   );
   ASSERT_FALSE(cred1.empty());
@@ -71,14 +71,14 @@ TEST(TrustedCredentials, BasicSanity)
   ASSERT_EQ(cred2.toXrdParams(),
             "xrd.k5ccname=keyring-name&xrd.wantprot=krb5,unix&xrdcl.secgid=6&xrdcl.secuid=5");
   TrustedCredentials cred3(
-    UserCredentials::MakeX509(JailIdentifier(), JailedPath("", "/tmp/some-file"), 5, 6), 0
+    UserCredentials::MakeX509(JailIdentifier(), "/tmp/some-file", 5, 6), 0
   );
 
   ASSERT_FALSE(cred3.empty());
   ASSERT_EQ(cred3.toXrdParams(),
             "xrd.gsiusrpxy=/tmp/some-file&xrd.wantprot=gsi,unix&xrdcl.secgid=6&xrdcl.secuid=5");
   TrustedCredentials cred4(
-    UserCredentials::MakeX509(JailIdentifier(), JailedPath("", "/tmp/some-evil&file="), 5, 6), 0
+    UserCredentials::MakeX509(JailIdentifier(), "/tmp/some-evil&file=", 5, 6), 0
   );
   ASSERT_FALSE(cred4.empty());
   ASSERT_EQ(cred4.toXrdParams(), "xrd.wantprot=unix");

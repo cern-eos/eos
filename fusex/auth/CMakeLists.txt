@@ -30,7 +30,6 @@ add_library(
   CredentialValidator.cc           CredentialValidator.hh
   DirectoryIterator.cc             DirectoryIterator.hh
   EnvironmentReader.cc             EnvironmentReader.hh
-                                   JailedPath.hh
   JailIdentifier.cc                JailIdentifier.hh
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh

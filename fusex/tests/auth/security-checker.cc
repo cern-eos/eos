@@ -27,23 +27,23 @@
 TEST(SecurityChecker, BasicSanity)
 {
   SecurityChecker checker;
-  checker.inject(JailedPath("", "/tmp/ayy/lmao"), 1337, 0455, 42);
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/aaa"), 1000),
+  checker.inject("/tmp/ayy/lmao", 1337, 0455, 42);
+  ASSERT_EQ(checker.lookup("/tmp/aaa", 1000),
             SecurityChecker::Info(CredentialState::kCannotStat, -1));
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/ayy/lmao"), 1000),
+  ASSERT_EQ(checker.lookup("/tmp/ayy/lmao", 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/ayy/lmao"), 1337),
+  ASSERT_EQ(checker.lookup("/tmp/ayy/lmao", 1337),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  checker.inject(JailedPath("", "/tmp/123"), 1234, 0400, 42);
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/123"), 1000),
+  checker.inject("/tmp/123", 1234, 0400, 42);
+  ASSERT_EQ(checker.lookup("/tmp/123", 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/123"), 1234),
+  ASSERT_EQ(checker.lookup("/tmp/123", 1234),
             SecurityChecker::Info(CredentialState::kOk, 42));
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/234"), 1234),
+  ASSERT_EQ(checker.lookup("/tmp/234", 1234),
             SecurityChecker::Info(CredentialState::kCannotStat, -1));
-  checker.inject(JailedPath("", "/tmp/123"), 1111, 0700, 37);
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/123"), 1111),
+  checker.inject("/tmp/123", 1111, 0700, 37);
+  ASSERT_EQ(checker.lookup("/tmp/123", 1111),
             SecurityChecker::Info(CredentialState::kOk, 37));
-  ASSERT_EQ(checker.lookup(JailedPath("", "/tmp/123"), 1112),
+  ASSERT_EQ(checker.lookup("/tmp/123", 1112),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
 }

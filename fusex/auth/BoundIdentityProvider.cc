@@ -44,7 +44,7 @@ std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
-  JailedPath path = CredentialFinder::locateKerberosTicket(env);
+  std::string path = CredentialFinder::locateKerberosTicket(env);
 
   if (path.empty()) {
     //--------------------------------------------------------------------------
@@ -66,7 +66,7 @@ std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
-  JailedPath path = CredentialFinder::locateX509Proxy(env);
+  std::string path = CredentialFinder::locateX509Proxy(env);
 
   if (path.empty()) {
     //--------------------------------------------------------------------------
@@ -230,7 +230,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Item is in the cache, and reconnection was not requested. Still valid?
     //--------------------------------------------------------------------------
-    if (validator.checkValidity(*cached->getCreds().get())) {
+    if (validator.checkValidity(jail, *cached->getCreds().get())) {
       return cached;
     }
   }
@@ -241,7 +241,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   TrustedCredentials tc;
 
-  if (validator.validate(creds, tc) != CredentialState::kOk) {
+  if (validator.validate(jail, creds, tc) != CredentialState::kOk) {
     //--------------------------------------------------------------------------
     // Nope, these UserCredentials are unusable.
     //--------------------------------------------------------------------------
@@ -342,5 +342,5 @@ bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
     return false;
   }
 
-  return validator.checkValidity(*identity.getCreds());
+  return validator.checkValidity(jail, *identity.getCreds());
 }

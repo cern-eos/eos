@@ -32,7 +32,6 @@
 #include "ProcessInfo.hh"
 #include "EnvironmentReader.hh"
 #include "SecurityChecker.hh"
-#include "JailedPath.hh"
 #include <XrdSec/XrdSecEntity.hh>
 #include <XrdSecsss/XrdSecsssID.hh>
 #include <atomic>

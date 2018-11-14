@@ -26,7 +26,6 @@
 
 #include "UserCredentials.hh"
 #include "SecurityChecker.hh"
-#include "JailedPath.hh"
 #include "LoginIdentifier.hh"
 #include "Utils.hh"
 #include "common/Logging.hh"
@@ -113,9 +112,9 @@ public:
 
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
-    if (uc.fname.hasUnsafeCharacters()) {
+    if (uc.hasUnsafeCharacters()) {
       eos_static_err("rejecting credential for using forbidden characters in the path: %s",
-                     uc.fname.describe().c_str());
+                     uc.fname.c_str());
       paramsMap["xrd.wantprot"] = "unix";
       return;
     }
@@ -135,13 +134,13 @@ public:
 
     if (uc.type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
-      paramsMap["xrd.k5ccname"] = uc.fname.getFullPath();
+      paramsMap["xrd.k5ccname"] = uc.fname;
     } else if (uc.type == CredentialType::KRK5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = uc.keyring;
     } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
-      paramsMap["xrd.gsiusrpxy"] = uc.fname.getFullPath();
+      paramsMap["xrd.gsiusrpxy"] = uc.fname;
     } else {
       THROW("should never reach here");
     }
@@ -276,9 +275,9 @@ private:
 class CredentialFinder
 {
 public:
-  static JailedPath locateKerberosTicket(const Environment& env);
-  static JailedPath locateX509Proxy(const Environment& env);
-  static JailedPath locateSss(const Environment& env);
+  static std::string locateKerberosTicket(const Environment& env);
+  static std::string locateX509Proxy(const Environment& env);
+  static std::string locateSss(const Environment& env);
   static std::string getSssEndorsement(const Environment& env);
 };
 

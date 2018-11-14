@@ -34,9 +34,9 @@ class ProcessCacheEntry
 {
 public:
 
-  ProcessCacheEntry(const ProcessInfo& pinfo, const BoundIdentity& boundid,
-                    uid_t userid, gid_t groupid)
-    : processInfo(pinfo), boundIdentity(boundid) { }
+  ProcessCacheEntry(const ProcessInfo& pinfo, const JailInformation& jinfo,
+    const BoundIdentity& boundid, uid_t userid, gid_t groupid)
+    : processInfo(pinfo), jailInfo(jinfo), boundIdentity(boundid) { }
 
   const ProcessInfo& getProcessInfo() const
   {
@@ -84,6 +84,7 @@ public:
 
 private:
   ProcessInfo processInfo;
+  JailInformation jailInfo;
   BoundIdentity boundIdentity;
 };
 

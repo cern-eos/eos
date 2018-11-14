@@ -27,7 +27,6 @@
 #include <mutex>
 #include <atomic>
 #include <map>
-#include "JailedPath.hh"
 
 //------------------------------------------------------------------------------
 // A class which provides a preliminary check that a credentials file can be
@@ -75,10 +74,10 @@ public:
     }
   };
 
-  void inject(const JailedPath& path, uid_t uid, mode_t mode, time_t mtime);
-  Info lookup(const JailedPath& path, uid_t uid);
+  void inject(const std::string& path, uid_t uid, mode_t mode, time_t mtime);
+  Info lookup(const std::string& path, uid_t uid);
 private:
-  Info lookupInjected(const JailedPath& path, uid_t uid);
+  Info lookupInjected(const std::string& path, uid_t uid);
   bool checkPermissions(uid_t uid, mode_t mode, uid_t expectedUid);
   Info validate(uid_t uid, mode_t mode, uid_t expectedUid, time_t mtime);
 
@@ -95,7 +94,7 @@ private:
     InjectedData(uid_t u, mode_t md, time_t mt) : uid(u), mode(md), mtime(mt) { }
   };
 
-  std::map<JailedPath, InjectedData> injections;
+  std::map<std::string, InjectedData> injections;
 };
 
 #endif

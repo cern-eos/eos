@@ -25,7 +25,6 @@
 #define EOS_FUSEX_USER_CREDENTIALS_HH
 
 #include "JailIdentifier.hh"
-#include "JailedPath.hh"
 
 //------------------------------------------------------------------------------
 // Designates what kind of user credentials we're dealing with:
@@ -76,12 +75,12 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeKrb5(const JailIdentifier& jail,
-    const JailedPath &name, uid_t uid, gid_t gid) {
+    const std::string& path, uid_t uid, gid_t gid) {
 
     UserCredentials retval;
     retval.type = CredentialType::KRB5;
     retval.jail = jail;
-    retval.fname = name;
+    retval.fname = path;
     retval.uid = uid;
     retval.gid = gid;
     return retval;
@@ -100,20 +99,18 @@ struct UserCredentials {
     return retval;
   }
 
-
-
   //----------------------------------------------------------------------------
   // Constructor: Make an X509 object.
   // We only need two pieces of information: The path at which the certificate
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeX509(const JailIdentifier& jail,
-    const JailedPath &name, uid_t uid, gid_t gid) {
+    const std::string &path, uid_t uid, gid_t gid) {
 
     UserCredentials retval;
     retval.type = CredentialType::X509;
     retval.jail = jail;
-    retval.fname = name;
+    retval.fname = path;
     retval.uid = uid;
     retval.gid = gid;
     return retval;
@@ -147,6 +144,18 @@ struct UserCredentials {
     return retval;
   }
 
+  //----------------------------------------------------------------------------
+  // Check if path contains unsafe characters: '&' or '='
+  //----------------------------------------------------------------------------
+  bool hasUnsafeCharacters() const {
+    for(size_t i = 0; i < fname.size(); i++) {
+      if(fname[i] == '&' || fname[i] == '=') {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   //----------------------------------------------------------------------------
   // The subset of fields actually containing a value depends on the
@@ -154,7 +163,7 @@ struct UserCredentials {
   //----------------------------------------------------------------------------
   CredentialType type;
   JailIdentifier jail;     // jail identifier for krb5, x509
-  JailedPath fname;        // credential file for krb5, x509
+  std::string fname;       // credential filename for krb5, x509
   std::string keyring;     // kernel keyring for krk5
   std::string endorsement; // endorsement for sss
   uid_t uid;               // uid for krb5, x509, sss, unix

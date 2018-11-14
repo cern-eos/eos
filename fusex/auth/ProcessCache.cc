@@ -239,7 +239,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   ProcessSnapshot result;
   cache.store(cacheKey,
     std::unique_ptr<ProcessCacheEntry>( new ProcessCacheEntry(processInfo,
-      *bdi.get(), uid, gid)),
+      jailInfo, *bdi.get(), uid, gid)),
     result);
 
   //----------------------------------------------------------------------------

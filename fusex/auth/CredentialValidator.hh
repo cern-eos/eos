@@ -47,7 +47,8 @@ public:
   // Validate the given set of UserCredentials, promote into TrustedCredentials,
   // if possible
   //----------------------------------------------------------------------------
-  CredentialState validate(const UserCredentials &uc, TrustedCredentials &out);
+  CredentialState validate(const JailInformation &jail,
+    const UserCredentials &uc, TrustedCredentials &out);
 
   //----------------------------------------------------------------------------
   // Is the given TrustedCredentials object still valid? Reasons for
@@ -56,7 +57,7 @@ public:
   // - The underlying credential file on disk has changed.
   // - Reconnection
   //----------------------------------------------------------------------------
-  bool checkValidity(TrustedCredentials &out);
+  bool checkValidity(const JailInformation &jail, TrustedCredentials &out);
 
 private:
   SecurityChecker &checker;
