@@ -18,14 +18,15 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.4.11 Citrine``
 ===================
 
-2018-10-26
+2018-11-14
 
 Bug
 ---
 
-* don't call 'system' implying fork in FST code
-* fix Fmd object constructor to use 64-bit file ids
-* [EOS-3068] fix to catch missing exception in find, avoid FUSE client heartbeat waiving creating DOS  
+* [EOS-3044] Fusex quota update blocks the namespace
+* [EOS-3065] Ubuntu/Debian packaging: "/etc/fuse.conf.eos" conflicts between "eos-fuse" and "eos-fusex"
+* [EOS-3079] MGM Routing Macro should stop bouncing clients to same targets if the target was already tried
+* [EOS-3068] fix to catch missing exception in find, avoid FUSE client heartbeat waiving creating DOS
 * [EOS-3054] add missing '&' separator in deletion reports
 * [EOS-3052] fix typo in report log description
 * [EOS_3048] create group readable reports directory structure
@@ -39,20 +40,26 @@ Bug
 * [EOS-2872] modify mtime modification in write/truncate/flush to preserve the order of operations in EOSXD
 * [EOS-2599] fix ACLs by key and fully supported trusted and signle ID shared sss mounts supporting endorsement keys
 * [CTA-312]  propagate protobuf call related errors messages through back to clients
+* Don't call 'system' implying fork in FST code
+* Fix Fmd object constructor to use 64-bit file ids
 
 Improvements
 ------------
 
 * [EOS-3073] auto-scale IO buffers according to available client memory
 * [EOS-3072] add number of open files to the eosxd statistics output
-* [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g. to force a client mount with a newer version
+* [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g.
+  to force a client mount with a newer version
 * [EOS-2576] add support for clientDNs formatted according to RFC2253
-* adding client IO counter and rates in EOSXD stats file and 'fusex ls -l' output
-* manage the negative cache actively from eosxd - saves many remote lookups in case of unfound libraries in library lookup path on fuse mount
-* Improve tracebility in FuseServer logging to log by client credential (remove the _static_ log entries)
+* FUSEX: Add client IO counter and rates in EOSXD stats file and 'fusex ls -l' output
+* FUSEX: Manage the negative cache actively from eosxd - saves many remote
+  lookups in case of unfound libraries in library lookup path on fuse mount
+* FUSEX: Improve tracebility in FuseServer logging to log by client credential
+  (remove the _static_ log entries)
 * Support deny ACL entries, RICHACL_DELETE from parent
-* rename tape gc variable names
-* use RAII for XrdCl::Buffer response objects in FST code
+* CTA: Rename tape gc variable names
+* FST: Use RAII for XrdCl::Buffer response objects in FST code
+
 
 ``v4.4.10 Citrine``
 ===================
