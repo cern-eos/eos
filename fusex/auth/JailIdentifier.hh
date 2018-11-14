@@ -33,6 +33,11 @@
 class JailIdentifier {
 public:
   //----------------------------------------------------------------------------
+  // Constructor: Empty object.
+  //----------------------------------------------------------------------------
+  JailIdentifier() : errc(0), st_dev(0), st_ino(0) {}
+
+  //----------------------------------------------------------------------------
   // Constructor: Indicate an error message - jail resolution failed.
   //----------------------------------------------------------------------------
   static JailIdentifier MakeError(int errc, const std::string &msg) {
@@ -79,11 +84,22 @@ private:
   //----------------------------------------------------------------------------
   dev_t st_dev;
   ino_t st_ino;
+};
 
-  //----------------------------------------------------------------------------
-  // Private constructor - use methods above to create such an object.
-  //----------------------------------------------------------------------------
-  JailIdentifier() : errc(0), st_dev(0), st_ino(0) {}
+//------------------------------------------------------------------------------
+// JailInformation: JailIdentifier + pid_t
+//
+// We can't store pid in JailIdentifier, it's used as a cache key. Many pids
+// will resolve to the same JailIdentifier, adding pid there breaks caching.
+//
+// But we need the pid to actually do path lookups in such jail, st_dev and
+// st_ino can't be used in such case... Hence the distinction between
+// JailIdentifier and JailInformation.
+//------------------------------------------------------------------------------
+struct JailInformation {
+  JailIdentifier id;
+  pid_t pid;
+  bool sameJailAsThisPid;
 };
 
 //------------------------------------------------------------------------------
@@ -92,11 +108,22 @@ private:
 class JailResolver {
 public:
   //----------------------------------------------------------------------------
-  // Resolve a given pid_t
+  // Constructor
   //----------------------------------------------------------------------------
-  JailIdentifier resolve(pid_t pid);
+  JailResolver();
+
+  //----------------------------------------------------------------------------
+  // Resolve a given pid_t to JailIdentifier
+  //----------------------------------------------------------------------------
+  JailIdentifier resolveIdentifier(pid_t pid);
+
+  //----------------------------------------------------------------------------
+  // Resolve a given pid_t to JailInformation
+  //----------------------------------------------------------------------------
+  JailInformation resolve(pid_t pid);
+
+private:
+  JailIdentifier myJail;
 };
-
-
 
 #endif

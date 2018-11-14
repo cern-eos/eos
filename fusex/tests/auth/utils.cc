@@ -53,18 +53,23 @@ TEST(FileReadWrite, BasicSanity) {
 
 TEST(JailIdentifier, IdentifyMyself) {
   JailResolver jr;
-  JailIdentifier id = jr.resolve(getpid());
+  JailIdentifier id = jr.resolveIdentifier(getpid());
   std::cout << id.describe() << std::endl;
   ASSERT_TRUE(id.ok());
 
-  JailIdentifier id2 = jr.resolve(getppid());
+  JailIdentifier id2 = jr.resolveIdentifier(getppid());
   std::cout << id2.describe() << std::endl;
   ASSERT_TRUE(id2.ok());
 
-  JailIdentifier id3 = jr.resolve(getsid(getpid()));
+  JailIdentifier id3 = jr.resolveIdentifier(getsid(getpid()));
   std::cout << id3.describe() << std::endl;
   ASSERT_TRUE(id3.ok());
 
   ASSERT_EQ(id, id2);
   ASSERT_EQ(id, id3);
+
+  JailInformation ji = jr.resolve(getpid());
+  ASSERT_EQ(ji.id, id);
+  ASSERT_EQ(ji.pid, getpid());
+  ASSERT_TRUE(ji.sameJailAsThisPid);
 }

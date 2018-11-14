@@ -25,11 +25,19 @@
 #include "Utils.hh"
 #include <sys/stat.h>
 #include <string.h>
+#include <unistd.h>
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+JailResolver::JailResolver() {
+  myJail = resolveIdentifier(getpid());
+}
 
 //------------------------------------------------------------------------------
 // Resolve a given pid_t
 //------------------------------------------------------------------------------
-JailIdentifier JailResolver::resolve(pid_t pid)
+JailIdentifier JailResolver::resolveIdentifier(pid_t pid)
 {
   std::string path = SSTR("/proc/" << pid << "/root");
 
@@ -81,4 +89,12 @@ bool JailIdentifier::operator==(const JailIdentifier &other) const {
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Resolve a given pid_t to JailInformation
+//------------------------------------------------------------------------------
+JailInformation JailResolver::resolve(pid_t pid) {
+  JailIdentifier id = resolveIdentifier(pid);
+  return { id, pid, (id == myJail) };
 }
