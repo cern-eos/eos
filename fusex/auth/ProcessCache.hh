@@ -24,6 +24,7 @@
 #ifndef EOS_FUSEX_PROCESS_CACHE_HH
 #define EOS_FUSEX_PROCESS_CACHE_HH
 
+#include "JailIdentifier.hh"
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
 #include "BoundIdentityProvider.hh"
@@ -165,6 +166,7 @@ private:
   ShardedCache<ProcessCacheKey, ProcessCacheEntry, KeyHasher> cache;
   BoundIdentityProvider boundIdentityProvider;
   ProcessInfoProvider processInfoProvider;
+  JailResolver jailResolver;
 };
 
 #endif

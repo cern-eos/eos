@@ -42,18 +42,18 @@ CredentialState ProcessCache::useCredentialsOfAnotherPID(
   ProcessSnapshot& snapshot)
 {
   std::shared_ptr<const BoundIdentity> boundIdentity;
-  CredentialState state = boundIdentityProvider.retrieve(pid, uid, gid, reconnect,
-                          boundIdentity);
+  boundIdentity = boundIdentityProvider.pidEnvironmentToBoundIdentity(pid, uid,
+    gid, reconnect);
 
-  if (state != CredentialState::kOk) {
-    return state;
+  if(!boundIdentity) {
+    return CredentialState::kCannotStat;
   }
 
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
     std::unique_ptr<ProcessCacheEntry>(
       new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
     snapshot);
-  return state;
+  return CredentialState::kOk;
 }
 
 CredentialState
@@ -62,18 +62,18 @@ ProcessCache::useDefaultPaths(const ProcessInfo& processInfo, uid_t uid,
                               ProcessSnapshot& snapshot)
 {
   std::shared_ptr<const BoundIdentity> boundIdentity;
-  CredentialState state = boundIdentityProvider.useDefaultPaths(uid, gid,
-                          reconnect, boundIdentity);
+  boundIdentity = boundIdentityProvider.defaultPathsToBoundIdentity(uid, gid,
+    reconnect);
 
-  if (state != CredentialState::kOk) {
-    return state;
+  if(!boundIdentity) {
+    return CredentialState::kCannotStat;
   }
 
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
     std::unique_ptr<ProcessCacheEntry>(
       new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
     snapshot);
-  return state;
+  return CredentialState::kOk;
 }
 
 CredentialState
@@ -82,18 +82,18 @@ ProcessCache::useGlobalBinding(const ProcessInfo& processInfo, uid_t uid,
                               ProcessSnapshot& snapshot)
 {
   std::shared_ptr<const BoundIdentity> boundIdentity;
-  CredentialState state = boundIdentityProvider.useGlobalBinding(uid, gid,
-                          reconnect, boundIdentity);
+  boundIdentity = boundIdentityProvider.globalBindingToBoundIdentity(uid, gid,
+    reconnect);
 
-  if (state != CredentialState::kOk) {
-    return state;
+  if(!boundIdentity) {
+    return CredentialState::kCannotStat;
   }
 
   cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
     std::unique_ptr<ProcessCacheEntry>(
       new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
     snapshot);
-  return state;
+  return CredentialState::kOk;
 }
 
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
@@ -127,10 +127,11 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   }
 
   ProcessInfo processInfo;
-
   if (!processInfoProvider.retrieveFull(pid, processInfo)) {
     return {};
   }
+
+  JailInformation jailInfo = jailResolver.resolve(pid);
 
   eos_static_debug("execve alarm for pid = %d, uid = %d, gid = %d: %d", pid, uid,
                    gid, execveAlarm);

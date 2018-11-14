@@ -272,34 +272,34 @@ BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
   return unixAuthenticator.createIdentity(pid, uid, gid, reconnect);
 }
 
-CredentialState BoundIdentityProvider::retrieve(const Environment& processEnv,
-    uid_t uid, gid_t gid, bool reconnect,
-    std::shared_ptr<const BoundIdentity>& result)
-{
-  result = environmentToBoundIdentity(processEnv, uid, gid, reconnect);
+  std::shared_ptr<const BoundIdentity>
+  defaultPathsToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
 
-  if (result) {
-    return CredentialState::kOk;
-  }
 
-  return CredentialState::kCannotStat;
-}
-
-CredentialState
-BoundIdentityProvider::useDefaultPaths(uid_t uid, gid_t gid, bool reconnect,
-                                       std::shared_ptr<const BoundIdentity>& result)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of default paths, such
+// as /tmp/krb5cc_<uid>.
+// If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::defaultPathsToBoundIdentity(uid_t uid, gid_t gid,
+  bool reconnect)
 {
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
   Environment defaultEnv;
   defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
-  return retrieve(defaultEnv, uid, gid, reconnect, result);
+  return environmentToBoundIdentity(defaultEnv, uid, gid, reconnect);
 }
 
-CredentialState
-BoundIdentityProvider::useGlobalBinding(uid_t uid, gid_t gid, bool reconnect,
-                                        std::shared_ptr<const BoundIdentity>& result)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of the global eosfusebind
+// binding. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::globalBindingToBoundIdentity(uid_t uid, gid_t gid,
+  bool reconnect)
 {
   // Pretend as if the environment of the process simply contained the eosfusebind
   // global bindings, and follow the usual code path.
@@ -308,19 +308,22 @@ BoundIdentityProvider::useGlobalBinding(uid_t uid, gid_t gid, bool reconnect,
                             << ".krb5"));
   defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eosd/credentials/uid" << uid
                             << ".x509"));
-  return retrieve(defaultEnv, uid, gid, reconnect, result);
+  return environmentToBoundIdentity(defaultEnv, uid, gid, reconnect);
 }
 
-CredentialState
-BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
-                                std::shared_ptr<const BoundIdentity>& result)
+//------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of environment variables
+// of the given PID. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::pidEnvironmentToBoundIdentity(pid_t pid, uid_t uid,
+  gid_t gid, bool reconnect)
 {
   // If not using krb5 or gsi, fallback to unix authentication
   if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
       !credConfig.use_user_sss) {
 
-    result = unixAuth(pid, uid, gid, reconnect);
-    return CredentialState::kOk;
+    return unixAuth(pid, uid, gid, reconnect);
   }
 
   // First, let's read the environment to build up a UserCredentials object.
@@ -334,7 +337,7 @@ BoundIdentityProvider::retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
     return {};
   }
 
-  return retrieve(response.get(), uid, gid, reconnect, result);
+  return environmentToBoundIdentity(response.get(), uid, gid, reconnect);
 }
 
 //------------------------------------------------------------------------------

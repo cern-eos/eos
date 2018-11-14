@@ -24,6 +24,7 @@
 #ifndef __BOUND_IDENTITY_PROVIDER__HH__
 #define __BOUND_IDENTITY_PROVIDER__HH__
 
+#include "JailIdentifier.hh"
 #include "UnixAuthenticator.hh"
 #include "CredentialValidator.hh"
 #include "CredentialCache.hh"
@@ -39,23 +40,40 @@
 class BoundIdentityProvider
 {
 public:
+  //----------------------------------------------------------------------------
+  // Constructor.
+  //----------------------------------------------------------------------------
   BoundIdentityProvider();
 
-  CredentialState
-  retrieve(const Environment& env, uid_t uid, gid_t gid, bool reconnect,
-           std::shared_ptr<const BoundIdentity>& result);
 
-  CredentialState
-  retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
-           std::shared_ptr<const BoundIdentity>& result);
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of given environment
+  // variables. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
+    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
 
-  CredentialState
-  useDefaultPaths(uid_t uid, gid_t gid, bool reconnect,
-                  std::shared_ptr<const BoundIdentity>& result);
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of environment variables
+  // of the given PID. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(pid_t pid,
+    uid_t uid, gid_t gid, bool reconnect);
 
-  CredentialState
-  useGlobalBinding(uid_t uid, gid_t gid, bool reconnect,
-                   std::shared_ptr<const BoundIdentity>& result);
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of default paths, such
+  // as /tmp/krb5cc_<uid>.
+  // If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity>
+  defaultPathsToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
+
+  //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of the global eosfusebind
+  // binding. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity>
+  globalBindingToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
 
   std::shared_ptr<const BoundIdentity>
   retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
@@ -120,13 +138,6 @@ private:
   // variables. If not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> sssEnvToBoundIdentity(
-    const Environment& env, uid_t uid, gid_t gid, bool reconnect);
-
-  //----------------------------------------------------------------------------
-  // Attempt to produce a BoundIdentity object out of given environment
-  // variables. If not possible, return nullptr.
-  //----------------------------------------------------------------------------
-  std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
     const Environment& env, uid_t uid, gid_t gid, bool reconnect);
 
   //----------------------------------------------------------------------------
