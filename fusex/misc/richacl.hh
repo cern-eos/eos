@@ -277,8 +277,6 @@ eos2racl(const char* eosacl, metad::shared_md md)
       break;
 
     case 'g': /* g in eos, meaning 'group' */
-      ace->e_flags |= RICHACE_IDENTIFIER_GROUP;
-
       if (qlf_num < 0) {
         ace->e_id = eos::common::Mapping::GroupNameToGid(std::string(qlf), rc);
       } else {
@@ -287,7 +285,13 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
       if (EOS_LOGS_DEBUG) eos_static_debug("qge=%s qlf=%s qlf_num=%d rc=%d e_id=%d", uge, qlf, qlf_num,
                        rc, ace->e_id);
-      if (ace->e_id == (id_t) md->gid()) { /* owner */
+
+      if (ace->e_id != (id_t) md->gid()) { /*  group other than file's group*/
+        ace->e_flags |= RICHACE_IDENTIFIER_GROUP;
+        // I had assumed that setting RICHACE_IDENTIFIER_GROUP also in the case e_id == gid below would be appropriate,
+        // however that causes problems with "setrichacl -m" finding the right entry. Response from 
+        // Andreas Gruenbacher (agruenba@redhat.com) pending (Dec 2018)
+      } else {
         if (idx_group >= 0) { /* already have an entry */
           acl->a_group_mask = ace->e_mask;
           ace = &acl->a_entries[idx_group];
@@ -357,8 +361,11 @@ eos2racl(const char* eosacl, metad::shared_md md)
         denials->a_count++;
     }
 
-    acl->a_count++;
-    if (EOS_LOGS_DEBUG) eos_static_debug("eos2racl a_count=%d numace=%d", acl->a_count, numace);
+    if (ace->e_mask) {
+        acl->a_count++;
+        if (EOS_LOGS_DEBUG) eos_static_debug("eos2racl a_count=%d numace=%d", acl->a_count, numace);
+    } else if (EOS_LOGS_DEBUG)
+        eos_static_debug("eos2racl skipped entry e_mask=%#x a_count=%d numace=%d", ace->e_mask, acl->a_count, numace);
 
   } while ((curr = strtok_r(NULL, ",", &lasts)));
 
@@ -412,7 +419,7 @@ richacl_normalize_id(const struct richace *ace, metad::shared_md md, int *idType
     } else if (*idType == RICHACE_GROUP_SPECIAL_ID) {
       id = md->gid();
     }
-  } else { 
+  } else {
     id = ace->e_id;
     if (ace->e_flags & RICHACE_IDENTIFIER_GROUP) {
       *idType = RICHACE_GROUP_SPECIAL_ID;
@@ -473,7 +480,6 @@ richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
     /* Loop over all entries in parent ACL and merge into child */
     richacl_for_each_entry(pace, pacl) {
       if ( (pace->e_mask & RICHACE_DELETE_CHILD) == 0) continue;     /* only inherits RICHACL_DELETE from RICHACL_DELETE_CHILD */
-      int dummy;
       ace = richacl_find_matching_ace(pace, pmd, acl, md);
       if (ace == NULL) {                    /* need a new entry */
         size_t newsz = sizeof(struct richacl) + (acl->a_count + 1) * sizeof(struct richace);
@@ -483,7 +489,7 @@ richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
             richacl_free(acl);              /* complete, high-level free */
             return NULL;
         }
-            
+
         acl = newacl;
         ace = &(acl->a_entries[acl->a_count]);
         memset(ace, 0, sizeof(*ace));       /* richace_copy needs a clean entry */

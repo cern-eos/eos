@@ -24,6 +24,7 @@
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include <sys/types.h>
 #include <string>
 
@@ -136,7 +137,7 @@ public:
   // Set Acls by interpreting the attribute map
   //----------------------------------------------------------------------------
   void SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
-    eos::common::Mapping::VirtualIdentity& vid);
+    eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF = NULL);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation

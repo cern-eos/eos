@@ -72,11 +72,21 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 void
 Acl::SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
-                    eos::common::Mapping::VirtualIdentity& vid)
+                    eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF)
 {
+  bool evalUseracl;
+  std::string useracl = "";
+
+  if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
+      evalUseracl = true;
+      useracl = (*attrmapF)["user.acl"];
+  } else {
+      evalUseracl = attrmap.count("user.acl") > 0;
+      if (evalUseracl) useracl = attrmap["user.acl"];
+  }
+
   Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
-      vid, attrmap.count("sys.eval.useracl"));
+          useracl, vid, evalUseracl);
 }
 
 //------------------------------------------------------------------------------
@@ -107,7 +117,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   mCanRead = false;
   mCanWrite = false;
   mCanWriteOnce = false;
-  mCanUpdate = true;
+  mCanUpdate = false;
   mCanBrowse = false;
   mCanChmod = false;
   mCanNotChmod = false;

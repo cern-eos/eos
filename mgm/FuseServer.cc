@@ -2301,12 +2301,12 @@ FuseServer::FillContainerCAP(uint64_t id,
     mask &= strtol(sysmask.c_str(), 0, 8);
   }
 
-  mode_t mode = S_IFDIR;
+  mode_t mode = dir.mode() & S_IFDIR;
 
   // define the permissions
   if (vid.uid == 0) {
     // grant all permissions
-    dir.mutable_capability()->set_mode(0xff | S_IFDIR);
+    dir.mutable_capability()->set_mode(0xff | mode);
   } else  {
     if (vid.sudoer) {
       mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
@@ -2361,7 +2361,8 @@ FuseServer::FillContainerCAP(uint64_t id,
     std::string useracl = (*(dir.mutable_attr()))["user.acl"];
 
     if (sysacl.length() || useracl.length()) {
-      bool evaluseracl = dir.attr().count("sys.eval.useracl") ? true : false;
+      bool evaluseracl = (!S_ISDIR(dir.mode())) || dir.attr().count("sys.eval.useracl") > 0;
+
       Acl acl;
       acl.Set(sysacl,
               useracl,
@@ -2949,7 +2950,24 @@ FuseServer::HandleMD(const std::string& id,
       eos_info("ino=%lx get-file/link", (long) md.md_ino());
       cont.set_type(cont.MD);
       cont.set_ref_inode_(md.md_ino());
+      (*cont.mutable_md_()).set_clientuuid(md.clientuuid());
+      (*cont.mutable_md_()).set_clientid(md.clientid());
       FillFileMD(md.md_ino(), (*cont.mutable_md_()), vid);
+      if (md.attr().count("user.acl") > 0) {    /* File has its own ACL */
+        if (EOS_LOGS_DEBUG) {
+          google::protobuf::util::JsonPrintOptions options;
+          options.add_whitespace = true;
+          options.always_print_primitive_fields = true;
+          std::string jsonstring;
+          google::protobuf::util::MessageToJsonString(cont, &jsonstring, options);
+          eos_static_debug("MD GET file-cap ino %#x %s", md.md_ino(), jsonstring.c_str());
+        }
+        FillContainerCAP(md.md_ino(), (*cont.mutable_md_()), vid, md.authid());
+        if (EOS_LOGS_DEBUG) eos_info("file-cap issued: id=%lx mode=%x vtime=%lu.%lu uid=%u gid=%u "
+          "client-id=%s auth-id=%s errc=%d", cont.cap_().id(), cont.cap_().mode(), cont.cap_().vtime(),
+          cont.cap_().vtime_ns(), cont.cap_().uid(), cont.cap_().gid(), cont.cap_().clientid().c_str(), cont.cap_().authid().c_str(),
+          cont.cap_().errc());
+      }
       std::string rspstream;
       cont.SerializeToString(&rspstream);
 
@@ -3933,7 +3951,10 @@ FuseServer::HandleMD(const std::string& id,
       eos::common::RWMutexReadLock rd_fs_lock(eos::mgm::FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
       // get the meta data
-      FillContainerMD((uint64_t) md.md_ino(), lmd, vid);
+      if (eos::common::FileId::IsFileInode(md.md_ino()))
+        FillFileMD((uint64_t) md.md_ino(), lmd, vid);
+      else
+        FillContainerMD((uint64_t) md.md_ino(), lmd, vid);
       lmd.set_clientuuid(md.clientuuid());
       lmd.set_clientid(md.clientid());
       // get the capability

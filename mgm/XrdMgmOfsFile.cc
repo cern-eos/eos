@@ -634,7 +634,9 @@ XrdMgmOfsFile::open(const char* inpath,
     // -------------------------------------------------------------------------
     // ACL and permission check
     // -------------------------------------------------------------------------
-    acl.SetFromAttrMap(attrmap, vid);
+    eos::IFileMD::XAttrMap attrmapF;
+    gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
+    acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(),

@@ -250,14 +250,19 @@ the quota node or on the proc directory ``/eos/<instance>/proc``.
 Richacl Support
 +++++++++++++++
 
-On systems where "richacl"s (a more sophisticated ACL model derived from NFS4 ACLs) are supported, e.g. CC7,
+On systems where "richacl"s (a more sophisticated ACL model derived from NFS4 ACLs) are supported, e.g. CentOS7,
 the translation between EOS ACLs and richacls is by nature incomplete and not always two-ways:
 
-an effort is made for example to derive a file's or directory's RICHACL_DELETE right from the parent's 'd' right,
-whereas the RICHACL_DELETE_CHILD right translates to the directory's own 'd'. 
-This helps samba, for example. However, setting
-RICHACL_DELETE on a directory does not affect the directory's parent: permissions for individual
-objects cannot be expressed in EOS ACLs.
+an effort is made for example to derive a file's or directory's :D: (RICHACL_DELETE) right from the parent's 'd' right,
+whereas the :d: (RICHACL_DELETE_CHILD) right translates to the directory's own 'd'.
+This helps applications like samba; however, setting
+:D: (RICHACL_DELETE) on a directory does not affect the directory's parent as permissions for individual
+objects cannot be expressed in EOS ACLs;
+
+the EOS 'm' (change mode) right becomes :CAW: (RICHACE_WRITE_ACL|RICHACE_WRITE_ATTRIBUTES|RICHACE_WRITE_NAMED_ATTRS);
+
+the EOS 'u' (update) right becomes :p: (RICHACE_APPEND_DATA), although this is not really equivalent. It implies that :w: (RICHACE_WRITE_DATA) only grants writing of new files,
+not rewriting parts of existing files.
 
 Richacls are created and retrieved using the {get,set}richacl commands and the relevant richacl library functions
 on the fusex-mounted EOS tree. Those utilities act on the user.acl attribute and ignore sys.acl.
@@ -266,11 +271,11 @@ on the fusex-mounted EOS tree. Those utilities act on the user.acl attribute and
 How to setup a shared scratch directory
 +++++++++++++++++++++++++++++++++++++++
 
-If a directory is group writable one should add an ACL entry for this group 
-to forbid the deletion of files and directories to non-owners and allow 
+If a directory is group writable one should add an ACL entry for this group
+to forbid the deletion of files and directories to non-owners and allow
 deletion to a dedicated account:
 
-E.g. to define a scratch directory for group 'vl' and the deletion 
+E.g. to define a scratch directory for group 'vl' and the deletion
 user 'prod' execute:
 
 .. code-block:: bash

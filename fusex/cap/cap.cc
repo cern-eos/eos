@@ -71,7 +71,7 @@ cap::capx::dump(bool dense)
             );
   } else {
     snprintf(sout, sizeof(sout),
-             "id=%lx mode=%x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu q-node=%16lx ino=%lu vol=%lu",
+             "id=%#lx mode=%#x vtime=%lu.%lu u=%u g=%u cid=%s auth-id=%s errc=%d maxs=%lu q-node=%16lx ino=%lu vol=%lu",
              id(), mode(), vtime(), vtime_ns(), uid(), gid(), clientid().c_str(),
              authid().c_str(), errc(),
              max_file_size(),

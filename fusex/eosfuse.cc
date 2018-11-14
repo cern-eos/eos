@@ -1965,7 +1965,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  eos_static_debug("ino=%d", ino);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   int rc = 0;
@@ -2355,7 +2355,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  eos_static_debug("");
+  eos_static_debug(name);
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   int rc = 0;
@@ -2429,8 +2429,8 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
   COMMONTIMING("_stop_", &timing);
 
   if (e.ino) {
-    eos_static_notice("t(ms)=%.03f name=%s %s", timing.RealTime(), name,
-                      dump(id, parent, 0, rc).c_str());
+    eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                      dump(id, parent, 0, rc, name).c_str());
   } else {
     eos_static_notice("t(ms)=%.03f ENOENT pino=%#lx name=%s lifetime=%.02f",
                       timing.RealTime(), parent, name, e.entry_timeout);
@@ -3518,10 +3518,20 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     if (!md->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : md->err();
     } else {
-      // do a parent check
-      cap::shared_cap pcap = Instance().caps.acquire(req, md->pid(),
-                             S_IFDIR | mode);
+      fuse_ino_t tino = md->pid();
+      if (!S_ISDIR(md->mode())) {
+        if (md->attr().count("user.acl"))       /* file with own ACL */
+          tino = md->id();
+      } else {
+        // do a parent check
+        mode |= (md->mode() & S_IFDIR);
+      }
+      cap::shared_cap pcap = Instance().caps.acquire(req, tino, mode);
       XrdSysMutexHelper capLock(pcap->Locker());
+      if (EOS_LOGS_DEBUG) {
+        eos_static_debug("id=%#lx tino=%#lx mode=%#o", md->id(), tino, mode);
+        if ((!S_ISDIR(md->mode())) && md->attr().count("user.acl")) eos_static_debug("file cap %s", pcap->dump().c_str());
+      }
 
       if (pcap->errc()) {
         rc = pcap->errc();
@@ -4189,13 +4199,21 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   if (io) {
     if (io->has_update()) {
-      cap::shared_cap pcap = Instance().caps.acquire(req, io->md->pid(),
-                             S_IFDIR | W_OK, true);
+      auto map = io->md->attr();
+      cap::shared_cap pcap;
+      if (map.count("user.acl") > 0) {  /* file has it's own ACL */
+        cap::shared_cap ccap = Instance().caps.acquire(req, io->md->id(), W_OK, true);
+        rc = ccap->errc();
+        if (rc == 0)
+          pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | X_OK, true);
+      } else
+        pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | W_OK, true);
+
       XrdSysMutexHelper pLock(pcap->Locker());
 
-      if (pcap->errc()) {
-        rc = pcap->errc();
-      } else {
+      if (rc == 0 && pcap->errc() != 0) rc = pcap->errc();
+
+      if (rc == 0) {
         {
           ssize_t size_change = (int64_t) io->md->size() - (int64_t) io->opensize();
 
@@ -4481,14 +4499,13 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
               if (key == s_racl) {
                   struct richacl *a;
-                  if (map.count("sys.eval.useracl") == 0 || map.count("user.acl") == 0 ||
-                          map["user.acl"].length() == 0) {
-                    a = NULL;
-                  } else {
+                  if ( map.count("user.acl") > 0 && map["user.acl"].length() > 0 &&
+                       (!S_ISDIR(md->mode()) || map.count("sys.eval.useracl") > 0) ) {
                     const char* eosacl = map["user.acl"].c_str();
                     eos_static_debug("eosacl '%s'", eosacl);
                     a = eos2racl(eosacl, md);
-                  }
+                  } else
+                    a = NULL;
 
                   metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
                   if (pmd != NULL) {
@@ -4593,7 +4610,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   std::string value;
   bool local_setxattr = false;
   value.assign(xattr_value, size);
-#ifdef RICHACL_FOUND
+#ifdef notdefRICHACL_FOUND
 
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("value: '%s' l=%d", escape(value).c_str(), size);
@@ -4744,25 +4761,44 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 #ifdef RICHACL_FOUND
             else if (key == s_racl) {
               struct richacl* a = richacl_from_xattr(xattr_value, size);
-              char* a_t = richacl_to_text(a, 0);
-              eos_static_debug("acl a_t '%s'", a_t);
-              free(a_t);
+              richacl_compute_max_masks(a);
+              if (EOS_LOGS_DEBUG) {
+                  char* a_t = richacl_to_text(a, RICHACL_TEXT_SHOW_MASKS);
+                  eos_static_debug("acl a_t '%s' ", a_t);
+                  free(a_t);
+              }
+
+              int new_mode = richacl_masks_to_mode(a);
+
               char eosAcl[512];
               racl2eos(a, eosAcl, sizeof(eosAcl), md);
               eos_static_debug("acl eosacl '%s'", eosAcl);
               auto map = md->mutable_attr();
 
+              rc = 0;           /* assume green light */
+              // assert user acls are enabled
               if (!map->count("sys.eval.useracl")) {
-                // in case user acls are disabled
-                if (S_ISDIR(md->mode())) {
+                if (S_ISDIR(md->mode()))
                   rc = EPERM;
-                } else {
-                  rc = 0;  /* silently ignore setting ACL on file */
+                else {
+                  metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+                  auto pmap = pmd->mutable_attr();
+                  if (pmap->count("sys.eval.useracl") == 0)
+                    rc = EPERM;
                 }
-              } else {
+              }
+              if (rc == 0) {
+                new_mode |= (md->mode() & ~0777);
+                eos_static_debug("set new mode %#o", new_mode);
+                md->set_mode(new_mode);
                 (*map)["user.acl"] = std::string(eosAcl);
+
                 Instance().mds.update(req, md, pcap->authid());
-                rc = 0;
+                pcap->invalidate();
+
+                if (Instance().mds.has_flush(ino)) {
+                  Instance().mds.wait_flush(req, md);   // wait for upstream flush
+                }
               }
             }
 

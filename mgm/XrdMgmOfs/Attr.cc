@@ -79,8 +79,50 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
     listAttributes(gOFS->eosView, item, map, links);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+    eos_debug("msg=\"exception\" container %s ec=%d emsg=\"%s\"\n", path, e.getErrno(),
               e.getMessage().str().c_str());
+  }
+
+  if (!dh) {
+    std::shared_ptr<eos::IFileMD> fmd;
+
+    try {
+      fmd = gOFS->eosView->getFile(path);
+      map = fmd->getAttributes();
+      errno = 0;
+    } catch (eos::MDException& e) {
+      fmd.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+  }
+
+  // check for attribute references
+  if (map.count("sys.attr.link")) {
+    try {
+      dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
+      eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
+
+      for (const auto& elem : xattrs) {
+        XrdOucString key = elem.first.c_str();
+
+        if (links) {
+          key.replace("sys.", "sys.link.");
+        }
+
+        if (!map.count(elem.first)) {
+          map[key.c_str()] = elem.second;
+        }
+      }
+    } catch (eos::MDException& e) {
+      dh.reset();
+      std::string msg = map["sys.attr.link"];
+      msg += " - not found";
+      map["sys.attr.link"] = msg;
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+    }
   }
 
   EXEC_TIMING_END("AttrLs");
