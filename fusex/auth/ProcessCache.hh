@@ -98,6 +98,10 @@ public:
 
   ProcessCache() : cache(16 /* 2^16 shards */,
                            1000 * 60 * 10 /* 10 minutes inactivity TTL */) { }
+
+  //----------------------------------------------------------------------------
+  // Major retrieve function, called by the rest of eosxd.
+  //----------------------------------------------------------------------------
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
 
   void setCredentialConfig(const CredentialConfig& conf)
@@ -119,6 +123,13 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
+  // Discover some bound identity to use matching the given arguments.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity>
+  discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid, gid_t gid,
+    bool reconnect);
+
   CredentialState
   useDefaultPaths(const ProcessInfo& processInfo, uid_t uid, gid_t gid,
                   bool reconnect, ProcessSnapshot& snapshot);

@@ -75,9 +75,6 @@ public:
   std::shared_ptr<const BoundIdentity>
   globalBindingToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
 
-  std::shared_ptr<const BoundIdentity>
-  retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
-
   void setCredentialConfig(const CredentialConfig& conf)
   {
     credConfig = conf;

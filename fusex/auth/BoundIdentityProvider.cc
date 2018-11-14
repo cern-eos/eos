@@ -26,6 +26,9 @@
 #include "EnvironmentReader.hh"
 #include <sys/stat.h>
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 BoundIdentityProvider::BoundIdentityProvider()
   : validator(securityChecker)
 {

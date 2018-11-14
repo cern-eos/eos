@@ -96,17 +96,133 @@ ProcessCache::useGlobalBinding(const ProcessInfo& processInfo, uid_t uid,
   return CredentialState::kOk;
 }
 
+//------------------------------------------------------------------------------
+// Discover some bound identity to use matching the given arguments.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
+  gid_t gid, bool reconnect)
+{
+  std::shared_ptr<const BoundIdentity> output;
+
+  //----------------------------------------------------------------------------
+  // First thing to consider: Should we check the credentials of the process
+  // itself first, or that of the parent?
+  //----------------------------------------------------------------------------
+#define PF_FORKNOEXEC 0x00000040 /* Forked but didn't exec */
+  bool checkParentFirst = false;
+
+  if(execveAlarm) {
+    //--------------------------------------------------------------------------
+    // Nope, we're certainly in execve, don't check the process itself at all.
+    //--------------------------------------------------------------------------
+    checkParentFirst = true;
+  }
+
+  if(credConfig.forknoexec_heuristic &&
+    (processInfo.getFlags() & PF_FORKNOEXEC)) {
+    //--------------------------------------------------------------------------
+    // Process is in FORKNOEXEC.. suspicious. The vast majority of processes
+    // doing an execve are in PF_FORKNOEXEC state, such as processes spawned
+    // by shells.
+    //
+    // First check the parent - this radically decreases the number of times
+    // we have to pay the deadlock timeout penalty.
+    //--------------------------------------------------------------------------
+    checkParentFirst = true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Check parent?
+  //----------------------------------------------------------------------------
+  if(checkParentFirst && processInfo.getParentId() != 1) {
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+      processInfo.getParentId(), uid, gid, reconnect);
+
+    if(output) {
+      return output;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Check process itself?
+  //
+  // Don't even attempt to read /proc/pid/environ if we _know_ we're doing an
+  // execve. If execveAlarm is off, there's still the possibility we're doing
+  // an execve due to uncached lookups sent by the kernel before the actual
+  // open! In that case, we'll simply have to pay the deadlock timeout penalty,
+  // but we'll still recover.
+  //----------------------------------------------------------------------------
+  if (!execveAlarm) {
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+      processInfo.getPid(), uid, gid, reconnect);
+
+    if(output) {
+      return output;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Check parent, if we didn't already
+  //----------------------------------------------------------------------------
+  if(!checkParentFirst && processInfo.getParentId() != 1) {
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+      processInfo.getParentId(), uid, gid, reconnect);
+
+    if(output) {
+      return output;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Nothing yet.. try global binding from eosfusebind...
+  //----------------------------------------------------------------------------
+  output = boundIdentityProvider.globalBindingToBoundIdentity(uid, gid,
+    reconnect);
+
+  if(output) {
+    return output;
+  }
+
+  //----------------------------------------------------------------------------
+  // What about default paths, ie /tmp/krb5cc_<uid>?
+  //----------------------------------------------------------------------------
+  output = boundIdentityProvider.defaultPathsToBoundIdentity(uid, gid,
+    reconnect);
+
+  if(output) {
+    return output;
+  }
+
+  //----------------------------------------------------------------------------
+  // No credentials found at all.. fallback to unix authentication.
+  //----------------------------------------------------------------------------
+  return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
+    reconnect);
+}
+
+//------------------------------------------------------------------------------
+// Major retrieve function, called by the rest of eosxd.
+//------------------------------------------------------------------------------
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
                                        bool reconnect)
 {
   eos_static_debug("ProcessCache::retrieve with pid, uid, gid, reconnect => %d, %d, %d, %d",
                    pid, uid, gid, reconnect);
-  ProcessSnapshot entry = cache.retrieve(ProcessCacheKey(pid, uid, gid));
+
+  //----------------------------------------------------------------------------
+  // First, let's check the cache. Major retrieve function, called by the rest
+  // of eosxd.
+  //----------------------------------------------------------------------------
+  ProcessCacheKey cacheKey(pid, uid, gid);
+  ProcessSnapshot entry = cache.retrieve(cacheKey);
 
   if (entry && !reconnect) {
-    // Cache hit.. but it could refer to different processes, even if PID is the same.
+    //--------------------------------------------------------------------------
+    // We have a cache hit, but it could refer to different processes, even if
+    // PID is the same. The kernel could have re-used the same PID, verify.
+    //--------------------------------------------------------------------------
     ProcessInfo processInfo;
-
     if (!processInfoProvider.retrieveBasic(pid, processInfo)) {
       // dead PIDs issue no syscalls.. or do they?!
       // release can be called even after a process has died - in this strange
@@ -117,106 +233,44 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     }
 
     if (processInfo.isSameProcess(entry->getProcessInfo())) {
-      // Yep, that's a cache hit.. but credentials could have been invalidated.
+      //------------------------------------------------------------------------
+      // Yep, that's a cache hit.. but credentials could have been invalidated
+      // in the meantime, check.
+      //------------------------------------------------------------------------
       if (boundIdentityProvider.checkValidity(entry->getBoundIdentity())) {
         return entry;
       }
     }
 
-    // Process has changed, or credentials invalidated. Cache miss.
+    //--------------------------------------------------------------------------
+    // Process has changed, or credentials invalidated - cache miss.
+    //--------------------------------------------------------------------------
   }
 
+  //----------------------------------------------------------------------------
+  // Retrieve full information about this process, including its jail
+  //----------------------------------------------------------------------------
   ProcessInfo processInfo;
   if (!processInfoProvider.retrieveFull(pid, processInfo)) {
     return {};
   }
-
   JailInformation jailInfo = jailResolver.resolve(pid);
 
-  eos_static_debug("execve alarm for pid = %d, uid = %d, gid = %d: %d", pid, uid,
-                   gid, execveAlarm);
-  eos_static_debug("Searching for credentials on pid = %d (parent = %d, pgrp = %d, sid = %d)\n",
-                   processInfo.getPid(), processInfo.getParentId(), processInfo.getGroupLeader(),
-                   processInfo.getSid());
-#define PF_FORKNOEXEC 0x00000040 /* Forked but didn't exec */
-  bool checkParentFirst = !execveAlarm && credConfig.forknoexec_heuristic &&
-                          (processInfo.getFlags() & PF_FORKNOEXEC);
-  // This should radically decrease the number of times we have to pay the deadlock
-  // timeout penalty - the vast majority of processes doing an execve are in
-  // PF_FORKNOEXEC state. (ie processes spawned by shells)
+  //----------------------------------------------------------------------------
+  // Discover which bound identity to attach to this process, and store into
+  // the cache for future requests.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> bdi = discoverBoundIdentity(processInfo,
+    uid, gid, reconnect);
+
   ProcessSnapshot result;
+  cache.store(cacheKey,
+    std::unique_ptr<ProcessCacheEntry>( new ProcessCacheEntry(processInfo,
+      *bdi.get(), uid, gid)),
+    result);
 
-  if (checkParentFirst && processInfo.getParentId() != 1) {
-    CredentialState state = useCredentialsOfAnotherPID(processInfo,
-                            processInfo.getParentId(), uid, gid, reconnect, result);
-
-    if (state == CredentialState::kOk) {
-      eos_static_debug("Associating pid = %d to credentials of its parent "
-                       "without checking its own environ, as PF_FORKNOEXEC "
-                       "is set", processInfo.getPid());
-      return result;
-    }
-  }
-
-  // Don't even attempt to read /proc/pid/environ if we _know_ we're doing an execve.
-  // If execveAlarm is off, there's still the possibility we're doing an execve due
-  // to uncached lookups sent by the kernel before the actual open! In that case,
-  // we'll simply have to pay the deadlock timeout penalty, but we'll still recover.
-  //
-  // execve alarm is here just to further reduce the number of times we
-  // pay the deadlock timeout penalty.
-  if (!execveAlarm) {
-    CredentialState state = useCredentialsOfAnotherPID(processInfo,
-                            processInfo.getPid(), uid, gid, reconnect, result);
-
-    if (state == CredentialState::kOk) {
-      eos_static_debug("Associating pid = %d to credentials found in its own environment variables",
-                       processInfo.getPid());
-      return result;
-    }
-  }
-
-  // Check parent, if we didn't already, and it isn't pid 1
-  if (!checkParentFirst && processInfo.getParentId() != 1) {
-    CredentialState state = useCredentialsOfAnotherPID(processInfo,
-                            processInfo.getParentId(), uid, gid, reconnect, result);
-
-    if (state == CredentialState::kOk) {
-      eos_static_debug("Associating pid = %d to credentials of its parent, as no credentials were found in its own environment",
-                       processInfo.getPid());
-      return result;
-    }
-  }
-
-  // Check global binding from eosfusebind
-  CredentialState state = useGlobalBinding(processInfo, uid, gid, reconnect,
-                                          result);
-
-  if (state == CredentialState::kOk) {
-    eos_static_debug("Associating pid = %d to global binding, as no credentials were found through environment variables",
-                     processInfo.getPid());
-    return result;
-  }
-
-  // Fallback to default paths?
-  state = useDefaultPaths(processInfo, uid, gid, reconnect,
-                                          result);
-
-  if (state == CredentialState::kOk) {
-    eos_static_debug("Associating pid = %d to default credentials, as no credentials were found through environment variables",
-                     processInfo.getPid());
-    return result;
-  }
-
-  // No credentials found at all.. fallback to unix authentication
-  std::shared_ptr<const BoundIdentity> identityPtr =
-    boundIdentityProvider.unixAuth(pid, uid, gid, reconnect);
-  BoundIdentity identity = identityPtr;
-  return ProcessSnapshot(new ProcessCacheEntry(processInfo, identity, uid, gid));
-  // No credentials found at all.. fallback to nobody?
-  // if(credConfig.fallback2nobody) {
-  //   return ProcessSnapshot(new ProcessCacheEntry(processInfo, BoundIdentity(), uid, gid));
-  // }
-  //
-  // return {};
+  //----------------------------------------------------------------------------
+  // All done
+  //----------------------------------------------------------------------------
+  return result;
 }
