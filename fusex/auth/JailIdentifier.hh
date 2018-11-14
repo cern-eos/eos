@@ -26,6 +26,10 @@
 
 #include <string>
 
+#ifdef __APPLE__
+typedef uint64_t ino_t;
+#endif
+
 //------------------------------------------------------------------------------
 // Uniquely identifies a jail - also contains room for an error message, in
 // case jail resolution was not successful.

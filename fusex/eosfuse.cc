@@ -66,6 +66,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #ifdef __APPLE__
 #define O_DIRECT 0
 #define EKEYEXPIRED 127
+#define SI_LOAD_SHIFT 16
 #else
 #include <sys/resource.h>
 #endif

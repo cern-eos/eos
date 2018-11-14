@@ -77,18 +77,20 @@ public:
     struct loadavg la;
     mib[0] = CTL_VM;
     mib[1] = VM_LOADAVG;
+    size_t length = sizeof(la);
 
-    if (sysctl(mib, 2, &la, sizeof(la), nullptr, 0) != 0) {
+    if (sysctl(mib, 2, &la, &length, nullptr, 0) != 0) {
       return false;
     }
 
     meminfo.loads[0] = la.ldavg[0];
     // Get physical memory size
-    mib[0] = CL_HW;
-    mib[1] = HW_MEMSIZE;
+    mib[0] = CTL_HW;
+    mib[1] = HW_PHYSMEM;
     uint64_t physical_mem {0ull};
+    length = sizeof(physical_mem);
 
-    if (sysctl(mib, 2, &physical_mem, sizeof(physical_mem), nullptr, 0) != 0) {
+    if (sysctl(mib, 2, &physical_mem, &length, nullptr, 0) != 0) {
       return false;
     }
 
