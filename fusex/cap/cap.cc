@@ -524,7 +524,6 @@ cap::capflush(ThreadAssistant& assistant)
       cmap capdelmap;
       cinodes capdelinodes;
       capmap.Lock();
-      time_t now = time(NULL);
 
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
