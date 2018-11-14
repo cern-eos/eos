@@ -57,8 +57,9 @@ public:
   // Attempt to produce a BoundIdentity object out of environment variables
   // of the given PID. If not possible, return nullptr.
   //----------------------------------------------------------------------------
-  std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(pid_t pid,
-    uid_t uid, gid_t gid, bool reconnect);
+  std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(
+    const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
+    bool reconnect);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of default paths, such
@@ -66,14 +67,16 @@ public:
   // If not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
-  defaultPathsToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
+  defaultPathsToBoundIdentity(const JailInformation& jail, uid_t uid,
+    gid_t gid, bool reconnect);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of the global eosfusebind
   // binding. If not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
-  globalBindingToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
+  globalBindingToBoundIdentity(const JailInformation& jail, uid_t uid,
+    gid_t gid, bool reconnect);
 
   void setCredentialConfig(const CredentialConfig& conf)
   {

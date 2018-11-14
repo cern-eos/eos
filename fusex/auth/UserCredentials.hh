@@ -24,6 +24,7 @@
 #ifndef EOS_FUSEX_USER_CREDENTIALS_HH
 #define EOS_FUSEX_USER_CREDENTIALS_HH
 
+#include "JailIdentifier.hh"
 #include "JailedPath.hh"
 
 //------------------------------------------------------------------------------
@@ -146,6 +147,7 @@ struct UserCredentials {
   // CredentialType.
   //----------------------------------------------------------------------------
   CredentialType type;
+  JailIdentifier jail;     // jail identifier for krb5, x509
   JailedPath fname;        // credential file for krb5, x509
   std::string keyring;     // kernel keyring for krk5
   std::string endorsement; // endorsement for sss

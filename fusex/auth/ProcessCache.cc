@@ -37,73 +37,23 @@ ExecveAlert::~ExecveAlert()
   execveAlarm = false;
 }
 
-CredentialState ProcessCache::useCredentialsOfAnotherPID(
-  const ProcessInfo& processInfo, pid_t pid, uid_t uid, gid_t gid, bool reconnect,
-  ProcessSnapshot& snapshot)
-{
-  std::shared_ptr<const BoundIdentity> boundIdentity;
-  boundIdentity = boundIdentityProvider.pidEnvironmentToBoundIdentity(pid, uid,
-    gid, reconnect);
-
-  if(!boundIdentity) {
-    return CredentialState::kCannotStat;
-  }
-
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
-    std::unique_ptr<ProcessCacheEntry>(
-      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
-    snapshot);
-  return CredentialState::kOk;
-}
-
-CredentialState
-ProcessCache::useDefaultPaths(const ProcessInfo& processInfo, uid_t uid,
-                              gid_t gid, bool reconnect,
-                              ProcessSnapshot& snapshot)
-{
-  std::shared_ptr<const BoundIdentity> boundIdentity;
-  boundIdentity = boundIdentityProvider.defaultPathsToBoundIdentity(uid, gid,
-    reconnect);
-
-  if(!boundIdentity) {
-    return CredentialState::kCannotStat;
-  }
-
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
-    std::unique_ptr<ProcessCacheEntry>(
-      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
-    snapshot);
-  return CredentialState::kOk;
-}
-
-CredentialState
-ProcessCache::useGlobalBinding(const ProcessInfo& processInfo, uid_t uid,
-                              gid_t gid, bool reconnect,
-                              ProcessSnapshot& snapshot)
-{
-  std::shared_ptr<const BoundIdentity> boundIdentity;
-  boundIdentity = boundIdentityProvider.globalBindingToBoundIdentity(uid, gid,
-    reconnect);
-
-  if(!boundIdentity) {
-    return CredentialState::kCannotStat;
-  }
-
-  cache.store(ProcessCacheKey(processInfo.getPid(), uid, gid),
-    std::unique_ptr<ProcessCacheEntry>(
-      new ProcessCacheEntry(processInfo, *boundIdentity.get(), uid, gid)),
-    snapshot);
-  return CredentialState::kOk;
-}
-
 //------------------------------------------------------------------------------
 // Discover some bound identity to use matching the given arguments.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
-  gid_t gid, bool reconnect)
+ProcessCache::discoverBoundIdentity(const JailInformation& jail,
+  const ProcessInfo& processInfo, uid_t uid, gid_t gid, bool reconnect)
 {
   std::shared_ptr<const BoundIdentity> output;
+
+  //----------------------------------------------------------------------------
+  // Shortcut: If all authentication methods are disabled, just use Unix
+  //----------------------------------------------------------------------------
+  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
+      !credConfig.use_user_sss) {
+    return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
+      reconnect);
+  }
 
   //----------------------------------------------------------------------------
   // First thing to consider: Should we check the credentials of the process
@@ -136,7 +86,7 @@ ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
   // Check parent?
   //----------------------------------------------------------------------------
   if(checkParentFirst && processInfo.getParentId() != 1) {
-    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
       processInfo.getParentId(), uid, gid, reconnect);
 
     if(output) {
@@ -154,7 +104,7 @@ ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
   // but we'll still recover.
   //----------------------------------------------------------------------------
   if (!execveAlarm) {
-    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
       processInfo.getPid(), uid, gid, reconnect);
 
     if(output) {
@@ -166,7 +116,7 @@ ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
   // Check parent, if we didn't already
   //----------------------------------------------------------------------------
   if(!checkParentFirst && processInfo.getParentId() != 1) {
-    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(
+    output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
       processInfo.getParentId(), uid, gid, reconnect);
 
     if(output) {
@@ -177,7 +127,7 @@ ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
   //----------------------------------------------------------------------------
   // Nothing yet.. try global binding from eosfusebind...
   //----------------------------------------------------------------------------
-  output = boundIdentityProvider.globalBindingToBoundIdentity(uid, gid,
+  output = boundIdentityProvider.globalBindingToBoundIdentity(jail, uid, gid,
     reconnect);
 
   if(output) {
@@ -187,7 +137,7 @@ ProcessCache::discoverBoundIdentity(const ProcessInfo& processInfo, uid_t uid,
   //----------------------------------------------------------------------------
   // What about default paths, ie /tmp/krb5cc_<uid>?
   //----------------------------------------------------------------------------
-  output = boundIdentityProvider.defaultPathsToBoundIdentity(uid, gid,
+  output = boundIdentityProvider.defaultPathsToBoundIdentity(jail, uid, gid,
     reconnect);
 
   if(output) {
@@ -224,11 +174,12 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     //--------------------------------------------------------------------------
     ProcessInfo processInfo;
     if (!processInfoProvider.retrieveBasic(pid, processInfo)) {
-      // dead PIDs issue no syscalls.. or do they?!
-      // release can be called even after a process has died - in this strange
-      // case, let's just return the cached info.
-      // In the new fuse rewrite, this shouldn't happen. TODO(gbitzes): Review
-      // this when integrating.
+      //--------------------------------------------------------------------------
+      // Dead PIDs issue no syscalls... or do they?!
+      //
+      // Release fuse request can be issued even after a process has died - in
+      // this strange case, let's just return the cache info.
+      //--------------------------------------------------------------------------
       return entry;
     }
 
@@ -260,8 +211,8 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   // Discover which bound identity to attach to this process, and store into
   // the cache for future requests.
   //----------------------------------------------------------------------------
-  std::shared_ptr<const BoundIdentity> bdi = discoverBoundIdentity(processInfo,
-    uid, gid, reconnect);
+  std::shared_ptr<const BoundIdentity> bdi = discoverBoundIdentity(jailInfo,
+    processInfo, uid, gid, reconnect);
 
   ProcessSnapshot result;
   cache.store(cacheKey,

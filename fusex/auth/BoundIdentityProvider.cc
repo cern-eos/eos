@@ -275,18 +275,14 @@ BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
   return unixAuthenticator.createIdentity(pid, uid, gid, reconnect);
 }
 
-  std::shared_ptr<const BoundIdentity>
-  defaultPathsToBoundIdentity(uid_t uid, gid_t gid, bool reconnect);
-
-
 //------------------------------------------------------------------------------
 // Attempt to produce a BoundIdentity object out of default paths, such
 // as /tmp/krb5cc_<uid>.
 // If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::defaultPathsToBoundIdentity(uid_t uid, gid_t gid,
-  bool reconnect)
+BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
+  uid_t uid, gid_t gid, bool reconnect)
 {
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
@@ -301,8 +297,8 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(uid_t uid, gid_t gid,
 // binding. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::globalBindingToBoundIdentity(uid_t uid, gid_t gid,
-  bool reconnect)
+BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
+  uid_t uid, gid_t gid, bool reconnect)
 {
   // Pretend as if the environment of the process simply contained the eosfusebind
   // global bindings, and follow the usual code path.
@@ -319,16 +315,9 @@ BoundIdentityProvider::globalBindingToBoundIdentity(uid_t uid, gid_t gid,
 // of the given PID. If not possible, return nullptr.
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::pidEnvironmentToBoundIdentity(pid_t pid, uid_t uid,
-  gid_t gid, bool reconnect)
+BoundIdentityProvider::pidEnvironmentToBoundIdentity(
+  const JailInformation &jail, pid_t pid, uid_t uid, gid_t gid, bool reconnect)
 {
-  // If not using krb5 or gsi, fallback to unix authentication
-  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
-      !credConfig.use_user_sss) {
-
-    return unixAuth(pid, uid, gid, reconnect);
-  }
-
   // First, let's read the environment to build up a UserCredentials object.
   Environment processEnv;
   FutureEnvironment response = environmentReader.stageRequest(pid);
