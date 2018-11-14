@@ -1917,13 +1917,22 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
             return sendResult;
           }
         } else if (event == "sync::archived" || event == "archived") {
+          bool hasCTA_ArchiveFileId = false;
+          {
+            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+            hasCTA_ArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+          }
+
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
-          if (onlyTapeCopy) {
+          if(!hasCTA_ArchiveFileId) {
+            eos_static_warning("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
+                               fullPath.c_str());
+          } else if (onlyTapeCopy) {
             eos_static_info("File %s already has a tape copy. Ignoring request.",
                             fullPath.c_str());
           } else {
