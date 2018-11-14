@@ -32,7 +32,12 @@
 #define __EOSCOMMON__LINUXTOTALMEM__HH
 
 #include "common/Namespace.hh"
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#else
 #include <sys/sysinfo.h>
+#endif
 #include <mutex>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -46,7 +51,17 @@ EOSCOMMONNAMESPACE_BEGIN
 class LinuxTotalMem
 {
 public:
+#ifdef __APPLE__
+  struct linux_total_mem_t {
+    uint64_t totalram;
+    uint64_t freeram;
+    uint64_t loads[3];
+  };
+
+#else
   typedef struct sysinfo linux_total_mem_t;
+#endif
+
 
   LinuxTotalMem()
   {
@@ -56,12 +71,40 @@ public:
   bool update()
   {
     std::lock_guard<std::mutex> lock(locker);
+#ifdef __APPLE__
+    int mib[2];
+    // Get load average
+    struct loadavg la;
+    mib[0] = CTL_VM;
+    mib[1] = VM_LOADAVG;
+
+    if (sysctl(mib, 2, &la, sizeof(la), nullptr, 0) != 0) {
+      return false;
+    }
+
+    meminfo.loads[0] = la.ldavg[0];
+    // Get physical memory size
+    mib[0] = CL_HW;
+    mib[1] = HW_MEMSIZE;
+    uint64_t physical_mem {0ull};
+
+    if (sysctl(mib, 2, &physical_mem, sizeof(physical_mem), nullptr, 0) != 0) {
+      return false;
+    }
+
+    meminfo.totalram = physical_mem;
+    // No clear correspondent for this
+    meminfo.freeram = physical_mem;
+    return true;
+#else
 
     if (!sysinfo((struct sysinfo*) &meminfo)) {
       return true;
     } else {
       return false;
     }
+
+#endif
   }
 
   linux_total_mem_t get()

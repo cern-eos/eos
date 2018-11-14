@@ -74,7 +74,6 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
-#include "common/LinuxTotalMem.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
