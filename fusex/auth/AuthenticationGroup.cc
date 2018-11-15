@@ -37,9 +37,8 @@ AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
 //------------------------------------------------------------------------------
 ProcessCache* AuthenticationGroup::processCache() {
   if(!processCachePtr) {
-    processCachePtr.reset(new ProcessCache(*boundIdentityProvider(),
+    processCachePtr.reset(new ProcessCache(config, *boundIdentityProvider(),
       *processInfoProvider(), *jailResolver()));
-    processCachePtr->setCredentialConfig(config);
   }
 
   return processCachePtr.get();

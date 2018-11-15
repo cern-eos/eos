@@ -104,19 +104,13 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ProcessCache(BoundIdentityProvider &bip, ProcessInfoProvider &pip,
-    JailResolver &jr);
+  ProcessCache(const CredentialConfig &conf, BoundIdentityProvider &bip,
+    ProcessInfoProvider &pip, JailResolver &jr);
 
   //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd.
   //----------------------------------------------------------------------------
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
-
-  void setCredentialConfig(const CredentialConfig& conf)
-  {
-    boundIdentityProvider.setCredentialConfig(conf);
-    credConfig = conf;
-  }
 
 private:
   //----------------------------------------------------------------------------

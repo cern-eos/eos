@@ -24,27 +24,20 @@
 #include "test-utils.hh"
 
 //------------------------------------------------------------------------------
-// Lazy-initialize AuthenticationGroup.
+// Create environment with the given variables
 //------------------------------------------------------------------------------
-AuthenticationGroup* AuthenticationFixture::group() {
-  if(!groupPtr) {
-    groupPtr.reset(new AuthenticationGroup(config));
+Environment AuthenticationFixture::createEnv(const std::string& kerberosPath,
+  const std::string& x509Path)
+{
+  Environment env;
+
+  if(!kerberosPath.empty()) {
+  	env.push_back(SSTR("KRB5CCNAME=FILE:" << kerberosPath));
   }
 
-  return groupPtr.get();
-}
+  if(!x509Path.empty()) {
+  	env.push_back(SSTR("X509_USER_PROXY=" << x509Path));
+  }
 
-//------------------------------------------------------------------------------
-// Lazy-initialize ProcessCache.
-//------------------------------------------------------------------------------
-ProcessCache* AuthenticationFixture::processCache() {
-  return group()->processCache();
+  return env;
 }
-
-//------------------------------------------------------------------------------
-// Lazy-initialize BoundIdentityProvider.
-//------------------------------------------------------------------------------
-BoundIdentityProvider* AuthenticationFixture::boundIdentityProvider() {
-  return group()->boundIdentityProvider();
-}
-

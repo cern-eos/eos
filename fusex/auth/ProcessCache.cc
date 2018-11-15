@@ -40,9 +40,10 @@ ExecveAlert::~ExecveAlert()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ProcessCache::ProcessCache(BoundIdentityProvider &bip,
-  ProcessInfoProvider &pip, JailResolver &jr)
-  : cache(16 /* 2^16 shards */, 1000 * 60 * 10 /* 10 minutes inactivity TTL */),
+ProcessCache::ProcessCache(const CredentialConfig &conf,
+  BoundIdentityProvider &bip, ProcessInfoProvider &pip, JailResolver &jr)
+  : credConfig(conf),
+  cache(16 /* 2^16 shards */, 1000 * 60 * 10 /* 10 minutes inactivity TTL */),
   boundIdentityProvider(bip),
   processInfoProvider(pip),
   jailResolver(jr)

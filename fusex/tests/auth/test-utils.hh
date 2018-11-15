@@ -28,99 +28,79 @@
 #include "auth/ProcessCache.hh"
 #include "auth/AuthenticationGroup.hh"
 
-// class ProcessCacheFixture : public ::testing::Test {
-// public:
-
-//   ProcessCacheFixture()
-//     : boundIdentityProvider(processCache.getBoundIdentityProvider()),
-//       securityChecker(boundIdentityProvider.getSecurityChecker()),
-//       processInfoProvider(processCache.getProcessInfoProvider()),
-//       environmentReader(boundIdentityProvider.getEnvironmentReader())
-//   {
-//   }
-
-//   BoundIdentityProvider boundIdentityProvider;
-//   ProcessCache processCache;
-//   SecurityChecker& securityChecker;
-//   ProcessInfoProvider& processInfoProvider;
-//   EnvironmentReader& environmentReader;
-
-
-//   void configureUnixAuth()
-//   {
-//     CredentialConfig config;
-//     processCache.setCredentialConfig(config);
-//     boundIdentityProvider.setCredentialConfig(config);
-//   }
-
-//   void configureKerberosAuth()
-//   {
-//     CredentialConfig config;
-//     config.use_user_krb5cc = true;
-//     config.fuse_shared = true;
-//     processCache.setCredentialConfig(config);
-//     boundIdentityProvider.setCredentialConfig(config);
-//   }
-
-//   void injectProcess(pid_t pid, pid_t ppid, pid_t pgrp, pid_t sid,
-//                      Jiffies startup, unsigned flags)
-//   {
-//     ProcessInfo info;
-//     info.fillStat(pid, ppid, pgrp, sid, startup, flags);
-//     processInfoProvider.inject(pid, info);
-//   }
-
-//   Environment createEnv(const std::string& kerberosPath,
-//                         const std::string& x509Path)
-//   {
-//     std::string env;
-
-//     if (!kerberosPath.empty()) {
-//       env = "KRB5CCNAME=FILE:" + kerberosPath;
-//       env.push_back('\0');
-//     }
-
-//     if (!x509Path.empty()) {
-//       env += "X509_USER_PROXY=" + x509Path;
-//       env.push_back('\0');
-//     }
-
-//     Environment ret;
-//     ret.fromString(env);
-//     return ret;
-//   }
-
-// };
-
 //------------------------------------------------------------------------------
-// Helper class for instantiating authentication groups. Inherit your test
-// fixture from here.
+// Helper class to instantiate and use an AuthenticationGroup.
 //------------------------------------------------------------------------------
-class AuthenticationFixture {
+class AuthenticationFixture : public AuthenticationGroup {
 public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  AuthenticationFixture();
+  AuthenticationFixture(const CredentialConfig &config)
+  : AuthenticationGroup(config) {
+    myLocalJail.sameJailAsThisPid = true;
+  }
 
   //----------------------------------------------------------------------------
-  // Lazy-initialize AuthenticationGroup.
+  // Make unix-only configuration
   //----------------------------------------------------------------------------
-  AuthenticationGroup* group();
+  static CredentialConfig makeUnixConfig() {
+    return CredentialConfig();
+  }
 
   //----------------------------------------------------------------------------
-  // Lazy-initialize ProcessCache.
+  // Make kerberos-only configuration
   //----------------------------------------------------------------------------
-  ProcessCache* processCache();
+  static CredentialConfig makeKrb5Config() {
+    CredentialConfig config;
+    config.use_user_krb5cc = true;
+    config.fuse_shared = true;
+    return config;
+  }
 
   //----------------------------------------------------------------------------
-  // Lazy-initialize BoundIdentityProvider.
+  // Inject fake process with given properties
   //----------------------------------------------------------------------------
-  BoundIdentityProvider* boundIdentityProvider();
+  void injectProcess(pid_t pid, pid_t ppid, pid_t pgrp, pid_t sid,
+                     Jiffies startup, unsigned flags) {
+    ProcessInfo info;
+    info.fillStat(pid, ppid, pgrp, sid, startup, flags);
+    processInfoProvider()->inject(pid, info);
+  }
+
+  //----------------------------------------------------------------------------
+  // Create environment with the given variables
+  //----------------------------------------------------------------------------
+  Environment createEnv(const std::string& kerberosPath,
+                        const std::string& x509Path);
+
+  //----------------------------------------------------------------------------
+  // Define a standard local jail
+  //----------------------------------------------------------------------------
+  const JailInformation& localJail() const {
+    return myLocalJail;
+  }
 
 private:
-  CredentialConfig config;
-  std::unique_ptr<AuthenticationGroup> groupPtr;
+  JailInformation myLocalJail;
+};
+
+//------------------------------------------------------------------------------
+// Unix authentication fixture - any tests using this are pre-configured
+// to use unix only
+//------------------------------------------------------------------------------
+class UnixAuthF : public AuthenticationFixture, public ::testing::Test {
+public:
+  UnixAuthF() : AuthenticationFixture(makeUnixConfig()) {}
+};
+
+//------------------------------------------------------------------------------
+// krb5 authentication fixture - any tests using this are pre-configured
+// to use krb5 only, with fallback to unix
+//------------------------------------------------------------------------------
+class Krb5AuthF : public AuthenticationFixture, public ::testing::Test {
+public:
+  Krb5AuthF() : AuthenticationFixture(makeKrb5Config()) {}
 };
 
 #endif
