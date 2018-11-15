@@ -3280,6 +3280,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   notification->mutable_file()->set_fid(fmd.fid());
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                       fmd.fid());
+
+  std::string ctaArchiveFileId = "none";
+  for (const auto& attrPair : xattrs) {
+    google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
+        attrPair.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+
+    if(attrPair.first == "CTA_ArchiveFileId") {
+      ctaArchiveFileId = attrPair.second;
+    }
+  }
+
   std::ostringstream srcStream;
   srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
             << fxidString;
@@ -3287,21 +3299,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   std::ostringstream reportStream;
   reportStream << "eosQuery://" << managerName
                << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-               << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0";
+               << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
+                  "&cta_archive_file_id=" << ctaArchiveFileId;
   notification->mutable_transport()->set_report_url(reportStream.str());
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << managerName
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME <<
-                    "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+                    << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
+                    << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
+                       "&cta_archive_file_id=" << ctaArchiveFileId
+                    << "&mgm.errmsg=";
   notification->mutable_transport()->set_error_report_url(
     errorReportStream.str());
-
-  for (const auto& attrPair : xattrs) {
-    google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
-        attrPair.second);
-    notification->mutable_file()->mutable_xattr()->insert(attr);
-  }
 
   // Communication with service
   std::string endPoint;

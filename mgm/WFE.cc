@@ -1857,6 +1857,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
           } else {
             collectAttributes();
             std::string checksum;
+            std::string ctaArchiveFileId = "none";
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
               notification->mutable_file()->mutable_owner()->set_username(GetUserName(
@@ -1867,6 +1868,9 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
               notification->mutable_file()->mutable_cks()->set_type(
                 eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
               eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
+              if (fmd->hasAttribute("CTA_ArchiveFileId")) {
+                ctaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
+              }
             }
             notification->mutable_file()->mutable_cks()->set_value(checksum);
             notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
@@ -1882,13 +1886,16 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
             std::ostringstream reportStream;
             reportStream << "eosQuery://" << gOFS->HostName
                          << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                         << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0";
+                         << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
+                            "&cta_archive_file_id=" << ctaArchiveFileId;
             notification->mutable_transport()->set_report_url(reportStream.str());
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME <<
-                              "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
+                              << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
+                                 "&cta_archive_file_id=" << ctaArchiveFileId
+                              << "&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(
               errorReportStream.str());
             auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg,
