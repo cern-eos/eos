@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,33 +21,55 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Drop a replica
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Drop(const char* path,
+                const char* ininfo,
+                XrdOucEnv& env,
+                XrdOucErrInfo& error,
+                eos::common::LogId& ThreadLogId,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const XrdSecEntity* client)
 {
+  static const char* epname = "Drop";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
   EXEC_TIMING_BEGIN("Drop");
-  // drops a replica
+
   int envlen;
   eos_thread_info("drop request for %s", env.Env(envlen));
+
   char* afid = env.Get("mgm.fid");
   char* afsid = env.Get("mgm.fsid");
 
   if (afid && afsid)
   {
     unsigned long fsid = strtoul(afsid, 0, 10);
-    // ---------------------------------------------------------------------
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmd;
+
     std::shared_ptr<eos::IContainerMD> container;
+    std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
+
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
       fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
@@ -57,25 +79,25 @@
 
     if (fmd) {
       try {
-        container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+        container =
+            gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       } catch (eos::MDException& e) {}
-    }
 
-    if (container) {
-      try {
-        ns_quota = gOFS->eosView->getQuotaNode(container.get());
-      } catch (eos::MDException& e) {
-        ns_quota = nullptr;
+      if (container) {
+        try {
+          ns_quota = gOFS->eosView->getQuotaNode(container.get());
+        } catch (eos::MDException& e) {
+          ns_quota = nullptr;
+        }
       }
-    }
 
-    if (fmd) {
       try {
+        std::vector<unsigned int> drop_fsid;
+        bool updatestore = false;
+
         // If mgm.dropall flag is set then it means we got a deleteOnClose
         // at the gateway node and we need to delete all replicas
         char* drop_all = env.Get("mgm.dropall");
-        std::vector<unsigned int> drop_fsid;
-        bool updatestore = false;
 
         if (drop_all) {
           for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
@@ -86,28 +108,28 @@
         }
 
         // Drop the selected replicas
-        for (auto id = drop_fsid.begin(); id != drop_fsid.end(); id++) {
-          eos_thread_debug("removing location %u of fid=%s", *id, afid);
+        for (const auto& id : drop_fsid) {
+          eos_thread_debug("removing location %u of fid=%s", id, afid);
           updatestore = false;
 
-          if (fmd->hasLocation(*id)) {
-            fmd->unlinkLocation(*id);
+          if (fmd->hasLocation(id)) {
+            fmd->unlinkLocation(id);
             updatestore = true;
           }
 
-          if (fmd->hasUnlinkedLocation(*id)) {
-            fmd->removeLocation(*id);
+          if (fmd->hasUnlinkedLocation(id)) {
+            fmd->removeLocation(id);
             updatestore = true;
           }
 
           if (updatestore) {
             gOFS->eosView->updateFileStore(fmd.get());
-            // After update we have to get the new address - who knows ...
+            // After update we might have to get the new address
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
           }
         }
 
-        // Finally delete the record if all replicas are dropped
+        // Delete the record only if all replicas are dropped
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())
             && (drop_all || updatestore)) {
           // However we should only remove the file from the namespace, if
@@ -127,7 +149,7 @@
             gOFS->eosView->updateContainerStore(container.get());
             container->notifyMTimeChange(gOFS->eosDirectoryService);
             eos::ContainerIdentifier container_id = container->getIdentifier();
-            lock.Release();
+            wlock.Release();
             gOFS->FuseXCastContainer(container_id);
           }
         }
@@ -135,11 +157,17 @@
         eos_thread_warning("no meta record exists anymore for fid=%s", afid);
       }
     }
-
-    gOFS->MgmStats.Add("Drop", vid.uid, vid.gid, 1);
-    const char* ok = "OK";
-    error.setErrInfo(strlen(ok) + 1, ok);
-    EXEC_TIMING_END("Drop");
-    return SFS_DATA;
+  } else
+  {
+    eos_thread_err("drop message does not contain all meta information: %s",
+                   env.Env(envlen));
+    return Emsg(epname, error, EIO, "drop replica [EIO]",
+                "missing meta information");
   }
+
+  gOFS->MgmStats.Add("Drop", vid.uid, vid.gid, 1);
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
+  EXEC_TIMING_END("Drop");
+  return SFS_DATA;
 }

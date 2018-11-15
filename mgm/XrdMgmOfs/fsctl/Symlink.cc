@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,12 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Create symbolic link
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Symlink(const char* path,
+                   const char* ininfo,
+                   XrdOucEnv& env,
+                   XrdOucErrInfo& error,
+                   eos::common::LogId& ThreadLogId,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
@@ -34,36 +46,27 @@
 
   gOFS->MgmStats.Add("Fuse-Symlink", vid.uid, vid.gid, 1);
 
-  char* starget;
-  if ((starget = env.Get("target")))
-  {
-    XrdOucString target = starget;
-    if(env.Get("eos.encodepath"))
-      target = eos::common::StringConversion::curl_unescaped(starget).c_str();
-    else
-      while (target.replace("#AND#","&")){}
+  char* starget = env.Get("target");
+  int retc = 0;
 
-    int retc = 0;
-    if (symlink(spath.c_str(), 
-		target.c_str(),
-		error, 
-		client,
-		0,
-		0))
-    {
-      retc = error.getErrInfo();
+  if (starget) {
+    XrdOucString target = starget;
+
+    if (env.Get("eos.encodepath")) {
+      target = eos::common::StringConversion::curl_unescaped(starget).c_str();
+    } else {
+      while (target.replace("#AND#", "&")) {}
     }
 
-    XrdOucString response = "symlink: retc=";
-    response += retc;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
+    if (symlink(path, target.c_str(), error, client, 0, 0)) {
+      retc = error.getErrInfo();
+    }
+  } else {
+    retc = EINVAL;
   }
-  else
-  {
-    XrdOucString response = "symlink: retc=";
-    response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
+
+  XrdOucString response = "symlink: retc=";
+  response += retc;
+  error.setErrInfo(response.length() + 1, response.c_str());
+  return SFS_DATA;
 }

@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Adjustreplica.cc
+// File: AdjustReplica.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,17 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-//------------------------------------------------------------------------------
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+
+#include <XrdOuc/XrdOucEnv.hh>
+
+//----------------------------------------------------------------------------
+// Adjust replica (repairOnClose from FST)
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::AdjustReplica(const char* path,
+                         const char* ininfo,
+                         XrdOucEnv& env,
+                         XrdOucErrInfo& error,
+                         eos::common::LogId& ThreadLogId,
+                         eos::common::Mapping::VirtualIdentity& vid,
+                         const XrdSecEntity* client)
 {
+  static const char* epname = "AdjustReplica";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
+
   EXEC_TIMING_BEGIN("AdjustReplica");
-  eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
 
   // Execute a proc command
@@ -39,26 +55,26 @@
   XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
   char* spath = env.Get("mgm.path");
 
-  if (spath)
-  {
+  if (spath) {
     info += spath;
     info += "&mgm.format=fuse";
     Cmd.open("/proc/user", info.c_str(), vid, &error);
     Cmd.close();
     gOFS->MgmStats.Add("AdjustReplica", 0, 0, 1);
 
-    if (Cmd.GetRetc() == 0) {
-      eos_debug("msg=\"adjustreplica succeeded\", path=%s", spath);
-      const char* ok = "OK";
-      error.setErrInfo(strlen(ok) + 1, ok);
-      EXEC_TIMING_END("AdjustReplica");
-      return SFS_DATA;
-    } else {
-      eos_err("msg=\"adjustreplica failed\" path=\"%s\"", spath);
-      return Emsg(epname, error, EIO, "[EIO] repair", spath);
+    if (Cmd.GetRetc()) {
+      eos_thread_err("msg=\"adjustreplica failed\" path=\"%s\"", spath);
+      return Emsg(epname, error, EIO, "repair [EIO]", spath);
     }
+  } else {
+    eos_thread_err("msg=\"adjustreplica failed - no given path\"");
+    return Emsg(epname, error, EIO, "repair [EIO]", "no path");
   }
 
-  eos_err("msg=\"adjustreplica failed - no given path\"");
-  return Emsg(epname, error, EIO, "[EIO] repair", "no path");
+  eos_thread_debug("msg=\"adjustreplica succeeded\" path=%s", spath);
+
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
+  EXEC_TIMING_END("AdjustReplica");
+  return SFS_DATA;
 }

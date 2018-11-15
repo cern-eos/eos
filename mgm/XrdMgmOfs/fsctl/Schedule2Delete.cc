@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,197 +21,224 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFsView.hh"
+#include "authz/XrdCapability.hh"
+#include "mq/XrdMqMessaging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/FsView.hh"
+#include "mgm/Messaging.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Utility function of sending message declared in anonymous namespace
+//----------------------------------------------------------------------------
+namespace {
+  XrdOucString constructCapability(int fsid, const char* localprefix) {
+    XrdOucString capability = "&mgm.access=delete";
+    capability += "&mgm.manager=";
+    capability += gOFS->ManagerId.c_str();
+    capability += "&mgm.fsid=";
+    capability += fsid;
+    capability += "&mgm.localprefix=";
+    capability += localprefix;
+    capability += "&mgm.fids=";
+
+    return capability;
+  }
+
+  bool sendDeleteMessage(XrdOucString capability,
+                         const char* idlist,
+                         const char* receiver,
+                         unsigned long long capValidity) {
+    capability += idlist;
+
+    XrdOucEnv incapenv(capability.c_str());
+    XrdOucEnv* outcapenv = 0;
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    int rc = gCapabilityEngine.Create(&incapenv, outcapenv, symkey, capValidity);
+
+    if (rc) {
+      eos_static_err("unable to create capability - incap=%s errno=%u",
+                     capability.c_str(), rc);
+    } else {
+      int caplen = 0;
+      XrdOucString msgbody = "mgm.cmd=drop";
+      msgbody += outcapenv->Env(caplen);
+
+      XrdMqMessage message("deletion");
+      message.SetBody(msgbody.c_str());
+
+      if (!Messaging::gMessageClient.SendMessage(message, receiver)) {
+        eos_static_err("unable to send deletion message to %s", receiver);
+        rc = -1;
+      }
+    }
+
+    if (outcapenv) { delete outcapenv; }
+
+    return (rc == 0);
+  }
+}
+
+//----------------------------------------------------------------------------
+// Schedule deletion for FSTs
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Schedule2Delete(const char* path,
+                           const char* ininfo,
+                           XrdOucEnv& env,
+                           XrdOucErrInfo& error,
+                           eos::common::LogId& ThreadLogId,
+                           eos::common::Mapping::VirtualIdentity& vid,
+                           const XrdSecEntity* client)
 {
+  static const char* epname = "Schedule2Delete";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
+
   EXEC_TIMING_BEGIN("Scheduled2Delete");
+
   gOFS->MgmStats.Add("Schedule2Delete", 0, 0, 1);
-  XrdOucString nodename = env.Get("mgm.target.nodename");
-  eos_static_debug("nodename=%s", nodename.c_str() ? nodename.c_str() : "-none-");
+
+  const char* anodename = env.Get("mgm.target.nodename");
+  std::string nodename = (anodename) ? anodename : "-none-";
+  eos_static_debug("nodename=%s", nodename.c_str());
+
+  //--------------------------------------------------------------------------
+  // Retrieve filesystem list of the current node
+  //--------------------------------------------------------------------------
+
   std::vector<unsigned long> fslist;
-
   {
-    // Get all the filesystems of the current node
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    std::string snodename = nodename.c_str() ? nodename.c_str() : "-none-";
 
-    if (!FsView::gFsView.mNodeView.count(snodename))
-    {
-      eos_static_warning("msg=\"node is not configured\" name=%s", snodename.c_str());
-      return Emsg(epname, error, EINVAL, "unable to schedule - node is not existing");
+    if (!FsView::gFsView.mNodeView.count(nodename)) {
+      eos_static_warning("msg=\"node is not configured\" name=%s",
+                         nodename.c_str());
+      return Emsg(epname, error, EINVAL,
+                  "schedule deletes - inexistent node [EINVAL]",
+                  nodename.c_str());
     }
 
-    for (auto set_it = FsView::gFsView.mNodeView[snodename]->begin();
-    set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
-    {
+    for (auto set_it = FsView::gFsView.mNodeView[nodename]->begin();
+         set_it != FsView::gFsView.mNodeView[nodename]->end(); ++set_it) {
       fslist.push_back(*set_it);
     }
   }
 
+  //--------------------------------------------------------------------------
+  // Go through each filesystem, collect unlinked files and send list to FST
+  //--------------------------------------------------------------------------
+
   size_t totaldeleted = 0;
 
-  for (unsigned long i = 0ul; i < fslist.size(); i++)
-  {
-    // Loop over all file systems
-    eos::Prefetcher::prefetchFilesystemUnlinkedFileListAndWait(gOFS->eosView, gOFS->eosFsView, fslist[i]);
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  for (auto fsid : fslist) {
+    eos::Prefetcher::prefetchFilesystemUnlinkedFileListAndWait(
+                         gOFS->eosView, gOFS->eosFsView, fsid);
+
     std::unordered_set<eos::IFileMD::id_t> set_fids;
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     {
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      uint64_t num_files = eosFsView->getNumUnlinkedFilesOnFs(fslist[i]);
+      uint64_t num_files = eosFsView->getNumUnlinkedFilesOnFs(fsid);
 
       if (num_files == 0) {
-        eos_static_debug("nothing to delete from fs %lu", fslist[i]);
+        eos_static_debug("nothing to delete from fsid=%lu", fsid);
         continue;
       }
 
       set_fids.reserve(num_files);
 
-      // Collect all the file ids to be deleted from the current file system
-      for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fslist[i]);
+      // Collect all the file ids to be deleted from the current filesystem
+      for (auto it_fid = gOFS->eosFsView->getUnlinkedFileList(fsid);
            (it_fid && it_fid->valid()); it_fid->next()) {
         set_fids.insert(it_fid->getElement());
       }
     }
-    XrdMqMessage message("deletion");
-    int ndeleted = 0;
+
     eos::mgm::FileSystem* fs = 0;
     XrdOucString receiver = "";
-    XrdOucString msgbody = "mgm.cmd=drop";
     XrdOucString capability = "";
     XrdOucString idlist = "";
+    int ndeleted = 0;
 
-    for (auto elem = set_fids.begin(); elem != set_fids.end(); ++elem) {
+    for (auto fid : set_fids) {
+      // Loop over all files and emit a deletion message
       eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu",
-                      *elem, (unsigned long) fslist[i]);
+                      fid, fsid);
 
-      // loop over all files and emit a deletion message
       if (!fs) {
-        // set the file system only for the first file to relax the mutex contention
-        if (!fslist[i]) {
-          eos_err("no filesystem in deletion list");
+        // Grab filesystem object only once per fsid
+        // to relax the mutex contention
+
+        if (!fsid) {
+          eos_static_err("no filesystem with fsid=0 in deletion list");
           continue;
         }
 
-        if (FsView::gFsView.mIdView.count(fslist[i])) {
-          fs = FsView::gFsView.mIdView[fslist[i]];
+        if (FsView::gFsView.mIdView.count(fsid)) {
+          fs = FsView::gFsView.mIdView[fsid];
         } else {
           fs = 0;
         }
 
         if (fs) {
-          eos::common::FileSystem::fsstatus_t bootstatus = fs->GetStatus();
-
-          // check the state of the filesystem (if it can actually delete in this moment!)
-          if ((fs->GetConfigStatus() <= eos::common::FileSystem::kOff) ||
-              (bootstatus != eos::common::FileSystem::kBooted)) {
-            // we don't need to send messages, this one is anyway down or currently booting
+          // Check the state of the filesystem to make sure it can delete
+          if ((fs->GetActiveStatus() == eos::common::FileSystem::kOffline) ||
+              (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) ||
+              (fs->GetStatus() != eos::common::FileSystem::kBooted)) {
+            // Don't send messages as filesystem is down, booting or offline
             break;
           }
 
-          if ((fs->GetActiveStatus() == eos::common::FileSystem::kOffline)) {
-            break;
-          }
-
-          capability += "&mgm.access=delete";
-          capability += "&mgm.manager=";
-          capability += gOFS->ManagerId.c_str();
-          capability += "&mgm.fsid=";
-          capability += (int) fs->GetId();
-          capability += "&mgm.localprefix=";
-          capability += fs->GetPath().c_str();
-          capability += "&mgm.fids=";
+          capability = constructCapability(fs->GetId(), fs->GetPath().c_str());
           receiver = fs->GetQueue().c_str();
         }
       }
 
       ndeleted++;
       totaldeleted++;
-      XrdOucString sfid = "";
-      XrdOucString hexfid = "";
-      eos::common::FileId::Fid2Hex(*elem, hexfid);
-      idlist += hexfid;
+      idlist += eos::common::FileId::Fid2Hex(fid).c_str();
       idlist += ",";
 
       if (ndeleted > 1024) {
-        XrdOucString refcapability = capability;
-        refcapability += idlist;
-        XrdOucEnv incapability(refcapability.c_str());
-        XrdOucEnv* capabilityenv = 0;
-        eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-        int caprc = 0;
-
-        if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
-                                              mCapabilityValidity))) {
-          eos_static_err("unable to create capability - errno=%u", caprc);
-        } else {
-          int caplen = 0;
-          msgbody += capabilityenv->Env(caplen);
-          // we send deletions in bunches of max 1024 for efficiency
-          message.SetBody(msgbody.c_str());
-
-          if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-            eos_static_err("unable to send deletion message to %s", receiver.c_str());
-          }
-        }
-
-        idlist = "";
+        // Send deletions in bunches of max 1024 for efficiency
+        sendDeleteMessage(capability, idlist.c_str(),
+                          receiver.c_str(), mCapabilityValidity);
         ndeleted = 0;
-        msgbody = "mgm.cmd=drop";
-
-        if (capabilityenv) {
-          delete capabilityenv;
-        }
+        idlist = "";
       }
     }
 
-    // send the remaining ids
+    // Send the remaining ids
     if (idlist.length()) {
-      XrdOucString refcapability = capability;
-      refcapability += idlist;
-      XrdOucEnv incapability(refcapability.c_str());
-      XrdOucEnv* capabilityenv = 0;
-      eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-      int caprc = 0;
-
-      if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
-                                            mCapabilityValidity))) {
-        eos_static_err("unable to create capability - errno=%u", caprc);
-      } else {
-        int caplen = 0;
-        msgbody += capabilityenv->Env(caplen);
-        // we send deletions in bunches of max 1000 for efficiency
-        message.SetBody(msgbody.c_str());
-
-        if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-          eos_static_err("unable to send deletion message to %s", receiver.c_str());
-        }
-      }
-
-      if (capabilityenv) {
-        delete capabilityenv;
-      }
+      sendDeleteMessage(capability, idlist.c_str(),
+                        receiver.c_str(), mCapabilityValidity);
     }
   }
 
-  // -----------------------------------------------------------------------
-  if (totaldeleted)
-  {
-    EXEC_TIMING_END("Scheduled2Delete");
-    gOFS->MgmStats.Add("Scheduled2Delete", 0, 0, totaldeleted);
+  //--------------------------------------------------------------------------
+  // End the operation
+  //--------------------------------------------------------------------------
+
+  if (totaldeleted) {
     error.setErrInfo(0, "submitted");
-    return SFS_DATA;
-  } else
-  {
+
+    gOFS->MgmStats.Add("Scheduled2Delete", 0, 0, totaldeleted);
+    EXEC_TIMING_END("Scheduled2Delete");
+  } else {
     error.setErrInfo(0, "");
-    return SFS_DATA;
   }
+
+  return SFS_DATA;
 }

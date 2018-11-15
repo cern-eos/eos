@@ -76,9 +76,11 @@ CommitHelper::check_filesystem(eos::common::Mapping::VirtualIdentity_t& vid,
     eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
                    "path=%s size=%s fid=%s fsid=%s dropfsid=%s checksum=%s"
                    " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
-                   "oc-uuid=%s", (fs ? eos::common::FileSystem::GetConfigStatusAsString(
-                                    fs->GetConfigStatus()) :
-                                  "deleted"), cgi["path"].c_str(),
+                   "oc-uuid=%s",
+                   (fs ? eos::common::FileSystem::GetConfigStatusAsString(
+                                    fs->GetConfigStatus())
+                       : "deleted"),
+                   cgi["path"].c_str(),
                    cgi["size"].c_str(),
                    cgi["fid"].c_str(),
                    cgi["fsid"].c_str(),
@@ -88,7 +90,9 @@ CommitHelper::check_filesystem(eos::common::Mapping::VirtualIdentity_t& vid,
                    cgi["mtimensec"].c_str(),
                    option["occhunk"], params["oc_n"],
                    params["oc_max"], cgi["oc_uuid"].c_str());
-    emsg = "commit file metadata - filesystem is in non-operational state [EIO]";
+
+    emsg = "commit file metadata - "
+           "filesystem is in non-operational state [EIO]";
     return EIO;
   }
 
@@ -183,8 +187,8 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
                        CommitHelper::param_t& params)
 {
   if (cgi["checksum"].length()) {
-    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s"
-                    " checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d "
+    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
+                    "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
                     "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
@@ -200,7 +204,8 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
                     cgi["ocuuid"].c_str());
   } else {
     eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
-                    "mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
+                    "mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
+                    "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
                     cgi["fid"].c_str(),
@@ -329,7 +334,7 @@ CommitHelper::validate_size(eos::common::Mapping::VirtualIdentity_t& vid,
                             unsigned long long size)
 {
   if (fmd->getSize() != size) {
-    eos_thread_err("replication for fid=%lu resulted in a different file "
+    eos_thread_err("replication for fid=%llu resulted in a different file "
                    "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid,
                    fmd->getSize(), size);
     gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
@@ -380,7 +385,7 @@ CommitHelper::validate_checksum(eos::common::Mapping::VirtualIdentity_t& vid,
   }
 
   if (cxError) {
-    eos_thread_err("replication for fid=%lu resulted in a different checksum "
+    eos_thread_err("replication for fid=%llu resulted in a different checksum "
                    "on fsid=%llu - rejecting replica", fmd->getId(), fsid);
     gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 1);
 
@@ -434,7 +439,7 @@ CommitHelper::log_verifychecksum(eos::common::Mapping::VirtualIdentity_t& vid,
       }
 
       if (cxError) {
-        eos_thread_err("commit for fid=%lu gave a different checksum after "
+        eos_thread_err("commit for fid=%llu gave a different checksum after "
                        "verification on fsid=%llu", fmd->getId(), fsid);
       }
     }

@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,12 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Resolve symbolic link
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Readlink(const char* path,
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::LogId& ThreadLogId,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
@@ -35,32 +47,21 @@
   gOFS->MgmStats.Add("Fuse-Readlink", vid.uid, vid.gid, 1);
 
   XrdOucString link = "";
-
   int retc = 0;
 
-  if (readlink(spath.c_str(),
-  error,
-  link,
-  client))
-  {
-    retc = error.getErrInfo();
-
-    if (!retc) {
-      retc = -1;
-    }
+  if (readlink(path, error, link, client)) {
+    retc = (error.getErrInfo()) ? error.getErrInfo() : -1;
   }
 
   XrdOucString response = "readlink: retc=";
   response += retc;
 
-  if (!retc)
-  {
-    response += " ";
-
+  if (!retc) {
     if (env.Get("eos.encodepath")) {
       link = eos::common::StringConversion::curl_escaped(link.c_str()).c_str();
     }
 
+    response += " ";
     response += link.c_str();
   }
 

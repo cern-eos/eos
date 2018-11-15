@@ -238,198 +238,49 @@ XrdMgmOfs::FSctl(const int cmd,
   }
 
   if (cmd != SFS_FSCTL_PLUGIN) {
-    return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
+    return Emsg(epname, error, EOPNOTSUPP, "execute FSctl command [EOPNOTSUPP]",
+                inpath);
   }
 
   // Fuse e(x)tension - this we always redirect to the RW master
   if (fusexset) {
     eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
-#include "fsctl/Fusex.cc"
+    return XrdMgmOfs::Fusex(path, protobuf.c_str(), env, error, ThreadLogId, vid, client);
   }
 
   if (scmd) {
-    // Adjust replica (repairOnClose from FST)
-    if (execmd == "adjustreplica") {
-#include "fsctl/Adjustreplica.cc"
-    }
-
-    // Repair file (repair after scan error e.g. use the converter to rewrite)
-    if (execmd == "rewrite") {
-#include "fsctl/Rewrite.cc"
-    }
-
-    // Commit a replica
-    if (execmd == "commit") {
-#include "fsctl/Commit.cc"
-    }
-
-    // Drop a replica
-    if (execmd == "drop") {
-#include "fsctl/Drop.cc"
-    }
-
-    // Trigger an event
-    if (execmd == "event") {
-#include "fsctl/Event.cc"
-    }
-
-    // Return's meta data in env representation
-    if (execmd == "getfmd") {
-#include "fsctl/Getfmd.cc"
-    }
-
-    // Stat a file/dir - this we always redirect to the RW master
-    if (execmd == "stat") {
-#include "fsctl/Stat.cc"
-    }
-
-    // Make a directory and return it's inode
-    if (execmd == "mkdir") {
-#include "fsctl/Mkdir.cc"
-    }
-
-    // chmod a dir
-    if (execmd == "chmod") {
-#include "fsctl/Chmod.cc"
-    }
-
-    // chown file/dir
-    if (execmd == "chown") {
-#include "fsctl/Chown.cc"
-    }
-
-    // check access rights
-    if (execmd == "access") {
-#include "fsctl/Access.cc"
-    }
-
-    // parallel IO mode open
-    if (execmd == "open") {
-#include "fsctl/Open.cc"
-    }
-
-    // get open redirect
-    if (execmd == "redirect") {
-#include "fsctl/Redirect.cc"
-    }
-
-    // utimes
-    if (execmd == "utimes") {
-#include "fsctl/Utimes.cc"
-    }
-
-    // parallel IO mode open
-    if (execmd == "checksum") {
-#include "fsctl/Checksum.cc"
-    }
-
-    // Return the virtual 'filesystem' stat
-    if (execmd == "statvfs") {
-#include "fsctl/Statvfs.cc"
-    }
-
-    // get/set/list/rm extended attributes
-    if (execmd == "xattr") {
-#include "fsctl/Xattr.cc"
-    }
-
-    // create a symbolic link
-    if (execmd == "symlink") {
-#include "fsctl/Symlink.cc"
-    }
-
-    // resolve a symbolic link
-    if (execmd == "readlink") {
-#include "fsctl/Readlink.cc"
-    }
-
-    // Schedule a balancer transfer
-    if (execmd == "schedule2balance") {
-#include "fsctl/Schedule2Balance.cc"
-    }
-
-    // Schedule a drain transfer
-    if (execmd == "schedule2drain") {
-#include "fsctl/Schedule2Drain.cc"
-    }
-
-    // Schedule deletion
-    if (execmd == "schedule2delete") {
-#include "fsctl/Schedule2Delete.cc"
-    }
-
-    // Set the transfer state (and log)
-    if (execmd == "txstate") {
-#include "fsctl/Txstate.cc"
-    }
-
-    // Get the eos version (and the features)
-    if (execmd == "version") {
-#include "fsctl/Version.cc"
-    }
-
-    if (execmd == "mastersignalbounce") {
-      // a remote master signaled us to bounce everything to him
-      REQUIRE_SSS_OR_LOCAL_AUTH;
-      eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-      if (master) {
-        master->TagNamespaceInodes();
-        master->RedirectToRemoteMaster();
-      }
-
-      const char* ok = "OK";
-      error.setErrInfo(strlen(ok) + 1, ok);
-      return SFS_DATA;
-    }
-
-    if (execmd == "mastersignalreload") {
-      // -----------------------------------------------------------------------
-      // a remote master signaled us to reload our namespace now
-      // -----------------------------------------------------------------------
-      REQUIRE_SSS_OR_LOCAL_AUTH;
-      const char* sf = env.Get("compact_files");
-      const char* sd = env.Get("compact_dirs");
-      bool compact_files = false;
-      bool compact_directories = false;
-
-      if (sf) {
-        compact_files = true;
-      }
-
-      if (sd) {
-        compact_directories = true;
-      }
-
-      eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-      if (master) {
-        master->WaitNamespaceFilesInSync(compact_files, compact_directories);
-        master->RebootSlaveNamespace();
-      }
-
-      const char* ok = "OK";
-      error.setErrInfo(strlen(ok) + 1, ok);
-      return SFS_DATA;
-    }
-
-    // Query to determine if current node is acting as master
-    if (execmd == "is_master") {
-      // @todo (esindril): maybe enable sss at some point
-      // REQUIRE_SSS_OR_LOCAL_AUTH;
-      if (gOFS->mMaster->IsMaster()) {
-        const char* ok = "OK";
-        error.setErrInfo(strlen(ok) + 1, ok);
-        return SFS_DATA;
-      } else {
-        return Emsg(epname, error, ENOENT, "find master file", "");
-      }
-    }
-
-    eos_thread_err("No implementation for %s", execmd.c_str());
+    if (execmd == "access")                  { return XrdMgmOfs::Access(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
+    else if (execmd == "adjustreplica")      { return XrdMgmOfs::AdjustReplica(inpath, ininfo, env, error, ThreadLogId, vid, client);      }
+    else if (execmd == "checksum")           { return XrdMgmOfs::Checksum(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
+    else if (execmd == "chmod")              { return XrdMgmOfs::Chmod(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
+    else if (execmd == "chown")              { return XrdMgmOfs::Chown(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
+    else if (execmd == "commit")             { return XrdMgmOfs::Commit(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
+    else if (execmd == "drop")               { return XrdMgmOfs::Drop(inpath, ininfo, env, error, ThreadLogId, vid, client);               }
+    else if (execmd == "event")              { return XrdMgmOfs::Event(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
+    else if (execmd == "getfmd")             { return XrdMgmOfs::Getfmd(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
+    else if (execmd == "is_master")          { return XrdMgmOfs::IsMaster(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
+    else if (execmd == "mastersignalbounce") { return XrdMgmOfs::MasterSignalBounce(inpath, ininfo, env, error, ThreadLogId, vid, client); }
+    else if (execmd == "mastersignalreload") { return XrdMgmOfs::MasterSignalReload(inpath, ininfo, env, error, ThreadLogId, vid, client); }
+    else if (execmd == "mkdir")              { return XrdMgmOfs::Mkdir(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
+    else if (execmd == "open")               { return XrdMgmOfs::Open(inpath, ininfo, env, error, ThreadLogId, vid, client);               }
+    else if (execmd == "readlink")           { return XrdMgmOfs::Readlink(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
+    else if (execmd == "redirect")           { return XrdMgmOfs::Redirect(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
+    else if (execmd == "rewrite")            { return XrdMgmOfs::Rewrite(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
+    else if (execmd == "schedule2balance")   { return XrdMgmOfs::Schedule2Balance(inpath, ininfo, env, error, ThreadLogId, vid, client);   }
+    else if (execmd == "schedule2delete")    { return XrdMgmOfs::Schedule2Delete(inpath, ininfo, env, error, ThreadLogId, vid, client);    }
+    else if (execmd == "schedule2drain")     { return XrdMgmOfs::Schedule2Drain(inpath, ininfo, env, error, ThreadLogId, vid, client);     }
+    else if (execmd == "stat")               { return XrdMgmOfs::FuseStat(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
+    else if (execmd == "statvfs")            { return XrdMgmOfs::Statvfs(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
+    else if (execmd == "symlink")            { return XrdMgmOfs::Symlink(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
+    else if (execmd == "txstate")            { return XrdMgmOfs::Txstate(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
+    else if (execmd == "utimes")             { return XrdMgmOfs::Utimes(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
+    else if (execmd == "version")            { return XrdMgmOfs::Version(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
+    else if (execmd == "xattr")              { return XrdMgmOfs::Xattr(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
+    else                                     { eos_thread_err("No implementation for %s", execmd.c_str()); }
   }
 
-  return Emsg(epname, error, EINVAL, "execute FSctl command", spath.c_str());
+  return Emsg(epname, error, EINVAL, "execute FSctl command [EINVAL]", inpath);
 }

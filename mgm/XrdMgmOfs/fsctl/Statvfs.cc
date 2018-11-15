@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,12 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/Quota.hh"
+#include "mgm/FsView.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Virtual filesystem stat
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Statvfs(const char* path,
+                   const char* ininfo,
+                   XrdOucEnv& env,
+                   XrdOucErrInfo& error,
+                   eos::common::LogId& ThreadLogId,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
@@ -36,34 +50,28 @@
 
   XrdOucString space = env.Get("path");
 
-  if (env.Get("eos.encodepath"))
-  {
+  if (env.Get("eos.encodepath")) {
     space = eos::common::StringConversion::curl_unescaped(space.c_str()).c_str();
   }
 
   static XrdSysMutex statvfsmutex;
-  static unsigned long long freebytes = 0;
-  static unsigned long long freefiles = 0;
-  static unsigned long long maxbytes = 0;
-  static unsigned long long maxfiles = 0;
+  static time_t laststat = 0;
+
+  static long long freebytes = 0;
+  static long long freefiles = 0;
+  static long long maxbytes = 0;
+  static long long maxfiles = 0;
 
   long long l_freebytes = 0;
   long long l_freefiles = 0;
   long long l_maxbytes = 0;
   long long l_maxfiles = 0;
 
-  static time_t laststat = 0;
+  int retc = 0;
 
-  XrdOucString response = "";
-
-  if (!space.length())
-  {
-    response = "df: retc=";
-    response += EINVAL;
-  } else
-  {
-    int spos = 0;
+  if (space.length()) {
     int deepness = 0;
+    int spos = 0;
 
     while ((spos = space.find("/", spos)) != STR_NPOS) {
       deepness++;
@@ -74,53 +82,63 @@
       statvfsmutex.Lock();
       time_t now = time(NULL);
 
-      // here we put some cache to avoid too heavy space recomputations
-      if ((now - laststat) > (10 + (int) rand() / RAND_MAX)) {
-        // take the sum's from all file systems in 'default'
+      // Use caching to avoid often expensive space recomputations
+      if ((now - laststat) > (10 + rand() / RAND_MAX)) {
+        // Take the sums from all file systems in 'default' space
         if (FsView::gFsView.mSpaceView.count("default")) {
           eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+
           freebytes =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
-                false);
+              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes", false);
           freefiles =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
+              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
+
           maxbytes =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
-                false);
+              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",false);
           maxfiles =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
+              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
         }
 
         laststat = now;
       }
 
-      l_freebytes = (long long)freebytes;
-      l_freefiles = (long long)freefiles;
-      l_maxbytes = (long long)maxbytes;
-      l_maxfiles = (long long)maxfiles;
+      l_freebytes = freebytes;
+      l_freefiles = freefiles;
+      l_maxbytes  = maxbytes;
+      l_maxfiles  = maxfiles;
       statvfsmutex.UnLock();
     } else {
       const std::string sspace = space.c_str();
-      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes, l_maxfiles,
-                                l_freefiles);
+      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes,
+                                l_maxfiles, l_freefiles);
     }
+  } else {
+    retc = EINVAL;
+  }
 
-    response = "statvfs: retc=0";
+  XrdOucString response = "statvfs: retc=";
+  response += retc;
+
+  if (!retc) {
     char val[1025];
+
     snprintf(val, 1024, "%lld", l_freebytes);
     response += " f_avail_bytes=";
     response += val;
+
     snprintf(val, 1024, "%lld", l_freefiles);
     response += " f_avail_files=";
     response += val;
+
     snprintf(val, 1024, "%lld", l_maxbytes);
     response += " f_max_bytes=";
     response += val;
+
     snprintf(val, 1024, "%lld", l_maxfiles);
     response += " f_max_files=";
     response += val;
-    error.setErrInfo(response.length() + 1, response.c_str());
   }
 
+  error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }

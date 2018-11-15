@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,232 +21,225 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/utils/Checksum.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Extended attribute operations
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Xattr(const char* path,
+                 const char* ininfo,
+                 XrdOucEnv& env,
+                 XrdOucErrInfo& error,
+                 eos::common::LogId& ThreadLogId,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("Fuse-XAttr", vid.uid, vid.gid, 1);
-  eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), spath.c_str());
-  const char* sub_cmd;
+
+  eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), path);
+
+  int envlen = 0;
+  const char* sub_cmd = env.Get("mgm.subcmd");
+
+  if (!sub_cmd) {
+    eos_thread_err("xattr missing subcmd information: %s", env.Env(envlen));
+
+    XrdOucString response = "xattr: retc=";
+    response += EINVAL;
+    error.setErrInfo(response.length() + 1, response.c_str());
+    return SFS_DATA;
+  }
+
+  int retc = 0;           // return code of the function
+  XrdOucString response;  // return value of the function
+
   struct stat buf;
+  XrdOucString subcmd = sub_cmd;
 
-  // check if it is a file or directory ....
-  int retc = lstat(spath.c_str(), &buf, error, client, 0);
+  // Check if path is a file or directory
+  int rc = lstat(path, &buf, error, client, 0);
 
-  if (!retc && S_ISDIR(buf.st_mode))
-  {
-    //extended attributes for directories
-    if ((sub_cmd = env.Get("mgm.subcmd"))) {
-      XrdOucString subcmd = sub_cmd;
+  if (!rc) {
+    if (S_ISDIR(buf.st_mode)) {
+      // Extended attributes for directories
 
       if (subcmd == "ls") {
-        //listxattr
+        // lsxattr
         eos::IContainerMD::XAttrMap map;
-        int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char*) 0, map);
-        XrdOucString response = "lsxattr: retc=";
-        response += rc ? (errno ? errno : -1) : rc;
-        response += " ";
+        rc = gOFS->attr_ls(path, error, client, 0, map);
 
         if (rc == SFS_OK) {
-          for (std::map<std::string,
-          std::string>::iterator iter = map.begin();
-          iter != map.end(); iter++) {
-            response += iter->first.c_str();
+          response = " ";
+          for (auto& xattr: map) {
+            response += xattr.first.c_str();
             response += "&";
           }
-
           response += "\0";
 
-          while (response.replace("tmp.", "user.eos.")) {
-          }
-
-          while (response.replace("sys.", "user.admin.")) {
-          }
+          while (response.replace("tmp.", "user.eos.")) {}
+          while (response.replace("sys.", "user.admin.")) {}
+        } else {
+          retc = error.getErrInfo();
         }
-
-        error.setErrInfo(response.length() + 1, response.c_str());
-        return SFS_DATA;
       } else if (subcmd == "get") {
-        //getxattr
+        // getxattr
         XrdOucString value;
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-        int rc = gOFS->attr_get(spath.c_str(), error, client,
-                                (const char*) "eos.attr.val.encoding=base64", key.c_str(), value);
-        XrdOucString response = "getxattr: retc=";
-        response += rc ? (errno ? errno : -1) : rc;
+
+        rc = gOFS->attr_get(path, error, client, "eos.attr.val.encoding=base64",
+                            key.c_str(), value);
 
         if (rc == SFS_OK) {
-          response += " value=";
+          response = " value=";
           response += value;
+        } else {
+          retc = error.getErrInfo();
         }
-
-        error.setErrInfo(response.length() + 1, response.c_str());
-        return SFS_DATA;
       } else if (subcmd == "set") {
-        //setxattr
+        // setxattr
         XrdOucString key = env.Get("mgm.xattrname");
         XrdOucString value = env.Get("mgm.xattrvalue");
         key.replace("user.admin.", "sys.");
-        int rc = gOFS->attr_set(spath.c_str(), error, client,
-                                (const char*) 0, key.c_str(), value.c_str());
-        XrdOucString response = "setxattr: retc=";
-        response += rc ? (errno ? errno : -1) : rc;
-        error.setErrInfo(response.length() + 1, response.c_str());
-        return SFS_DATA;
+
+        if (gOFS->attr_set(path, error, client, 0, key.c_str(), value.c_str())) {
+          retc = error.getErrInfo();
+        }
       } else if (subcmd == "rm") {
         // rmxattr
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-        int rc = gOFS->attr_rem(spath.c_str(), error, client,
-                                (const char*) 0, key.c_str());
-        XrdOucString response = "rmxattr: retc=";
-        response += rc ? (errno ? errno : -1) : rc;
-        error.setErrInfo(response.length() + 1, response.c_str());
-        return SFS_DATA;
-      }
-    }
-  } else if (!retc && S_ISREG(buf.st_mode))
-  {
-    // Extended attributes for files
-    std::shared_ptr<eos::IFileMD> fmd;
-    {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-      try {
-        fmd = gOFS->eosView->getFile(spath.c_str());
-      } catch (eos::MDException& e) {
-        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                         e.getErrno(), e.getMessage().str().c_str());
-        XrdOucString response = "setxattr: retc=2"; //error ENOENT
-        error.setErrInfo(response.length() + 1, response.c_str());
-        return SFS_DATA;
+        if (gOFS->attr_rem(path, error, client, 0, key.c_str())) {
+          retc = error.getErrInfo();
+        }
       }
-    }
-
-    if ((sub_cmd = env.Get("mgm.subcmd"))) {
-      XrdOucString subcmd = sub_cmd;
-      char* char_key = NULL;
-      XrdOucString key;
-      XrdOucString response;
+    } else if (S_ISREG(buf.st_mode)) {
+      // Extended attributes for files
 
       if (subcmd == "ls") {
-        //listxattr
+        // lsxattr
         eos::IContainerMD::XAttrMap map;
-        int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char*) 0, map);
-        XrdOucString response = "lsxattr: retc=";
-        response += rc;
-        response += " ";
+        rc = gOFS->attr_ls(path, error, client, 0, map);
+
+        retc = rc ? error.getErrInfo() : 0;
+        response = " ";
 
         if (rc == SFS_OK) {
-          for (auto iter = map.begin(); iter != map.end(); ++iter) {
-            response += iter->first.c_str();
+          for (auto& xattr : map) {
+            response += xattr.first.c_str();
             response += "&";
           }
         }
 
-        response += "user.eos.cid";
-        response += "&";
-        response += "user.eos.fid";
-        response += "&";
-        response += "user.eos.lid";
-        response += "&";
-        response += "user.eos.XStype";
-        response += "&";
-        response += "user.eos.XS";
-        response += "&";
+        response += "user.eos.cid&";
+        response += "user.eos.fid&";
+        response += "user.eos.lid&";
+        response += "user.eos.XStype&";
+        response += "user.eos.XS&";
         response += "\0";
-        error.setErrInfo(response.length() + 1, response.c_str());
       } else if (subcmd == "get") {
-        //getxattr
-        char_key = env.Get("mgm.xattrname");
-        key = char_key;
-        response = "getxattr: retc=";
+        // getxattr
+        XrdOucString key = env.Get("mgm.xattrname");
+        XrdOucString value;
 
-        if (key.find("eos.cid") != STR_NPOS) {
-          XrdOucString sizestring;
-          response += "0 ";
-          response += "value=";
-          response += eos::common::StringConversion::GetSizeString(sizestring,
-                      (unsigned long long) fmd->getContainerId());
-        } else if (key.find("eos.fid") != STR_NPOS) {
-          char fid[32];
-          response += "0 ";
-          response += "value=";
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
-          response += fid;
-        } else if (key.find("eos.XStype") != STR_NPOS) {
-          response += "0 ";
-          response += "value=";
-          response += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
-        } else if (key.find("eos.XS") != STR_NPOS) {
-          response += "0 ";
-          response += "value=";
+        std::shared_ptr<eos::IFileMD> fmd;
+        {
+          eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
-          eos::appendChecksumOnStringAsHex(fmd.get(), response, '_');
-          response += " ";
-        } else if (key.find("eos.lid") != STR_NPOS) {
-          response += "0 ";
-          response += "value=";
-          response += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
-        } else {
-          XrdOucString value;
-          XrdOucString key = env.Get("mgm.xattrname");
-          key.replace("user.admin.", "sys.");
-          int rc = gOFS->attr_get(spath.c_str(), error, client,
-                                  (const char*) 0, key.c_str(), value);
-          response = "getxattr: retc=";
-          response += rc;
-
-          if (rc == SFS_OK) {
-            response += " value=";
-            response += value;
+          try {
+            fmd = gOFS->eosView->getFile(path);
+          } catch (eos::MDException& e) {
+            eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                             e.getErrno(), e.getMessage().str().c_str());
+            XrdOucString eresponse = "getxattr: retc=";
+            eresponse += ENOENT;
+            error.setErrInfo(eresponse.length() + 1, eresponse.c_str());
+            return SFS_DATA;
           }
         }
 
-        error.setErrInfo(response.length() + 1, response.c_str());
-      } else if (subcmd == "rm") {
-        //rmxattr
-        XrdOucString key = env.Get("mgm.xattrname");
-        key.replace("user.admin.", "sys.");
-        int rc = gOFS->attr_rem(spath.c_str(), error, client,
-                                (const char*) 0, key.c_str());
-        XrdOucString response = "rmxattr: retc=";
-        response += rc;
-        error.setErrInfo(response.length() + 1, response.c_str());
-      } else if (subcmd == "set") {
-        //setxattr
-        if ((key == "user.eos.cid") ||
-            (key == "user.eos.fid") ||
-            (key == "user.eos.lid") ||
-            (key == "user.eos.XStype") ||
-            (key == "user.eos.XS")) {
-          response = "setxattr: retc=38"; //error ENOSYS
-          error.setErrInfo(response.length() + 1, response.c_str());
-          return SFS_DATA;
+        if (key.find("eos.cid") != STR_NPOS) {
+          XrdOucString sizestring;
+          value = eos::common::StringConversion::GetSizeString(sizestring,
+                                     (unsigned long long) fmd->getContainerId());
+        } else if (key.find("eos.fid") != STR_NPOS) {
+          char fid[32];
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+          value = fid;
+        } else if (key.find("eos.lid") != STR_NPOS) {
+          value = eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
+        } else if (key.find("eos.XStype") != STR_NPOS) {
+          value = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+        } else if (key.find("eos.XS") != STR_NPOS) {
+          eos::appendChecksumOnStringAsHex(fmd.get(), value, '_');
+        } else {
+          key.replace("user.admin.", "sys.");
+
+          if (gOFS->attr_get(path, error, client, 0, key.c_str(), value)) {
+            retc = error.getErrInfo();
+            value = "";
+          }
         }
 
+        if (value.length()) {
+          response = " value=";
+          response += value;
+        }
+      } else if (subcmd == "set") {
+        // setxattr
         XrdOucString key = env.Get("mgm.xattrname");
-        XrdOucString value = env.Get("mgm.xattrvalue");
+
+        if ((key == "user.eos.cid") || (key == "user.eos.fid") ||
+            (key == "user.eos.lid") || (key == "user.eos.XStype") ||
+            (key == "user.eos.XS")) {
+          retc = ENOSYS;
+        } else {
+          const char* value = env.Get("mgm.xattrvalue");
+          key.replace("user.admin.", "sys.");
+
+          if (gOFS->attr_set(path, error, client, 0, key.c_str(), value)) {
+            retc = error.getErrInfo();
+          }
+        }
+      } else if (subcmd == "rm") {
+        // rmxattr
+        XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-        int rc = gOFS->attr_set(spath.c_str(), error, client,
-                                (const char*) 0, key.c_str(), value.c_str());
-        response = "setxattr: retc=";
-        response += rc;
-        fprintf(stderr, "return: %s\n", response.c_str());
-        error.setErrInfo(response.length() + 1, response.c_str());
+
+        if (gOFS->attr_rem(path, error, client, 0, key.c_str())) {
+          retc = error.getErrInfo();
+        }
       }
-
-      return SFS_DATA;
+    } else {
+      eos_thread_err("cannot identify type for path=%s env=%s",
+                     path, env.Env(envlen));
+      retc = EINVAL;
     }
-
-    return SFS_DATA;
+  } else {
+    eos_thread_err("failed to stat path=%s env=%s", path, env.Env(envlen));
+    retc = error.getErrInfo();
   }
+
+  XrdOucString prefix = subcmd;
+  prefix += "xattr: retc=";
+  prefix += retc;
+
+  response.insert(prefix, 0);
+  error.setErrInfo(response.length() + 1, response.c_str());
+  return SFS_DATA;
 }

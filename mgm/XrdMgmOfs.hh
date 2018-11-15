@@ -1639,6 +1639,335 @@ private:
   bool SetupConfigDir();
 
   static std::string MacroStringError(int errcode);
+
+  //----------------------------------------------------------------------------
+  // FS control functions
+  // These functions are used in EOS to implement many stateless operations
+  // such as commit/drop a replica, stat a file/directory,
+  // create a directory listing for FUSE, chmod, chown, access, utimes
+  // get checksum, schedule drain/balance/delete, etc.
+  //
+  // All of these functions will receive the following parameters:
+  //
+  // @param path   - path associated with this request
+  // @param ininfo - opaque info associated with this request
+  // @param env    - environment constructed from opaque info
+  // @param error  - error reporting object
+  // @param LogId  - thread logging object
+  // @param vid    - mapped virtual identity
+  // @param client - client security entity object
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //! Check access rights
+  //----------------------------------------------------------------------------
+  int Access(const char* path,
+             const char* ininfo,
+             XrdOucEnv& env,
+             XrdOucErrInfo& error,
+             eos::common::LogId& ThreadLogId,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Adjust replica (repairOnClose from FST)
+  //----------------------------------------------------------------------------
+  int AdjustReplica(const char* path,
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::LogId& ThreadLogId,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Get checksum of file
+  //----------------------------------------------------------------------------
+  int Checksum(const char* path,
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Chmod of a directory
+  //----------------------------------------------------------------------------
+  int Chmod(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Chown of a file or directory
+  //----------------------------------------------------------------------------
+  int Chown(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Commit a replica
+  //----------------------------------------------------------------------------
+  int Commit(const char* path,
+             const char* ininfo,
+             XrdOucEnv& env,
+             XrdOucErrInfo& error,
+             eos::common::LogId& ThreadLogId,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Drop a replica
+  //----------------------------------------------------------------------------
+  int Drop(const char* path,
+           const char* ininfo,
+           XrdOucEnv& env,
+           XrdOucErrInfo& error,
+           eos::common::LogId& ThreadLogId,
+           eos::common::Mapping::VirtualIdentity& vid,
+           const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Trigger an event
+  //----------------------------------------------------------------------------
+  int Event(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Stat a file or directory.
+  //! Will redirect to the RW master.
+  //----------------------------------------------------------------------------
+  int FuseStat(const char *path,
+               const char *ininfo,
+               XrdOucEnv &env,
+               XrdOucErrInfo &error,
+               eos::common::LogId &ThreadLogId,
+               eos::common::Mapping::VirtualIdentity &vid,
+               const XrdSecEntity *client);
+
+  //----------------------------------------------------------------------------
+  //! Fuse extension.
+  //! Will redirect to the RW master.
+  //----------------------------------------------------------------------------
+  int Fusex(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Return metadata in env representation
+  //----------------------------------------------------------------------------
+  int Getfmd(const char* path,
+             const char* ininfo,
+             XrdOucEnv& env,
+             XrdOucErrInfo& error,
+             eos::common::LogId& ThreadLogId,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Query to determine if current node is acting as master
+  //----------------------------------------------------------------------------
+  int IsMaster(const char* path,
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Received signal to bounce everything to the remote master
+  //----------------------------------------------------------------------------
+  int MasterSignalBounce(const char* path,
+                         const char* ininfo,
+                         XrdOucEnv& env,
+                         XrdOucErrInfo& error,
+                         eos::common::LogId& ThreadLogId,
+                         eos::common::Mapping::VirtualIdentity& vid,
+                         const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Received signal from remote master to reload namespace
+  //----------------------------------------------------------------------------
+  int MasterSignalReload(const char* path,
+                         const char* ininfo,
+                         XrdOucEnv& env,
+                         XrdOucErrInfo& error,
+                         eos::common::LogId& ThreadLogId,
+                         eos::common::Mapping::VirtualIdentity& vid,
+                         const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Make a directory and return its inode
+  //----------------------------------------------------------------------------
+  int Mkdir(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Parallel IO mode open
+  //----------------------------------------------------------------------------
+  int Open(const char* path,
+           const char* ininfo,
+           XrdOucEnv& env,
+           XrdOucErrInfo& error,
+           eos::common::LogId& ThreadLogId,
+           eos::common::Mapping::VirtualIdentity& vid,
+           const XrdSecEntity* client);
+  
+  //----------------------------------------------------------------------------
+  //! Resolve symbolic link
+  //----------------------------------------------------------------------------
+  int Readlink(const char* path,
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Get open redirect
+  //----------------------------------------------------------------------------
+  int Redirect(const char* path,
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Repair file.
+  //! Used to repair after scan error (E.g.: use the converter to rewrite)
+  //----------------------------------------------------------------------------
+  int Rewrite(const char* path,
+              const char* ininfo,
+              XrdOucEnv& env,
+              XrdOucErrInfo& error,
+              eos::common::LogId& ThreadLogId,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Schedule a balance transfer
+  //----------------------------------------------------------------------------
+  int Schedule2Balance(const char* path,
+                       const char* ininfo,
+                       XrdOucEnv& env,
+                       XrdOucErrInfo& error,
+                       eos::common::LogId& ThreadLogId,
+                       eos::common::Mapping::VirtualIdentity& vid,
+                       const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Schedule deletion for FSTs
+  //----------------------------------------------------------------------------
+  int Schedule2Delete(const char* path,
+                      const char* ininfo,
+                      XrdOucEnv& env,
+                      XrdOucErrInfo& error,
+                      eos::common::LogId& ThreadLogId,
+                      eos::common::Mapping::VirtualIdentity& vid,
+                      const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Schedule a drain transfer
+  //----------------------------------------------------------------------------
+  int Schedule2Drain(const char* path,
+                     const char* ininfo,
+                     XrdOucEnv& env,
+                     XrdOucErrInfo& error,
+                     eos::common::LogId& ThreadLogId,
+                     eos::common::Mapping::VirtualIdentity& vid,
+                     const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Virtual filesystem stat
+  //----------------------------------------------------------------------------
+  int Statvfs(const char* path,
+             const char* ininfo,
+             XrdOucEnv& env,
+             XrdOucErrInfo& error,
+             eos::common::LogId& ThreadLogId,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Create symbolic link
+  //----------------------------------------------------------------------------
+  int Symlink(const char* path,
+              const char* ininfo,
+              XrdOucEnv& env,
+              XrdOucErrInfo& error,
+              eos::common::LogId& ThreadLogId,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Set transfer state and log
+  //----------------------------------------------------------------------------
+  int Txstate(const char* path,
+              const char* ininfo,
+              XrdOucEnv& env,
+              XrdOucErrInfo& error,
+              eos::common::LogId& ThreadLogId,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Set utimes
+  //----------------------------------------------------------------------------
+  int Utimes(const char* path,
+             const char* ininfo,
+             XrdOucEnv& env,
+             XrdOucErrInfo& error,
+             eos::common::LogId& ThreadLogId,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Get EOS version and features
+  //----------------------------------------------------------------------------
+  int Version(const char* path,
+              const char* ininfo,
+              XrdOucEnv& env,
+              XrdOucErrInfo& error,
+              eos::common::LogId& ThreadLogId,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
+  //! Extended attribute operations
+  //----------------------------------------------------------------------------
+  int Xattr(const char* path,
+            const char* ininfo,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

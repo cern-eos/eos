@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,10 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+
+#include <XrdOuc/XrdOucEnv.hh>
+
+//----------------------------------------------------------------------------
+// Get EOS version and features
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Version(const char* path,
+                   const char* ininfo,
+                   XrdOucEnv& env,
+                   XrdOucErrInfo& error,
+                   eos::common::LogId& ThreadLogId,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
@@ -32,33 +46,33 @@
 
   gOFS->MgmStats.Add("Version", 0, 0, 1);
 
-  bool features = env.Get("mgm.version.features"); // decimal fid
+  bool features = env.Get("mgm.version.features");
 
-  XrdOucString response;
+  XrdOucString response = "version: retc=";
+  int retc = 0;
 
-  ProcCommand pc;
-  XrdOucErrInfo err;
-  if(pc.open ("/proc/user",
-          features?"mgm.cmd=version&mgm.option=f":"mgm.cmd=version",
-          vid,
-          &err))
-  {
-    response = "version: retc=";
-    response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
+  XrdOucErrInfo errInfo;
+  ProcCommand procCommand;
+  const char* cmdInfo = features ? "mgm.cmd=version&mgm.option=f"
+                                 : "mgm.cmd=version";
+
+  if (procCommand.open("/proc/user", cmdInfo, vid, &errInfo)) {
+    retc = EINVAL;
   }
 
-  char buf[4096];
-  while(int nread=pc.read (0, buf, 4095))
-  {
-    buf[nread]='\0';
-    response += buf;
-    if(nread!=4095)
-    break;
+  response += retc;
+
+  if (!retc) {
+    char buff[4096];
+    response += " ";
+
+    while (int nread = procCommand.read(0, buff, 4095)) {
+      buff[nread] = '\0';
+      response += buff;
+      if (nread != 4095) { break; }
+    }
   }
 
-  response.insert("version: retc=0 ",0);
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }

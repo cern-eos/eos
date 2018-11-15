@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,44 +21,60 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "common/SymKeys.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/txengine/TransferEngine.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Set transfer state and log
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Txstate(const char* path,
+                   const char* ininfo,
+                   XrdOucEnv& env,
+                   XrdOucErrInfo& error,
+                   eos::common::LogId& ThreadLogId,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const XrdSecEntity* client)
 {
+  static const char* epname = "TxState";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
+  EXEC_TIMING_BEGIN("TxState");
+
   int envlen;
-  EXEC_TIMING_BEGIN("TxStateLog");
   eos_thread_debug("Transfer state + log received for %s", env.Env(envlen));
 
   char* txid = env.Get("tx.id");
-  char* sstate = env.Get("tx.state");
-  char* logb64 = env.Get("tx.log.b64");
-  char* sprogress = env.Get("tx.progress");
 
   if (txid)
   {
+    char* sstate = env.Get("tx.state");
+    char* logb64 = env.Get("tx.log.b64");
+    char* sprogress = env.Get("tx.progress");
+
     long long id = strtoll(txid, 0, 10);
 
     if (sprogress) {
-      if (sprogress) {
-        float progress = atof(sprogress);
+      float progress = atof(sprogress);
 
-        if (!gTransferEngine.SetProgress(id, progress)) {
-          eos_thread_err("unable to set progress for transfer id=%lld progress=%.02f", id,
-          progress);
-          return Emsg(epname, error, ENOENT,
-          "set transfer state - transfer has been canceled [EIDRM]", "");
-        } else {
-          eos_thread_info("id=%lld progress=%.02f", id, progress);
-        }
+      if (!gTransferEngine.SetProgress(id, progress)) {
+        eos_thread_err("unable to set progress for transfer "
+                       "id=%lld progress=%.02f", id, progress);
+        return Emsg(epname, error, ENOENT,
+                    "set transfer state - transfer has been canceled [EIDRM]", "");
       }
+
+      eos_thread_info("id=%lld progress=%.02f", id, progress);
     }
 
     if (sstate) {
@@ -83,14 +99,19 @@
         eos_thread_err("unable to set state for transfer id=%lld state=%s",
                        id, TransferEngine::GetTransferState(state));
       } else {
-        eos_thread_info("id=%lld state=%s", id,
-                        TransferEngine::GetTransferState(state));
+        eos_thread_info("id=%lld state=%s",
+                        id, TransferEngine::GetTransferState(state));
       }
     }
+  } else
+  {
+    eos_thread_err("Txstate message does not contain transfer id: %s",
+                   env.Env(envlen));
+    return Emsg(epname, error, EINVAL, "set transfer state [EINVAL]",
+                "missing transfer id");
   }
 
   gOFS->MgmStats.Add("TxState", vid.uid, vid.gid, 1);
-
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
   EXEC_TIMING_END("TxState");

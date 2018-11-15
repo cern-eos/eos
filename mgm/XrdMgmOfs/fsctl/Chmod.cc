@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,12 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Chmod of a directory
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Chmod(const char* path,
+                 const char* ininfo,
+                 XrdOucEnv& env,
+                 XrdOucErrInfo& error,
+                 eos::common::LogId& ThreadLogId,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
@@ -34,26 +46,21 @@
 
   gOFS->MgmStats.Add("Fuse-Chmod", vid.uid, vid.gid, 1);
 
-  char* smode;
-  if ((smode = env.Get("mode")))
-  {
-    XrdSfsMode newmode = atoi(smode);
-    int retc = _chmod(spath.c_str(),
-                      newmode,
-                      error,
-                      vid);
-    (void)retc; // unused - make compiler happy
+  const char* smode = env.Get("mode");
+  int retc = 0;
 
-    XrdOucString response = "chmod: retc=";
-    response += errno;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
+  if (smode) {
+    XrdSfsMode newmode = atoi(smode);
+
+    if (_chmod(path, newmode, error, vid)) {
+      retc = error.getErrInfo();
+    }
+  } else {
+    retc = EINVAL;
   }
-  else
-  {
-    XrdOucString response = "chmod: retc=";
-    response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
+
+  XrdOucString response = "chmod: retc=";
+  response += retc;
+  error.setErrInfo(response.length() + 1, response.c_str());
+  return SFS_DATA;
 }

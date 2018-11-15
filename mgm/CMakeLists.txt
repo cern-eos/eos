@@ -89,6 +89,7 @@ add_library(
   proc/admin/Quota.cc
   proc/admin/Rtlog.cc
   proc/admin/Space.cc
+  proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Vst.cc
@@ -128,7 +129,33 @@ add_library(
   XrdMgmOfsFile.cc
   XrdMgmOfsDirectory.cc
   XrdMgmOfs.cc
+  XrdMgmOfs/fsctl/Access.cc
+  XrdMgmOfs/fsctl/AdjustReplica.cc
+  XrdMgmOfs/fsctl/Checksum.cc
+  XrdMgmOfs/fsctl/Chmod.cc
+  XrdMgmOfs/fsctl/Chown.cc
+  XrdMgmOfs/fsctl/Commit.cc
   XrdMgmOfs/fsctl/CommitHelper.cc
+  XrdMgmOfs/fsctl/Drop.cc
+  XrdMgmOfs/fsctl/Event.cc
+  XrdMgmOfs/fsctl/Fusex.cc
+  XrdMgmOfs/fsctl/Getfmd.cc
+  XrdMgmOfs/fsctl/MasterSignal.cc
+  XrdMgmOfs/fsctl/Mkdir.cc
+  XrdMgmOfs/fsctl/Open.cc
+  XrdMgmOfs/fsctl/Readlink.cc
+  XrdMgmOfs/fsctl/Redirect.cc
+  XrdMgmOfs/fsctl/Rewrite.cc
+  XrdMgmOfs/fsctl/Schedule2Balance.cc
+  XrdMgmOfs/fsctl/Schedule2Delete.cc
+  XrdMgmOfs/fsctl/Schedule2Drain.cc
+  XrdMgmOfs/fsctl/Stat.cc
+  XrdMgmOfs/fsctl/Statvfs.cc
+  XrdMgmOfs/fsctl/Symlink.cc
+  XrdMgmOfs/fsctl/Txstate.cc
+  XrdMgmOfs/fsctl/Utimes.cc
+  XrdMgmOfs/fsctl/Version.cc
+  XrdMgmOfs/fsctl/Xattr.cc
   DrainJob.cc
   Balancer.cc
   FileSystem.cc
@@ -173,7 +200,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
-  ${FUSEX_SRCS} proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh)
+  ${FUSEX_SRCS})
 
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol

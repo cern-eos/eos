@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,11 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include "common/Logging.hh"
+#include "common/Path.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
+#include <XrdOuc/XrdOucEnv.hh>
+
+//----------------------------------------------------------------------------
+// Return metadata in env representation
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Getfmd(const char* path,
+                  const char* ininfo,
+                  XrdOucEnv& env,
+                  XrdOucErrInfo& error,
+                  eos::common::LogId& ThreadLogId,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
@@ -36,64 +53,61 @@
   char* afid = env.Get("mgm.getfmd.fid"); // decimal fid
 
   eos::common::FileId::fileid_t fid = afid ? strtoull(afid, 0, 10) : 0;
+  XrdOucString response;
 
-  if (!fid)
+  if (fid)
   {
-    // illegal request
-    XrdOucString response = "getfmd: retc=";
+    std::string fullpath;
+    std::shared_ptr<eos::IFileMD> fmd;
+
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      fullpath = gOFS->eosView->getUri(fmd.get());
+    } catch (eos::MDException& e) {
+      response = "getfmd: retc=";
+      response += e.getErrno();
+      error.setErrInfo(response.length() + 1, response.c_str());
+      return SFS_DATA;
+    }
+
+    eos::common::Path cPath(fullpath.c_str());
+    std::string fmdEnv = "";
+    fmd->getEnv(fmdEnv, true);
+    fmdEnv += "&container=";
+
+    // Patch parent name
+    XrdOucString safepath = cPath.GetParentPath();
+    while (safepath.replace("&", "#AND#")) {}
+
+    fmdEnv += safepath.c_str();
+
+    response = "getfmd: retc=0 ";
+    response += fmdEnv.c_str();
+
+    if (response.find("checksum=&") != STR_NPOS) {
+      // XrdOucEnv does not deal with empty values [... sigh ...]
+      response.replace("checksum=&", "checksum=none&");
+    }
+
+    // Patch the file name
+    safepath = cPath.GetName();
+
+    if (safepath.find("&") != STR_NPOS) {
+      XrdOucString initial_name = "name=";
+      initial_name += safepath;
+
+      while (safepath.replace("&", "#AND#")) {}
+
+      XrdOucString safe_name = "name=";
+      safe_name += safepath;
+      response.replace(initial_name, safe_name);
+    }
+  } else
+  {
+    response = "getfmd: retc=";
     response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
-
-  std::shared_ptr<eos::IFileMD> fmd;
-  std::string fullpath;
-  eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
-
-  try
-  {
-    fmd = gOFS->eosFileService->getFileMD(fid);
-    fullpath = gOFS->eosView->getUri(fmd.get());
-  }
-  catch (eos::MDException &e)
-  {
-    XrdOucString response = "getfmd: retc=";
-    response += e.getErrno();
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
-
-  eos::common::Path cPath(fullpath.c_str());
-  std::string fmdenv = "";
-  fmd->getEnv(fmdenv, true);
-  fmdenv += "&container=";
-  XrdOucString safepath = cPath.GetParentPath();
-
-  while (safepath.replace("&", "#AND#")) {}
-  fmdenv += safepath.c_str();
-
-  XrdOucString response = "getfmd: retc=0 ";
-  response += fmdenv.c_str();
-
-  if ( (response.find("checksum=&")) != STR_NPOS )
-  {
-    // XrdOucEnv does not deal with empty values ... sigh ...
-    response.replace("checksum=&", "checksum=none&");
-  }
-
-  // patch the name of the file
-  safepath = cPath.GetName();
-
-  if ( safepath.find("&") != STR_NPOS )
-  {
-    XrdOucString orig_name="name=";
-    orig_name += safepath;
-
-    while (safepath.replace("&", "#AND#")) { }
-
-    XrdOucString safe_name="name=";
-    safe_name += safepath;
-    response.replace(orig_name,safe_name);
   }
 
   error.setErrInfo(response.length() + 1, response.c_str());

@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,13 +21,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/FsView.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Repair file.
+// Used to repair after scan error (E.g.: use the converter to rewrite)
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Rewrite(const char* path,
+                   const char* ininfo,
+                   XrdOucEnv& env,
+                   XrdOucErrInfo& error,
+                   eos::common::LogId& ThreadLogId,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const XrdSecEntity* client)
 {
+  static const char* epname = "Rewrite";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
@@ -36,75 +55,66 @@
   EXEC_TIMING_BEGIN("Rewrite");
 
   bool IsEnabledAutoRepair = false;
-  {
-    // check if 'autorepair' is enabled
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("autorepair") == "on"))
-      IsEnabledAutoRepair = true;
-    else
-      IsEnabledAutoRepair = false;
 
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+    // Check if 'autorepair' is enabled
+    if ((FsView::gFsView.mSpaceView.count("default")) &&
+        (FsView::gFsView.mSpaceView["default"]->GetConfigMember("autorepair") == "on")) {
+      IsEnabledAutoRepair = true;
+    }
   }
 
   char* hexfid = env.Get("mgm.fxid");
 
-  if (!IsEnabledAutoRepair)
-  {
-    eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"", (hexfid) ?
-                    hexfid : "<missing>");
-    // the rewrite was suppressed!
-    const char* ok = "OK";
-    error.setErrInfo(strlen(ok) + 1, ok);
-    EXEC_TIMING_END("Rewrite");
-    return SFS_DATA;
-  }
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  if (!IsEnabledAutoRepair) {
+    eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
+                    (hexfid) ? hexfid : "<missing>");
+  } else {
+    eos::common::Mapping::VirtualIdentity rvid;
+    eos::common::Mapping::Root(rvid);
 
-  // convert fxid to path
-  const char* spath = 0;
-  errno = 0;
-  std::string fullpath = "";
-  eos::common::FileId::fileid_t fid = strtoul(hexfid, 0, 16);
-  if (!errno && fid)
-  {
-    eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+    // Convert fxid to path
+    errno = 0;
+    const char* spath = 0;
+    std::string fullpath = 0;
+    eos::common::FileId::fileid_t fid = strtoul(hexfid, 0, 16);
 
-    try
-    {
-      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
-      fullpath = gOFS->eosView->getUri(fmd.get());
-      spath = fullpath.c_str();
+    if (fid && !errno) {
+      eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+
+      try {
+        std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
+        fullpath = gOFS->eosView->getUri(fmd.get());
+        spath = fullpath.c_str();
+      } catch (eos::MDException& e) {
+        eos_thread_err("msg=\"unable to reference fid=%lu in namespace", fid);
+        return Emsg(epname, error, EIO, "rewrite [EIO]", spath);
+      }
     }
-    catch (eos::MDException &e)
-    {
-      eos_thread_err("msg=\"unable to reference fid=%lu in namespacen", fid);
-      return Emsg(epname, error, EIO, "[EIO] rewrite", spath);
+
+    if (spath) {
+      // Execute a proc command
+      XrdOucString info = "mgm.cmd=file&mgm.subcmd=convert";
+      info += "&mgm.path=";
+      info += spath;
+      info += "&mgm.option=rewrite&mgm.format=fuse";
+
+      ProcCommand procCommand;
+      procCommand.open("/proc/user", info.c_str(), rvid, &error);
+      procCommand.close();
+
+      if (procCommand.GetRetc()) {
+        // Rewrite failed
+        return Emsg(epname, error, EIO, "rewrite [EIO]", spath);
+      }
     }
   }
-  // execute a proc command
-  ProcCommand Cmd;
-  XrdOucString info = "mgm.cmd=file&mgm.subcmd=convert&";
-  info += "mgm.path=";
-  info += spath;
-  info += "&mgm.option=rewrite&mgm.format=fuse";
-  if (spath)
-  {
-    Cmd.open("/proc/user", info.c_str(), vid, &error);
-    Cmd.close();
-    gOFS->MgmStats.Add("Rewrite", 0, 0, 1);
-  }
-  if (Cmd.GetRetc())
-  {
-    // the rewrite failed
-    return Emsg(epname, error, EIO, "[EIO] rewrite", spath);
-  }
-  else
-  {
-    // the rewrite succeeded!
-    const char* ok = "OK";
-    error.setErrInfo(strlen(ok) + 1, ok);
-    EXEC_TIMING_END("Rewrite");
-    return SFS_DATA;
-  }
+
+  gOFS->MgmStats.Add("Rewrite", 0, 0, 1);
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
+  EXEC_TIMING_END("Rewrite");
+  return SFS_DATA;
 }

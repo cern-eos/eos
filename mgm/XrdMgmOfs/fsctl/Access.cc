@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,12 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Check access rights
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Access(const char* path,
+                  const char* ininfo,
+                  XrdOucEnv& env,
+                  XrdOucErrInfo& error,
+                  eos::common::LogId& ThreadLogId,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
@@ -34,25 +46,21 @@
 
   gOFS->MgmStats.Add("Fuse-Access", vid.uid, vid.gid, 1);
 
-  char* smode;
-  if ((smode = env.Get("mode")))
-  {
+  char* smode = env.Get("mode");
+  int retc = 0;
+
+  if (smode) {
     int newmode = atoi(smode);
-    int retc = 0;
-    if (access(spath.c_str(), newmode, error, client, 0))
-    {
+
+    if (access(path, newmode, error, client, 0)) {
       retc = error.getErrInfo();
     }
-    XrdOucString response = "access: retc=";
-    response += retc;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
+  } else {
+    retc = EINVAL;
   }
-  else
-  {
-    XrdOucString response = "access: retc=";
-    response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
+
+  XrdOucString response = "access: retc=";
+  response += retc;
+  error.setErrInfo(response.length() + 1, response.c_str());
+  return SFS_DATA;
 }

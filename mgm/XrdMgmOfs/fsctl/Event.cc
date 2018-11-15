@@ -3,9 +3,9 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/********************A***************************************************
+/************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,45 +21,65 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "common/Mapping.hh"
+#include "common/SecEntity.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/Acl.hh"
+#include "mgm/Workflow.hh"
+#include "mgm/FsView.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Trigger an event
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Event(const char* path,
+                 const char* ininfo,
+                 XrdOucEnv& env,
+                 XrdOucErrInfo& error,
+                 eos::common::LogId& ThreadLogId,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 const XrdSecEntity* client)
 {
-  char* spath = env.Get("mgm.path");
-  char* afid = env.Get("mgm.fid");
-  char* alogid = env.Get("mgm.logid");
-  char* aevent = env.Get("mgm.event");
-  char* aworkflow = env.Get("mgm.workflow");
+  static const char* epname = "Event";
+
   char* auid = env.Get("mgm.ruid");
   char* agid = env.Get("mgm.rgid");
   char* asec = env.Get("mgm.sec");
+  char* alogid = env.Get("mgm.logid");
+
+  char* spath = env.Get("mgm.path");
+  char* afid = env.Get("mgm.fid");
+  char* aevent = env.Get("mgm.event");
+
+  char* aworkflow = env.Get("mgm.workflow");
   char* errmsg = env.Get("mgm.errmsg");
 
   eos::common::Mapping::VirtualIdentity localVid;
   eos::common::Mapping::Nobody(localVid);
+  int errc;
 
-  int retc = 0;
-
-  if (auid)
-  {
+  if (auid) {
     localVid.uid = strtoul(auid, 0, 10);
-    localVid.uid_string = eos::common::Mapping::UidToUserName(localVid.uid, retc);
+    localVid.uid_string = eos::common::Mapping::UidToUserName(localVid.uid, errc);
   }
 
-  if (agid)
-  {
+  if (agid) {
     localVid.gid = strtoul(agid, 0, 10);
-    localVid.gid_string = eos::common::Mapping::GidToGroupName(localVid.gid, retc);
+    localVid.gid_string = eos::common::Mapping::GidToGroupName(localVid.gid, errc);
     localVid.gid_list = vid.gid_list;
   }
 
-  if (asec)
-  {
-    std::map<std::string, std::string> secmap = eos::common::SecEntity::KeyToMap(
-      std::string(asec));
+  if (asec) {
+    std::map<std::string, std::string> secmap =
+        eos::common::SecEntity::KeyToMap(std::string(asec));
+
     localVid.prot = secmap["prot"].c_str();
     localVid.name = secmap["name"].c_str();
     localVid.host = secmap["host"];
@@ -67,25 +87,25 @@
     localVid.app  = secmap["app"];
   }
 
-  if (alogid)
-  {
-    ThreadLogId.SetLogId(alogid, tident);
+  if (alogid) {
+    ThreadLogId.SetLogId(alogid, error.getErrUser());
   }
 
-  bool isPrepare = aevent != nullptr && std::string(aevent).find("prepare") != std::string::npos;
+  eos_thread_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u",
+                   vid.prot.c_str(), vid.uid, vid.gid);
+  eos_thread_debug("local.prot=%s, local.uid=%u, local.gid=%u",
+                   localVid.prot.c_str(), localVid.uid, localVid.gid);
 
-  // check that we have write permission on path
-  eos_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u", vid.prot.c_str(), vid.uid, vid.gid);
-  eos_debug("local.prot=%s, local.uid=%u, local.gid=%u", localVid.prot.c_str(), localVid.uid, localVid.gid);
+  // Check that we have write permission on path
+  bool isPrepare = (aevent != nullptr
+                    && std::string(aevent).find("prepare") != std::string::npos);
+  int mode = isPrepare  ?  W_OK | P_OK  :  W_OK;
 
-  if (vid.prot != "sss" &&
-      gOFS->_access(spath, isPrepare ? W_OK | P_OK : W_OK, error, localVid, ""))
-  {
-    Emsg(epname, error, EPERM,
-         isPrepare ? "event - you don't have write and prepare permissions" :
-         "event - you don't have write permission",
-         spath);
-    return SFS_ERROR;
+  if (vid.prot != "sss" && gOFS->_access(spath, mode, error, localVid, "")) {
+    const char* emsg =
+        isPrepare ? "event - you don't have write and prepare permissions [EPERM]"
+                  : "event - you don't have write permission [EPERM]";
+    return Emsg(epname, error, EPERM, emsg, spath);
   }
 
   ACCESSMODE_W;
@@ -96,137 +116,130 @@
 
   gOFS->MgmStats.Add("Event", 0, 0, 1);
 
-  int envlen = 0;
-
-  if (!spath || !afid || !alogid || !aevent)
+  if (spath && afid && aevent && aworkflow)
   {
-    return Emsg(epname, error, EINVAL, "notify - invalid parameters for event call",
-                env.Env(envlen));
-  }
+    eos_thread_info("subcmd=event event=%s path=%s fid=%s",
+                    aevent, spath, afid);
 
-  eos_thread_info("subcmd=event event=%s path=%s fid=%s",
-                  aevent,
-                  spath,
-                  afid);
+    unsigned long long fid = strtoull(afid, 0, 16);
+    std::string event = aevent;
 
-  unsigned long long fid = strtoull(afid, 0, 16);
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IContainerMD> cmd;
 
-  std::string event = aevent;
+    Workflow workflow;
+    eos::IContainerMD::XAttrMap attrmap;
 
-  std::shared_ptr<eos::IFileMD> fmd;
-  std::shared_ptr<eos::IContainerMD> dh;
+    XrdOucString lWorkflow = aworkflow;
+    if (lWorkflow.beginswith("eos.")) {
+      // Template workflow defined under the workflow proc directory
+      spath = (char*) gOFS->MgmProcWorkflowPath.c_str();
+      fid = 0;
+    }
 
-  Workflow workflow;
-  eos::IContainerMD::XAttrMap attr;
-
-  XrdOucString lWorkflow = aworkflow;
-
-  if (lWorkflow.beginswith("eos."))
-  {
-    // this is a templated workflow defined on the workflow proc directory
-    fid = 0;
-    spath = (char*)gOFS->MgmProcWorkflowPath.c_str();
-  }
-
-  {
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
-    try
     {
-      if (fid) {
-        fmd = gOFS->eosFileService->getFileMD(fid);
-      } else {
-        fmd = gOFS->eosView->getFile(spath);
-        fid = fmd->getId();
-      }
+      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
-      dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-      eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
-
-      for (const auto& elem : xattrs) {
-        attr[elem.first] = elem.second;
-      }
-
-      // check for attribute references
-      if (attr.count("sys.attr.link")) {
-        try {
-          dh = gOFS->eosView->getContainer(attr["sys.attr.link"]);
-          eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
-
-          for (const auto& elem : xattrs) {
-            XrdOucString key = elem.first.c_str();
-
-            if (!attr.count(elem.first)) {
-              attr[key.c_str()] = elem.second;
-            }
-          }
-        } catch (eos::MDException& e) {
-          dh.reset();
-          errno = e.getErrno();
-          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                    e.getMessage().str().c_str());
+      try {
+        if (fid) {
+          fmd = gOFS->eosFileService->getFileMD(fid);
+        } else {
+          fmd = gOFS->eosView->getFile(spath);
+          fid = fmd->getId();
         }
 
-        attr.erase("sys.attr.link");
+        cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+        eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
+
+        for (const auto& elem : xattrs) {
+          attrmap[elem.first] = elem.second;
+        }
+
+        // Check for attribute references
+        if (attrmap.count("sys.attr.link")) {
+          try {
+            cmd = gOFS->eosView->getContainer(attrmap["sys.attr.link"]);
+            eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
+
+            for (const auto& elem : xattrs) {
+              if (!attrmap.count(elem.first)) {
+                attrmap[elem.first] = elem.second;
+              }
+            }
+          } catch (eos::MDException& e) {
+            cmd.reset();
+            errno = e.getErrno();
+            eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                              e.getErrno(), e.getMessage().str().c_str());
+          }
+
+          attrmap.erase("sys.attr.link");
+        }
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                         e.getErrno(), e.getMessage().str().c_str());
       }
-    } catch (eos::MDException& e)
-    {
-      errno = e.getErrno();
-      eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                       e.getMessage().str().c_str());
     }
-  }
 
-  std::string path = spath;
-  // load the corresponding workflow
-  workflow.Init(&attr, path, fid);
+    // Load the corresponding workflow
+    std::string strpath = spath;
+    workflow.Init(&attrmap, strpath, fid);
 
-  std::string decodedErrorMessage = "trigger workflow - synchronous workflow failed";
-
-  if (errmsg != nullptr)
-  {
-    if (!eos::common::SymKey::Base64Decode(errmsg, decodedErrorMessage)) {
-      decodedErrorMessage = "";
+    std::string decodedErrMessage = "trigger workflow - synchronous workflow failed";
+    if (errmsg != nullptr) {
+      if (!eos::common::SymKey::Base64Decode(errmsg, decodedErrMessage)) {
+        decodedErrMessage = "";
+      }
     }
-  }
 
-  // trigger the specified event
-  int rc = workflow.Trigger(event, aworkflow, localVid, decodedErrorMessage);
+    // Trigger the specified event
+    int rc = workflow.Trigger(event, aworkflow, localVid, decodedErrMessage);
 
-  if (rc == -1)
-  {
-    if (errno == ENOKEY) {
-      // there is no workflow defined
-      return Emsg(epname, error, EINVAL,
-                  "trigger workflow - there is no workflow defined for this <workflow>.<event>",
-                  env.Env(envlen));
-    } else {
-      if (!workflow.IsSync())
-        return Emsg(epname, error, EIO, "trigger workflow - internal error",
+    if (rc == -1) {
+      int envlen = 0;
+
+      if (errno == ENOKEY) {
+        // No workflow defined
+        return Emsg(epname, error, EINVAL,
+                    "trigger workflow - no workflow defined for"
+                    " <workflow>.<event> [EINVAL]",
                     env.Env(envlen));
-      else
-        return Emsg(epname, error, errno, decodedErrorMessage.c_str(),
-                    env.Env(envlen));
+      } else {
+        if (!workflow.IsSync()) {
+          return Emsg(epname, error, EIO, "trigger workflow - internal error [EIO]",
+                      env.Env(envlen));
+        } else {
+          return Emsg(epname, error, errno, decodedErrMessage.c_str(),
+                      env.Env(envlen));
+        }
+      }
     }
-  }
 
-  if (rc != 0)
-  {
-    std::ostringstream errStr;
-    errStr << "complete workflow - error while executing " << event << " workflow ["
-           << MacroStringError(rc) << "]";
+    if (rc != 0) {
+      std::ostringstream errStr;
+      errStr << "complete workflow - error while executing "
+             << event << " workflow [" << MacroStringError(rc) << "]";
 
-    if (decodedErrorMessage.empty()) {
-      return Emsg(epname, error, rc, errStr.str().c_str(), spath);
-    } else {
-      return Emsg(epname, error, rc, decodedErrorMessage.c_str(), spath);
+      if (decodedErrMessage.empty()) {
+        return Emsg(epname, error, rc, errStr.str().c_str(), spath);
+      } else {
+        return Emsg(epname, error, rc, decodedErrMessage.c_str(), spath);
+      }
     }
   } else
   {
-    const char* ok = "OK";
-    error.setErrInfo(strlen(ok) + 1, ok);
+    int envlen = 0;
+    const char* env_string = env.Env(envlen);
+
+    eos_thread_err("invalid parameters for event call: %s", env_string);
+    return Emsg(epname, error, EINVAL,
+                "notify - invalid parameters for event call: %s [EINVAL]",
+                env_string);
   }
 
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
   EXEC_TIMING_END("Event");
   return SFS_DATA;
 }

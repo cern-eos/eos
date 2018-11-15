@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,109 +21,290 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "common/LayoutId.hh"
+#include "common/SecEntity.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFsView.hh"
+#include "authz/XrdCapability.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/FsView.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Utility functions to help with file balance scheduling
+//----------------------------------------------------------------------------
+namespace {
+  // Build general transfer capability string
+  XrdOucString constructCapability(unsigned long lid, unsigned long long cid,
+                                   const char* path, unsigned long long fid,
+                                   int drain_fsid, const char* localprefix,
+                                   int fsid) {
+    using eos::common::StringConversion;
+    XrdOucString capability = "";
+    XrdOucString sizestring;
+
+    capability += "&mgm.lid=";
+    capability += StringConversion::GetSizeString(sizestring,
+                                                  (unsigned long long) lid);
+    capability += "&mgm.cid=";
+    capability += StringConversion::GetSizeString(sizestring, cid);
+    capability += "&mgm.ruid=1";
+    capability += "&mgm.rgid=1";
+    capability += "&mgm.uid=1";
+    capability += "&mgm.gid=1";
+    capability += "&mgm.path=";
+    capability += path;
+    capability += "&mgm.manager=";
+    capability += gOFS->ManagerId.c_str();
+    capability += "&mgm.fid=";
+    capability += eos::common::FileId::Fid2Hex(fid).c_str();
+    capability += "&mgm.sec=";
+    capability += eos::common::SecEntity::ToKey(0, "eos/balancing").c_str();
+    capability += "&mgm.drainfsid=";
+    capability += drain_fsid;
+    capability += "&mgm.localprefix=";
+    capability += localprefix;
+    capability += "&mgm.fsid=";
+    capability += fsid;
+
+    return capability;
+  }
+
+  // Build source specific capability string
+  XrdOucString constructSourceCapability(unsigned long lid, unsigned long long cid,
+                                         const char* path, unsigned long long fid,
+                                         int drain_fsid, const char* localprefix,
+                                         int fsid,const char* hostport) {
+    XrdOucString capability = "mgm.access=read";
+
+    capability += constructCapability(lid, cid, path, fid,
+                                      drain_fsid, localprefix, fsid);
+    capability += "&mgm.sourcehostport=";
+    capability += hostport;
+
+    return capability.c_str();
+  }
+
+  // Build target specific capability string
+  XrdOucString constructTargetCapability(unsigned long lid, unsigned long long cid,
+                                         const char* path, unsigned long long fid,
+                                         int drain_fsid, const char* localprefix,
+                                         int fsid, const char* hostport,
+                                         unsigned long long size,
+                                         unsigned long source_lid,
+                                         uid_t source_uid,
+                                         gid_t source_gid) {
+    using eos::common::StringConversion;
+    XrdOucString sizestring;
+
+    XrdOucString capability = "mgm.access=write";
+    capability += constructCapability(lid, cid, path, fid,
+                                      drain_fsid, localprefix, fsid);
+    capability += "&mgm.targethostport=";
+    capability += hostport;
+    capability += "&mgm.bookingsize=";
+    capability += StringConversion::GetSizeString(sizestring, size);
+    capability += "&mgm.source.lid=";
+    capability += StringConversion::GetSizeString(sizestring,
+                                                  (unsigned long long) source_lid);
+    capability += "&mgm.source.ruid=";
+    capability += StringConversion::GetSizeString(sizestring,
+                                                  (unsigned long long) source_uid);
+    capability += "&mgm.source.rgid=";
+    capability += StringConversion::GetSizeString(sizestring,
+                                                  (unsigned long long) source_gid);
+
+    return capability;
+  }
+
+  int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
+                          unsigned long long capValidity,
+                          const char* source_hostport,
+                          const char* target_hostport,
+                          unsigned long long fid,
+                          XrdOucString& full_capability,
+                          XrdOucErrInfo& error) {
+    XrdOucEnv insourcecap_env(source_cap.c_str());
+    XrdOucEnv intargetcap_env(target_cap.c_str());
+    XrdOucEnv* sourcecap_env = 0;
+    XrdOucEnv* targetcap_env = 0;
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+
+    int rc = gCapabilityEngine.Create(&insourcecap_env, sourcecap_env,
+                                      symkey, capValidity);
+    if (rc) {
+      error.setErrInfo(rc, "source");
+      return rc;
+    }
+
+    rc = gCapabilityEngine.Create(&intargetcap_env, targetcap_env,
+                                  symkey, capValidity);
+    if (rc) {
+      error.setErrInfo(rc, "target");
+      return rc;
+    }
+
+    XrdOucString hexfid;
+    eos::common::FileId::Fid2Hex(fid, hexfid);
+
+    int caplen = 0;
+    source_cap = sourcecap_env->Env(caplen);
+    target_cap = targetcap_env->Env(caplen);
+
+    source_cap.replace("cap.sym", "source.cap.sym");
+    source_cap.replace("cap.msg", "source.cap.msg");
+    source_cap += "&source.url=root://";
+    source_cap += source_hostport;
+    source_cap += "//replicate:";
+    source_cap += hexfid.c_str();
+
+    target_cap.replace("cap.sym", "target.cap.sym");
+    target_cap.replace("cap.msg", "target.cap.msg");
+    target_cap += "&target.url=root://";
+    target_cap += target_hostport;
+    target_cap += "//replicate:";
+    target_cap += hexfid.c_str();
+
+    full_capability = source_cap;
+    full_capability += target_cap;
+
+    if (sourcecap_env) { delete sourcecap_env; }
+    if (targetcap_env) { delete targetcap_env; }
+
+    return 0;
+  }
+}
+
+//----------------------------------------------------------------------------
+// Schedule a balance transfer
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Schedule2Balance(const char* path,
+                            const char* ininfo,
+                            XrdOucEnv& env,
+                            XrdOucErrInfo& error,
+                            eos::common::LogId& ThreadLogId,
+                            eos::common::Mapping::VirtualIdentity& vid,
+                            const XrdSecEntity* client)
 {
+  static const char* epname = "Schedule2Balance";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-  EXEC_TIMING_BEGIN("Scheduled2Balance");
-  gOFS->MgmStats.Add("Schedule2Balance", 0, 0, 1);
-  XrdOucString sfsid = env.Get("mgm.target.fsid");
-  XrdOucString sfreebytes = env.Get("mgm.target.freebytes");
-  char* alogid = env.Get("mgm.logid");
-  char* simulate = env.Get("mgm.simulate"); // used to test the routing
 
-  // static map with iterator position for the next group scheduling and its mutex
+  EXEC_TIMING_BEGIN("Scheduled2Balance");
+
+  gOFS->MgmStats.Add("Schedule2Balance", 0, 0, 1);
+
+  // Static map with iterator position for the next
+  // group scheduling and its mutex
   static std::map<std::string, size_t> sGroupCycle;
   static XrdSysMutex sGroupCycleMutex;
   static time_t sScheduledFidCleanupTime = 0;
 
-  if (alogid)
-  {
-    ThreadLogId.SetLogId(alogid, tident);
+  char* alogid = env.Get("mgm.logid");
+  char* simulate = env.Get("mgm.simulate"); // Used to test the routing
+  char* afsid = env.Get("mgm.target.fsid");
+  char* afreebytes = env.Get("mgm.target.freebytes");
+
+  if (alogid) {
+    ThreadLogId.SetLogId(alogid, error.getErrUser());
   }
 
-  if ((!sfsid.length()) || (!sfreebytes.length()))
-  {
+  if (!afsid || !afreebytes) {
+    int envlen;
+    eos_thread_err("schedule2balance does not contain all meta information: %s",
+                   env.Env(envlen));
+
     gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
     return Emsg(epname, error, EINVAL,
-    "unable to schedule - missing parameters [EINVAL]");
+                "schedule - missing parameters [EINVAL]");
   }
 
-  eos::common::FileSystem::fsid_t target_fsid = atoi(sfsid.c_str());
   eos::common::FileSystem::fsid_t source_fsid = 0;
-  eos::common::FileSystem::fs_snapshot target_snapshot;
   eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem* target_fs = 0;
-  unsigned long long freebytes = (sfreebytes.c_str()) ? strtoull(sfreebytes.c_str(), 0, 10) : 0;
-  eos_thread_info("cmd=schedule2balance fsid=%d freebytes=%llu logid=%s",
-  target_fsid, freebytes, alogid ? alogid : "");
 
-  // Lock the view and get the filesystem information for the target where we
-  // balance to
+  eos::common::FileSystem::fsid_t target_fsid = atoi(afsid);
+  eos::common::FileSystem::fs_snapshot target_snapshot;
+
+  unsigned long long freebytes = strtoull(afreebytes, 0, 10);
+
+  eos_thread_info("cmd=schedule2balance fsid=%u freebytes=%llu logid=%s",
+                  target_fsid, freebytes, alogid ? alogid : "");
+
+  // Lock the view and get the filesystem information
+  // for the target where we balance to
   while (1)
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem* target_fs = 0;
+
     target_fs = FsView::gFsView.mIdView[target_fsid];
 
     if (!target_fs) {
       eos_thread_err("fsid=%u is not in filesystem view", target_fsid);
       gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-      return Emsg(epname, error, EINVAL,
-      "unable to schedule - filesystem ID is not known");
+      return Emsg(epname, error, EINVAL, "schedule - fsid not known [EINVAL]",
+                  std::to_string(target_fsid).c_str());
     }
 
     target_fs->SnapShotFileSystem(target_snapshot);
     FsGroup* group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
-    size_t groupsize = FsView::gFsView.mGroupView[target_snapshot.mGroup]->size();
 
     if (!group) {
-      eos_thread_err("group=%s is not in group view", target_snapshot.mGroup.c_str());
+      eos_thread_err("group=%s is not in group view",
+                     target_snapshot.mGroup.c_str());
       gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-      return Emsg(epname, error, EINVAL,
-                  "unable to schedule - group is not known [EINVAL]");
+      return Emsg(epname, error, EINVAL, "schedule - group not known [EINVAL]",
+                  target_snapshot.mGroup.c_str());
     }
 
+    size_t groupsize = group->size();
     eos_thread_debug("group=%s", target_snapshot.mGroup.c_str());
-    // select the next fs in the group to get a file to move
-    size_t gposition = 0;
-    sGroupCycleMutex.Lock();
 
-    if (sGroupCycle.count(target_snapshot.mGroup)) {
-      gposition = sGroupCycle[target_snapshot.mGroup] % group->size();
-    } else {
-      gposition = 0;
-      sGroupCycle[target_snapshot.mGroup] = 0;
+    // Select the next fs in the group to get a file move
+    size_t gposition = 0;
+    {
+      XrdSysMutexHelper sLock(sGroupCycleMutex);
+
+      if (sGroupCycle.count(target_snapshot.mGroup)) {
+        gposition = sGroupCycle[target_snapshot.mGroup] % groupsize;
+      } else {
+        gposition = 0;
+        sGroupCycle[target_snapshot.mGroup] = 0;
+      }
+
+      // Shift the iterator for the next schedule call
+      // to the following filesystem in the group
+      sGroupCycle[target_snapshot.mGroup]++;
+      sGroupCycle[target_snapshot.mGroup] %= groupsize;
     }
 
-    // shift the iterator for the next schedule call to the following filesystem in the group
-    sGroupCycle[target_snapshot.mGroup]++;
-    sGroupCycle[target_snapshot.mGroup] %= groupsize;
-    sGroupCycleMutex.UnLock();
     eos_thread_debug("group=%s cycle=%lu",
                      target_snapshot.mGroup.c_str(), gposition);
-    // Try to find a file, which is smaller than the free bytes and has no
+
+    // Try to find a file which is smaller than the free bytes and has no
     // replica on the target filesystem. We start at a random position not
     // to move data of the same period to a single disk
-    group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
-    FsGroup::const_iterator group_iterator;
-    group_iterator = group->begin();
+    FsGroup::const_iterator group_iterator = group->begin();
     std::advance(group_iterator, gposition);
     eos::common::FileSystem* source_fs = 0;
 
     for (size_t n = 0; n < group->size(); n++) {
-      // skip over the target file system, that isn't usable
+      // Skip over unusable target file system
       if (*group_iterator == target_fsid) {
         source_fs = 0;
-        group_iterator++;
 
-        if (group_iterator == group->end()) {
+        if (++group_iterator == group->end()) {
           group_iterator = group->begin();
         }
 
@@ -132,30 +313,28 @@
 
       source_fs = FsView::gFsView.mIdView[*group_iterator];
 
-      if (!source_fs) {
-        continue;
-      }
+      if (!source_fs) { continue; }
 
       source_fs->SnapShotFileSystem(source_snapshot);
       source_fsid = *group_iterator;
 
       if ((source_snapshot.mDiskFilled < source_snapshot.mNominalFilled) ||
-          // this is not a source since it is empty
+          // This is not a source since it is empty
           (source_snapshot.mStatus != eos::common::FileSystem::kBooted) ||
-          // this filesystem is not readable
+          // This filesystem is not readable
           (source_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
           (source_snapshot.mErrCode != 0) ||
           (source_fs->GetActiveStatus(source_snapshot) ==
            eos::common::FileSystem::kOffline)) {
         source_fs = 0;
-        group_iterator++;
+
         // Whenever we jump a filesystem we advance also the cyclic group
         // pointer for the next round
         XrdSysMutexHelper sLock(sGroupCycleMutex);
         sGroupCycle[target_snapshot.mGroup]++;
         sGroupCycle[target_snapshot.mGroup] %= groupsize;
 
-        if (group_iterator == group->end()) {
+        if (++group_iterator == group->end()) {
           group_iterator = group->begin();
         }
 
@@ -192,238 +371,160 @@
         lock.Grab(gOFS->eosViewRWMutex);
       }
 
-      // check that the target does not have this file
+      // Check that the target does not have this file
       if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
-        // Iterate to the next file, we have this file already
-        eos_static_debug("skip fid=%ld - existing on target", fid);
+        // Ignore file and move to the next
+        eos_static_debug("skip fxid=%llx - file exists on target fsid=%u",
+                          fid, target_fsid);
         continue;
-      } else {
-        // check that this file has not been scheduled during the 1h period
-        XrdSysMutexHelper sLock(ScheduledToBalanceFidMutex);
-        time_t now = time(NULL);
+      }
 
-        if (sScheduledFidCleanupTime < now) {
-          // next clean-up in 10 minutes
-          sScheduledFidCleanupTime = now + 600;
-          // do some cleanup
-          std::map<eos::common::FileId::fileid_t, time_t>::iterator it1;
-          std::map<eos::common::FileId::fileid_t, time_t>::iterator it2;
-          it1 = it2 = ScheduledToBalanceFid.begin();
+      // Update scheduled files mapping
+      XrdSysMutexHelper sLock(ScheduledToBalanceFidMutex);
+      time_t now = time(NULL);
 
-          while (it2 != ScheduledToBalanceFid.end()) {
-            it1 = it2;
-            it2++;
+      if (sScheduledFidCleanupTime < now) {
+        // Next clean-up in 10 minutes
+        sScheduledFidCleanupTime = now + 600;
 
-            if (it1->second < now) {
-              ScheduledToBalanceFid.erase(it1);
-            }
-          }
-        }
+        // Do some clean-up
+        std::map<eos::common::FileId::fileid_t, time_t>::iterator it1;
+        std::map<eos::common::FileId::fileid_t, time_t>::iterator it2;
+        it2 = ScheduledToBalanceFid.begin();
 
-        if ((ScheduledToBalanceFid.count(fid) &&
-             ((ScheduledToBalanceFid[fid] > (now))))) {
-          // Iterate to the next file, we have scheduled this file during the
-          // last hour or anyway it is empty
-          eos_static_debug("skip fid=%ld - scheduled during last hour", fid);
-          continue;
-        } else {
-          std::shared_ptr<eos::IFileMD> fmd;
-          unsigned long long cid = 0;
-          unsigned long long size = 0;
-          long unsigned int lid = 0;
-          uid_t uid = 0;
-          gid_t gid = 0;
-          std::string fullpath = "";
+        while (it2 != ScheduledToBalanceFid.end()) {
+          it1 = it2;
+          it2++;
 
-          try {
-            fmd = gOFS->eosFileService->getFileMD(fid);
-            fullpath = gOFS->eosView->getUri(fmd.get());
-            XrdOucString savepath = fullpath.c_str();
-
-            while (savepath.replace("&", "#AND#")) {}
-
-            fullpath = savepath.c_str();
-            lid = fmd->getLayoutId();
-            cid = fmd->getContainerId();
-            size = fmd->getSize();
-            uid = fmd->getCUid();
-            gid = fmd->getCGid();
-          } catch (eos::MDException& e) {
-            fmd.reset();
-          }
-
-          if (fmd) {
-            if ((size > 0) && (size < freebytes)) {
-              // we can schedule fid from source => target_it
-              eos_thread_info("subcmd=scheduling fid=%llx source_fsid=%u target_fsid=%u",
-                              fid, source_fsid, target_fsid);
-              XrdOucString source_capability = "";
-              XrdOucString sizestring;
-              using eos::common::LayoutId;
-              unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
-
-              // Mask block checksums (set to kNone) for replica layouts
-              if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
-                target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
-              }
-
-              source_capability += "mgm.access=read";
-              source_capability += "&mgm.lid=";
-              source_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   (unsigned long long) target_lid);
-              // make's it a plain replica
-              source_capability += "&mgm.cid=";
-              source_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   cid);
-              source_capability += "&mgm.ruid=";
-              source_capability += (int) 1;
-              source_capability += "&mgm.rgid=";
-              source_capability += (int) 1;
-              source_capability += "&mgm.uid=";
-              source_capability += (int) 1;
-              source_capability += "&mgm.gid=";
-              source_capability += (int) 1;
-              source_capability += "&mgm.path=";
-              source_capability += fullpath.c_str();
-              source_capability += "&mgm.manager=";
-              source_capability += gOFS->ManagerId.c_str();
-              source_capability += "&mgm.fid=";
-              XrdOucString hexfid;
-              eos::common::FileId::Fid2Hex(fid, hexfid);
-              source_capability += hexfid;
-              source_capability += "&mgm.sec=";
-              source_capability += eos::common::SecEntity::ToKey(0, "eos/balancing").c_str();
-              source_capability += "&mgm.drainfsid=";
-              source_capability += (int) source_fsid;
-              // build the source_capability contents
-              source_capability += "&mgm.localprefix=";
-              source_capability += source_snapshot.mPath.c_str();
-              source_capability += "&mgm.fsid=";
-              source_capability += (int) source_snapshot.mId;
-              source_capability += "&mgm.sourcehostport=";
-              source_capability += source_snapshot.mHostPort.c_str();
-              XrdOucString target_capability = "";
-              target_capability += "mgm.access=write";
-              target_capability += "&mgm.lid=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   (unsigned long long) target_lid);
-              // make's it a plain replica
-              target_capability += "&mgm.source.lid=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   (unsigned long long) lid);
-              target_capability += "&mgm.source.ruid=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   (unsigned long long) uid);
-              target_capability += "&mgm.source.rgid=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   (unsigned long long) gid);
-              target_capability += "&mgm.cid=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   cid);
-              target_capability += "&mgm.ruid=";
-              target_capability += (int) 1;
-              target_capability += "&mgm.rgid=";
-              target_capability += (int) 1;
-              target_capability += "&mgm.uid=";
-              target_capability += (int) 1;
-              target_capability += "&mgm.gid=";
-              target_capability += (int) 1;
-              target_capability += "&mgm.path=";
-              target_capability += fullpath.c_str();
-              target_capability += "&mgm.manager=";
-              target_capability += gOFS->ManagerId.c_str();
-              target_capability += "&mgm.fid=";
-              target_capability += hexfid;
-              target_capability += "&mgm.sec=";
-              target_capability += eos::common::SecEntity::ToKey(0, "eos/balancing").c_str();
-              target_capability += "&mgm.drainfsid=";
-              target_capability += (int) source_fsid;
-              // build the target_capability contents
-              target_capability += "&mgm.localprefix=";
-              target_capability += target_snapshot.mPath.c_str();
-              target_capability += "&mgm.fsid=";
-              target_capability += (int) target_snapshot.mId;
-              target_capability += "&mgm.targethostport=";
-              target_capability += target_snapshot.mHostPort.c_str();
-              target_capability += "&mgm.bookingsize=";
-              target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                                   size);
-              // issue a source_capability
-              XrdOucEnv insource_capability(source_capability.c_str());
-              XrdOucEnv intarget_capability(target_capability.c_str());
-              XrdOucEnv* source_capabilityenv = 0;
-              XrdOucEnv* target_capabilityenv = 0;
-              XrdOucString fullcapability = "";
-              eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-              int caprc = 0;
-
-              if ((caprc = gCapabilityEngine.Create(&insource_capability,
-                                                    source_capabilityenv,
-                                                    symkey, mCapabilityValidity)) ||
-                  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv,
-                                                    symkey, mCapabilityValidity))) {
-                eos_thread_err("unable to create source/target capability - errno=%u", caprc);
-                gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-                return Emsg(epname, error, caprc, "create source/target capability [EADV]");
-              } else {
-                int caplen = 0;
-                XrdOucString source_cap = source_capabilityenv->Env(caplen);
-                XrdOucString target_cap = target_capabilityenv->Env(caplen);
-                source_cap.replace("cap.sym", "source.cap.sym");
-                target_cap.replace("cap.sym", "target.cap.sym");
-                source_cap.replace("cap.msg", "source.cap.msg");
-                target_cap.replace("cap.msg", "target.cap.msg");
-                source_cap += "&source.url=root://";
-                source_cap += source_snapshot.mHostPort.c_str();
-                source_cap += "//replicate:";
-                source_cap += hexfid;
-                target_cap += "&target.url=root://";
-                target_cap += target_snapshot.mHostPort.c_str();
-                target_cap += "//replicate:";
-                target_cap += hexfid;
-                fullcapability += source_cap;
-                fullcapability += target_cap;
-                ScheduledToBalanceFid[fid] = time(NULL) + 3600;
-                XrdOucString response = "submitted";
-                error.setErrInfo(response.length() + 1, response.c_str());
-
-                if (!simulate) {
-                  eos::common::TransferJob* txjob =
-                    new eos::common::TransferJob(fullcapability.c_str());
-
-                  if (target_fs->GetBalanceQueue()->Add(txjob)) {
-                    eos_thread_info("cmd=queued fid=%x source_fs=%u target_fs=%u",
-                                    hexfid.c_str(), source_fsid, target_fsid);
-                    eos_thread_debug("job=%s", fullcapability.c_str());
-                  }
-
-                  if (txjob) {
-                    delete txjob;
-                  }
-                }
-
-                if (source_capabilityenv) {
-                  delete source_capabilityenv;
-                }
-
-                if (target_capabilityenv) {
-                  delete target_capabilityenv;
-                }
-
-                gOFS->MgmStats.Add("Scheduled2Balance", 0, 0, 1);
-                EXEC_TIMING_END("Scheduled2Balance");
-                return SFS_DATA;
-              }
-            } else {
-              eos_static_debug("skip fid=%ld - zero sized file", fid);
-              continue;
-            }
-          } else {
-            eos_static_debug("skip fid=%ld - cannot get fmd record", fid);
-            continue;
+          if (it1->second < now) {
+            ScheduledToBalanceFid.erase(it1);
           }
         }
       }
+
+      // Check that this file has not been scheduled during the 1h period
+      if (ScheduledToBalanceFid.count(fid)
+          && (ScheduledToBalanceFid[fid] > (now))) {
+        // File has been scheduled in the last hour. Move to the next
+        eos_thread_debug("skip fxid=%llx - scheduled during last hour", fid);
+        continue;
+      }
+
+      //-----------------------------------------------------------------------
+      // Grab file metadata object
+      //-----------------------------------------------------------------------
+
+      std::shared_ptr<eos::IFileMD> fmd;
+      unsigned long long cid = 0;
+      unsigned long long size = 0;
+      long unsigned int lid = 0;
+      uid_t uid = 0;
+      gid_t gid = 0;
+      std::string fullpath = "";
+
+      try {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+        fullpath = gOFS->eosView->getUri(fmd.get());
+        XrdOucString savepath = fullpath.c_str();
+
+        while (savepath.replace("&", "#AND#")) {}
+
+        fullpath = savepath.c_str();
+        lid = fmd->getLayoutId();
+        cid = fmd->getContainerId();
+        size = fmd->getSize();
+        uid = fmd->getCUid();
+        gid = fmd->getCGid();
+      } catch (eos::MDException& e) {
+        fmd.reset();
+      }
+
+      if (!fmd) {
+        eos_thread_debug("skip fxid=%llx - cannot get fmd record", fid);
+        continue;
+      }
+
+      if (size == 0) {
+        eos_thread_debug("skip fxid=%llx - zero sized file", fid);
+        continue;
+      }
+
+      if (size >= freebytes) {
+        eos_thread_warning("skip fxid=%llx - file size >= free bytes "
+                           "fsize=%llu free_bytes=%llu", fid, size, freebytes);
+        continue;
+      }
+
+      //-----------------------------------------------------------------------
+      // Schedule file transfer
+      //-----------------------------------------------------------------------
+
+      eos_thread_info("subcmd=scheduling fxid=%llx source_fsid=%u target_fsid=%u",
+                      fid, source_fsid, target_fsid);
+
+      using eos::common::LayoutId;
+      unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
+
+      // Mask block checksums (set to kNone) for replica layouts
+      if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
+        target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
+      }
+
+      // Construct capability strings
+      XrdOucString source_capability =
+          constructSourceCapability(target_lid, cid, fullpath.c_str(), fid,
+                                    source_fsid, source_snapshot.mPath.c_str(),
+                                    source_snapshot.mId,
+                                    source_snapshot.mHostPort.c_str());
+
+      XrdOucString target_capability =
+          constructTargetCapability(target_lid, cid, fullpath.c_str(), fid,
+                                    source_fsid, target_snapshot.mPath.c_str(),
+                                    target_snapshot.mId,
+                                    target_snapshot.mHostPort.c_str(),
+                                    size, lid, uid, gid);
+
+      // Issue full capability string
+      XrdOucErrInfo capError;
+      XrdOucString full_capability;
+      int rc = issueFullCapability(source_capability, target_capability,
+                                   mCapabilityValidity,
+                                   source_snapshot.mHostPort.c_str(),
+                                   target_snapshot.mHostPort.c_str(),
+                                   fid, full_capability, capError);
+      if (rc) {
+        std::ostringstream errstream;
+        errstream << "create " << capError.getErrText()
+                  << " capability [EADV]";
+
+        eos_thread_err("unable to create %s capability - ec=%d",
+                       capError.getErrText(), capError.getErrInfo());
+        gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+        return Emsg(epname, error, rc, errstream.str().c_str());
+      }
+
+      ScheduledToBalanceFid[fid] = time(NULL) + 3600;
+      XrdOucString response = "submitted";
+      error.setErrInfo(response.length() + 1, response.c_str());
+
+      if (!simulate) {
+        std::unique_ptr<eos::common::TransferJob>
+            txjob(new eos::common::TransferJob(full_capability.c_str()));
+
+        if (target_fs->GetBalanceQueue()->Add(txjob.get())) {
+          eos_thread_info("cmd=schedule2balance fxid=%llx source_fs=%u "
+                          "target_fs=%u", fid, source_fsid, target_fsid);
+          eos_thread_debug("job=%s", full_capability.c_str());
+        } else {
+          eos_thread_err("cmd=schedule2balance msg=\"failed to submit job\""
+                         " job=%s", full_capability.c_str());
+          error.setErrInfo(0, "");
+        }
+      }
+
+      gOFS->MgmStats.Add("Scheduled2Balance", 0, 0, 1);
+      EXEC_TIMING_END("Scheduled2Balance");
+      return SFS_DATA;
     }
 
     break;

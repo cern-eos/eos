@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,40 +21,53 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsFile.hh"
+#include "mgm/Macros.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Parallel IO mode open
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Open(const char* path,
+                const char* ininfo,
+                XrdOucEnv& env,
+                XrdOucErrInfo& error,
+                eos::common::LogId& ThreadLogId,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-  XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
 
-  if (file)
-  {
+  XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
+  XrdOucString opaque = ininfo;
+  int retc = SFS_ERROR;
+
+  if (file) {
     opaque += "&eos.cli.access=pio";
-    int rc = file->open(spath.c_str(), SFS_O_RDONLY, 0, client, opaque.c_str());
+    int rc = file->open(path, SFS_O_RDONLY, 0, client, opaque.c_str());
     error.setErrInfo(strlen(file->error.getErrText()) + 1, file->error.getErrText());
-    if (rc == SFS_REDIRECT)
-    {
-      delete file;
-      return SFS_DATA;
-    }
-    else
-    {
+
+    if (rc == SFS_REDIRECT) {
+      retc = SFS_DATA;
+    } else {
       error.setErrCode(file->error.getErrInfo());
-      delete file;
-      return SFS_ERROR;
     }
+
+    delete file;
+  } else {
+    const char *emsg = "allocate file object";
+    error.setErrInfo(strlen(emsg) + 1, emsg);
+    error.setErrCode(ENOMEM);
   }
-  else
-  {
-    error.setErrInfo(ENOMEM, "allocate file object");
-    return SFS_ERROR;
-  }
+
+  return retc;
 }
