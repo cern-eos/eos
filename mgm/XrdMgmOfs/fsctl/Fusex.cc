@@ -37,6 +37,7 @@
 int
 XrdMgmOfs::Fusex(const char* path,
                  const char* ininfo,
+                 std::string protobuf,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
                  eos::common::LogId& ThreadLogId,
@@ -53,7 +54,6 @@ XrdMgmOfs::Fusex(const char* path,
 
   gOFS->MgmStats.Add("Eosxd::ext::0-HANDLE", vid.uid, vid.gid, 1);
 
-  std::string protobuf = ininfo;
   eos_static_debug("protobuf-len=%d", protobuf.length());
 
   eos::fusex::md md;

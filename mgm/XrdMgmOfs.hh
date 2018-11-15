@@ -1764,6 +1764,7 @@ private:
   //----------------------------------------------------------------------------
   int Fusex(const char* path,
             const char* ininfo,
+            std::string protobuf,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,

@@ -259,39 +259,39 @@ XrdMgmOfs::FSctl(const int cmd,
 
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
-    return XrdMgmOfs::Fusex(path, protobuf.c_str(), env, error, ThreadLogId, vid,
-                            client);
+    return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, ThreadLogId,
+                            vid, client);
   }
 
   if (scmd) {
-    if (execmd == "access")                  {
+    if (execmd == "access") {
       return XrdMgmOfs::Access(inpath, ininfo, env, error, ThreadLogId, vid,
                                client);
-    } else if (execmd == "adjustreplica")      {
+    } else if (execmd == "adjustreplica") {
       return XrdMgmOfs::AdjustReplica(inpath, ininfo, env, error, ThreadLogId, vid,
                                       client);
-    } else if (execmd == "checksum")           {
+    } else if (execmd == "checksum") {
       return XrdMgmOfs::Checksum(inpath, ininfo, env, error, ThreadLogId, vid,
                                  client);
-    } else if (execmd == "chmod")              {
+    } else if (execmd == "chmod") {
       return XrdMgmOfs::Chmod(inpath, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else if (execmd == "chown")              {
+    } else if (execmd == "chown") {
       return XrdMgmOfs::Chown(inpath, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else if (execmd == "commit")             {
+    } else if (execmd == "commit") {
       return XrdMgmOfs::Commit(inpath, ininfo, env, error, ThreadLogId, vid,
                                client);
-    } else if (execmd == "drop")               {
+    } else if (execmd == "drop") {
       return XrdMgmOfs::Drop(inpath, ininfo, env, error, ThreadLogId, vid,
                              client);
-    } else if (execmd == "event")              {
+    } else if (execmd == "event") {
       return XrdMgmOfs::Event(inpath, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else if (execmd == "getfmd")             {
+    } else if (execmd == "getfmd") {
       return XrdMgmOfs::Getfmd(inpath, ininfo, env, error, ThreadLogId, vid,
                                client);
-    } else if (execmd == "is_master")          {
+    } else if (execmd == "is_master") {
       return XrdMgmOfs::IsMaster(inpath, ininfo, env, error, ThreadLogId, vid,
                                  client);
     } else if (execmd == "mastersignalbounce") {
@@ -300,52 +300,52 @@ XrdMgmOfs::FSctl(const int cmd,
     } else if (execmd == "mastersignalreload") {
       return XrdMgmOfs::MasterSignalReload(inpath, ininfo, env, error, ThreadLogId,
                                            vid, client);
-    } else if (execmd == "mkdir")              {
+    } else if (execmd == "mkdir") {
       return XrdMgmOfs::Mkdir(inpath, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else if (execmd == "open")               {
+    } else if (execmd == "open") {
       return XrdMgmOfs::Open(inpath, ininfo, env, error, ThreadLogId, vid,
                              client);
-    } else if (execmd == "readlink")           {
+    } else if (execmd == "readlink") {
       return XrdMgmOfs::Readlink(inpath, ininfo, env, error, ThreadLogId, vid,
                                  client);
-    } else if (execmd == "redirect")           {
+    } else if (execmd == "redirect") {
       return XrdMgmOfs::Redirect(inpath, ininfo, env, error, ThreadLogId, vid,
                                  client);
-    } else if (execmd == "rewrite")            {
+    } else if (execmd == "rewrite") {
       return XrdMgmOfs::Rewrite(inpath, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "schedule2balance")   {
+    } else if (execmd == "schedule2balance") {
       return XrdMgmOfs::Schedule2Balance(inpath, ininfo, env, error, ThreadLogId, vid,
                                          client);
-    } else if (execmd == "schedule2delete")    {
+    } else if (execmd == "schedule2delete") {
       return XrdMgmOfs::Schedule2Delete(inpath, ininfo, env, error, ThreadLogId, vid,
                                         client);
-    } else if (execmd == "schedule2drain")     {
+    } else if (execmd == "schedule2drain") {
       return XrdMgmOfs::Schedule2Drain(inpath, ininfo, env, error, ThreadLogId, vid,
                                        client);
-    } else if (execmd == "stat")               {
+    } else if (execmd == "stat") {
       return XrdMgmOfs::FuseStat(inpath, ininfo, env, error, ThreadLogId, vid,
                                  client);
-    } else if (execmd == "statvfs")            {
+    } else if (execmd == "statvfs") {
       return XrdMgmOfs::Statvfs(inpath, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "symlink")            {
+    } else if (execmd == "symlink") {
       return XrdMgmOfs::Symlink(inpath, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "txstate")            {
+    } else if (execmd == "txstate") {
       return XrdMgmOfs::Txstate(inpath, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "utimes")             {
+    } else if (execmd == "utimes") {
       return XrdMgmOfs::Utimes(inpath, ininfo, env, error, ThreadLogId, vid,
                                client);
-    } else if (execmd == "version")            {
+    } else if (execmd == "version") {
       return XrdMgmOfs::Version(inpath, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "xattr")              {
+    } else if (execmd == "xattr") {
       return XrdMgmOfs::Xattr(inpath, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else                                     {
+    } else {
       eos_thread_err("No implementation for %s", execmd.c_str());
     }
   }
