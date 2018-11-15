@@ -256,7 +256,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   LoginIdentifier login(connectionCounter++);
   std::shared_ptr<TrustedCredentials> tc2(new TrustedCredentials(tc.getUC(),
-                                          tc.getMTime())); // fix this madness
+                                          tc.getMTime(), tc.getIntercepted())); // fix this madness
   std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc2));
   registerSSS(*bdi);
 

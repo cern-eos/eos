@@ -79,14 +79,7 @@ class TrustedCredentials
 {
 public:
   //----------------------------------------------------------------------------
-  // Constructor.
-  //----------------------------------------------------------------------------
-  TrustedCredentials(const UserCredentials& uc_, time_t mtime_) {
-    initialize(uc_, mtime_, "");
-  }
-
-  //----------------------------------------------------------------------------
-  // Constructor - intercepted credential path
+  // Constructor
   //----------------------------------------------------------------------------
   TrustedCredentials(const UserCredentials& uc_, time_t mtime_,
     const std::string& intercepted) {
@@ -108,6 +101,7 @@ public:
     initialized = false;
     invalidated = false;
     mtime = 0;
+    interceptedPath.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -217,6 +211,13 @@ public:
   //----------------------------------------------------------------------------
   const UserCredentials& getUC() const {
     return uc;
+  }
+
+  //----------------------------------------------------------------------------
+  // Accessor for intercepted path
+  //----------------------------------------------------------------------------
+  std::string getIntercepted() const {
+    return interceptedPath;
   }
 
   //----------------------------------------------------------------------------

@@ -120,7 +120,8 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
 
-  if(info.state != CredentialState::kOk) {
+  if(info.state != CredentialState::kOk &&
+     info.state != CredentialState::kOkWithContents) {
     //--------------------------------------------------------------------------
     // File has disappeared on us, or permissions changed.
     //--------------------------------------------------------------------------
