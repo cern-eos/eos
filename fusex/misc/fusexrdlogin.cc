@@ -38,7 +38,7 @@ ProcessCache* fusexrdlogin::processCache = nullptr;
 void fusexrdlogin::initializeProcessCache(const CredentialConfig& config)
 {
   authGroup.reset(new AuthenticationGroup(config));
-  processCache = &(authGroup->processCache());
+  processCache = authGroup->processCache();
 }
 
 int fusexrdlogin::loginurl(XrdCl::URL& url,

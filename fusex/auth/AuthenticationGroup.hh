@@ -27,9 +27,12 @@
 #include "CredentialFinder.hh"
 
 class ProcessCache;
+class BoundIdentityProvider;
+class ProcessInfoProvider;
+class JailResolver;
 
 //------------------------------------------------------------------------------
-// Utility class to manage ownership of the rest of the classes involved in the
+// Utility class to manage ownership of all classes involved in the
 // authentication party. Handles correct construction and deletion, and
 // lazy-initialization of objects, as-requested.
 //------------------------------------------------------------------------------
@@ -43,11 +46,29 @@ public:
   //----------------------------------------------------------------------------
   // Retrieve process cache, lazy initialize
   //----------------------------------------------------------------------------
-  ProcessCache& processCache();
+  ProcessCache* processCache();
+
+  //----------------------------------------------------------------------------
+  // Retrieve bound identity provider, lazy initialize
+  //----------------------------------------------------------------------------
+  BoundIdentityProvider* boundIdentityProvider();
+
+  //----------------------------------------------------------------------------
+  // Retrieve process info provider, lazy initialize
+  //----------------------------------------------------------------------------
+  ProcessInfoProvider* processInfoProvider();
+
+  //----------------------------------------------------------------------------
+  // Retrieve jail resolver, lazy initialize
+  //----------------------------------------------------------------------------
+  JailResolver* jailResolver();
 
 private:
   CredentialConfig config;
 
+  std::unique_ptr<JailResolver> jailResolverPtr;
+  std::unique_ptr<ProcessInfoProvider> processInfoProviderPtr;
+  std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
 };
 

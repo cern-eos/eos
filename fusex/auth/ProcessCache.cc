@@ -40,8 +40,12 @@ ExecveAlert::~ExecveAlert()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ProcessCache::ProcessCache() : cache(16 /* 2^16 shards */,
-                           1000 * 60 * 10 /* 10 minutes inactivity TTL */)
+ProcessCache::ProcessCache(BoundIdentityProvider &bip,
+  ProcessInfoProvider &pip, JailResolver &jr)
+  : cache(16 /* 2^16 shards */, 1000 * 60 * 10 /* 10 minutes inactivity TTL */),
+  boundIdentityProvider(bip),
+  processInfoProvider(pip),
+  jailResolver(jr)
 {
   myJail = jailResolver.resolve(getpid());
 }

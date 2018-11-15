@@ -104,7 +104,8 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ProcessCache();
+  ProcessCache(BoundIdentityProvider &bip, ProcessInfoProvider &pip,
+    JailResolver &jr);
 
   //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd.
@@ -169,9 +170,10 @@ private:
   };
 
   ShardedCache<ProcessCacheKey, ProcessCacheEntry, KeyHasher> cache;
-  BoundIdentityProvider boundIdentityProvider;
-  ProcessInfoProvider processInfoProvider;
-  JailResolver jailResolver;
+  BoundIdentityProvider& boundIdentityProvider;
+  ProcessInfoProvider& processInfoProvider;
+  JailResolver& jailResolver;
+
   JailInformation myJail;
 };
 

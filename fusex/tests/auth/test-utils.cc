@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: AuthenticationGroup.cc
+// File: test-utils.cc
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,61 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "AuthenticationGroup.hh"
-#include "ProcessCache.hh"
-#include "ProcessInfo.hh"
+#include "test-utils.hh"
 
 //------------------------------------------------------------------------------
-// Constructor
+// Lazy-initialize AuthenticationGroup.
 //------------------------------------------------------------------------------
-AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
-: config(config_) {
+AuthenticationGroup* AuthenticationFixture::group() {
+  if(!groupPtr) {
+    groupPtr.reset(new AuthenticationGroup(config));
+  }
+
+  return groupPtr.get();
 }
 
 //------------------------------------------------------------------------------
-// Retrieve process cache, lazy initialize
+// Lazy-initialize ProcessCache.
 //------------------------------------------------------------------------------
-ProcessCache* AuthenticationGroup::processCache() {
-  if(!processCachePtr) {
-    processCachePtr.reset(new ProcessCache(*boundIdentityProvider(),
-      *processInfoProvider(), *jailResolver()));
-    processCachePtr->setCredentialConfig(config);
-  }
-
-  return processCachePtr.get();
+ProcessCache* AuthenticationFixture::processCache() {
+  return group()->processCache();
 }
 
 //------------------------------------------------------------------------------
-// Retrieve bound identity provider, lazy initialize
+// Lazy-initialize BoundIdentityProvider.
 //------------------------------------------------------------------------------
-BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider() {
-  if(!boundIdentityProviderPtr) {
-    boundIdentityProviderPtr.reset(new BoundIdentityProvider());
-    boundIdentityProviderPtr->setCredentialConfig(config);
-  }
-
-  return boundIdentityProviderPtr.get();
-}
-
-//------------------------------------------------------------------------------
-// Retrieve process info provider, lazy initialize
-//------------------------------------------------------------------------------
-ProcessInfoProvider* AuthenticationGroup::processInfoProvider() {
-  if(!processInfoProviderPtr) {
-    processInfoProviderPtr.reset(new ProcessInfoProvider());
-  }
-
-  return processInfoProviderPtr.get();
-}
-
-//------------------------------------------------------------------------------
-// Retrieve jail resolver, lazy initialize
-//------------------------------------------------------------------------------
-JailResolver* AuthenticationGroup::jailResolver() {
-  if(!jailResolverPtr) {
-    jailResolverPtr.reset(new JailResolver());
-  }
-
-  return jailResolverPtr.get();
+BoundIdentityProvider* AuthenticationFixture::boundIdentityProvider() {
+  return group()->boundIdentityProvider();
 }
 
