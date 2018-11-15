@@ -46,6 +46,7 @@ Bug
 Improvements
 ------------
 
+* [EOS-3091] allow to ban eosxd clients (=> EPERM)
 * [EOS-3073] auto-scale IO buffers according to available client memory
 * [EOS-3072] add number of open files to the eosxd statistics output
 * [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g.
