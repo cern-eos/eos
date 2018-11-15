@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -24,44 +24,49 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include <string.h>
+#include <sstream>
+#include <iomanip>
 /*----------------------------------------------------------------------------*/
 
-/* Print out help for ARG, or for all of the commands if ARG is
-   not present. */
+//------------------------------------------------------------------------------
+// Print help text for ARG or print help text
+// for all of the commands if ARG is not present
+//------------------------------------------------------------------------------
 int
 com_help (char *arg)
 {
-  int i;
+  std::string sarg;
   int printed = 0;
 
-  for (i = 0; commands[i].name; i++)
-  {
-    if (!*arg || (strcmp(arg, commands[i].name) == 0))
-    {
+  // Unquote argument
+  std::stringstream ss;
+  ss << arg;
+  ss >> std::quoted(sarg);
+
+  // Print specific help text or print all commands if null argument
+  for (int i = 0; commands[i].name; i++) {
+    if (!*arg || (strcmp(sarg.c_str(), commands[i].name) == 0)) {
       printf("%-20s %s\n", commands[i].name, commands[i].doc);
       printed++;
     }
   }
 
-  if (!printed)
-  {
-    printf("No commands match `%s'.  Possibilties are:\n", arg);
+  if (!printed) {
+    printf("No commands match '%s'. Possibilities are:\n", sarg.c_str());
 
-    for (i = 0; commands[i].name; i++)
-    {
+    for (int i = 0; commands[i].name; i++) {
       /* Print in six columns. */
-      if (printed == 6)
-      {
+      if (printed == 6) {
         printed = 0;
         printf("\n");
       }
 
-      printf("%s\t", commands[i].name);
+      printf("%-12s", commands[i].name);
       printed++;
     }
 
-    if (printed)
-      printf("\n");
+    if (printed) { printf("\n"); }
   }
-  return (0);
+
+  return 0;
 }
