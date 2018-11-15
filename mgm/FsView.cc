@@ -714,7 +714,7 @@ bool DoubleAggregator::deepAggregate(
   const std::set<eos::common::FileSystem::fsid_t>& leaves,
   const size_t& idx)
 {
-  // Not necessary for the statistics. Might be usefull for some more advanced
+  // Not necessary for the statistics. Might be useful for some more advanced
   // statistics requiring using the whole distribution at each depth.
   return false;
 }
@@ -836,7 +836,7 @@ LongLongAggregator::deepAggregate(
   const size_t& idx)
 {
   // Not necessary for the statistics
-  // might be usefull for some more advanced statistics requiring using the
+  // might be useful for some more advanced statistics requiring using the
   // whole distribution at each depth e.g median
   return false;
 }
@@ -4212,7 +4212,7 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
 }
 
 //------------------------------------------------------------------------------
-// Re-evaluates the drainnig state in all groups and resets the state
+// Re-evaluates the draining state in all groups and resets the state
 //------------------------------------------------------------------------------
 void
 FsSpace::ResetDraining()

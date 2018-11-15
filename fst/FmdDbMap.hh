@@ -130,7 +130,7 @@ public:
   //! @param fsid filesystem id
   //! @param do_lock if true then lock the mMapMutex
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock = false);
 
@@ -147,7 +147,7 @@ public:
   //! @param layoutid layout id used to store during creation
   //! @param isRW indicates if we create a non-existing Fmd
   //!
-  //! @return pointer to Fmd struct if successfull, otherwise nullptr
+  //! @return pointer to Fmd struct if successful, otherwise nullptr
   //----------------------------------------------------------------------------
   FmdHelper* LocalGetFmd(eos::common::FileId::fileid_t fid,
                          eos::common::FileSystem::fsid_t fsid,
@@ -171,7 +171,7 @@ public:
   //!
   //! @param fmd pointer to Fmd
   //!
-  //! @return true if record was commited, otherwise false
+  //! @return true if record was committed, otherwise false
   //----------------------------------------------------------------------------
   bool Commit(FmdHelper* fmd, bool lockit = true);
 
@@ -187,7 +187,7 @@ public:
   //! @param blockcxerror inidicator for block checksum error
   //! @param flaglayouterror indication for layout error
   //!
-  //! @return true if record has been commited
+  //! @return true if record has been committed
   //----------------------------------------------------------------------------
   bool UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
                       eos::common::FileId::fileid_t fid,
@@ -206,7 +206,7 @@ public:
   //! @param mgmsize size of the file in the mgm namespace
   //! @param mgmchecksum checksum of the file in the mgm namespace
   //!
-  //! @return true if record has been commited
+  //! @return true if record has been committed
   //----------------------------------------------------------------------------
   bool UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
                      eos::common::FileId::fileid_t fid,
@@ -246,7 +246,7 @@ public:
   //! @param fsid filesystem id
   //! @param flaglayouterror indicates a layout error
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncDisk(const char* fstpath,
                   eos::common::FileSystem::fsid_t fsid,
@@ -259,7 +259,7 @@ public:
   //! @param fsid file system id
   //! @param flaglayouterror flag to indicate a layout error
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncAllDisk(const char* path,
                      eos::common::FileSystem::fsid_t fsid,
@@ -272,7 +272,7 @@ public:
   //! @param fid file id
   //! @param manager manager hostname
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                  eos::common::FileId::fileid_t fid, const char* manager);
@@ -283,7 +283,7 @@ public:
   //! @param fsid filesystem id
   //! param manager manger hostname
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                     const char* manager);
@@ -294,7 +294,7 @@ public:
   //! @param qdb_members members of the QDB cluster
   //! @param fsid filesystem id
   //!
-  //! @return true if successfull, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncAllFromQdb(const QdbContactDetails& contactDetails,
                         eos::common::FileSystem::fsid_t fsid);

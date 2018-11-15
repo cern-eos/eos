@@ -294,7 +294,7 @@ public:
               const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
-  //! check if file eixsts by vid
+  //! check if file exists by vid
   // ---------------------------------------------------------------------------
   int
   _exists(const char* fileName,

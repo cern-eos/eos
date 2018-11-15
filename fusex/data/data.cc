@@ -1909,7 +1909,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
         }
       }
 
-      // make sure all writes were successfull
+      // make sure all writes were successful
       status = mFile->xrdiorw(req)->WaitWrite();
 
       if (!status.IsOK()) {

@@ -63,7 +63,7 @@ public:
   off_t                      mUploadLeftSize;     //< size of data still to upload
 
   bool                       mRangeDecodingError; //< indicating an invalid range request
-  bool                       mRangeRequest;       //< indication if httpHandle has a range rqeuest
+  bool                       mRangeRequest;       //< indication if httpHandle has a range request
   std::string                mBoundary;           //< boundary "EOSMULTIPARBOUNDARY"
   std::string                mBoundaryEnd;        //< end boundary "--EOSMULTIPARTBOUNDARY--"
   std::string                mMultipartHeader;    //< multipart Content tag
@@ -73,7 +73,7 @@ public:
   bool                       mLastChunk; //< indicates the last chunk in a chunked upload
   bool                       mBoundaryEndSent;    //< true when the boundary end was sent
   std::string                mPrint;              //< print buffer to print the handle contents
-  int                        mCloseCode;          //< close code to return if file upload was successfull
+  int                        mCloseCode;          //< close code to return if file upload was successful
   unsigned long long         mFileId;             //< file id used in EOS - determined after Ofs::Open
   std::string                mLogId;              //< log id used in EOS - determined after Ofs::Open
   int                        mErrCode;            //< first seen error code

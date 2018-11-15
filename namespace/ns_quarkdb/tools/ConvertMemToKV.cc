@@ -881,7 +881,7 @@ ConvertQuotaView::commitToBackend()
               << "while exporting the quota view" << std::endl;
     std::terminate();
   } else {
-    std::cout << "Quota view successfully commited" << std::endl;
+    std::cout << "Quota view successfully committed" << std::endl;
   }
 }
 

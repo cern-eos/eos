@@ -82,7 +82,7 @@ ContainerMD::ContainerMD(const ContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
-// Asignment operator
+// Assignment operator
 //------------------------------------------------------------------------------
 ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 {

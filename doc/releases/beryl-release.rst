@@ -331,7 +331,7 @@ Bug Fixes
 Bug Fix
 +++++++
 
-- FUSE: remove falsely commited debug return statement disabling stale cache file detection from previous fix
+- FUSE: remove falsely committed debug return statement disabling stale cache file detection from previous fix
 - FST: extending '.eosscan' functionality to cleanup ghost entries which are neither on disk or memory but can normally only be removed by wiping the local database and rebuild from scratch
 
 ``V0.3.232 Aquamarine``
@@ -1496,7 +1496,7 @@ Bug Fixes
 
 Bug Fixes
 +++++++++
-- fix comparison beteen FQDN and hostname when registering FSTs with the MGM
+- fix comparison between FQDN and hostname when registering FSTs with the MGM
 - forward errno to client console when archive/backup command fails
 - fix accidental deletion of opaque info at the MGM for fsctl commands
 - various FUSE bugfixes
@@ -1590,7 +1590,7 @@ Bug Fixes
 Bug Fixes
 +++++++++
 - symlink fixes
-- fix round-robin behaviour of scheduler for single and multi-repliace placements
+- fix round-robin behaviour of scheduler for single and multi-replace placements
 
 ``V0.3.119 Aquamarine``
 =======================
@@ -1612,8 +1612,8 @@ Bug Fixes
 
 - use correct lock type (write) for merge,attr:set calls
 - resolve locking issue when new SpaceQuota objects have to be created
-- implement a fast and successfull shutdown procedure for the MGM
-- implement saveguard for the manager name configurationi in FSTs
+- implement a fast and successful shutdown procedure for the MGM
+- implement saveguard for the manager name configuration in FSTs
 
 ``V0.3.117 Aquamarine``
 =======================

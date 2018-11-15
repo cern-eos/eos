@@ -106,7 +106,7 @@ private:
   };
 
   //! Vector of two elements containing the batch which is currently being
-  //! accumulated and the batch which is being commited to the namespace by the
+  //! accumulated and the batch which is being committed to the namespace by the
   //! asynchronous thread
   std::vector<UpdateT> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch

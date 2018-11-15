@@ -442,7 +442,7 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Return layout blocksize in bytese
+  //! Return layout blocksize in bytes
   //--------------------------------------------------------------------------
   static unsigned long
   GetBlocksize(unsigned long layout)
@@ -1003,7 +1003,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Return number of stripes enum from env definition]
+  //! Return number of stripes enum from env definition
   //----------------------------------------------------------------------------
   static unsigned long
   GetStripeNumberFromEnv(XrdOucEnv& env)

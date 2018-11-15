@@ -87,7 +87,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 }
 
 //------------------------------------------------------------------------------
-// Initizlize the container service
+// Initialize the container service
 //------------------------------------------------------------------------------
 void
 ContainerMDSvc::initialize()

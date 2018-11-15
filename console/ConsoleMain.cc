@@ -187,7 +187,7 @@ COMMAND commands[] = {
   { (char*) "vst", com_vst, (char*) "Virtual Storage Interface"},
   { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
   { (char*) "who", com_who, (char*) "Statistics about connected users"},
-  { (char*) "?", com_help, (char*) "Synonym for `help'"},
+  { (char*) "?", com_help, (char*) "Synonym for 'help'"},
   { (char*) ".q", com_quit, (char*) "Exit from EOS console"},
   { (char*) 0, (int (*)(char*))0, (char*) 0}
 };
@@ -317,7 +317,7 @@ wants_help(const char* arg1)
 }
 
 //------------------------------------------------------------------------------
-// Switches stdin,stdout,stderr to pipe mode where we are a persistant
+// Switches stdin, stdout, stderr to pipe mode where we are a persistent
 // communication daemon for a the eospipe command forwarding commands.
 //------------------------------------------------------------------------------
 bool
@@ -627,7 +627,7 @@ usage()
   fprintf(stderr,
           "`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,
           "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr,
@@ -641,7 +641,7 @@ usage()
   fprintf(stderr,
           "            -v, --version                       : print version information\n");
   fprintf(stderr,
-          "            <mgm-url>                           : xroot URL of the management server e.g. root://<hostname>[:<port>]\n");
+          "            <mgm-url>                           : XRoot URL of the management server e.g. root://<hostname>[:<port>]\n");
   fprintf(stderr,
           "            <cmd>                               : eos shell command (use 'eos help' to see available commands)\n");
   fprintf(stderr,
@@ -650,15 +650,15 @@ usage()
           "            <filename>.eosh                     : eos script file name ending with .eosh suffix\n\n");
   fprintf(stderr, "Environment Variables: \n");
   fprintf(stderr,
-          "            EOS_MGM_URL                         : set's the redirector URL\n");
+          "            EOS_MGM_URL                         : sets the redirector URL\n");
   fprintf(stderr,
-          "            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
+          "            EOS_HISTORY_FILE                    : sets the command history file - by default '$HOME/.eos_history' is used\n\n");
   fprintf(stderr,
-          "            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
+          "            EOS_SOCKS4_HOST                     : sets the SOCKS4 proxy host name\n");
   fprintf(stderr,
-          "            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
+          "            EOS_SOCKS4_PORT                     : sets the SOCKS4 proxy port\n");
   fprintf(stderr,
-          "            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
+          "            EOS_PWD_FILE                        : sets the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
   fprintf(stderr,
           "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr, "Return Value: \n");
@@ -666,7 +666,7 @@ usage()
           "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
   fprintf(stderr, "Examples:\n");
   fprintf(stderr,
-          "            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variabel EOS_MGM_URL\n");
+          "            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variable EOS_MGM_URL\n");
   fprintf(stderr,
           "            eos -r 0 0                          : as before but take role root/root [only numeric IDs are supported]\n");
   fprintf(stderr,
@@ -678,10 +678,10 @@ usage()
   fprintf(stderr,
           "            eos --version                       : print version information\n");
   fprintf(stderr,
-          "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell.\n");
+          "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell\n");
   fprintf(stderr, "\n");
   fprintf(stderr,
-          " You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.");
+          "You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.\n");
   fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
 }
 

@@ -133,7 +133,7 @@ int com_backup(char* arg1)
 com_backup_usage:
   std::ostringstream oss;
   oss << "usage: backup <src_url> <dst_url> [options] " << std::endl
-      << " " << std:: endl
+      << " " << std::endl
       << " optional arguments: " << std::endl
       << " --ctime|mtime <val>s|m|h|d use the specified timewindow to select entries for backup"
       << std::endl

@@ -303,7 +303,7 @@ public:
   //----------------------------------------------------------------------------
   //! Decrement the number of references
   //!
-  //! @param isRW the type of references substracted rd/wr
+  //! @param isRW the type of references subtracted rd/wr
   //!
   //----------------------------------------------------------------------------
   void DecrementRef(bool isRW);

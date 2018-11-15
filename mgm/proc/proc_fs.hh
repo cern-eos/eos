@@ -200,7 +200,7 @@ int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
 
 //------------------------------------------------------------------------------
 //! Check if a file system can be moved. It needs to be active and in RW mode.
-//! @node needs to be called with FsView::ViewMutex locked
+//! @note needs to be called with FsView::ViewMutex locked
 //!
 //! @param fs file system object
 //! @param dst destination

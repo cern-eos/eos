@@ -109,7 +109,7 @@ com_stat(char* arg1)
       }
     }
 
-    fprintf(stdout, "  File: `%s'", path.c_str());
+    fprintf(stdout, "  File: '%s'", path.c_str());
 
     if (S_ISDIR(buf.st_mode)) {
       fprintf(stdout, " directory\n");

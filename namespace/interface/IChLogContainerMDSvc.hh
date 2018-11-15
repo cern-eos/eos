@@ -83,7 +83,7 @@ public:
   //! Commit the compacting information.
   //!
   //! Updates the metadata structures. Needs an exclusive lock on the
-  //! namespace. After successfull completion the new compacted
+  //! namespace. After successful completion the new compacted
   //! log will be used for all the new data
   //!
   //! @param compactingData state information obtained from CompactPrepare

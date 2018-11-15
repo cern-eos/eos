@@ -1445,7 +1445,7 @@ XrdFstOfsFile::close()
     if (closerc || (mRainReconstruct && hasReadError)) {
       // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file. If we do RAIN reconstruction we cleanup this
-      // local replica which was not commited.
+      // local replica which was not committed.
       if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
            eos::common::LayoutId::kRaidDP) ||
           (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
@@ -3228,7 +3228,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 std::string
 XrdFstOfsFile::ExtractLogId(const char* opaque) const
 {
-  std::string log_id = "unkown";
+  std::string log_id = "unknown";
 
   if (opaque == nullptr) {
     return log_id;

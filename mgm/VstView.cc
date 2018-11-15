@@ -263,7 +263,7 @@ var IPMapper = {
         if($.trim(ip) != '' && ipRegex.test(ip)){ //validate IP Address format
             var url = encodeURI(IPMapper.baseUrl + ip + "?callback=?"); //geocoding url
             $.getJSON(url, function(data) { //get Geocoded JSONP data
-                if($.trim(data.latitude) != '' && data.latitude != '0' && !isNaN(data.latitude)){ //Geocoding successfull
+                if($.trim(data.latitude) != '' && data.latitude != '0' && !isNaN(data.latitude)){ //Geocoding successful
                     var latitude = data.latitude;
                     var longitude = data.longitude;
                     var contentString = '<b>EOS Site:</b>' + site.toUpperCase() + '<br />';

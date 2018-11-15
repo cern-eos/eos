@@ -218,7 +218,7 @@ RWMutex::RWMutex(RWMutex&& other) noexcept
 
 
 //------------------------------------------------------------------------------
-// Try to read lock the mutex within the timout value
+// Try to read lock the mutex within the timeout value
 //------------------------------------------------------------------------------
 bool
 RWMutex::TimedRdLock(uint64_t timeout_ns)

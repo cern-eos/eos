@@ -483,7 +483,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
- * @param dropsource indicates if the source is deleted(dropped) after successfull replication
+ * @param dropsource indicates if the source is deleted(dropped) after successful replication
  * @param expressflag if true the copy is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR
@@ -574,7 +574,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
- * @param dropsource indicates if the source is deleted(dropped) after successfull replication
+ * @param dropsource indicates if the source is deleted(dropped) after successful replication
  * @param expressflag if true the copy is put in front of the queue on the FST
  *
  * @return SFS_OK if success otherwise SFS_ERROR

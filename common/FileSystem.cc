@@ -635,7 +635,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 }
 
 //------------------------------------------------------------------------------
-// Snapshots all variables of a filesystem into a snapsthot struct
+// Snapshots all variables of a filesystem into a snapshot struct
 //------------------------------------------------------------------------------
 bool
 FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,

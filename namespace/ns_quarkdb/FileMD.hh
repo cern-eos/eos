@@ -74,7 +74,7 @@ public:
   virtual FileMD* clone() const override;
 
   //----------------------------------------------------------------------------
-  //! Asignment operator
+  //! Assignment operator
   //----------------------------------------------------------------------------
   FileMD& operator=(const FileMD& other);
 

@@ -102,7 +102,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
   if (!spath.beginswith("/")) {
     errno = EINVAL;
-    return Emsg(epname, error, EINVAL, "create directory - you have to specifiy"
+    return Emsg(epname, error, EINVAL, "create directory - you have to specify"
                 " an absolute pathname", path);
   }
 

@@ -136,7 +136,7 @@ public:
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
-  //! @param readahead set if readahead is to be used
+  //! @param readahead set if read-ahead is to be used
   //! @param timeout timeout value
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
@@ -332,8 +332,9 @@ public:
   // ------------------------------------------------------------------------
   //! Set attribute synchronization mode
   //!
-  //! @param on if true - every set attributes runs 'pull-modify-push', otherwise the destructor finished a 'pull-modify-modify-....-push' sequence
-  //! @return nothing
+  //! @param mode if true, every set attributes runs 'pull-modify-push',
+  //!             otherwise runs just once in the destructor,
+  //!             doing a 'pull-modify-modify-....-push' sequence
   // ------------------------------------------------------------------------
   void setAttrSync(bool mode = false)
   {

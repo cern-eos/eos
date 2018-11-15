@@ -132,6 +132,7 @@ void com_fs_help()
       << std::endl
       << "    scaninterval=<seconds>" << std::endl
       << "      configure a scanner thread to recheck the file & block checksum"
+      << std::endl
       << "      of all stored files every <seconds>. 0 disables scanning"
       << std::endl
       << "    scanrate=<MB/s>" << std::endl
@@ -168,16 +169,16 @@ void com_fs_help()
       << "    drop all pending deletions on the filesystem" << std::endl
       << std::endl
       << "  fs dropghosts <fsid> " << std::endl
-      << "     drop all filesystem view ghost entries (ids without meta data objects in the namespace) on the filesystem"
-      << std::endl
+      << "    drop all filesystem view ghost entries " << std::endl
+      << "    (ids without meta data objects in the namespace)" << std::endl
       << std::endl
       << "  fs dropfiles <fsid> [-f]" << std::endl
       << "    drop all files on the filesystem" << std::endl
       << "    -f : unlink/remove files from the namespace (you have to remove"
       << std::endl
-      <<  "        the files from disk)" << std::endl
+      << "         the files from disk)" << std::endl
       << std::endl
-      << "  fs dumpmd <fsid> [--fid] [--path] [--size] [-m|-s]"  << std::endl
+      << "  fs dumpmd <fsid> [--fid] [--path] [--size] [-m|-s]" << std::endl
       << "    dump all file metadata on this filesystem in query format" << std::endl
       << "    --fid  : dump only the file ids" << std::endl
       << "    --path : dump only the file paths" << std::endl

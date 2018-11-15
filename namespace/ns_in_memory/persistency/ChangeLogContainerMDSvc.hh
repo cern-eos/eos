@@ -78,7 +78,7 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Initizlize the container service
+  //! Initialize the container service
   //--------------------------------------------------------------------------
   virtual void initialize() override;
 
@@ -133,7 +133,7 @@ public:
   virtual std::shared_ptr<IContainerMD> createContainer() override;
 
   //--------------------------------------------------------------------------
-  //! Update the contaienr metadata in the backing store after the
+  //! Update the container metadata in the backing store after the
   //! ContainerMD object has been changed
   //--------------------------------------------------------------------------
   virtual void updateStore(IContainerMD* obj) override;
@@ -186,10 +186,10 @@ public:
   void compact(void*& compactingData) override;
 
   //--------------------------------------------------------------------------
-  //! Commit the compacting infomrmation.
+  //! Commit the compacting information.
   //!
   //! Updates the metadata structures. Needs an exclusive lock on the
-  //! namespace. After successfull completion the new compacted
+  //! namespace. After successful completion the new compacted
   //! log will be used for all the new data
   //!
   //! @param compactingData state information obtained from CompactPrepare
@@ -225,7 +225,7 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! get slave mode
+  //! Get slave mode
   //--------------------------------------------------------------------------
   bool getSlaveMode()
   {

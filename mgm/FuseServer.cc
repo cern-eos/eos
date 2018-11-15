@@ -2501,7 +2501,7 @@ FuseServer::HandleMD(const std::string& id,
   } else if (op_type == md.ENDFLUSH) {
     ops = "ENDFLUSH";
   } else {
-    ops = "UNKOWN";
+    ops = "UNKNOWN";
   }
 
   eos_info("ino=%016lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),

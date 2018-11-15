@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
     }
 
     default:
-      std::cerr << "Unkown option: " << (char) c << std::endl;
+      std::cerr << "Unknown option: " << (char) c << std::endl;
       return usage_help();
     }
   }
@@ -196,7 +196,7 @@ void PrettyPrint(const std::string& senv)
 }
 
 //------------------------------------------------------------------------------
-// Print command useage info
+// Print command usage info
 //------------------------------------------------------------------------------
 int usage_help()
 {

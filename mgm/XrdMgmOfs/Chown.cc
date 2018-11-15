@@ -48,7 +48,7 @@ XrdMgmOfs::_chown(const char* path,
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * Chown has only an internal implementation because XRootD does not support
- * this operation in the Ofs interface. root can alwasy run the operation.
+ * this operation in the Ofs interface. root can always run the operation.
  * Users with the admin role can run the operation. Normal users can run the operation
  * if they have the 'c' permissions in 'sys.acl'. File ownership can only be changed
  * with the root or admin role. If uid,gid=0xffffffff, we don't set the uid/group
@@ -120,7 +120,7 @@ XrdMgmOfs::_chown(const char* path,
       } else {
         fmd = gOFS->eosView->getFile(path);
 
-        // Substract the file
+        // Subtract the file
         if (ns_quota) {
           ns_quota->removeFile(fmd.get());
         }

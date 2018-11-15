@@ -994,6 +994,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
+
 //------------------------------------------------------------------------------
 // Sort the groups in a space by priority - the first ones are the ones that
 // are most suitable to add a new file system to them.
@@ -1009,7 +1010,8 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
       return (a->size() < b->size());
     }
   };
-  // All groups in space are possible candidats
+
+  // All groups in space are possible candidates
   std::list<FsGroup*> grps; // first - highest priority, last - lowest
   std::set<std::string> set_grps;
   std::string node;
@@ -1045,6 +1047,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
 
   return ret_grps;
 }
+
 //------------------------------------------------------------------------------
 // Move a group to a space
 //------------------------------------------------------------------------------
@@ -1099,6 +1102,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
+
 //------------------------------------------------------------------------------
 // Move space to space
 //------------------------------------------------------------------------------
@@ -1162,6 +1166,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
+
 //------------------------------------------------------------------------------
 // Remove filesystem
 //------------------------------------------------------------------------------
@@ -1261,6 +1266,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
   return retc;
 }
+
 //-------------------------------------------------------------------------------
 // Clean unlinked files from filesystem
 //-------------------------------------------------------------------------------

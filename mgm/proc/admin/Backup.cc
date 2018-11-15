@@ -176,7 +176,7 @@ int ProcCommand::Backup()
 
   if (!twindow_type.empty()  && (twindow_type != "ctime")
       && (twindow_type != "mtime")) {
-    stdErr = "error: unkown time window type, should be ctime/mtime";
+    stdErr = "error: unknown time window type, should be ctime/mtime";
     retc = EINVAL;
     return SFS_OK;
   }

@@ -34,7 +34,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
+//! Forward declaration
 class IFileMDSvc;
 class IContainerMD;
 
@@ -65,7 +65,7 @@ public:
   FileMD(const FileMD& other);
 
   //----------------------------------------------------------------------------
-  //! Asignment operator
+  //! Assignment operator
   //----------------------------------------------------------------------------
   FileMD& operator = (const FileMD& other);
 

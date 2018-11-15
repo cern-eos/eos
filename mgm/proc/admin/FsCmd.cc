@@ -452,7 +452,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       riskanalysis = true;
     }
 
-    if (statusProto.riskassesment()) {
+    if (statusProto.riskassessment()) {
       riskanalysis = true;
     }
 

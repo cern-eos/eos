@@ -240,7 +240,7 @@ public:
 
           if ((itP != idMap->end()) && (itNP != idMap->end())) {
             // -------------------------------------------------------------
-            // substract all the files in the old tree from their quota node
+            // subtract all the files in the old tree from their quota node
             // -------------------------------------------------------------
             size_t deepness = 0;
             std::vector<std::set<std::shared_ptr<IContainerMD> > > dirTree;
@@ -327,7 +327,7 @@ public:
             dirTree.clear();
 
             if (pContainerAccounting) {
-              // move subtree accouting from source to destination
+              // move subtree accounting from source to destination
               ((ContainerAccounting*)
                pContainerAccounting)->AddTree(itNP->second.ptr.get(),
                                               it->second.ptr->getTreeSize());
@@ -537,7 +537,7 @@ private:
 namespace eos
 {
 //----------------------------------------------------------------------------
-// Initizlize the container service
+// Initialize the container service
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::initialize()
 {
@@ -882,7 +882,7 @@ std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer()
 }
 
 //----------------------------------------------------------------------------
-// Update the contaienr metadata in the backing store
+// Update the container metadata in the backing store
 //----------------------------------------------------------------------------
 void ChangeLogContainerMDSvc::updateStore(IContainerMD* obj)
 {
@@ -945,7 +945,7 @@ ChangeLogContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 }
 
 //----------------------------------------------------------------------------
-// Prepare for online compacting.
+// Prepare for online compacting
 //----------------------------------------------------------------------------
 void*
 ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName)
@@ -978,7 +978,7 @@ ChangeLogContainerMDSvc::compactPrepare(const std::string& newLogFileName)
 }
 
 //----------------------------------------------------------------------------
-// Do the compacting.
+// Do the compacting
 //----------------------------------------------------------------------------
 void
 ChangeLogContainerMDSvc::compact(void*& compactingData)
@@ -1014,7 +1014,7 @@ ChangeLogContainerMDSvc::compact(void*& compactingData)
 }
 
 //----------------------------------------------------------------------------
-// Commit the compacting information.
+// Commit the compacting information
 //----------------------------------------------------------------------------
 void
 ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
@@ -1043,7 +1043,7 @@ ChangeLogContainerMDSvc::compactCommit(void* compactingData, bool autorepair)
   }
 
   // Looks like we're all good and we won't be throwing any exceptions any
-  // more so we may get to updating the in-memory structures.
+  // more so we may get to updating the in-memory structures
   //
   // We start with the originally copied records
   uint64_t containerCounter = 0;

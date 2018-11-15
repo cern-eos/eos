@@ -85,7 +85,7 @@ private:
   static bool CheckFlags(const std::string& flags);
 
   //----------------------------------------------------------------------------
-  //! Set the path doing any neccessary modfications to the the absolute path
+  //! Set the path doing any necessary modifications to the the absolute path
   //!
   //! @param in_path input path
   //!
@@ -95,7 +95,7 @@ private:
 };
 
 //------------------------------------------------------------------------------
-// Set the path doing any neccessary modfications to the the absolute path
+// Set the path doing any necessary modifications to the the absolute path
 //------------------------------------------------------------------------------
 bool
 AclHelper::SetPath(const std::string& in_path)
@@ -255,11 +255,11 @@ AclHelper::ParseCommand(const char* arg)
 
     // If there is unsupported flag
     if (token.at(0) == '-') {
-      std::cerr << "error: unercognized flag " << token << std:: endl;
+      std::cerr << "error: unrecognized flag " << token << std::endl;
       return false;
     } else {
       if (acl->op() == AclProto::LIST) {
-        // Set the absolute path if neccessary
+        // Set the absolute path if necessary
         if (!SetPath(token)) {
           std::cerr << "error: failed to the the absolute path" << std::endl;
           return false;

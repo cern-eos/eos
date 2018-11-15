@@ -100,7 +100,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the configuration status of a file system. This can be used to trigger
   //! the draining.
-  //! @note Must be called wiht a lock on FsView::ViewMutex
+  //! @note Must be called with a lock on FsView::ViewMutex
   //!
   //! @param status file system status
   //!
@@ -116,7 +116,7 @@ public:
   //! @param str value of the key
   //! @param broadcast if true broadcast the change around
   //!
-  //! @return true if successfull otherwise false
+  //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool SetString(const char* key, const char* str, bool broadcast = true);
 

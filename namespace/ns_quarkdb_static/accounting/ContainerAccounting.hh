@@ -92,16 +92,16 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree
   //!
-  //! @param obj container where tree si added
-  //! @param dsize size of the subtree adeded
+  //! @param obj container where the tree should be added
+  //! @param dsize size of the subtree to be added
   //----------------------------------------------------------------------------
   void AddTree(IContainerMD* obj, int64_t dsize);
 
   //----------------------------------------------------------------------------
   //! Remove tree
   //!
-  //! @param obj container where tree si added
-  //! @param dsize size of the subtree adeded
+  //! @param obj container where the tree should be removed from
+  //! @param dsize size of the subtree to be removed
   //----------------------------------------------------------------------------
   void RemoveTree(IContainerMD* obj, int64_t dsize);
 
@@ -129,7 +129,7 @@ private:
   };
 
   //! Vector of two elements containing the batch which is currently being
-  //! accumulated and the batch which is being commited to the namespace by
+  //! accumulated and the batch which is being committed to the namespace by
   //! the asynchronous thread
   std::vector<UpdateT> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch

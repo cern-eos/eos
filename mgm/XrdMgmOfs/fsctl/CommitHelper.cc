@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/********************A***************************************************
+/************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
@@ -526,7 +526,7 @@ CommitHelper::handle_occhunk(eos::common::Mapping::VirtualIdentity_t& vid,
   if (option["occhunk"] && option["commitsize"]) {
     // store the index in flags;
     fmd->setFlags(params["oc_n"] + 1);
-    eos_thread_info("subcmd=commit max-chunks=%d commited-chunks=%d",
+    eos_thread_info("subcmd=commit max-chunks=%d committed-chunks=%d",
                     params["oc_max"],
                     fmd->getFlags());
 

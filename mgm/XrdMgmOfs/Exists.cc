@@ -36,9 +36,9 @@ XrdMgmOfs::exists(const char* inpath,
                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief Check for the existance of a file or directory
+ * @brief Check for the existence of a file or directory
  *
- * @param inpath path to check existance
+ * @param inpath path to check existence
  * @param file_exists return parameter specifying the type (see _exists for details)
  * @param error error object
  * @param client XRootD authentication object
@@ -76,7 +76,7 @@ XrdMgmOfs::_exists(const char* path,
                    const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief check for the existance of a file or directory
+ * @brief check for the existence of a file or directory
  *
  * @param path path to check
  * @param file_exists return the type of the checked path
@@ -208,7 +208,7 @@ XrdMgmOfs::_exists(const char* path,
                    const char* ininfo, bool take_lock)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief check for the existance of a file or directory
+ * @brief check for the existence of a file or directory
  *
  * @param path path to check
  * @param file_exists return the type of the checked path

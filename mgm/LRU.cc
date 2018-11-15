@@ -511,7 +511,7 @@ LRU::CacheExpire(const char* dir,
               // remove the last element  of the map
               auto it = lru_map.end();
               it--;
-              // substract the size
+              // subtract the size
               lru_size -= it->size;
               eos_static_info("msg=\"clean-up\" path=\"%s\"", it->path.c_str());
               lru_map.erase(it);

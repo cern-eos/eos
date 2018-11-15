@@ -706,7 +706,7 @@ private:
 namespace eos
 {
 //------------------------------------------------------------------------
-// Initizlize the file service
+// Initialize the file service
 //------------------------------------------------------------------------
 void ChangeLogFileMDSvc::initialize()
 {
@@ -1303,7 +1303,7 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
 }
 
 //------------------------------------------------------------------------------
-// Prepare for online compacting.
+// Prepare for online compacting
 //------------------------------------------------------------------------------
 void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
 {
@@ -1334,7 +1334,7 @@ void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
 }
 
 //------------------------------------------------------------------------------
-// Do the compacting.
+// Do the compacting
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::compact(void*& compactingData)
 {
@@ -1371,7 +1371,7 @@ void ChangeLogFileMDSvc::compact(void*& compactingData)
 }
 
 //------------------------------------------------------------------------------
-// Commit the compacting information.
+// Commit the compacting information
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
 {

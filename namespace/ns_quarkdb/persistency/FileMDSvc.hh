@@ -54,7 +54,7 @@ public:
   virtual ~FileMDSvc();
 
   //----------------------------------------------------------------------------
-  //! Initizlize the file service
+  //! Initialize the file service
   //----------------------------------------------------------------------------
   virtual void initialize() override;
 

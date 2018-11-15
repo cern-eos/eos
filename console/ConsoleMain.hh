@@ -91,12 +91,12 @@ int execute_line(char* line);
 int Run(int argc, char* argv[]);
 
 //------------------------------------------------------------------------------
-//! Check if input matches pattern and extact the file id if possible
+//! Check if input matches pattern and extract the file id if possible
 //!
 //! @param input input string which can also be a path
 //! @param pattern regular expression fxid:<hex_id> | fid: <dec_id>
 //!
-//! @return truen if input matches pattern, false otherwise
+//! @return true if input matches pattern, false otherwise
 //------------------------------------------------------------------------------
 bool RegWrapDenominator(XrdOucString& input, const std::string& key);
 

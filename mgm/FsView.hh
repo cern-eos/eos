@@ -117,7 +117,7 @@ public:
   //----------------------------------------------------------------------------
   // Aggregate the nodes at intermediate levels
   // WARNING target node might be part of the nodes to aggregate.
-  // Carefull before overwriting the target node.
+  // Careful before overwriting the target node.
   //----------------------------------------------------------------------------
   virtual bool aggregateNodes(const std::map<std::string , GeoTreeElement*>&
                               nodes,
@@ -210,7 +210,7 @@ public:
   bool runDeepAggregator(GeoTreeAggregator* aggregator)
   {
     // loop over the last level of Aggregate and call AggregateDeepLeaves
-    // loop from end-1 to beginning in mLevels and call AggregateDeppNodes
+    // loop from end-1 to beginning in mLevels and call AggregateDeepNodes
     // NOT IMPLEMENTED
     return false;
   }
@@ -258,7 +258,7 @@ public:
   {
     friend class GeoTree;
     using ContainerT = std::map<fsid_t, tElement*>;
-    ContainerT::const_iterator mIt; ///< Interator inside the container
+    ContainerT::const_iterator mIt; ///< Iterator inside the container
     ContainerT* mCont; ///< Pointer to original container
   public:
     //--------------------------------------------------------------------------
@@ -742,7 +742,7 @@ public:
   //!
   //! @param fs file system info
   //!
-  //! @return true if successful, othewise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
 
@@ -791,7 +791,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param start_heartbeat control wheather heartbeat thread is started - for
+  //! @param start_heartbeat control whether heartbeat thread is started - for
   //!                        testing purposes
   //----------------------------------------------------------------------------
   FsView(bool start_heartbeat = true):
@@ -839,7 +839,7 @@ public:
   //! Store the filesystem configuration into the config engine. Should be
   //! called whenever a filesystem wide parameters is changed.
   //!
-  //! @param fs file sytem object
+  //! @param fs file system object
   //----------------------------------------------------------------------------
   void StoreFsConfig(FileSystem* fs);
 

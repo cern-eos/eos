@@ -60,7 +60,7 @@ public:
   virtual ~ContainerMDSvc();
 
   //----------------------------------------------------------------------------
-  //! Initizlize the container service
+  //! Initialize the container service
   //----------------------------------------------------------------------------
   virtual void initialize() override;
 

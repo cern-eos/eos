@@ -183,7 +183,7 @@ public:
   //! @param configlist string holding the list of all configurations
   //! @param showbackup if true then show also the backups
   //!
-  //! @return true if listing successfull, otherwise false
+  //! @return true if listing successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool ListConfigs(XrdOucString& configlist,
                            bool showbackups = false) = 0;

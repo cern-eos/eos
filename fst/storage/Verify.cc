@@ -258,7 +258,7 @@ Storage::Verify()
                          verifyfile->fsId, fstPath.c_str());
         } else {
           if (localUpdate) {
-            eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s",
+            eos_static_info("committed verified meta data locally id=%llu on fs=%u path=%s",
                             verifyfile->fId, verifyfile->fsId, fstPath.c_str());
           }
 
@@ -301,7 +301,7 @@ Storage::Verify()
 
           if (verifyfile->commitSize || verifyfile->commitChecksum) {
             if (localUpdate) {
-              eos_static_info("commited verified meta data centrally id=%llu on fs=%u path=%s",
+              eos_static_info("committed verified meta data centrally id=%llu on fs=%u path=%s",
                               verifyfile->fId, verifyfile->fsId, fstPath.c_str());
             }
 

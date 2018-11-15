@@ -218,7 +218,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       std::ifstream configfile(jsonconfig, std::ifstream::binary);
 
       if (reader.parse(configfile, root, false)) {
-        fprintf(stderr, "# JSON parsing successfull\n");
+        fprintf(stderr, "# JSON parsing successful\n");
         has_config = true;
       } else {
         fprintf(stderr, "error: invalid configuration file %s - %s\n",

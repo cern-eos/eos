@@ -66,7 +66,7 @@ public:
   virtual ~IContainerMDSvc() {}
 
   //------------------------------------------------------------------------
-  //! Initizlize the container service
+  //! Initialize the container service
   //------------------------------------------------------------------------
   virtual void initialize() = 0;
 

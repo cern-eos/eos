@@ -28,7 +28,7 @@
 //! can be sampled. Then some basics statistics are available.
 //! The statistics are available at the instance granularity or at the class
 //! granularity. If the timing is turned off (at both levels), the instrumented
-//! class is approximatively as fast as the native class.
+//! class is approximately as fast as the native class.
 //! Note that taking the timing of a mutex lock multiply the lock exec time by
 //! a factor from 4 up to 6. An estimation of the added latency is provided as
 //! well as a mechanism for timing compensation.
@@ -134,7 +134,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the timeinterval when to stacktrace a long lasting lock
+  //! Set the time interval when to stacktrace a long lasting lock
   //!
   //! @param blockedfor time in ms
   //----------------------------------------------------------------------------
@@ -175,7 +175,7 @@ public:
   //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
   //!
-  //! @param timeout_ns nano seconds timeout
+  //! @param timeout_ns nanoseconds timeout
   //!
   //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
@@ -194,7 +194,7 @@ public:
   //----------------------------------------------------------------------------
   //! Try to write lock the mutex within the timeout
   //!
-  //! @param timeout_ns nano seconds timeout
+  //! @param timeout_ns nanoseconds timeout
   //!
   //! @return true if lock acquired successfully, otherwise false
   //----------------------------------------------------------------------------
@@ -245,7 +245,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get the timing status  at the class level
+  //! Get the timing status at the class level
   //----------------------------------------------------------------------------
   inline static bool GetTimingGlobal()
   {
@@ -378,7 +378,7 @@ public:
   //----------------------------------------------------------------------------
   //! Add or overwrite an order checking rule
   //! @param rulename  name of the rule
-  //! @param order vector contaning the adress of the RWMutex instances in the
+  //! @param order vector containing the address of the RWMutex instances in the
   //! locking order
   //!
   //! @return 0 if successful, otherwise -1

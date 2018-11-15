@@ -42,7 +42,7 @@ GIT_ROOT=$(git rev-parse --show-toplevel)
 ARTISTIC_STYLE_OPTIONS=$(cat ${GIT_ROOT}/utils/astylerc | grep -v '^#' | tr '\n' ' ')
 #echo "Astyle options: ${ARTISTIC_STYLE_OPTIONS}"
 
-# Grab all the files to be commited i.e. the ones added to the local index
+# Grab all the files to be committed i.e. the ones added to the local index
 FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "\.(c|h|cpp|hpp|cc|hh)$")
 set -e
 

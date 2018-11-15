@@ -44,7 +44,7 @@ These snapshots are then copied and used to serve all the file access/placement 
 To achieve its tasks, the GeoTreeEngine has several features including:
 
 * a background *updater* which keeps snapshots and trees up-to-date. It updates snapshots and, only when needed, trees. Only when it is ultimately necessary, the updates on the snapshots are backported to the trees. It happens when a filesystem is added or removed from a scheduling group. So in general, snapshots have fresher information than trees. This is perfectly normal. 
-* a *penalty system* which makes sure that some filesystems cannot be overscheduled in bursts of requests. Atomic penalties can be self-estimated or fixed. These penalties are substracted from the *dlscore* and the *ulscore* of the scheduled fs.
+* a *penalty system* which makes sure that some filesystems cannot be over-scheduled in bursts of requests. Atomic penalties can be self-estimated or fixed. These penalties are subtracted from the *dlscore* and the *ulscore* of the scheduled fs.
 * a *latency estimation system* which estimates how fresh is the information the state of the GeoTreeEngine is based on.
 
 Internal parameters

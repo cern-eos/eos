@@ -567,7 +567,7 @@ FsHelper::ParseCommand(const char* arg)
         if (soption == "-l") {
           status->set_longformat(true);
         } else if (soption == "-r") {
-          status->set_riskassesment(true);
+          status->set_riskassessment(true);
         } else {
           // This is a hostname specification
           if ((soption.find('.') != std::string::npos) &&

@@ -215,7 +215,7 @@ class Dispatcher(object):
                 try:
                     self.procs[dict_resp['uuid']].update(dict_resp)
                 except KeyError as __:
-                    err_msg = ("Unkown process response:{0}").format(dict_resp)
+                    err_msg = ("Unknown process response:{0}").format(dict_resp)
                     self.logger.error(err_msg)
 
                 recv_uuid.append(dict_resp['uuid'])
