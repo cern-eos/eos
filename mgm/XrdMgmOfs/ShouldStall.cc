@@ -52,36 +52,36 @@ XrdMgmOfs::ShouldStall(const char* function,
   if (stall) {
     if ((vid.uid > 3)) {
       if (Access::gBannedUsers.count(vid.uid)) {
-        // fuse clients don't get stalled by a booted namespace
+        // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
-          return false;
+          return true;
         }
 
         // BANNED USER
         stalltime = 300;
         smsg = "you are banned in this instance - contact an administrator";
       } else if (Access::gBannedGroups.count(vid.gid)) {
-        // fuse clients don't get stalled by a booted namespace
+        // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
-          return false;
+          return true;
         }
 
         // BANNED GROUP
         stalltime = 300;
         smsg = "your group is banned in this instance - contact an administrator";
       } else if (Access::gBannedHosts.count(vid.host)) {
-        // fuse clients don't get stalled by a booted namespace
+        // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
-          return false;
+          return true;
         }
 
         // BANNED HOST
         stalltime = 300;
         smsg = "your client host is banned in this instance - contact an administrator";
       } else if (Access::gBannedDomains.count(vid.domain)) {
-        // fuse clients don't get stalled by a booted namespace
+        // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
-          return false;
+          return true;
         }
 
         // BANNED DOMAINS

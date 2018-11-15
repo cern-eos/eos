@@ -174,7 +174,10 @@ XrdMgmOfs::FSctl(const int cmd,
     iopaque[0] = 0;
   }
 
-  eos_static_debug("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  }
+
   const char* inpath = ipath;
   const char* ininfo = iopaque;
   // Do the id mapping with the opaque information
@@ -187,7 +190,11 @@ XrdMgmOfs::FSctl(const int cmd,
   ThreadLogId.SetSingleShotLogId(tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-  eos_static_debug("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+  }
+
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
   // ---------------------------------------------------------------------------
@@ -203,11 +210,14 @@ XrdMgmOfs::FSctl(const int cmd,
   // so that features of the instance can be retrieved by an authenticated user and
   // router front-ends can discover the activation state of the mgm
   if ((execmd != "is_master") && (execmd != "version") && !fusexset) {
+    eos_static_info("checking if we have to bounce %d %d\n", vid.uid, vid.gid);
     BOUNCE_NOT_ALLOWED;
   }
 
-  eos_static_debug("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
-  eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
+  }
 
   // ---------------------------------------------------------------------------
   // XRootD Locate
@@ -244,42 +254,101 @@ XrdMgmOfs::FSctl(const int cmd,
 
   // Fuse e(x)tension - this we always redirect to the RW master
   if (fusexset) {
-    eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    }
 
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
-    return XrdMgmOfs::Fusex(path, protobuf.c_str(), env, error, ThreadLogId, vid, client);
+    return XrdMgmOfs::Fusex(path, protobuf.c_str(), env, error, ThreadLogId, vid,
+                            client);
   }
 
   if (scmd) {
-    if (execmd == "access")                  { return XrdMgmOfs::Access(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
-    else if (execmd == "adjustreplica")      { return XrdMgmOfs::AdjustReplica(inpath, ininfo, env, error, ThreadLogId, vid, client);      }
-    else if (execmd == "checksum")           { return XrdMgmOfs::Checksum(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
-    else if (execmd == "chmod")              { return XrdMgmOfs::Chmod(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
-    else if (execmd == "chown")              { return XrdMgmOfs::Chown(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
-    else if (execmd == "commit")             { return XrdMgmOfs::Commit(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
-    else if (execmd == "drop")               { return XrdMgmOfs::Drop(inpath, ininfo, env, error, ThreadLogId, vid, client);               }
-    else if (execmd == "event")              { return XrdMgmOfs::Event(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
-    else if (execmd == "getfmd")             { return XrdMgmOfs::Getfmd(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
-    else if (execmd == "is_master")          { return XrdMgmOfs::IsMaster(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
-    else if (execmd == "mastersignalbounce") { return XrdMgmOfs::MasterSignalBounce(inpath, ininfo, env, error, ThreadLogId, vid, client); }
-    else if (execmd == "mastersignalreload") { return XrdMgmOfs::MasterSignalReload(inpath, ininfo, env, error, ThreadLogId, vid, client); }
-    else if (execmd == "mkdir")              { return XrdMgmOfs::Mkdir(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
-    else if (execmd == "open")               { return XrdMgmOfs::Open(inpath, ininfo, env, error, ThreadLogId, vid, client);               }
-    else if (execmd == "readlink")           { return XrdMgmOfs::Readlink(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
-    else if (execmd == "redirect")           { return XrdMgmOfs::Redirect(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
-    else if (execmd == "rewrite")            { return XrdMgmOfs::Rewrite(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
-    else if (execmd == "schedule2balance")   { return XrdMgmOfs::Schedule2Balance(inpath, ininfo, env, error, ThreadLogId, vid, client);   }
-    else if (execmd == "schedule2delete")    { return XrdMgmOfs::Schedule2Delete(inpath, ininfo, env, error, ThreadLogId, vid, client);    }
-    else if (execmd == "schedule2drain")     { return XrdMgmOfs::Schedule2Drain(inpath, ininfo, env, error, ThreadLogId, vid, client);     }
-    else if (execmd == "stat")               { return XrdMgmOfs::FuseStat(inpath, ininfo, env, error, ThreadLogId, vid, client);           }
-    else if (execmd == "statvfs")            { return XrdMgmOfs::Statvfs(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
-    else if (execmd == "symlink")            { return XrdMgmOfs::Symlink(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
-    else if (execmd == "txstate")            { return XrdMgmOfs::Txstate(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
-    else if (execmd == "utimes")             { return XrdMgmOfs::Utimes(inpath, ininfo, env, error, ThreadLogId, vid, client);             }
-    else if (execmd == "version")            { return XrdMgmOfs::Version(inpath, ininfo, env, error, ThreadLogId, vid, client);            }
-    else if (execmd == "xattr")              { return XrdMgmOfs::Xattr(inpath, ininfo, env, error, ThreadLogId, vid, client);              }
-    else                                     { eos_thread_err("No implementation for %s", execmd.c_str()); }
+    if (execmd == "access")                  {
+      return XrdMgmOfs::Access(inpath, ininfo, env, error, ThreadLogId, vid,
+                               client);
+    } else if (execmd == "adjustreplica")      {
+      return XrdMgmOfs::AdjustReplica(inpath, ininfo, env, error, ThreadLogId, vid,
+                                      client);
+    } else if (execmd == "checksum")           {
+      return XrdMgmOfs::Checksum(inpath, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+    } else if (execmd == "chmod")              {
+      return XrdMgmOfs::Chmod(inpath, ininfo, env, error, ThreadLogId, vid,
+                              client);
+    } else if (execmd == "chown")              {
+      return XrdMgmOfs::Chown(inpath, ininfo, env, error, ThreadLogId, vid,
+                              client);
+    } else if (execmd == "commit")             {
+      return XrdMgmOfs::Commit(inpath, ininfo, env, error, ThreadLogId, vid,
+                               client);
+    } else if (execmd == "drop")               {
+      return XrdMgmOfs::Drop(inpath, ininfo, env, error, ThreadLogId, vid,
+                             client);
+    } else if (execmd == "event")              {
+      return XrdMgmOfs::Event(inpath, ininfo, env, error, ThreadLogId, vid,
+                              client);
+    } else if (execmd == "getfmd")             {
+      return XrdMgmOfs::Getfmd(inpath, ininfo, env, error, ThreadLogId, vid,
+                               client);
+    } else if (execmd == "is_master")          {
+      return XrdMgmOfs::IsMaster(inpath, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+    } else if (execmd == "mastersignalbounce") {
+      return XrdMgmOfs::MasterSignalBounce(inpath, ininfo, env, error, ThreadLogId,
+                                           vid, client);
+    } else if (execmd == "mastersignalreload") {
+      return XrdMgmOfs::MasterSignalReload(inpath, ininfo, env, error, ThreadLogId,
+                                           vid, client);
+    } else if (execmd == "mkdir")              {
+      return XrdMgmOfs::Mkdir(inpath, ininfo, env, error, ThreadLogId, vid,
+                              client);
+    } else if (execmd == "open")               {
+      return XrdMgmOfs::Open(inpath, ininfo, env, error, ThreadLogId, vid,
+                             client);
+    } else if (execmd == "readlink")           {
+      return XrdMgmOfs::Readlink(inpath, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+    } else if (execmd == "redirect")           {
+      return XrdMgmOfs::Redirect(inpath, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+    } else if (execmd == "rewrite")            {
+      return XrdMgmOfs::Rewrite(inpath, ininfo, env, error, ThreadLogId, vid,
+                                client);
+    } else if (execmd == "schedule2balance")   {
+      return XrdMgmOfs::Schedule2Balance(inpath, ininfo, env, error, ThreadLogId, vid,
+                                         client);
+    } else if (execmd == "schedule2delete")    {
+      return XrdMgmOfs::Schedule2Delete(inpath, ininfo, env, error, ThreadLogId, vid,
+                                        client);
+    } else if (execmd == "schedule2drain")     {
+      return XrdMgmOfs::Schedule2Drain(inpath, ininfo, env, error, ThreadLogId, vid,
+                                       client);
+    } else if (execmd == "stat")               {
+      return XrdMgmOfs::FuseStat(inpath, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+    } else if (execmd == "statvfs")            {
+      return XrdMgmOfs::Statvfs(inpath, ininfo, env, error, ThreadLogId, vid,
+                                client);
+    } else if (execmd == "symlink")            {
+      return XrdMgmOfs::Symlink(inpath, ininfo, env, error, ThreadLogId, vid,
+                                client);
+    } else if (execmd == "txstate")            {
+      return XrdMgmOfs::Txstate(inpath, ininfo, env, error, ThreadLogId, vid,
+                                client);
+    } else if (execmd == "utimes")             {
+      return XrdMgmOfs::Utimes(inpath, ininfo, env, error, ThreadLogId, vid,
+                               client);
+    } else if (execmd == "version")            {
+      return XrdMgmOfs::Version(inpath, ininfo, env, error, ThreadLogId, vid,
+                                client);
+    } else if (execmd == "xattr")              {
+      return XrdMgmOfs::Xattr(inpath, ininfo, env, error, ThreadLogId, vid,
+                              client);
+    } else                                     {
+      eos_thread_err("No implementation for %s", execmd.c_str());
+    }
   }
 
   return Emsg(epname, error, EINVAL, "execute FSctl command [EINVAL]", inpath);

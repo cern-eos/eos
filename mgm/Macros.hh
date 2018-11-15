@@ -80,8 +80,13 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 #define MAYSTALL { if (gOFS->IsStall) {                                        \
       XrdOucString stallmsg="";                                                \
       int stalltime=0;                                                         \
-      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) \
-        return gOFS->Stall(error,stalltime, stallmsg.c_str());                 \
+      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
+        if (stalltime) {                           \
+    return gOFS->Stall(error,stalltime, stallmsg.c_str());           \
+  } else {                     \
+    return gOFS->Emsg("maystall", error, EPERM, "operate - client is banned", "");         \
+  }                                                                      \
+      }                        \
     }                                                                          \
   }
 
