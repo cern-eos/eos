@@ -195,6 +195,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                               const std::string& log_id)
 {
   using eos::common::LayoutId;
+  using eos::common::StringConversion;
   XrdCl::URL url_src;
   eos::common::FileSystem::fs_snapshot src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
@@ -264,7 +265,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   std::ostringstream src_params;
 
   if (mRainReconstruct) {
-    src_params << "&mgm.path=" << fdrain.mFullPath
+    src_params << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
@@ -274,7 +275,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.lid=" << target_lid
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-               << "&mgm.path=" << fdrain.mFullPath
+               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
@@ -332,6 +333,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                               const std::string& log_id)
 {
   using eos::common::LayoutId;
+  using eos::common::StringConversion;
   XrdCl::URL url_dst;
   eos::common::FileSystem::fs_snapshot dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
@@ -374,7 +376,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.source.rgid=" << fdrain.mProto.gid()
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-               << "&mgm.path=" << fdrain.mFullPath.c_str()
+               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath.c_str())
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
