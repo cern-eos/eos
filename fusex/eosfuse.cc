@@ -111,14 +111,14 @@ EosFuse::~EosFuse()
 /* -------------------------------------------------------------------------- */
 static void
 /* -------------------------------------------------------------------------- */
-chmod_to_400_or_die(const std::string &path)
+chmod_to_400_or_die(const std::string& path)
 /* -------------------------------------------------------------------------- */
 {
-  if(path.empty()) {
+  if (path.empty()) {
     return;
   }
 
-  if(chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+  if (chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
     fprintf(stderr, "error: failed to make path=%s RWX for root - errno=%d",
             path.c_str(), errno);
     exit(-1);
@@ -431,15 +431,17 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         }
       }
 
-      if (!root["auth"].isMember("ssskeytab")) {
-        root["auth"]["ssskeytab"] = default_ssskeytab;
-        config.ssskeytab = root["auth"]["ssskeytab"].asString();
-        struct stat buf;
+      if (root["auth"]["sss"] == 1) {
+        if (!root["auth"].isMember("ssskeytab")) {
+          root["auth"]["ssskeytab"] = default_ssskeytab;
+          config.ssskeytab = root["auth"]["ssskeytab"].asString();
+          struct stat buf;
 
-        if (stat(config.ssskeytab.c_str(), &buf)) {
-          fprintf(stderr, "error: sss keytabfile '%s' does not exist!\n",
-                  config.ssskeytab.c_str());
-          exit(EINVAL);
+          if (stat(config.ssskeytab.c_str(), &buf)) {
+            fprintf(stderr, "error: sss keytabfile '%s' does not exist!\n",
+                    config.ssskeytab.c_str());
+            exit(EINVAL);
+          }
         }
       }
 
@@ -942,7 +944,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     config.auth.credentialStore += config.name.length() ? config.name : "default";
-
     // apply some defaults for all existing options
     // by default create all the specified cache paths
     std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
@@ -971,7 +972,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     chmod_to_400_or_die(cconfig.journal);
     chmod_to_400_or_die(cconfig.location);
     chmod_to_400_or_die(config.auth.credentialStore);
-
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
                                     1024;
     cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
