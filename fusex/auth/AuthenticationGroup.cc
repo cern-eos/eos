@@ -1,12 +1,11 @@
 //------------------------------------------------------------------------------
-//! @file fusexrdlogin.hh
-//! @author Andreas-Joachim Peters CERN
-//! @brief Class providing the login user name for an XRootD fusex connection
+// File: AuthenticationGroup.cc
+// Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,41 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "AuthenticationGroup.hh"
+#include "ProcessCache.hh"
 
-#ifndef FUSE_XRDLOGIN_HH_
-#define FUSE_XRDLOGIN_HH_
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
+: config(config_) {
+}
 
-#include <memory>
-#include "XrdCl/XrdClURL.hh"
-#include "llfusexx.hh"
-#include "auth/AuthenticationGroup.hh"
-#include "auth/ProcessCache.hh"
+//------------------------------------------------------------------------------
+// Retrieve process cache, lazy initialize
+//------------------------------------------------------------------------------
+ProcessCache& AuthenticationGroup::processCache() {
+  if(!processCachePtr) {
+    processCachePtr.reset(new ProcessCache());
+    processCachePtr->setCredentialConfig(config);
+  }
 
-class fusexrdlogin
-{
-public:
-  static int loginurl(XrdCl::URL& url, XrdCl::URL::ParamsMap& query,
-                      fuse_req_t req,
-                      fuse_ino_t ino,
-                      bool root_squash = false,
-                      int connectionid = 0);
-
-  static int loginurl(XrdCl::URL& url, XrdCl::URL::ParamsMap& query, uid_t uid,
-                      gid_t gid, pid_t pid,
-                      fuse_ino_t ino,
-                      bool root_squash = false,
-                      int connectionid = 0);
-
-
-  static std::string xrd_login(fuse_req_t req);
-
-  static std::string environment(fuse_req_t req);
-
-  static void initializeProcessCache(const CredentialConfig& config);
-  static std::unique_ptr<AuthenticationGroup> authGroup;
-  static ProcessCache* processCache; // owned by authGroup
-private:
-};
-
-
-#endif
+  return *processCachePtr;
+}

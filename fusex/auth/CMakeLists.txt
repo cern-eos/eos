@@ -23,6 +23,7 @@
 
 add_library(
   EosFuseAuth OBJECT
+  AuthenticationGroup.cc           AuthenticationGroup.hh
   BoundIdentityProvider.cc         BoundIdentityProvider.hh
                                    CredentialCache.hh
   ContentAddressableStore.cc       ContentAddressableStore.hh

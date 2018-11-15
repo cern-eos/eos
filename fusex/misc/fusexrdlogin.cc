@@ -32,12 +32,13 @@
 #define ECHRNG 44
 #endif
 
-std::unique_ptr<ProcessCache> fusexrdlogin::processCache;
+std::unique_ptr<AuthenticationGroup> fusexrdlogin::authGroup;
+ProcessCache* fusexrdlogin::processCache = nullptr;
 
 void fusexrdlogin::initializeProcessCache(const CredentialConfig& config)
 {
-  processCache.reset(new ProcessCache());
-  processCache->setCredentialConfig(config);
+  authGroup.reset(new AuthenticationGroup(config));
+  processCache = &(authGroup->processCache());
 }
 
 int fusexrdlogin::loginurl(XrdCl::URL& url,
