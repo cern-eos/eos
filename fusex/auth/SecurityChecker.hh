@@ -28,6 +28,9 @@
 #include <mutex>
 #include <atomic>
 #include <map>
+#ifdef __APPLE__
+#include <sys/types.h>
+#endif
 
 //------------------------------------------------------------------------------
 // A class which provides a preliminary check that a credentials file can be
@@ -69,34 +72,38 @@ public:
     time_t mtime;
     std::string contents;
 
-    static Info Ok(time_t mtime) {
+    static Info Ok(time_t mtime)
+    {
       Info ret;
       ret.state = CredentialState::kOk;
       ret.mtime = mtime;
       return ret;
     }
 
-    static Info BadPermissions() {
+    static Info BadPermissions()
+    {
       Info ret;
       ret.state = CredentialState::kBadPermissions;
       ret.mtime = -1;
       return ret;
     }
 
-    static Info CannotStat() {
+    static Info CannotStat()
+    {
       Info ret;
       ret.state = CredentialState::kCannotStat;
       ret.mtime = -1;
       return ret;
     }
 
-    static Info WithContents(time_t mtime, const std::string &contents) {
+    static Info WithContents(time_t mtime, const std::string& contents)
+    {
       Info ret;
       ret.state = CredentialState::kOkWithContents;
       ret.mtime = mtime;
       ret.contents = contents;
       return ret;
-   }
+    }
 
     Info() : state(CredentialState::kCannotStat), mtime(-1) { }
 
@@ -115,13 +122,13 @@ public:
   // data is faked.
   //----------------------------------------------------------------------------
   void inject(const JailIdentifier& jail, const std::string& path, uid_t uid,
-    mode_t mode, time_t mtime);
+              mode_t mode, time_t mtime);
 
   //----------------------------------------------------------------------------
   // Lookup given path, interpreted in the context of the given jail.
   //----------------------------------------------------------------------------
   Info lookup(const JailInformation& jail, const std::string& path, uid_t uid,
-    gid_t gid);
+              gid_t gid);
 
 private:
   //----------------------------------------------------------------------------
@@ -135,7 +142,7 @@ private:
   // Same as lookup, but only serve simulated data.
   //----------------------------------------------------------------------------
   Info lookupInjected(const JailIdentifier& jail, const std::string& path,
-    uid_t uid);
+                      uid_t uid);
 
   //----------------------------------------------------------------------------
   // Lookup given path in the context of our local jail.
@@ -147,7 +154,7 @@ private:
   // different jail.
   //----------------------------------------------------------------------------
   Info lookupNonLocalJail(const JailInformation& jail, const std::string& path,
-    uid_t uid, gid_t gid);
+                          uid_t uid, gid_t gid);
 
   std::mutex mtx;
   std::atomic<bool> useInjectedData{false};
