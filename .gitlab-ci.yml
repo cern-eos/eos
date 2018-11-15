@@ -260,7 +260,6 @@ macosx_dmg:
     - osx_artifacts/
   tags:
     - macosx-shell
-  allow_failure: true
 
 
 cc7_docker_image_commit:
