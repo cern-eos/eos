@@ -744,6 +744,24 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Seal opaque xrootd info i.e. replace any & with #AND#
+  //!
+  //! @param input string to be sealed
+  //!
+  //! @return newly sealed string
+  //----------------------------------------------------------------------------
+  static std::string SealXrdOpaque(const std::string& input);
+
+  //----------------------------------------------------------------------------
+  //! Unseal opaque xrootd inf i.e. replace any #AND# with &
+  //!
+  //! @param input string to be unsealed
+  //!
+  //! @return newly unsealed string
+  //----------------------------------------------------------------------------
+  static std::string UnsealXrdOpaque(const std::string& input);
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   StringConversion() {};

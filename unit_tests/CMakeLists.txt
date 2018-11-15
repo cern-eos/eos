@@ -68,7 +68,8 @@ set(COMMON_UT_SRCS
   common/MappingTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
-  common/RWMutexTest.cc)
+  common/RWMutexTest.cc
+  common/StringConversionTests.cc)
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc

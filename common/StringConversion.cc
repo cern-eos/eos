@@ -26,6 +26,7 @@
 #include "common/Timing.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
+#include <regex>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -1172,5 +1173,28 @@ StringConversion::EncodeInvalidUTF8(const string& key)
   }
 }
 
+//------------------------------------------------------------------------------
+// Seal opaque xrootd info. I.e. replace any & with #AND#
+//------------------------------------------------------------------------------
+std::string
+StringConversion::SealXrdOpaque(const std::string& input)
+{
+  std::string sealed {
+    input
+  };
+  ReplaceStringInPlace(sealed, "&", "#AND#");
+  return sealed;
+}
+
+//------------------------------------------------------------------------------
+// Unseal opaque xrootd info. I.e. replace any #AND# with &
+//------------------------------------------------------------------------------
+std::string
+StringConversion::UnsealXrdOpaque(const std::string& input)
+{
+  std::string unsealed {input};
+  ReplaceStringInPlace(unsealed, "#AND#", "&");
+  return unsealed;
+}
 
 EOSCOMMONNAMESPACE_END
