@@ -210,7 +210,6 @@ XrdMgmOfs::FSctl(const int cmd,
   // so that features of the instance can be retrieved by an authenticated user and
   // router front-ends can discover the activation state of the mgm
   if ((execmd != "is_master") && (execmd != "version") && !fusexset) {
-    eos_static_info("checking if we have to bounce %d %d\n", vid.uid, vid.gid);
     BOUNCE_NOT_ALLOWED;
   }
 
