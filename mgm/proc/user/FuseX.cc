@@ -71,7 +71,7 @@ ProcCommand::FuseX()
   uint64_t parentinode = 0;
 
   if (EOS_LOGS_DEBUG) {
-    eos_static_info("vid(%d,%d,%s)", vid.uid, vid.gid, vid.host.c_str());
+    eos_static_debug("vid(%d,%d,%s)", vid.uid, vid.gid, vid.host.c_str());
   }
 
   PROC_BOUNCE_NOT_ALLOWED;
