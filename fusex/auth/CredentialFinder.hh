@@ -82,7 +82,15 @@ public:
   // Constructor.
   //----------------------------------------------------------------------------
   TrustedCredentials(const UserCredentials& uc_, time_t mtime_) {
-    initialize(uc_, mtime_);
+    initialize(uc_, mtime_, "");
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor - intercepted credential path
+  //----------------------------------------------------------------------------
+  TrustedCredentials(const UserCredentials& uc_, time_t mtime_,
+    const std::string& intercepted) {
+    initialize(uc_, mtime_, intercepted);
   }
 
   //----------------------------------------------------------------------------
@@ -105,13 +113,30 @@ public:
   //----------------------------------------------------------------------------
   // Re-initialize contents.
   //----------------------------------------------------------------------------
-  void initialize(const UserCredentials& uc_, time_t mtime_) {
+  void initialize(const UserCredentials& uc_, time_t mtime_,
+    const std::string& intercepted) {
+
     uc = uc_;
     initialized = true;
     invalidated = false;
     mtime = mtime_;
+    interceptedPath = intercepted;
   }
 
+  //----------------------------------------------------------------------------
+  // Get credential path, maybe intercepted.
+  //----------------------------------------------------------------------------
+  std::string getFinalPath() const {
+    if(!interceptedPath.empty()) {
+      return interceptedPath;
+    }
+
+    return uc.fname;
+  }
+
+  //----------------------------------------------------------------------------
+  // Generate parameters for this TrustedCredential as ParamsMap
+  //----------------------------------------------------------------------------
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const
   {
     if (uc.hasUnsafeCharacters()) {
@@ -131,23 +156,28 @@ public:
       return;
     }
 
-    paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
-    paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
+    if(interceptedPath.empty()) {
+      paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
+      paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
+    }
 
     if (uc.type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
-      paramsMap["xrd.k5ccname"] = uc.fname;
+      paramsMap["xrd.k5ccname"] = getFinalPath();
     } else if (uc.type == CredentialType::KRK5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = uc.keyring;
     } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
-      paramsMap["xrd.gsiusrpxy"] = uc.fname;
+      paramsMap["xrd.gsiusrpxy"] = getFinalPath();
     } else {
       THROW("should never reach here");
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Generate parameters for this TrustedCredential as std::string
+  //----------------------------------------------------------------------------
   std::string toXrdParams() const
   {
     XrdCl::URL::ParamsMap paramsMap;
@@ -207,6 +237,7 @@ private:
   bool initialized;
   std::atomic<bool> invalidated;
   time_t mtime;
+  std::string interceptedPath;
 };
 
 // TrustedCredentials bound to a LoginIdentifier. We need this to talk to the MGM.

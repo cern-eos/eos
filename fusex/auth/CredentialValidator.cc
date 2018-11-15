@@ -50,7 +50,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
   //----------------------------------------------------------------------------
   if(uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
     uc.type == CredentialType::NOBODY) {
-    out.initialize(uc, 0);
+    out.initialize(uc, 0, "");
     return true;
   }
 
@@ -75,7 +75,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
       // Credential file is OK, and the SecurityChecker determined the path
       // can be used as-is - no need for copying.
       //------------------------------------------------------------------------
-      out.initialize(uc, info.mtime);
+      out.initialize(uc, info.mtime, "");
       return true;
     }
     case CredentialState::kOkWithContents: {
@@ -83,10 +83,9 @@ bool CredentialValidator::validate(const JailInformation &jail,
       // Credential file is OK, but is not safe to pass onto XrdCl. We should
       // copy it onto our own credential store, and use that when building
       // XrdCl params.
-      //
-      // TODO!
       //------------------------------------------------------------------------
-      out.initialize(uc, info.mtime);
+      std::string casPath = contentAddressableStore.put(info.contents);
+      out.initialize(uc, info.mtime, casPath);
       return true;
     }
   }
