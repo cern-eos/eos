@@ -23,12 +23,14 @@
 
 #include "CredentialValidator.hh"
 #include "CredentialFinder.hh"
+#include "ContentAddressableStore.hh"
 
 //----------------------------------------------------------------------------
 // Constructor - dependency injection of SecurityChecker
 //----------------------------------------------------------------------------
-CredentialValidator::CredentialValidator(SecurityChecker &chk)
-: checker(chk) { }
+CredentialValidator::CredentialValidator(SecurityChecker &chk,
+  ContentAddressableStore &cas)
+: checker(chk), contentAddressableStore(cas) { }
 
 //------------------------------------------------------------------------------
 // Validate the given set of UserCredentials, promote into TrustedCredentials,

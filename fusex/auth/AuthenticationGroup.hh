@@ -25,6 +25,8 @@
 #define EOS_FUSEX_AUTHENTICATION_GROUP_HH
 
 #include "CredentialFinder.hh"
+#include "CredentialValidator.hh"
+#include "ContentAddressableStore.hh"
 
 class ProcessCache;
 class BoundIdentityProvider;
@@ -32,6 +34,8 @@ class ProcessInfoProvider;
 class JailResolver;
 class SecurityChecker;
 class EnvironmentReader;
+class CredentialValidator;
+class ContentAddressableStore;
 
 //------------------------------------------------------------------------------
 // Utility class to manage ownership of all classes involved in the
@@ -75,6 +79,16 @@ public:
   //----------------------------------------------------------------------------
   EnvironmentReader* environmentReader();
 
+  //----------------------------------------------------------------------------
+  // Retrieve credential validator, lazy initialize
+  //----------------------------------------------------------------------------
+  CredentialValidator* credentialValidator();
+
+  //----------------------------------------------------------------------------
+  // Retrieve content addressable store, lazy initialize
+  //----------------------------------------------------------------------------
+  ContentAddressableStore* contentAddressableStore();
+
 private:
   CredentialConfig config;
 
@@ -82,6 +96,8 @@ private:
   std::unique_ptr<SecurityChecker> securityCheckerPtr;
   std::unique_ptr<JailResolver> jailResolverPtr;
   std::unique_ptr<ProcessInfoProvider> processInfoProviderPtr;
+  std::unique_ptr<CredentialValidator> credentialValidatorPtr;
+  std::unique_ptr<ContentAddressableStore> contentAddressableStorePtr;
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
 };

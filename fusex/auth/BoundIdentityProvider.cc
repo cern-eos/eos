@@ -24,15 +24,16 @@
 #include "Utils.hh"
 #include "BoundIdentityProvider.hh"
 #include "EnvironmentReader.hh"
+#include "CredentialValidator.hh"
 #include <sys/stat.h>
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 BoundIdentityProvider::BoundIdentityProvider(SecurityChecker& checker,
-  EnvironmentReader& reader)
+  EnvironmentReader& reader, CredentialValidator& valid)
   : securityChecker(checker), environmentReader(reader),
-    validator(securityChecker)
+    validator(valid)
 {
   // create an sss registry
   sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);

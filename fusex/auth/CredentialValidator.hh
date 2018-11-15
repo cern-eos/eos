@@ -24,10 +24,11 @@
 #ifndef FUSEX_CREDENTIAL_VALIDATOR_HH
 #define FUSEX_CREDENTIAL_VALIDATOR_HH
 
-#include "SecurityChecker.hh"
-#include "UserCredentials.hh"
-
 class TrustedCredentials;
+class SecurityChecker;
+class UserCredentials;
+class JailInformation;
+class ContentAddressableStore;
 
 //------------------------------------------------------------------------------
 // This class validates UserCredentials objects, and promotes those that
@@ -39,9 +40,9 @@ class TrustedCredentials;
 class CredentialValidator {
 public:
   //----------------------------------------------------------------------------
-  // Constructor - dependency injection of SecurityChecker
+  // Constructor
   //----------------------------------------------------------------------------
-  CredentialValidator(SecurityChecker &chk);
+  CredentialValidator(SecurityChecker &chk, ContentAddressableStore &cas);
 
   //----------------------------------------------------------------------------
   // Validate the given set of UserCredentials, promote into TrustedCredentials,
@@ -61,7 +62,7 @@ public:
 
 private:
   SecurityChecker &checker;
-
+  ContentAddressableStore &contentAddressableStore;
 };
 
 #endif

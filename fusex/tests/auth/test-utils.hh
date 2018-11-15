@@ -42,19 +42,41 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Get CAS path - maybe make configurable in the future, or something
+  //----------------------------------------------------------------------------
+  static std::string getCASPath() {
+    return "/tmp/eos-fusex-unit-tests/cas";
+  }
+
+  //----------------------------------------------------------------------------
+  // Initialize CAS
+  //----------------------------------------------------------------------------
+  static void InitializeCAS() {
+    system(SSTR("rm -rf " << getCASPath()).c_str());
+    system(SSTR("mkdir -p " << getCASPath()).c_str());
+  }
+
+  //----------------------------------------------------------------------------
   // Make unix-only configuration
   //----------------------------------------------------------------------------
   static CredentialConfig makeUnixConfig() {
-    return CredentialConfig();
+    InitializeCAS(); // This slows the tests down, maybe fix later
+
+    CredentialConfig config;
+    config.credentialStore = getCASPath();
+    return config;
   }
 
   //----------------------------------------------------------------------------
   // Make kerberos-only configuration
   //----------------------------------------------------------------------------
   static CredentialConfig makeKrb5Config() {
+    InitializeCAS(); // This slows the tests down, maybe fix later
+
     CredentialConfig config;
     config.use_user_krb5cc = true;
     config.fuse_shared = true;
+    config.credentialStore = getCASPath();
     return config;
   }
 

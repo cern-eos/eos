@@ -26,18 +26,18 @@
 
 #include "JailIdentifier.hh"
 #include "UnixAuthenticator.hh"
-#include "CredentialValidator.hh"
 #include "CredentialCache.hh"
 #include "CredentialFinder.hh"
 #include "ProcessInfo.hh"
-#include "EnvironmentReader.hh"
 #include "SecurityChecker.hh"
+#include "EnvironmentReader.hh"
 #include <XrdSec/XrdSecEntity.hh>
 #include <XrdSecsss/XrdSecsssID.hh>
 #include <atomic>
 
 class SecurityChecker;
 class EnvironmentReader;
+class CredentialValidator;
 
 class BoundIdentityProvider
 {
@@ -45,7 +45,8 @@ public:
   //----------------------------------------------------------------------------
   // Constructor.
   //----------------------------------------------------------------------------
-  BoundIdentityProvider(SecurityChecker& checker, EnvironmentReader& reader);
+  BoundIdentityProvider(SecurityChecker& checker, EnvironmentReader& reader,
+    CredentialValidator& validator);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of given environment
@@ -83,10 +84,6 @@ public:
   void setCredentialConfig(const CredentialConfig& conf)
   {
     credConfig = conf;
-    // For some reason, doing this in the constructor results in crazy behavior,
-    // like threads not waking up from the condition variable.
-    // (or even std::this_thread::sleep_for !! ) Investigate?
-    environmentReader.launchWorkers(3);
   }
 
   //----------------------------------------------------------------------------
@@ -106,9 +103,9 @@ public:
 private:
   SecurityChecker& securityChecker;
   EnvironmentReader& environmentReader;
+  CredentialValidator& validator;
 
   UnixAuthenticator unixAuthenticator;
-  CredentialValidator validator;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
   XrdSecsssID* sssRegistry;

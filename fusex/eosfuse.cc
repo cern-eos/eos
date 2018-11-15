@@ -109,6 +109,24 @@ EosFuse::~EosFuse()
 }
 
 /* -------------------------------------------------------------------------- */
+static void
+/* -------------------------------------------------------------------------- */
+chmod_to_400_or_die(const std::string &path)
+/* -------------------------------------------------------------------------- */
+{
+  if(path.empty()) {
+    return;
+  }
+
+  if(chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+    fprintf(stderr, "error: failed to make path=%s RWX for root - errno=%d",
+            path.c_str(), errno);
+    exit(-1);
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
 EosFuse::run(int argc, char* argv[], void* userdata)
@@ -405,6 +423,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["sss"] = 0;
       }
 
+      if (!root["auth"].isMember("credential-store")) {
+        if (geteuid()) {
+          root["auth"]["credential-store"] = "/var/tmp/eos/fusex/credential-store/";
+        } else {
+          root["auth"]["credential-store"] = "/var/cache/eos/fusex/credential-store/";
+        }
+      }
+
       if (!root["auth"].isMember("ssskeytab")) {
         root["auth"]["ssskeytab"] = default_ssskeytab;
         config.ssskeytab = root["auth"]["ssskeytab"].asString();
@@ -623,6 +649,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.use_user_sss = root["auth"]["sss"].asInt();
+    config.auth.credentialStore = root["auth"]["credential-store"].asString();
 
     if (config.auth.use_user_sss) {
       // store keytab location for this mount
@@ -914,11 +941,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.journal += config.name.length() ? config.name : "default";
     }
 
+    config.auth.credentialStore += config.name.length() ? config.name : "default";
+
     // apply some defaults for all existing options
     // by default create all the specified cache paths
     std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
     std::string mk_journaldir = "mkdir -p " + cconfig.journal;
     std::string mk_locationdir = "mkdir -p " + cconfig.location;
+    std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
 
     if (config.mdcachedir.length()) {
       system(mk_cachedir.c_str());
@@ -932,27 +962,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       system(mk_locationdir.c_str());
     }
 
+    if (config.auth.credentialStore.length()) {
+      system(mk_credentialdir.c_str());
+    }
+
     // make the cache directories private to root
-    if (config.mdcachedir.length()) if ((chmod(config.mdcachedir.c_str(),
-                                           S_IRUSR | S_IWUSR | S_IXUSR))) {
-        fprintf(stderr, "error: failed to make path=%s RWX for root - errno=%d",
-                config.mdcachedir.c_str(), errno);
-        exit(-1);
-      }
-
-    if (cconfig.journal.length()) if ((chmod(cconfig.journal.c_str(),
-                                         S_IRUSR | S_IWUSR | S_IXUSR))) {
-        fprintf(stderr, "error: failed to make path=%s RWX for root - errno=%d",
-                cconfig.journal.c_str(), errno);
-        exit(-1);
-      }
-
-    if (cconfig.location.length()) if ((chmod(cconfig.location.c_str(),
-                                          S_IRUSR | S_IWUSR | S_IXUSR))) {
-        fprintf(stderr, "error: failed to make path=%s RWX for root - errno=%d",
-                cconfig.location.c_str(), errno);
-        exit(-1);
-      }
+    chmod_to_400_or_die(config.mdcachedir);
+    chmod_to_400_or_die(cconfig.journal);
+    chmod_to_400_or_die(cconfig.location);
+    chmod_to_400_or_die(config.auth.credentialStore);
 
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
                                     1024;

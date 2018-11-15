@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "CredentialValidator.hh"
 #include "AuthenticationGroup.hh"
 #include "ProcessCache.hh"
 #include "ProcessInfo.hh"
@@ -50,7 +51,7 @@ ProcessCache* AuthenticationGroup::processCache() {
 BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider() {
   if(!boundIdentityProviderPtr) {
     boundIdentityProviderPtr.reset(new BoundIdentityProvider(
-      *securityChecker(), *environmentReader() ));
+      *securityChecker(), *environmentReader(), *credentialValidator() ));
     boundIdentityProviderPtr->setCredentialConfig(config);
   }
 
@@ -96,8 +97,34 @@ SecurityChecker* AuthenticationGroup::securityChecker() {
 EnvironmentReader* AuthenticationGroup::environmentReader() {
   if(!environmentReaderPtr) {
     environmentReaderPtr.reset(new EnvironmentReader());
+    environmentReaderPtr->launchWorkers(3);
   }
 
   return environmentReaderPtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve credential validator, lazy initialize
+//------------------------------------------------------------------------------
+CredentialValidator* AuthenticationGroup::credentialValidator() {
+  if(!credentialValidatorPtr) {
+    credentialValidatorPtr.reset(new CredentialValidator(*securityChecker(),
+      *contentAddressableStore()));
+  }
+
+  return credentialValidatorPtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve content addressable store, lazy initialize
+//------------------------------------------------------------------------------
+ContentAddressableStore* AuthenticationGroup::contentAddressableStore() {
+  if(!contentAddressableStorePtr) {
+    contentAddressableStorePtr.reset(
+      new ContentAddressableStore(config.credentialStore, std::chrono::hours(6),
+        false));
+  }
+
+  return contentAddressableStorePtr.get();
 }
 

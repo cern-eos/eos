@@ -67,6 +67,8 @@ public:
   unsigned environ_deadlock_timeout;
   //! Use PF_FORKNOEXEC as a heuristic to decide if the process is doing an execve.
   bool forknoexec_heuristic;
+  //! Credential store
+  std::string credentialStore;
 };
 
 //------------------------------------------------------------------------------
