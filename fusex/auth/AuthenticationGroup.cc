@@ -50,7 +50,8 @@ ProcessCache* AuthenticationGroup::processCache() {
 //------------------------------------------------------------------------------
 BoundIdentityProvider* AuthenticationGroup::boundIdentityProvider() {
   if(!boundIdentityProviderPtr) {
-    boundIdentityProviderPtr.reset(new BoundIdentityProvider());
+    boundIdentityProviderPtr.reset(new BoundIdentityProvider(
+      *securityChecker(), *environmentReader() ));
     boundIdentityProviderPtr->setCredentialConfig(config);
   }
 
@@ -77,5 +78,27 @@ JailResolver* AuthenticationGroup::jailResolver() {
   }
 
   return jailResolverPtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve security checker, lazy initialize
+//------------------------------------------------------------------------------
+SecurityChecker* AuthenticationGroup::securityChecker() {
+  if(!securityCheckerPtr) {
+    securityCheckerPtr.reset(new SecurityChecker());
+  }
+
+  return securityCheckerPtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve environment reader, lazy initialize
+//------------------------------------------------------------------------------
+EnvironmentReader* AuthenticationGroup::environmentReader() {
+  if(!environmentReaderPtr) {
+    environmentReaderPtr.reset(new EnvironmentReader());
+  }
+
+  return environmentReaderPtr.get();
 }
 

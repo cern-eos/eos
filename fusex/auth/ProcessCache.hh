@@ -118,18 +118,6 @@ public:
     credConfig = conf;
   }
 
-  ProcessInfoProvider& getProcessInfoProvider()
-  {
-    // Only used for testing
-    return processInfoProvider;
-  }
-
-  BoundIdentityProvider& getBoundIdentityProvider()
-  {
-    // Only used for testing
-    return boundIdentityProvider;
-  }
-
 private:
   //----------------------------------------------------------------------------
   // Discover some bound identity to use matching the given arguments.

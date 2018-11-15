@@ -29,8 +29,10 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-BoundIdentityProvider::BoundIdentityProvider()
-  : validator(securityChecker)
+BoundIdentityProvider::BoundIdentityProvider(SecurityChecker& checker,
+  EnvironmentReader& reader)
+  : securityChecker(checker), environmentReader(reader),
+    validator(securityChecker)
 {
   // create an sss registry
   sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);

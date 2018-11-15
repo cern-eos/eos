@@ -30,6 +30,8 @@ class ProcessCache;
 class BoundIdentityProvider;
 class ProcessInfoProvider;
 class JailResolver;
+class SecurityChecker;
+class EnvironmentReader;
 
 //------------------------------------------------------------------------------
 // Utility class to manage ownership of all classes involved in the
@@ -63,9 +65,21 @@ public:
   //----------------------------------------------------------------------------
   JailResolver* jailResolver();
 
+  //----------------------------------------------------------------------------
+  // Retrieve security checker, lazy initialize
+  //----------------------------------------------------------------------------
+  SecurityChecker* securityChecker();
+
+  //----------------------------------------------------------------------------
+  // Retrieve environment reader, lazy initialize
+  //----------------------------------------------------------------------------
+  EnvironmentReader* environmentReader();
+
 private:
   CredentialConfig config;
 
+  std::unique_ptr<EnvironmentReader> environmentReaderPtr;
+  std::unique_ptr<SecurityChecker> securityCheckerPtr;
   std::unique_ptr<JailResolver> jailResolverPtr;
   std::unique_ptr<ProcessInfoProvider> processInfoProviderPtr;
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;

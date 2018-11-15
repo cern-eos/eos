@@ -36,14 +36,16 @@
 #include <XrdSecsss/XrdSecsssID.hh>
 #include <atomic>
 
+class SecurityChecker;
+class EnvironmentReader;
+
 class BoundIdentityProvider
 {
 public:
   //----------------------------------------------------------------------------
   // Constructor.
   //----------------------------------------------------------------------------
-  BoundIdentityProvider();
-
+  BoundIdentityProvider(SecurityChecker& checker, EnvironmentReader& reader);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of given environment
@@ -93,16 +95,6 @@ public:
   bool checkValidity(const JailInformation& jail,
     const BoundIdentity& identity);
 
-  SecurityChecker& getSecurityChecker()
-  {
-    return securityChecker;
-  }
-
-  EnvironmentReader& getEnvironmentReader()
-  {
-    return environmentReader;
-  }
-
   //----------------------------------------------------------------------------
   // Fallback to unix authentication. Guaranteed to always return a valid
   // BoundIdentity object. (whether this is accepted by the server is another
@@ -112,12 +104,13 @@ public:
     bool reconnect);
 
 private:
+  SecurityChecker& securityChecker;
+  EnvironmentReader& environmentReader;
+
   UnixAuthenticator unixAuthenticator;
-  SecurityChecker securityChecker;
   CredentialValidator validator;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
-  EnvironmentReader environmentReader;
   XrdSecsssID* sssRegistry;
 
   //----------------------------------------------------------------------------
